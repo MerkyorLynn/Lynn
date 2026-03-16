@@ -54,6 +54,7 @@ export function InterfaceTab() {
                 'high-contrast': 'settings.appearance.highContrast',
                 'grass-aroma': 'settings.appearance.grassAroma',
                 'contemplation': 'settings.appearance.contemplation',
+                'absolutely': 'settings.appearance.absolutely',
                 'auto': 'settings.appearance.auto',
               };
               const modeKeys: Record<string, string> = {
@@ -62,6 +63,7 @@ export function InterfaceTab() {
                 'high-contrast': 'settings.appearance.highContrastMode',
                 'grass-aroma': 'settings.appearance.grassAromaMode',
                 'contemplation': 'settings.appearance.contemplationMode',
+                'absolutely': 'settings.appearance.absolutelyMode',
                 'auto': 'settings.appearance.autoMode',
               };
               return (

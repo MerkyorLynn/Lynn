@@ -305,6 +305,8 @@
       "grassAromaMode": "Butter",
       "contemplation": "Contemplation",
       "contemplationMode": "Ming",
+      "absolutely": "Absolutely",
+      "absolutelyMode": "Claude",
       "auto": "Auto",
       "autoMode": "System",
       "serifFont": "Serif Font",

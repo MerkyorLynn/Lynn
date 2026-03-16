@@ -12,6 +12,7 @@ const _THEME_FILES = {
   "high-contrast": "themes/high-contrast.css",
   "grass-aroma": "themes/grass-aroma.css",
   "contemplation": "themes/contemplation.css",
+  "absolutely": "themes/absolutely.css",
 };
 
 function systemPreferredTheme() {

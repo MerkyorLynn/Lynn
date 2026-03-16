@@ -5757,6 +5757,19 @@ body.resizing .jian-sidebar-inner {
     color: #7E99A8;
 }
 
+/* Absolutely：Claude 赤陶配色 */
+.theme-card[data-theme="absolutely"] {
+    background: #F4F3EE;
+}
+
+.theme-card[data-theme="absolutely"] .theme-card-name {
+    color: #2D2B28;
+}
+
+.theme-card[data-theme="absolutely"] .theme-card-mode {
+    color: #C96442;
+}
+
 /* 自动：左暖纸右蓝调，硬拼色 */
 .theme-card[data-theme="auto"] {
     background: #F4F0E4;
