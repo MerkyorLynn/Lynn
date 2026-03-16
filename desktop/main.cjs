@@ -282,6 +282,40 @@ async function startServer() {
 }
 
 /**
+ * 持久监控 server 进程：崩溃后自动重启一次，再失败则写 crash log 并通知用户
+ */
+let _serverRestartAttempts = 0;
+function monitorServer() {
+  if (!serverProcess) return;
+  serverProcess.on("exit", async (code, signal) => {
+    if (isQuitting) return; // 正常退出流程
+    const reason = signal ? `信号 ${signal}` : `退出码 ${code}`;
+    console.error(`[desktop] Server 意外退出 (${reason})`);
+
+    if (_serverRestartAttempts < 1) {
+      _serverRestartAttempts++;
+      console.log("[desktop] 尝试自动重启 Server...");
+      try {
+        await startServer();
+        console.log("[desktop] Server 重启成功");
+        monitorServer(); // 重新挂监控
+        // 通知前端重连
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("server-restarted", { port: serverPort });
+        }
+      } catch (err) {
+        console.error("[desktop] Server 重启失败:", err.message);
+        writeCrashLog(`Server 重启失败: ${err.message}`);
+        dialog.showErrorBox("Hanako Server", `Server 崩溃后重启失败。\n${err.message}\n\n请重新启动应用。`);
+      }
+    } else {
+      writeCrashLog(`Server 多次崩溃 (${reason})，放弃重启`);
+      dialog.showErrorBox("Hanako Server", `Server 多次崩溃 (${reason})。\n\n请重新启动应用。`);
+    }
+  });
+}
+
+/**
  * 显示主窗口（优先 onboardingWindow，其次 mainWindow）
  */
 function showPrimaryWindow() {
@@ -498,6 +532,24 @@ function createMainWindow() {
   if (process.argv.includes("--dev")) {
     mainWindow.webContents.openDevTools();
   }
+
+  // renderer 崩溃恢复：自动 reload
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    console.error(`[desktop] renderer 崩溃: ${details.reason} (code: ${details.exitCode})`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      setTimeout(() => {
+        try { mainWindow.reload(); } catch {}
+      }, 1000);
+    }
+  });
+
+  mainWindow.on("unresponsive", () => {
+    console.warn("[desktop] 主窗口无响应");
+  });
+
+  mainWindow.on("responsive", () => {
+    console.log("[desktop] 主窗口已恢复响应");
+  });
 
   // 窗口移动/缩放时保存状态
   mainWindow.on("resize", saveWindowState);
@@ -1880,6 +1932,7 @@ app.whenReady().then(async () => {
     console.log("[desktop] 启动 Hanako Server...");
     await startServer();
     console.log(`[desktop] Server 就绪，端口: ${serverPort}`);
+    monitorServer();
     setupBrowserCommands();
     createTray();
 
