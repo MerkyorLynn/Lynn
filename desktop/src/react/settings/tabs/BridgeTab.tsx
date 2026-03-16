@@ -58,7 +58,7 @@ export function BridgeTab() {
   const [fsAppSecret, setFsAppSecret] = useState('');
   // QQ fields
   const [qqAppId, setQqAppId] = useState('');
-  const [qqToken, setQqToken] = useState('');
+  const [qqAppSecret, setQqAppSecret] = useState('');
 
   const loadStatus = async () => {
     try {
@@ -285,12 +285,12 @@ export function BridgeTab() {
           <Toggle
             on={!!qqInfo.enabled}
             onChange={async (on) => {
-              const hasSaved = !!(qqInfo.appID && qqInfo.tokenMasked);
-              if (on && !(qqAppId && qqToken) && !hasSaved) {
+              const hasSaved = !!(qqInfo.appID && qqInfo.appSecretMasked);
+              if (on && !(qqAppId && qqAppSecret) && !hasSaved) {
                 showToast(t('settings.bridge.noCredentials'), 'error');
                 return;
               }
-              const creds = (qqAppId && qqToken) ? { appID: qqAppId, token: qqToken } : null;
+              const creds = (qqAppId && qqAppSecret) ? { appID: qqAppId, appSecret: qqAppSecret } : null;
               await saveBridgeConfig('qq', creds, on);
             }}
           />
@@ -303,30 +303,30 @@ export function BridgeTab() {
             value={qqAppId}
             onChange={(e) => setQqAppId(e.target.value)}
             onBlur={async () => {
-              if (qqAppId.trim() && qqToken.trim()) {
-                await saveBridgeConfig('qq', { appID: qqAppId.trim(), token: qqToken.trim() }, undefined);
+              if (qqAppId.trim() && qqAppSecret.trim()) {
+                await saveBridgeConfig('qq', { appID: qqAppId.trim(), appSecret: qqAppSecret.trim() }, undefined);
               }
             }}
           />
         </div>
         <div className="settings-field">
-          <label className="settings-field-label">{t('settings.bridge.qqToken')}</label>
+          <label className="settings-field-label">{t('settings.bridge.qqAppSecret')}</label>
           <div className="bridge-input-row">
             <KeyInput
-              value={qqToken}
-              onChange={setQqToken}
-              placeholder={qqInfo.tokenMasked || ''}
+              value={qqAppSecret}
+              onChange={setQqAppSecret}
+              placeholder={qqInfo.appSecretMasked || ''}
               onBlur={async () => {
-                if (qqAppId.trim() && qqToken.trim()) {
-                  await saveBridgeConfig('qq', { appID: qqAppId.trim(), token: qqToken.trim() }, undefined);
+                if (qqAppId.trim() && qqAppSecret.trim()) {
+                  await saveBridgeConfig('qq', { appID: qqAppId.trim(), appSecret: qqAppSecret.trim() }, undefined);
                 }
               }}
             />
             <button
               className="bridge-test-btn"
               onClick={(e) => {
-                if (!qqAppId.trim() || !qqToken.trim()) { showToast(t('settings.bridge.noCredentials'), 'error'); return; }
-                testPlatform('qq', { appID: qqAppId.trim(), token: qqToken.trim() }, e.currentTarget);
+                if (!qqAppId.trim() || !qqAppSecret.trim()) { showToast(t('settings.bridge.noCredentials'), 'error'); return; }
+                testPlatform('qq', { appID: qqAppId.trim(), appSecret: qqAppSecret.trim() }, e.currentTarget);
               }}
             >
               {t('settings.bridge.test')}
@@ -433,6 +433,7 @@ function OwnerSelect({ platform_, users, currentOwner, onChange }: {
   return (
     <div className="settings-field bridge-owner-field">
       <label className="settings-field-label bridge-owner-label">{t('settings.bridge.ownerSelect')}</label>
+      <p className="bridge-owner-warning">{t('settings.bridge.ownerWarning')}</p>
       <select
         className="settings-input bridge-owner-select"
         value={currentOwner || ''}

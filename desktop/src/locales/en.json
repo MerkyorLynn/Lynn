@@ -603,8 +603,8 @@
       "feishuHint": "Get from Feishu Open Platform",
       "qq": "QQ",
       "qqAppId": "App ID",
-      "qqToken": "Bot Token",
-      "qqHint": "Get from QQ Bot Open Platform (open.qq.com/bot)",
+      "qqAppSecret": "App Secret",
+      "qqHint": "Get from QQ Bot Open Platform (q.qq.com/qqbot)",
       "connected": "Connected",
       "disconnected": "Not connected",
       "error": "Connection failed",
@@ -625,6 +625,7 @@
         "Find your Bot in Telegram and send a message to test it"
       ],
       "ownerSelect": "Which account is you",
+      "ownerWarning": "Warning: The selected account will have access to your computer, memory, and private information. Make sure the account belongs to you.",
       "ownerNone": "Send a message first to select",
       "ownerSaved": "Saved",
       "ownerConfirmTitle": "Set as Owner?",

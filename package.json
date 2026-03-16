@@ -52,7 +52,6 @@
     "mammoth": "^1.11.0",
     "markdown-it": "^14.1.1",
     "node-telegram-bot-api": "^0.67.0",
-    "qq-guild-bot": "^2.9.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "ws": "^8.18.0",
@@ -121,7 +120,10 @@
       "icon": "desktop/src/icon.png",
       "requestedExecutionLevel": "asInvoker",
       "extraResources": [
-        { "from": "vendor/git-portable", "to": "git" }
+        {
+          "from": "vendor/git-portable",
+          "to": "git"
+        }
       ]
     },
     "nsis": {

@@ -2419,7 +2419,15 @@ html[data-platform="linux"] .tb-toggle-right {
 /* Owner 选择区域 */
 .bridge-owner-label {
     text-align: center;
-    margin-bottom: var(--space-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.bridge-owner-warning {
+    font-size: 0.72rem;
+    color: #a04040;
+    text-align: center;
+    margin: 0 0 var(--space-sm);
+    line-height: 1.5;
 }
 
 /* 如何接入 链接 */

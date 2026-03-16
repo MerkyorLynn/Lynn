@@ -603,8 +603,8 @@
       "feishuHint": "从飞书开放平台获取",
       "qq": "QQ",
       "qqAppId": "App ID",
-      "qqToken": "Bot Token",
-      "qqHint": "从 QQ 机器人开放平台（open.qq.com/bot）获取",
+      "qqAppSecret": "App Secret",
+      "qqHint": "从 QQ 机器人开放平台（q.qq.com/qqbot）获取",
       "connected": "已连接",
       "disconnected": "未连接",
       "error": "连接失败",
@@ -625,6 +625,7 @@
         "在 Telegram 找到你的 Bot，发消息试试吧"
       ],
       "ownerSelect": "哪个账号是你",
+      "ownerWarning": "注意：你选择的账号可以访问你的电脑、记忆以及各种隐私信息，请确保账号主人是你自己，谨慎选择。",
       "ownerNone": "发送一条消息后即可选择",
       "ownerSaved": "已保存",
       "ownerConfirmTitle": "确认设为 Owner？",
