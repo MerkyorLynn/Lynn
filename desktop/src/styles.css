@@ -5820,8 +5820,8 @@ body.resizing .jian-sidebar-inner {
 
 /* 兼容技能路径管理 */
 .compat-paths-group {
-    border: 1px solid var(--overlay-light);
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     overflow: hidden;
     margin-top: 0.4rem;
 }
@@ -5835,7 +5835,7 @@ body.resizing .jian-sidebar-inner {
 }
 
 .compat-path-item + .compat-path-item {
-    border-top: 1px solid var(--overlay-light);
+    border-top: 1px solid var(--border);
 }
 
 .compat-path-info {
@@ -5894,7 +5894,7 @@ body.resizing .jian-sidebar-inner {
 
 /* 兼容技能抽屉 */
 .compat-drawer + .compat-drawer {
-    border-top: 1px solid var(--overlay-light);
+    border-top: 1px solid var(--border);
 }
 
 .compat-drawer-header {
@@ -5966,7 +5966,7 @@ body.resizing .jian-sidebar-inner {
 }
 
 .compat-drawer-skills .skills-list-item + .skills-list-item {
-    border-top: 1px solid var(--overlay-light);
+    border-top: 1px solid var(--border);
 }
 
 .compat-add-path {
