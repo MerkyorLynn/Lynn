@@ -7,12 +7,25 @@ export interface DeskSkillInfo {
   externalLabel?: string | null;
 }
 
+export interface CwdSkillInfo {
+  name: string;
+  description: string;
+  source: string;
+  filePath: string;
+  baseDir: string;
+}
+
 export interface DeskSlice {
   deskFiles: DeskFile[];
   deskBasePath: string;
   deskCurrentPath: string;
   deskJianContent: string | null;
   deskSkills: DeskSkillInfo[];
+  cwdSkills: CwdSkillInfo[];
+  cwdSkillsOpen: boolean;
+  setCwdSkills: (skills: CwdSkillInfo[]) => void;
+  setCwdSkillsOpen: (open: boolean) => void;
+  toggleCwdSkillsOpen: () => void;
   setDeskFiles: (files: DeskFile[]) => void;
   setDeskBasePath: (path: string) => void;
   setDeskCurrentPath: (path: string) => void;
@@ -28,6 +41,11 @@ export const createDeskSlice = (
   deskCurrentPath: '',
   deskJianContent: null,
   deskSkills: [],
+  cwdSkills: [],
+  cwdSkillsOpen: false,
+  setCwdSkills: (skills) => set({ cwdSkills: skills }),
+  setCwdSkillsOpen: (open) => set({ cwdSkillsOpen: open }),
+  toggleCwdSkillsOpen: () => set((s: any) => ({ cwdSkillsOpen: !s.cwdSkillsOpen })),
   setDeskFiles: (files) => set({ deskFiles: files }),
   setDeskBasePath: (path) => set({ deskBasePath: path }),
   setDeskCurrentPath: (path) => set({ deskCurrentPath: path }),

@@ -317,8 +317,8 @@ export default async function deskRoute(app, { engine, hub }) {
    * 支持文件夹（直接复制）和 .zip/.skill（解压）
    */
   app.post("/api/desk/install-skill", async (req, reply) => {
-    const { filePath } = req.body || {};
-    const cwd = engine.deskCwd;
+    const { filePath, dir } = req.body || {};
+    const cwd = dir || engine.deskCwd;
     if (!filePath || !cwd) {
       reply.code(400);
       return { error: "filePath and active workspace required" };

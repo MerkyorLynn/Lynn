@@ -670,76 +670,49 @@ function DeskDropZone({ children }: { children: React.ReactNode }) {
 
 // ── 项目技能（CWD Skills） ──
 
-interface CwdSkill {
-  name: string;
-  description: string;
-  source: string;
-  filePath: string;
-  baseDir: string;
+type CwdSkill = import('../stores/desk-slice').CwdSkillInfo;
+
+/** 加载 CWD skills（可从任何组件调用） */
+async function loadCwdSkills() {
+  const s = useStore.getState();
+  if (!s.deskBasePath) return;
+  try {
+    const res = await getDeskCtx().hanaFetch(
+      `/api/desk/skills?dir=${encodeURIComponent(s.deskBasePath)}`,
+    );
+    const data = await res.json();
+    useStore.setState({ cwdSkills: data.skills || [] });
+  } catch {}
 }
 
-let _cwdSkillsOpen = false;
-let _cwdSkills: CwdSkill[] = [];
-let _cwdSkillsListeners: Set<() => void> = new Set();
-
-/** 共享的 CWD skills 重新加载函数，由 Button 注册 */
-let _reloadCwdSkills: (() => Promise<void>) | null = null;
-
+// 旧接口兼容（useCwdSkillsOpen 保留给不直接用 store 的地方）
 function useCwdSkillsOpen() {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const cb = () => force(n => n + 1);
-    _cwdSkillsListeners.add(cb);
-    return () => { _cwdSkillsListeners.delete(cb); };
-  }, []);
+  const cwdSkills = useStore(s => s.cwdSkills);
+  const cwdSkillsOpen = useStore(s => s.cwdSkillsOpen);
   return {
-    open: _cwdSkillsOpen,
-    skills: _cwdSkills,
-    toggle: () => {
-      _cwdSkillsOpen = !_cwdSkillsOpen;
-      _cwdSkillsListeners.forEach(cb => cb());
-    },
-    setSkills: (s: CwdSkill[]) => {
-      _cwdSkills = s;
-      _cwdSkillsListeners.forEach(cb => cb());
-    },
+    open: cwdSkillsOpen,
+    skills: cwdSkills,
+    toggle: () => useStore.getState().toggleCwdSkillsOpen(),
+    setSkills: (skills: CwdSkill[]) => useStore.setState({ cwdSkills: skills }),
   };
 }
 
 function DeskCwdSkillsButton() {
   const deskBasePath = useStore(s => s.deskBasePath);
-  const { open, skills, toggle, setSkills } = useCwdSkillsOpen();
+  const { open, skills, toggle } = useCwdSkillsOpen();
   const loadedRef = useRef('');
-
-  const loadCwdSkills = useCallback(async () => {
-    if (!deskBasePath) return;
-    try {
-      const res = await getDeskCtx().hanaFetch(
-        `/api/desk/skills?dir=${encodeURIComponent(deskBasePath)}`,
-      );
-      const data = await res.json();
-      setSkills(data.skills || []);
-      loadedRef.current = deskBasePath;
-    } catch {}
-  }, [deskBasePath, setSkills]);
-
-  // 注册共享 reload 函数，供 Panel drop handler 调用
-  useEffect(() => {
-    _reloadCwdSkills = loadCwdSkills;
-    return () => { _reloadCwdSkills = null; };
-  }, [loadCwdSkills]);
 
   // 切换文件夹时重新加载
   useEffect(() => {
     if (deskBasePath && deskBasePath !== loadedRef.current) {
-      loadCwdSkills();
+      loadCwdSkills().then(() => { loadedRef.current = deskBasePath; });
     }
-  }, [deskBasePath, loadCwdSkills]);
+  }, [deskBasePath]);
 
   const handleClick = useCallback(() => {
-    if (!open && deskBasePath !== loadedRef.current) loadCwdSkills();
+    if (!open) loadCwdSkills();
     toggle();
-  }, [open, deskBasePath, loadCwdSkills, toggle]);
+  }, [open, toggle]);
 
   if (!deskBasePath) return null;
 
@@ -783,10 +756,13 @@ function DeskCwdSkillsPanel() {
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // 阻止冒泡到书桌的 drop handler
+    e.stopPropagation();
     setDragging(false);
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
+    const dir = useStore.getState().deskBasePath;
+    if (!dir) return;
+    let installed = false;
     for (const file of files) {
       const filePath = (window as any).platform?.getFilePath?.(file);
       if (!filePath) continue;
@@ -794,20 +770,20 @@ function DeskCwdSkillsPanel() {
         const res = await getDeskCtx().hanaFetch('/api/desk/install-skill', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath }),
+          body: JSON.stringify({ filePath, dir }),
         });
         const data = await res.json();
         if (data.error) {
           console.warn('[cwd-skills] install failed:', data.error);
         } else {
           console.log('[cwd-skills] installed:', data.name);
+          installed = true;
         }
       } catch (err) {
         console.error('[cwd-skills] install failed:', err);
       }
     }
-    // 重新加载 CWD 技能面板
-    if (_reloadCwdSkills) await _reloadCwdSkills();
+    if (installed) await loadCwdSkills();
     // 也刷新书桌技能快捷区
     (window as any).__loadDeskSkills?.();
   }, []);
