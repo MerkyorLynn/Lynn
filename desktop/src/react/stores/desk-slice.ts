@@ -34,7 +34,8 @@ export interface DeskSlice {
 }
 
 export const createDeskSlice = (
-  set: (partial: Partial<DeskSlice>) => void
+  set: (partial: Partial<DeskSlice>) => void,
+  get?: () => DeskSlice,
 ): DeskSlice => ({
   deskFiles: [],
   deskBasePath: '',
@@ -45,7 +46,7 @@ export const createDeskSlice = (
   cwdSkillsOpen: false,
   setCwdSkills: (skills) => set({ cwdSkills: skills }),
   setCwdSkillsOpen: (open) => set({ cwdSkillsOpen: open }),
-  toggleCwdSkillsOpen: () => set((s: any) => ({ cwdSkillsOpen: !s.cwdSkillsOpen })),
+  toggleCwdSkillsOpen: () => set({ cwdSkillsOpen: !get?.().cwdSkillsOpen }),
   setDeskFiles: (files) => set({ deskFiles: files }),
   setDeskBasePath: (path) => set({ deskBasePath: path }),
   setDeskCurrentPath: (path) => set({ deskCurrentPath: path }),

@@ -388,10 +388,16 @@ export default async function deskRoute(app, { engine, hub }) {
       reply.code(400);
       return { error: "skillDir is required" };
     }
-    // 安全检查：只允许删除 .agents/skills/ 下的目录
-    if (!skillDir.includes('/.agents/skills/') && !skillDir.includes('\\.agents\\skills\\')) {
+    // 安全检查：必须在当前工作区的 .agents/skills/ 下
+    const cwd = engine.deskCwd;
+    if (!cwd) {
+      reply.code(400);
+      return { error: "No active workspace" };
+    }
+    const allowedBase = path.join(cwd, ".agents", "skills");
+    if (!isInsidePath(skillDir, allowedBase)) {
       reply.code(403);
-      return { error: "Only skills in .agents/skills/ can be deleted" };
+      return { error: "Only skills in current workspace .agents/skills/ can be deleted" };
     }
     try {
       fs.rmSync(skillDir, { recursive: true, force: true });

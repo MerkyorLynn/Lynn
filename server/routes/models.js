@@ -7,9 +7,10 @@ import { createRequire } from "module";
 const _require = createRequire(import.meta.url);
 const _knownModels = _require("../../lib/known-models.json");
 
-/** 查询模型显示名：overrides > known-models > SDK name > id */
+/** 查询模型显示名：overrides > SDK name > known-models > id */
 function resolveModelName(id, sdkName, overrides) {
   if (overrides?.[id]?.displayName) return overrides[id].displayName;
+  if (sdkName && sdkName !== id) return sdkName;
   if (_knownModels[id]?.name) return _knownModels[id].name;
   return sdkName || id;
 }

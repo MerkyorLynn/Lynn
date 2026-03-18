@@ -232,8 +232,11 @@ export function syncFavoritesToModelsJson(configPath, opts = {}) {
       ...pv,
       models: (pv.models || []).map(m => {
         const copy = { ...m };
-        if (!copy.name) copy.name = humanizeName(copy.id);
+        const km = _knownModels[copy.id];
+        if (!copy.name) copy.name = km?.name || humanizeName(copy.id);
         if (!copy.input || !copy.input.includes("image")) copy.input = ["text", "image"];
+        if (!copy.contextWindow && km?.context) copy.contextWindow = km.context;
+        if (!copy.maxTokens && km?.maxOutput) copy.maxTokens = km.maxOutput;
         return copy;
       }),
     };
