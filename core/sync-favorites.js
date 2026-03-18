@@ -33,12 +33,20 @@ function humanizeName(id) {
   return name;
 }
 
+import { createRequire } from "module";
+const _require = createRequire(import.meta.url);
+const _knownModels = _require("../lib/known-models.json");
+
 function generateModelDefaults(modelId) {
-  return {
+  const known = _knownModels[modelId];
+  const entry = {
     id: modelId,
-    name: humanizeName(modelId),
+    name: known?.name || humanizeName(modelId),
     input: ["text", "image"],
   };
+  if (known?.context) entry.contextWindow = known.context;
+  if (known?.maxOutput) entry.maxTokens = known.maxOutput;
+  return entry;
 }
 
 /**
@@ -193,11 +201,15 @@ export function syncFavoritesToModelsJson(configPath, opts = {}) {
     for (const mid of targetModelIds) {
       if (existingModels.has(mid)) {
         const existing = { ...existingModels.get(mid) };
-        if (!existing.name) existing.name = humanizeName(mid);
+        const known = _knownModels[mid];
+        if (!existing.name) existing.name = known?.name || humanizeName(mid);
         // 补全 input 字段（旧版本创建的条目可能缺 "image"，Pi SDK 会静默过滤图片）
         if (!existing.input || !existing.input.includes("image")) {
           existing.input = ["text", "image"];
         }
+        // 补全 contextWindow / maxTokens（从 known-models.json）
+        if (!existing.contextWindow && known?.context) existing.contextWindow = known.context;
+        if (!existing.maxTokens && known?.maxOutput) existing.maxTokens = known.maxOutput;
         modelList.push(existing);
       } else {
         modelList.push(generateModelDefaults(mid));

@@ -713,8 +713,11 @@ function ContextRing() {
   const pct = percent ?? 0;
   if (tokens == null) return null;
 
-  // SVG 圆环参数
-  const r = 8;
+  // SVG 圆环参数（更小更粗）
+  const r = 6;
+  const sw = 2.5;
+  const size = (r + sw) * 2;
+  const center = size / 2;
   const circumference = 2 * Math.PI * r;
   const strokeDashoffset = circumference * (1 - Math.min(pct, 100) / 100);
   const yuan = agentYuan || 'hanako';
@@ -731,17 +734,17 @@ function ContextRing() {
       onClick={handleClick}
       disabled={compacting}
     >
-      <svg width="20" height="20" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r={r} fill="none" stroke="var(--ring-bg)" strokeWidth="2" />
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={center} cy={center} r={r} fill="none" stroke="var(--ring-bg)" strokeWidth={sw} />
         <circle
-          cx="10" cy="10" r={r}
+          cx={center} cy={center} r={r}
           fill="none"
           stroke="var(--ring-fg)"
-          strokeWidth="2"
+          strokeWidth={sw}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
-          transform="rotate(-90 10 10)"
+          transform={`rotate(-90 ${center} ${center})`}
           className="context-ring-progress"
         />
       </svg>
