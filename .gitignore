@@ -56,3 +56,6 @@ logs/
 # 系统文件
 .DS_Store
 *.db
+
+# Codex reviews
+reviews/
