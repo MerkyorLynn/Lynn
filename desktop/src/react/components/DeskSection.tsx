@@ -11,6 +11,7 @@ import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import type { DeskFile, Artifact } from '../types';
 import { escapeHtml } from '../utils/format';
+import { openFilePreview } from '../utils/file-preview';
 
 // ── SVG 图标 ──
 
@@ -265,38 +266,7 @@ function DeskFileItem({ file, selected, onSelect, allSelectedFiles }: DeskFileIt
     const full = ctx.deskFullPath(file.name);
     if (!full) return;
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    const { PREVIEWABLE_EXTS, readFileForPreview } = window.HanaModules.fileCards as Record<string, unknown>;
-    const previewExts = PREVIEWABLE_EXTS as Record<string, string>;
-    const canPreview = ext in previewExts;
-
-    if (canPreview) {
-      const readFn = readFileForPreview as (path: string, ext: string) => Promise<string | null>;
-      const content = await readFn(full, ext);
-      if (content != null) {
-        const previewType = previewExts[ext];
-        const artifact: Artifact = {
-          id: `file-${full}`,
-          type: previewType,
-          title: file.name,
-          content,
-          filePath: full,
-          ext,
-          language: previewType === 'code' ? ext : undefined,
-        };
-        ctx.openPreview(artifact);
-        return;
-      }
-    }
-
-    const artifact: Artifact = {
-      id: `file-${full}`,
-      type: 'file-info',
-      title: file.name,
-      content: '',
-      filePath: full,
-      ext,
-    };
-    ctx.openPreview(artifact);
+    openFilePreview(full, file.name, ext);
   }, [file]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

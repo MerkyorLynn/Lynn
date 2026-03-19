@@ -10,8 +10,9 @@ import { ToolGroupBlock } from './ToolGroupBlock';
 import { XingCard } from './XingCard';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
-import { hanaFetch, hanaUrl } from '../../hooks/use-hana-fetch';
-import { renderMarkdown } from '../../utils/markdown';
+import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
+import { openPreview } from '../../shims/artifacts-shim';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -114,26 +115,46 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, yuan
 
 // ── 简单子块组件 ──
 
+const EXT_LABELS: Record<string, string> = {
+  pdf: 'PDF', doc: 'Word', docx: 'Word', xls: 'Excel', xlsx: 'Excel',
+  ppt: 'Presentation', pptx: 'Presentation', md: 'Markdown', txt: 'Text',
+  html: 'HTML', htm: 'HTML', css: 'Stylesheet', json: 'JSON', yaml: 'YAML', yml: 'YAML',
+  js: 'JavaScript', ts: 'TypeScript', jsx: 'React', tsx: 'React',
+  py: 'Python', rs: 'Rust', go: 'Go', java: 'Java', rb: 'Ruby', php: 'PHP',
+  c: 'C', cpp: 'C++', h: 'Header', sh: 'Shell', sql: 'SQL', xml: 'XML',
+  csv: 'CSV', svg: 'SVG', skill: 'Skill',
+  png: 'Image', jpg: 'Image', jpeg: 'Image', gif: 'Image', webp: 'Image',
+};
+
 const FileOutputCard = memo(function FileOutputCard({ filePath, label, ext }: { filePath: string; label: string; ext: string }) {
-  const handleClick = () => {
-    // 复用 file-cards-shim 的 appendFileCard 逻辑：读文件内容 → 打开预览
-    const fc = (window as any).HanaModules?.fileCards;
-    if (fc?.openFilePreview) {
-      fc.openFilePreview(filePath, label, ext);
-    } else {
-      // fallback：用 platform API 打开
-      (window as any).platform?.openPath?.(filePath);
-    }
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const p = (window as any).platform;
+    if (p?.openFile) p.openFile(filePath);
   };
 
+  const displayName = label || filePath.split('/').pop() || filePath;
+  const typeLabel = EXT_LABELS[ext] || ext.toUpperCase();
+
   return (
-    <div className="file-output-card file-output-previewable" onClick={handleClick} style={{ cursor: 'pointer' }}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-      </svg>
-      <span className="file-output-name">{label || filePath}</span>
-      {ext && <span className="file-output-ext">{ext}</span>}
+    <div className="file-output-card file-output-previewable" onClick={() => openFilePreview(filePath, label, ext)} style={{ cursor: 'pointer' }}>
+      <div className="file-output-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      </div>
+      <div className="file-output-info">
+        <div className="file-output-name">{displayName}</div>
+        <div className="file-output-type">{typeLabel}{ext ? ` \u00b7 ${ext.toUpperCase()}` : ''}</div>
+      </div>
+      <button className="file-output-open" onClick={handleOpen} title="用默认应用打开">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      </button>
     </div>
   );
 });
@@ -142,10 +163,14 @@ const ArtifactCard = memo(function ArtifactCard({ title, artifactType, artifactI
   title: string; artifactType: string; artifactId: string; content: string; language?: string;
 }) {
   const handleClick = () => {
-    const ar = (window as any).HanaModules?.artifacts;
-    if (ar?.handleArtifact) {
-      ar.handleArtifact({ id: artifactId, type: artifactType, title, content, language });
-    }
+    const artifact = { id: artifactId, type: artifactType, title, content, language };
+    const s = useStore.getState();
+    const arts = [...s.artifacts];
+    const idx = arts.findIndex(a => a.id === artifactId);
+    if (idx >= 0) arts[idx] = artifact;
+    else arts.push(artifact);
+    s.setArtifacts(arts);
+    openPreview(artifact);
   };
 
   return (
@@ -160,12 +185,8 @@ const ArtifactCard = memo(function ArtifactCard({ title, artifactType, artifactI
 });
 
 const SkillCard = memo(function SkillCard({ skillName, skillFilePath }: { skillName: string; skillFilePath: string }) {
-  const handleClick = () => {
-    (window as any).platform?.openSkillViewer?.({ skillPath: skillFilePath });
-  };
-
   return (
-    <div className="skill-card" onClick={handleClick} style={{ cursor: 'pointer' }}>
+    <div className="skill-card" onClick={() => openSkillPreview(skillName, skillFilePath)} style={{ cursor: 'pointer' }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
         <path d="M2 17l10 5 10-5" />

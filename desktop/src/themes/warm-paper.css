@@ -36,9 +36,6 @@
     --jian-note-bg:     #FAF5E9;
     --jian-note-border: rgba(180, 160, 130, 0.15);
 
-    /* 纸张纹理 */
-    --bg-texture:   url('../assets/paper-texture.png');
-
     /* 聊天专用 */
     --hana-text:    #2B3A4E;
     --mood-bg:      rgba(125, 28, 74, 0.04);

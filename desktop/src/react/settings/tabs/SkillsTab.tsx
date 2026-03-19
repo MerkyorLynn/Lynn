@@ -160,7 +160,9 @@ export function SkillsTab() {
     e.preventDefault();
     (e.currentTarget as HTMLElement).classList.remove('drag-over');
     const file = e.dataTransfer.files[0];
-    if ((file as any)?.path) await installSkillFromPath((file as any).path);
+    if (!file) return;
+    const filePath = platform?.getFilePath?.(file) || (file as any)?.path;
+    if (filePath) await installSkillFromPath(filePath);
   };
 
   // 外部路径管理

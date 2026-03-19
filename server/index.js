@@ -168,12 +168,25 @@ app.register(authRoute, { engine });
 app.register(diaryRoute, { engine });
 
 // 健康检查 + 身份信息
-app.get("/api/health", async () => ({
-  status: "ok",
-  agent: engine.agentName,
-  user: engine.userName,
-  model: engine.currentModel?.name,
-}));
+app.get("/api/health", async () => {
+  // 检查自定义头像是否存在（避免前端 HEAD 请求 404）
+  const avatars = {};
+  for (const role of ['agent', 'user']) {
+    const dir = path.join(role === 'user' ? engine.userDir : engine.agentDir, 'avatars');
+    avatars[role] = false;
+    try {
+      const files = fs.readdirSync(dir);
+      avatars[role] = files.some(f => /\.(png|jpe?g|webp)$/i.test(f));
+    } catch {}
+  }
+  return {
+    status: "ok",
+    agent: engine.agentName,
+    user: engine.userName,
+    model: engine.currentModel?.name,
+    avatars,
+  };
+});
 
 // 前端日志上报（desktop 端把错误 POST 到 server 写进持久化日志）
 app.post("/api/log", async (req) => {

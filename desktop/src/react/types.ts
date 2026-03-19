@@ -17,6 +17,7 @@ export interface Agent {
   name: string;
   yuan: string;
   isPrimary: boolean;
+  hasAvatar?: boolean;
 }
 
 export interface SessionStream {

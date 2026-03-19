@@ -13,9 +13,7 @@ document.addEventListener("drop", (e) => e.preventDefault());
 // ── 拆分模块引用 ──
 const { escapeHtml, injectCopyButtons } = window.HanaModules.utils;
 const _ch = () => window.HanaModules.channels;
-const _fc = () => window.HanaModules.fileCards;
 const _ar = () => window.HanaModules.artifacts;
-const _cr = () => window.HanaModules.chatRender;
 const _sb = () => window.HanaModules.sidebar;
 const _dk = () => window.HanaModules.desk;
 // app.js 分解（Phase 4 + 5）
@@ -287,44 +285,36 @@ function initModules() {
     previewPanel: $("#previewPanel"),
     previewBody: $("#previewBody"),
     previewTitle: $("#previewTitle"),
-    scrollToBottom: (...a) => _ui().scrollToBottom(...a),
     getToolLabel,
     yuanFallbackAvatar: (...a) => _ag().yuanFallbackAvatar(...a),
     parseMoodFromContent: (...a) => _msg().parseMoodFromContent(...a),
   };
 
-  // Phase 5: UI shim (model/planMode/todo init removed — now React)
+  // Phase 5: UI shim (model/planMode/todo/scroll init removed — now React)
   _ui().initAppUi({
-    state, $, hanaFetch, escapeHtml,
-    chatArea,
+    state, $, hanaFetch,
     connectionStatus: $("#connectionStatus"),
-    inputBox: null, settingsBtn,
-    _cr, _ag, _dk, _sb,
+    settingsBtn,
+    _dk,
   });
 
   // Phase 4: app.js 分解 shim
   _msg().initAppMessages({
-    state, hanaFetch, md,
-    scrollToBottom: (...a) => _ui().scrollToBottom(...a),
+    state, hanaFetch,
     renderTodoDisplay: () => {},
-    escapeHtml, injectCopyButtons,
-    _cr, _fc, _ar,
   });
   _ag().initAppAgents({
-    state, $, hanaFetch, hanaUrl,
-    messagesEl, welcome, welcomeText: $("#welcomeText"),
-    inputBox: null,
+    state, hanaFetch, hanaUrl,
+    messagesEl,
     renderTodoDisplay: () => {},
-    resetScroll: () => _ui().resetScroll(),
-    _cr, _ar, _dk,
+    _ar,
   });
   _ws().initAppWs({
-    state, chatArea, md,
-    scrollToBottom: (...a) => _ui().scrollToBottom(...a),
+    state,
     setStatus: (...a) => _ui().setStatus(...a),
     showError: (...a) => _ui().showError(...a),
-    injectCopyButtons, escapeHtml, platform,
-    _cr, _fc, _ar, _sb, _ch, _dk, _msg, _ag,
+    platform,
+    _ar, _sb, _ch, _dk, _msg, _ag,
   });
 
   _sb().initSidebarModule({
@@ -370,11 +360,11 @@ async function init() {
       state.cwdHistory = configData.cwd_history;
     }
     _ui().applyStaticI18n();
+    // 用 health 返回的 avatars 信息，避免 HEAD 请求 404
+    _ag().loadAvatars(healthData.avatars);
   } catch (err) {
     console.error("[init] i18n/health/config failed:", err);
   }
-
-  await _ag().loadAvatars();
 
   const _inp = () => window.HanaModules.appInput;
 
@@ -392,7 +382,6 @@ async function init() {
   $("#memoryToggleBtn")?.addEventListener("click", () => _dk().toggleMemory());
   _dk().updateMemoryToggle();
 
-  _ui().initScrollListener();
   _dk().initJian();
 
   _inp().initDragDrop();

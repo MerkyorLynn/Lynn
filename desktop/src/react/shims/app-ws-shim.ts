@@ -12,16 +12,9 @@ declare function t(key: string, vars?: Record<string, string>): any;
 
 interface AppWsCtx {
   state: Record<string, any>;
-  chatArea: HTMLElement;
-  md: { render: (src: string) => string };
-  scrollToBottom: () => void;
   setStatus: (text: string, connected: boolean) => void;
   showError: (message: string) => void;
-  injectCopyButtons: (el: HTMLElement) => void;
-  escapeHtml: (s: string) => string;
   platform: Record<string, any>;
-  _cr: () => Record<string, any>;
-  _fc: () => Record<string, any>;
   _ar: () => Record<string, any>;
   _sb: () => Record<string, any>;
   _ch: () => Record<string, any>;
@@ -268,9 +261,7 @@ function connectWS(): void {
 // ── 消息分发（大 switch） ──
 
 function handleServerMessage(msg: any): void {
-  const { state, md, scrollToBottom, showError, injectCopyButtons } = ctx;
-  const _cr = ctx._cr;
-  const _fc = ctx._fc;
+  const { state, showError } = ctx;
   const _ar = ctx._ar;
   const _sb = ctx._sb;
   const _ch = ctx._ch;
@@ -336,7 +327,6 @@ function handleServerMessage(msg: any): void {
     if (msg.type === 'artifact' && state.currentTab === 'chat') {
       _ar().handleArtifact(msg);
     }
-    // scrollToBottom 由 Virtuoso followOutput 自动处理
     return;
   }
 

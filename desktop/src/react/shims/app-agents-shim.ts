@@ -15,8 +15,6 @@ interface AppAgentsCtx {
   hanaUrl: (path: string) => string;
   messagesEl: HTMLElement;
   renderTodoDisplay: () => void;
-  resetScroll: () => void;
-  _cr: () => Record<string, any>;
   _ar: () => Record<string, any>;
 }
 
@@ -53,7 +51,7 @@ function renderWelcomeAgentSelector(): void { /* React 负责 */ }
 // ── clearChat ──
 
 function clearChat(): void {
-  const { state, messagesEl, renderTodoDisplay, resetScroll } = ctx;
+  const { state, renderTodoDisplay } = ctx;
 
   // 清 store 数据，DOM 由 React 管理
   const sessionPath = state.currentSessionPath;
@@ -84,8 +82,13 @@ async function applyAgentIdentity(opts: any = {}): Promise<void> {
 
   const { avatars = true, agents = true } = ui;
 
-  const tasks: Promise<void>[] = [];
-  if (avatars) tasks.push(loadAvatars());
+  const tasks: Promise<any>[] = [];
+  if (avatars) {
+    // 从 health API 获取 avatar 信息，避免 HEAD 404
+    tasks.push(
+      ctx.hanaFetch('/api/health').then(r => r.json()).then(d => loadAvatars(d.avatars)).catch(() => loadAvatars())
+    );
+  }
   if (agents) tasks.push(loadAgents());
   await Promise.all(tasks);
 
@@ -119,27 +122,20 @@ async function loadAgents(): Promise<void> {
 
 // ── 头像 ──
 
-async function loadAvatars(): Promise<void> {
-  const { state, hanaFetch, hanaUrl } = ctx;
+function loadAvatars(avatarsInfo?: Record<string, boolean>): void {
+  const { state, hanaUrl } = ctx;
   const ts = Date.now();
-  for (const role of ['agent', 'user']) {
-    try {
-      const res = await hanaFetch(`/api/avatar/${role}`, { method: 'HEAD' });
-      if (res.ok) {
-        const url = hanaUrl(`/api/avatar/${role}?t=${ts}`);
-        if (role === 'agent') state.agentAvatarUrl = url;
-        else state.userAvatarUrl = url;
-      } else {
-        // 当前 agent / user 没有自定义头像，清除 stale URL（防止切换 agent 后残留旧头像）
-        if (role === 'agent') state.agentAvatarUrl = null;
-        else state.userAvatarUrl = null;
-      }
-    } catch {
+  for (const role of ['agent', 'user'] as const) {
+    const hasAvatar = avatarsInfo?.[role] ?? false;
+    if (hasAvatar) {
+      const url = hanaUrl(`/api/avatar/${role}?t=${ts}`);
+      if (role === 'agent') state.agentAvatarUrl = url;
+      else state.userAvatarUrl = url;
+    } else {
       if (role === 'agent') state.agentAvatarUrl = null;
       else state.userAvatarUrl = null;
     }
   }
-  // Welcome avatar 由 React WelcomeScreen 响应 agentAvatarUrl 变化自动更新
 }
 
 // ── Setup ──

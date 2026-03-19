@@ -107,6 +107,7 @@ function WelcomeInner({ portalTarget }: { portalTarget: HTMLElement }) {
     <>
       <WelcomeAvatar
         agentId={displayAgent?.id || null}
+        hasAvatar={displayAgent?.hasAvatar ?? false}
         agentAvatarUrl={agentAvatarUrl}
         yuan={displayYuan}
         name={displayName}
@@ -130,19 +131,20 @@ function WelcomeInner({ portalTarget }: { portalTarget: HTMLElement }) {
 
 // ── Welcome Avatar ──
 
-function WelcomeAvatar({ agentId, agentAvatarUrl, yuan, name }: {
+function WelcomeAvatar({ agentId, hasAvatar, agentAvatarUrl, yuan, name }: {
   agentId: string | null;
+  hasAvatar: boolean;
   agentAvatarUrl: string | null;
   yuan: string;
   name: string;
 }) {
   const [src, setSrc] = useState(() => {
-    if (agentId) return hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`);
+    if (agentId && hasAvatar) return hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`);
     return agentAvatarUrl || yuanFallbackAvatar(yuan);
   });
 
   useEffect(() => {
-    if (agentId) {
+    if (agentId && hasAvatar) {
       setSrc(hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`));
     } else if (agentAvatarUrl) {
       setSrc(agentAvatarUrl);
@@ -197,7 +199,7 @@ function AgentChip({ agent, isSelected, onClick }: {
   onClick: (id: string) => void;
 }) {
   const [src, setSrc] = useState(() =>
-    hanaUrl(`/api/agents/${agent.id}/avatar?t=${Date.now()}`),
+    agent.hasAvatar ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${Date.now()}`) : yuanFallbackAvatar(agent.yuan),
   );
 
   const handleError = useCallback(() => {

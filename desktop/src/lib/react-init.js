@@ -34,28 +34,13 @@ if (!window.HanaModules.bridge) {
 }
 
 // artifacts.js shim（Phase 3c 迁移到 React）
-// app.js 顶部会解构这些，必须在 app.js 加载前注册
 if (!window.HanaModules.artifacts) {
   window.HanaModules.artifacts = {
     handleArtifact: function() {},
-    appendArtifactCard: function() {},
     renderBrowserCard: function() {},
-    appendBrowserScreenshot: function() {},
     openPreview: function() {},
     closePreview: function() {},
     initArtifacts: function() {},
-  };
-}
-
-// file-cards.js shim（Phase 3c 迁移到 React）
-if (!window.HanaModules.fileCards) {
-  window.HanaModules.fileCards = {
-    PREVIEWABLE_EXTS: {},
-    BINARY_PREVIEW_TYPES: new Set(),
-    readFileForPreview: function() { return null; },
-    appendFileCard: function() {},
-    appendSkillCard: function() {},
-    initFileCards: function() {},
   };
 }
 
@@ -74,20 +59,6 @@ if (!window.HanaModules.desk) {
     updateFolderButton: _noop, updateDeskContextBtn: _noop,
     saveJianContent: _noop,
     initDesk: _noop,
-  };
-}
-
-// chat-render.js shim（Phase 3e 迁移到 bridge.ts）
-// app.js 顶部会解构这些，必须在 app.js 加载前注册
-if (!window.HanaModules.chatRender) {
-  var _crNoop = function() {};
-  window.HanaModules.chatRender = {
-    ensureGroup: _crNoop, addUserMessage: _crNoop,
-    ensureAssistantMessage: _crNoop, ensureTextEl: _crNoop,
-    finishAssistantTurn: _crNoop, finishAssistantMessage: _crNoop,
-    showThinking: _crNoop, hideThinking: _crNoop, sealThinking: _crNoop,
-    addToolToGroup: _crNoop, updateToolInGroup: _crNoop, sealToolGroup: _crNoop,
-    initChatRender: _crNoop,
   };
 }
 
@@ -125,7 +96,7 @@ if (!window.HanaModules.appMessages) {
     cleanMoodText: function(s) { return s; },
     moodLabel: function() { return ''; },
     parseMoodFromContent: function(c) { return { mood: null, yuan: null, text: c || '' }; },
-    appendCronConfirmCard: _amNoop,
+    parseXingFromContent: function(t) { return { xingBlocks: [], text: t || '' }; },
     parseUserAttachments: function() { return { text: '', files: [], deskContext: null }; },
     loadMessages: _amNoop,
     initAppMessages: _amNoop,

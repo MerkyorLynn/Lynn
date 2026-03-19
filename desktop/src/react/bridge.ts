@@ -16,7 +16,6 @@ import { setupAppAgentsShim } from './shims/app-agents-shim';
 import { setupAppWsShim } from './shims/app-ws-shim';
 import { setupAppUiShim } from './shims/app-ui-shim';
 import { setupArtifactsShim } from './shims/artifacts-shim';
-import { setupFileCardsShim } from './shims/file-cards-shim';
 import { setupDeskShim } from './shims/desk-shim';
 // chat-render-shim 和 panel-manager 已删除，聊天渲染由 React ChatArea 管理
 
@@ -70,9 +69,6 @@ function setupLegacyShims(): void {
 
   // artifacts（Phase 3c）
   setupArtifactsShim(modules);
-
-  // file-cards（Phase 3c）
-  setupFileCardsShim(modules);
 
   // desk（Phase 3d）
   setupDeskShim(modules);

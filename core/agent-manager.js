@@ -156,11 +156,18 @@ export class AgentManager {
           const lines = idMd.split("\n").filter(l => l.trim() && !l.startsWith("#"));
           identity = lines[0]?.trim() || "";
         } catch {}
+        const avatarDir = path.join(this._d.agentsDir, entry.name, "avatar");
+        let hasAvatar = false;
+        try {
+          const avatarFiles = fs.readdirSync(avatarDir);
+          hasAvatar = avatarFiles.some(f => /\.(png|jpe?g|gif|webp)$/i.test(f));
+        } catch {}
         agents.push({
           id: entry.name,
           name: cfg.agent?.name || entry.name,
           yuan: cfg.agent?.yuan || "hanako",
           identity,
+          hasAvatar,
         });
       } catch {}
     }

@@ -34,16 +34,21 @@ export async function loadAgents() {
 export async function loadAvatars() {
   const ts = Date.now();
   const store = useSettingsStore.getState();
-  for (const role of ['agent', 'user']) {
-    try {
-      const res = await hanaFetch(`/api/avatar/${role}`, { method: 'HEAD' });
-      if (res.ok) {
+  try {
+    const res = await hanaFetch('/api/health');
+    const data = await res.json();
+    const avatars = data.avatars || {};
+    for (const role of ['agent', 'user']) {
+      if (avatars[role]) {
         const url = hanaUrl(`/api/avatar/${role}?t=${ts}`);
         if (role === 'agent') store.set({ agentAvatarUrl: url });
         else store.set({ userAvatarUrl: url });
+      } else {
+        if (role === 'agent') store.set({ agentAvatarUrl: null });
+        else store.set({ userAvatarUrl: null });
       }
-    } catch {}
-  }
+    }
+  } catch {}
 }
 
 export async function loadSettingsConfig() {

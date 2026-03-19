@@ -202,14 +202,13 @@ function AgentBadge({ agentId, agentName, agents }: {
   agentName: string | null;
   agents: Agent[];
 }) {
+  const agent = agents.find(a => a.id === agentId);
   const [apiUrl] = useState(() =>
-    hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`),
+    agent?.hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`) : null,
   );
   const [errored, setErrored] = useState(false);
 
-  // errored 后 src 从当前 agents prop 派生，agents 更新时自动跟随
-  const agent = agents.find(a => a.id === agentId);
-  const src = errored ? yuanFallbackAvatar(agent?.yuan) : apiUrl;
+  const src = (!apiUrl || errored) ? yuanFallbackAvatar(agent?.yuan) : apiUrl;
 
   return (
     <img

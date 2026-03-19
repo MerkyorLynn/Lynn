@@ -186,7 +186,7 @@ async function ensureSession(): Promise<boolean> {
         if (ag?.yuan) state().agentYuan = ag.yuan;
         state().agentAvatarUrl = null;
         (window as any).i18n.defaultName = state().agentName;
-        ctx!.loadAvatars();
+        ctx!.hanaFetch('/api/health').then((r: Response) => r.json()).then((d: any) => ctx!.loadAvatars(d.avatars)).catch(() => ctx!.loadAvatars());
       }
     }
     state().selectedAgentId = null;
