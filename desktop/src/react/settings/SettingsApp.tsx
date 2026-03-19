@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSettingsStore } from './store';
 import { hanaFetch } from './api';
 import { t } from './helpers';
 import { loadAgents, loadAvatars, loadSettingsConfig } from './actions';
+import { WindowControls } from '../components/WindowControls';
 import { SettingsNav } from './SettingsNav';
 import { Toast } from './Toast';
 import { AgentTab } from './tabs/AgentTab';
@@ -22,6 +24,7 @@ import { ClearMemoryConfirm } from './overlays/ClearMemoryConfirm';
 import { BridgeTutorial } from './overlays/BridgeTutorial';
 
 const platform = (window as any).platform;
+const titlebarEl = document.querySelector('.titlebar');
 
 const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   agent: AgentTab,
@@ -75,6 +78,9 @@ export function SettingsApp() {
       <BridgeTutorial />
 
       {!ready && <div className="settings-loading-mask" id="settingsLoadingMask" />}
+
+      {/* Windows/Linux 窗口控制按钮，渲染到 settings.html 的 .titlebar 容器 */}
+      {titlebarEl && createPortal(<WindowControls />, titlebarEl)}
     </>
   );
 }

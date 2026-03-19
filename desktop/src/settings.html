@@ -45,11 +45,9 @@
             background: transparent;
             border-bottom: none;
         }
-        /* Windows/Linux：无红绿灯，不需要大 padding-top；
-           取消 header drag，改由 titlebar-minimal 承担拖拽 */
+        /* Windows/Linux：无红绿灯，不需要大 padding-top */
         html[data-platform="win32"] .settings-header,
         html[data-platform="linux"] .settings-header {
-            -webkit-app-region: no-drag;
             padding-top: 10px;
         }
         html[data-platform="win32"] .titlebar-minimal,
