@@ -4,6 +4,7 @@ import { useSettingsStore } from './store';
 import { hanaFetch } from './api';
 import { t } from './helpers';
 import { loadAgents, loadAvatars, loadSettingsConfig } from './actions';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { WindowControls } from '../components/WindowControls';
 import { SettingsNav } from './SettingsNav';
 import { Toast } from './Toast';
@@ -56,7 +57,7 @@ export function SettingsApp() {
   const ActiveTab = TAB_COMPONENTS[activeTab] || AgentTab;
 
   return (
-    <>
+    <ErrorBoundary region="settings">
       <div className="settings-panel" id="settingsPanel">
         <div className="settings-header">
           <h1 className={styles['settings-title']}>{t('settings.title')}</h1>
@@ -64,7 +65,9 @@ export function SettingsApp() {
         <div className={styles['settings-body']}>
           <SettingsNav />
           <div className={styles['settings-main']}>
-            <ActiveTab />
+            <ErrorBoundary region={activeTab}>
+              <ActiveTab />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
@@ -78,17 +81,32 @@ export function SettingsApp() {
       <ClearMemoryConfirm />
       <BridgeTutorial />
 
-      {!ready && <div className="settings-loading-mask" id="settingsLoadingMask" />}
+      {!ready && (
+        <div className="settings-loading-mask" id="settingsLoadingMask">
+          <div style={{ position: 'absolute', bottom: '24px', left: 0, right: 0, textAlign: 'center', color: 'var(--text-muted, #aaa)', fontSize: '12px', opacity: 0.6 }}>
+            loading...
+          </div>
+        </div>
+      )}
 
       {/* Windows/Linux 窗口控制按钮，渲染到 settings.html 的 .titlebar 容器 */}
       {titlebarEl && createPortal(<WindowControls />, titlebarEl)}
-    </>
+    </ErrorBoundary>
   );
 }
 
 /** 初始化：加载 port/token → i18n → agents → 头像 → config */
 async function initSettings() {
   const store = useSettingsStore.getState();
+
+  // 超时保护：15 秒后强制显示，防止无限白屏
+  const timeout = setTimeout(() => {
+    if (!store.ready) {
+      console.warn('[settings] init timeout (15s), forcing ready');
+      store.set({ ready: true });
+    }
+  }, 15_000);
+
   try {
     const serverPort = Number(await platform.getServerPort());
     const serverToken = await platform.getServerToken();
@@ -102,7 +120,7 @@ async function initSettings() {
       const locale = cfg.locale || 'zh-CN';
       await i18n.load(locale);
     } catch {
-      await i18n.load('zh-CN');
+      try { await i18n.load('zh-CN'); } catch { /* i18n fallback failed, continue */ }
     }
 
     // agents
@@ -118,5 +136,7 @@ async function initSettings() {
   } catch (err) {
     console.error('[settings] init failed:', err);
     store.set({ ready: true }); // 即使失败也移除 mask，让用户能操作
+  } finally {
+    clearTimeout(timeout);
   }
 }
