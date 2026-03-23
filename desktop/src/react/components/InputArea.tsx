@@ -47,7 +47,7 @@ function InputAreaInner() {
   const attachedFiles = useStore(s => s.attachedFiles);
   const docContextAttached = useStore(s => s.docContextAttached);
   const artifacts = useStore(s => s.artifacts);
-  const currentArtifactId = useStore(s => s.currentArtifactId);
+  const activeTabId = useStore(s => s.activeTabId);
   const previewOpen = useStore(s => s.previewOpen);
   const models = useStore(s => s.models);
   const agentYuan = useStore(s => s.agentYuan);
@@ -83,11 +83,11 @@ function InputAreaInner() {
 
   // Doc context
   const currentDoc = useMemo(() => {
-    if (!previewOpen || !currentArtifactId) return null;
-    const art = artifacts.find(a => a.id === currentArtifactId);
+    if (!previewOpen || !activeTabId) return null;
+    const art = artifacts.find(a => a.id === activeTabId);
     if (!art?.filePath) return null;
     return { path: art.filePath, name: art.title || art.filePath.split('/').pop() || '' };
-  }, [previewOpen, currentArtifactId, artifacts]);
+  }, [previewOpen, activeTabId, artifacts]);
   const hasDoc = !!currentDoc;
 
   // ── 统一命令发送 ──

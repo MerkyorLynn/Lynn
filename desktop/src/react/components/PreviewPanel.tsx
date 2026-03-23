@@ -1,7 +1,7 @@
 /**
  * PreviewPanel — Artifact 预览/编辑面板
  *
- * 从 Zustand store 读取 artifacts / currentArtifactId / previewOpen 状态。
+ * 从 Zustand store 读取 artifacts / activeTabId / previewOpen 状态。
  * 可编辑类型（有 filePath 的 markdown/code/csv）使用 CodeMirror 编辑器。
  *
  * 架构原则：
@@ -34,22 +34,21 @@ function getEditorMode(artifact: Artifact): 'markdown' | 'code' | 'text' {
 
 export function PreviewPanel() {
   const previewOpen = useStore(s => s.previewOpen);
-  const currentArtifactId = useStore(s => s.currentArtifactId);
+  const activeTabId = useStore(s => s.activeTabId);
   const artifacts = useStore(s => s.artifacts);
   const editorDetached = useStore(s => s.editorDetached);
   const setPreviewOpen = useStore(s => s.setPreviewOpen);
-  const setCurrentArtifactId = useStore(s => s.setCurrentArtifactId);
   const setEditorDetached = useStore(s => s.setEditorDetached);
 
   const bodyRef = useRef<HTMLDivElement>(null);
-  const artifact = artifacts.find(a => a.id === currentArtifactId) ?? null;
+  const artifact = artifacts.find(a => a.id === activeTabId) ?? null;
   const editable = isEditable(artifact);
 
   const closePreview = useCallback(() => {
     setPreviewOpen(false);
-    setCurrentArtifactId(null);
+    useStore.setState({ activeTabId: null });
     updateLayout();
-  }, [setPreviewOpen, setCurrentArtifactId]);
+  }, [setPreviewOpen]);
 
   // 拆分到独立窗口
   const handleDetach = useCallback(() => {

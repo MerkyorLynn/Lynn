@@ -8,10 +8,11 @@ import { useStore } from './index';
 import { updateLayout } from '../components/SidebarLayout';
 import type { Artifact } from '../types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- IPC callback data 及 store setState */
+/* eslint-disable @typescript-eslint/no-explicit-any -- IPC callback data */
 
 let _artifactCounter = 0;
 
+/** 注册 artifact 并打开为 tab */
 export function openPreview(artifact: Artifact): void {
   const s = useStore.getState();
   const arts = [...s.artifacts];
@@ -19,19 +20,20 @@ export function openPreview(artifact: Artifact): void {
   if (idx >= 0) arts[idx] = artifact;
   else arts.push(artifact);
   s.setArtifacts(arts);
-  s.setCurrentArtifactId(artifact.id);
+  s.openTab(artifact.id);
   s.setPreviewOpen(true);
   updateLayout();
 }
 
+/** 关闭面板（保留 openTabs 状态，下次 openTab 时恢复） */
 export function closePreview(): void {
   const s = useStore.getState();
   s.setPreviewOpen(false);
-  s.setCurrentArtifactId(null);
+  useStore.setState({ activeTabId: null });
   updateLayout();
 }
 
-/** 注册 artifact 到全局 store（流式事件 + 点击卡片都走这里） */
+/** 注册 artifact 到全局 store（流式事件用） */
 export function handleArtifact(data: Record<string, unknown>): void {
   const id = (data.artifactId as string) || `artifact-${++_artifactCounter}`;
   const artifact: Artifact = {
@@ -47,6 +49,21 @@ export function handleArtifact(data: Record<string, unknown>): void {
   if (idx >= 0) arts[idx] = artifact;
   else arts.push(artifact);
   s.setArtifacts(arts);
+}
+
+/** Save/restore tab state helpers (used by session-actions) */
+export function saveTabState(sessionPath: string): void {
+  useStore.getState().saveTabState(sessionPath);
+}
+
+export function restoreTabState(sessionPath: string): void {
+  const s = useStore.getState();
+  s.restoreTabState(sessionPath);
+  const after = useStore.getState();
+  if (after.openTabs.length > 0) {
+    s.setPreviewOpen(true);
+    updateLayout();
+  }
 }
 
 /**
@@ -78,5 +95,14 @@ export function initEditorEvents(): void {
 
   window.platform?.onEditorDetached?.((detached: boolean) => {
     useStore.getState().setEditorDetached(detached);
+    if (detached) {
+      const s = useStore.getState();
+      if (s.activeTabId) {
+        s.closeTab(s.activeTabId);
+        if (useStore.getState().openTabs.length === 0) {
+          closePreview();
+        }
+      }
+    }
   });
 }
