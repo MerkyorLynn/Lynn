@@ -7,6 +7,7 @@ import { safeJson } from "../hono-helpers.js";
 import { supportsXhigh } from "@mariozechner/pi-ai";
 import { t } from "../i18n.js";
 import { fromRoot } from "../../shared/hana-root.js";
+import { findModel, modelRefEquals, parseModelRef } from "../../shared/model-ref.js";
 
 const _knownModels = JSON.parse(readFileSync(fromRoot("lib", "known-models.json"), "utf-8"));
 
@@ -25,13 +26,14 @@ export function createModelsRoute(engine) {
   route.get("/models", async (c) => {
     try {
       const overrides = engine.config?.models?.overrides;
+      const cur = engine.currentModel;
       const models = engine.availableModels.map(m => ({
         id: m.id,
         name: resolveModelName(m.id, m.name, overrides),
         provider: m.provider,
-        isCurrent: m.id === engine.currentModel?.id,
+        isCurrent: modelRefEquals(m, cur),
       }));
-      return c.json({ models, current: engine.currentModel?.id || null });
+      return c.json({ models, current: cur?.id || null });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }
@@ -42,22 +44,21 @@ export function createModelsRoute(engine) {
     try {
       const favorites = engine.readFavorites();
       const available = engine.availableModels;
-
       const overrides = engine.config?.models?.overrides;
+      const cur = engine.currentModel;
+
       const result = [];
       for (const item of favorites) {
-        // 支持新格式 {id, provider} 和旧格式 string
-        const modelId = typeof item === "object" && item?.id ? item.id : String(item);
-        const hintProvider = typeof item === "object" ? item?.provider : undefined;
-        const m = available.find(am => am.id === modelId);
-        const provider = m?.provider || hintProvider || "";
-        // 跳过无法解析 provider 的幽灵模型（sync 失败或 credentials 缺失）
+        const { id: modelId, provider: hintProvider } = parseModelRef(item);
+        if (!modelId) continue;
+        const m = findModel(available, modelId, hintProvider);
+        const provider = hintProvider || m?.provider || "";
         if (!m && !hintProvider) continue;
         result.push({
           id: modelId,
           name: resolveModelName(modelId, m?.name, overrides),
           provider,
-          isCurrent: modelId === engine.currentModel?.id,
+          isCurrent: modelRefEquals({ id: modelId, provider }, cur),
           reasoning: m ? !!m.reasoning : false,
           xhigh: m ? supportsXhigh(m) : false,
           vision: provider ? (engine.providerRegistry.get(provider)?.capabilities?.vision !== false) : true,
@@ -66,7 +67,7 @@ export function createModelsRoute(engine) {
 
       return c.json({
         models: result,
-        current: engine.currentModel?.id || null,
+        current: cur?.id || null,
         hasFavorites: favorites.length > 0,
       });
     } catch (err) {
@@ -82,7 +83,8 @@ export function createModelsRoute(engine) {
       const { modelId } = body;
       if (!modelId) return c.json({ error: "modelId required" }, 400);
 
-      const model = engine.availableModels.find(m => m.id === modelId);
+      const { provider } = body;
+      const model = findModel(engine.availableModels, modelId, provider);
       if (!model) return c.json({ error: `model "${modelId}" not found` }, 404);
 
       // 凭证解析：providers.yaml → auth.json OAuth（含 resourceUrl）→ 模型对象自带 baseUrl
@@ -133,11 +135,11 @@ export function createModelsRoute(engine) {
   route.post("/models/set", async (c) => {
     try {
       const body = await safeJson(c);
-      const { modelId } = body;
+      const { modelId, provider } = body;
       if (!modelId) {
         return c.json({ error: t("error.missingParam", { param: "modelId" }) }, 400);
       }
-      await engine.setModel(modelId);
+      await engine.setModel(modelId, provider);
       return c.json({ ok: true, model: engine.currentModel?.name });
     } catch (err) {
       return c.json({ error: err.message }, 500);
