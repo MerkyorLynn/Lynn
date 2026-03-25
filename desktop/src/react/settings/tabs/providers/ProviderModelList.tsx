@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSettingsStore, type ProviderSummary } from '../../store';
 import { hanaFetch } from '../../api';
 import {
-  t, formatContext, lookupModelMeta, resolveProviderForModel,
+  t, formatContext, lookupModelMeta, favKey, parseFavKey,
   autoSaveConfig, autoSaveModels,
 } from '../../helpers';
 import { ModelEditPanel } from './ModelEditPanel';
@@ -24,26 +24,26 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
   const filtered = query ? allModels.filter(m => m.toLowerCase().includes(query)) : allModels;
 
   const toggleFavorite = (mid: string) => {
+    const key = favKey(providerId, mid);
     const next = new Set(pendingFavorites);
-    if (next.has(mid)) {
-      next.delete(mid);
+    if (next.has(key)) {
+      next.delete(key);
       let nextDefault = pendingDefaultModel;
-      if (mid === pendingDefaultModel) {
-        nextDefault = [...next][0] || '';
-        const partial: Record<string, unknown> = { models: { chat: nextDefault } };
-        if (nextDefault) {
-          const prov = resolveProviderForModel(nextDefault);
-          if (prov) partial.api = { provider: prov };
-        }
+      if (key === pendingDefaultModel) {
+        const firstRemaining = [...next][0] || '';
+        nextDefault = firstRemaining;
+        const { provider: p, id } = parseFavKey(firstRemaining);
+        const partial: Record<string, unknown> = { models: { chat: id || '' } };
+        if (p) partial.api = { provider: p };
         autoSaveConfig(partial, { refreshModels: true });
       }
       useSettingsStore.setState({ pendingFavorites: next, pendingDefaultModel: nextDefault });
     } else {
-      next.add(mid);
+      next.add(key);
       const wasEmpty = pendingFavorites.size === 0;
       const updates: Record<string, unknown> = { pendingFavorites: next };
       if (wasEmpty) {
-        (updates as Record<string, unknown>).pendingDefaultModel = mid;
+        (updates as Record<string, unknown>).pendingDefaultModel = key;
         const partial: Record<string, unknown> = { models: { chat: mid } };
         (partial as Record<string, unknown>).api = { provider: providerId };
         autoSaveConfig(partial, { refreshModels: true });
@@ -183,7 +183,7 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
             />
             <div className={styles['pv-model-dropdown-list']}>
               {filtered.map(mid => {
-                const isFav = pendingFavorites.has(mid);
+                const isFav = pendingFavorites.has(favKey(providerId, mid));
                 const meta = lookupModelMeta(mid) || {};
                 return (
                   <button

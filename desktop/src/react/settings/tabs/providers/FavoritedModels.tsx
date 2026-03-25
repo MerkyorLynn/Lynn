@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSettingsStore, type ProviderSummary } from '../../store';
 import {
-  t, formatContext, lookupModelMeta, resolveProviderForModel,
+  t, formatContext, lookupModelMeta, favKey, parseFavKey,
   autoSaveConfig, autoSaveModels,
 } from '../../helpers';
 import { ModelEditPanel } from './ModelEditPanel';
@@ -13,19 +13,19 @@ export function FavoritedModels({ providerId, summary }: {
 }) {
   const { pendingFavorites, pendingDefaultModel } = useSettingsStore();
   const allModels = [...new Set([...(summary.models || []), ...(summary.custom_models || [])])];
-  const favModels = allModels.filter(m => pendingFavorites.has(m));
+  const favModels = allModels.filter(m => pendingFavorites.has(favKey(providerId, m)));
 
   const removeFavorite = (mid: string) => {
+    const key = favKey(providerId, mid);
     const next = new Set(pendingFavorites);
-    next.delete(mid);
+    next.delete(key);
     let nextDefault = pendingDefaultModel;
-    if (mid === pendingDefaultModel) {
-      nextDefault = [...next][0] || '';
-      const partial: Record<string, unknown> = { models: { chat: nextDefault } };
-      if (nextDefault) {
-        const prov = resolveProviderForModel(nextDefault);
-        if (prov) partial.api = { provider: prov };
-      }
+    if (key === pendingDefaultModel) {
+      const firstRemaining = [...next][0] || '';
+      nextDefault = firstRemaining;
+      const { provider: p, id } = parseFavKey(firstRemaining);
+      const partial: Record<string, unknown> = { models: { chat: id || '' } };
+      if (p) partial.api = { provider: p };
       autoSaveConfig(partial, { refreshModels: true });
     }
     useSettingsStore.setState({ pendingFavorites: next, pendingDefaultModel: nextDefault });
