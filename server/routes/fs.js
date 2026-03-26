@@ -60,5 +60,25 @@ export function createFsRoute(engine) {
     }
   });
 
+  // GET /fs/docx-html?path=... → mammoth 转 HTML
+  route.get("/fs/docx-html", async (c) => {
+    const filePath = c.req.query("path");
+    if (!filePath) return c.json({ error: "missing path" }, 400);
+    if (!isSafePath(filePath, getAllowedRoots())) {
+      return c.json({ error: "path not allowed" }, 403);
+    }
+    try {
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile()) return c.json({ error: "not a file" }, 400);
+      if (stat.size > 20 * 1024 * 1024) return c.json({ error: "file too large" }, 413);
+      const mammoth = (await import("mammoth")).default;
+      const result = await mammoth.convertToHtml({ path: filePath });
+      return c.text(result.value);
+    } catch (err) {
+      if (err?.code === "ENOENT") return c.json({ error: "file not found" }, 404);
+      return c.json({ error: "docx parse failed" }, 500);
+    }
+  });
+
   return route;
 }

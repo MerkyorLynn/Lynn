@@ -1249,6 +1249,7 @@
     "llmInvalidJson": "LLM returned unparseable JSON ({status})",
     "llmEmptyResponse": "LLM returned empty content",
     "xlsxParseFailed": "Cannot parse {ext} file: {msg}",
+    "docxParseFailed": "Cannot parse {ext} file: {msg}",
     "compatDirCreated": "Created {count} missing directories",
     "compatConfigEmpty": "File is empty",
     "compatConfigInvalid": "Does not appear to be YAML format",

@@ -24,6 +24,7 @@ export default defineConfig({
         "@larksuiteoapi/node-sdk",
         "node-telegram-bot-api",
         "exceljs",
+        "mammoth",
         "fsevents",
       ],
       output: {

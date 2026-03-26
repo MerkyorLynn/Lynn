@@ -1249,6 +1249,7 @@
     "llmInvalidJson": "LLM 返回了无法解析的 JSON ({status})",
     "llmEmptyResponse": "LLM 返回了空内容",
     "xlsxParseFailed": "无法解析 {ext} 文件: {msg}",
+    "docxParseFailed": "无法解析 {ext} 文件: {msg}",
     "compatDirCreated": "创建了 {count} 个缺失目录",
     "compatConfigEmpty": "文件为空",
     "compatConfigInvalid": "不像 YAML 格式",

@@ -5,7 +5,7 @@
  * 每种 artifact 类型对应一个 JSX 分支或子组件。
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { renderMarkdown } from '../../utils/markdown';
 import { parseCSV, injectCopyButtons } from '../../utils/format';
 import { fileIconSvg } from '../../utils/icons';
@@ -68,6 +68,24 @@ function CsvPreview({ content }: { content: string }) {
       </table>
     </div>
   );
+}
+
+// ── PdfPreview ──
+// data: URL 在 Electron 中无法渲染大 PDF，改用 blob URL 触发 Chromium 内置查看器
+
+function PdfPreview({ content }: { content: string }) {
+  const url = useMemo(() => {
+    const raw = atob(content);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  }, [content]);
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
+
+  return <iframe className="preview-pdf" src={`${url}#toolbar=0&navpanes=0`} />;
 }
 
 // ── FileInfoPreview ──
@@ -146,12 +164,7 @@ export function ArtifactRenderer({ artifact }: ArtifactRendererProps) {
     }
 
     case 'pdf':
-      return (
-        <iframe
-          className="preview-pdf"
-          src={`data:application/pdf;base64,${artifact.content}`}
-        />
-      );
+      return <PdfPreview content={artifact.content} />;
 
     case 'docx':
       return (

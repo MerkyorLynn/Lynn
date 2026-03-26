@@ -1234,6 +1234,7 @@
     "llmInvalidJson": "LLM이 파싱할 수 없는 JSON을 반환했어요 ({status})",
     "llmEmptyResponse": "LLM이 빈 내용을 반환했어요",
     "xlsxParseFailed": "{ext} 파일을 파싱할 수 없어요: {msg}",
+    "docxParseFailed": "{ext} 파일을 파싱할 수 없어요: {msg}",
     "compatDirCreated": "누락된 디렉토리 {count}개를 생성했어요",
     "compatConfigEmpty": "파일이 비어 있어요",
     "compatConfigInvalid": "YAML 형식이 아닌 것 같아요",

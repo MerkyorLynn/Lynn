@@ -1234,6 +1234,7 @@
     "llmInvalidJson": "LLM が解析できない JSON を返しました ({status})",
     "llmEmptyResponse": "LLM が空のコンテンツを返しました",
     "xlsxParseFailed": "{ext} ファイルを解析できません: {msg}",
+    "docxParseFailed": "{ext} ファイルを解析できません: {msg}",
     "compatDirCreated": "{count} 個の不足ディレクトリを作成しました",
     "compatConfigEmpty": "ファイルが空です",
     "compatConfigInvalid": "YAML 形式ではないようです",
