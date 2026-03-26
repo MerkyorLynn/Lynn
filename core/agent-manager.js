@@ -85,8 +85,8 @@ export class AgentManager {
 
     const sharedModels = this._d.getSharedModels();
     const getOwnerIds = () => this._d.getPrefs().getPreferences()?.bridge?.owner || {};
-    const resolveModel = (bareId, agentConfig) =>
-      this._d.getModels().resolveModelWithCredentials(bareId, agentConfig);
+    const resolveModel = (bareId) =>
+      this._d.getModels().resolveModelWithCredentials(bareId);
 
     const entries = this._scanAgentDirs();
     const initOne = async (agentId) => {
@@ -250,8 +250,8 @@ export class AgentManager {
     // 初始化并加入长驻 Map
     const getOwnerIds = () => this._d.getPrefs().getPreferences()?.bridge?.owner || {};
     const ag = this._createAgentInstance(agentDir, getOwnerIds);
-    const resolveModel = (bareId, agentConfig) =>
-      this._d.getModels().resolveModelWithCredentials(bareId, agentConfig);
+    const resolveModel = (bareId) =>
+      this._d.getModels().resolveModelWithCredentials(bareId);
     try {
       await ag.init(() => {}, this._d.getSharedModels(), resolveModel);
     } catch (err) {

@@ -176,7 +176,7 @@ export class ConfigCoordinator {
     const favorites = prefs.favorites || [];
 
     // 主动迁移：裸字符串 → {id, provider} 对象
-    // 旧格式裸字符串无法在 sync-favorites 中正确归属 provider，
+    // 旧格式裸字符串无法正确归属 provider，
     // 这里通过 providers.yaml 的 model 列表做一次性转换。
     let migrated = false;
     const globalProviders = loadGlobalProviders().providers || {};
@@ -215,7 +215,7 @@ export class ConfigCoordinator {
     log.log(`saveFavorites: ${favorites.length} items`);
 
     try {
-      await this.syncModelsAndRefresh(favorites);
+      await this.syncAndRefresh();
     } catch (err) {
       console.error("[config] favorites sync failed:", err.message);
     }
@@ -235,13 +235,9 @@ export class ConfigCoordinator {
 
   // ── Model / Thinking ──
 
-  async syncModelsAndRefresh(favorites) {
+  async syncAndRefresh() {
     const models = this._d.getModels();
-    const agent = this._d.getAgent();
-    const synced = await models.syncModelsAndRefresh(agent.configPath, {
-      favorites: favorites || this.readFavorites(),
-      sharedModels: this.getSharedModels(),
-    });
+    const synced = await models.syncAndRefresh();
     this.normalizeUtilityApiPreferences();
     return synced;
   }

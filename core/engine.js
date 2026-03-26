@@ -279,7 +279,7 @@ export class HanaEngine {
   async saveFavorites(f) { return this._configCoord.saveFavorites(f); }
   readAgentOrder() { return this._configCoord.readAgentOrder(); }
   saveAgentOrder(o) { return this._configCoord.saveAgentOrder(o); }
-  async syncModelsAndRefresh(f) { return this._configCoord.syncModelsAndRefresh(f); }
+  async syncModelsAndRefresh() { return this._configCoord.syncAndRefresh(); }
   async setModel(id, provider) { return this._configCoord.setModel(id, provider); }
   getThinkingLevel() { return this._configCoord.getThinkingLevel(); }
   setThinkingLevel(l) { return this._configCoord.setThinkingLevel(l); }
@@ -407,7 +407,7 @@ export class HanaEngine {
 
   _resolveThinkingLevel(l) { return this._models.resolveThinkingLevel(l); }
   _resolveExecutionModel(r) { return this._models.resolveExecutionModel(r); }
-  _resolveProviderCredentials(p) { return this._models.resolveProviderCredentials(p, this.agent.config); }
+  _resolveProviderCredentials(p) { return this._models.resolveProviderCredentials(p); }
   resolveProviderCredentials(p) { return this._resolveProviderCredentials(p); }
   _inferModelProvider(id) { return this._models.inferModelProvider(id); }
   async refreshAvailableModels() { return this._models.refreshAvailable(); }
@@ -435,8 +435,6 @@ export class HanaEngine {
     // 1. Pi SDK + 模型基础设施（必须在 agent init 之前，agent 需要解析记忆模型）
     log(`[init] 1/5 Pi SDK 初始化...`);
     this._models.init();
-    this._models.setPreferences(this._prefs);
-    this._models.setOverridesGetter(() => this.agent?.config?.models?.overrides || null);
     // 预填充 _availableModels，agent init 时需要解析 utility model
     await this._models.refreshAvailable();
     log(`[init] 1/5 AuthStorage + ModelRegistry + ${this._models.availableModels.length} 个模型就绪`);
@@ -629,7 +627,7 @@ export class HanaEngine {
     }
     const { writeDiary } = await import("../lib/diary/diary-writer.js");
     const diaryModelId = this.agent.config.models?.chat || this.agent.memoryModel;
-    const resolvedModel = this._models.resolveModelWithCredentials(diaryModelId, this.agent.config);
+    const resolvedModel = this._models.resolveModelWithCredentials(diaryModelId);
     return writeDiary({
       summaryManager: this.agent.summaryManager,
       resolvedModel,

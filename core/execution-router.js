@@ -35,11 +35,11 @@ const ROLE_TO_PREF_KEY = {
 export class ExecutionRouter {
   /**
    * @param {(ref: string) => object|null} resolveModel - 从 _availableModels 解析模型的函数
-   * @param {import('./auth-store.js').AuthStore} authStore
+   * @param {import('./provider-registry.js').ProviderRegistry} providerRegistry
    */
-  constructor(resolveModel, authStore) {
+  constructor(resolveModel, providerRegistry) {
     this._resolveModel = resolveModel;
-    this._authStore = authStore;
+    this._providerRegistry = providerRegistry;
   }
 
   /**
@@ -81,7 +81,7 @@ export class ExecutionRouter {
       };
     }
 
-    const cred = this._authStore.get(model.provider, agentConfig);
+    const cred = this._providerRegistry.getCredentials(model.provider);
     if (!cred) {
       throw new Error(t("error.providerMissingCreds", { provider: model.provider }));
     }
@@ -132,7 +132,7 @@ export class ExecutionRouter {
         throw new Error(t("error.utilityApiProviderMismatch", { model: utilityModelRef }));
       }
       // utility API 覆盖（用户指定了独立的 utility api endpoint）
-      const provCred = this._authStore.get(utilModel.provider, cfg);
+      const provCred = this._providerRegistry.getCredentials(utilModel.provider);
       api = provCred?.api || utilModel.api;
       apiKey = utilApiOverride.api_key || "";
       baseUrl = utilApiOverride.base_url || "";
@@ -141,7 +141,7 @@ export class ExecutionRouter {
         throw new Error(t("error.utilityApiMissingCreds", { provider: utilModel.provider }));
       }
     } else {
-      const cred = this._authStore.get(utilModel.provider, cfg);
+      const cred = this._providerRegistry.getCredentials(utilModel.provider);
       if (!cred?.api) throw new Error(t("error.providerMissingApi", { provider: utilModel.provider }));
       if (!cred.baseUrl || (!cred.apiKey && !isLocalBaseUrl(cred.baseUrl))) {
         throw new Error(t("error.providerMissingCreds", { provider: utilModel.provider }));
@@ -154,7 +154,7 @@ export class ExecutionRouter {
     // utility_large 凭证（provider 相同则复用）
     let large_api_key = apiKey, large_base_url = baseUrl, large_api = api;
     if (largeModel.provider !== utilModel.provider) {
-      const largeCred = this._authStore.get(largeModel.provider, cfg);
+      const largeCred = this._providerRegistry.getCredentials(largeModel.provider);
       if (!largeCred?.api) throw new Error(t("error.providerMissingApi", { provider: largeModel.provider }));
       if (!largeCred.baseUrl || (!largeCred.apiKey && !isLocalBaseUrl(largeCred.baseUrl))) {
         throw new Error(t("error.providerMissingCreds", { provider: largeModel.provider }));
