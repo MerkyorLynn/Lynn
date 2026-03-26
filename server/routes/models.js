@@ -1,20 +1,18 @@
 /**
  * 模型管理 REST 路由
  */
-import { readFileSync } from "fs";
 import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { t } from "../i18n.js";
-import { fromRoot } from "../../shared/hana-root.js";
 import { findModel, modelRefEquals, parseModelRef } from "../../shared/model-ref.js";
-
-const _knownModels = JSON.parse(readFileSync(fromRoot("lib", "known-models.json"), "utf-8"));
+import { lookupKnown } from "../../shared/known-models.js";
 
 /** 查询模型显示名：overrides > SDK name > known-models > id */
-function resolveModelName(id, sdkName, overrides) {
+function resolveModelName(id, sdkName, overrides, provider) {
   if (overrides?.[id]?.displayName) return overrides[id].displayName;
   if (sdkName && sdkName !== id) return sdkName;
-  if (_knownModels[id]?.name) return _knownModels[id].name;
+  const known = lookupKnown(provider, id);
+  if (known?.name) return known.name;
   return sdkName || id;
 }
 
@@ -28,9 +26,11 @@ export function createModelsRoute(engine) {
       const cur = engine.currentModel;
       const models = engine.availableModels.map(m => ({
         id: m.id,
-        name: resolveModelName(m.id, m.name, overrides),
+        name: resolveModelName(m.id, m.name, overrides, m.provider),
         provider: m.provider,
         isCurrent: modelRefEquals(m, cur),
+        vision: m.vision || false,
+        reasoning: m.reasoning || false,
       }));
       return c.json({ models, current: cur?.id || null });
     } catch (err) {

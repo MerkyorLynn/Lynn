@@ -9,25 +9,28 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-// mock known-models.json：只提供测试用的几条
-vi.mock("../shared/hana-root.js", () => ({
-  fromRoot: (...segments) => path.join("/fake-root", ...segments),
-}));
-
-// 控制 readFileSync 对 known-models.json 的返回值
+// mock known-models 词典查询：provider + model 二级结构
 const KNOWN_MODELS = {
-  "qwen3.5-flash": { name: "Qwen3.5 Flash", context: 131072, maxOutput: 8192 },
-  "deepseek-chat": { name: "DeepSeek Chat", context: 128000, maxOutput: 8192 },
-  "gpt-4o": { name: "GPT-4o", context: 128000, maxOutput: 16384 },
+  dashscope: {
+    "qwen3.5-flash": { name: "Qwen3.5 Flash", context: 131072, maxOutput: 8192, vision: true, reasoning: true, quirks: ["enable_thinking"] },
+  },
+  deepseek: {
+    "deepseek-chat": { name: "DeepSeek Chat", context: 128000, maxOutput: 8192 },
+  },
+  openai: {
+    "gpt-4o": { name: "GPT-4o", context: 128000, maxOutput: 16384, vision: true },
+  },
 };
 
-const _origReadFileSync = fs.readFileSync;
-vi.spyOn(fs, "readFileSync").mockImplementation((p, ...args) => {
-  if (String(p).includes("known-models.json")) {
-    return JSON.stringify(KNOWN_MODELS);
-  }
-  return _origReadFileSync.call(fs, p, ...args);
-});
+vi.mock("../shared/known-models.js", () => ({
+  lookupKnown(provider, modelId) {
+    if (provider && KNOWN_MODELS[provider]?.[modelId]) return KNOWN_MODELS[provider][modelId];
+    for (const models of Object.values(KNOWN_MODELS)) {
+      if (models[modelId]) return models[modelId];
+    }
+    return null;
+  },
+}));
 
 const tmpDir = path.join(os.tmpdir(), "hana-test-model-sync-" + Date.now());
 let modelsJsonPath;
@@ -131,7 +134,7 @@ describe("syncModels", () => {
     expect(result.providers.dashscope).toBeUndefined();
   });
 
-  it("enriches model metadata from known-models.json", async () => {
+  it("enriches model metadata from known-models dictionary", async () => {
     const syncModels = await loadSync();
 
     const providers = {
@@ -151,6 +154,30 @@ describe("syncModels", () => {
     expect(model.contextWindow).toBe(131072);
     expect(model.maxTokens).toBe(8192);
     expect(model.input).toEqual(["text", "image"]);
+    expect(model.vision).toBe(true);
+    expect(model.reasoning).toBe(true);
+    expect(model.quirks).toEqual(["enable_thinking"]);
+  });
+
+  it("sets vision: false and input: ['text'] for models without vision", async () => {
+    const syncModels = await loadSync();
+
+    const providers = {
+      deepseek: {
+        base_url: "https://api.deepseek.com/v1",
+        api: "openai-completions",
+        api_key: "sk-test",
+        models: ["deepseek-chat"],
+      },
+    };
+
+    syncModels(providers, { modelsJsonPath });
+
+    const result = JSON.parse(fs.readFileSync(modelsJsonPath, "utf-8"));
+    const model = result.providers.deepseek.models[0];
+    expect(model.vision).toBe(false);
+    expect(model.reasoning).toBe(false);
+    expect(model.input).toEqual(["text"]);
   });
 
   it("handles model objects with user overrides (name, context, maxOutput)", async () => {
@@ -317,5 +344,7 @@ describe("syncModels", () => {
     // date suffix stripped, humanized
     expect(model.name).toBe("My Custom Model");
     expect(model.contextWindow).toBe(128000); // default
+    expect(model.vision).toBe(false); // unknown model defaults to false
+    expect(model.reasoning).toBe(false);
   });
 });

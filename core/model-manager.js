@@ -9,7 +9,6 @@
  * 都在这个数组上完成，不再经过中间层。
  */
 import path from "path";
-import { readFileSync } from "fs";
 import {
   AuthStorage,
   ModelRegistry,
@@ -19,12 +18,9 @@ import { minimaxOAuthProvider } from "../lib/oauth/minimax-portal.js";
 import { t } from "../server/i18n.js";
 import { ProviderRegistry } from "./provider-registry.js";
 import { ExecutionRouter } from "./execution-router.js";
-import { fromRoot } from "../shared/hana-root.js";
 import { findModel } from "../shared/model-ref.js";
 import { isLocalBaseUrl } from "../shared/net-utils.js";
 import { syncModels } from "./model-sync.js";
-
-const _knownModels = JSON.parse(readFileSync(fromRoot("lib", "known-models.json"), "utf-8"));
 
 export class ModelManager {
   /**
@@ -113,40 +109,11 @@ export class ModelManager {
     return findModel(this._availableModels, str) || this._availableModels.find(m => m.name === str) || null;
   }
 
-  // ── 增强管线 ──
-
-  /**
-   * 用 known-models.json 修正 _availableModels 中的 contextWindow / maxTokens / name
-   * 供应商 /v1/models 返回的 context_length 经常不准确（如 MiMo 返回 131072 但实际 1M）
-   * known-models.json 作为权威来源覆盖
-   * @private
-   */
-  _enrichFromKnownModels() {
-    for (const m of this._availableModels) {
-      // 优先精确匹配，fallback 去掉 DashScope 的 Vendor/ 前缀再查
-      const known = _knownModels[m.id]
-        || (m.id.includes("/") ? _knownModels[m.id.split("/").pop()] : null);
-      if (!known) continue;
-      if (known.context && known.context > (m.contextWindow || 0)) {
-        m.contextWindow = known.context;
-      }
-      if (known.maxOutput && known.maxOutput > (m.maxTokens || 0)) {
-        m.maxTokens = known.maxOutput;
-      }
-      // 补充 name（如果还是裸 ID）
-      if (known.name && (!m.name || m.name === m.id)) {
-        m.name = known.name;
-      }
-    }
-  }
-
-
   // ── 刷新 ──
 
   /** 刷新可用模型列表 */
   async refreshAvailable() {
     this._availableModels = await this._modelRegistry.getAvailable();
-    this._enrichFromKnownModels();
     return this._availableModels;
   }
 

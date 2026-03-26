@@ -1,101 +1,134 @@
 {
-  "_comment": "常用模型参考字典。仅用于设置页展示和默认参考，不参与 runtime provider/model fallback。",
+  "_comment": "模型参考词典。provider + model 为唯一键。model-sync.js 对表时查询。vision/reasoning 缺省为 false，quirks 缺省为 []。",
 
-  "qwen3.5-plus": { "name": "Qwen 3.5 Plus", "context": 1000000, "maxOutput": 65536 },
-  "qwen3.5-max": { "name": "Qwen 3.5 Max", "context": 1000000, "maxOutput": 65536 },
-  "qwen3.5-flash": { "name": "Qwen 3.5 Flash", "context": 131072, "maxOutput": 8192 },
-  "qwen3-plus": { "name": "Qwen 3 Plus", "context": 131072, "maxOutput": 16384 },
-  "qwen3-max": { "name": "Qwen 3 Max", "context": 262144, "maxOutput": 32768 },
-  "qwen3-mini": { "name": "Qwen 3 Mini", "context": 131072, "maxOutput": 16384 },
-  "qwen-plus": { "name": "Qwen Plus", "context": 131072, "maxOutput": 16384 },
-  "qwen-turbo": { "name": "Qwen Turbo", "context": 131072, "maxOutput": 16384 },
-  "qwen-max": { "name": "Qwen Max", "context": 32768, "maxOutput": 16384 },
-  "qwen-long": { "name": "Qwen Long", "context": 10000000, "maxOutput": 16384 },
+  "dashscope": {
+    "qwen3.5-plus": { "name": "Qwen 3.5 Plus", "context": 1000000, "maxOutput": 65536, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen3.5-max": { "name": "Qwen 3.5 Max", "context": 1000000, "maxOutput": 65536, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen3.5-flash": { "name": "Qwen 3.5 Flash", "context": 131072, "maxOutput": 8192, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen3-plus": { "name": "Qwen 3 Plus", "context": 131072, "maxOutput": 16384, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen3-max": { "name": "Qwen 3 Max", "context": 262144, "maxOutput": 32768, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen3-mini": { "name": "Qwen 3 Mini", "context": 131072, "maxOutput": 16384, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "qwen-plus": { "name": "Qwen Plus", "context": 131072, "maxOutput": 16384, "vision": true },
+    "qwen-turbo": { "name": "Qwen Turbo", "context": 131072, "maxOutput": 16384, "vision": true },
+    "qwen-max": { "name": "Qwen Max", "context": 32768, "maxOutput": 16384, "vision": true },
+    "qwen-long": { "name": "Qwen Long", "context": 10000000, "maxOutput": 16384 },
+    "text-embedding-v4": { "name": "Text Embedding V4", "context": 8192, "maxOutput": null },
+    "text-embedding-v3": { "name": "Text Embedding V3", "context": 8192, "maxOutput": null },
+    "kimi-k2.5": { "name": "Kimi K2.5", "context": 262144, "maxOutput": 262144, "vision": true },
+    "kimi-k2": { "name": "Kimi K2", "context": 131072, "maxOutput": 8192, "vision": true }
+  },
 
-  "deepseek-chat": { "name": "DeepSeek Chat", "context": 128000, "maxOutput": 8192 },
-  "deepseek-reasoner": { "name": "DeepSeek Reasoner", "context": 128000, "maxOutput": 64000 },
-  "deepseek-v3.2": { "name": "DeepSeek V3.2", "context": 163840, "maxOutput": 65536 },
+  "dashscope-coding": {
+    "kimi-k2.5": { "name": "Kimi K2.5", "context": 262144, "maxOutput": 262144, "vision": true, "reasoning": true, "quirks": ["enable_thinking"] },
+    "kimi-k2": { "name": "Kimi K2", "context": 131072, "maxOutput": 8192, "vision": true, "quirks": ["enable_thinking"] }
+  },
 
-  "gpt-4o": { "name": "GPT-4o", "context": 128000, "maxOutput": 16384 },
-  "gpt-4o-mini": { "name": "GPT-4o Mini", "context": 128000, "maxOutput": 16384 },
-  "gpt-4.1": { "name": "GPT-4.1", "context": 1047576, "maxOutput": 32768 },
-  "gpt-4.1-mini": { "name": "GPT-4.1 Mini", "context": 1047576, "maxOutput": 32768 },
-  "gpt-4.1-nano": { "name": "GPT-4.1 Nano", "context": 1047576, "maxOutput": 32768 },
-  "o3": { "name": "o3", "context": 200000, "maxOutput": 100000 },
-  "o3-mini": { "name": "o3 Mini", "context": 200000, "maxOutput": 100000 },
-  "o4-mini": { "name": "o4 Mini", "context": 200000, "maxOutput": 100000 },
-  "gpt-5.1": { "name": "GPT-5.1", "context": 272000, "maxOutput": 128000 },
-  "gpt-5.1-codex-mini": { "name": "GPT-5.1 Codex Mini", "context": 272000, "maxOutput": 128000 },
-  "gpt-5.2": { "name": "GPT-5.2", "context": 272000, "maxOutput": 128000 },
-  "gpt-5.2-codex": { "name": "GPT-5.2 Codex", "context": 272000, "maxOutput": 128000 },
-  "gpt-5.3-codex": { "name": "GPT-5.3 Codex", "context": 272000, "maxOutput": 128000 },
-  "gpt-5.3-codex-spark": { "name": "GPT-5.3 Codex Spark", "context": 128000, "maxOutput": 128000 },
-  "gpt-5.4": { "name": "GPT-5.4", "context": 272000, "maxOutput": 128000 },
+  "deepseek": {
+    "deepseek-chat": { "name": "DeepSeek Chat", "context": 128000, "maxOutput": 8192 },
+    "deepseek-reasoner": { "name": "DeepSeek Reasoner", "context": 128000, "maxOutput": 64000, "reasoning": true },
+    "deepseek-v3.2": { "name": "DeepSeek V3.2", "context": 163840, "maxOutput": 65536 }
+  },
 
-  "claude-opus-4-6": { "name": "Claude Opus 4.6", "context": 200000, "maxOutput": 128000 },
-  "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6", "context": 200000, "maxOutput": 64000 },
-  "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5", "context": 200000, "maxOutput": 64000 },
-  "claude-opus-4-5": { "name": "Claude Opus 4.5", "context": 200000, "maxOutput": 64000 },
-  "claude-opus-4-1": { "name": "Claude Opus 4.1", "context": 200000, "maxOutput": 32000 },
-  "claude-sonnet-4-20250514": { "name": "Claude Sonnet 4", "context": 200000, "maxOutput": 64000 },
-  "claude-opus-4-20250514": { "name": "Claude Opus 4", "context": 200000, "maxOutput": 32000 },
-  "claude-3-7-sonnet": { "name": "Claude 3.7 Sonnet", "context": 200000, "maxOutput": 16000 },
-  "claude-3-5-sonnet": { "name": "Claude 3.5 Sonnet", "context": 200000, "maxOutput": 8192 },
-  "claude-3-5-haiku": { "name": "Claude 3.5 Haiku", "context": 200000, "maxOutput": 8192 },
-  "claude-haiku-4-5": { "name": "Claude Haiku 4.5", "context": 200000, "maxOutput": 64000 },
+  "openai": {
+    "gpt-4o": { "name": "GPT-4o", "context": 128000, "maxOutput": 16384, "vision": true },
+    "gpt-4o-mini": { "name": "GPT-4o Mini", "context": 128000, "maxOutput": 16384, "vision": true },
+    "gpt-4.1": { "name": "GPT-4.1", "context": 1047576, "maxOutput": 32768, "vision": true },
+    "gpt-4.1-mini": { "name": "GPT-4.1 Mini", "context": 1047576, "maxOutput": 32768, "vision": true },
+    "gpt-4.1-nano": { "name": "GPT-4.1 Nano", "context": 1047576, "maxOutput": 32768, "vision": true },
+    "o3": { "name": "o3", "context": 200000, "maxOutput": 100000, "vision": true, "reasoning": true },
+    "o3-mini": { "name": "o3 Mini", "context": 200000, "maxOutput": 100000, "reasoning": true },
+    "o4-mini": { "name": "o4 Mini", "context": 200000, "maxOutput": 100000, "vision": true, "reasoning": true },
+    "gpt-5.1": { "name": "GPT-5.1", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.1-codex-mini": { "name": "GPT-5.1 Codex Mini", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.2": { "name": "GPT-5.2", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.2-codex": { "name": "GPT-5.2 Codex", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.3-codex": { "name": "GPT-5.3 Codex", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.3-codex-spark": { "name": "GPT-5.3 Codex Spark", "context": 128000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "gpt-5.4": { "name": "GPT-5.4", "context": 272000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "text-embedding-3-large": { "name": "Text Embedding 3 Large", "context": 8191, "maxOutput": null },
+    "text-embedding-3-small": { "name": "Text Embedding 3 Small", "context": 8191, "maxOutput": null }
+  },
 
-  "gemini-2.5-pro": { "name": "Gemini 2.5 Pro", "context": 1048576, "maxOutput": 65536 },
-  "gemini-2.5-flash": { "name": "Gemini 2.5 Flash", "context": 1048576, "maxOutput": 65536 },
-  "gemini-2.0-flash": { "name": "Gemini 2.0 Flash", "context": 1048576, "maxOutput": 8192 },
+  "anthropic": {
+    "claude-opus-4-6": { "name": "Claude Opus 4.6", "context": 200000, "maxOutput": 128000, "vision": true, "reasoning": true },
+    "claude-sonnet-4-6": { "name": "Claude Sonnet 4.6", "context": 200000, "maxOutput": 64000, "vision": true, "reasoning": true },
+    "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5", "context": 200000, "maxOutput": 64000, "vision": true, "reasoning": true },
+    "claude-opus-4-5": { "name": "Claude Opus 4.5", "context": 200000, "maxOutput": 64000, "vision": true, "reasoning": true },
+    "claude-opus-4-1": { "name": "Claude Opus 4.1", "context": 200000, "maxOutput": 32000, "vision": true, "reasoning": true },
+    "claude-sonnet-4-20250514": { "name": "Claude Sonnet 4", "context": 200000, "maxOutput": 64000, "vision": true, "reasoning": true },
+    "claude-opus-4-20250514": { "name": "Claude Opus 4", "context": 200000, "maxOutput": 32000, "vision": true, "reasoning": true },
+    "claude-3-7-sonnet": { "name": "Claude 3.7 Sonnet", "context": 200000, "maxOutput": 16000, "vision": true, "reasoning": true },
+    "claude-3-5-sonnet": { "name": "Claude 3.5 Sonnet", "context": 200000, "maxOutput": 8192, "vision": true },
+    "claude-3-5-haiku": { "name": "Claude 3.5 Haiku", "context": 200000, "maxOutput": 8192, "vision": true },
+    "claude-haiku-4-5": { "name": "Claude Haiku 4.5", "context": 200000, "maxOutput": 64000, "vision": true, "reasoning": true }
+  },
 
-  "kimi-k2.5": { "name": "Kimi K2.5", "context": 262144, "maxOutput": 262144 },
-  "kimi-k2": { "name": "Kimi K2", "context": 131072, "maxOutput": 8192 },
-  "moonshot-v1-128k": { "name": "Moonshot V1 128K", "context": 131072, "maxOutput": 4096 },
-  "moonshot-v1-32k": { "name": "Moonshot V1 32K", "context": 32768, "maxOutput": 4096 },
-  "moonshot-v1-8k": { "name": "Moonshot V1 8K", "context": 8192, "maxOutput": 4096 },
+  "gemini": {
+    "gemini-2.5-pro": { "name": "Gemini 2.5 Pro", "context": 1048576, "maxOutput": 65536, "vision": true, "reasoning": true },
+    "gemini-2.5-flash": { "name": "Gemini 2.5 Flash", "context": 1048576, "maxOutput": 65536, "vision": true, "reasoning": true },
+    "gemini-2.0-flash": { "name": "Gemini 2.0 Flash", "context": 1048576, "maxOutput": 8192, "vision": true }
+  },
 
-  "doubao-seed-2-0-pro-260215": { "name": "Doubao Seed 2.0 Pro", "context": 262144, "maxOutput": 16384 },
-  "doubao-seed-2-0-mini-260215": { "name": "Doubao Seed 2.0 Mini", "context": 131072, "maxOutput": 16384 },
-  "doubao-pro-256k": { "name": "Doubao Pro 256K", "context": 262144, "maxOutput": 4096 },
-  "doubao-pro-128k": { "name": "Doubao Pro 128K", "context": 131072, "maxOutput": 4096 },
-  "doubao-pro-32k": { "name": "Doubao Pro 32K", "context": 32768, "maxOutput": 4096 },
-  "doubao-pro-4k": { "name": "Doubao Pro 4K", "context": 4096, "maxOutput": 4096 },
-  "doubao-lite-128k": { "name": "Doubao Lite 128K", "context": 131072, "maxOutput": 4096 },
-  "doubao-lite-32k": { "name": "Doubao Lite 32K", "context": 32768, "maxOutput": 4096 },
-  "doubao-lite-4k": { "name": "Doubao Lite 4K", "context": 4096, "maxOutput": 4096 },
-  "doubao-vision-pro-32k": { "name": "Doubao Vision Pro 32K", "context": 32768, "maxOutput": 4096 },
-  "doubao-vision-lite-32k": { "name": "Doubao Vision Lite 32K", "context": 32768, "maxOutput": 4096 },
+  "kimi-coding": {
+    "kimi-k2.5": { "name": "Kimi K2.5", "context": 262144, "maxOutput": 262144, "vision": true, "reasoning": true },
+    "kimi-k2": { "name": "Kimi K2", "context": 131072, "maxOutput": 8192, "vision": true }
+  },
 
-  "MiniMax-M2": { "name": "MiniMax M2", "context": 196608, "maxOutput": 128000 },
-  "MiniMax-M2.1": { "name": "MiniMax M2.1", "context": 204800, "maxOutput": 131072 },
-  "MiniMax-M2.5": { "name": "MiniMax M2.5", "context": 204800, "maxOutput": 131072 },
-  "MiniMax-M2.5-highspeed": { "name": "MiniMax M2.5 Highspeed", "context": 204800, "maxOutput": 131072 },
-  "MiniMax-M2.7": { "name": "MiniMax M2.7", "context": 204800, "maxOutput": 131072 },
-  "MiniMax-M2.7-highspeed": { "name": "MiniMax M2.7 Highspeed", "context": 204800, "maxOutput": 131072 },
+  "moonshot": {
+    "kimi-k2.5": { "name": "Kimi K2.5", "context": 262144, "maxOutput": 262144, "vision": true },
+    "kimi-k2": { "name": "Kimi K2", "context": 131072, "maxOutput": 8192, "vision": true },
+    "moonshot-v1-128k": { "name": "Moonshot V1 128K", "context": 131072, "maxOutput": 4096 },
+    "moonshot-v1-32k": { "name": "Moonshot V1 32K", "context": 32768, "maxOutput": 4096 },
+    "moonshot-v1-8k": { "name": "Moonshot V1 8K", "context": 8192, "maxOutput": 4096 }
+  },
 
-  "mimo-v2-pro": { "name": "MiMo V2 Pro", "context": 1048576, "maxOutput": 131072 },
-  "mimo-v2-omni": { "name": "MiMo V2 Omni", "context": 262144, "maxOutput": 32768 },
-  "mimo-v2-flash": { "name": "MiMo V2 Flash (309B MoE)", "context": 262144, "maxOutput": 65536 },
-  "mimo-v2-tts": { "name": "MiMo V2 TTS", "context": 131072, "maxOutput": 8192 },
+  "volcengine": {
+    "doubao-seed-2-0-pro-260215": { "name": "Doubao Seed 2.0 Pro", "context": 262144, "maxOutput": 16384, "vision": true, "reasoning": true },
+    "doubao-seed-2-0-mini-260215": { "name": "Doubao Seed 2.0 Mini", "context": 131072, "maxOutput": 16384, "vision": true },
+    "doubao-pro-256k": { "name": "Doubao Pro 256K", "context": 262144, "maxOutput": 4096 },
+    "doubao-pro-128k": { "name": "Doubao Pro 128K", "context": 131072, "maxOutput": 4096 },
+    "doubao-pro-32k": { "name": "Doubao Pro 32K", "context": 32768, "maxOutput": 4096 },
+    "doubao-pro-4k": { "name": "Doubao Pro 4K", "context": 4096, "maxOutput": 4096 },
+    "doubao-lite-128k": { "name": "Doubao Lite 128K", "context": 131072, "maxOutput": 4096 },
+    "doubao-lite-32k": { "name": "Doubao Lite 32K", "context": 32768, "maxOutput": 4096 },
+    "doubao-lite-4k": { "name": "Doubao Lite 4K", "context": 4096, "maxOutput": 4096 },
+    "doubao-vision-pro-32k": { "name": "Doubao Vision Pro 32K", "context": 32768, "maxOutput": 4096, "vision": true },
+    "doubao-vision-lite-32k": { "name": "Doubao Vision Lite 32K", "context": 32768, "maxOutput": 4096, "vision": true }
+  },
 
-  "glm-5": { "name": "GLM-5", "context": 131072, "maxOutput": 16384 },
-  "glm-4-plus": { "name": "GLM-4 Plus", "context": 131072, "maxOutput": 16384 },
-  "glm-4-flash": { "name": "GLM-4 Flash", "context": 131072, "maxOutput": 4096 },
+  "minimax": {
+    "MiniMax-M2": { "name": "MiniMax M2", "context": 196608, "maxOutput": 128000, "reasoning": true },
+    "MiniMax-M2.1": { "name": "MiniMax M2.1", "context": 204800, "maxOutput": 131072, "reasoning": true },
+    "MiniMax-M2.5": { "name": "MiniMax M2.5", "context": 204800, "maxOutput": 131072, "reasoning": true },
+    "MiniMax-M2.5-highspeed": { "name": "MiniMax M2.5 Highspeed", "context": 204800, "maxOutput": 131072, "reasoning": true },
+    "MiniMax-M2.7": { "name": "MiniMax M2.7", "context": 204800, "maxOutput": 131072, "reasoning": true },
+    "MiniMax-M2.7-highspeed": { "name": "MiniMax M2.7 Highspeed", "context": 204800, "maxOutput": 131072, "reasoning": true }
+  },
 
-  "llama3.1": { "name": "Llama 3.1", "context": 131072, "maxOutput": 8192 },
-  "llama3.2": { "name": "Llama 3.2", "context": 131072, "maxOutput": 8192 },
-  "qwen2.5": { "name": "Qwen 2.5", "context": 131072, "maxOutput": 8192 },
-  "qwen3": { "name": "Qwen 3", "context": 131072, "maxOutput": 8192 },
-  "gemma2": { "name": "Gemma 2", "context": 8192, "maxOutput": 8192 },
-  "gemma3": { "name": "Gemma 3", "context": 131072, "maxOutput": 8192 },
-  "mistral": { "name": "Mistral", "context": 32768, "maxOutput": 8192 },
-  "deepseek-r1": { "name": "DeepSeek R1", "context": 131072, "maxOutput": 8192 },
-  "phi3": { "name": "Phi 3", "context": 131072, "maxOutput": 4096 },
-  "phi4": { "name": "Phi 4", "context": 16384, "maxOutput": 4096 },
-  "codellama": { "name": "Code Llama", "context": 16384, "maxOutput": 4096 },
+  "mimo": {
+    "mimo-v2-pro": { "name": "MiMo V2 Pro", "context": 1048576, "maxOutput": 131072, "vision": true, "reasoning": true },
+    "mimo-v2-omni": { "name": "MiMo V2 Omni", "context": 262144, "maxOutput": 32768, "vision": true },
+    "mimo-v2-flash": { "name": "MiMo V2 Flash (309B MoE)", "context": 262144, "maxOutput": 65536, "reasoning": true },
+    "mimo-v2-tts": { "name": "MiMo V2 TTS", "context": 131072, "maxOutput": 8192 }
+  },
 
-  "text-embedding-v4": { "name": "Text Embedding V4", "context": 8192, "maxOutput": null },
-  "text-embedding-v3": { "name": "Text Embedding V3", "context": 8192, "maxOutput": null },
-  "text-embedding-3-large": { "name": "Text Embedding 3 Large", "context": 8191, "maxOutput": null },
-  "text-embedding-3-small": { "name": "Text Embedding 3 Small", "context": 8191, "maxOutput": null }
+  "zhipu": {
+    "glm-5": { "name": "GLM-5", "context": 131072, "maxOutput": 16384, "vision": true },
+    "glm-4-plus": { "name": "GLM-4 Plus", "context": 131072, "maxOutput": 16384, "vision": true },
+    "glm-4-flash": { "name": "GLM-4 Flash", "context": 131072, "maxOutput": 4096, "vision": true }
+  },
+
+  "ollama": {
+    "llama3.1": { "name": "Llama 3.1", "context": 131072, "maxOutput": 8192 },
+    "llama3.2": { "name": "Llama 3.2", "context": 131072, "maxOutput": 8192 },
+    "qwen2.5": { "name": "Qwen 2.5", "context": 131072, "maxOutput": 8192 },
+    "qwen3": { "name": "Qwen 3", "context": 131072, "maxOutput": 8192 },
+    "gemma2": { "name": "Gemma 2", "context": 8192, "maxOutput": 8192 },
+    "gemma3": { "name": "Gemma 3", "context": 131072, "maxOutput": 8192, "vision": true },
+    "mistral": { "name": "Mistral", "context": 32768, "maxOutput": 8192 },
+    "deepseek-r1": { "name": "DeepSeek R1", "context": 131072, "maxOutput": 8192, "reasoning": true },
+    "phi3": { "name": "Phi 3", "context": 131072, "maxOutput": 4096 },
+    "phi4": { "name": "Phi 4", "context": 16384, "maxOutput": 4096 },
+    "codellama": { "name": "Code Llama", "context": 16384, "maxOutput": 4096 }
+  }
 }

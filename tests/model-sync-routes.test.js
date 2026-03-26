@@ -139,7 +139,7 @@ describe("model sync related routes", () => {
       ],
       currentModel: { id: "gpt-5.4", name: "Gpt 5.4" },
       config: {},
-      providerRegistry: { get: () => ({ capabilities: {} }) },
+      providerRegistry: { get: () => ({}) },
     };
 
     app.route("/api", createModelsRoute(engine));

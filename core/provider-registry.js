@@ -101,7 +101,6 @@ const BUILTIN_PLUGINS = [
  * @property {"api-key"|"oauth"|"none"} authType
  * @property {string} defaultBaseUrl
  * @property {string} defaultApi
- * @property {{ vision: boolean, functionCall: boolean, streaming: boolean, reasoning: boolean, quirks?: string[] }} capabilities
  * @property {string} [authJsonKey] - OAuth provider 在 auth.json 中的 key（不同于 id 时）
  */
 
@@ -112,7 +111,6 @@ const BUILTIN_PLUGINS = [
  * @property {"api-key"|"oauth"|"none"} authType
  * @property {string} baseUrl        - 生效的 base URL（用户覆盖 > 插件默认）
  * @property {string} api            - 生效的 API 协议
- * @property {{ vision: boolean, functionCall: boolean, streaming: boolean, reasoning: boolean, quirks?: string[] }} capabilities
  * @property {string} [authJsonKey]
  * @property {boolean} isBuiltin     - 是否为内置插件
  */
@@ -200,13 +198,6 @@ export class ProviderRegistry {
         authType: uc.auth_type || "api-key",
         defaultBaseUrl: uc.base_url || "",
         defaultApi: uc.api || "openai-completions",
-        capabilities: {
-          vision: uc.capabilities?.vision ?? true,
-          functionCall: uc.capabilities?.function_call ?? true,
-          streaming: true,
-          reasoning: false,
-          quirks: [],
-        },
       };
       this._entries.set(id, this._merge(syntheticPlugin, uc, false));
     }
@@ -223,13 +214,6 @@ export class ProviderRegistry {
       authType: userConfig.auth_type || plugin.authType,
       baseUrl: userConfig.base_url || plugin.defaultBaseUrl,
       api: userConfig.api || plugin.defaultApi,
-      capabilities: plugin.capabilities || {
-        vision: false,
-        functionCall: false,
-        streaming: true,
-        reasoning: false,
-        quirks: [],
-      },
       authJsonKey: plugin.authJsonKey || plugin.id,
       isBuiltin,
     };

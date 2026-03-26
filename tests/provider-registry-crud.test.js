@@ -38,13 +38,6 @@ function makeRegistry(pluginOverrides = {}) {
     authType: "api-key",
     defaultBaseUrl: "https://api.test.com/v1",
     defaultApi: "openai-completions",
-    capabilities: {
-      vision: true,
-      functionCall: true,
-      streaming: true,
-      reasoning: false,
-      quirks: [],
-    },
     ...pluginOverrides,
   };
   reg._plugins.set(testPlugin.id, testPlugin);

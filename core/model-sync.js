@@ -6,10 +6,8 @@
  */
 
 import fs from "fs";
-import { fromRoot } from "../shared/hana-root.js";
 import { isLocalBaseUrl } from "../shared/net-utils.js";
-
-const _knownModels = JSON.parse(fs.readFileSync(fromRoot("lib", "known-models.json"), "utf-8"));
+import { lookupKnown } from "../shared/known-models.js";
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;
 
@@ -37,21 +35,27 @@ function extractApiKey(entry) {
 /**
  * 构建单个模型的 Pi SDK 格式条目
  * @param {string|{id:string, name?:string, context?:number, maxOutput?:number}} modelEntry
+ * @param {string} provider - provider 名称（查词典用）
  */
-function buildModelEntry(modelEntry) {
+function buildModelEntry(modelEntry, provider) {
   const isObj = typeof modelEntry === "object" && modelEntry !== null;
   const id = isObj ? modelEntry.id : modelEntry;
-  const known = _knownModels[id];
+  const known = lookupKnown(provider, id);
 
+  const vision = known?.vision === true;
   const entry = {
     id,
     name: (isObj && modelEntry.name) || known?.name || humanizeName(id),
-    input: ["text", "image"],
+    input: vision ? ["text", "image"] : ["text"],
     contextWindow: (isObj && modelEntry.context) || known?.context || DEFAULT_CONTEXT_WINDOW,
+    vision,
+    reasoning: known?.reasoning === true,
   };
 
   const maxOutput = (isObj && modelEntry.maxOutput) || known?.maxOutput;
   if (maxOutput) entry.maxTokens = maxOutput;
+
+  if (known?.quirks?.length) entry.quirks = known.quirks;
 
   return entry;
 }
@@ -109,7 +113,7 @@ export function syncModels(providers, opts = {}) {
       baseUrl: p.base_url,
       api: p.api || "openai-completions",
       apiKey: effectiveApiKey,
-      models: p.models.map(buildModelEntry),
+      models: p.models.map(m => buildModelEntry(m, name)),
     };
   }
 

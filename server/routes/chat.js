@@ -635,8 +635,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               // vision 能力检查：模型不支持图片时拦截，防止坏消息污染会话历史
               if (msg.images?.length) {
                 const model = engine.currentModel;
-                const provider = model?.provider && engine.providerRegistry.get(model.provider);
-                if (provider && provider.capabilities?.vision === false) {
+                if (model?.vision === false) {
                   wsSend(ws, { type: "error", message: t("error.modelNoVision") });
                   return;
                 }
