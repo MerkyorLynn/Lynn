@@ -32,7 +32,7 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
       const { currentSessionPath, pendingNewSession } = useStore.getState();
       if (currentSessionPath && !pendingNewSession) {
         const { createNewSession } = await import('../../stores/session-actions');
-        createNewSession();
+        await createNewSession();
       }
       // 刷新模型列表
       const res = await hanaFetch('/api/models');
