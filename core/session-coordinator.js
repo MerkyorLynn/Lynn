@@ -193,6 +193,9 @@ export class SessionCoordinator {
   }
 
   async switchSession(sessionPath) {
+    // 切到已有 session 时清空 pendingModel（用户的临时选择不应跟到别的 session）
+    this._pendingModel = null;
+
     const targetAgentId = this._d.agentIdFromSessionPath(sessionPath);
     if (targetAgentId && targetAgentId !== this._d.getActiveAgentId()) {
       // Phase 1: 跨 agent 切换只切指针，不清旧 session

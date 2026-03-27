@@ -269,8 +269,8 @@ export class HanaEngine {
   get config() { return this.agent.config; }
   get factStore() { return this.agent.factStore; }
   get currentModel() {
-    return this._sessionCoord.session?.model
-      ?? this._sessionCoord.pendingModel
+    return this._sessionCoord.pendingModel
+      ?? this._sessionCoord.session?.model
       ?? this._models.currentModel;
   }
   get availableModels() { return this._models.availableModels; }
