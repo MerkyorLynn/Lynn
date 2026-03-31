@@ -46,7 +46,7 @@ function createMocks() {
     abortBridgeSession: vi.fn().mockResolvedValue(false),
     steerBridgeSession: vi.fn().mockReturnValue(false),
     agentName: "TestAgent",
-    hanakoHome: os.tmpdir(),
+    lynnHome: os.tmpdir(),
   };
 
   const hub = {

@@ -32,6 +32,20 @@ function getEditorMode(artifact: Artifact): 'markdown' | 'code' | 'text' {
   return 'code';
 }
 
+function artifactExt(artifact: Artifact | null): string {
+  if (!artifact) return 'txt';
+  if (artifact.ext) return artifact.ext;
+  if (artifact.type === 'markdown') return 'md';
+  if (artifact.type === 'html') return 'html';
+  if (artifact.type === 'csv') return 'csv';
+  if (artifact.type === 'svg') return 'svg';
+  if (artifact.type === 'pdf') return 'pdf';
+  if (artifact.type === 'docx') return 'docx';
+  if (artifact.type === 'xlsx') return 'xlsx';
+  if (artifact.type === 'image') return 'png';
+  return artifact.language || 'txt';
+}
+
 export function PreviewPanel() {
   const previewOpen = useStore(s => s.previewOpen);
   const activeTabId = useStore(s => s.activeTabId);
@@ -57,6 +71,29 @@ export function PreviewPanel() {
     });
   }, [artifact, setEditorDetached, setPreviewOpen]);
 
+  const handleExport = useCallback(async () => {
+    if (!artifact) return;
+    if (artifact.filePath) {
+      window.platform?.showInFinder?.(artifact.filePath);
+      return;
+    }
+
+    const ext = artifactExt(artifact);
+    const safeTitle = (artifact.title || 'lynn-export').replace(/[\\/:*?"<>|]/g, '-');
+    const defaultPath = `${safeTitle}.${ext}`;
+    const targetPath = await window.platform?.saveFileDialog?.({
+      title: window.t?.('common.save') || 'Save',
+      defaultPath,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+    });
+    if (!targetPath) return;
+
+    const ok = await window.platform?.writeFile?.(targetPath, artifact.content);
+    if (ok) {
+      window.platform?.showInFinder?.(targetPath);
+    }
+  }, [artifact]);
+
   // DOM 模式选区捕获（非编辑模式下 mouseup 时检测选中文本）
   const handleMouseUp = useCallback(() => {
     if (!artifact || editable) return;
@@ -76,9 +113,11 @@ export function PreviewPanel() {
         <div className={previewStyles.previewPanelBody} id="previewBody" onMouseUp={handleMouseUp}>
           {previewOpen && artifact && (
             <FloatingActions
+              artifact={artifact}
               content={artifact.content}
               editable={editable}
               onDetach={handleDetach}
+              onExport={handleExport}
             />
           )}
           {previewOpen && artifact && !editable && (

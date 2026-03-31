@@ -26,7 +26,7 @@ export const createChannelSlice = (
   channelMessages: [],
   channelMembers: [],
   channelTotalUnread: 0,
-  channelsEnabled: false,
+  channelsEnabled: true,
   channelHeaderName: '',
   channelHeaderMembersText: '',
   channelInfoName: '',

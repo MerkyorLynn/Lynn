@@ -9,6 +9,7 @@ import { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { useStore, useShallow } from '../../stores';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
+import { ApplyCodeDialog } from './ApplyCodeDialog';
 import type { ChatListItem } from '../../stores/chat-types';
 import styles from './Chat.module.css';
 
@@ -17,10 +18,29 @@ const MAX_ALIVE = 5;
 // ── 入口 ──
 
 export function ChatArea() {
+  const [applyState, setApplyState] = useState<{ code: string; language?: string; anchorRect?: DOMRect } | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { code, language, anchorRect } = (e as CustomEvent).detail;
+      setApplyState({ code, language, anchorRect });
+    };
+    window.addEventListener('hana-apply-code', handler);
+    return () => window.removeEventListener('hana-apply-code', handler);
+  }, []);
+
   return (
     <>
       <PanelHost />
       <ScrollToBottomBtn />
+      {applyState && (
+        <ApplyCodeDialog
+          code={applyState.code}
+          language={applyState.language}
+          anchorRect={applyState.anchorRect}
+          onClose={() => setApplyState(null)}
+        />
+      )}
     </>
   );
 }

@@ -16,8 +16,8 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const [serverToken, setServerToken] = useState<string | null>(null);
   const [step, setStep] = useState(skipToTutorial ? 5 : 0);
   const [stepKey, setStepKey] = useState(0);
-  const [agentName, setAgentName] = useState('Hanako');
-  const [avatarSrc, setAvatarSrc] = useState('assets/Hanako.png');
+  const [agentName, setAgentName] = useState('Lynn');
+  const [avatarSrc, setAvatarSrc] = useState('assets/Lynn.png');
   const [locale, setLocale] = useState('zh-CN');
   const [i18nReady, setI18nReady] = useState(false);
 
@@ -70,7 +70,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
         setServerToken(token);
         const splashInfo = await window.hana.getSplashInfo?.();
         const loc = splashInfo?.locale || 'zh-CN';
-        const name = splashInfo?.agentName || 'Hanako';
+        const name = splashInfo?.agentName || 'Lynn';
         setLocale(loc);
         setAgentName(name);
         await i18n.load(loc);

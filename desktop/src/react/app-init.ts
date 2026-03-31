@@ -83,7 +83,7 @@ export async function initApp(): Promise<void> {
 
     // 4. 应用 agent 身份
     await applyAgentIdentity({
-      agentName: healthData.agent || 'Hanako',
+      agentName: healthData.agent || 'Lynn',
       userName: healthData.user || t('common.user'),
       ui: { avatars: false, agents: false, welcome: true },
     });
@@ -138,6 +138,16 @@ export async function initApp(): Promise<void> {
     const data = await res.json();
     const anyConnected = data.telegram?.status === 'connected' || data.feishu?.status === 'connected' || data.qq?.status === 'connected' || data.whatsapp?.status === 'connected';
     useStore.setState({ bridgeDotConnected: anyConnected });
+  } catch { /* ignore */ }
+
+  // 16. 自动发现其他 AI 智能体
+  try {
+    const res = await hanaFetch('/api/skills/external-paths');
+    const data = await res.json();
+    const found = (data.discovered || []).filter((a: any) => a.exists);
+    if (found.length > 0 && !localStorage.getItem('agent-discovery-seen')) {
+      useStore.setState({ discoveredAgents: found, agentDiscoveryVisible: true });
+    }
   } catch { /* ignore */ }
 
   // 18. 设置快捷键

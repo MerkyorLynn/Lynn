@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../stores';
-import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { renderMarkdown } from '../utils/markdown';
 import { loadChannels, sendChannelMessage } from '../stores/channel-actions';
@@ -14,24 +13,14 @@ import styles from './channels/Channels.module.css';
 
 export function ChannelsPanel() {
   const currentTab = useStore(s => s.currentTab);
-  const channelsEnabled = useStore(s => s.channelsEnabled);
   const channels = useStore(s => s.channels);
   const serverPort = useStore(s => s.serverPort);
 
-  // 启动时从后端读频道开关状态；开启时加载频道列表
+  // 启动时加载频道列表
   useEffect(() => {
     if (!serverPort) return;
-    hanaFetch('/api/config').then(r => r.json()).then(cfg => {
-      const enabled = cfg?.channels?.enabled !== false;
-      useStore.getState().setChannelsEnabled(enabled);
-      if (enabled) loadChannels();
-    }).catch(err => console.warn('[channels] init failed:', err));
+    loadChannels();
   }, [serverPort]);
-
-  // 开关变化后加载频道列表
-  useEffect(() => {
-    if (channelsEnabled && serverPort) loadChannels();
-  }, [channelsEnabled, serverPort]);
 
   return null;
 }

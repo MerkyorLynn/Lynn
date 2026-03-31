@@ -29,7 +29,7 @@ export const SHARED_MODEL_KEYS = [
 export class ConfigCoordinator {
   /**
    * @param {object} deps
-   * @param {string} deps.hanakoHome
+   * @param {string} deps.lynnHome
    * @param {string} deps.agentsDir
    * @param {() => object} deps.getAgent - 当前焦点 agent
    * @param {() => Map} deps.getAgents - 所有 agent Map

@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/Hanako-280.png" width="80" alt="Hanako">
+  <img src=".github/assets/Hanako-280.png" width="80" alt="Lynn">
 </p>
 
-<h1 align="center">OpenHanako</h1>
+<h1 align="center">Lynn</h1>
 
 <p align="center">A personal AI agent with memory and soul</p>
 
@@ -17,11 +17,11 @@
 
 ---
 
-## What is Hanako
+## What is Lynn
 
-OpenHanako is a personal AI agent that is easier to use than traditional coding agents. It has memory, personality, and can act autonomously. Multiple agents can work together on your machine.
+Lynn is a personal AI agent that is easier to use than traditional coding agents. It has memory, personality, and can act autonomously. Multiple agents can work together on your machine.
 
-As an assistant, it is gentle: no complex configuration files, no obscure jargon. Hanako is designed not just for coders, but for everyone who works at a computer.
+As an assistant, it is gentle: no complex configuration files, no obscure jargon. Lynn is designed not just for coders, but for everyone who works at a computer.
 As a tool, it is powerful: it remembers everything you've said, operates your computer, browses the web, searches for information, reads and writes files, executes code, manages schedules, and can even learn new skills on its own.
 
 ## Features
@@ -49,7 +49,7 @@ As a tool, it is powerful: it remembers everything you've said, operates your co
 ## Screenshots
 
 <p align="center">
-  <img src=".github/assets/screenshot-main.png" width="100%" alt="Hanako Main Interface">
+  <img src=".github/assets/screenshot-main.png" width="100%" alt="Lynn Main Interface">
 </p>
 
 ## Quick Start
@@ -68,7 +68,7 @@ Linux builds are planned.
 
 ### First Run
 
-On first launch, an onboarding wizard will guide you through setup: choose a language, enter your name, connect a model provider (API key + base URL), and select three models — a **chat model** (main conversation), a **utility model** (lightweight tasks like summarization), and a **utility large model** (memory compilation and deep analysis). Hanako uses the OpenAI-compatible protocol, so any provider that supports it will work (OpenAI, DeepSeek, Qwen, local models via Ollama, etc.).
+On first launch, an onboarding wizard will guide you through setup: choose a language, enter your name, connect a model provider (API key + base URL), and select three models — a **chat model** (main conversation), a **utility model** (lightweight tasks like summarization), and a **utility large model** (memory compilation and deep analysis). Lynn uses the OpenAI-compatible protocol, so any provider that supports it will work (OpenAI, DeepSeek, Qwen, local models via Ollama, etc.).
 
 ## Architecture
 

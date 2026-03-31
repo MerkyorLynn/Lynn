@@ -2,16 +2,39 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
+import { loadModels } from '../../utils/ui-helpers';
+import { lookupKnownModel } from '../../utils/known-models';
 import styles from './InputArea.module.css';
 
-export function ModelSelector({ models, disabled }: { models: Array<{ id: string; name: string; provider?: string; isCurrent?: boolean }>; disabled?: boolean }) {
+function formatProviderLabel(provider?: string): string {
+  if (!provider) return '';
+  return provider
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function modelMetaLine(model?: { id: string; provider?: string; contextWindow?: number; maxTokens?: number }): string {
+  if (!model) return '';
+  const meta = lookupKnownModel(model.provider || '', model.id);
+  const parts: string[] = [];
+  const providerLabel = formatProviderLabel(model.provider);
+  const context = model.contextWindow || meta?.contextWindow || meta?.context;
+
+  if (providerLabel) parts.push(providerLabel);
+  if (context) parts.push('ctx ' + Math.max(1, Math.round(context / 1000)) + 'k');
+
+  return parts.join(' · ');
+}
+
+export function ModelSelector({ models, disabled }: { models: Array<{ id: string; name: string; provider?: string; isCurrent?: boolean; contextWindow?: number }>; disabled?: boolean }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const current = models.find(m => m.isCurrent);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -28,23 +51,20 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modelId, provider }),
       });
-      // 如果当前有活跃 session，切模型 = 开新对话
+
       const { currentSessionPath, pendingNewSession } = useStore.getState();
       if (currentSessionPath && !pendingNewSession) {
         const { createNewSession } = await import('../../stores/session-actions');
         await createNewSession();
       }
-      // 刷新模型列表
-      const res = await hanaFetch('/api/models');
-      const data = await res.json();
-      useStore.setState({ models: data.models || [] });
+
+      await loadModels();
     } catch (err) {
       console.error('[model] switch failed:', err);
     }
     setOpen(false);
   }, []);
 
-  // 按 provider 分组
   const grouped = useMemo(() => {
     const groups: Record<string, typeof models> = {};
     for (const m of models) {
@@ -52,7 +72,6 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
       if (!groups[key]) groups[key] = [];
       groups[key].push(m);
     }
-    // 当前模型不在列表中时强制加入
     if (current && !models.find(m => m.id === current.id && m.provider === current.provider)) {
       const key = current.provider || '';
       if (!groups[key]) groups[key] = [];
@@ -63,11 +82,13 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
 
   const groupKeys = Object.keys(grouped);
   const hasMultipleProviders = groupKeys.length > 1 || (groupKeys.length === 1 && groupKeys[0] !== '');
+  const currentMeta = modelMetaLine(current);
 
   return (
     <div className={`${styles['model-selector']}${open ? ` ${styles.open}` : ''}`} ref={ref}>
-      <button className={`${styles['model-pill']}${disabled ? ` ${styles['model-pill-disabled']}` : ''}`} onClick={(e) => { e.stopPropagation(); if (!disabled) setOpen(!open); }}>
-        <span>{current?.name || t('model.unknown') || '...'}</span>
+      <button className={`${styles['model-pill']}${disabled ? ` ${styles['model-pill-disabled']}` : ''}`} onClick={(e) => { e.stopPropagation(); if (!disabled) setOpen(!open); }} title={currentMeta || current?.id || ''}>
+        <span className={styles['model-pill-name']}>{current?.name || t('model.unknown') || '...'}</span>
+        {currentMeta && <span className={styles['model-pill-meta']}>{currentMeta}</span>}
         <span className={styles['model-arrow']}>▾</span>
       </button>
       {open && (
@@ -79,15 +100,20 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
                 {hasMultipleProviders && (
                   <div className={styles['model-group-header']}>{provider || '—'}</div>
                 )}
-                {items.map(m => (
-                  <button
-                    key={`${m.provider}/${m.id}`}
-                    className={`${styles['model-option']}${m.isCurrent ? ` ${styles.active}` : ''}`}
-                    onClick={() => switchModel(m.id, m.provider)}
-                  >
-                    {m.name}
-                  </button>
-                ))}
+                {items.map(m => {
+                  const meta = modelMetaLine(m);
+                  return (
+                    <button
+                      key={`${m.provider}/${m.id}`}
+                      className={`${styles['model-option']}${m.isCurrent ? ` ${styles.active}` : ''}`}
+                      onClick={() => switchModel(m.id, m.provider)}
+                      title={m.id}
+                    >
+                      <span className={styles['model-option-name']}>{m.name}</span>
+                      <span className={styles['model-option-meta']}>{meta || m.id}</span>
+                    </button>
+                  );
+                })}
               </div>
             );
           })}

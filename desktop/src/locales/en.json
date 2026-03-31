@@ -34,6 +34,34 @@
     "warningTitle": "About Channels",
     "warningBody": "I believe letting assistants with different memories and thinking styles interact can spark more inspiration, so I built a place where agents can talk to each other, even when you're away.\n\nPlease note that channels are experimental and may cause:\n1. Higher token usage\n2. Unexpected responses\n3. Memory confusion\n\nUse with caution",
     "warningConfirm": "I understand, enable channels",
+    "expertTeam": {
+      "guideTitle": "Build an Expert Team",
+      "guideDesc": "Let AI with different expertise discuss together for better solutions",
+      "guideTip": "You can also click + in the top right to create a custom channel",
+      "needMoreAgents": "Please create at least 1 Agent first",
+      "creating": "Creating...",
+      "expertPresets": "Expert Presets (Uses Your API Key)",
+      "channelTemplates": "Channel Templates (Uses Existing Agents)",
+      "spawnSuccess": "Expert created",
+      "spawnFailed": "Failed to create expert",
+      "tpl": {
+        "codeReview": {
+          "label": "Code Review Team",
+          "desc": "Security expert, performance expert & architect review code together",
+          "intro": "This is a code review channel. Please review from your professional perspective:\n- Focus on security vulnerabilities, injection risks, permission issues\n- Focus on performance bottlenecks, memory leaks, algorithm complexity\n- Focus on architecture design, maintainability, extensibility\nPlease share your expert opinions and discuss with each other."
+        },
+        "productBrainstorm": {
+          "label": "Product Brainstorm",
+          "desc": "Product manager, designer & engineer discuss requirements together",
+          "intro": "This is a product brainstorming channel. Please discuss from your role's perspective:\n- Product: user needs, market positioning, priorities\n- Design: user experience, interaction flow, visual style\n- Engineering: technical feasibility, development cost, implementation\nPlease actively contribute and brainstorm the best solution."
+        },
+        "archDiscussion": {
+          "label": "Architecture Discussion",
+          "desc": "Backend, frontend & DevOps experts discuss tech decisions",
+          "intro": "This is an architecture discussion channel. Please discuss from your domain:\n- Backend: API design, data models, service architecture\n- Frontend: component design, state management, performance\n- DevOps: deployment strategy, CI/CD, monitoring & alerts\nPlease thoroughly discuss pros and cons to reach consensus."
+        }
+      }
+    },
     "disabled": "Channels disabled",
     "toggleLabel": "Channel toggle",
     "members": "Members",
@@ -512,6 +540,10 @@
       "tagline": "An assistant that lives in your computer, with a good memory.",
       "license": "License",
       "copyright": "Copyright",
+      "copyrightOriginal": " (Original)",
+      "copyrightDerived": " (Derived Work)",
+      "description": "Description",
+      "descriptionText": "Developed based on liliMozi's open-source project",
       "licenseToggle": "License full text",
       "permissions": "Permissions",
       "fullAccess": "Full Access Mode",
@@ -925,7 +957,8 @@
       "utilityLarge": "Utility Large",
       "utilityLargeHint": "Memory compilation, deep analysis — pick a capable model",
       "back": "Back",
-      "next": "Next"
+      "next": "Next",
+      "settingsHint": "You can configure utility models later in Settings"
     },
     "theme": {
       "title": "Pick a Theme",
@@ -970,9 +1003,32 @@
   "automation": {
     "title": "Scheduled Tasks",
     "empty": "No scheduled tasks yet.\nThe assistant will create them when needed.",
+    "guideTitle": "Automate with scheduled tasks",
+    "guideDesc": "Set up tasks to run on a schedule. You can also ask the assistant to create them in chat.",
+    "guideTip": "Click to add instantly. You can edit the time and content later.",
+    "deleteConfirm": "Are you sure you want to delete this scheduled task?",
     "defaultModel": "Default model",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "addCustom": "+ Custom Task",
+    "customName": "Task name",
+    "customPrompt": "Prompt",
+    "customModel": "Model",
+    "customDays": "Run on days",
+    "customTime": "Run at time",
+    "customSubmit": "Create task",
+    "customCancel": "Cancel",
+    "changeTime": "Change time",
+    "tpl": {
+      "newsLabel": "Daily Tech Digest",
+      "newsDesc": "Search and summarize tech news every day at 9 AM",
+      "diaryLabel": "Nightly Journal",
+      "diaryDesc": "Write a journal entry every night at 10 PM",
+      "repoLabel": "Weekday Project Check",
+      "repoDesc": "Review Issues and PRs Monday through Friday",
+      "cleanLabel": "Weekly Cleanup",
+      "cleanDesc": "Clean up temp files every Sunday"
+    }
   },
   "desk": {
     "title": "Desk",
@@ -1120,7 +1176,7 @@
     "skillMissingName": "Missing name field in SKILL.md",
     "skillNameInvalid": "Invalid skill name (\"{name}\"). Only letters, numbers, underscores, and hyphens are allowed.",
     "skillPathMustBeAbsolute": "Path must be absolute: {path}",
-    "skillCannotAddSelfDir": "Cannot add Hanako's own skills directory",
+    "skillCannotAddSelfDir": "Cannot add Lynn's own skills directory",
     "skillInvalidName": "Invalid skill name",
     "skillExternalCannotDelete": "External skills cannot be deleted from here",
     "skillNotExists": "Skill does not exist",
@@ -1285,14 +1341,14 @@
   },
   "main": {
     "tray": {
-      "show": "Show Hanako",
+      "show": "Show Lynn",
       "settings": "Settings",
       "quit": "Quit"
     },
     "dialog": {
       "selectFolder": "Select Working Folder",
       "selectSkill": "Select Skill",
-      "launchFailedTitle": "Hanako Launch Failed",
+      "launchFailedTitle": "Lynn Launch Failed",
       "launchFailedBody": "{detail}\n\nDetailed log saved to:\n{logPath}\n\nPlease send this screenshot or log file to the developer.",
       "serverRestartFailed": "Server crashed and failed to restart.\n{error}\n\nPlease restart the application.",
       "serverMultipleCrash": "Server crashed multiple times ({reason}).\n\nPlease restart the application.",
@@ -1478,7 +1534,7 @@
     },
     "updateSettings": {
       "label": "Settings",
-      "description": "Modify Hanako's settings. Two actions available:\n- search + query: Search settings by keyword, see current values and options\n- apply + key + value: Change a setting (requires user confirmation)\n\nIf you already know the exact key, you can apply directly.",
+      "description": "Modify Lynn's settings. Two actions available:\n- search + query: Search settings by keyword, see current values and options\n- apply + key + value: Change a setting (requires user confirmation)\n\nIf you already know the exact key, you can apply directly.",
       "actionDesc": "Action: search to find settings / apply to change a setting",
       "queryDesc": "Search keyword (required for search)",
       "keyDesc": "Setting key (found via search)",
@@ -1554,7 +1610,7 @@
     "inputHelp": "Type /help to see commands"
   },
   "sandbox": {
-    "blocked": "[Security] {reason}\n\nThis operation was blocked by Hanako's sandbox security policy. This is not a bug, but a security protection mechanism at work. Please inform the user that the operation was blocked and explain the reason. Users can adjust sandbox policy in settings.",
+    "blocked": "[Security] {reason}\n\nThis operation was blocked by Lynn's sandbox security policy. This is not a bug, but a security protection mechanism at work. Please inform the user that the operation was blocked and explain the reason. Users can adjust sandbox policy in settings.",
     "noSudo": "sudo is not allowed",
     "noSu": "su user switching is not allowed",
     "noChmod": "Changing file permissions is not allowed",
@@ -1603,5 +1659,9 @@
   "status.reconnecting": "Reconnecting...",
   "status.disconnected": "Connection lost",
   "status.reconnect": "Reconnect",
-  "action.retry": "Retry"
+  "action.retry": "Retry",
+  "agentDiscovery.title": "Other AI Agents Found",
+  "agentDiscovery.body": "We found skill libraries from other AI tools on your machine:",
+  "agentDiscovery.enable": "Enable All",
+  "agentDiscovery.later": "Later"
 }

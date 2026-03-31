@@ -26,6 +26,8 @@ export interface Session {
   agentId: string | null;
   agentName: string | null;
   cwd: string | null;
+  modelId?: string | null;
+  modelProvider?: string | null;
   _optimistic?: boolean;
 }
 
@@ -33,6 +35,7 @@ export interface Agent {
   id: string;
   name: string;
   yuan: string;
+  tier?: 'local' | 'expert' | 'byok';
   isPrimary: boolean;
   hasAvatar?: boolean;
 }
@@ -50,6 +53,28 @@ export interface Model {
   reasoning?: boolean;
   xhigh?: boolean;
   vision?: boolean;
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+// ── Expert 类型 ──
+
+export interface ExpertPreset {
+  slug: string;
+  name: Record<string, string>;
+  icon: string;
+  category: string;
+  tier: 'expert';
+  model_binding: {
+    preferred: string;
+    fallback: string;
+  };
+  credit_cost: {
+    per_session: number;
+    per_extra_round: number;
+  };
+  skills: string[];
+  description: Record<string, string>;
 }
 
 export interface Channel {
@@ -138,6 +163,7 @@ export interface PlatformApi {
   openFile(path: string): void;
   openExternal(url: string): void;
   showInFinder(path: string): void;
+  saveFileDialog?(opts: { title?: string; defaultPath?: string; filters?: Array<{ name: string; extensions: string[] }> }): Promise<string | null>;
   browserEmergencyStop?(): void;
   openSkillViewer?(opts: { skillPath?: string; name?: string; baseDir?: string; filePath?: string; installed?: boolean }): void;
   settingsChanged(event: string, payload?: unknown): void;

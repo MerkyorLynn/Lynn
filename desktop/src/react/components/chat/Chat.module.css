@@ -68,6 +68,18 @@
     letter-spacing: 0.02em;
 }
 
+.avatarMeta {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    padding: 0.08rem 0.35rem;
+    border: 1px solid rgba(var(--accent-rgb), 0.14);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.04);
+}
+
 /* 单条消息 */
 .message {
     max-width: 92%;
@@ -556,6 +568,12 @@
     flex: 1;
 }
 
+.toolGroupCount {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
 .toolGroupArrow {
     font-size: 0.7rem;
     color: var(--text-muted);
@@ -588,9 +606,9 @@
     gap: 0.5rem;
     font-size: 0.78rem;
     color: var(--tool-text);
-    padding: 0.2rem 0;
-    line-height: 1.5;
-    max-width: 400px;
+    padding: 0.16rem 0;
+    line-height: 1.45;
+    max-width: 540px;
 }
 
 .toolGroupSingle .toolIndicator {
@@ -669,6 +687,116 @@
     color: var(--coral);
 }
 
+/* ── 工具耗时计时器 ── */
+
+.toolElapsed {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    opacity: 0.7;
+    flex-shrink: 0;
+    min-width: 2.5em;
+    text-align: right;
+}
+
+/* ── 工具完成摘要信息 ── */
+
+.toolSummaryBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    margin-left: 0.2rem;
+    flex-shrink: 0;
+}
+
+.toolSummaryAdded {
+    color: var(--green, #4caf50);
+}
+
+.toolSummaryRemoved {
+    color: var(--coral, #e57373);
+}
+
+.toolSummaryMeta {
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+/* ── 工具指示器包裹层 ── */
+
+.toolIndicatorWrap {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── 工具输出展开切换 ── */
+
+.toolOutputToggle {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+
+/* ── 工具输出预览 ── */
+
+.toolOutputPreview {
+    margin: 2px 0 4px;
+    padding: 6px 10px;
+    background: var(--overlay-subtle, rgba(0,0,0,0.02));
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    max-height: 160px;
+    overflow-y: auto;
+    color: var(--text-light);
+    line-height: 1.5;
+    animation: toolOutputIn 0.15s ease-out;
+}
+
+@keyframes toolOutputIn {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 160px; }
+}
+
+.toolOutputPreview[data-style="terminal"] {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: var(--radius-sm);
+}
+
+.toolOutputPre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: inherit;
+    font-family: inherit;
+}
+
+.toolOutputFileLine {
+    padding: 1px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.toolOutputFileLine::before {
+    content: '  ';
+}
+
+.toolOutputMore {
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 2px;
+}
+
+.toolOutputText {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 /* ── 思考折叠块 ── */
 
 .thinkingBlock {
@@ -680,12 +808,18 @@
 .thinkingBlockSummary {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.28rem;
     cursor: pointer;
     color: var(--text-muted);
     font-style: italic;
     user-select: none;
     list-style: none;
+}
+
+.thinkingBlockLabel {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.01em;
 }
 
 .thinkingBlockSummary::-webkit-details-marker {

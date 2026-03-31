@@ -36,7 +36,35 @@
     "disabled": "チャンネル機能は無効です",
     "toggleLabel": "チャンネル切替",
     "members": "メンバー",
-    "createIntroOptional": "説明"
+    "createIntroOptional": "説明",
+    "expertTeam": {
+      "guideTitle": "エキスパートチームを結成",
+      "guideDesc": "異なる専門性を持つAIが一緒に議論し、より良い解決策を見つけます",
+      "guideTip": "右上の + をクリックしてカスタムチャンネルを作成することもできます",
+      "needMoreAgents": "先に1つ以上のエージェントを作成してください",
+      "creating": "作成中...",
+      "expertPresets": "専門家プリセット（APIキーを使用）",
+      "channelTemplates": "チャンネルテンプレート（既存エージェントを使用）",
+      "spawnSuccess": "専門家を作成しました",
+      "spawnFailed": "専門家の作成に失敗しました",
+      "tpl": {
+        "codeReview": {
+          "label": "コードレビューチーム",
+          "desc": "セキュリティ専門家、パフォーマンス専門家、アーキテクトが一緒にコードをレビュー",
+          "intro": "これはコードレビューチャンネルです。それぞれの専門的な視点からレビューしてください：\n- セキュリティの脆弱性、インジェクションリスク、権限の問題に注目\n- パフォーマンスのボトルネック、メモリリーク、アルゴリズムの複雑さに注目\n- アーキテクチャ設計、保守性、拡張性に注目\n専門的な意見を共有し、互いに議論してください。"
+        },
+        "productBrainstorm": {
+          "label": "プロダクトブレスト",
+          "desc": "プロダクトマネージャー、デザイナー、エンジニアが要件を議論",
+          "intro": "これはプロダクトブレインストーミングチャンネルです。それぞれの役割から議論してください：\n- プロダクト：ユーザーニーズ、市場ポジショニング、優先順位\n- デザイン：ユーザー体験、インタラクションフロー、ビジュアルスタイル\n- エンジニアリング：技術的実現可能性、開発コスト、実装方法\n積極的に発言し、最良の解決策を見つけましょう。"
+        },
+        "archDiscussion": {
+          "label": "アーキテクチャ議論",
+          "desc": "バックエンド、フロントエンド、DevOps専門家が技術選定を議論",
+          "intro": "これはアーキテクチャ議論チャンネルです。それぞれの分野から技術方案を議論してください：\n- バックエンド：API設計、データモデル、サービスアーキテクチャ\n- フロントエンド：コンポーネント設計、状態管理、パフォーマンス最適化\n- DevOps：デプロイ戦略、CI/CD、モニタリングとアラート\n各案のメリット・デメリットを十分に議論し、合意を目指しましょう。"
+        }
+      }
+    }
   },
   "sidebar": {
     "title": "チャット",
@@ -510,6 +538,10 @@
       "tagline": "あなたのコンピュータに住む、記憶力のよいアシスタント。",
       "license": "ライセンス",
       "copyright": "著作権",
+      "copyrightOriginal": "（オリジナル）",
+      "copyrightDerived": "（二次開発）",
+      "description": "プロジェクト説明",
+      "descriptionText": "liliMozi のオープンソースプロジェクトをベースに開発",
       "licenseToggle": "ライセンス全文",
       "permissions": "権限",
       "fullAccess": "フルアクセスモード",
@@ -946,9 +978,23 @@
   "automation": {
     "title": "スケジュールタスク",
     "empty": "スケジュールタスクはまだありません。\n必要に応じてアシスタントが作成します。",
+    "guideTitle": "定期タスクで自動化",
+    "guideDesc": "スケジュールを設定すると、アシスタントが自動で実行します。チャットで作成を依頼することもできます。",
+    "guideTip": "クリックですぐ追加。時間と内容は後から編集できます。",
+    "deleteConfirm": "このスケジュールタスクを削除しますか？",
     "defaultModel": "デフォルトモデル",
     "edit": "編集",
-    "delete": "削除"
+    "delete": "削除",
+    "tpl": {
+      "newsLabel": "毎日テックニュース",
+      "newsDesc": "毎朝9時にテクノロジーニュースを検索・整理",
+      "diaryLabel": "毎晩日記",
+      "diaryDesc": "毎晩22時に自動で日記を作成",
+      "repoLabel": "平日プロジェクトチェック",
+      "repoDesc": "月〜金にIssuesとPRを確認",
+      "cleanLabel": "週次クリーンアップ",
+      "cleanDesc": "毎週日曜に一時ファイルを整理"
+    }
   },
   "desk": {
     "title": "デスク",
@@ -1096,7 +1142,7 @@
     "skillMissingName": "SKILL.md に name フィールドがありません",
     "skillNameInvalid": "スキル名が無効です（\"{name}\"）。英字、数字、アンダースコア、ハイフンのみ使用できます。",
     "skillPathMustBeAbsolute": "パスは絶対パスである必要があります: {path}",
-    "skillCannotAddSelfDir": "Hanako 自身のスキルディレクトリは追加できません",
+    "skillCannotAddSelfDir": "Lynn 自身のスキルディレクトリは追加できません",
     "skillInvalidName": "無効なスキル名です",
     "skillExternalCannotDelete": "外部互換スキルはここからは削除できません",
     "skillNotExists": "スキルが存在しません",
@@ -1260,14 +1306,14 @@
   },
   "main": {
     "tray": {
-      "show": "Hanako を表示",
+      "show": "Lynn を表示",
       "settings": "設定",
       "quit": "終了"
     },
     "dialog": {
       "selectFolder": "作業フォルダを選択",
       "selectSkill": "スキルを選択",
-      "launchFailedTitle": "Hanako の起動に失敗しました",
+      "launchFailedTitle": "Lynn の起動に失敗しました",
       "launchFailedBody": "{detail}\n\n詳細ログの保存先：\n{logPath}\n\nこのスクリーンショットまたはログファイルを開発者にお送りください。",
       "serverRestartFailed": "Server がクラッシュし、再起動に失敗しました。\n{error}\n\nアプリケーションを再起動してください。",
       "serverMultipleCrash": "Server が複数回クラッシュしました ({reason})。\n\nアプリケーションを再起動してください。",
@@ -1453,7 +1499,7 @@
     },
     "updateSettings": {
       "label": "設定",
-      "description": "Hanako の設定を変更します。2つの操作があります：\n- search + query：キーワードで設定項目を検索し、現在の値と選択肢を確認\n- apply + key + value：指定した設定を変更（ユーザー確認が必要）\n\n正確なキーが分かっている場合は、検索をスキップして直接 apply できます。",
+      "description": "Lynn の設定を変更します。2つの操作があります：\n- search + query：キーワードで設定項目を検索し、現在の値と選択肢を確認\n- apply + key + value：指定した設定を変更（ユーザー確認が必要）\n\n正確なキーが分かっている場合は、検索をスキップして直接 apply できます。",
       "actionDesc": "操作タイプ：search で設定を検索 / apply で設定を変更",
       "queryDesc": "検索キーワード（search 時に必須）",
       "keyDesc": "設定キー（search で取得）",
@@ -1529,7 +1575,7 @@
     "inputHelp": "/help でコマンド一覧を表示"
   },
   "sandbox": {
-    "blocked": "[セキュリティ] {reason}\n\nこの操作は Hanako のサンドボックスセキュリティポリシーによりブロックされました。これはバグではなく、セキュリティ保護機構の動作です。ユーザーに操作がブロックされたことと理由を説明してください。ユーザーは設定でサンドボックスポリシーを調整できます。",
+    "blocked": "[セキュリティ] {reason}\n\nこの操作は Lynn のサンドボックスセキュリティポリシーによりブロックされました。これはバグではなく、セキュリティ保護機構の動作です。ユーザーに操作がブロックされたことと理由を説明してください。ユーザーは設定でサンドボックスポリシーを調整できます。",
     "noSudo": "sudo の使用は禁止されています",
     "noSu": "su によるユーザー切り替えは禁止されています",
     "noChmod": "ファイル権限の変更は禁止されています",

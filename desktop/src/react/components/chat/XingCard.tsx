@@ -43,7 +43,7 @@ export const XingCard = memo(function XingCard({ title, content, sealed, agentNa
         </>
       ) : (
         <div className={styles.xingCardStatus}>
-          {t('xing.thinking', { name: agentName || 'Hanako' })}
+          {t('xing.thinking', { name: agentName || 'Lynn' })}
           <span className={styles.thinkingDots}><span /><span /><span /></span>
         </div>
       )}

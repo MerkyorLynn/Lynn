@@ -111,26 +111,54 @@ export function parseMoodFromContent(content: string): { mood: string | null; te
 }
 
 /**
- * 给 md-content 里的代码块注入复制按钮
+ * 给 md-content 里的代码块注入复制按钮和 Apply 按钮
  */
 export function injectCopyButtons(container: HTMLElement): void {
   const t = window.t ?? ((p: string) => p);
   const pres = container.querySelectorAll('pre');
   for (const pre of pres) {
     if (pre.querySelector('.copy-btn')) continue;
+
+    // 按钮容器
+    // eslint-disable-next-line no-restricted-syntax -- button container injected into rendered Markdown HTML, outside React tree
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'code-btn-group';
+    btnGroup.style.cssText = 'position:absolute;top:4px;right:4px;display:flex;gap:4px;z-index:1;';
+
+    // Copy 按钮
     // eslint-disable-next-line no-restricted-syntax -- copy button injected into rendered Markdown HTML, outside React tree
-    const btn = document.createElement('button');
-    btn.className = 'copy-btn';
-    btn.textContent = t('attach.copy');
-    btn.addEventListener('click', () => {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = t('attach.copy');
+    copyBtn.addEventListener('click', () => {
       const code = pre.querySelector('code');
       const text = code ? code.textContent : pre.textContent;
       navigator.clipboard.writeText(text || '').then(() => {
-        btn.textContent = t('attach.copied');
-        setTimeout(() => { btn.textContent = t('attach.copy'); }, 1500);
+        copyBtn.textContent = t('attach.copied');
+        setTimeout(() => { copyBtn.textContent = t('attach.copy'); }, 1500);
       });
     });
+
+    // Apply 按钮
+    // eslint-disable-next-line no-restricted-syntax -- apply button injected into rendered Markdown HTML, outside React tree
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'copy-btn apply-btn';
+    applyBtn.textContent = 'Apply';
+    applyBtn.addEventListener('click', () => {
+      const code = pre.querySelector('code');
+      const text = code ? code.textContent : pre.textContent;
+      // 检测代码语言
+      const langClass = code?.className?.match(/language-(\w+)/);
+      const language = langClass ? langClass[1] : undefined;
+      // 触发自定义事件，让 React 层捕获
+      window.dispatchEvent(new CustomEvent('hana-apply-code', {
+        detail: { code: text || '', language, anchorRect: applyBtn.getBoundingClientRect() },
+      }));
+    });
+
+    btnGroup.appendChild(copyBtn);
+    btnGroup.appendChild(applyBtn);
     pre.style.position = 'relative';
-    pre.appendChild(btn);
+    pre.appendChild(btnGroup);
   }
 }

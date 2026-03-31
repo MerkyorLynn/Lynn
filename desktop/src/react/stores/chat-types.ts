@@ -9,11 +9,26 @@
 
 // ── 工具调用 ──
 
+export interface ToolCallSummary {
+  filePath?: string;
+  linesAdded?: number;
+  linesRemoved?: number;
+  bytesWritten?: number;
+  outputPreview?: string;
+  command?: string;
+  matchCount?: number;
+  lineCount?: number;
+  totalLines?: number;
+  truncated?: boolean;
+}
+
 export interface ToolCall {
   name: string;
   args?: Record<string, unknown>;
   done: boolean;
   success: boolean;
+  startedAt?: number;
+  summary?: ToolCallSummary;
 }
 
 // ── 用户附件 ──
@@ -40,6 +55,7 @@ export type ContentBlock =
   | { type: 'text'; html: string }
   | { type: 'xing'; title: string; content: string; sealed: boolean }
   | { type: 'file_output'; filePath: string; label: string; ext: string }
+  | { type: 'file_diff'; filePath: string; diff: string; linesAdded: number; linesRemoved: number }
   | { type: 'artifact'; artifactId: string; artifactType: string; title: string; content: string; language?: string }
   | { type: 'browser_screenshot'; base64: string; mimeType: string }
   | { type: 'skill'; skillName: string; skillFilePath: string }

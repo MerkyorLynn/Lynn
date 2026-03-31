@@ -3,8 +3,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { SelectWidget } from '../../settings/widgets/SelectWidget';
-import type { SelectOption } from '../../settings/widgets/SelectWidget';
 import { loadModels as loadModelsAction, saveModel as saveModelAction } from '../onboarding-actions';
 import type { HanaFetch } from '../onboarding-actions';
 import { StepContainer } from '../onboarding-ui';
@@ -29,8 +27,6 @@ export function ModelStep({
   const [modelSearch, setModelSearch] = useState('');
   const [modelLoading, setModelLoading] = useState('');
   const [modelError, setModelError] = useState(false);
-  const [selectedUtility, setSelectedUtility] = useState('');
-  const [selectedUtilityLarge, setSelectedUtilityLarge] = useState('');
 
   const modelsLoadedFor = useRef('');
 
@@ -53,8 +49,6 @@ export function ModelStep({
       }
       setFetchedModels(result.models);
       setSelectedModel('');
-      setSelectedUtility('');
-      setSelectedUtilityLarge('');
       modelsLoadedFor.current = providerName;
       setModelLoading('');
     } catch (err: unknown) {
@@ -74,9 +68,6 @@ export function ModelStep({
     ? fetchedModels.filter(m => m.id.toLowerCase().includes(modelSearch.toLowerCase()))
     : fetchedModels;
 
-  // ── SelectWidget options ──
-  const modelSelectOptions: SelectOption[] = fetchedModels.map(m => ({ value: m.id, label: m.id }));
-
   // ── Next ──
   const onNext = useCallback(async () => {
     if (preview) { goToStep(4); return; }
@@ -84,14 +75,13 @@ export function ModelStep({
     try {
       await saveModelAction({
         hanaFetch, selectedModel, fetchedModels, providerName,
-        selectedUtility, selectedUtilityLarge,
       });
       goToStep(4);
     } catch (err) {
       console.error('[onboarding] save model failed:', err);
       showError(t('onboarding.error'));
     }
-  }, [preview, selectedModel, hanaFetch, fetchedModels, providerName, selectedUtility, selectedUtilityLarge, goToStep, showError]);
+  }, [preview, selectedModel, hanaFetch, fetchedModels, providerName, goToStep, showError]);
 
   return (
     <StepContainer>
@@ -136,33 +126,7 @@ export function ModelStep({
         )}
       </div>
 
-      {/* Utility model selectors */}
-      <div className="ob-utility-section">
-        <div className="ob-utility-block">
-          <div className="ob-utility-header">
-            <span className="ob-utility-title">{t('onboarding.model.utility')}</span>
-            <span className="ob-utility-hint">{t('onboarding.model.utilityHint')}</span>
-          </div>
-          <SelectWidget
-            options={modelSelectOptions}
-            value={selectedUtility}
-            onChange={setSelectedUtility}
-            placeholder={'\u2014'}
-          />
-        </div>
-        <div className="ob-utility-block">
-          <div className="ob-utility-header">
-            <span className="ob-utility-title">{t('onboarding.model.utilityLarge')}</span>
-            <span className="ob-utility-hint">{t('onboarding.model.utilityLargeHint')}</span>
-          </div>
-          <SelectWidget
-            options={modelSelectOptions}
-            value={selectedUtilityLarge}
-            onChange={setSelectedUtilityLarge}
-            placeholder={'\u2014'}
-          />
-        </div>
-      </div>
+      <p className="ob-settings-hint">{t('onboarding.model.settingsHint')}</p>
 
       <div className="onboarding-actions">
         <button className="ob-btn ob-btn-secondary" onClick={() => goToStep(2)}>

@@ -37,7 +37,35 @@
     "warningConfirm": "我了解了，开启频道",
     "disabled": "频道功能已关闭",
     "toggleLabel": "频道功能开关",
-    "members": "成员"
+    "members": "成员",
+    "expertTeam": {
+      "guideTitle": "组建专家团",
+      "guideDesc": "让不同专长的 AI 一起讨论问题，碰撞出更好的方案",
+      "guideTip": "也可以点击右上角 + 自定义创建频道",
+      "needMoreAgents": "请先创建至少 1 个 Agent",
+      "creating": "创建中...",
+      "expertPresets": "专家预设（使用你的 API Key）",
+      "channelTemplates": "频道模板（使用已有 Agent）",
+      "spawnSuccess": "专家已创建",
+      "spawnFailed": "创建专家失败",
+      "tpl": {
+        "codeReview": {
+          "label": "代码审查组",
+          "desc": "安全专家、性能专家、架构师一起审查代码",
+          "intro": "这是一个代码审查频道。请各位以各自的专业视角审查代码：\n- 关注安全漏洞、注入风险、权限问题\n- 关注性能瓶颈、内存泄漏、算法复杂度\n- 关注架构设计、可维护性、扩展性\n请逐一给出专业意见并互相讨论。"
+        },
+        "productBrainstorm": {
+          "label": "产品头脑风暴",
+          "desc": "产品经理、设计师、工程师共同讨论需求",
+          "intro": "这是一个产品头脑风暴频道。请各位从各自的角色出发讨论：\n- 产品视角：用户需求、市场定位、优先级\n- 设计视角：用户体验、交互流程、视觉风格\n- 工程视角：技术可行性、开发成本、实现方案\n请积极发言，碰撞出最佳方案。"
+        },
+        "archDiscussion": {
+          "label": "架构讨论",
+          "desc": "后端、前端、DevOps 专家讨论技术选型",
+          "intro": "这是一个架构讨论频道。请各位从各自的领域出发讨论技术方案：\n- 后端：API 设计、数据模型、服务架构\n- 前端：组件设计、状态管理、性能优化\n- DevOps：部署方案、CI/CD、监控告警\n请充分讨论各方案的优缺点，达成共识。"
+        }
+      }
+    }
   },
   "sidebar": {
     "title": "对话",
@@ -512,6 +540,10 @@
       "tagline": "一个住在你电脑里的助手，记性很好。",
       "license": "许可证",
       "copyright": "版权",
+      "copyrightOriginal": "（原始版权）",
+      "copyrightDerived": "（二次开发）",
+      "description": "项目描述",
+      "descriptionText": "基于 liliMozi 的开源项目开发",
       "licenseToggle": "许可证全文",
       "permissions": "权限",
       "fullAccess": "全权模式",
@@ -925,7 +957,8 @@
       "utilityLarge": "大工具模型",
       "utilityLargeHint": "记忆编译、深度分析等需要理解力的任务，推荐能力较强的模型",
       "back": "上一步",
-      "next": "下一步"
+      "next": "下一步",
+      "settingsHint": "更多模型配置（工具模型等）可在设置中调整"
     },
     "theme": {
       "title": "选择一个主题",
@@ -968,11 +1001,34 @@
     "duration": "耗时 {text}"
   },
   "automation": {
-    "title": "任务计划",
-    "empty": "暂无任务计划\n助手会在需要时自动创建",
+    "title": "定时任务",
+    "empty": "暂无定时任务\n助手会在需要时自动创建",
+    "guideTitle": "让助手定时为你工作",
+    "guideDesc": "设置定时任务，助手会按计划自动执行。也可以在对话中让助手创建。",
+    "guideTip": "点击即可添加，添加后可编辑时间和内容",
+    "deleteConfirm": "确定要删除这个定时任务吗？",
     "defaultModel": "默认模型",
     "edit": "编辑",
-    "delete": "删除"
+    "delete": "删除",
+    "addCustom": "+ 自定义任务",
+    "customName": "任务名称",
+    "customPrompt": "提示词",
+    "customModel": "模型",
+    "customDays": "执行日期",
+    "customTime": "执行时间",
+    "customSubmit": "创建任务",
+    "customCancel": "取消",
+    "changeTime": "修改时间",
+    "tpl": {
+      "newsLabel": "每日科技简报",
+      "newsDesc": "每天早上 9 点搜索并整理科技新闻",
+      "diaryLabel": "每晚日记",
+      "diaryDesc": "每天晚上 10 点自动写日记",
+      "repoLabel": "工作日项目巡检",
+      "repoDesc": "周一到周五检查 Issues 和 PR",
+      "cleanLabel": "每周清理",
+      "cleanDesc": "每周日凌晨清理临时文件"
+    }
   },
   "desk": {
     "title": "书桌",
@@ -1120,7 +1176,7 @@
     "skillMissingName": "SKILL.md 中缺少 name 字段",
     "skillNameInvalid": "技能名称无效（\"{name}\"）。仅允许字母、数字、下划线和短横线。",
     "skillPathMustBeAbsolute": "路径必须是绝对路径: {path}",
-    "skillCannotAddSelfDir": "不能添加 Hanako 自身的技能目录",
+    "skillCannotAddSelfDir": "不能添加 Lynn 自身的技能目录",
     "skillInvalidName": "无效的技能名称",
     "skillExternalCannotDelete": "外部兼容技能无法从此处删除",
     "skillNotExists": "技能不存在",
@@ -1285,14 +1341,14 @@
   },
   "main": {
     "tray": {
-      "show": "显示 Hanako",
+      "show": "显示 Lynn",
       "settings": "设置",
       "quit": "退出"
     },
     "dialog": {
       "selectFolder": "选择工作文件夹",
       "selectSkill": "选择技能",
-      "launchFailedTitle": "Hanako 启动失败",
+      "launchFailedTitle": "Lynn 启动失败",
       "launchFailedBody": "{detail}\n\n详细日志已保存到：\n{logPath}\n\n请将此截图或日志文件发送给开发者。",
       "serverRestartFailed": "Server 崩溃后重启失败。\n{error}\n\n请重新启动应用。",
       "serverMultipleCrash": "Server 多次崩溃 ({reason})。\n\n请重新启动应用。",
@@ -1478,7 +1534,7 @@
     },
     "updateSettings": {
       "label": "设置",
-      "description": "修改 Hanako 的设置。支持两种操作：\n- search + query：用关键词搜索设置项，查看当前值和可选项\n- apply + key + value：修改指定设置项，需用户确认\n\n如果已知确切 key，可以直接 apply 跳过搜索。",
+      "description": "修改 Lynn 的设置。支持两种操作：\n- search + query：用关键词搜索设置项，查看当前值和可选项\n- apply + key + value：修改指定设置项，需用户确认\n\n如果已知确切 key，可以直接 apply 跳过搜索。",
       "actionDesc": "操作类型：search 搜索设置项 / apply 修改设置",
       "queryDesc": "搜索关键词（search 时必填）",
       "keyDesc": "设置项 key（通过 search 获取）",
@@ -1554,7 +1610,7 @@
     "inputHelp": "输入 /help 查看命令列表"
   },
   "sandbox": {
-    "blocked": "[安全策略] {reason}\n\n此操作被 Hanako 的沙盒安全策略阻止。这不是程序错误，而是安全保护机制在工作。请告知用户操作被安全策略阻止，并说明具体原因。用户可以在设置中调整沙盒策略。",
+    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 的沙盒安全策略阻止。这不是程序错误，而是安全保护机制在工作。请告知用户操作被安全策略阻止，并说明具体原因。用户可以在设置中调整沙盒策略。",
     "noSudo": "禁止使用 sudo",
     "noSu": "禁止使用 su 切换用户",
     "noChmod": "禁止修改文件权限",
@@ -1603,5 +1659,9 @@
   "status.reconnecting": "正在重连...",
   "status.disconnected": "连接已断开",
   "status.reconnect": "重新连接",
-  "action.retry": "重试"
+  "action.retry": "重试",
+  "agentDiscovery.title": "发现其他 AI 智能体",
+  "agentDiscovery.body": "我们在你的设备上发现了以下 AI 工具的技能库，可以一键复用：",
+  "agentDiscovery.enable": "一键启用",
+  "agentDiscovery.later": "稍后再说"
 }

@@ -21,6 +21,7 @@ import { ContextRing } from './input/ContextRing';
 import { ThinkingLevelButton } from './input/ThinkingLevelButton';
 import { ModelSelector } from './input/ModelSelector';
 import { SlashCommandMenu } from './input/SlashCommandMenu';
+import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
 import {
@@ -73,6 +74,11 @@ function InputAreaInner() {
   const [slashSelected, setSlashSelected] = useState(0);
   const [slashBusy, setSlashBusy] = useState<string | null>(null);
   const [slashResult, setSlashResult] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // @ mention state
+  const [atMenuOpen, setAtMenuOpen] = useState(false);
+  const [atQuery, setAtQuery] = useState('');
+  const [atSelected, setAtSelected] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
@@ -164,8 +170,20 @@ function InputAreaInner() {
     if (value.startsWith('/') && value.length <= 20) {
       setSlashMenuOpen(true);
       setSlashSelected(0);
+      setAtMenuOpen(false);
     } else {
       setSlashMenuOpen(false);
+    }
+
+    // @ mention detection: look for @ followed by query text
+    const atMatch = value.match(/@(\S*)$/);
+    if (atMatch && !value.startsWith('/')) {
+      setAtMenuOpen(true);
+      setAtQuery(atMatch[1]);
+      setAtSelected(0);
+    } else {
+      setAtMenuOpen(false);
+      setAtQuery('');
     }
   }, []);
 
@@ -350,6 +368,21 @@ function InputAreaInner() {
     }
   }, [inputText, attachedFiles, docContextAttached, connected, isStreaming, sending, pendingNewSession, currentDoc, clearAttachedFiles, setDocContextAttached, slashMenuOpen, filteredCommands, slashSelected]);
 
+  // ── @ mention select ──
+  const handleAtSelect = useCallback((file: { name: string; path: string; rel: string; isDir: boolean }) => {
+    // Replace the @query with the file attachment
+    const atMatch = inputText.match(/@(\S*)$/);
+    if (atMatch) {
+      const before = inputText.slice(0, inputText.length - atMatch[0].length);
+      setInputText(before + '@' + file.name + ' ');
+    }
+    // Add file to attached files
+    addAttachedFile({ path: file.path, name: file.name, isDirectory: file.isDir });
+    setAtMenuOpen(false);
+    setAtQuery('');
+    textareaRef.current?.focus();
+  }, [inputText, addAttachedFile]);
+
   // ── Steer ──
   const handleSteer = useCallback(async () => {
     const text = inputText.trim();
@@ -377,6 +410,14 @@ function InputAreaInner() {
 
   // ── Key handler ──
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // @ mention menu keyboard navigation
+    if (atMenuOpen) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setAtSelected(i => i + 1); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setAtSelected(i => Math.max(0, i - 1)); return; }
+      if (e.key === 'Escape') { e.preventDefault(); setAtMenuOpen(false); return; }
+      // Tab/Enter in @ menu handled by component onSelect
+    }
+
     if (slashMenuOpen && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSlashSelected(i => (i + 1) % filteredCommands.length); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSlashSelected(i => (i - 1 + filteredCommands.length) % filteredCommands.length); return; }
@@ -424,6 +465,14 @@ function InputAreaInner() {
       {slashMenuOpen && filteredCommands.length > 0 && (
         <SlashCommandMenu commands={filteredCommands} selected={slashSelected} busy={slashBusy}
           onSelect={(cmd) => cmd.execute()} onHover={(i) => setSlashSelected(i)} />
+      )}
+      {atMenuOpen && atQuery && (
+        <AtMentionMenu
+          query={atQuery}
+          selected={atSelected}
+          onSelect={handleAtSelect}
+          onHover={(i) => setAtSelected(i)}
+        />
       )}
       <div className={styles['input-wrapper']}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}

@@ -670,3 +670,148 @@
     font-size: 0.82rem;
     color: var(--text);
 }
+
+/* ========================================
+   频道 — 专家团引导（空状态）
+   ======================================== */
+.expertGuide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-lg) var(--space-md);
+    gap: var(--space-sm);
+}
+
+.expertGuideIcon {
+    color: var(--text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.expertGuideTitle {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.expertGuideDesc {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 0 0 var(--space-sm) 0;
+    line-height: 1.5;
+    max-width: 280px;
+}
+
+.expertGuideWarn {
+    font-size: 0.72rem;
+    color: var(--warning, #e2a03f);
+    text-align: center;
+    margin: 0;
+}
+
+.expertTemplates {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.expertTplCard {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.expertTplCard:hover:not(:disabled) {
+    border-color: var(--accent, #4ecdc4);
+    background: var(--overlay-light);
+}
+
+.expertTplCard:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.expertTplIcon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+
+.expertTplText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.expertTplLabel {
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.expertTplDesc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.expertGuideTip {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin: var(--space-sm) 0 0 0;
+    line-height: 1.5;
+    opacity: 0.7;
+}
+
+/* ── 专家市集扩展 ── */
+
+.expertSectionTitle {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: var(--space-sm) 0 4px 0;
+    align-self: flex-start;
+    max-width: 320px;
+    width: 100%;
+}
+
+.expertCardMeta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.expertCardModel {
+    font-size: 0.65rem;
+    color: var(--accent, #4ecdc4);
+    background: var(--overlay-light);
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.expertCardCost {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+    white-space: nowrap;
+}

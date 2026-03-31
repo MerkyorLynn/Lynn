@@ -24,7 +24,7 @@ const i18n = {
   locale: "zh",
 
   /** 默认 agent 名（占位符 {name} 的 fallback） */
-  defaultName: "Hanako",
+  defaultName: "Lynn",
 
   /**
    * 加载语言包

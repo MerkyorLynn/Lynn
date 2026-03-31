@@ -6,6 +6,7 @@
 
 import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
+import { parseSharedModelRef } from './model-ref';
 // @ts-expect-error — shared JS module
 import { errorBus } from '../../../../shared/error-bus.js';
 // @ts-expect-error — shared JS module
@@ -30,10 +31,13 @@ export async function loadModels(): Promise<void> {
     const res = await hanaFetch('/api/models');
     const data = await res.json();
     const currentModelObj = (data.models || []).find((m: any) => m.isCurrent);
+    const utilityRef = parseSharedModelRef(data.utilityModel || null);
+    const utilityLargeRef = parseSharedModelRef(data.utilityLargeModel || null);
     useStore.setState({
       models: data.models || [],
       currentModel: currentModelObj ? { id: currentModelObj.id, provider: currentModelObj.provider } : null,
+      utilityModel: utilityRef.id ? { id: utilityRef.id, provider: utilityRef.provider } : null,
+      utilityLargeModel: utilityLargeRef.id ? { id: utilityLargeRef.id, provider: utilityLargeRef.provider } : null,
     });
   } catch { /* silent */ }
 }
-

@@ -1,44 +1,63 @@
 /**
- * DeskSkillsSection — 技能快捷区（可折叠列表 + toggle 开关）
+ * DeskSkillsSection — 技能总览与开关
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
-import s from './Desk.module.css';
+import styles from './Desk.module.css';
 
 const DESK_SKILLS_KEY = 'hana-desk-skills-collapsed';
+const PRIORITY_LABELS = new Set(['Cursor', 'Codex', 'Claude Code', 'CodeBuddy', 'Agents']);
 
 export function DeskSkillsSection() {
-  const skills = useStore(s => s.deskSkills);
+  const skills = useStore(state => state.deskSkills);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(DESK_SKILLS_KEY) === '1',
   );
 
-  const loadDeskSkillsFn = useCallback(async () => {
+  const loadDeskSkills = useCallback(async () => {
     try {
-      const res = await hanaFetch('/api/skills');
-      const data = await res.json();
+      const response = await hanaFetch('/api/skills');
+      const data = await response.json();
       const all = (data.skills || []) as Array<{
-        name: string; enabled: boolean; hidden?: boolean;
-        source?: string; externalLabel?: string | null;
+        name: string;
+        enabled: boolean;
+        hidden?: boolean;
+        source?: string;
+        externalLabel?: string | null;
+        externalPriority?: number;
       }>;
       useStore.getState().setDeskSkills(
-        all.filter(s => !s.hidden).map(s => ({
-          name: s.name,
-          enabled: s.enabled,
-          source: s.source,
-          externalLabel: s.externalLabel,
-        })),
+        all
+          .filter(skill => !skill.hidden)
+          .sort((left, right) => {
+            const priorityDiff = (right.externalPriority || 0) - (left.externalPriority || 0);
+            if (priorityDiff !== 0) return priorityDiff;
+            const leftPreferred = left.externalLabel && PRIORITY_LABELS.has(left.externalLabel) ? 1 : 0;
+            const rightPreferred = right.externalLabel && PRIORITY_LABELS.has(right.externalLabel) ? 1 : 0;
+            if (leftPreferred !== rightPreferred) return rightPreferred - leftPreferred;
+            return left.name.localeCompare(right.name, 'zh-Hans-CN');
+          })
+          .map(skill => ({
+            name: skill.name,
+            enabled: skill.enabled,
+            source: skill.source,
+            externalLabel: skill.externalLabel,
+          })),
       );
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
-    loadDeskSkillsFn();
-    window.__loadDeskSkills = loadDeskSkillsFn;
-    return () => { delete window.__loadDeskSkills; };
-  }, [loadDeskSkillsFn]);
+    loadDeskSkills();
+    window.__loadDeskSkills = loadDeskSkills;
+    return () => {
+      delete window.__loadDeskSkills;
+    };
+  }, [loadDeskSkills]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(prev => {
@@ -49,12 +68,10 @@ export function DeskSkillsSection() {
   }, []);
 
   const toggleSkill = useCallback(async (name: string, enable: boolean) => {
-    const prev = useStore.getState().deskSkills;
-    useStore.getState().setDeskSkills(
-      prev.map(s => s.name === name ? { ...s, enabled: enable } : s),
-    );
-    const enabledList = prev.map(s => s.name === name ? { ...s, enabled: enable } : s)
-      .filter(s => s.enabled).map(s => s.name);
+    const previous = useStore.getState().deskSkills;
+    const nextSkills = previous.map(skill => skill.name === name ? { ...skill, enabled: enable } : skill);
+    useStore.getState().setDeskSkills(nextSkills);
+    const enabledList = nextSkills.filter(skill => skill.enabled).map(skill => skill.name);
     try {
       const agentId = useStore.getState().currentAgentId || '';
       await hanaFetch(`/api/agents/${agentId}/skills`, {
@@ -63,39 +80,48 @@ export function DeskSkillsSection() {
         body: JSON.stringify({ enabled: enabledList }),
       });
     } catch {
-      useStore.getState().setDeskSkills(prev);
+      useStore.getState().setDeskSkills(previous);
     }
   }, []);
 
-  const enabledCount = skills.filter(s => s.enabled).length;
-  const t = window.t ?? ((p: string) => p);
+  const enabledCount = useMemo(
+    () => skills.filter(skill => skill.enabled).length,
+    [skills],
+  );
+  const t = window.t ?? ((key: string) => key);
 
   if (skills.length === 0) return null;
 
   return (
-    <div className={s.skillsSection}>
-      <button className={s.skillsHeader} onClick={toggleCollapse}>
+    <div className={styles.skillsSection}>
+      <button className={styles.skillsHeader} onClick={toggleCollapse}>
         <span>{t('desk.skills')}</span>
-        <span className={s.skillsCount}>{enabledCount}</span>
+        <span className={styles.skillsCount}>{enabledCount}</span>
         <svg
-          className={`${s.skillsChevron}${collapsed ? '' : ` ${s.skillsChevronOpen}`}`}
-          width="10" height="10" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          className={`${styles.skillsChevron}${collapsed ? '' : ` ${styles.skillsChevronOpen}`}`}
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </button>
       {!collapsed && (
-        <div className={s.skillsList}>
-          {skills.map(sk => (
-            <div className={s.skillItem} key={sk.name}>
-              <span className={s.skillName}>{sk.name}</span>
-              {sk.externalLabel && (
-                <span className={s.skillSource}>{sk.externalLabel}</span>
+        <div className={styles.skillsList}>
+          {skills.map(skill => (
+            <div className={styles.skillItem} key={skill.name}>
+              <span className={styles.skillName}>{skill.name}</span>
+              {skill.externalLabel && (
+                <span className={styles.skillSource}>{skill.externalLabel}</span>
               )}
               <button
-                className={`hana-toggle mini${sk.enabled ? ' on' : ''}`}
-                onClick={() => toggleSkill(sk.name, !sk.enabled)}
+                className={`hana-toggle mini${skill.enabled ? ' on' : ''}`}
+                onClick={() => toggleSkill(skill.name, !skill.enabled)}
               />
             </div>
           ))}

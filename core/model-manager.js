@@ -25,27 +25,27 @@ import { syncModels } from "./model-sync.js";
 export class ModelManager {
   /**
    * @param {object} opts
-   * @param {string} opts.hanakoHome - 用户数据根目录
+   * @param {string} opts.lynnHome - 用户数据根目录
    */
-  constructor({ hanakoHome }) {
-    this._hanakoHome = hanakoHome;
+  constructor({ lynnHome }) {
+    this._lynnHome = lynnHome;
     this._authStorage = null;
     this._modelRegistry = null;
     this._defaultModel = null;   // 设置页面选的，持久化，bridge 用这个
     this._availableModels = [];
 
     // 新架构模块（init() 后可用）
-    this.providerRegistry = new ProviderRegistry(hanakoHome);
+    this.providerRegistry = new ProviderRegistry(lynnHome);
     this.executionRouter = null;
   }
 
   /** 初始化 AuthStorage + ModelRegistry + 新架构模块 */
   init() {
-    this._authStorage = AuthStorage.create(path.join(this._hanakoHome, "auth.json"));
+    this._authStorage = AuthStorage.create(path.join(this._lynnHome, "auth.json"));
     registerOAuthProvider(minimaxOAuthProvider);
     this._modelRegistry = new ModelRegistry(
       this._authStorage,
-      path.join(this._hanakoHome, "models.json"),
+      path.join(this._lynnHome, "models.json"),
     );
 
     this.providerRegistry.reload();
@@ -63,8 +63,8 @@ export class ModelManager {
   set defaultModel(m) { this._defaultModel = m; }
   get currentModel() { return this._defaultModel; }
   get availableModels() { return this._availableModels; }
-  get modelsJsonPath() { return path.join(this._hanakoHome, "models.json"); }
-  get authJsonPath() { return path.join(this._hanakoHome, "auth.json"); }
+  get modelsJsonPath() { return path.join(this._lynnHome, "models.json"); }
+  get authJsonPath() { return path.join(this._lynnHome, "auth.json"); }
 
   // ── 模型解析：_availableModels 唯一真理源 ──
 

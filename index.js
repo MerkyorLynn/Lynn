@@ -5,7 +5,7 @@ import { ensureFirstRun } from "./core/first-run.js";
 import { MoodParser } from "./core/events.js";
 
 // ═══════════════════════════════════════
-// Project Hana — CLI Agent with Memory
+// Project Lynn — CLI Agent with Memory
 // ═══════════════════════════════════════
 
 import os from "os";
@@ -14,24 +14,26 @@ import path from "path";
 const projectRoot = import.meta.dirname;
 const productDir = projectRoot + "/lib";
 
-// 用户数据目录：优先 HANA_HOME，默认 ~/.hanako
-const hanakoHome = process.env.HANA_HOME
-  ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
-  : path.join(os.homedir(), ".hanako");
-process.env.HANA_HOME = hanakoHome;
+// 用户数据目录：优先 LYNN_HOME，兼容 HANA_HOME，默认 ~/.lynn
+const lynnHome = process.env.LYNN_HOME
+  ? path.resolve(process.env.LYNN_HOME.replace(/^~/, os.homedir()))
+  : process.env.HANA_HOME
+    ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
+    : path.join(os.homedir(), ".lynn");
+process.env.LYNN_HOME = lynnHome;
 
 // ── 首次运行播种 ──
-ensureFirstRun(hanakoHome, productDir);
+ensureFirstRun(lynnHome, productDir);
 
 // ── 初始化引擎 ──
-const engine = new HanaEngine({ hanakoHome, productDir });
+const engine = new HanaEngine({ lynnHome, productDir });
 
 try {
   await engine.init((msg) => console.log(msg));
 } catch (err) {
   console.error("启动失败:", err.message);
   console.error("\n可能的原因：");
-  console.error(`  1. ${path.join(hanakoHome, "models.json")} 格式不对`);
+  console.error(`  1. ${path.join(lynnHome, "models.json")} 格式不对`);
   console.error("  2. API key 不对");
   console.error("  3. 网络连不上模型服务");
   console.error("  4. 缺少依赖：npm install js-yaml");

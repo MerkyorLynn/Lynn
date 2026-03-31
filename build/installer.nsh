@@ -1,6 +1,6 @@
-; installer.nsh — NSIS custom hooks for Hanako installer
+; installer.nsh — NSIS custom hooks for Lynn installer
 ;
-; Kills running Hanako processes before install/uninstall to prevent
+; Kills running Lynn processes before install/uninstall to prevent
 ; "file in use" errors on Windows overlay installs.
 
 ; Disable CRC integrity check — electron-builder's post-compilation PE editing
@@ -10,15 +10,15 @@ CRCCheck off
 
 !macro customInit
   ; Kill Electron main process
-  nsExec::ExecToLog 'taskkill /F /IM "Hanako.exe"'
+  nsExec::ExecToLog 'taskkill /F /IM "Lynn.exe"'
   ; Kill bundled server process (renamed node.exe)
-  nsExec::ExecToLog 'taskkill /F /IM "hana-server.exe"'
+  nsExec::ExecToLog 'taskkill /F /IM "lynn-server.exe"'
   ; Wait for file handles to release
   Sleep 2000
 !macroend
 
 !macro customUnInit
-  nsExec::ExecToLog 'taskkill /F /IM "Hanako.exe"'
-  nsExec::ExecToLog 'taskkill /F /IM "hana-server.exe"'
+  nsExec::ExecToLog 'taskkill /F /IM "Lynn.exe"'
+  nsExec::ExecToLog 'taskkill /F /IM "lynn-server.exe"'
   Sleep 2000
 !macroend

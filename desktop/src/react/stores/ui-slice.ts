@@ -14,6 +14,10 @@ export interface UiSlice {
   skillViewerData: { name: string; baseDir: string; filePath?: string; installed?: boolean } | null;
   /** 频道创建弹窗是否可见 */
   channelCreateOverlayVisible: boolean;
+  /** AI 智能体发现弹窗是否可见 */
+  agentDiscoveryVisible: boolean;
+  /** 发现的其他 AI 智能体列表 */
+  discoveredAgents: Array<{ dirPath: string; label: string; exists: boolean }>;
   setSidebarOpen: (open: boolean) => void;
   setSidebarAutoCollapsed: (collapsed: boolean) => void;
   setJianOpen: (open: boolean) => void;
@@ -23,6 +27,8 @@ export interface UiSlice {
   setCurrentTab: (tab: TabType) => void;
   setActivePanel: (panel: ActivePanel) => void;
   setChannelCreateOverlayVisible: (visible: boolean) => void;
+  setAgentDiscoveryVisible: (visible: boolean) => void;
+  setDiscoveredAgents: (agents: Array<{ dirPath: string; label: string; exists: boolean }>) => void;
   toggleSidebar: () => void;
   toggleJian: () => void;
 }
@@ -43,6 +49,8 @@ export const createUiSlice = (
   locale: '',
   skillViewerData: null,
   channelCreateOverlayVisible: false,
+  agentDiscoveryVisible: false,
+  discoveredAgents: [],
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarAutoCollapsed: (collapsed) => set({ sidebarAutoCollapsed: collapsed }),
   setJianOpen: (open) => set({ jianOpen: open }),
@@ -52,6 +60,8 @@ export const createUiSlice = (
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setActivePanel: (panel) => set({ activePanel: panel }),
   setChannelCreateOverlayVisible: (visible) => set({ channelCreateOverlayVisible: visible }),
+  setAgentDiscoveryVisible: (visible) => set({ agentDiscoveryVisible: visible }),
+  setDiscoveredAgents: (agents) => set({ discoveredAgents: agents }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleJian: () => set((s) => ({ jianOpen: !s.jianOpen })),
 });

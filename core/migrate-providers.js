@@ -56,16 +56,16 @@ function atomicWriteJSON(filePath, data) {
 /**
  * 将旧数据整合到 added-models.yaml（幂等，只跑一次）
  *
- * @param {string} hanakoHome - 用户数据根目录（~/.hanako-dev）
+ * @param {string} lynnHome - 用户数据根目录（~/.lynn-dev）
  * @param {string} agentsDir  - agents 目录
  * @param {(msg: string) => void} log - 日志回调
  */
-export function migrateToProvidersYaml(hanakoHome, agentsDir, log = () => {}) {
-  const providersPath = path.join(hanakoHome, "added-models.yaml");
-  const prefsPath = path.join(hanakoHome, "user", "preferences.json");
+export function migrateToProvidersYaml(lynnHome, agentsDir, log = () => {}) {
+  const providersPath = path.join(lynnHome, "added-models.yaml");
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
 
   // ── 文件改名迁移：providers.yaml → added-models.yaml ──
-  const oldPath = path.join(hanakoHome, "providers.yaml");
+  const oldPath = path.join(lynnHome, "providers.yaml");
   if (fs.existsSync(oldPath) && !fs.existsSync(providersPath)) {
     fs.renameSync(oldPath, providersPath);
     log("[migrate-providers] providers.yaml → added-models.yaml 重命名完成");
@@ -89,7 +89,7 @@ export function migrateToProvidersYaml(hanakoHome, agentsDir, log = () => {}) {
     const data = existingRaw || {};
     data._migrated = true;
     const header =
-      "# Hanako 供应商配置（全局，跨 agent 共享）\n" +
+      "# Lynn 供应商配置（全局，跨 agent 共享）\n" +
       "# 由设置页面管理\n\n";
     atomicWriteYAML(providersPath, data, header);
     log("[migrate-providers] 无旧数据需要迁移，已标记完成");
@@ -196,7 +196,7 @@ export function migrateToProvidersYaml(hanakoHome, agentsDir, log = () => {}) {
   raw.providers = providers;
   raw._migrated = true;
   const header =
-    "# Hanako 供应商配置（全局，跨 agent 共享）\n" +
+    "# Lynn 供应商配置（全局，跨 agent 共享）\n" +
     "# 由设置页面管理\n\n";
   atomicWriteYAML(providersPath, raw, header);
   log("[migrate-providers] added-models.yaml 已更新");

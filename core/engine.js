@@ -1,5 +1,5 @@
 /**
- * HanaEngine — Hanako 的核心引擎（Thin Facade）
+ * HanaEngine — Lynn 的核心引擎（Thin Facade）
  *
  * 持有所有 Manager，对外暴露统一 API。
  * 具体逻辑委托给：
@@ -34,6 +34,8 @@ const WELL_KNOWN_SKILL_PATHS = [
   { suffix: ".openclaw/skills",   label: "OpenClaw" },
   { suffix: ".pi/agent/skills",   label: "Pi" },
   { suffix: ".agents/skills",     label: "Agents" },
+  { suffix: ".codebuddy/skills",  label: "CodeBuddy" },
+  { suffix: ".workbuddy/skills-marketplace/skills", label: "WorkBuddy" },
 ];
 
 const allBuiltInTools = [...codingTools, grepTool, findTool, lsTool];
@@ -46,6 +48,7 @@ import { AgentManager } from "./agent-manager.js";
 import { SessionCoordinator } from "./session-coordinator.js";
 import { ConfigCoordinator, SHARED_MODEL_KEYS } from "./config-coordinator.js";
 import { ChannelManager } from "./channel-manager.js";
+import { ExpertManager } from "./expert-manager.js";
 import {
   summarizeTitle as _summarizeTitle,
   translateSkillNames as _translateSkillNames,
@@ -59,21 +62,21 @@ import { t } from "../server/i18n.js";
 export class HanaEngine {
   /**
    * @param {object} dirs
-   * @param {string} dirs.hanakoHome
+   * @param {string} dirs.lynnHome
    * @param {string} dirs.productDir
    * @param {string} [dirs.agentId]
    */
-  constructor({ hanakoHome, productDir, agentId }) {
-    this.hanakoHome = hanakoHome;
+  constructor({ lynnHome, productDir, agentId }) {
+    this.lynnHome = lynnHome;
     this.productDir = productDir;
-    this.agentsDir = path.join(hanakoHome, "agents");
-    this.userDir = path.join(hanakoHome, "user");
-    this.channelsDir = path.join(hanakoHome, "channels");
+    this.agentsDir = path.join(lynnHome, "agents");
+    this.userDir = path.join(lynnHome, "user");
+    this.channelsDir = path.join(lynnHome, "channels");
     fs.mkdirSync(this.channelsDir, { recursive: true });
 
     // ── Core managers ──
     this._prefs = new PreferencesManager({ userDir: this.userDir, agentsDir: this.agentsDir });
-    this._models = new ModelManager({ hanakoHome });
+    this._models = new ModelManager({ lynnHome });
 
     // 确定启动时焦点 agent
     const startId = agentId || this._prefs.getPrimaryAgent() || this._prefs.findFirstAgent();
@@ -106,6 +109,14 @@ export class HanaEngine {
       getResourceLoader: () => this._resourceLoader,
     });
 
+    // ── Expert Manager ──
+    this._expertMgr = new ExpertManager({
+      presetsDir: path.join(productDir, "experts", "presets"),
+      getAgentManager: () => this._agentMgr,
+      getModelManager: () => this._models,
+      getSkillManager: () => this._skills,
+    });
+
     // ── Session Coordinator ──
     this._sessionCoord = new SessionCoordinator({
       agentsDir: this.agentsDir,
@@ -131,7 +142,7 @@ export class HanaEngine {
 
     // ── Config Coordinator ──
     this._configCoord = new ConfigCoordinator({
-      hanakoHome,
+      lynnHome,
       agentsDir: this.agentsDir,
       getAgent: () => this.agent,
       getAgents: () => this._agentMgr.agents,
@@ -354,6 +365,15 @@ export class HanaEngine {
   async triggerChannelTriage(n, o) { return this._channels.triggerChannelTriage(n, o); }
 
   // ════════════════════════════
+  //  Expert 代理（→ ExpertManager）
+  // ════════════════════════════
+
+  get expertManager() { return this._expertMgr; }
+  listExperts(locale) { return this._expertMgr.listExperts(locale); }
+  getExpert(slug, locale) { return this._expertMgr.getExpert(slug, locale); }
+  async spawnExpert(slug, opts) { return this._expertMgr.spawnExpert(slug, opts); }
+
+  // ════════════════════════════
   //  Bridge 代理（→ BridgeSessionManager）
   // ════════════════════════════
 
@@ -474,7 +494,7 @@ export class HanaEngine {
     });
 
     // 0b. Provider 迁移（旧数据 → added-models.yaml，只跑一次）
-    migrateToProvidersYaml(this.hanakoHome, this.agentsDir, log);
+    migrateToProvidersYaml(this.lynnHome, this.agentsDir, log);
 
     // 1. Pi SDK + 模型基础设施（必须在 agent init 之前，agent 需要解析记忆模型）
     log(`[init] 1/5 Pi SDK 初始化...`);
@@ -499,7 +519,7 @@ export class HanaEngine {
     // 3. ResourceLoader + Skills
     log(`[init] 3/5 ResourceLoader 初始化...`);
     const t_rl = Date.now();
-    const skillsDir = path.join(this.hanakoHome, "skills");
+    const skillsDir = path.join(this.lynnHome, "skills");
     fs.mkdirSync(skillsDir, { recursive: true });
 
     // 解析外部兼容技能路径
@@ -595,8 +615,8 @@ export class HanaEngine {
    */
   async initPlugins(bus) {
     const builtinPluginsDir = path.join(this.productDir, "..", "plugins");
-    const userPluginsDir = path.join(this.hanakoHome, "plugins");
-    const pluginDataDir = path.join(this.hanakoHome, "plugin-data");
+    const userPluginsDir = path.join(this.lynnHome, "plugins");
+    const pluginDataDir = path.join(this.lynnHome, "plugin-data");
 
     this._pluginManager = new PluginManager({
       pluginsDirs: [builtinPluginsDir, userPluginsDir],
@@ -634,7 +654,7 @@ export class HanaEngine {
     return createSandboxedTools(cwd, allTools, {
       agentDir: effectiveAgentDir,
       workspace: effectiveWorkspace,
-      hanakoHome: this.hanakoHome,
+      lynnHome: this.lynnHome,
       mode: effectiveMode,
     });
   }

@@ -5,7 +5,7 @@
  * 通过 portal 渲染到 #sessionList，从 Zustand sessions 状态驱动。
  */
 
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../stores';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
@@ -13,6 +13,7 @@ import { formatSessionDate } from '../utils/format';
 import { switchSession, archiveSession, renameSession } from '../stores/session-actions';
 import type { Session, Agent } from '../types';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
+import { lookupKnownModel } from '../utils/known-models';
 import styles from './SessionList.module.css';
 
 
@@ -109,6 +110,15 @@ function SessionListInner() {
 
 // ── Session Item ──
 
+function formatProviderLabel(provider?: string | null): string {
+  if (!provider) return '';
+  return provider
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: {
   session: Session;
   isActive: boolean;
@@ -162,6 +172,14 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
       inputRef.current.select();
     }
   }, [editing]);
+
+  const modelLabel = useMemo(() => {
+    if (!s.modelId) return '';
+    const known = lookupKnownModel(s.modelProvider || '', s.modelId);
+    const provider = formatProviderLabel(s.modelProvider || known?.provider || '');
+    const display = known?.name || s.modelId;
+    return provider ? provider + ' · ' + display : display;
+  }, [s.modelId, s.modelProvider]);
 
   // Meta line
   const parts: string[] = [];
@@ -219,6 +237,12 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
       <div className={styles.sessionItemMeta}>
         {parts.join(' · ')}
       </div>
+
+      {modelLabel && (
+        <div className={styles.sessionItemModel}>
+          {modelLabel}
+        </div>
+      )}
 
       {browserUrl && (
         <span className={styles.sessionBrowserBadge} title={browserUrl}>

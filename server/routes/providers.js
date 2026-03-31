@@ -11,7 +11,7 @@ import { buildProviderAuthHeaders, buildProbeUrl } from "../../lib/llm/provider-
 // ── Models-cache helpers ──
 
 function getCachePath(engine) {
-  return path.join(engine.hanakoHome, "models-cache.json");
+  return path.join(engine.lynnHome, "models-cache.json");
 }
 
 function readModelsCache(engine) {

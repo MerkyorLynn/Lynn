@@ -36,7 +36,35 @@
     "disabled": "채널 기능이 꺼져 있어요",
     "toggleLabel": "채널 기능 전환",
     "members": "멤버",
-    "createIntroOptional": "설명"
+    "createIntroOptional": "설명",
+    "expertTeam": {
+      "guideTitle": "전문가 팀 구성",
+      "guideDesc": "다른 전문성을 가진 AI가 함께 토론하여 더 나은 솔루션을 찾아요",
+      "guideTip": "오른쪽 상단의 +를 클릭하여 맞춤 채널을 만들 수도 있어요",
+      "needMoreAgents": "먼저 에이전트를 1개 이상 만들어 주세요",
+      "creating": "생성 중...",
+      "expertPresets": "전문가 프리셋 (API 키 사용)",
+      "channelTemplates": "채널 템플릿 (기존 에이전트 사용)",
+      "spawnSuccess": "전문가가 생성되었습니다",
+      "spawnFailed": "전문가 생성 실패",
+      "tpl": {
+        "codeReview": {
+          "label": "코드 리뷰 팀",
+          "desc": "보안 전문가, 성능 전문가, 아키텍트가 함께 코드를 리뷰해요",
+          "intro": "이것은 코드 리뷰 채널이에요. 각자의 전문적인 관점에서 리뷰해 주세요:\n- 보안 취약점, 인젝션 위험, 권한 문제에 주목\n- 성능 병목, 메모리 누수, 알고리즘 복잡도에 주목\n- 아키텍처 설계, 유지보수성, 확장성에 주목\n전문적인 의견을 공유하고 서로 토론해 주세요."
+        },
+        "productBrainstorm": {
+          "label": "프로덕트 브레인스토밍",
+          "desc": "프로덕트 매니저, 디자이너, 엔지니어가 함께 요구사항을 논의해요",
+          "intro": "이것은 프로덕트 브레인스토밍 채널이에요. 각자의 역할에서 논의해 주세요:\n- 프로덕트: 사용자 니즈, 시장 포지셔닝, 우선순위\n- 디자인: 사용자 경험, 인터랙션 플로우, 비주얼 스타일\n- 엔지니어링: 기술적 실현 가능성, 개발 비용, 구현 방안\n적극적으로 의견을 내고 최선의 방안을 찾아봐요."
+        },
+        "archDiscussion": {
+          "label": "아키텍처 토론",
+          "desc": "백엔드, 프론트엔드, DevOps 전문가가 기술 선택을 논의해요",
+          "intro": "이것은 아키텍처 토론 채널이에요. 각자의 영역에서 기술 방안을 논의해 주세요:\n- 백엔드: API 설계, 데이터 모델, 서비스 아키텍처\n- 프론트엔드: 컴포넌트 설계, 상태 관리, 성능 최적화\n- DevOps: 배포 전략, CI/CD, 모니터링 및 알림\n각 방안의 장단점을 충분히 논의하고 합의를 이뤄봐요."
+        }
+      }
+    }
   },
   "sidebar": {
     "title": "대화",
@@ -511,6 +539,10 @@
       "tagline": "당신의 컴퓨터에 사는, 기억력 좋은 어시스턴트.",
       "license": "라이선스",
       "copyright": "저작권",
+      "copyrightOriginal": " (원본)",
+      "copyrightDerived": " (2차 개발)",
+      "description": "프로젝트 설명",
+      "descriptionText": "liliMozi의 오픈소스 프로젝트를 기반으로 개발",
       "licenseToggle": "라이선스 전문",
       "permissions": "권한",
       "fullAccess": "전체 접근 모드",
@@ -956,9 +988,23 @@
   "automation": {
     "title": "예약 작업",
     "empty": "아직 예약 작업이 없어요.\n필요할 때 어시스턴트가 만들어 줄 거예요.",
+    "guideTitle": "예약 작업으로 자동화하기",
+    "guideDesc": "일정에 따라 실행할 작업을 설정하세요. 대화에서 어시스턴트에게 만들어 달라고 할 수도 있어요.",
+    "guideTip": "클릭하면 바로 추가돼요. 시간과 내용은 나중에 수정할 수 있어요.",
+    "deleteConfirm": "이 예약 작업을 삭제하시겠습니까?",
     "defaultModel": "기본 모델",
     "edit": "편집",
-    "delete": "삭제"
+    "delete": "삭제",
+    "tpl": {
+      "newsLabel": "매일 테크 뉴스",
+      "newsDesc": "매일 아침 9시에 기술 뉴스 검색 및 정리",
+      "diaryLabel": "매일 밤 일기",
+      "diaryDesc": "매일 밤 10시에 자동으로 일기 작성",
+      "repoLabel": "평일 프로젝트 점검",
+      "repoDesc": "월~금 Issues와 PR 확인",
+      "cleanLabel": "주간 정리",
+      "cleanDesc": "매주 일요일에 임시 파일 정리"
+    }
   },
   "desk": {
     "title": "책상",
@@ -1106,7 +1152,7 @@
     "skillMissingName": "SKILL.md에 name 필드가 없어요",
     "skillNameInvalid": "스킬 이름이 유효하지 않아요 (\"{name}\"). 영문자, 숫자, 밑줄, 하이픈만 사용할 수 있어요.",
     "skillPathMustBeAbsolute": "경로는 절대 경로여야 해요: {path}",
-    "skillCannotAddSelfDir": "Hanako 자체의 스킬 디렉토리는 추가할 수 없어요",
+    "skillCannotAddSelfDir": "Lynn 자체의 스킬 디렉토리는 추가할 수 없어요",
     "skillInvalidName": "유효하지 않은 스킬 이름이에요",
     "skillExternalCannotDelete": "외부 호환 스킬은 여기서 삭제할 수 없어요",
     "skillNotExists": "스킬이 존재하지 않아요",
@@ -1270,14 +1316,14 @@
   },
   "main": {
     "tray": {
-      "show": "Hanako 표시",
+      "show": "Lynn 표시",
       "settings": "설정",
       "quit": "종료"
     },
     "dialog": {
       "selectFolder": "작업 폴더 선택",
       "selectSkill": "스킬 선택",
-      "launchFailedTitle": "Hanako 실행 실패",
+      "launchFailedTitle": "Lynn 실행 실패",
       "launchFailedBody": "{detail}\n\n상세 로그 저장 위치:\n{logPath}\n\n이 스크린샷이나 로그 파일을 개발자에게 보내주세요.",
       "serverRestartFailed": "Server가 충돌 후 재시작에 실패했어요.\n{error}\n\n앱을 다시 시작해 주세요.",
       "serverMultipleCrash": "Server가 여러 번 충돌했어요 ({reason}).\n\n앱을 다시 시작해 주세요.",
@@ -1463,7 +1509,7 @@
     },
     "updateSettings": {
       "label": "설정",
-      "description": "Hanako의 설정을 변경해요. 두 가지 작업을 지원해요:\n- search + query: 키워드로 설정 항목을 검색하고, 현재 값과 옵션을 확인\n- apply + key + value: 지정한 설정을 변경 (사용자 확인 필요)\n\n정확한 키를 알고 있다면 바로 apply할 수 있어요.",
+      "description": "Lynn의 설정을 변경해요. 두 가지 작업을 지원해요:\n- search + query: 키워드로 설정 항목을 검색하고, 현재 값과 옵션을 확인\n- apply + key + value: 지정한 설정을 변경 (사용자 확인 필요)\n\n정확한 키를 알고 있다면 바로 apply할 수 있어요.",
       "actionDesc": "작업 유형: search로 설정 검색 / apply로 설정 변경",
       "queryDesc": "검색 키워드 (search 시 필수)",
       "keyDesc": "설정 키 (search로 확인)",
@@ -1539,7 +1585,7 @@
     "inputHelp": "/help로 명령어 목록 보기"
   },
   "sandbox": {
-    "blocked": "[보안] {reason}\n\n이 작업은 Hanako의 샌드박스 보안 정책에 의해 차단되었어요. 이것은 버그가 아니라 보안 보호 메커니즘이에요. 사용자에게 작업이 차단되었음과 이유를 알려주세요. 사용자는 설정에서 샌드박스 정책을 조정할 수 있어요.",
+    "blocked": "[보안] {reason}\n\n이 작업은 Lynn의 샌드박스 보안 정책에 의해 차단되었어요. 이것은 버그가 아니라 보안 보호 메커니즘이에요. 사용자에게 작업이 차단되었음과 이유를 알려주세요. 사용자는 설정에서 샌드박스 정책을 조정할 수 있어요.",
     "noSudo": "sudo 사용이 금지되어 있어요",
     "noSu": "su 사용자 전환이 금지되어 있어요",
     "noChmod": "파일 권한 변경이 금지되어 있어요",

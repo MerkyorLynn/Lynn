@@ -1,10 +1,10 @@
 /**
- * DeskToolbar — 面包屑导航、排序按钮、Finder 打开按钮
+ * DeskToolbar — 工作区入口、面包屑导航、排序按钮
  */
 
 import { useCallback } from 'react';
 import { useStore } from '../../stores';
-import { loadDeskFiles } from '../../stores/desk-actions';
+import { applyFolder, loadDeskFiles } from '../../stores/desk-actions';
 import {
   ICONS,
   getSortOptions,
@@ -15,41 +15,64 @@ import {
 import { showSidebarToast } from '../../stores/session-actions';
 import s from './Desk.module.css';
 
-// ── Open in Finder 按钮 ──
+function folderLabel(folderPath: string | null): string {
+  if (!folderPath) return '';
+  const parts = folderPath.split('/').filter(Boolean);
+  return parts[parts.length - 1] || folderPath;
+}
 
-export function DeskOpenButton() {
-  const handleClick = useCallback(() => {
-    const s = useStore.getState();
-    if (!s.deskBasePath) {
-      const tFn = window.t ?? ((p: string) => p);
-      showSidebarToast(tFn('desk.noDeskRoot'));
-      return;
-    }
-    const target = s.deskCurrentPath
-      ? s.deskBasePath + '/' + s.deskCurrentPath
-      : s.deskBasePath;
-    window.platform?.openFolder?.(target);
+export function DeskWorkspaceButton() {
+  const deskBasePath = useStore(state => state.deskBasePath || state.selectedFolder || state.homeFolder || null);
+  const t = window.t ?? ((key: string) => key);
+
+  const handlePick = useCallback(async () => {
+    const folder = await window.platform?.selectFolder?.();
+    if (!folder) return;
+    applyFolder(folder);
   }, []);
 
+  const handleReveal = useCallback(() => {
+    if (!deskBasePath) {
+      showSidebarToast(t('desk.noDeskRoot'));
+      return;
+    }
+    window.platform?.showInFinder?.(deskBasePath);
+  }, [deskBasePath, t]);
+
   return (
-    <button className={s.openBtn} onClick={handleClick}>
-      <span dangerouslySetInnerHTML={{ __html: ICONS.finderOpen }} />
-      <span>{(window.t ?? ((p: string) => p))('desk.openInFinder')}</span>
-    </button>
+    <div className={s.workspaceBar}>
+      <button className={s.openBtn} onClick={handlePick} title={deskBasePath || t('input.selectFolder')}>
+        <span className={s.workspaceBtnIcon} dangerouslySetInnerHTML={{ __html: ICONS.folder }} />
+        <span className={s.workspaceBtnCopy}>
+          <span className={s.workspaceBtnTitle}>
+            {deskBasePath ? folderLabel(deskBasePath) : t('input.selectWorkspace')}
+          </span>
+          {deskBasePath && <span className={s.workspaceBtnMeta}>{deskBasePath}</span>}
+        </span>
+      </button>
+      {deskBasePath && (
+        <button
+          className={s.workspaceRevealBtn}
+          onClick={handleReveal}
+          title={t('desk.openInFinder')}
+          aria-label={t('desk.openInFinder')}
+        >
+          <span dangerouslySetInnerHTML={{ __html: ICONS.finderOpen }} />
+        </button>
+      )}
+    </div>
   );
 }
 
-// ── 面包屑导航 ──
-
 export function DeskBreadcrumb() {
-  const deskCurrentPath = useStore(s => s.deskCurrentPath);
+  const deskCurrentPath = useStore(state => state.deskCurrentPath);
 
   const handleBack = useCallback(() => {
-    const s = useStore.getState();
-    const cur = s.deskCurrentPath;
-    if (!cur) return;
-    const parent = cur.includes('/')
-      ? cur.substring(0, cur.lastIndexOf('/'))
+    const state = useStore.getState();
+    const currentPath = state.deskCurrentPath;
+    if (!currentPath) return;
+    const parent = currentPath.includes('/')
+      ? currentPath.substring(0, currentPath.lastIndexOf('/'))
       : '';
     loadDeskFiles(parent);
   }, []);
@@ -66,23 +89,21 @@ export function DeskBreadcrumb() {
   );
 }
 
-// ── 排序按钮 ──
-
 export function DeskSortButton({ sortMode, onSort, onShowMenu }: {
   sortMode: SortMode;
-  onSort: (m: SortMode) => void;
+  onSort: (mode: SortMode) => void;
   onShowMenu: (state: CtxMenuState) => void;
 }) {
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const handleClick = useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     onShowMenu({
       position: { x: rect.left, y: rect.bottom + 4 },
-      items: getSortOptions().map(o => ({
-        label: (o.key === sortMode ? '· ' : '   ') + o.label,
+      items: getSortOptions().map(option => ({
+        label: (option.key === sortMode ? '. ' : '  ') + option.label,
         action: () => {
-          localStorage.setItem('hana-desk-sort', o.key);
-          onSort(o.key);
+          localStorage.setItem('hana-desk-sort', option.key);
+          onSort(option.key);
         },
       })),
     });

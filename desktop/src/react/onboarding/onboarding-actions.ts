@@ -100,26 +100,23 @@ export async function loadModels({ hanaFetch, providerName, providerUrl, provide
   return { models: data.models || [] };
 }
 
-// ── Save model + utility models ──
+// ── Save model ──
 
 interface SaveModelParams {
   hanaFetch: HanaFetch;
   selectedModel: string;
   fetchedModels: { id: string }[];
   providerName: string;
-  selectedUtility: string;
-  selectedUtilityLarge: string;
 }
 
-export async function saveModel({ hanaFetch, selectedModel, fetchedModels, providerName, selectedUtility, selectedUtilityLarge }: SaveModelParams): Promise<void> {
-  // Save chat model + auto-populate summarizer/compiler/utility if not separately configured.
-  // This prevents the "stuck after setup" issue where the server expects these fields.
-  const utilityModel = selectedUtility || selectedModel;
+export async function saveModel({ hanaFetch, selectedModel, fetchedModels, providerName }: SaveModelParams): Promise<void> {
+  // Use the selected model for all slots — utility models can be configured later in Settings.
   const models: Record<string, string> = {
     chat: selectedModel,
-    summarizer: utilityModel,
-    compiler: utilityModel,
-    utility: utilityModel,
+    summarizer: selectedModel,
+    compiler: selectedModel,
+    utility: selectedModel,
+    utility_large: selectedModel,
   };
 
   await hanaFetch(`/api/agents/${AGENT_ID}/config`, {
@@ -137,18 +134,6 @@ export async function saveModel({ hanaFetch, selectedModel, fetchedModels, provi
       providers: { [providerName]: { models: modelIds } },
     }),
   });
-
-  // Save utility models to global preferences
-  if (selectedUtility || selectedUtilityLarge) {
-    const utilityModels: Record<string, string> = {};
-    if (selectedUtility) utilityModels.utility = selectedUtility;
-    if (selectedUtilityLarge) utilityModels.utility_large = selectedUtilityLarge;
-    await hanaFetch('/api/preferences/models', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ models: utilityModels }),
-    });
-  }
 }
 
 // ── Save locale ──

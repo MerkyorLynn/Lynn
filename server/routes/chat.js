@@ -292,11 +292,65 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       emitStreamEvent(sessionPath, ss, { type: "tool_start", name: event.toolName || "", args });
     } else if (event.type === "tool_execution_end") {
       if (!ss) return;
+
+      // 构建前端友好的工具结果摘要
+      const rawDetails = event.result?.details || {};
+      const toolSummary = {};
+      const toolName = event.toolName || "";
+
+      if (toolName === "edit" || toolName === "edit-diff") {
+        // edit 工具返回 diff 和 firstChangedLine
+        if (rawDetails.diff) {
+          const lines = rawDetails.diff.split("\n");
+          let added = 0, removed = 0;
+          for (const l of lines) {
+            if (l.startsWith("+") && !l.startsWith("+++")) added++;
+            if (l.startsWith("-") && !l.startsWith("---")) removed++;
+          }
+          toolSummary.linesAdded = added;
+          toolSummary.linesRemoved = removed;
+          toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+        }
+      } else if (toolName === "write") {
+        toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+        // 从 result content 中提取写入的字节数信息
+        const text = extractText(event.result?.content);
+        const bytesMatch = text.match(/(\d+)\s*bytes/i);
+        if (bytesMatch) toolSummary.bytesWritten = parseInt(bytesMatch[1], 10);
+      } else if (toolName === "bash") {
+        const text = extractText(event.result?.content);
+        // 取输出的前 200 字符作为预览
+        if (text) toolSummary.outputPreview = text.slice(0, 200);
+        toolSummary.command = (event.args?.command || "").slice(0, 80);
+        if (rawDetails.truncation) {
+          toolSummary.totalLines = rawDetails.truncation.totalLines;
+          toolSummary.truncated = true;
+        }
+      } else if (toolName === "grep" || toolName === "glob" || toolName === "find") {
+        const text = extractText(event.result?.content);
+        if (text) {
+          const matchLines = text.trim().split("\n").filter(Boolean);
+          toolSummary.matchCount = matchLines.length;
+          toolSummary.outputPreview = matchLines.slice(0, 5).join("\n");
+        }
+      } else if (toolName === "web_search") {
+        const text = extractText(event.result?.content);
+        if (text) toolSummary.outputPreview = text.slice(0, 200);
+      } else if (toolName === "read") {
+        toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+        const text = extractText(event.result?.content);
+        if (text) {
+          const lineCount = text.split("\n").length;
+          toolSummary.lineCount = lineCount;
+        }
+      }
+
       emitStreamEvent(sessionPath, ss, {
         type: "tool_end",
-        name: event.toolName || "",
+        name: toolName,
         success: !event.isError,
-        details: event.result?.details,
+        details: rawDetails,
+        summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
 
       if (event.toolName === "present_files") {
@@ -313,6 +367,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
             ext: f.ext || "",
           });
         }
+      }
+
+      // 编辑类工具完成后发送 file_diff 事件（内联 diff 查看器）
+      if ((event.toolName === "edit" || event.toolName === "edit-diff") && rawDetails.diff && !event.isError) {
+        const diffFilePath = event.args?.file_path || event.args?.path || "";
+        emitStreamEvent(sessionPath, ss, {
+          type: "file_diff",
+          filePath: diffFilePath,
+          diff: rawDetails.diff,
+          linesAdded: toolSummary.linesAdded || 0,
+          linesRemoved: toolSummary.linesRemoved || 0,
+        });
       }
 
       if (event.toolName === "create_artifact") {

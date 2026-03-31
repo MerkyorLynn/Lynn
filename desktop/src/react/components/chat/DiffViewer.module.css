@@ -1,0 +1,198 @@
+/* DiffViewer styles */
+
+.diffCard {
+    margin: var(--space-sm) 0;
+    border: 1px solid var(--border, rgba(0,0,0,0.1));
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+    max-width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    background: var(--bg-card, #fff);
+}
+
+.diffCardResolved {
+    opacity: 0.7;
+}
+
+.diffHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--overlay-subtle, rgba(0,0,0,0.02));
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+}
+
+.diffHeader:hover {
+    background: var(--overlay-light, rgba(0,0,0,0.04));
+}
+
+.diffFileInfo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    color: var(--text-muted);
+}
+
+.diffFileName {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.diffFilePath {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.diffStats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.diffStatsAdded {
+    color: var(--green, #4caf50);
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.diffStatsRemoved {
+    color: var(--coral, #e57373);
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.diffToggleArrow {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+.diffBody {
+    max-height: 400px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+}
+
+.diffLines {
+    display: flex;
+    flex-direction: column;
+}
+
+.diffLine {
+    display: flex;
+    line-height: 1.5;
+    min-height: 20px;
+}
+
+.diffLineAdd {
+    background: rgba(46, 160, 67, 0.1);
+}
+
+.diffLineRemove {
+    background: rgba(248, 81, 73, 0.1);
+}
+
+.diffLineContext {
+    background: transparent;
+}
+
+.diffLineHeader {
+    background: var(--overlay-subtle, rgba(0,0,0,0.02));
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.diffLineNum {
+    width: 40px;
+    flex-shrink: 0;
+    text-align: right;
+    padding: 0 6px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    user-select: none;
+    font-size: 0.72rem;
+}
+
+.diffLinePrefix {
+    width: 16px;
+    flex-shrink: 0;
+    text-align: center;
+    user-select: none;
+    font-weight: 700;
+}
+
+.diffLineAdd .diffLinePrefix {
+    color: var(--green, #4caf50);
+}
+
+.diffLineRemove .diffLinePrefix {
+    color: var(--coral, #e57373);
+}
+
+.diffLineContent {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding-right: 8px;
+}
+
+.diffActions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+    background: var(--overlay-subtle, rgba(0,0,0,0.01));
+}
+
+.diffAcceptBtn,
+.diffRejectBtn {
+    padding: 4px 14px;
+    border: none;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.76rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.diffAcceptBtn {
+    background: var(--green, #4caf50);
+    color: #fff;
+}
+
+.diffRejectBtn {
+    background: var(--overlay-medium, rgba(0,0,0,0.1));
+    color: var(--text-light);
+}
+
+.diffAcceptBtn:hover,
+.diffRejectBtn:hover {
+    opacity: 0.85;
+}
+
+.diffStatusBar {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-style: italic;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+}
+
+.diffStatusAccepted {
+    color: var(--green, #4caf50);
+    background: rgba(46, 160, 67, 0.05);
+}
+
+.diffStatusRejected {
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.02);
+}

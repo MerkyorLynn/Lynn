@@ -57,6 +57,17 @@
     opacity: 0.8;
 }
 
+.sessionItemModel {
+    font-size: 0.64rem;
+    color: rgba(var(--accent-rgb), 0.88);
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100% - 34px);
+}
+
 /* 重命名按钮 */
 .sessionRenameBtn {
     position: absolute;

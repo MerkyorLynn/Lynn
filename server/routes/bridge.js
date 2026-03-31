@@ -286,7 +286,7 @@ export function createBridgeRoute(engine, bridgeManager) {
     }
 
     // 路径安全检查（对齐 fs.js 的 getAllowedRoots 逻辑）
-    const hanaHome = path.resolve(engine.hanakoHome);
+    const hanaHome = path.resolve(engine.lynnHome);
     const allowedRoots = [hanaHome];
     const deskHome = engine.agent?.deskManager?.homePath;
     if (deskHome) allowedRoots.push(path.resolve(deskHome));

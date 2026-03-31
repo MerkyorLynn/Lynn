@@ -1,9 +1,9 @@
 /**
- * Hanako Desktop — Electron 主进程
+ * Lynn Desktop — Electron 主进程
  *
  * 职责：
  * 1. 创建启动窗口（splash）
- * 2. spawn() 启动 Hanako Server
+ * 2. spawn() 启动 Lynn Server
  * 3. 等待 server 就绪 + 主窗口初始化完成
  * 4. 关闭 splash，显示主窗口
  * 5. 优雅关闭
@@ -37,17 +37,19 @@ function safeReadJSON(filePath, fallback = null) {
   }
 }
 
-const hanakoHome = process.env.HANA_HOME
-  ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
-  : path.join(os.homedir(), ".hanako");
+const lynnHome = process.env.LYNN_HOME
+  ? path.resolve(process.env.LYNN_HOME.replace(/^~/, os.homedir()))
+  : process.env.HANA_HOME
+    ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
+    : path.join(os.homedir(), ".lynn");
 
-// 按 HANA_HOME 隔离 Electron userData（localStorage / cache / session）
-// 生产: ~/Library/Application Support/Hanako
-// 开发: ~/Library/Application Support/Hanako-dev
-const defaultHome = path.join(os.homedir(), ".hanako");
-if (hanakoHome !== defaultHome) {
-  const suffix = path.basename(hanakoHome).replace(/^\./, ""); // "hanako-dev"
-  const appName = suffix.charAt(0).toUpperCase() + suffix.slice(1); // "Hanako-dev"
+// 按 LYNN_HOME 隔离 Electron userData（localStorage / cache / session）
+// 生产: ~/Library/Application Support/Lynn
+// 开发: ~/Library/Application Support/Lynn-dev
+const defaultHome = path.join(os.homedir(), ".lynn");
+if (lynnHome !== defaultHome) {
+  const suffix = path.basename(lynnHome).replace(/^\./, ""); // "lynn-dev"
+  const appName = suffix.charAt(0).toUpperCase() + suffix.slice(1); // "Lynn-dev"
   app.setPath("userData", path.join(app.getPath("appData"), appName));
 }
 
@@ -121,7 +123,7 @@ function _getMainI18n() {
     // 从 preferences.json 读取全局 locale（和 server/renderer 一致）
     let locale = null;
     try {
-      const prefs = JSON.parse(fs.readFileSync(path.join(hanakoHome, "preferences.json"), "utf-8"));
+      const prefs = JSON.parse(fs.readFileSync(path.join(lynnHome, "preferences.json"), "utf-8"));
       locale = prefs.locale || null;
     } catch { /* preferences.json 不存在时 fallback */ }
     const key = _resolveLocaleKey(locale);
@@ -182,8 +184,8 @@ function titleBarOpts(trafficLight = { x: 16, y: 16 }) {
  * 优先读 user/preferences.json，fallback 扫描 agents/ 第一个有效目录
  */
 function getCurrentAgentId() {
-  const prefsPath = path.join(hanakoHome, "user", "preferences.json");
-  const agentsDir = path.join(hanakoHome, "agents");
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
+  const agentsDir = path.join(lynnHome, "agents");
 
   // 1. 读 preferences
   try {
@@ -216,7 +218,7 @@ function getCurrentAgentId() {
  * 只看 preferences.json 的 setupComplete 标记
  */
 function isSetupComplete() {
-  const prefsPath = path.join(hanakoHome, "user", "preferences.json");
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
   try {
     return JSON.parse(fs.readFileSync(prefsPath, "utf-8")).setupComplete === true;
   } catch {}
@@ -231,7 +233,7 @@ function hasExistingConfig() {
   try {
     const agentId = getCurrentAgentId();
     if (!agentId) return false;
-    const configPath = path.join(hanakoHome, "agents", agentId, "config.yaml");
+    const configPath = path.join(lynnHome, "agents", agentId, "config.yaml");
     const configText = fs.readFileSync(configPath, "utf-8");
     return /api_key:\s*["']?[^"'\s]+/.test(configText);
   } catch {}
@@ -281,7 +283,7 @@ function pollServerInfo(infoPath, { timeout = 60000, interval = 200, process: pr
 }
 
 async function startServer() {
-  const serverInfoPath = path.join(hanakoHome, "server-info.json");
+  const serverInfoPath = path.join(lynnHome, "server-info.json");
 
   // ── 1. 检查是否有已运行的 server（Electron crash 后遗留的守护进程） ──
   let existingInfo = null;
@@ -331,7 +333,7 @@ async function startServer() {
   // ── 2. 启动新 server ──
   _serverLogs = [];
 
-  const serverEnv = { ...process.env, HANA_HOME: hanakoHome };
+  const serverEnv = { ...process.env, LYNN_HOME: lynnHome };
 
   // Windows: 注入 MinGit 路径
   if (process.platform === "win32") {
@@ -355,11 +357,11 @@ async function startServer() {
 
   // 选择 server 启动方式
   let serverBin, serverArgs;
-  const bundledServer = path.join(process.resourcesPath || "", "server", "hana-server");
+  const bundledServer = path.join(process.resourcesPath || "", "server", "lynn-server");
   if (fs.existsSync(bundledServer) || fs.existsSync(bundledServer + ".exe")) {
     // 打包模式：使用 extraResources 里的独立 server
-    // macOS/Linux：hana-server 是 shell wrapper，内部调用 node bundle/index.js，无需额外参数
-    // Windows：hana-server.exe 是裸 Node 二进制（改名），需要显式传入 bundle/index.js
+    // macOS/Linux：lynn-server 是 shell wrapper，内部调用 node bundle/index.js，无需额外参数
+    // Windows：lynn-server.exe 是裸 Node 二进制（改名），需要显式传入 bundle/index.js
     const bin = process.platform === "win32" ? bundledServer + ".exe" : bundledServer;
     serverBin = bin;
     serverArgs = process.platform === "win32"
@@ -438,11 +440,11 @@ function monitorServer() {
       } catch (err) {
         console.error("[desktop] Server 重启失败:", err.message);
         writeCrashLog(`Server 重启失败: ${err.message}`);
-        dialog.showErrorBox("Hanako Server", mt("dialog.serverRestartFailed", { error: err.message }));
+        dialog.showErrorBox("Lynn Server", mt("dialog.serverRestartFailed", { error: err.message }));
       }
     } else {
       writeCrashLog(`Server 多次崩溃 (${reason})，放弃重启`);
-      dialog.showErrorBox("Hanako Server", mt("dialog.serverMultipleCrash", { reason }));
+      dialog.showErrorBox("Lynn Server", mt("dialog.serverMultipleCrash", { reason }));
     }
   });
 }
@@ -459,10 +461,10 @@ function showPrimaryWindow() {
 /**
  * 创建系统托盘图标
  * - 双击：显示主窗口
- * - 右键菜单：显示 Hanako / 设置 / 退出
+ * - 右键菜单：显示 Lynn / 设置 / 退出
  */
 function createTray() {
-  const isDev = hanakoHome !== path.join(os.homedir(), ".hanako");
+  const isDev = lynnHome !== path.join(os.homedir(), ".lynn");
   let icon;
   if (process.platform === "win32") {
     // Windows 优先用 .ico，缺失则回退到 .png
@@ -481,10 +483,10 @@ function createTray() {
     if (process.platform === "darwin") icon.setTemplateImage(true);
   }
   tray = new Tray(icon);
-  tray.setToolTip(isDev ? "Hanako (dev)" : "Hanako");
+  tray.setToolTip(isDev ? "Lynn (dev)" : "Lynn");
 
   const buildMenu = () => Menu.buildFromTemplate([
-    { label: mt("tray.show", null, "Show Hanako"), click: () => showPrimaryWindow() },
+    { label: mt("tray.show", null, "Show Lynn"), click: () => showPrimaryWindow() },
     { label: mt("tray.settings", null, "Settings"), click: () => createSettingsWindow() },
     { type: "separator" },
     { label: mt("tray.quit", null, "Quit"), click: () => { isExitingServer = true; isQuitting = true; app.quit(); } },
@@ -496,7 +498,7 @@ function createTray() {
 }
 
 /**
- * 将崩溃日志写入 HANA_HOME/crash.log（默认 ~/.hanako/crash.log）并返回日志内容
+ * 将崩溃日志写入 LYNN_HOME/crash.log（默认 ~/.lynn/crash.log）并返回日志内容
  */
 function writeCrashLog(errorMessage) {
   const logs = _serverLogs.join("");
@@ -518,7 +520,7 @@ function writeCrashLog(errorMessage) {
     const items = [
       ``,
       `--- Diagnostics ---`,
-      `HANA_HOME: ${hanakoHome}`,
+      `LYNN_HOME: ${lynnHome}`,
       `Server dir: ${serverDir}`,
       `Packaged: ${!!isPackaged}`,
       `bundle/index.js exists: ${fs.existsSync(bundlePath)}`,
@@ -529,21 +531,21 @@ function writeCrashLog(errorMessage) {
 
     // Windows: 检查 server 二进制、手动调试 wrapper 和 MinGit
     if (process.platform === "win32" && isPackaged) {
-      const exePath = path.join(serverDir, "hana-server.exe");
-      const cmdPath = path.join(serverDir, "hana-server.cmd");
+      const exePath = path.join(serverDir, "lynn-server.exe");
+      const cmdPath = path.join(serverDir, "lynn-server.cmd");
       const gitRoot = path.join(process.resourcesPath, "git");
-      items.push(`hana-server.exe exists: ${fs.existsSync(exePath)}`);
-      items.push(`hana-server.cmd exists (manual debug): ${fs.existsSync(cmdPath)}`);
+      items.push(`lynn-server.exe exists: ${fs.existsSync(exePath)}`);
+      items.push(`lynn-server.cmd exists (manual debug): ${fs.existsSync(cmdPath)}`);
       items.push(`MinGit dir exists: ${fs.existsSync(gitRoot)}`);
       items.push(``);
-      items.push(`Manual debug: open cmd.exe, cd to "${serverDir}", run hana-server.cmd`);
+      items.push(`Manual debug: open cmd.exe, cd to "${serverDir}", run lynn-server.cmd`);
     }
 
     diagnostics = items.join("\n");
   }
 
   const content = [
-    `=== Hanako Crash Log ===`,
+    `=== Lynn Crash Log ===`,
     `Time: ${timestamp}`,
     `Error: ${errorMessage}`,
     `Platform: ${process.platform} ${process.arch}`,
@@ -558,8 +560,8 @@ function writeCrashLog(errorMessage) {
 
   // 写入文件（best effort）
   try {
-    const crashLogPath = path.join(hanakoHome, "crash.log");
-    fs.mkdirSync(hanakoHome, { recursive: true });
+    const crashLogPath = path.join(lynnHome, "crash.log");
+    fs.mkdirSync(lynnHome, { recursive: true });
     fs.writeFileSync(crashLogPath, content, "utf-8");
   } catch (e) {
     console.error("[desktop] 写入 crash.log 失败:", e.message);
@@ -575,7 +577,7 @@ function createSplashWindow() {
     height: 280,
     resizable: false,
     frame: false,
-    title: "Hanako",
+    title: "Lynn",
     ...titleBarOpts({ x: 12, y: 12 }),
     transparent: true,
     show: false,
@@ -598,7 +600,7 @@ function createSplashWindow() {
 }
 
 // ── 窗口状态记忆 ──
-const windowStatePath = path.join(hanakoHome, "user", "window-state.json");
+const windowStatePath = path.join(lynnHome, "user", "window-state.json");
 
 function loadWindowState() {
   try {
@@ -634,7 +636,7 @@ function createMainWindow() {
     height: saved?.height || 820,
     minWidth: 420,
     minHeight: 500,
-    title: "Hanako",
+    title: "Lynn",
     ...titleBarOpts({ x: 16, y: 16 }),
     backgroundColor: "#F4F0E4",
     show: false,
@@ -1480,7 +1482,7 @@ function setupBrowserCommands() {
       try { msg = JSON.parse(data); } catch { return; }
       if (msg?.type !== "browser-cmd") return;
       const { id, cmd, params } = msg;
-      const _bLog = (line) => { try { require("fs").appendFileSync(require("path").join(require("os").homedir(), ".hanako", "browser-cmd.log"), `${new Date().toISOString()} ${line}\n`); } catch {} };
+      const _bLog = (line) => { try { require("fs").appendFileSync(require("path").join(require("os").homedir(), ".lynn", "browser-cmd.log"), `${new Date().toISOString()} ${line}\n`); } catch {} };
       _bLog(`→ received cmd=${cmd} id=${id}`);
       try {
         const result = await handleBrowserCommand(cmd, params || {});
@@ -1517,7 +1519,7 @@ function createOnboardingWindow(query = {}) {
     height: 780,
     resizable: false,
     frame: false,
-    title: "Hanako",
+    title: "Lynn",
     ...titleBarOpts({ x: 16, y: 16 }),
     backgroundColor: "#F4F0E4",
     show: false,
@@ -1696,7 +1698,7 @@ wrapIpcOn("settings-changed", (_event, type, data) => {
     // 重建托盘菜单，使标签跟随新 locale
     if (tray && !tray.isDestroyed()) {
       const buildMenu = () => Menu.buildFromTemplate([
-        { label: mt("tray.show", null, "Show Hanako"), click: () => showPrimaryWindow() },
+        { label: mt("tray.show", null, "Show Lynn"), click: () => showPrimaryWindow() },
         { label: mt("tray.settings", null, "Settings"), click: () => createSettingsWindow() },
         { type: "separator" },
         { label: mt("tray.quit", null, "Quit"), click: () => { isExitingServer = true; isQuitting = true; app.quit(); } },
@@ -1712,8 +1714,8 @@ wrapIpcHandler("get-avatar-path", (_event, role) => {
   const agentId = getCurrentAgentId();
   // agent 头像在 agents/{id}/avatars/，user 头像在 user/avatars/
   const baseDir = role === "user"
-    ? path.join(hanakoHome, "user")
-    : agentId ? path.join(hanakoHome, "agents", agentId) : null;
+    ? path.join(lynnHome, "user")
+    : agentId ? path.join(lynnHome, "agents", agentId) : null;
   if (!baseDir) return null;
   const avatarDir = path.join(baseDir, "avatars");
   for (const ext of ["png", "jpg", "jpeg", "webp"]) {
@@ -1728,7 +1730,7 @@ wrapIpcHandler("get-splash-info", () => {
   try {
     const agentId = getCurrentAgentId();
     if (!agentId) return { agentName: null, locale: "zh-CN", yuan: "hanako" };
-    const configPath = path.join(hanakoHome, "agents", agentId, "config.yaml");
+    const configPath = path.join(lynnHome, "agents", agentId, "config.yaml");
     const text = fs.readFileSync(configPath, "utf-8");
     // 简易提取：agent:\n  name: xxx / yuan: xxx 和顶层 locale: xxx
     const agentMatch = text.match(/^agent:\s*\n\s+name:\s*([^#\n]+)/m);
@@ -1784,7 +1786,7 @@ wrapIpcHandler("open-skill-viewer", (_event, data) => {
       const baseName = path.basename(data.skillPath, fileExt);
 
       // 先检查同名 skill 是否已安装在 skills 目录
-      const installedDir = path.join(hanakoHome, "skills", baseName);
+      const installedDir = path.join(lynnHome, "skills", baseName);
       if (fs.existsSync(path.join(installedDir, "SKILL.md"))) {
         _showSkillViewer({ name: baseName, baseDir: installedDir, installed: false });
         return;
@@ -1900,6 +1902,18 @@ wrapIpcHandler("open-file", (_event, filePath) => {
     if (!fs.statSync(filePath).isFile()) return;
   } catch { return; }
   shell.openPath(filePath);
+});
+
+wrapIpcHandler("save-file-dialog", async (event, opts = {}) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (!win) return null;
+  const result = await dialog.showSaveDialog(win, {
+    title: opts.title || mt("common.save", null, "Save"),
+    defaultPath: opts.defaultPath,
+    filters: Array.isArray(opts.filters) ? opts.filters : undefined,
+  });
+  if (result.canceled || !result.filePath) return null;
+  return result.filePath;
 });
 
 wrapIpcHandler("open-external", (_event, url) => {
@@ -2059,7 +2073,7 @@ wrapIpcHandler("debug-open-onboarding-preview", () => {
 
 // Onboarding 完成后，写标记 → 创建主窗口
 wrapIpcHandler("onboarding-complete", () => {
-  const prefsPath = path.join(hanakoHome, "user", "preferences.json");
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
   try {
     let prefs = {};
     try { prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8")); } catch {}
@@ -2123,7 +2137,7 @@ app.whenReady().then(async () => {
     const splashShownAt = Date.now();
 
     // 2. 后台启动 server
-    console.log("[desktop] 启动 Hanako Server...");
+    console.log("[desktop] 启动 Lynn Server...");
     await startServer();
     console.log(`[desktop] Server 就绪，端口: ${serverPort}`);
     monitorServer();
@@ -2154,7 +2168,7 @@ app.whenReady().then(async () => {
     // 5. 后台检查更新（不阻塞启动）
     // 从 preferences.json 同步更新通道
     try {
-      const prefsPath = path.join(hanakoHome, "user", "preferences.json");
+      const prefsPath = path.join(lynnHome, "user", "preferences.json");
       if (fs.existsSync(prefsPath)) {
         const prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8"));
         if (prefs.update_channel) setUpdateChannel(prefs.update_channel);
@@ -2168,8 +2182,8 @@ app.whenReady().then(async () => {
     // 截取最后 800 字符放进 dialog（太长会显示不全）
     const tail = crashInfo.length > 800 ? "...\n" + crashInfo.slice(-800) : crashInfo;
     dialog.showErrorBox(
-      mt("dialog.launchFailedTitle", null, "Hanako Launch Failed"),
-      mt("dialog.launchFailedBody", { detail: tail, logPath: path.join(hanakoHome, "crash.log") })
+      mt("dialog.launchFailedTitle", null, "Lynn Launch Failed"),
+      mt("dialog.launchFailedBody", { detail: tail, logPath: path.join(lynnHome, "crash.log") })
     );
     forceQuitApp = true;
     app.quit();

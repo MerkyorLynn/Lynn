@@ -24,6 +24,8 @@ export class SkillManager {
     this._reloadDeps = null; // { resourceLoader, agents, onReloaded }
     this._externalPaths = externalPaths;
     this._externalWatchers = new Map();
+    /** @type {Map<string, { skills: Array, mtime: number }>} */
+    this._cwdSkillCache = new Map();
   }
 
   /** 全量 skill 列表 */
@@ -163,6 +165,92 @@ export class SkillManager {
     this._closeExternalWatchers();
     if (this._reloadDeps) {
       this._watchExternalPaths();
+    }
+  }
+
+  // ── CWD 项目级技能扫描（带缓存） ──
+
+  /**
+   * 获取目录 mtime 的最大值（检测技能目录变化）
+   * @param {string} dir
+   * @param {Array<{ sub: string, label: string }>} skillDirs
+   * @returns {number} 最新 mtime（ms）
+   */
+  _getCwdSkillsMtime(dir, skillDirs) {
+    let maxMtime = 0;
+    for (const { sub } of skillDirs) {
+      const skillsDir = path.join(dir, sub);
+      try {
+        const stat = fs.statSync(skillsDir);
+        if (stat.mtimeMs > maxMtime) maxMtime = stat.mtimeMs;
+        // 也检查子目录的 mtime（新增/删除技能文件夹会更新父目录 mtime）
+      } catch {
+        // 目录不存在，跳过
+      }
+    }
+    return maxMtime;
+  }
+
+  /**
+   * 扫描 CWD 下的项目级技能，带 mtime 缓存
+   * @param {string} dir - 工作区目录
+   * @param {Array<{ sub: string, label: string }>} skillDirs - 技能子目录配置
+   * @returns {{ skills: Array, mtime: number, fromCache: boolean }}
+   */
+  scanCwdSkills(dir, skillDirs) {
+    const mtime = this._getCwdSkillsMtime(dir, skillDirs);
+    const cached = this._cwdSkillCache.get(dir);
+    if (cached && cached.mtime === mtime) {
+      return { skills: cached.skills, mtime, fromCache: true };
+    }
+
+    // 缓存未命中，扫描文件系统
+    const results = [];
+    for (const { sub, label } of skillDirs) {
+      const skillsDir = path.join(dir, sub);
+      if (!fs.existsSync(skillsDir)) continue;
+      try {
+        for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+          if (!entry.isDirectory()) continue;
+          const skillFile = path.join(skillsDir, entry.name, "SKILL.md");
+          if (!fs.existsSync(skillFile)) continue;
+          try {
+            const content = fs.readFileSync(skillFile, "utf-8");
+            const meta = parseSkillMetadata(content, entry.name);
+            results.push({
+              name: meta.name,
+              description: meta.description,
+              source: label,
+              dirPath: skillsDir,
+              filePath: skillFile,
+              baseDir: path.join(skillsDir, entry.name),
+            });
+          } catch {}
+        }
+      } catch {}
+    }
+
+    // 写入缓存
+    this._cwdSkillCache.set(dir, { skills: results, mtime });
+
+    // 限制缓存大小（最多保留 20 个工作区）
+    if (this._cwdSkillCache.size > 20) {
+      const firstKey = this._cwdSkillCache.keys().next().value;
+      this._cwdSkillCache.delete(firstKey);
+    }
+
+    return { skills: results, mtime, fromCache: false };
+  }
+
+  /**
+   * 使指定工作区的缓存失效
+   * @param {string} [dir] - 不传则清空全部
+   */
+  invalidateCwdCache(dir) {
+    if (dir) {
+      this._cwdSkillCache.delete(dir);
+    } else {
+      this._cwdSkillCache.clear();
     }
   }
 

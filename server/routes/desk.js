@@ -67,7 +67,7 @@ function isApprovedDir(dir, engine) {
 /** 敏感 dot 目录（不允许 upload 从这些目录复制文件） */
 const SENSITIVE_DIRS = [".ssh", ".gnupg", ".aws", ".config/gcloud", ".kube"];
 
-function isSensitivePath(srcPath, hanakoHome) {
+function isSensitivePath(srcPath, lynnHome) {
   const resolved = realPath(srcPath);
   if (!resolved) return true; // fail-closed
   const home = os.homedir();
@@ -75,8 +75,8 @@ function isSensitivePath(srcPath, hanakoHome) {
     const sensitive = path.join(home, d);
     if (resolved === sensitive || resolved.startsWith(sensitive + path.sep)) return true;
   }
-  if (hanakoHome) {
-    const realHome = realPath(hanakoHome);
+  if (lynnHome) {
+    const realHome = realPath(lynnHome);
     if (realHome && (resolved === realHome || resolved.startsWith(realHome + path.sep))) return true;
   }
   return false;
@@ -310,7 +310,7 @@ export function createDeskRoute(engine, hub) {
   //  工作空间文件（直接使用 cwd）
   // ════════════════════════════
 
-  /** 扫描工作空间下的项目级技能 */
+  /** 扫描工作空间下的项目级技能（带缓存 + ETag/304） */
   route.get("/desk/skills", async (c) => {
     const dir = c.req.query("dir") ? decodeURIComponent(c.req.query("dir")) : engine.deskCwd;
     if (!dir) return c.json({ skills: [] });
@@ -324,30 +324,54 @@ export function createDeskRoute(engine, hub) {
       { sub: ".pi/skills",       label: "Pi" },
     ];
 
-    const results = [];
-    for (const { sub, label } of CWD_SKILL_DIRS) {
-      const skillsDir = path.join(dir, sub);
-      if (!fs.existsSync(skillsDir)) continue;
-      try {
-        for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
-          if (!entry.isDirectory()) continue;
-          const skillFile = path.join(skillsDir, entry.name, "SKILL.md");
-          if (!fs.existsSync(skillFile)) continue;
-          try {
-            const content = fs.readFileSync(skillFile, "utf-8");
-            const meta = parseSkillMetadata(content, entry.name);
-            results.push({
-              name: meta.name,
-              description: meta.description,
-              source: label,
-              dirPath: skillsDir,
-              filePath: skillFile,
-              baseDir: path.join(skillsDir, entry.name),
-            });
-          } catch {}
-        }
-      } catch {}
+    // 使用 SkillManager 的缓存扫描（如果可用）
+    const skillManager = engine.skillManager;
+    let results;
+    let mtime;
+    if (skillManager?.scanCwdSkills) {
+      const scan = skillManager.scanCwdSkills(dir, CWD_SKILL_DIRS);
+      results = scan.skills;
+      mtime = scan.mtime;
+    } else {
+      // 回退：直接扫描（无缓存）
+      results = [];
+      mtime = 0;
+      for (const { sub, label } of CWD_SKILL_DIRS) {
+        const skillsDir = path.join(dir, sub);
+        if (!fs.existsSync(skillsDir)) continue;
+        try {
+          for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) continue;
+            const skillFile = path.join(skillsDir, entry.name, "SKILL.md");
+            if (!fs.existsSync(skillFile)) continue;
+            try {
+              const content = fs.readFileSync(skillFile, "utf-8");
+              const meta = parseSkillMetadata(content, entry.name);
+              results.push({
+                name: meta.name,
+                description: meta.description,
+                source: label,
+                dirPath: skillsDir,
+                filePath: skillFile,
+                baseDir: path.join(skillsDir, entry.name),
+              });
+            } catch {}
+          }
+        } catch {}
+      }
     }
+
+    // ETag 支持：基于 mtime 生成标识，无变化返回 304
+    if (mtime > 0) {
+      const etag = `"cwd-skills-${mtime}"`;
+      c.header("ETag", etag);
+      c.header("Cache-Control", "no-cache");
+      const ifNoneMatch = c.req.header("If-None-Match");
+      if (ifNoneMatch === etag) {
+        return c.body(null, 304);
+      }
+    }
+
     return c.json({ skills: results });
   });
 
@@ -382,6 +406,7 @@ export function createDeskRoute(engine, hub) {
         const destName = path.basename(filePath);
         const dest = path.join(skillsDir, destName);
         fs.cpSync(filePath, dest, { recursive: true });
+        engine.skillManager?.invalidateCwdCache?.(cwd);
         return c.json({ ok: true, name: destName });
       }
 
@@ -410,6 +435,7 @@ export function createDeskRoute(engine, hub) {
           if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true });
           fs.renameSync(tmpDir, dest);
         }
+        engine.skillManager?.invalidateCwdCache?.(cwd);
         return c.json({ ok: true, name: skillName });
       }
 
@@ -443,6 +469,7 @@ export function createDeskRoute(engine, hub) {
     }
     try {
       fs.rmSync(skillDir, { recursive: true, force: true });
+      engine.skillManager?.invalidateCwdCache?.(cwd);
       return c.json({ ok: true });
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -456,6 +483,45 @@ export function createDeskRoute(engine, hub) {
     if (c.req.query("dir") && !isApprovedDir(dir, engine)) return c.json({ error: t("error.dirNotAllowed") });
     fs.mkdirSync(dir, { recursive: true });
     return c.json({ path: dir });
+  });
+
+  /** 模糊搜索工作空间文件（@mention 用） */
+  route.get("/desk/search", async (c) => {
+    const dir = c.req.query("dir") ? decodeURIComponent(c.req.query("dir")) : engine.deskCwd;
+    if (!dir) return c.json({ files: [] });
+    if (c.req.query("dir") && !isApprovedDir(dir, engine)) return c.json({ error: t("error.dirNotAllowed") });
+    const q = (c.req.query("q") || "").toLowerCase().trim();
+    if (!q) return c.json({ files: [] });
+
+    const MAX_RESULTS = 20;
+    const MAX_DEPTH = 6;
+    const IGNORED = new Set(["node_modules", ".git", ".next", "dist", "build", "__pycache__", ".venv", "venv"]);
+    const results = [];
+
+    function walk(dirPath, depth) {
+      if (depth > MAX_DEPTH || results.length >= MAX_RESULTS) return;
+      let entries;
+      try { entries = fs.readdirSync(dirPath, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (results.length >= MAX_RESULTS) break;
+        if (entry.name.startsWith(".") || IGNORED.has(entry.name)) continue;
+        const full = path.join(dirPath, entry.name);
+        const rel = path.relative(dir, full);
+        if (entry.isDirectory()) {
+          if (entry.name.toLowerCase().includes(q)) {
+            results.push({ name: entry.name, path: full, rel, isDir: true });
+          }
+          walk(full, depth + 1);
+        } else {
+          if (entry.name.toLowerCase().includes(q) || rel.toLowerCase().includes(q)) {
+            results.push({ name: entry.name, path: full, rel, isDir: false });
+          }
+        }
+      }
+    }
+
+    walk(dir, 0);
+    return c.json({ files: results });
   });
 
   /** 列出工作空间文件（支持 ?subdir=xxx 浏览子目录, ?dir=xxx 覆盖基目录） */
@@ -553,7 +619,7 @@ export function createDeskRoute(engine, hub) {
               results.push({ src: srcPath, error: "invalid path" });
               continue;
             }
-            if (isSensitivePath(srcPath, engine.hanakoHome)) {
+            if (isSensitivePath(srcPath, engine.lynnHome)) {
               results.push({ src: srcPath, error: "sensitive path blocked" });
               continue;
             }

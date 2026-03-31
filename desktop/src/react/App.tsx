@@ -5,7 +5,7 @@
  * 此文件只负责 titlebar + sidebar + 主区域 + overlays 的组装。
  */
 
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useState, useCallback } from 'react';
 import { useStore } from './stores';
 import type { ActivePanel } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -26,6 +26,7 @@ import { ChannelTabBar } from './components/channels/ChannelTabBar';
 import { ChannelListSidebar } from './components/channels/ChannelList';
 import { ChannelHeader } from './components/channels/ChannelHeader';
 import { ChannelCreateOverlay } from './components/channels/ChannelCreateOverlay';
+import { AgentDiscoveryDialog } from './components/AgentDiscoveryDialog';
 import { SidebarLayout, toggleSidebar } from './components/SidebarLayout';
 import { FloatPreviewCard, useFloatCard } from './components/FloatPreviewCard';
 import { useSidebarResize } from './hooks/use-sidebar-resize';
@@ -67,6 +68,38 @@ function WelcomeContainer() {
 function AutomationBadge() {
   const count = useStore(s => s.automationCount);
   return <span className="automation-count-badge">{count > 0 ? String(count) : ''}</span>;
+}
+
+function SettingsButton() {
+  const [showPulse, setShowPulse] = useState(() => {
+    try {
+      return !localStorage.getItem('hanako-settings-clicked');
+    } catch {
+      return false;
+    }
+  });
+
+  const handleClick = useCallback(() => {
+    if (showPulse) {
+      setShowPulse(false);
+      try { localStorage.setItem('hanako-settings-clicked', '1'); } catch {}
+    }
+    window.platform.openSettings();
+  }, [showPulse]);
+
+  return (
+    <button
+      className={`sidebar-action-btn${showPulse ? ' sidebar-settings-pulse' : ''}`}
+      id="settingsBtn"
+      title={t('settings.title')}
+      onClick={handleClick}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  );
 }
 
 function BridgeDot() {
@@ -236,12 +269,7 @@ function App() {
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                   </button>
-                  <button className="sidebar-action-btn" id="settingsBtn" title={t('settings.title')} onClick={() => window.platform.openSettings()}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                  </button>
+                  <SettingsButton />
                   <button className="sidebar-action-btn" id="sidebarCollapseBtn" title={t('sidebar.collapse')} onClick={() => toggleSidebar()}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="15 6 9 12 15 18"></polyline>
@@ -359,6 +387,9 @@ function App() {
 
       {/* Skill viewer overlay */}
       <Suspense fallback={null}><SkillViewerOverlay /></Suspense>
+
+      {/* Agent discovery dialog */}
+      <AgentDiscoveryDialog />
 
       {/* Float preview card */}
       {floatCard && (

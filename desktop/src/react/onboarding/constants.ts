@@ -2,7 +2,7 @@
  * constants.ts — Onboarding wizard constants
  */
 
-export const AGENT_ID = 'hanako';
+export const AGENT_ID = 'lynn';
 export const TOTAL_STEPS = 6;
 
 export const LOCALES = [

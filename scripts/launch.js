@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-process.env.HANA_HOME = join(homedir(), ".hanako-dev");
+process.env.LYNN_HOME = join(homedir(), ".lynn-dev");
 
 const mode = process.argv[2];
 const extra = process.argv.slice(3);

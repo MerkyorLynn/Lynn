@@ -263,14 +263,14 @@ describe("模型选择无 fallback", () => {
     }
 
     it("utility 未配置时抛错", () => {
-      const mm = new ModelManager({ hanakoHome: tempDir });
+      const mm = new ModelManager({ lynnHome: tempDir });
       setupRouter(mm);
       expect(() => mm.resolveUtilityConfig({}, {}, {}))
         .toThrow("error.noUtilityModel");
     });
 
     it("utility_large 未配置时抛错", () => {
-      const mm = new ModelManager({ hanakoHome: tempDir });
+      const mm = new ModelManager({ lynnHome: tempDir });
       setupRouter(mm);
       mm._availableModels = [{ id: "some-model", provider: "x" }];
       expect(() => mm.resolveUtilityConfig({}, { utility: "some-model" }, {}))
@@ -278,7 +278,7 @@ describe("模型选择无 fallback", () => {
     });
 
     it("utility 和 utility_large 都配置时正常返回", () => {
-      const mm = new ModelManager({ hanakoHome: tempDir });
+      const mm = new ModelManager({ lynnHome: tempDir });
       mm._availableModels = [
         { id: "util-model", provider: "test-provider", _cred: { api: "openai-completions", apiKey: "sk-test", baseUrl: "https://test.example.com/v1" } },
         { id: "large-model", provider: "test-provider", _cred: { api: "openai-completions", apiKey: "sk-test", baseUrl: "https://test.example.com/v1" } },
@@ -296,7 +296,7 @@ describe("模型选择无 fallback", () => {
     });
 
     it("utility_api 与模型 provider 不一致时直接报错", () => {
-      const mm = new ModelManager({ hanakoHome: tempDir });
+      const mm = new ModelManager({ lynnHome: tempDir });
       mm._availableModels = [
         { id: "util-model", provider: "test-provider", _cred: { api: "openai-completions", apiKey: "sk-test", baseUrl: "https://test.example.com/v1" } },
         { id: "large-model", provider: "test-provider", _cred: { api: "openai-completions", apiKey: "sk-test", baseUrl: "https://test.example.com/v1" } },
@@ -310,7 +310,7 @@ describe("模型选择无 fallback", () => {
     });
 
     it("不再接受 hardcoded fallback 模型名", () => {
-      const mm = new ModelManager({ hanakoHome: tempDir });
+      const mm = new ModelManager({ lynnHome: tempDir });
       // 以前会 fallback 到 "doubao-seed-2-0-mini-260215"，现在应该抛错
       expect(() => mm.resolveUtilityConfig({}, {}, {}))
         .toThrow("error.noUtilityModel");

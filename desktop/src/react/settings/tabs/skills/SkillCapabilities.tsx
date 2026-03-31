@@ -23,8 +23,8 @@ interface SkillCapabilitiesProps {
 export function SkillCapabilities({
   learnCfg, learnedSkills, nameHints, onDelete, onToggle,
 }: SkillCapabilitiesProps) {
-  const learnEnabled = learnCfg.enabled === true;
-  const githubEnabled = learnCfg.allow_github_fetch === true;
+  const learnEnabled = learnCfg.enabled !== false;
+  const githubEnabled = learnCfg.allow_github_fetch !== false;
   const safetyReviewEnabled = learnCfg.safety_review !== false;
 
   const [showGithubWarning, setShowGithubWarning] = useState(false);

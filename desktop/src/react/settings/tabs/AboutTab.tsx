@@ -3,7 +3,7 @@ import { useSettingsStore } from '../store';
 import { autoSaveConfig, t } from '../helpers';
 import { Toggle } from '../widgets/Toggle';
 import { loadSettingsConfig } from '../actions';
-import iconUrl from '../../../assets/Hanako.png';
+import iconUrl from '../../../assets/Lynn.png';
 import styles from '../Settings.module.css';
 import type { AutoUpdateState } from '../../types';
 
@@ -137,10 +137,10 @@ export function AboutTab() {
         <img
           className={`${styles['about-icon']} ${styles['about-icon-clickable']}`}
           src={iconUrl}
-          alt="Hanako"
+          alt="Lynn"
           onClick={handleIconTap}
         />
-        <div className={styles['about-name']}>Hanako</div>
+        <div className={styles['about-name']}>Lynn</div>
         <div className={styles['about-tagline']}>{t('settings.about.tagline')}</div>
         {version && <div className={styles['about-version']}>v{version}</div>}
         {renderUpdateStatus()}
@@ -157,8 +157,16 @@ export function AboutTab() {
           <span className={styles['about-value']}>Apache License 2.0</span>
         </div>
         <div className={styles['about-row']}>
+          <span className={styles['about-label']}>{t('settings.about.description')}</span>
+          <span className={styles['about-value']}>{t('settings.about.descriptionText')}</span>
+        </div>
+        <div className={styles['about-row']}>
           <span className={styles['about-label']}>{t('settings.about.copyright')}</span>
-          <span className={styles['about-value']}>&copy; 2026 liliMozi</span>
+          <span className={styles['about-value']}>
+            &copy; 2026 liliMozi{t('settings.about.copyrightOriginal')}
+            <br />
+            &copy; 2026 Merkyor{t('settings.about.copyrightDerived')}
+          </span>
         </div>
         <div className={styles['about-row']}>
           <span className={styles['about-label']}>GitHub</span>
@@ -167,10 +175,10 @@ export function AboutTab() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              hana?.openExternal?.('https://github.com/liliMozi');
+              hana?.openExternal?.('https://github.com/MerkyorLynn/Lynn');
             }}
           >
-            github.com/liliMozi
+            github.com/MerkyorLynn
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
               <polyline points="15 3 21 3 21 9" />
@@ -257,7 +265,11 @@ export function AboutTab() {
 
 const LICENSE_TEXT = `Apache License, Version 2.0
 
-Copyright 2026 liliMozi
+Copyright 2026 liliMozi（原始版权）
+Copyright 2026 Merkyor（二次开发）
+
+基于 liliMozi 的开源项目开发
+项目仓库：https://github.com/MerkyorLynn/Lynn
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

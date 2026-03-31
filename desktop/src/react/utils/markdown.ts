@@ -41,6 +41,39 @@ export function getMdWithOpts(opts: Parameters<typeof markdownit>[0]): MarkdownI
   return inst;
 }
 
+/**
+ * 自动补全未闭合的代码围栏，让流式输出时代码块也能被 markdown-it 正确高亮。
+ * 检测 ``` 开头但未闭合的围栏，在末尾追加 ``` 使 markdown 引擎正常解析。
+ */
+function closeOpenCodeFences(src: string): string {
+  const lines = src.split('\n');
+  let openFence: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trimStart();
+    if (openFence === null) {
+      // 检测开启围栏：```lang 或 ~~~lang
+      const match = trimmed.match(/^(`{3,}|~{3,})/);
+      if (match) {
+        openFence = match[1][0]; // 记录围栏字符类型
+      }
+    } else {
+      // 检测闭合围栏
+      const closeMatch = trimmed.match(/^(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[1][0] === openFence) {
+        openFence = null;
+      }
+    }
+  }
+
+  if (openFence !== null) {
+    // 围栏未闭合，追加闭合标记
+    const closeMark = openFence === '~' ? '~~~' : '```';
+    return src + '\n' + closeMark;
+  }
+  return src;
+}
+
 export function renderMarkdown(src: string): string {
-  return sanitizeHtml(getMd().render(src));
+  return sanitizeHtml(getMd().render(closeOpenCodeFences(src)));
 }

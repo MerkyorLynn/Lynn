@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './FloatingActions.module.css';
+import type { Artifact } from '../../types';
 
 interface Props {
+  artifact: Artifact;
   content: string;
   editable: boolean;
   onDetach: () => void;
+  onExport: () => void;
 }
 
-export function FloatingActions({ content, editable, onDetach }: Props) {
+export function FloatingActions({ artifact, content, editable, onDetach, onExport }: Props) {
   const [copyLabel, setCopyLabel] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -23,6 +26,7 @@ export function FloatingActions({ content, editable, onDetach }: Props) {
   }, [content]);
 
   const t = window.t ?? ((p: string) => p);
+  const canReveal = !!artifact.filePath;
 
   return (
     <div className={styles.floatingActions} data-react-managed>
@@ -32,6 +36,24 @@ export function FloatingActions({ content, editable, onDetach }: Props) {
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
         </svg>
         <span>{copyLabel ?? t('attach.copy')}</span>
+      </button>
+      <button className={styles.actionBtn} onClick={onExport} title={canReveal ? t('desk.openInFinder') : t('common.save')}> 
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {canReveal ? (
+            <>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="10 14 21 3" />
+              <polyline points="15 3 21 3 21 9" />
+            </>
+          ) : (
+            <>
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </>
+          )}
+        </svg>
+        <span>{canReveal ? t('desk.openInFinder') : t('common.save')}</span>
       </button>
       {editable && (
         <button className={styles.actionBtn} title="Open in window" onClick={onDetach}>

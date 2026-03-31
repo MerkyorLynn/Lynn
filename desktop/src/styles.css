@@ -346,8 +346,8 @@ html[data-platform="linux"] .tb-toggle-right {
     font-size: 0.76rem;
     line-height: 1.5;
     color: var(--text);
-    background: var(--jian-note-bg, #FAF0E2);
-    border: 1px solid var(--jian-note-border, rgba(200, 160, 110, 0.2));
+    background: var(--jian-note-bg, var(--bg-card, var(--bg)));
+    border: 1px solid var(--jian-note-border, var(--overlay-light));
     border-radius: var(--radius-sm);
     resize: vertical;
     outline: none;
@@ -493,6 +493,46 @@ html[data-platform="linux"] .tb-toggle-right {
     background: var(--accent-light);
 }
 
+/* Settings button — larger & more prominent */
+.sidebar-action-btn#settingsBtn {
+    width: 32px;
+    height: 32px;
+    position: relative;
+}
+
+.sidebar-action-btn#settingsBtn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Pulse animation for first-time guidance */
+.sidebar-settings-pulse {
+    animation: settingsPulseRing 2s ease-out infinite;
+}
+
+.sidebar-settings-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--accent);
+    opacity: 0;
+    animation: settingsPulseRingBorder 2s ease-out infinite;
+    pointer-events: none;
+}
+
+@keyframes settingsPulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.35); }
+    70%  { box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+}
+
+@keyframes settingsPulseRingBorder {
+    0%   { opacity: 0.6; transform: scale(1); }
+    70%  { opacity: 0; transform: scale(1.15); }
+    100% { opacity: 0; transform: scale(1.15); }
+}
+
 /* 活动条（session 列表上方） */
 .sidebar-activity-bar {
     display: flex;
@@ -528,8 +568,8 @@ html[data-platform="linux"] .tb-toggle-right {
 
 /* 接入社交平台 — sidebar 卡片 */
 .sidebar-bridge-card {
-    background: rgba(255,255,255,0.5);
-    border: 1px solid rgba(0,0,0,0.05);
+    background: var(--bg-card, var(--overlay-subtle));
+    border: 1px solid var(--overlay-light);
     box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     width: calc(100% - var(--space-md) * 2);
     margin: 4px auto 6px;
@@ -537,7 +577,7 @@ html[data-platform="linux"] .tb-toggle-right {
     justify-content: center;
 }
 .sidebar-bridge-card:hover {
-    background: rgba(255,255,255,0.7);
+    background: var(--accent-light, var(--overlay-light));
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 .sidebar-bridge-dot {
@@ -2088,7 +2128,7 @@ body.resizing .jian-sidebar-inner {
     position: absolute;
     inset: 0;
     z-index: 80;
-    background: var(--drop-overlay-bg, rgba(244, 240, 228, 0.85));
+    background: var(--drop-overlay-bg, color-mix(in srgb, var(--bg) 85%, transparent));
     backdrop-filter: blur(4px);
     pointer-events: none;
 }
@@ -2585,7 +2625,7 @@ html[data-platform="linux"] .onboarding {
     padding: 0.55rem 0.8rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 8px);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     color: var(--text);
     outline: none;
     transition: border-color 0.2s;
@@ -2615,7 +2655,7 @@ html[data-platform="linux"] .onboarding {
     padding: 10px 12px;
     border-radius: var(--radius-md, 8px);
     border: 1px solid var(--border);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     cursor: pointer;
     font-size: 0.8rem;
     color: var(--text);
@@ -2674,7 +2714,7 @@ html[data-platform="linux"] .onboarding {
     padding: 6px 10px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 8px);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     color: var(--text-muted);
     cursor: pointer;
     white-space: nowrap;
@@ -2696,7 +2736,7 @@ html[data-platform="linux"] .onboarding {
     padding: 5px 14px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 8px);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     color: var(--text);
     cursor: pointer;
     transition: all 0.2s;
@@ -2720,7 +2760,7 @@ html[data-platform="linux"] .onboarding {
     overflow-y: auto;
     border-radius: var(--radius-md, 8px);
     border: 1px solid var(--border);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
 }
 .model-item {
     padding: 9px 14px;
@@ -2785,7 +2825,7 @@ html[data-platform="linux"] .onboarding {
 .tutorial-card {
     padding: 14px 16px;
     border-radius: var(--radius-lg, 12px);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     box-shadow: 0 1px 4px var(--shadow, rgba(0,0,0,0.06));
 }
 .tutorial-card-header {
@@ -2832,7 +2872,7 @@ html[data-platform="linux"] .onboarding {
     padding: 6px 14px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 8px);
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, var(--bg));
     color: var(--text);
     font-family: inherit;
     font-size: 0.82rem;

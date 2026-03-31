@@ -9,7 +9,7 @@ assignees: ""
 **环境信息**
 - OS:
 - Node.js 版本:
-- Hanako 版本:
+- Lynn 版本:
 
 **问题描述**
 简明描述遇到的问题。

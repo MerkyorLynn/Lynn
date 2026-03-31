@@ -5,10 +5,10 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/Hanako-280.png" width="80" alt="Hanako">
+  <img src=".github/assets/Hanako-280.png" width="80" alt="Lynn">
 </p>
 
-<h1 align="center">OpenHanako</h1>
+<h1 align="center">Lynn</h1>
 
 <p align="center">一个有记忆、有灵魂的私人 AI 助理</p>
 
@@ -17,17 +17,17 @@
 
 ---
 
-## Hanako 是什么
+## Lynn 是什么
 
-OpenHanako 是一个更加易用的 AI agent，有记忆，有性格，会主动行动，还能多 Agent 在你的电脑上一同工作。
+Lynn 是一个更加易用的 AI agent，有记忆，有性格，会主动行动，还能多 Agent 在你的电脑上一同工作。
 
-作为助手，Ta 是温柔的：不需要写复杂的配置，不需要理解晦涩的术语。Hanako 它不只面向 coder ，而是为每一个坐在电脑前工作的人设计的助手。
+作为助手，Ta 是温柔的：不需要写复杂的配置，不需要理解晦涩的术语。Lynn 不只面向 coder ，而是为每一个坐在电脑前工作的人设计的助手。
 作为工具，Ta 是强大的：记住你说过的每一件事，操作你的电脑，浏览网页，搜索信息，读写文件，执行代码，管理日程，还能自主学习新技能。
 
 我开这个项目的初衷是：弥合绝大多数人和 AI Agent 之间的缝隙，让强大的 Agent 能力不再只局限于命令行里。于是我做了比传统 Coding Agent 更多一些的优化：一方面是强化 Agent「像人」的属性，是你和他们沟通更自然；另一方面，因为我本职也是一介文员，所以我也针对日常办公场景做了很多工具性和流程性的优化，敬请探索。
-此外，Hanako 有比较完备的图形页面。
+此外，Lynn 有比较完备的图形页面。
 
-如果你用过 claude code、codex、Manus 等 CLI 或是图形化的 Agent，你会在 Hanako 这里找到熟悉又新奇的感觉。
+如果你用过 claude code、codex、Manus 等 CLI 或是图形化的 Agent，你会在 Lynn 这里找到熟悉又新奇的感觉。
 
 ## 功能特性
 
@@ -45,7 +45,7 @@ OpenHanako 是一个更加易用的 AI agent，有记忆，有性格，会主动
 
 **定时任务与心跳** — Agent 可以设置定时任务（Cron），也会定期巡检书桌上的文件变化。你不在的时候，Ta 也能按计划自主工作。
 
-**安全沙盒** — 双层隔离：应用层 PathGuard 四级访问控制 + 操作系统级沙盒（macOS Seatbelt / Linux Bubblewrap）。Agent 的权限在你的掌控之中。平时只能访问工作目录和一些用户文件，如果你想放开权限，可以点五下关于里面的 HANAKO 图标。
+**安全沙盒** — 双层隔离：应用层 PathGuard 四级访问控制 + 操作系统级沙盒（macOS Seatbelt / Linux Bubblewrap）。Agent 的权限在你的掌控之中。平时只能访问工作目录和一些用户文件，如果你想放开权限，可以点五下关于里面的图标。
 
 **多平台接入** — 同一个 Agent 可以同时接入 Telegram、飞书、QQ、微信机器人，在任何平台和 Ta 对话，可以远程操作电脑。
 
@@ -54,7 +54,7 @@ OpenHanako 是一个更加易用的 AI agent，有记忆，有性格，会主动
 ## 截图
 
 <p align="center">
-  <img src=".github/assets/screenshot-main.png" width="100%" alt="Hanako 主界面">
+  <img src=".github/assets/screenshot-main.png" width="100%" alt="Lynn 主界面">
 </p>
 
 ## 快速开始
@@ -73,7 +73,7 @@ Linux 版本计划中。
 
 ### 首次运行
 
-首次启动时，引导向导会带你完成配置：选择语言、输入你的名字、连接模型提供商（API key + base URL），并选择三个模型：**对话模型**（主对话）、**小工具模型**（摘要等轻量任务）、**大工具模型**（记忆编译和深度分析）。Hanako 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型等）。
+首次启动时，引导向导会带你完成配置：选择语言、输入你的名字、连接模型提供商（API key + base URL），并选择三个模型：**对话模型**（主对话）、**小工具模型**（摘要等轻量任务）、**大工具模型**（记忆编译和深度分析）。Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型等）。
 目前也添加了 OpenAI 和 Minimax 的 OAuth 登录，鉴于 Anthropic 会有封号风险，所以暂时不提供。
 
 ## 架构

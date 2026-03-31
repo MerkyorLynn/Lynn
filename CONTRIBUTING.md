@@ -1,6 +1,6 @@
-# Contributing to Hanako
+# Contributing to Lynn
 
-感谢你对 Hanako 的关注！欢迎提交 issue 和 pull request。
+感谢你对 Lynn 的关注！欢迎提交 issue 和 pull request。
 
 ## 开发环境
 

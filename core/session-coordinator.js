@@ -107,17 +107,25 @@ export class SessionCoordinator {
     const baseResourceLoader = this._d.getResourceLoader();
     const sessionEntry = {}; // populated after session creation; resourceLoader proxy references this
 
-    // Wrap resourceLoader to dynamically inject plan mode context into system prompt
+    // Wrap resourceLoader to dynamically inject plan mode context and proactive recall into system prompt
     const resourceLoader = Object.create(baseResourceLoader, {
       getAppendSystemPrompt: {
         value: () => {
           const base = baseResourceLoader.getAppendSystemPrompt();
-          if (!sessionEntry.planMode) return base;
+          const extras = [...base];
+
+          // Phase 1: 注入主动召回上下文（一次性消费）
+          if (sessionEntry._lastRecallContext) {
+            extras.push(sessionEntry._lastRecallContext);
+          }
+
+          if (!sessionEntry.planMode) return extras;
           const isZh = String(this._d.getAgent().config?.locale || "").startsWith("zh");
           const planModePrompt = isZh
             ? "【系统通知】当前处于「只读模式」，用户在设置中关闭了「操作电脑」权限。你只能使用只读工具（read、grep、find、ls）和自定义工具。不能执行写入、编辑、删除等操作。如果用户要求你做这些操作，请告知当前处于只读模式，需要先在输入框旁的按钮开启「操作电脑」权限。"
             : "[System Notice] Currently in READ-ONLY MODE. The user has disabled 'Computer Access' in settings. You can only use read-only tools (read, grep, find, ls) and custom tools. You cannot write, edit, or delete. If the user asks for these operations, inform them that read-only mode is active and they need to enable 'Computer Access' via the button next to the input area.";
-          return [...base, planModePrompt];
+          extras.push(planModePrompt);
+          return extras;
         },
       },
     });
@@ -163,6 +171,7 @@ export class SessionCoordinator {
       modelProvider: effectiveModel?.provider || null,
       lastTouchedAt: Date.now(),
       unsub,
+      _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
     });
     this._sessions.set(mapKey, sessionEntry);
 
@@ -267,17 +276,35 @@ export class SessionCoordinator {
   async prompt(text, opts) {
     if (!this._session) throw new Error(t("error.noActiveSessionPrompt"));
     this._sessionStarted = true;
-    const sp = this._session.sessionManager?.getSessionFile?.();
+    const sp = this._session.sessionManager?.getSessionFile?.() ?? null;
     if (sp) {
       const entry = this._sessions.get(sp);
       if (entry) entry.lastTouchedAt = Date.now();
     }
+
+    // Phase 1: 主动记忆召回 — 在发给 LLM 前提取关键词并搜索相关记忆
+    const agent = this._d.getAgent();
+    if (sp) {
+      const entry = this._sessions.get(sp);
+      if (entry) {
+        try {
+          const cwd = this._session?.sessionManager?.getCwd?.() || "";
+          const recallCtx = await agent.recallForMessage(text, cwd);
+          entry._lastRecallContext = recallCtx || "";
+        } catch {
+          entry._lastRecallContext = "";
+        }
+      }
+    }
+
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
     await this._session.prompt(text, promptOpts);
     if (sp) {
       const entry = this._sessions.get(sp);
-      const agent = entry ? this._d.getAgentById(entry.agentId) : this._d.getAgent();
-      agent?._memoryTicker?.notifyTurn(sp);
+      const agentForTicker = entry ? this._d.getAgentById(entry.agentId) : agent;
+      agentForTicker?._memoryTicker?.notifyTurn(sp);
+      // 清除一次性召回上下文
+      if (entry) entry._lastRecallContext = "";
     }
   }
 
@@ -304,11 +331,22 @@ export class SessionCoordinator {
     const entry = this._sessions.get(sessionPath);
     if (!entry) throw new Error(t("error.sessionNotInCache", { path: sessionPath }));
     entry.lastTouchedAt = Date.now();
+
+    // Phase 1: 主动记忆召回
+    const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
+    try {
+      const cwd = entry.session?.sessionManager?.getCwd?.() || "";
+      const recallCtx = await agent.recallForMessage(text, cwd);
+      entry._lastRecallContext = recallCtx || "";
+    } catch {
+      entry._lastRecallContext = "";
+    }
+
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
     await entry.session.prompt(text, promptOpts);
-    const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
     agent?._memoryTicker?.notifyTurn(sessionPath);
+    entry._lastRecallContext = ""; // 一次性消费
   }
 
   steerSession(sessionPath, text) {
@@ -475,8 +513,10 @@ export class SessionCoordinator {
           // 读取新格式 model:{id,provider} 或旧格式 modelId
           if (metaEntry?.model && typeof metaEntry.model === "object") {
             s.modelId = metaEntry.model.id || null;
+            s.modelProvider = metaEntry.model.provider || null;
           } else {
             s.modelId = metaEntry?.modelId || null;
+            s.modelProvider = null;
           }
           allSessions.push(s);
         }
@@ -497,6 +537,7 @@ export class SessionCoordinator {
         agentId: activeAgentId,
         agentName: this._d.getAgent().agentName,
         modelId: currentEntry?.modelId || null,
+        modelProvider: currentEntry?.modelProvider || null,
       });
     }
 

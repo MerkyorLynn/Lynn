@@ -12,7 +12,7 @@
  *
  * 产出结构：
  *   dist-server/{platform}-{arch}/
- *     hana-server             ← shell wrapper（设置 HANA_ROOT 并启动）
+ *     lynn-server             ← shell wrapper（设置 LYNN_ROOT 并启动）
  *     node                    ← Node.js runtime
  *     bundle/                 ← Vite bundle 产出
  *       index.js              ← 入口（~750KB）
@@ -32,6 +32,7 @@
  *       ishiki-templates/
  *       public-ishiki-templates/
  *       yuan/
+ *       experts/
  *     desktop/src/locales/    ← i18n 资源
  *     skills2set/             ← 技能包
  *     package.json            ← external deps + version（node_modules 解析 + 运行时版本读取）
@@ -107,9 +108,9 @@ if (!fs.existsSync(cachedNodeBin)) {
 }
 
 // 复制 node 二进制到 dist
-// Windows 上改名为 hana-server.exe，让 main.cjs 的 bundled server 检测能命中，
-// 同时在任务管理器中显示为 hana-server.exe 而非 node.exe（便于 NSIS 安装脚本按名杀进程）
-const destNode = path.join(outDir, isWin ? "hana-server.exe" : "node");
+// Windows 上改名为 lynn-server.exe，让 main.cjs 的 bundled server 检测能命中，
+// 同时在任务管理器中显示为 lynn-server.exe 而非 node.exe（便于 NSIS 安装脚本按名杀进程）
+const destNode = path.join(outDir, isWin ? "lynn-server.exe" : "node");
 fs.copyFileSync(cachedNodeBin, destNode);
 if (!isWin) fs.chmodSync(destNode, 0o755);
 console.log("[build-server] Node.js runtime ready");
@@ -177,6 +178,7 @@ const LIB_TEMPLATE_DIRS = [
   "ishiki-templates",
   "public-ishiki-templates",
   "yuan",
+  "experts",
 ];
 for (const dir of LIB_TEMPLATE_DIRS) {
   const src = path.join(ROOT, "lib", dir);
@@ -242,7 +244,7 @@ for (const ext of viteExternals) {
 console.log(`[build-server] derived external deps: ${Object.keys(externalDeps).join(", ")}`);
 
 const externalPkg = {
-  name: "hanako-server",
+  name: "lynn-server",
   version: rootPkg.version,
   type: "module",
   dependencies: externalDeps,
@@ -391,21 +393,30 @@ const MB = (n) => (n / 1024 / 1024).toFixed(0);
 console.log(`[build-server] nft: kept ${keptFiles} files, removed ${removedFiles} files (${MB(removedSize)}MB)`);
 } // end if (fileList)
 
-// ── 8b. 删除 koffi 多余平台二进制 ──
-// koffi 带了 18 个平台的 .node 文件，nft 全部追踪到了（因为 require 路径指向包根）。
-// 非当前平台的二进制在 macOS 上无法被 codesign 签名（ELF/PE 格式），会导致签名卡死。
-const koffiBuilds = path.join(nmDir, "koffi", "build", "koffi");
-if (fs.existsSync(koffiBuilds)) {
-  const target = `${platform === "darwin" ? "darwin" : platform === "win32" ? "win32" : "linux"}_${arch}`;
-  let koffiRemoved = 0;
-  for (const entry of fs.readdirSync(koffiBuilds)) {
-    if (entry !== target) {
-      fs.rmSync(path.join(koffiBuilds, entry), { recursive: true, force: true });
-      koffiRemoved++;
-    }
+// ── 8b. 处理 koffi ──
+// koffi 只在 Windows 终端增强里使用，macOS/Linux 路径不会触发 require。
+// 它的原生 .node 在当前证书链路下无法稳定做 Developer ID 重签，
+// 因此非 Windows 构建直接移除整个包；Windows 仍只保留当前平台二进制。
+const koffiPkgDir = path.join(nmDir, "koffi");
+if (platform !== "win32") {
+  if (fs.existsSync(koffiPkgDir)) {
+    fs.rmSync(koffiPkgDir, { recursive: true, force: true });
+    console.log(`[build-server] koffi: removed entire package for ${platform}`);
   }
-  if (koffiRemoved > 0) {
-    console.log(`[build-server] koffi: kept ${target}, removed ${koffiRemoved} other platform binaries`);
+} else {
+  const koffiBuilds = path.join(koffiPkgDir, "build", "koffi");
+  if (fs.existsSync(koffiBuilds)) {
+    const target = `${platform}_${arch}`;
+    let koffiRemoved = 0;
+    for (const entry of fs.readdirSync(koffiBuilds)) {
+      if (entry !== target) {
+        fs.rmSync(path.join(koffiBuilds, entry), { recursive: true, force: true });
+        koffiRemoved++;
+      }
+    }
+    if (koffiRemoved > 0) {
+      console.log(`[build-server] koffi: kept ${target}, removed ${koffiRemoved} other platform binaries`);
+    }
   }
 }
 
@@ -423,15 +434,15 @@ fs.writeFileSync(
 // ── 10. Wrapper 脚本 ──
 if (isWin) {
   fs.writeFileSync(
-    path.join(outDir, "hana-server.cmd"),
-    '@echo off\r\nset "HANA_ROOT=%~dp0"\r\n"%~dp0hana-server.exe" "%~dp0bundle\\index.js" %*\r\n',
+    path.join(outDir, "lynn-server.cmd"),
+    '@echo off\r\nset "LYNN_ROOT=%~dp0"\r\n"%~dp0lynn-server.exe" "%~dp0bundle\\index.js" %*\r\n',
   );
 } else {
-  const wrapper = path.join(outDir, "hana-server");
+  const wrapper = path.join(outDir, "lynn-server");
   fs.writeFileSync(wrapper, [
     "#!/bin/sh",
     'DIR="$(cd "$(dirname "$0")" && pwd)"',
-    'export HANA_ROOT="$DIR"',
+    'export LYNN_ROOT="$DIR"',
     'exec "$DIR/node" "$DIR/bundle/index.js" "$@"',
     "",
   ].join("\n"));

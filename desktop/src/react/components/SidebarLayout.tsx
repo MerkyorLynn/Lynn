@@ -10,6 +10,8 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../stores';
 import { createNewSession } from '../stores/session-actions';
 import { closePreview } from '../stores/artifact-actions';
+import { toggleJianSidebar } from '../stores/desk-actions';
+import { getWebSocket } from '../services/websocket';
 
 const CHAT_MIN_WIDTH = 400;
 
@@ -124,16 +126,69 @@ export function SidebarLayout() {
 
     // 键盘快捷键
     const onKeydown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      const mod = e.metaKey || e.ctrlKey;
+
+      // Cmd+K → 聚焦输入框
+      if (mod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        useStore.getState().requestInputFocus();
+        return;
+      }
+
+      // Cmd+Shift+N → 新建会话
+      if (mod && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        createNewSession();
+        return;
+      }
+
+      // Cmd+/ → 切换侧边栏
+      if (mod && e.key === '/') {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
+
+      // Cmd+L → 清空/新建聊天
+      if (mod && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        createNewSession();
+        return;
+      }
+
+      // Cmd+J → 切换 Desk 面板 (Jian sidebar)
+      if (mod && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        toggleJianSidebar();
+        return;
+      }
+
+      // Escape → 停止流式输出 / 关闭预览
+      if (e.key === 'Escape') {
+        const state = useStore.getState();
+        if (state.isStreaming) {
+          e.preventDefault();
+          const ws = getWebSocket();
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'abort', sessionPath: state.currentSessionPath }));
+          }
+          return;
+        }
+        if (state.previewOpen) {
+          closePreview();
+          return;
+        }
+      }
+
+      // Legacy: Cmd+Shift+S → toggle sidebar (keep for backwards compat)
+      if (mod && e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         toggleSidebar();
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
+      // Legacy: Cmd+N → new session (keep for backwards compat)
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         createNewSession();
-      }
-      if (e.key === 'Escape' && useStore.getState().previewOpen) {
-        closePreview();
       }
     };
     document.addEventListener('keydown', onKeydown);

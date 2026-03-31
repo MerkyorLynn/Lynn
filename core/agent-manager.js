@@ -172,6 +172,7 @@ export class AgentManager {
           id: entry.name,
           name: cfg.agent?.name || entry.name,
           yuan: cfg.agent?.yuan || "hanako",
+          tier: cfg.agent?.tier || "local",
           identity,
           hasAvatar,
         });
@@ -206,7 +207,7 @@ export class AgentManager {
     const safeName = name.trim().replace(/"/g, '\\"');
     const VALID_YUAN = ["hanako", "butter", "ming"];
     const yuanType = VALID_YUAN.includes(yuan) ? yuan : "hanako";
-    let config = templateConfig.replace(/name: Hanako/, `name: "${safeName}"`);
+    let config = templateConfig.replace(/name: Lynn/, `name: "${safeName}"`);
     config = config.replace(/yuan: hanako/, `yuan: ${yuanType}`);
     if (userName) {
       config = config.replace(/user:\s*\n\s+name:\s*""/, `user:\n  name: "${userName}"`);

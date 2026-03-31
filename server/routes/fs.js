@@ -4,7 +4,7 @@
  * Electron 环境下这些操作走 IPC（preload.cjs），
  * Web / 云部署环境下前端通过这些 HTTP 端点读取文件。
  *
- * 安全：路径限定在 ~/.hanako/ 和 desk 工作空间内。
+ * 安全：路径限定在 ~/.lynn/ 和 desk 工作空间内。
  */
 
 import fs from "fs";
@@ -22,12 +22,12 @@ function isSafePath(filePath, allowedRoots) {
 
 export function createFsRoute(engine) {
   const route = new Hono();
-  const hanakoHome = path.resolve(engine.hanakoHome);
+  const lynnHome = path.resolve(engine.lynnHome);
 
   // 收集允许的根目录
   function getAllowedRoots() {
-    const roots = [hanakoHome];
-    // desk 工作空间目录（用户可能配在 ~/.hanako 外面）
+    const roots = [lynnHome];
+    // desk 工作空间目录（用户可能配在 ~/.lynn 外面）
     const deskHome = engine.agent?.deskManager?.homePath;
     if (deskHome) roots.push(path.resolve(deskHome));
     return roots;
@@ -77,6 +77,29 @@ export function createFsRoute(engine) {
     } catch (err) {
       if (err?.code === "ENOENT") return c.json({ error: "file not found" }, 404);
       return c.json({ error: "docx parse failed" }, 500);
+    }
+  });
+
+  // POST /fs/apply — 将代码内容写入指定文件
+  route.post("/fs/apply", async (c) => {
+    try {
+      const body = await c.req.json();
+      const { filePath, content } = body;
+      if (!filePath || typeof content !== "string") {
+        return c.json({ error: "missing filePath or content" }, 400);
+      }
+      if (!isSafePath(filePath, getAllowedRoots())) {
+        return c.json({ error: "path not allowed" }, 403);
+      }
+      // 确保父目录存在
+      const dir = path.dirname(filePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(filePath, content, "utf-8");
+      return c.json({ ok: true, bytesWritten: Buffer.byteLength(content, "utf-8") });
+    } catch (err) {
+      return c.json({ error: err?.message || "write failed" }, 500);
     }
   });
 

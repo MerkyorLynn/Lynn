@@ -26,6 +26,10 @@ import { createDmTool } from "../lib/tools/dm-tool.js";
 import { createBrowserTool } from "../lib/tools/browser-tool.js";
 import { createPinnedMemoryTools } from "../lib/tools/pinned-memory.js";
 import { createExperienceTools } from "../lib/tools/experience.js";
+import { ProactiveRecall } from "../lib/memory/proactive-recall.js";
+import { ProjectMemory } from "../lib/memory/project-memory.js";
+import { UserProfile } from "../lib/memory/user-profile.js";
+import { HybridRetriever } from "../lib/memory/retriever.js";
 import { createInstallSkillTool } from "../lib/tools/install-skill.js";
 import { createNotifyTool } from "../lib/tools/notify-tool.js";
 import { createUpdateSettingsTool } from "../lib/tools/update-settings-tool.js";
@@ -63,7 +67,7 @@ export class Agent {
 
     // 身份（init 后从 config 填充）
     this.userName = "User";
-    this.agentName = "Hanako";
+    this.agentName = "Lynn";
 
     // 运行时状态
     this._config = null;
@@ -80,6 +84,11 @@ export class Agent {
     this._memorySessionEnabled = true;  // per-session 开关（WelcomeScreen toggle）
     this._enabledSkills = [];
     this._systemPrompt = "";
+
+    // 智能记忆增强（Phase 1-3）
+    this._proactiveRecall = null;
+    this._projectMemory = null;
+    this._userProfile = null;
 
     // Desk 系统（与 memory 完全独立）
     this._deskManager = null;
@@ -106,7 +115,7 @@ export class Agent {
     // 0. 兼容性检查（目录、数据库、配置文件）
     await runCompatChecks({
       agentDir: this.agentDir,
-      hanakoHome: path.dirname(path.dirname(this.agentDir)),
+      lynnHome: path.dirname(path.dirname(this.agentDir)),
       log,
     });
 
@@ -118,7 +127,7 @@ export class Agent {
     // 2. 身份 + 记忆总开关
     const isZh = String(this._config.locale || "").startsWith("zh");
     this.userName = this._config.user?.name || (isZh ? "用户" : "User");
-    this.agentName = this._config.agent?.name || "Hanako";
+    this.agentName = this._config.agent?.name || "Lynn";
     this._memoryMasterEnabled = this._config.memory?.enabled !== false;
 
     // 3. 初始化各模块
@@ -196,6 +205,9 @@ export class Agent {
         getResolvedMemoryModel: () => this._resolvedMemoryModel,
         getMemoryMasterEnabled: () => this._memoryMasterEnabled,
         isSessionMemoryEnabled: (sessionPath) => this.isSessionMemoryEnabledFor(sessionPath),
+        getProjectMemory: () => this._projectMemory,
+        getUserProfile: () => this._userProfile,
+        getCwd: () => this._engine?.cwd || "",
         onCompiled: () => {
           this._systemPrompt = this.buildSystemPrompt();
           console.log(`[${this.agentName}] 记忆编译完成，system prompt 已刷新`);
@@ -225,14 +237,36 @@ export class Agent {
       console.warn(`[agent] ⚠ 未配置 utility 模型，记忆系统暂不可用（用户可在设置中配置后重启）`);
     }
 
+    // Phase 4: 混合检索器（替代直接 FactStore 调用）
+    const retriever = new HybridRetriever({ factStore: this._factStore });
+
     // 7. 创建工具（记忆 + 通用）
     log(`  [agent] 7. 创建工具...`);
-    this._memorySearchTool = createMemorySearchTool(this._factStore);
+    this._memorySearchTool = createMemorySearchTool(this._factStore, { retriever });
     this._webSearchTool = createWebSearchTool();
     this._webFetchTool = createWebFetchTool();
     this._todoTool = createTodoTool();
     this._pinnedMemoryTools = createPinnedMemoryTools(this.agentDir);
     this._experienceTools = createExperienceTools(this.agentDir);
+
+    // Phase 1: 主动记忆召回
+    this._proactiveRecall = new ProactiveRecall({
+      factStore: this._factStore,
+      experienceDir: path.join(this.agentDir, "experience"),
+      experienceIndexPath: path.join(this.agentDir, "experience.md"),
+      isMemoryEnabled: () => this.memoryEnabled,
+    });
+    this._proactiveRecall.setRetriever(retriever);
+
+    // Phase 2: 项目级记忆
+    this._projectMemory = new ProjectMemory({
+      projectsDir: path.join(this.agentDir, "memory", "projects"),
+    });
+
+    // Phase 3: 用户行为画像
+    this._userProfile = new UserProfile({
+      profilePath: path.join(this.agentDir, "memory", "user-profile.json"),
+    });
 
     // 8. Desk 系统（与 memory 完全独立）
     log(`  [agent] 8. Desk 系统...`);
@@ -451,6 +485,44 @@ export class Agent {
   }
 
   // ════════════════════════════
+  //  主动记忆召回（Phase 1）
+  // ════════════════════════════
+
+  /**
+   * 对用户消息进行主动召回，返回格式化后的注入文本
+   *
+   * @param {string} userMessage - 用户消息
+   * @param {string} [cwd] - 当前工作目录（Phase 2 用）
+   * @returns {Promise<string>} - 注入文本（空字符串表示无需注入）
+   */
+  async recallForMessage(userMessage, cwd) {
+    if (!this._proactiveRecall || !this.memoryEnabled) return "";
+
+    try {
+      // Phase 2: 获取项目标签
+      const projectTags = [];
+      if (this._projectMemory && cwd) {
+        const profile = this._projectMemory.getProfile(cwd);
+        if (profile?.detected) {
+          if (profile.detected.framework) projectTags.push(profile.detected.framework);
+          if (profile.detected.language) projectTags.push(profile.detected.language);
+        }
+      }
+
+      const result = await this._proactiveRecall.recall(userMessage, { projectTags });
+      const isZh = String(this._config.locale || "").startsWith("zh");
+      return this._proactiveRecall.formatForInjection(result, isZh);
+    } catch (err) {
+      console.error(`[agent] recallForMessage failed: ${err.message}`);
+      return "";
+    }
+  }
+
+  get proactiveRecall() { return this._proactiveRecall; }
+  get projectMemory() { return this._projectMemory; }
+  get userProfile() { return this._userProfile; }
+
+  // ════════════════════════════
   //  配置更新
   // ════════════════════════════
 
@@ -465,7 +537,7 @@ export class Agent {
 
     // 更新身份
     const isZh = String(this._config.locale || "").startsWith("zh");
-    if (partial.agent?.name) this.agentName = this._config.agent?.name || "Hanako";
+    if (partial.agent?.name) this.agentName = this._config.agent?.name || "Lynn";
     if (partial.user?.name) this.userName = this._config.user?.name || (isZh ? "用户" : "User");
 
     // yuan 切换只需更新 config，buildSystemPrompt 会实时读模板
@@ -562,8 +634,8 @@ export class Agent {
 
     const parts = [
       isZh
-        ? "你运行在 OpenHanako 平台上，由 liliMozi 开发。项目主页：https://github.com/liliMozi/openhanako"
-        : "You are running on the OpenHanako platform, developed by liliMozi. Project page: https://github.com/liliMozi/openhanako",
+        ? "你运行在 Lynn 平台上，由 liliMozi 开发。项目主页：https://github.com/liliMozi/openhanako"
+        : "You are running on the Lynn platform, developed by liliMozi. Project page: https://github.com/liliMozi/openhanako",
       ishiki,
       ...section(
         isZh ? "# 用户档案" : "# User Profile",
@@ -616,6 +688,23 @@ export class Agent {
     // Skills 注入（用 SDK 原版 formatSkillsForPrompt）
     if (this._enabledSkills?.length > 0) {
       parts.push(formatSkillsForPrompt(this._enabledSkills));
+    }
+
+    // Phase 2: 项目上下文注入
+    const projectCwd = this._engine?.cwd || "";
+    if (this._projectMemory && projectCwd && this.memoryEnabled) {
+      try {
+        const projectCtx = this._projectMemory.formatForPrompt(projectCwd);
+        if (projectCtx) parts.push(projectCtx);
+      } catch {}
+    }
+
+    // Phase 3: 用户画像注入（追加到 User Profile section 后）
+    if (this._userProfile && this.memoryEnabled) {
+      try {
+        const profileCtx = this._userProfile.formatForPrompt(isZh);
+        if (profileCtx) parts.push(profileCtx);
+      } catch {}
     }
 
     // 网页工具选择优先级（跨工具编排，工具 description 里放不下）

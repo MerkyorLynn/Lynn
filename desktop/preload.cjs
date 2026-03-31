@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("hana", {
   openFile: (path) => ipcRenderer.invoke("open-file", path),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   showInFinder: (path) => ipcRenderer.invoke("show-in-finder", path),
+  saveFileDialog: (opts) => ipcRenderer.invoke("save-file-dialog", opts),
   readFile: (path) => ipcRenderer.invoke("read-file", path),
   writeFile: (filePath, content) => ipcRenderer.invoke("write-file", filePath, content),
   watchFile: (filePath) => ipcRenderer.invoke("watch-file", filePath),

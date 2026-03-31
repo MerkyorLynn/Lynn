@@ -7,6 +7,11 @@ import { t } from "../i18n.js";
 import { findModel, modelRefEquals, parseModelRef } from "../../shared/model-ref.js";
 import { lookupKnown } from "../../shared/known-models.js";
 
+function toModelRef(value) {
+  const ref = parseModelRef(value);
+  return ref.id ? ref : null;
+}
+
 /** 查询模型显示名：overrides > SDK name > known-models > id */
 function resolveModelName(id, sdkName, overrides, provider) {
   if (overrides?.[id]?.displayName) return overrides[id].displayName;
@@ -37,7 +42,13 @@ export function createModelsRoute(engine) {
           maxTokens: resolved.maxTokens,
         };
       });
-      return c.json({ models, current: cur?.id || null });
+      const sharedModels = engine.getSharedModels?.() || {};
+      return c.json({
+        models,
+        current: cur?.id || null,
+        utilityModel: toModelRef(sharedModels.utility),
+        utilityLargeModel: toModelRef(sharedModels.utility_large),
+      });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }

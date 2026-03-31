@@ -36,7 +36,35 @@
     "disabled": "頻道功能已關閉",
     "toggleLabel": "頻道功能開關",
     "members": "成員",
-    "createIntroOptional": "說明"
+    "createIntroOptional": "說明",
+    "expertTeam": {
+      "guideTitle": "組建專家團",
+      "guideDesc": "讓不同專長的 AI 一起討論問題，碰撞出更好的方案",
+      "guideTip": "也可以點擊右上角 + 自訂建立頻道",
+      "needMoreAgents": "請先建立至少 1 個 Agent",
+      "creating": "建立中...",
+      "expertPresets": "專家預設（使用你的 API Key）",
+      "channelTemplates": "頻道模板（使用已有 Agent）",
+      "spawnSuccess": "專家已建立",
+      "spawnFailed": "建立專家失敗",
+      "tpl": {
+        "codeReview": {
+          "label": "程式碼審查組",
+          "desc": "安全專家、效能專家、架構師一起審查程式碼",
+          "intro": "這是一個程式碼審查頻道。請各位以各自的專業視角審查程式碼：\n- 關注安全漏洞、注入風險、權限問題\n- 關注效能瓶頸、記憶體洩漏、演算法複雜度\n- 關注架構設計、可維護性、擴展性\n請逐一給出專業意見並互相討論。"
+        },
+        "productBrainstorm": {
+          "label": "產品腦力激盪",
+          "desc": "產品經理、設計師、工程師共同討論需求",
+          "intro": "這是一個產品腦力激盪頻道。請各位從各自的角色出發討論：\n- 產品視角：使用者需求、市場定位、優先級\n- 設計視角：使用者體驗、互動流程、視覺風格\n- 工程視角：技術可行性、開發成本、實現方案\n請積極發言，碰撞出最佳方案。"
+        },
+        "archDiscussion": {
+          "label": "架構討論",
+          "desc": "後端、前端、DevOps 專家討論技術選型",
+          "intro": "這是一個架構討論頻道。請各位從各自的領域出發討論技術方案：\n- 後端：API 設計、資料模型、服務架構\n- 前端：元件設計、狀態管理、效能優化\n- DevOps：部署方案、CI/CD、監控告警\n請充分討論各方案的優缺點，達成共識。"
+        }
+      }
+    }
   },
   "sidebar": {
     "title": "對話",
@@ -511,6 +539,10 @@
       "tagline": "一個住在你電腦裡的助手，記性很好。",
       "license": "許可證",
       "copyright": "版權",
+      "copyrightOriginal": "（原始版權）",
+      "copyrightDerived": "（二次開發）",
+      "description": "專案描述",
+      "descriptionText": "基於 liliMozi 的開源專案開發",
       "licenseToggle": "許可證全文",
       "permissions": "權限",
       "fullAccess": "全權模式",
@@ -956,9 +988,23 @@
   "automation": {
     "title": "任務計畫",
     "empty": "暫無任務計畫\n助手會在需要時自動建立",
+    "guideTitle": "讓助手定時為你工作",
+    "guideDesc": "設定定時任務，助手會按計畫自動執行。也可以在對話中讓助手建立。",
+    "guideTip": "點擊即可新增，新增後可編輯時間和內容",
+    "deleteConfirm": "確定要刪除這個定時任務嗎？",
     "defaultModel": "預設模型",
     "edit": "編輯",
-    "delete": "刪除"
+    "delete": "刪除",
+    "tpl": {
+      "newsLabel": "每日科技簡報",
+      "newsDesc": "每天早上 9 點搜尋並整理科技新聞",
+      "diaryLabel": "每晚日記",
+      "diaryDesc": "每天晚上 10 點自動寫日記",
+      "repoLabel": "工作日專案巡檢",
+      "repoDesc": "週一到週五檢查 Issues 和 PR",
+      "cleanLabel": "每週清理",
+      "cleanDesc": "每週日凌晨清理暫存檔案"
+    }
   },
   "desk": {
     "title": "書桌",
@@ -1106,7 +1152,7 @@
     "skillMissingName": "SKILL.md 中缺少 name 欄位",
     "skillNameInvalid": "技能名稱無效（\"{name}\"）。僅允許字母、數字、底線和短橫線。",
     "skillPathMustBeAbsolute": "路徑必須是絕對路徑: {path}",
-    "skillCannotAddSelfDir": "不能新增 Hanako 自身的技能目錄",
+    "skillCannotAddSelfDir": "不能新增 Lynn 自身的技能目錄",
     "skillInvalidName": "無效的技能名稱",
     "skillExternalCannotDelete": "外部相容技能無法從此處刪除",
     "skillNotExists": "技能不存在",
@@ -1270,14 +1316,14 @@
   },
   "main": {
     "tray": {
-      "show": "顯示 Hanako",
+      "show": "顯示 Lynn",
       "settings": "設定",
       "quit": "結束"
     },
     "dialog": {
       "selectFolder": "選擇工作資料夾",
       "selectSkill": "選擇技能",
-      "launchFailedTitle": "Hanako 啟動失敗",
+      "launchFailedTitle": "Lynn 啟動失敗",
       "launchFailedBody": "{detail}\n\n詳細日誌已儲存至：\n{logPath}\n\n請將此截圖或日誌檔案傳送給開發者。",
       "serverRestartFailed": "Server 崩潰後重新啟動失敗。\n{error}\n\n請重新啟動應用程式。",
       "serverMultipleCrash": "Server 多次崩潰 ({reason})。\n\n請重新啟動應用程式。",
@@ -1463,7 +1509,7 @@
     },
     "updateSettings": {
       "label": "設定",
-      "description": "修改 Hanako 的設定。支援兩種操作：\n- search + query：用關鍵字搜尋設定項，查看當前值和可選項\n- apply + key + value：修改指定設定項，需使用者確認\n\n如果已知確切 key，可以直接 apply 跳過搜尋。",
+      "description": "修改 Lynn 的設定。支援兩種操作：\n- search + query：用關鍵字搜尋設定項，查看當前值和可選項\n- apply + key + value：修改指定設定項，需使用者確認\n\n如果已知確切 key，可以直接 apply 跳過搜尋。",
       "actionDesc": "操作類型：search 搜尋設定項 / apply 修改設定",
       "queryDesc": "搜尋關鍵字（search 時必填）",
       "keyDesc": "設定項 key（透過 search 取得）",
@@ -1539,7 +1585,7 @@
     "inputHelp": "輸入 /help 查看命令列表"
   },
   "sandbox": {
-    "blocked": "[安全策略] {reason}\n\n此操作被 Hanako 的沙盒安全策略阻止。這不是程式錯誤，而是安全保護機制在運作。請告知使用者操作被安全策略阻止，並說明具體原因。使用者可以在設定中調整沙盒策略。",
+    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 的沙盒安全策略阻止。這不是程式錯誤，而是安全保護機制在運作。請告知使用者操作被安全策略阻止，並說明具體原因。使用者可以在設定中調整沙盒策略。",
     "noSudo": "禁止使用 sudo",
     "noSu": "禁止使用 su 切換使用者",
     "noChmod": "禁止修改檔案權限",

@@ -86,7 +86,7 @@ export function AgentCreateOverlay() {
                   type="button"
                   onClick={() => setYuan(key)}
                 >
-                  <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Hanako.png'}`} draggable={false} />
+                  <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Lynn.png'}`} draggable={false} />
                   <div className="yuan-chip-info">
                     <span className="yuan-chip-name">{key}</span>
                     <span className="yuan-chip-desc">{meta.label || ''}</span>
@@ -101,7 +101,7 @@ export function AgentCreateOverlay() {
                 type="button"
                 onClick={() => setYuan(key)}
               >
-                <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Hanako.png'}`} draggable={false} />
+                <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Lynn.png'}`} draggable={false} />
                 <div className="yuan-chip-info">
                   <span className="yuan-chip-name">{key}</span>
                   <span className="yuan-chip-desc">{meta.label || ''}</span>

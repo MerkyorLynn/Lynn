@@ -77,7 +77,7 @@ async function checkUpdate() {
       ? GITHUB_RELEASES_URL + "?per_page=5"
       : GITHUB_RELEASES_URL + "/latest";
     const res = await fetch(url, {
-      headers: { "User-Agent": "Hanako" },
+      headers: { "User-Agent": "Lynn" },
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {

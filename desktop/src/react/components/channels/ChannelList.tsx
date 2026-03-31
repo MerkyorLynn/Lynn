@@ -10,14 +10,13 @@ import {
   loadChannels,
   openChannel,
   deleteChannel,
-  toggleChannelsEnabled,
 } from '../../stores/channel-actions';
 import { toggleSidebar } from '../SidebarLayout';
 import { ContextMenu } from '../ContextMenu';
-import { ChannelWarningModal } from './ChannelWarningModal';
 import type { ContextMenuItem } from '../ContextMenu';
 import type { Channel, Agent } from '../../types';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
+import { ExpertTeamGuide } from './ExpertTeamGuide';
 import styles from './Channels.module.css';
 
 
@@ -118,27 +117,7 @@ export function MemberAvatar({ info, className }: { info: MemberInfo; className?
 
 export function ChannelListSidebar() {
   const { t } = useI18n();
-  const channelsEnabled = useStore(s => s.channelsEnabled);
   const setChannelCreateOverlayVisible = useStore(s => s.setChannelCreateOverlayVisible);
-  const [warningOpen, setWarningOpen] = useState(false);
-
-  const handleToggle = useCallback(() => {
-    const turningOn = !useStore.getState().channelsEnabled;
-    if (turningOn) {
-      setWarningOpen(true);
-      return;
-    }
-    toggleChannelsEnabled();
-  }, []);
-
-  const handleWarningConfirm = useCallback(() => {
-    setWarningOpen(false);
-    toggleChannelsEnabled();
-  }, []);
-
-  const handleWarningCancel = useCallback(() => {
-    setWarningOpen(false);
-  }, []);
 
   const handleCreate = useCallback(() => {
     setChannelCreateOverlayVisible(true);
@@ -151,12 +130,11 @@ export function ChannelListSidebar() {
   return (
     <>
       <div className="sidebar-header">
-        <span className="sidebar-title">{t('channel.tab')} <span className="beta-badge">Beta</span></span>
+        <span className="sidebar-title">{t('channel.tab')}</span>
         <div className="sidebar-header-actions">
           <button
-            className={`sidebar-action-btn${!channelsEnabled ? ` ${styles.btnDisabled}` : ''}`}
+            className="sidebar-action-btn"
             title={t('channel.createTitle')}
-            disabled={!channelsEnabled}
             onClick={handleCreate}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -175,22 +153,7 @@ export function ChannelListSidebar() {
         <div className={styles.channelList}>
           <ChannelList />
         </div>
-        <div className={`${styles.channelDisabledOverlay}${channelsEnabled ? ` ${styles.channelDisabledOverlayHidden}` : ''}`}>
-          <span>{t('channel.disabled')}</span>
-        </div>
-        <div className={styles.channelToggleBar}>
-          <span className={styles.channelToggleBarLabel}>{t('channel.toggleLabel')}</span>
-          <button
-            className={`hana-toggle${channelsEnabled ? ' on' : ''}`}
-            onClick={handleToggle}
-          ></button>
-        </div>
       </div>
-      <ChannelWarningModal
-        open={warningOpen}
-        onConfirm={handleWarningConfirm}
-        onCancel={handleWarningCancel}
-      />
     </>
   );
 }
@@ -209,7 +172,7 @@ export function ChannelList() {
   const currentAgentId = useStore((s) => s.currentAgentId);
 
   if (channels.length === 0) {
-    return <div className="session-empty">{t('channel.empty')}</div>;
+    return <ExpertTeamGuide agents={agents} />;
   }
 
   const dms = channels.filter((ch) => ch.isDM === true);

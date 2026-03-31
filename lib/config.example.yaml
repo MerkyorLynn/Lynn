@@ -5,13 +5,13 @@
 
 # 身份信息
 agent:
-  name: Hanako                           # 你的助手叫什么
+  name: Lynn                             # 你的助手叫什么
   yuan: hanako                           # 源模板：hanako / butter / ming
 user:
   name: ""                               # 你的名字
 
 # API 配置（主通道）
-# 凭证从全局 ~/.hanako/added-models.yaml 或当前 agent 的 providers 块读取
+# 凭证从全局 ~/.lynn/added-models.yaml 或当前 agent 的 providers 块读取
 api:
   provider: ""                     # dashscope / volcengine / openai / ...
 
@@ -57,6 +57,14 @@ search:
 skills:
   enabled: []                        # 启用的 skill 名称，如 ["pdf", "literary-craft"]
 
+# 技能安装能力（默认全部启用，可显式关闭）
+capabilities:
+  learn_skills:
+    enabled: true                    # 允许 agent 学习/安装新技能
+    allow_github_fetch: true         # 允许从 GitHub 获取技能
+    safety_review: true              # 自动安全审查（建议保持开启）
+    min_stars: 25                    # GitHub 仓库最低 star 数
+
 # 频道系统（agent 间协作通信）
 channels:
-  enabled: false                     # 是否参与频道轮转
+  enabled: true                      # 是否参与频道轮转

@@ -13,6 +13,7 @@ export interface CwdSkillInfo {
   source: string;
   filePath: string;
   baseDir: string;
+  providerLabel?: string | null;
 }
 
 export interface DeskSlice {

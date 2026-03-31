@@ -130,6 +130,7 @@ export async function switchSession(path: string): Promise<void> {
       browserRunning: !!data.browserRunning,
       browserUrl: data.browserUrl || null,
       browserThumbnail: data.browserRunning ? state.browserThumbnail : null,
+      currentModel: data.currentModelId ? { id: data.currentModelId, provider: data.currentModelProvider || "" } : null,
     });
 
     // 刷新模型列表（当前 session 的模型可能不同）
@@ -256,6 +257,7 @@ export async function ensureSession(): Promise<boolean> {
       pendingNewSession: false,
       selectedFolder: null,
       selectedAgentId: null,
+      currentModel: data.currentModelId ? { id: data.currentModelId, provider: data.currentModelProvider || "" } : null,
     };
 
     if (data.agentId) {

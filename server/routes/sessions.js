@@ -124,6 +124,7 @@ export function createSessionsRoute(engine) {
         agentId: s.agentId || null,
         agentName: s.agentName || null,
         modelId: s.modelId || null,
+        modelProvider: s.modelProvider || null,
       })));
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -263,6 +264,8 @@ export function createSessionsRoute(engine) {
         agentName: engine.agentName,
         planMode: engine.planMode,
         memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
+        currentModelId: engine.currentModel?.id || null,
+        currentModelProvider: engine.currentModel?.provider || null,
       });
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -309,7 +312,7 @@ export function createSessionsRoute(engine) {
     } catch (err) {
       const errDetail = `${err.message}\n${err.stack || ""}`;
       console.error("[sessions/switch] error:", errDetail);
-      try { require("fs").appendFileSync(require("path").join(require("os").homedir(), ".hanako", "switch-error.log"), `${new Date().toISOString()}\n${errDetail}\n---\n`); } catch {}
+      try { require("fs").appendFileSync(require("path").join(require("os").homedir(), ".lynn", "switch-error.log"), `${new Date().toISOString()}\n${errDetail}\n---\n`); } catch {}
       return c.json({ error: err.message }, 500);
     }
   });

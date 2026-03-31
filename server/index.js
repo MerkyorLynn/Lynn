@@ -1,5 +1,5 @@
 /**
- * Hanako Server — HTTP + WebSocket API
+ * Lynn Server — HTTP + WebSocket API
  *
  * 启动方式：
  *   node server/index.js              （独立运行）
@@ -46,6 +46,7 @@ import { createAuthRoute } from "./routes/auth.js";
 import { createDiaryRoute } from "./routes/diary.js";
 import { createConfirmRoute } from "./routes/confirm.js";
 import { createPluginsRoute } from "./routes/plugins.js";
+import { createExpertsRoute } from "./routes/experts.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
@@ -56,19 +57,21 @@ import { fromRoot } from "../shared/hana-root.js";
 
 const productDir = fromRoot("lib");
 
-// 用户数据存放在 ~/.hanako/（打包后与产品代码分离）
-// 开发时可通过 HANA_HOME 环境变量隔离数据目录，如：HANA_HOME=~/.hanako-dev node server/index.js
-const hanakoHome = process.env.HANA_HOME
-  ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
-  : path.join(os.homedir(), ".hanako");
-process.env.HANA_HOME = hanakoHome;
+// 用户数据存放在 ~/.lynn/（打包后与产品代码分离）
+// 开发时可通过 LYNN_HOME 环境变量隔离数据目录，如：LYNN_HOME=~/.lynn-dev node server/index.js
+const lynnHome = process.env.LYNN_HOME
+  ? path.resolve(process.env.LYNN_HOME.replace(/^~/, os.homedir()))
+  : process.env.HANA_HOME
+    ? path.resolve(process.env.HANA_HOME.replace(/^~/, os.homedir()))
+    : path.join(os.homedir(), ".lynn");
+process.env.LYNN_HOME = lynnHome;
 // ── 首次运行播种 ──
 console.log("[server] ① ensureFirstRun...");
-ensureFirstRun(hanakoHome, productDir);
+ensureFirstRun(lynnHome, productDir);
 console.log("[server] ① ensureFirstRun 完成");
 
 // ── 初始化 Debug 日志 ──
-const dlog = initDebugLog(path.join(hanakoHome, "logs"));
+const dlog = initDebugLog(path.join(lynnHome, "logs"));
 
 // 读取版本号
 let appVersion = "?";
@@ -79,7 +82,7 @@ try {
 
 // ── 初始化引擎 ──
 console.log("[server] ② 创建 HanaEngine...");
-const engine = new HanaEngine({ hanakoHome, productDir });
+const engine = new HanaEngine({ lynnHome, productDir });
 console.log("[server] ② HanaEngine 构造完成，开始 init...");
 await engine.init((msg) => console.log(`[server] ${msg}`));
 console.log("[server] ② engine.init 完成");
@@ -191,6 +194,7 @@ app.route("/api", createAuthRoute(engine));
 app.route("/api", createDiaryRoute(engine));
 app.route("/api", createConfirmRoute(confirmStore, engine));
 app.route("/api", createPluginsRoute(engine));
+app.route("/api", createExpertsRoute(engine));
 // internal-browser WS — see unified upgrade handler in server startup below
 
 // 健康检查 + 身份信息
@@ -288,7 +292,7 @@ try {
     bm.setWsTransport(ws);
 
     // 调试：记录浏览器 WS 消息往返
-    const _bwsLogPath = path.join(os.homedir(), ".hanako", "browser-ws.log");
+    const _bwsLogPath = path.join(os.homedir(), ".lynn", "browser-ws.log");
     let _bwsStream;
     try { _bwsStream = fs.createWriteStream(_bwsLogPath, { flags: "a" }); } catch {}
     const _bwsLog = (line) => { try { _bwsStream?.write(`${new Date().toISOString()} ${line}\n`); } catch {} };
@@ -332,11 +336,11 @@ try {
   const address = server.address();
   const actualPort = address.port;
 
-  console.log(`[server] Hanako Server 运行在 http://${host}:${actualPort}`);
+  console.log(`[server] Lynn Server 运行在 http://${host}:${actualPort}`);
   dlog.log("server", `listening on :${actualPort}`);
 
   // 写 server-info 文件，供 Electron 检测复用或外部工具查询
-  const serverInfoPath = path.join(hanakoHome, "server-info.json");
+  const serverInfoPath = path.join(lynnHome, "server-info.json");
   try {
     fs.writeFileSync(serverInfoPath, JSON.stringify({ pid: process.pid, port: actualPort, token: SERVER_TOKEN }));
   } catch (e) {
@@ -413,7 +417,7 @@ async function gracefulShutdown() {
   }
 
   clearTimeout(forceTimer);
-  try { fs.unlinkSync(path.join(hanakoHome, "server-info.json")); } catch {}
+  try { fs.unlinkSync(path.join(lynnHome, "server-info.json")); } catch {}
   process.exit(0);
 }
 

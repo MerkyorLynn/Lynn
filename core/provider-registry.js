@@ -163,10 +163,10 @@ const BUILTIN_PLUGINS = [
 
 export class ProviderRegistry {
   /**
-   * @param {string} hanakoHome - 用户数据根目录（如 ~/.hanako-dev）
+   * @param {string} lynnHome - 用户数据根目录（如 ~/.lynn-dev）
    */
-  constructor(hanakoHome) {
-    this._hanakoHome = hanakoHome;
+  constructor(lynnHome) {
+    this._lynnHome = lynnHome;
     /** @type {Map<string, ProviderPlugin>} id → plugin */
     this._plugins = new Map();
     /** @type {Map<string, ProviderEntry>} id → entry（合并后） */
@@ -190,20 +190,20 @@ export class ProviderRegistry {
     this._entries.delete(plugin.id);
   }
 
-  /** 从 _hanakoHome 直接读 added-models.yaml（不走全局 config-loader） */
+  /** 从 _lynnHome 直接读 added-models.yaml（不走全局 config-loader） */
   _loadAddedModels() {
-    const ymlPath = path.join(this._hanakoHome, "added-models.yaml");
+    const ymlPath = path.join(this._lynnHome, "added-models.yaml");
     const raw = safeReadYAMLSync(ymlPath, {}, YAML) || {};
     return raw.providers || {};
   }
 
-  /** 将 providers 对象写入 _hanakoHome/added-models.yaml */
+  /** 将 providers 对象写入 _lynnHome/added-models.yaml */
   _saveAddedModels(providers) {
-    const ymlPath = path.join(this._hanakoHome, "added-models.yaml");
+    const ymlPath = path.join(this._lynnHome, "added-models.yaml");
     // 读取现有文件以保留 _migrated 等顶层元数据
     const existing = safeReadYAMLSync(ymlPath, {}, YAML) || {};
     const header =
-      "# Hanako 供应商配置（全局，跨 agent 共享）\n" +
+      "# Lynn 供应商配置（全局，跨 agent 共享）\n" +
       "# 由设置页面管理\n\n";
     const data = { ...existing, providers };
     // Encrypt API keys before persisting

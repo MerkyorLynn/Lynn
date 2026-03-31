@@ -17,7 +17,7 @@ import {
 
 const tmpDir = path.join(os.tmpdir(), "hana-test-config-" + Date.now());
 const configPath = path.join(tmpDir, "config.yaml");
-const hanakoHome = path.join(tmpDir, ".hanako");
+const lynnHome = path.join(tmpDir, ".lynn");
 
 function writeYaml(obj) {
   fs.writeFileSync(configPath, YAML.dump(obj), "utf-8");
@@ -29,14 +29,14 @@ function readYaml() {
 
 beforeEach(() => {
   fs.mkdirSync(tmpDir, { recursive: true });
-  fs.mkdirSync(hanakoHome, { recursive: true });
-  process.env.HANA_HOME = hanakoHome;
+  fs.mkdirSync(lynnHome, { recursive: true });
+  process.env.LYNN_HOME = lynnHome;
   clearConfigCache();
 });
 
 afterEach(() => {
   clearConfigCache();
-  delete process.env.HANA_HOME;
+  delete process.env.LYNN_HOME;
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
@@ -79,7 +79,7 @@ describe("loadConfig", () => {
 
   it("只返回 config.yaml 原始值，不从 added-models.yaml 解析", () => {
     fs.writeFileSync(
-      path.join(hanakoHome, "added-models.yaml"),
+      path.join(lynnHome, "added-models.yaml"),
       YAML.dump({
         providers: {
           openai: {

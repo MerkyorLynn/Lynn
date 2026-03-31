@@ -47,5 +47,5 @@ export function yuanFallbackAvatar(yuan?: string): string {
   const t = window.t || ((k: string) => k);
   const types = (t('yuan.types') || {}) as Record<string, { avatar?: string }>;
   const entry = types[yuan || 'hanako'];
-  return `assets/${entry?.avatar || 'Hanako.png'}`;
+  return `assets/${entry?.avatar || 'Lynn.png'}`;
 }

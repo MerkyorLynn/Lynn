@@ -162,11 +162,8 @@ export class Hub {
     // Scheduler（heartbeat + cron）
     this._scheduler.start();
 
-    // ChannelRouter
-    const channelEnabled = engine.agent.config?.channels?.enabled !== false;
-    if (channelEnabled) {
-      this._channelRouter.start();
-    }
+    // ChannelRouter — 始终启动
+    this._channelRouter.start();
 
     // 注入频道 post 回调
     this._channelRouter.setupPostHandler();

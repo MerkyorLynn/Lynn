@@ -8,8 +8,8 @@
  * 不做任何业务判断（PDF 解析、图片识别等由 skill 层处理）。
  *
  * 存储位置：
- *   - 有工作目录时：{cwd}/.hanako-uploads/
- *   - 无工作目录时：{os.tmpdir()}/.hanako-uploads/
+ *   - 有工作目录时：{cwd}/.lynn-uploads/
+ *   - 无工作目录时：{os.tmpdir()}/.lynn-uploads/
  *
  * 返回复制后的新路径列表，供 agent 通过 read_file / list_files 访问。
  */
@@ -81,8 +81,8 @@ export function createUploadRoute(engine) {
     const cwd = engine.cwd;
     const isRealCwd = cwd !== process.cwd();
     const uploadsDir = isRealCwd
-      ? path.join(cwd, ".hanako-uploads")
-      : path.join(os.tmpdir(), ".hanako-uploads");
+      ? path.join(cwd, ".lynn-uploads")
+      : path.join(os.tmpdir(), ".lynn-uploads");
 
     fs.mkdirSync(uploadsDir, { recursive: true });
 

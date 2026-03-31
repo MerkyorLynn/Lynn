@@ -9,6 +9,7 @@ import { ThinkingBlock } from './ThinkingBlock';
 import { ToolGroupBlock } from './ToolGroupBlock';
 import { XingCard } from './XingCard';
 import { SettingsConfirmCard } from './SettingsConfirmCard';
+import { DiffViewer } from './DiffViewer';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
@@ -24,9 +25,20 @@ interface Props {
   showAvatar: boolean;
 }
 
+function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number } {
+  let running = 0;
+  let total = 0;
+  for (const block of blocks) {
+    if (block.type !== 'tool_group') continue;
+    total += block.tools.length;
+    running += block.tools.filter(tool => !tool.done).length;
+  }
+  return { running, total };
+}
+
 export const AssistantMessage = memo(function AssistantMessage({ message, showAvatar }: Props) {
-  const agentName = useStore(s => s.agentName) || 'Hanako';
-  const agentYuan = useStore(s => s.agentYuan) || 'hanako';
+  const agentName = useStore(s => s.agentName) || 'Lynn';
+  const agentYuan = useStore(s => s.agentYuan) || 'lynn';
   const agentAvatarUrl = useStore(s => s.agentAvatarUrl);
   const sessionAgent = useStore(s => s.sessionAgent);
   const [avatarFailed, setAvatarFailed] = useState(false);
@@ -37,7 +49,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const fallbackAvatar = useMemo(() => {
     const types = (window.t?.('yuan.types') || {}) as Record<string, { avatar?: string }>;
     const entry = types[displayYuan] || types['hanako'];
-    return `assets/${entry?.avatar || 'Hanako.png'}`;
+    return `assets/${entry?.avatar || 'Lynn.png'}`;
   }, [displayYuan]);
   const avatarSrc = sessionAgent?.avatarUrl || agentAvatarUrl || fallbackAvatar;
 
@@ -46,6 +58,9 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [sessionAgent?.avatarUrl, agentAvatarUrl, fallbackAvatar]);
 
   const blocks = message.blocks || [];
+  const currentModel = useStore(s => s.currentModel);
+  const { running: runningTools, total: totalTools } = useMemo(() => summarizeToolState(blocks), [blocks]);
+  const showStreamingMeta = !!message.id?.startsWith('stream-') && (runningTools > 0 || blocks.some(block => block.type === 'thinking' && !block.sealed));
 
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -128,6 +143,16 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
             <span className={`${styles.avatar} ${styles.userAvatar}`}>🌸</span>
           )}
           <span className={styles.avatarName}>{displayName}</span>
+          {currentModel?.id && (
+            <span className={styles.avatarMeta}>
+              {currentModel.provider ? currentModel.provider + ' / ' : ''}{currentModel.id}
+            </span>
+          )}
+          {showStreamingMeta && (
+            <span className={styles.avatarMeta}>
+              {runningTools > 0 ? 'tools ' + runningTools + '/' + totalTools : 'thinking'}
+            </span>
+          )}
         </div>
       )}
       <div className={`${styles.message} ${styles.messageAssistant}`}>
@@ -178,6 +203,8 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, yuan
       return <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />;
     case 'file_output':
       return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} />;
+    case 'file_diff':
+      return <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} />;
     case 'artifact':
       return <ArtifactCard title={block.title} artifactType={block.artifactType} artifactId={block.artifactId} content={block.content} language={block.language} />;
     case 'browser_screenshot':
