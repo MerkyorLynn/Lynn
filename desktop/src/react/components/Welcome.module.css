@@ -16,6 +16,9 @@
     height: 100px;
     border-radius: 50%;
     object-fit: cover;
+    object-position: center center;
+    -webkit-clip-path: circle(50% at 50% 50%);
+    clip-path: circle(50% at 50% 50%);
     pointer-events: none;
     user-select: none;
     box-shadow: 0 4px 16px var(--shadow);
@@ -27,6 +30,56 @@
     color: var(--text-light);
     letter-spacing: 0.06em;
     font-family: var(--font-serif);
+}
+
+
+.quickActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    max-width: 720px;
+    margin-top: var(--space-sm);
+}
+
+.quickActionBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: transform 0.15s var(--ease-out), border-color 0.15s var(--ease-out), background 0.15s var(--ease-out), color 0.15s var(--ease-out);
+    -webkit-app-region: no-drag;
+}
+
+.quickActionBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+    color: var(--accent);
+}
+
+.quickActionBtn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.quickActionLabel {
+    white-space: nowrap;
+}
+
+.focusHint {
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    opacity: 0.8;
 }
 
 /* 文件夹选择按钮 */

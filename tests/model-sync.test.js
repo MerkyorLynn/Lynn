@@ -20,6 +20,9 @@ const KNOWN_MODELS = {
   openai: {
     "gpt-4o": { name: "GPT-4o", context: 128000, maxOutput: 16384, vision: true },
   },
+  zhipu: {
+    "glm-5.1": { name: "GLM-5.1", context: 200000, maxOutput: 131072, reasoning: true },
+  },
 };
 
 vi.mock("../shared/known-models.js", () => ({
@@ -323,6 +326,26 @@ describe("syncModels", () => {
     expect(result.providers.dashscope.models[0].id).toBe("qwen3.5-flash");
     expect(result.providers.deepseek.models[0].id).toBe("deepseek-chat");
     expect(result.providers.deepseek.models[0].name).toBe("DeepSeek Chat");
+  });
+
+  it("marks GLM provider aliases with zai thinking format", async () => {
+    const syncModels = await loadSync();
+
+    const providers = {
+      glm: {
+        base_url: "https://open.bigmodel.cn/api/coding/paas/v4",
+        api: "openai-completions",
+        api_key: "sk-glm",
+        models: ["glm-5.1"],
+      },
+    };
+
+    syncModels(providers, { modelsJsonPath });
+
+    const result = JSON.parse(fs.readFileSync(modelsJsonPath, "utf-8"));
+    const model = result.providers.glm.models[0];
+    expect(model.reasoning).toBe(true);
+    expect(model.compat).toEqual({ supportsDeveloperRole: false, thinkingFormat: "zai" });
   });
 
   it("falls back to humanized name for unknown models", async () => {

@@ -2889,6 +2889,116 @@ html[data-platform="linux"] .onboarding {
     font-weight: 500;
 }
 
+/* ── Welcome tracks ── */
+.ob-track-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+    margin-top: 6px;
+}
+
+.ob-track-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    border-radius: var(--radius-lg, 12px);
+    background: var(--bg-card, var(--bg));
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ob-track-card:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(var(--accent-rgb), 0.28);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.ob-track-card:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.ob-track-card-primary {
+    border-color: rgba(var(--accent-rgb), 0.22);
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.02)), var(--bg-card, var(--bg));
+}
+
+.ob-track-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.ob-track-title {
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.ob-track-desc {
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    text-align: left;
+    margin: 0;
+}
+
+.ob-track-action {
+    margin-top: auto;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.ob-track-action-secondary {
+    color: var(--text);
+}
+
+.ob-step-note {
+    margin: -4px 0 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.ob-step-banner {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: var(--radius-lg, 12px);
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.03)), var(--bg-card, var(--bg));
+    border: 1px solid rgba(var(--accent-rgb), 0.14);
+    box-sizing: border-box;
+}
+
+.ob-step-banner-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.ob-step-banner-desc {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    text-align: left;
+}
+
 /* ── Finish button ── */
 .ob-finish-btn {
     font-family: inherit;
@@ -2958,7 +3068,9 @@ html[data-platform="linux"] .onboarding {
     width: 40px;
     height: 40px;
     border-radius: 50%;
+    overflow: hidden;
     object-fit: cover;
+    object-position: center center;
 }
 
 .yuan-chip-info {
@@ -3034,4 +3146,16 @@ html[data-platform="linux"] .onboarding {
 #hintYuan {
     text-align: center;
     white-space: pre-line;
+}
+
+.hana-confirm-box {
+  max-width: 420px;
+}
+
+.hana-confirm-detail {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }

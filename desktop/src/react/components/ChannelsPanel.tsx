@@ -123,11 +123,22 @@ export function ChannelMembers() {
     return <>{[peerInfo, selfInfo].map(i => <MemberItem key={i.id} info={i} />)}</>;
   }
 
+  // 去重：userName 加在前面，但如果 channelMembers 已包含则跳过
+  const userEntry = userName || 'user';
+  const displayMembers = channelMembers.includes(userEntry) || channelMembers.includes('user')
+    ? channelMembers
+    : [userEntry, ...channelMembers];
+
   return (
     <>
-      {[userName || 'user', ...channelMembers].map((m, idx) => (
-        <MemberItem key={`${m}-${idx}`} info={resolve(m)} />
-      ))}
+      {displayMembers.map((m, idx) => {
+        const info = resolve(m);
+        // 跳过无法解析的残留成员（agent 已被删除）
+        if (!info.isUser && !info.avatarUrl && !info.fallbackAvatar && info.displayName === m && m.startsWith('agent-')) {
+          return null;
+        }
+        return <MemberItem key={`${m}-${idx}`} info={info} />;
+      })}
     </>
   );
 }
@@ -154,8 +165,12 @@ export function ChannelInput() {
   const handleSend = useCallback(async () => {
     if (sending || !inputValue.trim()) return;
     setSending(true);
-    try { await sendChannelMessage(inputValue.trim()); setInputValue(''); }
-    finally { setSending(false); }
+    try {
+      const ok = await sendChannelMessage(inputValue.trim());
+      if (ok) setInputValue('');
+    } finally {
+      setSending(false);
+    }
   }, [sending, inputValue]);
 
   const checkMention = useCallback(() => {
@@ -265,9 +280,10 @@ export function ChannelInput() {
 
 export function ChannelReadonly() {
   const isDM = useStore(s => s.channelIsDM);
+  const archived = useStore(s => s.channelArchived);
   const currentChannel = useStore(s => s.currentChannel);
 
-  if (!isDM || !currentChannel) return null;
+  if ((!isDM && !archived) || !currentChannel) return null;
 
   return (
     <span>
@@ -275,7 +291,9 @@ export function ChannelReadonly() {
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
-      {window.t?.('channel.readOnly') || '这是 Agent 之间的私信，仅可查看'}
+      {archived
+        ? (window.t?.('channel.archivedReadOnly') || '已归档频道仅可查看历史记录')
+        : (window.t?.('channel.readOnly') || '这是 Agent 之间的私信，仅可查看')}
     </span>
   );
 }

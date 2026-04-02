@@ -4,7 +4,7 @@
     "chatTab": "聊天",
     "empty": "还没有频道 ✿",
     "dmLabel": "私聊",
-    "dmHint": "仅显示主助手的私聊",
+    "dmHint": "仅显示有真实消息的内部私聊",
     "groupLabel": "频道",
     "noMessages": "暂无消息",
     "selectHint": "选择一个频道或私聊开始对话",
@@ -18,6 +18,10 @@
     "createName": "频道名称",
     "createNamePlaceholder": "例如：design-team",
     "createMembers": "成员",
+    "createBaseAgent": "已包含当前助手",
+    "createSelectAdvisors": "再选择要加入的顾问",
+    "createNeedAssistant": "当前没有可用助手，无法创建频道",
+    "createNeedAdvisor": "至少再选择 1 位顾问",
     "createIntro": "频道介绍",
     "createIntroOptional": "说明",
     "createIntroPlaceholder": "描述一下这个频道的用途...",
@@ -28,10 +32,36 @@
     "created": "频道 #{name} 已创建 ✿",
     "createFailed": "创建失败",
     "alreadyExists": "频道已存在",
+    "archiveChannel": "归档频道",
+    "archiveAction": "归档",
+    "archiveConfirm": "确定归档频道「{name}」？归档后将变为只读，但会保留全部历史记录。",
+    "archived": "频道已归档",
+    "archiveFailed": "归档失败",
+    "archivedLabel": "已归档",
+    "archivedBadge": "已归档",
+    "archivedStatus": "已归档",
+    "archivedReadOnly": "🔒 已归档频道仅可查看历史记录",
     "deleteChannel": "删除频道",
     "deleteConfirm": "确定删除频道「{name}」？消息记录将不可恢复。",
     "deleted": "频道已删除",
     "deleteFailed": "删除失败",
+    "addMember": "添加成员",
+    "addMemberTitle": "添加成员",
+    "addMemberAgents": "已有智能体",
+    "addMemberExperts": "专家预设",
+    "addMemberConfirm": "添加",
+    "addMemberFailed": "添加失败",
+    "addMemberNone": "所有智能体都已在此频道中",
+    "memberAdded": "成员已添加",
+    "expertSelectHint": "先选顾问，再选模型，最后确认加入频道",
+    "expertConfigTitle": "待加入顾问",
+    "expertSelected": "已选中",
+    "expertModelAuto": "默认（优先推荐 / 当前可用模型）",
+    "expertRecommendedModel": "推荐模型",
+    "expertModelFallback": "未单独指定时，会使用推荐模型或当前可用模型",
+    "expertAdding": "处理中...",
+    "expertCreating": "创建中...",
+    "expertCreateChannel": "创建与 Ta 的频道",
     "warningTitle": "关于频道",
     "warningBody": "我相信让不同记忆与思维方式的助手互动、聊天可以带来更多灵感的碰撞，所以我给 agents 们搭建了一个可以互相说话的地方，在你不在的时候也可以消耗用不完的 token。\n\n但你需要注意的是，频道功能目前是测试版，可能会出现以下问题：\n1. token 消耗过多\n2. 助手未按预期回复\n3. 记忆出现错乱\n\n建议谨慎使用",
     "warningConfirm": "我了解了，开启频道",
@@ -48,6 +78,7 @@
       "channelTemplates": "频道模板（使用已有 Agent）",
       "spawnSuccess": "专家已创建",
       "spawnFailed": "创建专家失败",
+      "modelGuide": "💡 专家使用你配置的模型运行。推荐模型标注在卡片上，可在「设置 → 模型」中配置对应供应商的 API Key 以获得最佳效果。",
       "tpl": {
         "codeReview": {
           "label": "代码审查组",
@@ -66,6 +97,11 @@
         }
       }
     }
+  },
+  "expert": {
+    "yuanStyle": "思维风格",
+    "recommendedModel": "推荐模型（在设置中配置对应 API Key）",
+    "modelTip": "当前使用你配置的默认模型。配置推荐模型的 API Key 可获得最佳效果。"
   },
   "sidebar": {
     "title": "对话",
@@ -116,7 +152,8 @@
     "stop": "停止",
     "browserScreenshot": "浏览器截图",
     "compacting": "上下文压缩中",
-    "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」"
+    "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
+    "retry": "Retry"
   },
   "time": {
     "justNow": "刚刚",
@@ -147,6 +184,13 @@
     "deskContext": "看着书桌说",
     "pastedImage": "粘贴图片",
     "docContext": "看着文档说",
+    "embeddedModel": {
+      "name": "默认模型",
+      "meta": "开箱可聊",
+      "upgrade": "提升质量",
+      "hint": "添加自己的模型",
+      "upgradeTitle": "打开供应商设置"
+    },
     "thinkingLevel": {
       "off": "关闭",
       "auto": "自动",
@@ -160,7 +204,20 @@
       "xhigh": "最强推理"
     },
     "contextWindow": "上下文 {windowK}k",
-    "tokensUsed": "已用 {tokensK}k ({pct}%)"
+    "tokensUsed": "已用 {tokensK}k ({pct}%)",
+    "contextOverview": "这次会带上的上下文",
+    "contextOverviewSubtitle": "发送前先确认一次，避免上下文带多或带少。",
+    "contextMode": "模式",
+    "contextModel": "模型",
+    "contextText": "正文",
+    "contextTextValue": "{count} 字",
+    "contextQuote": "引用片段",
+    "contextDoc": "参考文档",
+    "contextFiles": "附件",
+    "contextImages": "图片",
+    "contextHeldBack": "草稿里暂存",
+    "modeSend": "发送",
+    "modeSteer": "插话"
   },
   "slash": {
     "diary": "写今日日记",
@@ -181,13 +238,29 @@
     ],
     "memoryOn": "记忆",
     "memoryOff": "此次聊天不参考记忆",
-    "agentSelector": "选择助手"
+    "agentSelector": "选择助手",
+    "focusHint": "按 Cmd/Ctrl + K 随时开始输入",
+    "quickActions": {
+      "askFolder": {
+        "label": "看看当前项目",
+        "prompt": "请先快速浏览当前工作空间，告诉我这是什么项目、当前最值得先做的事是什么。"
+      },
+      "summarizeWork": {
+        "label": "总结这堆文件",
+        "prompt": "请先阅读当前工作空间的关键文件，给我一个简短总结：项目做什么、现在进展到哪、接下来建议做什么。"
+      },
+      "planToday": {
+        "label": "给我今日计划",
+        "prompt": "基于当前工作空间，给我一个今天可执行的 3 步计划，按优先级排好。"
+      }
+    }
   },
   "yuan": {
     "types": {
       "hanako": {
         "label": "均衡的助手",
-        "avatar": "Hanako.png"
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       },
       "butter": {
         "label": "更富有感情",
@@ -614,7 +687,9 @@
       "addCustom": "添加自定义供应商",
       "noKey": "未配置",
       "remove": "移除",
-      "deleteConfirm": "确定删除供应商 {name}？相关模型将一并清除。"
+      "deleteConfirm": "确定删除供应商 {name}？相关模型将一并清除。",
+      "apiResponses": "OpenAI Responses",
+      "apiCodex": "ChatGPT Codex（Plus/Pro）"
     },
     "oauth": {
       "title": "快速登录",
@@ -794,6 +869,7 @@
       "add": "添加技能",
       "delete": "删除",
       "deleteConfirm": "确定删除技能「{name}」？",
+      "externalPathRemoveConfirm": "确定移除这个外部技能目录？\n{path}",
       "installSuccess": "技能「{name}」已安装",
       "installError": "安装失败",
       "enabled": "已启用",
@@ -919,15 +995,24 @@
   "onboarding": {
     "welcome": {
       "title": "你好，我是 {name} ✿",
-      "subtitle": "我是你的个人 AI 助手。\n来做一些简单的设置，让我们开始吧。",
-      "next": "开始设置"
+      "subtitle": "我是你的个人 AI 助手。\n先选一种开始方式，我们马上进入主界面。",
+      "next": "开始设置",
+      "quickTitle": "先直接用起来",
+      "quickDesc": "保留最少步骤。\n名字可先留空，模型、主题之后再补。",
+      "quickAction": "进入 Quick Start",
+      "advancedTitle": "现在一次配完整",
+      "advancedDesc": "如果你已经有 provider / model 偏好，\n现在就把连接、模型和主题一起配好。",
+      "advancedAction": "进入 Advanced Setup"
     },
     "name": {
       "title": "我该怎么称呼你？",
       "subtitle": "这会让我们的对话更自然",
+      "quickSubtitle": "可以先填，也可以稍后在设置里再改",
       "placeholder": "输入你的名字",
+      "quickHint": "留空也没关系，先进去再说。",
       "back": "上一步",
-      "next": "下一步"
+      "next": "下一步",
+      "quickNext": "继续 Quick Start"
     },
     "provider": {
       "title": "选择 AI 供应商",
@@ -968,6 +1053,9 @@
     },
     "tutorial": {
       "title": "准备就绪 ✿",
+      "quickTitle": "Quick Start 已完成 ✿",
+      "quickBannerTitle": "你已经可以先开始聊了",
+      "quickBannerDesc": "Provider、模型和主题还没关系，之后都可以在设置里补。\n先进去用起来，再慢慢收拾你的工作台。",
       "memory": {
         "title": "记忆",
         "desc": "有多少记忆能被记住由你决定。\n记忆的留存不需要绝对一致。允许褶皱和缝隙存在，大语言模型能在具体的对话中辨认出哪些是符合现实情况的。"
@@ -984,7 +1072,8 @@
         "title": "笺",
         "desc": "在任意文件夹放一个 jian.md，写上你的指令。\n我会在巡检时看到它并自动执行。"
       },
-      "finish": "开始使用"
+      "finish": "开始使用",
+      "quickFinish": "直接进入 Lynn"
     }
   },
   "activity": {
@@ -1546,6 +1635,8 @@
       "frontendOnly": "仅在客户端可见",
       "sandbox": "沙盒安全",
       "sandboxDesc": "限制文件系统写入范围",
+      "securityMode": "安全模式",
+      "securityModeDesc": "三模式安全策略（授权/规划/安全）",
       "locale": "语言",
       "timezone": "时区",
       "timezoneDesc": "IANA 时区（如 Asia/Shanghai）",
@@ -1633,7 +1724,45 @@
     "opRead": "读取",
     "opWrite": "写入",
     "opDelete": "删除",
-    "denied": "{op}被拒绝：{path}（权限级别: {level}）"
+    "denied": "{op}被拒绝：{path}（权限级别: {level}）",
+    "authDesc": {
+      "sudo": "使用管理员权限执行命令 — 通常用于安装软件、修改系统配置等需要更高权限的操作",
+      "su": "切换到其他用户身份 — 获取不同用户的操作权限",
+      "chmod": "修改文件或目录的访问权限 — 控制谁可以读写执行这些文件",
+      "chown": "修改文件的所有者 — 将文件归属转移给其他用户",
+      "delRecursive": "递归删除文件 — 会删除指定目录下的所有文件，请确认范围",
+      "rmdirRecursive": "递归删除目录 — 会移除整个目录树，此操作不可撤销",
+      "regEdit": "修改 Windows 注册表 — 影响系统和应用程序的配置",
+      "takeown": "夺取文件所有权 — 获取对文件的完全控制",
+      "icacls": "修改文件的访问控制列表 — 改变文件的安全权限",
+      "netUser": "管理系统用户和组 — 创建、删除或修改用户账户",
+      "schtasks": "创建计划任务 — 设置定时自动执行的程序",
+      "scService": "操作系统服务 — 创建或删除 Windows 服务",
+      "psBypass": "绕过 PowerShell 安全策略 — 允许执行未签名的脚本",
+      "format": "格式化磁盘 — 将清除磁盘上的所有数据，此操作不可撤销",
+      "bcdedit": "修改启动配置 — 改变系统启动方式",
+      "wmic": "执行 WMI 管理命令 — 访问和修改系统管理信息",
+      "pathOp": "{op}路径 {path} — 此路径位于受保护区域"
+    }
+  },
+  "security": {
+    "mode": {
+      "authorized": "授权模式",
+      "authorizedDesc": "危险操作需确认后执行",
+      "plan": "规划模式",
+      "planDesc": "仅分析规划，不执行",
+      "safe": "安全模式",
+      "safeDesc": "危险行为直接拒绝"
+    },
+    "auth": {
+      "title": "需要授权",
+      "commandLabel": "即将执行：",
+      "allow": "允许执行",
+      "reject": "拒绝",
+      "allowed": "已授权执行",
+      "rejected": "已拒绝",
+      "alwaysAllow": "以后都允许此类操作"
+    }
   },
   "error.llmTimeout": "模型请求超时",
   "error.llmRateLimited": "模型限流，请稍候",
@@ -1660,8 +1789,9 @@
   "status.disconnected": "连接已断开",
   "status.reconnect": "重新连接",
   "action.retry": "重试",
-  "agentDiscovery.title": "发现其他 AI 智能体",
-  "agentDiscovery.body": "我们在你的设备上发现了以下 AI 工具的技能库，可以一键复用：",
+  "agentDiscovery.title": "发现已安装的 AI 工具",
+  "agentDiscovery.body": "检测到你电脑上已安装以下 AI 工具：",
+  "agentDiscovery.benefit": "启用后，Lynn 可以直接复用这些工具的技能库，无需额外配置即可提升能力。",
   "agentDiscovery.enable": "一键启用",
-  "agentDiscovery.later": "稍后再说"
+  "agentDiscovery.later": "以后再说"
 }

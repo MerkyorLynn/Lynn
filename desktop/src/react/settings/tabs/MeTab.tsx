@@ -88,7 +88,12 @@ export function MeTab() {
         <div className={styles['settings-avatar-center']}>
           <div className={styles['avatar-upload']} onClick={handleAvatarClick} title="">
             {userAvatarUrl ? (
-              <img className={styles['avatar-preview']} src={userAvatarUrl} draggable={false} />
+              <img
+                key={userAvatarUrl}
+                className={styles['avatar-preview']}
+                src={userAvatarUrl}
+                draggable={false}
+              />
             ) : (
               <div className={`${styles['avatar-preview']} ${styles['avatar-preview-emoji']}`}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

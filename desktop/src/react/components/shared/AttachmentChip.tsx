@@ -12,6 +12,7 @@ interface AttachmentChipProps {
   name: string;
   onRemove?: () => void;
   className?: string;
+  variant?: 'default' | 'compact';
 }
 
 export const AttachmentChip = memo(function AttachmentChip({
@@ -19,15 +20,16 @@ export const AttachmentChip = memo(function AttachmentChip({
   name,
   onRemove,
   className,
+  variant = 'default',
 }: AttachmentChipProps) {
   return (
-    <span className={`${styles.chip}${className ? ` ${className}` : ''}`}>
+    <span className={`${styles.chip}${variant === 'compact' ? ` ${styles.compact}` : ''}${className ? ` ${className}` : ''}`}>
       <span className={styles.name}>
         <span className={styles.icon}>{icon}</span>
         {name}
       </span>
       {onRemove && (
-        <button className={styles.remove} onClick={onRemove}>
+        <button type="button" className={styles.remove} onClick={onRemove}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>

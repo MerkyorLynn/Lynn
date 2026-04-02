@@ -8,6 +8,7 @@ export interface Agent {
   id: string;
   name: string;
   yuan: string;
+  tier?: string;
   isPrimary: boolean;
   hasAvatar?: boolean;
 }
@@ -76,14 +77,14 @@ export interface SettingsState {
 
   // toast
   toastMessage: string;
-  toastType: 'success' | 'error' | '';
+  toastType: 'success' | 'error' | 'info' | '';
   toastVisible: boolean;
 }
 
 export interface SettingsActions {
   set: (partial: Partial<SettingsState>) => void;
   getSettingsAgentId: () => string | null;
-  showToast: (message: string, type: 'success' | 'error') => void;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export type SettingsStore = SettingsState & SettingsActions;

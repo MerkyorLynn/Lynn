@@ -45,11 +45,12 @@ function captureDOMSelection(artifact: Artifact): void {
     clearSelection();
     return;
   }
-  const clipped = text.length > 2000 ? text.slice(0, 2000) : text;
+  const clipped = text.length > 4000 ? text.slice(0, 4000) : text;
 
   useStore.getState().setQuotedSelection({
     text: clipped,
     sourceTitle: artifact.title,
+    sourceFilePath: artifact.filePath,
     charCount: text.length,
   });
 }

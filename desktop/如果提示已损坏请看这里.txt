@@ -1,7 +1,7 @@
-如果打开 Hanako 时提示「已损坏，无法打开」或「无法验证开发者」，
+如果打开 Lynn 时提示「已损坏，无法打开」或「无法验证开发者」，
 请打开终端（Terminal），粘贴以下命令并回车：
 
-  xattr -rd com.apple.quarantine /Applications/Hanako.app
+  xattr -rd com.apple.quarantine /Applications/Lynn.app
 
 回车后即可正常打开。
 

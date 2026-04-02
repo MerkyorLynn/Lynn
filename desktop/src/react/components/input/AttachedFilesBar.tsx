@@ -10,6 +10,7 @@ export function AttachedFilesBar({ files, onRemove }: {
       {files.map((f, i) => (
         <AttachmentChip
           key={f.path}
+          variant="compact"
           icon={f.isDirectory ? <FolderIcon /> : <ClipIcon />}
           name={f.name}
           onRemove={() => onRemove(i)}

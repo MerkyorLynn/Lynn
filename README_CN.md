@@ -1,11 +1,11 @@
 [English](README.md)
 
 <p align="center">
-  <img src=".github/assets/banner.png" width="100%" alt="OpenHanako Banner">
+  <img src=".github/assets/banner.png" width="100%" alt="Lynn Banner">
 </p>
 
 <p align="center">
-  <img src=".github/assets/Hanako-280.png" width="80" alt="Lynn">
+  <img src="desktop/src/assets/Lynn.png" width="80" alt="Lynn">
 </p>
 
 <h1 align="center">Lynn</h1>
@@ -13,7 +13,7 @@
 <p align="center">一个有记忆、有灵魂的私人 AI 助理</p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/liliMozi/openhanako/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/MerkyorLynn/Lynn/releases)
 
 ---
 
@@ -61,11 +61,11 @@ Lynn 是一个更加易用的 AI agent，有记忆，有性格，会主动行动
 
 ### 下载安装
 
-**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/liliMozi/openhanako/releases) 下载最新 `.dmg`。
+**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。
 
 应用已通过 Apple Developer ID 签名和公证，macOS 应该可以直接打开。
 
-**Windows**：从 [Releases](https://github.com/liliMozi/openhanako/releases) 下载最新 `.exe` 安装包。
+**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe` 安装包。
 
 > **Windows SmartScreen 提示：** 安装包暂未经过代码签名，首次运行时 Windows Defender SmartScreen 可能会拦截，点击**更多信息** → **仍要运行**即可，未签名版本的正常现象。
 
@@ -141,8 +141,8 @@ npm run typecheck
 
 ## 链接
 
-- [官网](https://openhanako.com)
-- [提交 Issue](https://github.com/liliMozi/openhanako/issues)
-- [安全页](https://github.com/liliMozi/openhanako/security)
+- [提交 Issue](https://github.com/MerkyorLynn/Lynn/issues)
+- [安全页](https://github.com/MerkyorLynn/Lynn/security)
+- [项目仓库](https://github.com/MerkyorLynn/Lynn)
 - [安全政策](SECURITY.md)
 - [贡献指南](CONTRIBUTING.md)

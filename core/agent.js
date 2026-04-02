@@ -4,6 +4,7 @@
  * 拥有自己的身份、人格、记忆、工具和 prompt 拼装逻辑。
  * Engine 持有一个 Agent，未来可以持有多个。
  */
+import { createHash } from "crypto";
 import fs from "fs";
 import path from "path";
 import { loadConfig, saveConfig } from "../lib/memory/config-loader.js";
@@ -77,6 +78,10 @@ export class Agent {
     this._memorySearchTool = null;
     this._webSearchTool = null;
     this._webFetchTool = null;
+
+    // System Prompt 静态/动态分层缓存（Claude Code 启发）
+    this._staticPromptCache = null;  // { hash, text }
+    this._staticPromptDeps = null;   // identity+yuan+ishiki+skills 的 hash
     this._todoTool = null;
     this._pinnedMemoryTools = [];
     this._experienceTools = [];
@@ -613,37 +618,139 @@ export class Agent {
     return fill(raw);
   }
 
-  /** 组装 system prompt */
+  /** 组装 system prompt（静态/动态分层缓存） */
   buildSystemPrompt() {
     const isZh = String(this._config.locale || "").startsWith("zh");
-
     const readFile = (filePath) => safeReadFile(filePath, "");
 
-    // identity + yuan + ishiki（复用 personality getter）
+    // ── 静态部分（identity + yuan + ishiki + skills + 固定规则，可缓存） ──
+    const staticParts = this._buildStaticPrompt(isZh);
+
+    // ── 动态边界 ──
+    const DYNAMIC_BOUNDARY = "\n\n<!-- SYSTEM_PROMPT_DYNAMIC_BOUNDARY -->\n\n";
+
+    // ── 动态部分（memory + user.md + pinned + 项目上下文，每次实时读取） ──
+    const dynamicParts = this._buildDynamicPrompt(isZh, readFile);
+
+    return staticParts + DYNAMIC_BOUNDARY + dynamicParts;
+  }
+
+  /** 静态 prompt（personality + 固定规则 + skills），config 不变时缓存复用 */
+  _buildStaticPrompt(isZh) {
     const yuanType = this._config?.agent?.yuan || "hanako";
     if (!this._readYuan()) throw new Error(`Cannot find yuan "${yuanType}". Check lib/yuan/`);
     const ishiki = this.personality;
+    const skillsText = this._enabledSkills?.length > 0 ? formatSkillsForPrompt(this._enabledSkills) : "";
+    const learnCfg = this._engine?.getLearnSkills?.() || this._config?.capabilities?.learn_skills || {};
 
-    // 可选文件
+    // 缓存 key：基于实际静态 prompt 依赖做哈希，避免“长度相同但内容变化”时命中脏缓存
+    const cacheKey = createHash("sha1")
+      .update(isZh ? "zh" : "non-zh")
+      .update("\0")
+      .update(yuanType)
+      .update("\0")
+      .update(ishiki)
+      .update("\0")
+      .update(skillsText)
+      .update("\0")
+      .update(learnCfg.enabled ? "learn-on" : "learn-off")
+      .update("\0")
+      .update(learnCfg.allow_github_fetch ? "github-on" : "github-off")
+      .digest("hex");
+    if (this._staticPromptCache && this._staticPromptDeps === cacheKey) {
+      return this._staticPromptCache;
+    }
+
+    const parts = [
+      isZh
+        ? "你运行在 Lynn 平台上。项目主页：https://github.com/MerkyorLynn/Lynn"
+        : "You are running on the Lynn platform. Project page: https://github.com/MerkyorLynn/Lynn",
+      ishiki,
+    ];
+
+    if (skillsText) parts.push(skillsText);
+
+    // 网页工具选择优先级
+    parts.push(isZh
+      ? "\n## 网页工具优先级\n\n"
+        + "获取网页信息时，按以下顺序选择工具：\n"
+        + "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n"
+        + "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n"
+        + "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n"
+        + "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。"
+      : "\n## Web Tool Priority\n\n"
+        + "When fetching web information, choose tools in this order:\n"
+        + "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n"
+        + "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n"
+        + "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n"
+        + "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user."
+    );
+
+    // 设置工具路由
+    parts.push(isZh
+      ? "\n## 设置修改\n\n"
+        + "用户提到修改设置而未指明具体软件时，默认指本应用的设置。\n"
+        + "用户要求修改偏好设置（包括但不限于：外观主题、语言地区、模型选择、安全权限、记忆功能、个人信息、工作目录）时，使用 update_settings 工具。不要搜索网页，不要编辑配置文件。意图明确时直接 apply，不确定时先 search。"
+      : "\n## Settings Changes\n\n"
+        + "When the user mentions changing settings without specifying a particular application, assume they mean this application.\n"
+        + "When the user asks to change preferences (including but not limited to: appearance/theme, language/region, model selection, security/permissions, memory, personal info, working directory), use the update_settings tool. Do not search the web or edit config files. When intent is clear, apply directly; when unsure, search first."
+    );
+
+    // 主动技能获取引导
+    if (learnCfg.enabled && learnCfg.allow_github_fetch) {
+      parts.push(isZh
+        ? "\n## 主动技能获取\n\n"
+          + "遇到专业领域任务且你没有对应技能时，主动搜索并安装。\n\n"
+          + "### 搜索\n\n"
+          + "1. `site:clawhub.ai {关键词}` 或 `site:github.com/openclaw/skills {关键词}`\n"
+          + "2. GitHub 上其他含 SKILL.md 的仓库\n"
+          + "3. install_skill 安装：用 github_url 参数\n\n"
+          + "### 判断\n\n"
+          + "- 已有相关技能则直接使用，不重复搜索\n"
+          + "- 仅专业领域任务搜索，日常对话不搜\n"
+          + "- 安装应能显著提升输出质量\n\n"
+          + "### 行为\n\n"
+          + "- 找到后简要告知用户，直接安装并立即应用\n"
+          + "- 安装失败则尝试自己完成\n"
+          + "- 搜索无果正常完成，不反复尝试"
+        : "\n## Proactive Skill Acquisition\n\n"
+          + "When you encounter specialized tasks and lack a matching skill, proactively search and install one.\n\n"
+          + "### Search\n\n"
+          + "1. `site:clawhub.ai {keywords}` or `site:github.com/openclaw/skills {keywords}`\n"
+          + "2. Other GitHub repos containing SKILL.md\n"
+          + "3. install_skill: use github_url parameter\n\n"
+          + "### When\n\n"
+          + "- If you already have a relevant skill, use it directly — don't search again\n"
+          + "- Only search for specialized tasks, not everyday conversation\n"
+          + "- Installation should significantly improve output quality\n\n"
+          + "### Behavior\n\n"
+          + "- Briefly inform the user, install directly, and apply immediately\n"
+          + "- If installation fails, try to complete the task yourself\n"
+          + "- If search yields nothing, proceed normally without retrying"
+      );
+    }
+
+    const result = parts.join("\n");
+    this._staticPromptCache = result;
+    this._staticPromptDeps = cacheKey;
+    return result;
+  }
+
+  /** 动态 prompt（memory + user.md + pinned + 项目/用户画像），每次实时读取 */
+  _buildDynamicPrompt(isZh, readFile) {
+    const section = (title, content) => ["", "---", "", title, "", content];
+    const parts = [];
+
     const userMd = readFile(path.join(this.userDir, "user.md"));
     const pinnedMd = readFile(path.join(this.agentDir, "pinned.md"));
     const memory = readFile(this.memoryMdPath);
 
-    // 构建 section 分隔格式的 prompt
-    const section = (title, content) => ["", "---", "", title, "", content];
-
-    const parts = [
+    parts.push(...section(
+      isZh ? "# 用户档案" : "# User Profile",
       isZh
-        ? "你运行在 Lynn 平台上，由 liliMozi 开发。项目主页：https://github.com/liliMozi/openhanako"
-        : "You are running on the Lynn platform, developed by liliMozi. Project page: https://github.com/liliMozi/openhanako",
-      ishiki,
-      ...section(
-        isZh ? "# 用户档案" : "# User Profile",
-        isZh
-          ? "以下是用户的自我描述，由用户手动维护。\n\n" + userMd
-          : "The following is the user's self-description, manually maintained by the user.\n\n" + userMd
-      ),
-    ];
+        ? "以下是用户的自我描述，由用户手动维护。\n\n" + userMd
+        : "The following is the user's self-description, manually maintained by the user.\n\n" + userMd
+    ));
     // 记忆整体开关：master && session 都开启才注入记忆相关 prompt
     if (this.memoryEnabled) {
       const memoryRule = isZh ? [
@@ -685,11 +792,6 @@ export class Agent {
       }
     }
 
-    // Skills 注入（用 SDK 原版 formatSkillsForPrompt）
-    if (this._enabledSkills?.length > 0) {
-      parts.push(formatSkillsForPrompt(this._enabledSkills));
-    }
-
     // Phase 2: 项目上下文注入
     const projectCwd = this._engine?.cwd || "";
     if (this._projectMemory && projectCwd && this.memoryEnabled) {
@@ -699,7 +801,7 @@ export class Agent {
       } catch {}
     }
 
-    // Phase 3: 用户画像注入（追加到 User Profile section 后）
+    // Phase 3: 用户画像注入
     if (this._userProfile && this.memoryEnabled) {
       try {
         const profileCtx = this._userProfile.formatForPrompt(isZh);
@@ -707,69 +809,7 @@ export class Agent {
       } catch {}
     }
 
-    // 网页工具选择优先级（跨工具编排，工具 description 里放不下）
-    parts.push(isZh
-      ? "\n## 网页工具优先级\n\n" +
-        "获取网页信息时，按以下顺序选择工具：\n" +
-        "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n" +
-        "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n" +
-        "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n" +
-        "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。"
-      : "\n## Web Tool Priority\n\n" +
-        "When fetching web information, choose tools in this order:\n" +
-        "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n" +
-        "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n" +
-        "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n" +
-        "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user."
-    );
-
-    // 设置工具路由
-    parts.push(isZh
-      ? "\n## 设置修改\n\n" +
-        "用户提到修改设置而未指明具体软件时，默认指本应用的设置。\n" +
-        "用户要求修改偏好设置（包括但不限于：外观主题、语言地区、模型选择、安全权限、记忆功能、个人信息、工作目录）时，使用 update_settings 工具。不要搜索网页，不要编辑配置文件。意图明确时直接 apply，不确定时先 search。"
-      : "\n## Settings Changes\n\n" +
-        "When the user mentions changing settings without specifying a particular application, assume they mean this application.\n" +
-        "When the user asks to change preferences (including but not limited to: appearance/theme, language/region, model selection, security/permissions, memory, personal info, working directory), use the update_settings tool. Do not search the web or edit config files. When intent is clear, apply directly; when unsure, search first."
-    );
-
-    // 主动技能获取引导（仅在 allow_github_fetch 开启时注入）
-    // learn_skills 从全局 preferences 读取
-    const learnCfg = this._engine?.getLearnSkills?.() || this._config?.capabilities?.learn_skills || {};
-    if (learnCfg.enabled && learnCfg.allow_github_fetch) {
-      parts.push(isZh
-        ? "\n## 主动技能获取\n\n" +
-          "遇到专业领域任务且你没有对应技能时，主动搜索并安装。\n\n" +
-          "### 搜索\n\n" +
-          "1. `site:clawhub.ai {关键词}` 或 `site:github.com/openclaw/skills {关键词}`\n" +
-          "2. GitHub 上其他含 SKILL.md 的仓库\n" +
-          "3. install_skill 安装：用 github_url 参数\n\n" +
-          "### 判断\n\n" +
-          "- 已有相关技能则直接使用，不重复搜索\n" +
-          "- 仅专业领域任务搜索，日常对话不搜\n" +
-          "- 安装应能显著提升输出质量\n\n" +
-          "### 行为\n\n" +
-          "- 找到后简要告知用户，直接安装并立即应用\n" +
-          "- 安装失败则尝试自己完成\n" +
-          "- 搜索无果正常完成，不反复尝试"
-        : "\n## Proactive Skill Acquisition\n\n" +
-          "When you encounter specialized tasks and lack a matching skill, proactively search and install one.\n\n" +
-          "### Search\n\n" +
-          "1. `site:clawhub.ai {keywords}` or `site:github.com/openclaw/skills {keywords}`\n" +
-          "2. Other GitHub repos containing SKILL.md\n" +
-          "3. install_skill: use github_url parameter\n\n" +
-          "### When\n\n" +
-          "- If you already have a relevant skill, use it directly — don't search again\n" +
-          "- Only search for specialized domain tasks, not daily conversations\n" +
-          "- Install should significantly improve output quality\n\n" +
-          "### Behavior\n\n" +
-          "- Briefly inform the user, install, and apply immediately\n" +
-          "- If installation fails, attempt the task yourself\n" +
-          "- If nothing found, complete normally — don't retry"
-      );
-    }
-
-    // 书桌 = 当前工作目录（注入实际路径）
+    // 书桌 = 当前工作目录
     const cwdPath = this._engine?.cwd || "";
     parts.push(isZh
       ? `\n## 书桌\n\n` +

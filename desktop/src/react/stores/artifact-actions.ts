@@ -22,6 +22,13 @@ export function openPreview(artifact: Artifact): void {
   s.setArtifacts(arts);
   s.openTab(artifact.id);
   s.setPreviewOpen(true);
+  if (artifact.filePath) {
+    s.rememberWorkingSetFile({
+      path: artifact.filePath,
+      name: artifact.title || artifact.filePath.split('/').pop() || artifact.filePath,
+      source: 'recent',
+    });
+  }
   updateLayout();
 }
 

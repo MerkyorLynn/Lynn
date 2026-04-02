@@ -15,7 +15,7 @@
  *   models.summarizer     -> 同上
  *   models.compiler       -> 同上
  *
- * 设计来源：Hana 自己的三通道 API 概念（两个参考项目都没有）
+ * 设计来源：Lynn 自己的三通道 API 概念（两个参考项目都没有）
  */
 
 import { t } from "../server/i18n.js";

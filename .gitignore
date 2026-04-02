@@ -34,7 +34,23 @@ node_modules/
 
 # IDE / 工具
 .claude/
+.vscode/
 *.code-workspace
+.codebuddy_remote_env
+.codebuddy_remote_server.js
+
+# 代理技能副本 / 临时探索产物
+.agents/
+.learnings/
+westock-data/
+EXPLORATION_REPORT.md
+PROJECT_STRUCTURE_INDEX.md
+QUICK_REFERENCE.md
+OpenHanako*.md
+
+# 临时素材
+desktop/src/_icon_square_tmp.png
+desktop/src/assets/_lynn_avatar_tmp.png
 
 # 项目私有文件
 CLAUDE.md

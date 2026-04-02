@@ -125,23 +125,36 @@ function copyLegacyFiles(): Plugin {
       const srcDir = path.resolve(__dirname, 'desktop/src');
       const outDir = path.resolve(__dirname, 'desktop/dist-renderer');
 
-      const dirs = ['lib', 'modules', 'themes', 'assets', 'locales'];
+      const dirs = ['lib', 'modules', 'themes', 'locales'];
       const files = ['styles.css'];
+      const assets = [
+        'Butter-1600.jpg',
+        'Hanako-1600.jpg',
+        'Kong.png',
+        'Lynn-512-opt.png',
+        'Ming-512-opt.png',
+        'kong-banner.jpg',
+      ];
+
+      const copyEntry = (src: string, dest: string, recursive = false) => {
+        if (!fs.existsSync(src)) return;
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.cpSync(src, dest, recursive ? { recursive: true } : undefined);
+      };
 
       for (const dir of dirs) {
-        const src = path.join(srcDir, dir);
-        const dest = path.join(outDir, dir);
-        if (fs.existsSync(src)) {
-          fs.cpSync(src, dest, { recursive: true });
-        }
+        copyEntry(path.join(srcDir, dir), path.join(outDir, dir), true);
       }
 
       for (const file of files) {
-        const src = path.join(srcDir, file);
-        const dest = path.join(outDir, file);
-        if (fs.existsSync(src)) {
-          fs.cpSync(src, dest);
-        }
+        copyEntry(path.join(srcDir, file), path.join(outDir, file));
+      }
+
+      for (const asset of assets) {
+        copyEntry(
+          path.join(srcDir, 'assets', asset),
+          path.join(outDir, 'assets', asset),
+        );
       }
     },
   };
@@ -173,6 +186,29 @@ export default defineConfig({
         splash: path.resolve(__dirname, 'desktop/src/splash.html'),
         'browser-viewer': path.resolve(__dirname, 'desktop/src/browser-viewer.html'),
         'editor-window': path.resolve(__dirname, 'desktop/src/editor-window.html'),
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('vite/preload-helper')) {
+            return 'preload-helper';
+          }
+
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/scheduler')) {
+            return 'react-vendor';
+          }
+
+          if (id.includes('node_modules/zustand')) {
+            return 'state-vendor';
+          }
+
+          if (id.includes('@codemirror') || id.includes('@lezer')) {
+            return 'codemirror-vendor';
+          }
+
+          if (id.includes('node_modules/katex') || id.includes('markdown-it') || id.includes('dompurify')) {
+            return 'rendering-vendor';
+          }
+        },
       },
     },
   },

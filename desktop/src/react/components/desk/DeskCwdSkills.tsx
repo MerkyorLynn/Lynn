@@ -177,7 +177,7 @@ export function DeskCwdSkillsPanel() {
 
     let installed = false;
     for (const file of files) {
-      const filePath = window.platform?.getFilePath?.(file);
+      const filePath = await window.platform?.getFilePath?.(file);
       if (!filePath) continue;
       try {
         const response = await hanaFetch('/api/desk/install-skill', {

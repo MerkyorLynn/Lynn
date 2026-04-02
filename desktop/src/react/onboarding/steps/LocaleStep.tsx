@@ -1,28 +1,31 @@
 /**
- * LocaleStep.tsx — Step 0: Language selection
+ * LocaleStep.tsx — Welcome + locale selection + start track choice
  */
 
 import { useState, useCallback } from 'react';
 import { LOCALES } from '../constants';
 import { saveLocale } from '../onboarding-actions';
-import type { HanaFetch } from '../onboarding-actions';
+import type { OnboardingFetch } from '../onboarding-actions';
 import { StepContainer, Multiline } from '../onboarding-ui';
+
+type OnboardingTrack = 'quick' | 'advanced';
 
 interface LocaleStepProps {
   preview: boolean;
-  hanaFetch: HanaFetch;
+  onboardingFetch: OnboardingFetch;
   avatarSrc: string;
   initialLocale: string;
-  goToStep: (index: number) => void;
   showError: (msg: string) => void;
   onLocaleChange: (locale: string) => void;
+  onSelectTrack: (track: OnboardingTrack) => void;
 }
 
 export function LocaleStep({
-  preview, hanaFetch, avatarSrc, initialLocale,
-  goToStep, showError, onLocaleChange,
+  preview, onboardingFetch, avatarSrc, initialLocale,
+  showError, onLocaleChange, onSelectTrack,
 }: LocaleStepProps) {
   const [locale, setLocale] = useState(initialLocale);
+  const [submittingTrack, setSubmittingTrack] = useState<OnboardingTrack | null>(null);
 
   const changeLocale = useCallback(async (loc: string) => {
     if (locale === loc) return;
@@ -31,16 +34,20 @@ export function LocaleStep({
     await i18n.load(loc);
   }, [locale, onLocaleChange]);
 
-  const onNext = useCallback(async () => {
-    if (!preview) {
-      try {
-        await saveLocale(hanaFetch, locale);
-      } catch (err) {
-        console.error('[onboarding] save locale failed:', err);
+  const handleSelectTrack = useCallback(async (track: OnboardingTrack) => {
+    if (submittingTrack) return;
+    setSubmittingTrack(track);
+    try {
+      if (!preview) {
+        await saveLocale(onboardingFetch, locale);
       }
+      onSelectTrack(track);
+    } catch (err) {
+      console.error('[onboarding] save locale failed:', err);
+      showError(t('onboarding.error'));
+      setSubmittingTrack(null);
     }
-    goToStep(1);
-  }, [preview, hanaFetch, locale, goToStep]);
+  }, [onboardingFetch, locale, onSelectTrack, preview, showError, submittingTrack]);
 
   return (
     <StepContainer>
@@ -58,9 +65,28 @@ export function LocaleStep({
           </button>
         ))}
       </div>
-      <div className="onboarding-actions">
-        <button className="ob-btn ob-btn-primary" onClick={onNext}>
-          {t('onboarding.welcome.next')}
+
+      <div className="ob-track-grid">
+        <button
+          className="ob-track-card ob-track-card-primary"
+          disabled={!!submittingTrack}
+          onClick={() => handleSelectTrack('quick')}
+        >
+          <span className="ob-track-badge">Quick Start</span>
+          <span className="ob-track-title">{t('onboarding.welcome.quickTitle')}</span>
+          <Multiline className="ob-track-desc" text={t('onboarding.welcome.quickDesc')} />
+          <span className="ob-track-action">{t('onboarding.welcome.quickAction')}</span>
+        </button>
+
+        <button
+          className="ob-track-card"
+          disabled={!!submittingTrack}
+          onClick={() => handleSelectTrack('advanced')}
+        >
+          <span className="ob-track-badge">Advanced Setup</span>
+          <span className="ob-track-title">{t('onboarding.welcome.advancedTitle')}</span>
+          <Multiline className="ob-track-desc" text={t('onboarding.welcome.advancedDesc')} />
+          <span className="ob-track-action ob-track-action-secondary">{t('onboarding.welcome.advancedAction')}</span>
         </button>
       </div>
     </StepContainer>

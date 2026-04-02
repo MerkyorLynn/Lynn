@@ -12,23 +12,25 @@ import { hanaUrl } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { loadDeskFiles } from '../stores/desk-actions';
 import { clearChat } from '../stores/agent-actions';
+import { sendPrompt } from '../stores/prompt-actions';
 import type { Agent } from '../types';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
 import styles from './Welcome.module.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- store setState 回调 (s: any) */
 
-// ── 稳定头像时间戳（避免每次渲染生成新 URL） ──
 let _avatarTs = Date.now();
 export function refreshAvatarTs() { _avatarTs = Date.now(); }
 
-// ── 主组件 ──
+const QUICK_PROMPT_KEYS = [
+  'welcome.quickActions.askFolder',
+  'welcome.quickActions.summarizeWork',
+  'welcome.quickActions.planToday',
+] as const;
 
 export function WelcomeScreen() {
   return <WelcomeInner />;
 }
-
-// ── Yuan helpers ──
 
 function randomWelcome(agentName: string, yuan: string): string {
   const t = window.t ?? ((p: string) => p);
@@ -38,8 +40,6 @@ function randomWelcome(agentName: string, yuan: string): string {
   const raw = msgs[Math.floor(Math.random() * msgs.length)];
   return raw.replaceAll('{name}', agentName);
 }
-
-// ── 内部组件 ──
 
 function WelcomeInner() {
   const { t } = useI18n();
@@ -55,7 +55,6 @@ function WelcomeInner() {
   const cwdHistory = useStore(s => s.cwdHistory);
   const pendingNewSession = useStore(s => s.pendingNewSession);
 
-  // Determine the displayed agent
   const displayAgent = useMemo(() => {
     const sel = selectedAgentId || currentAgentId;
     return agents.find(a => a.id === sel) || null;
@@ -63,8 +62,6 @@ function WelcomeInner() {
 
   const displayName = displayAgent?.name || agentName;
   const displayYuan = displayAgent?.yuan || agentYuan;
-
-  // Greeting text — regenerate when agent changes or welcome becomes visible
   const [greeting, setGreeting] = useState('');
   const prevAgentRef = useRef<string | null>(null);
 
@@ -76,13 +73,11 @@ function WelcomeInner() {
     }
   }, [welcomeVisible, displayAgent?.id, currentAgentId, displayName, displayYuan, greeting]);
 
-  // Re-randomize greeting when welcome becomes visible again
   useEffect(() => {
     if (welcomeVisible) {
       setGreeting(randomWelcome(displayName, displayYuan));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在 welcomeVisible 切换时重新随机，不跟踪 displayName/displayYuan 变化
-  }, [welcomeVisible]);
+  }, [welcomeVisible, displayName, displayYuan]);
 
   if (!welcomeVisible) return null;
 
@@ -96,23 +91,17 @@ function WelcomeInner() {
         name={displayName}
       />
       <p className={styles.welcomeText}>{greeting}</p>
-      {agents.length >= 2 && (
-        <AgentChips
-          agents={agents}
-          selectedId={selectedAgentId || currentAgentId}
-        />
-      )}
+      <QuickActions displayName={displayName} selectedFolder={selectedFolder} />
       <FolderPicker
         selectedFolder={selectedFolder}
         cwdHistory={cwdHistory}
         pendingNewSession={pendingNewSession}
       />
       <MemoryToggle enabled={memoryEnabled} t={t} />
+      <span className={styles.focusHint}>{t('welcome.focusHint')}</span>
     </div>
   );
 }
-
-// ── Welcome Avatar ──
 
 function WelcomeAvatar({ agentId, hasAvatar, agentAvatarUrl, yuan, name }: {
   agentId: string | null;
@@ -150,8 +139,6 @@ function WelcomeAvatar({ agentId, hasAvatar, agentAvatarUrl, yuan, name }: {
     />
   );
 }
-
-// ── Agent Chips ──
 
 function AgentChips({ agents, selectedId }: {
   agents: Agent[];
@@ -208,7 +195,40 @@ function AgentChip({ agent, isSelected, onClick }: {
   );
 }
 
-// ── Folder Picker ──
+function QuickActions({ displayName, selectedFolder }: { displayName: string; selectedFolder: string | null }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const actions = useMemo(() => QUICK_PROMPT_KEYS.map((key) => ({
+    key,
+    label: t(`${key}.label`),
+    prompt: t(`${key}.prompt`, { name: displayName, folder: selectedFolder || t('input.selectWorkspace') }),
+  })), [displayName, selectedFolder, t]);
+
+  const handleClick = useCallback(async (key: string, prompt: string) => {
+    setBusy(key);
+    try {
+      await sendPrompt({ text: prompt, displayText: prompt });
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  return (
+    <div className={styles.quickActions}>
+      {actions.map((action) => (
+        <button
+          key={action.key}
+          className={styles.quickActionBtn}
+          onClick={() => handleClick(action.key, action.prompt)}
+          disabled={busy !== null}
+        >
+          <span className={styles.quickActionLabel}>{action.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function FolderPicker({ selectedFolder, cwdHistory, pendingNewSession }: {
   selectedFolder: string | null;
@@ -219,7 +239,6 @@ function FolderPicker({ selectedFolder, cwdHistory, pendingNewSession }: {
   const [showHistory, setShowHistory] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!showHistory) return;
     const close = (e: MouseEvent) => {
@@ -340,7 +359,6 @@ function FolderHistory({ cwdHistory, selectedFolder, onSelect, onBrowse }: {
   );
 }
 
-/** Apply folder selection — core logic preserved from bridge.ts desk shim */
 function applyFolderAction(folder: string, pendingNewSession: boolean): void {
   useStore.setState({ selectedFolder: folder });
 
@@ -353,11 +371,8 @@ function applyFolderAction(folder: string, pendingNewSession: boolean): void {
     useStore.getState().requestInputFocus();
   }
 
-  // Load desk files for the new folder
   loadDeskFiles('', folder);
 }
-
-// ── Memory Toggle ──
 
 function MemoryToggle({ enabled, t }: {
   enabled: boolean;

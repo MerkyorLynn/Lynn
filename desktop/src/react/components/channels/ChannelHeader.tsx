@@ -6,17 +6,17 @@ import { useCallback, useState } from 'react';
 import { useStore } from '../../stores';
 import { useI18n } from '../../hooks/use-i18n';
 import { toggleJianSidebar } from '../../stores/desk-actions';
-import { deleteChannel } from '../../stores/channel-actions';
+import { archiveChannel, deleteChannel } from '../../stores/channel-actions';
 import { ContextMenu } from '../ContextMenu';
 import type { ContextMenuItem } from '../ContextMenu';
 import styles from './Channels.module.css';
 
 function confirmDeleteChannel(channelId: string) {
-  const ch = useStore.getState().channels.find((c) => c.id === channelId);
-  const displayName = ch?.name || channelId;
-  const msg = window.t('channel.deleteConfirm', { name: displayName }) || '';
-  if (!confirm(msg)) return;
-  deleteChannel(channelId);
+  void deleteChannel(channelId);
+}
+
+function confirmArchiveChannel(channelId: string) {
+  void archiveChannel(channelId);
 }
 
 export function ChannelHeader() {
@@ -25,9 +25,19 @@ export function ChannelHeader() {
   const headerMembers = useStore(s => s.channelHeaderMembersText);
   const currentChannel = useStore(s => s.currentChannel);
   const isDM = useStore(s => s.channelIsDM);
+  const archived = useStore(s => s.channelArchived);
 
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [menuItems, setMenuItems] = useState<ContextMenuItem[]>([]);
+
+  const setAddMemberOverlayVisible = useStore(s => s.setAddMemberOverlayVisible);
+  const setAddMemberTargetChannel = useStore(s => s.setAddMemberTargetChannel);
+
+  const handleAddMember = useCallback(() => {
+    if (!currentChannel) return;
+    setAddMemberTargetChannel(currentChannel);
+    setAddMemberOverlayVisible(true);
+  }, [currentChannel, setAddMemberOverlayVisible, setAddMemberTargetChannel]);
 
   const handleInfoToggle = useCallback(() => {
     toggleJianSidebar();
@@ -37,6 +47,10 @@ export function ChannelHeader() {
     if (!currentChannel) return;
     const rect = e.currentTarget.getBoundingClientRect();
     setMenuItems([
+      ...(!archived ? [{
+        label: t('channel.archiveChannel'),
+        action: () => confirmArchiveChannel(currentChannel),
+      } as ContextMenuItem, { divider: true } as ContextMenuItem] : []),
       {
         label: t('channel.deleteChannel'),
         danger: true,
@@ -44,7 +58,7 @@ export function ChannelHeader() {
       },
     ]);
     setMenuPos({ x: rect.left, y: rect.bottom + 4 });
-  }, [currentChannel, t]);
+  }, [archived, currentChannel, t]);
 
   const handleCloseMenu = useCallback(() => {
     setMenuPos(null);
@@ -57,6 +71,20 @@ export function ChannelHeader() {
         <span className={styles.channelHeaderMembers}>{headerMembers}</span>
       </div>
       <div className={styles.channelHeaderActions}>
+        {currentChannel && !isDM && !archived && (
+          <button
+            className={styles.channelHeaderActionBtn}
+            title={t('channel.addMember')}
+            onClick={handleAddMember}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+          </button>
+        )}
         {currentChannel && (
           <button
             className={styles.channelHeaderActionBtn}

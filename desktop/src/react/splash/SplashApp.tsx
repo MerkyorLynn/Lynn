@@ -9,9 +9,9 @@ import { useState, useEffect, useRef } from 'react';
 
 const DEFAULT_NAME = 'Lynn';
 const YUAN_AVATARS: Record<string, string> = {
-  hanako: 'Hanako.png',
-  butter: 'Butter.png',
-  ming: 'Ming.png',
+  hanako: 'Hanako-1600.jpg',
+  butter: 'Butter-1600.jpg',
+  ming: 'Ming-512-opt.png',
 };
 const YUAN_SYMBOLS: Record<string, string> = {
   hanako: '\u273F',  // ✿
@@ -25,7 +25,7 @@ const YUAN_COLORS: Record<string, string> = {
 };
 
 export function SplashApp() {
-  const [avatarSrc, setAvatarSrc] = useState('assets/Lynn.png');
+  const [avatarSrc, setAvatarSrc] = useState('assets/Lynn-512-opt.png');
   const [text, setText] = useState('');
   const [switching, setSwitching] = useState(false);
   const [symbol, setSymbol] = useState(YUAN_SYMBOLS.hanako);
@@ -51,7 +51,7 @@ export function SplashApp() {
         if (avatarPath) {
           setAvatarSrc(`file://${avatarPath}?t=${Date.now()}`);
         } else if (splashInfo?.yuan) {
-          setAvatarSrc(`assets/${YUAN_AVATARS[splashInfo.yuan] || 'Lynn.png'}`);
+          setAvatarSrc(`assets/${YUAN_AVATARS[splashInfo.yuan] || 'Lynn-512-opt.png'}`);
         }
 
         if (splashInfo?.agentName) name = splashInfo.agentName;

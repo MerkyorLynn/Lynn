@@ -57,7 +57,7 @@ function isNewerVersion(latest, current) {
 // ══════════════════════════════════════
 // GitHub API 检测（所有平台共用）
 // ══════════════════════════════════════
-const GITHUB_RELEASES_URL = "https://api.github.com/repos/liliMozi/openhanako/releases";
+const GITHUB_RELEASES_URL = "https://api.github.com/repos/MerkyorLynn/Lynn/releases";
 
 /** 根据平台选择对应的安装包后缀 */
 function getAssetExt() {

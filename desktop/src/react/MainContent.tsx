@@ -29,7 +29,7 @@ async function handleDrop(e: React.DragEvent): Promise<void> {
   let srcPaths: string[] = [];
   const nameMap: Record<string, string> = {};
   for (const file of Array.from(files)) {
-    const filePath = window.platform?.getFilePath?.(file);
+    const filePath = await window.platform?.getFilePath?.(file);
     if (filePath) {
       srcPaths.push(filePath);
       nameMap[filePath] = file.name;

@@ -3,6 +3,7 @@ import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { switchToAgent, loadSettingsConfig, loadAgents } from '../actions';
+import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import styles from '../Settings.module.css';
 
 const platform = window.platform;
@@ -28,11 +29,8 @@ export function AgentDeleteOverlay() {
     return () => window.removeEventListener('hana-show-agent-delete', handler);
   }, []);
 
-  useEffect(() => {
-    if (step === 2) requestAnimationFrame(() => inputRef.current?.focus());
-  }, [step]);
-
   const close = () => setVisible(false);
+  const dialogRef = useDialogA11y({ open: visible, onClose: close, initialFocusRef: step === 2 ? inputRef : undefined });
 
   const confirmDelete = async () => {
     if (!target || nameInput.trim() !== target.name) return;
@@ -60,10 +58,17 @@ export function AgentDeleteOverlay() {
 
   return (
     <div className={`${styles['agent-delete-overlay']} ${styles['visible']}`} onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className={styles['agent-delete-card']}>
+      <div
+        ref={dialogRef}
+        className={styles['agent-delete-card']}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-delete-title"
+        tabIndex={-1}
+      >
         {step === 1 ? (
           <div className={styles['agent-delete-step']}>
-            <h3 className={styles['agent-delete-title']}>{t('settings.agent.deleteTitle1', { name: target.name })}</h3>
+            <h3 id="agent-delete-title" className={styles['agent-delete-title']}>{t('settings.agent.deleteTitle1', { name: target.name })}</h3>
             <p className={styles['agent-delete-desc']}>{t('settings.agent.deleteDesc1')}</p>
             <div className={styles['agent-delete-actions']}>
               <button className={styles['agent-delete-cancel']} onClick={close}>{t('settings.agent.deleteCancel')}</button>
@@ -72,7 +77,7 @@ export function AgentDeleteOverlay() {
           </div>
         ) : (
           <div className={styles['agent-delete-step']}>
-            <h3 className={styles['agent-delete-title']}>{t('settings.agent.deleteTitle2', { name: target.name })}</h3>
+            <h3 id="agent-delete-title" className={styles['agent-delete-title']}>{t('settings.agent.deleteTitle2', { name: target.name })}</h3>
             <div className={styles['settings-field']}>
               <input
                 ref={inputRef}
@@ -84,7 +89,6 @@ export function AgentDeleteOverlay() {
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); confirmDelete(); }
-                  if (e.key === 'Escape') close();
                 }}
               />
             </div>

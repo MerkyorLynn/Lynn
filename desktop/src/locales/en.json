@@ -4,7 +4,7 @@
     "chatTab": "Chat",
     "empty": "No channels yet ✿",
     "dmLabel": "Messages",
-    "dmHint": "Primary Agent Only",
+    "dmHint": "Only real internal DMs with messages are shown",
     "groupLabel": "Channels",
     "noMessages": "No messages yet",
     "selectHint": "Select a channel or DM to start",
@@ -18,6 +18,10 @@
     "createName": "Channel name",
     "createNamePlaceholder": "e.g. design-team",
     "createMembers": "Members",
+    "createBaseAgent": "Current assistant included",
+    "createSelectAdvisors": "Select advisors to add",
+    "createNeedAssistant": "No assistant is available to create a channel",
+    "createNeedAdvisor": "Select at least one advisor",
     "createIntro": "Description",
     "createIntroPlaceholder": "Describe what this channel is for...",
     "createCancel": "Cancel",
@@ -27,10 +31,36 @@
     "created": "Channel #{name} created ✿",
     "createFailed": "Create failed",
     "alreadyExists": "Channel already exists",
+    "archiveChannel": "Archive channel",
+    "archiveAction": "Archive",
+    "archiveConfirm": "Archive channel \"{name}\"? It will become read-only, but the full history will be kept.",
+    "archived": "Channel archived",
+    "archiveFailed": "Archive failed",
+    "archivedLabel": "Archived",
+    "archivedBadge": "Archived",
+    "archivedStatus": "Archived",
+    "archivedReadOnly": "🔒 Archived channels are read-only",
     "deleteChannel": "Delete channel",
     "deleteConfirm": "Delete channel \"{name}\"? Message history cannot be recovered.",
     "deleted": "Channel deleted",
     "deleteFailed": "Delete failed",
+    "addMember": "Add member",
+    "addMemberTitle": "Add Members",
+    "addMemberAgents": "Existing Agents",
+    "addMemberExperts": "Expert Presets",
+    "addMemberConfirm": "Add",
+    "addMemberFailed": "Add failed",
+    "addMemberNone": "All agents are already in this channel",
+    "memberAdded": "Member added",
+    "expertSelectHint": "Choose an expert, pick a model, then confirm to add them",
+    "expertConfigTitle": "Expert to add",
+    "expertSelected": "Selected",
+    "expertModelAuto": "Default (recommended / current available)",
+    "expertRecommendedModel": "Recommended model",
+    "expertModelFallback": "If not specified, the recommended or current available model will be used",
+    "expertAdding": "Working...",
+    "expertCreating": "Creating...",
+    "expertCreateChannel": "Create a channel with them",
     "warningTitle": "About Channels",
     "warningBody": "I believe letting assistants with different memories and thinking styles interact can spark more inspiration, so I built a place where agents can talk to each other, even when you're away.\n\nPlease note that channels are experimental and may cause:\n1. Higher token usage\n2. Unexpected responses\n3. Memory confusion\n\nUse with caution",
     "warningConfirm": "I understand, enable channels",
@@ -44,6 +74,7 @@
       "channelTemplates": "Channel Templates (Uses Existing Agents)",
       "spawnSuccess": "Expert created",
       "spawnFailed": "Failed to create expert",
+      "modelGuide": "💡 Experts run on your configured model. Recommended models are shown on cards — configure the corresponding API Key in Settings → Models for best results.",
       "tpl": {
         "codeReview": {
           "label": "Code Review Team",
@@ -66,6 +97,11 @@
     "toggleLabel": "Channel toggle",
     "members": "Members",
     "createIntroOptional": "Description"
+  },
+  "expert": {
+    "yuanStyle": "Thinking style",
+    "recommendedModel": "Recommended model (configure API Key in Settings)",
+    "modelTip": "Currently uses your default model. Configure the recommended model's API Key for best results."
   },
   "sidebar": {
     "title": "Chats",
@@ -116,7 +152,8 @@
     "stop": "Stop",
     "browserScreenshot": "Browser screenshot",
     "compacting": "Compacting context",
-    "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar."
+    "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
+    "retry": "Retry"
   },
   "time": {
     "justNow": "Just now",
@@ -147,6 +184,13 @@
     "deskContext": "With desk context",
     "pastedImage": "Pasted image",
     "docContext": "With document",
+    "embeddedModel": {
+      "name": "Default model",
+      "meta": "Ready to chat",
+      "upgrade": "Boost quality",
+      "hint": "Add your own model",
+      "upgradeTitle": "Open provider settings"
+    },
     "thinkingLevel": {
       "off": "off",
       "auto": "auto",
@@ -160,7 +204,20 @@
       "xhigh": "full reasoning"
     },
     "contextWindow": "Context {windowK}k",
-    "tokensUsed": "Used {tokensK}k ({pct}%)"
+    "tokensUsed": "Used {tokensK}k ({pct}%)",
+    "contextOverview": "Context included this time",
+    "contextOverviewSubtitle": "Quick check before send so the prompt carries exactly what you expect.",
+    "contextMode": "Mode",
+    "contextModel": "Model",
+    "contextText": "Prompt",
+    "contextTextValue": "{count} chars",
+    "contextQuote": "Quoted selection",
+    "contextDoc": "Reference doc",
+    "contextFiles": "Attachments",
+    "contextImages": "Images",
+    "contextHeldBack": "Kept in draft",
+    "modeSend": "Send",
+    "modeSteer": "Steer"
   },
   "slash": {
     "diary": "Write today's diary",
@@ -181,7 +238,22 @@
     ],
     "memoryOn": "Memory",
     "memoryOff": "Memory not used for this chat",
-    "agentSelector": "Choose agent"
+    "agentSelector": "Choose agent",
+    "focusHint": "Press Cmd/Ctrl + K to start typing",
+    "quickActions": {
+      "askFolder": {
+        "label": "Inspect this project",
+        "prompt": "Quickly inspect the current workspace and tell me what this project is and what is most worth doing first."
+      },
+      "summarizeWork": {
+        "label": "Summarize these files",
+        "prompt": "Read the key files in the current workspace and give me a short summary: what this project does, where it stands, and what to do next."
+      },
+      "planToday": {
+        "label": "Make today's plan",
+        "prompt": "Based on the current workspace, give me a practical 3-step plan for today in priority order."
+      }
+    }
   },
   "drop": {
     "hint": "Drop to send files to {name}"
@@ -228,7 +300,8 @@
     "types": {
       "hanako": {
         "label": "Balanced assistant",
-        "avatar": "Hanako.png"
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       },
       "butter": {
         "label": "More expressive",
@@ -614,7 +687,9 @@
       "addCustom": "Add Custom Provider",
       "noKey": "Not configured",
       "remove": "Remove",
-      "deleteConfirm": "Delete provider {name}? Associated models will be removed."
+      "deleteConfirm": "Delete provider {name}? Associated models will be removed.",
+      "apiResponses": "OpenAI Responses",
+      "apiCodex": "ChatGPT Codex (Plus/Pro)"
     },
     "oauth": {
       "title": "Quick Login",
@@ -794,6 +869,7 @@
       "add": "Add Skill",
       "delete": "Delete",
       "deleteConfirm": "Delete skill \"{name}\"?",
+      "externalPathRemoveConfirm": "Remove this external skills path?\n{path}",
       "installSuccess": "Skill \"{name}\" installed",
       "installError": "Install failed",
       "enabled": "Enabled",
@@ -919,15 +995,24 @@
   "onboarding": {
     "welcome": {
       "title": "Hi, I'm {name} ✿",
-      "subtitle": "I'm your personal AI assistant.\nLet's do some quick setup to get started.",
-      "next": "Get Started"
+      "subtitle": "I'm your personal AI assistant.\nPick how you want to start, then we'll head straight into the app.",
+      "next": "Get Started",
+      "quickTitle": "Use it right away",
+      "quickDesc": "Keep only the minimum steps.\nName is optional now; model and theme can wait.",
+      "quickAction": "Enter Quick Start",
+      "advancedTitle": "Configure everything now",
+      "advancedDesc": "If you already know your provider and model,\nset up connection, model, and theme in one pass.",
+      "advancedAction": "Enter Advanced Setup"
     },
     "name": {
       "title": "What should I call you?",
       "subtitle": "This makes our conversations more natural",
+      "quickSubtitle": "You can fill it in now, or change it later in Settings",
       "placeholder": "Enter your name",
+      "quickHint": "Leaving it blank is fine — just get inside first.",
       "back": "Back",
-      "next": "Next"
+      "next": "Next",
+      "quickNext": "Continue Quick Start"
     },
     "provider": {
       "title": "Choose an AI Provider",
@@ -968,6 +1053,9 @@
     },
     "tutorial": {
       "title": "All Set ✿",
+      "quickTitle": "Quick Start is ready ✿",
+      "quickBannerTitle": "You're good to start chatting now",
+      "quickBannerDesc": "Provider, model, and theme can wait.\nYou can finish them later in Settings after you’ve already started using Lynn.",
       "memory": {
         "title": "Memory",
         "desc": "I remember key points from your conversations. Older, less-referenced memories fade naturally, just like ours."
@@ -984,7 +1072,8 @@
         "title": "Jian",
         "desc": "Drop a jian.md in any folder with your instructions.\nI'll pick it up during patrol and execute automatically."
       },
-      "finish": "Let's Go"
+      "finish": "Let's Go",
+      "quickFinish": "Enter Lynn now"
     }
   },
   "activity": {
@@ -1546,6 +1635,8 @@
       "frontendOnly": "client-side only",
       "sandbox": "Sandbox Security",
       "sandboxDesc": "Restrict file system write scope",
+      "securityMode": "Security Mode",
+      "securityModeDesc": "Three-mode security policy (Authorized/Plan/Safe)",
       "locale": "Language",
       "timezone": "Timezone",
       "timezoneDesc": "IANA timezone (e.g. Asia/Shanghai)",
@@ -1633,7 +1724,45 @@
     "opRead": "Read",
     "opWrite": "Write",
     "opDelete": "Delete",
-    "denied": "{op} denied: {path} (access level: {level})"
+    "denied": "{op} denied: {path} (access level: {level})",
+    "authDesc": {
+      "sudo": "Run command with admin privileges — typically used for installing software or modifying system settings",
+      "su": "Switch to another user identity — gain different user's permissions",
+      "chmod": "Change file/directory permissions — control who can read, write, or execute these files",
+      "chown": "Change file ownership — transfer file ownership to another user",
+      "delRecursive": "Recursively delete files — will delete all files in the specified directory",
+      "rmdirRecursive": "Recursively remove directory — will remove the entire directory tree, irreversible",
+      "regEdit": "Modify Windows Registry — affects system and application configuration",
+      "takeown": "Take file ownership — gain full control over the file",
+      "icacls": "Modify file ACL — change file security permissions",
+      "netUser": "Manage system users/groups — create, delete, or modify user accounts",
+      "schtasks": "Create scheduled task — set up programs to run automatically on a schedule",
+      "scService": "Manage system services — create or delete Windows services",
+      "psBypass": "Bypass PowerShell execution policy — allow running unsigned scripts",
+      "format": "Format disk — will erase ALL data on the disk, irreversible",
+      "bcdedit": "Modify boot configuration — change how the system starts",
+      "wmic": "Execute WMI management command — access and modify system management information",
+      "pathOp": "{op} path {path} — this path is in a protected area"
+    }
+  },
+  "security": {
+    "mode": {
+      "authorized": "Authorized",
+      "authorizedDesc": "Dangerous ops need confirmation",
+      "plan": "Plan",
+      "planDesc": "Analyze only, no execution",
+      "safe": "Safe",
+      "safeDesc": "Strict sandbox, blocked directly"
+    },
+    "auth": {
+      "title": "Authorization Required",
+      "commandLabel": "About to execute:",
+      "allow": "Allow",
+      "reject": "Reject",
+      "allowed": "Authorized",
+      "rejected": "Rejected",
+      "alwaysAllow": "Always allow this type of operation"
+    }
   },
   "error.llmTimeout": "Model request timed out",
   "error.llmRateLimited": "Model rate limited, please wait",
@@ -1660,8 +1789,9 @@
   "status.disconnected": "Connection lost",
   "status.reconnect": "Reconnect",
   "action.retry": "Retry",
-  "agentDiscovery.title": "Other AI Agents Found",
-  "agentDiscovery.body": "We found skill libraries from other AI tools on your machine:",
-  "agentDiscovery.enable": "Enable All",
+  "agentDiscovery.title": "AI Tools Detected",
+  "agentDiscovery.body": "Found installed AI tools on your device:",
+  "agentDiscovery.benefit": "Once enabled, Lynn can reuse their skill libraries to boost capabilities — no extra setup needed.",
+  "agentDiscovery.enable": "Enable",
   "agentDiscovery.later": "Later"
 }

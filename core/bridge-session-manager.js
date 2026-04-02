@@ -16,6 +16,11 @@ import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { t, getLocale } from "../server/i18n.js";
 import { safeReadJSON } from "../shared/safe-fs.js";
 import { findModel } from "../shared/model-ref.js";
+import {
+  buildClientAgentHeaders,
+  buildClientAgentMetadata,
+  readClientAgentKeyFromPreferencesFile,
+} from "./client-agent-identity.js";
 
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
@@ -174,7 +179,10 @@ export class BridgeSessionManager {
         const prefs = this._deps.getPreferences();
         const bridgeReadOnly = !!prefs.bridge?.readOnly;
         const bridgeCwd = homeCwd;
-        const { tools: baseTools, customTools: baseCustomTools } = this._deps.buildTools(bridgeCwd, null, { workspace: homeCwd });
+        const { tools: baseTools, customTools: baseCustomTools } = this._deps.buildTools(bridgeCwd, null, {
+          workspace: homeCwd,
+          getSessionPath: () => mgr?.getSessionFile?.() || null,
+        });
 
         const bridgeTools = bridgeReadOnly
           ? baseTools.filter(t => READ_ONLY_BUILTIN_TOOLS.includes(t.name))
@@ -215,12 +223,17 @@ export class BridgeSessionManager {
         };
       }
 
+      const clientAgentKey = readClientAgentKeyFromPreferencesFile();
+      const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+      const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
       const { session } = await createAgentSession({
         cwd: homeCwd,
         sessionManager: mgr,
         authStorage: mm.authStorage,
         modelRegistry: mm.modelRegistry,
         ...sessionOpts,
+        ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+        ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       });
 
       this._activeSessions.set(sessionKey, session);

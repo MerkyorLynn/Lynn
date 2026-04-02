@@ -1,5 +1,5 @@
 /*
- * Hana Theme: 草香（Grass Aroma）
+ * Lynn Theme: 草香（Grass Aroma）
  * Butter 青草绿系，清晨露水的透亮感
  */
 
@@ -45,6 +45,11 @@
     --user-bg:      rgba(91, 168, 140, 0.08);
     --drop-overlay-bg: rgba(245, 248, 243, 0.85);
     --attach-bg:    rgba(0, 0, 0, 0.04);
+    --tool-shimmer: rgba(255, 255, 255, 0.5);
+    --composer-bg:   #FCFDFB;
+    --composer-text: #1E2C24;
+    --composer-placeholder: #66756D;
+    --composer-focus-border: rgba(91, 168, 140, 0.22);
 
     /* 辅助色 */
     --accent-rgb:   91, 168, 140;

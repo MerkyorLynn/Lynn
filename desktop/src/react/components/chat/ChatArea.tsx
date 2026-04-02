@@ -5,12 +5,13 @@
  * 不用 Virtuoso，不用 Activity，不用快照，不用任何花活。
  */
 
-import { memo, useRef, useEffect, useState, useCallback } from 'react';
-import { useStore, useShallow } from '../../stores';
+import { memo, useRef, useEffect, useState, useMemo } from 'react';
+import { useStore } from '../../stores';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { ApplyCodeDialog } from './ApplyCodeDialog';
 import type { ChatListItem } from '../../stores/chat-types';
+import { findLastAssistantMessageId } from '../../utils/chat-list';
 import styles from './Chat.module.css';
 
 const MAX_ALIVE = 5;
@@ -32,7 +33,6 @@ export function ChatArea() {
   return (
     <>
       <PanelHost />
-      <ScrollToBottomBtn />
       {applyState && (
         <ApplyCodeDialog
           code={applyState.code}
@@ -90,6 +90,7 @@ const _emptyItems: ChatListItem[] = [];
 const Panel = memo(function Panel({ path, active }: { path: string; active: boolean }) {
   const items = useStore(s => s.chatSessions[path]?.items ?? _emptyItems);
   const isSessionStreaming = useStore(s => s.streamingSessions.includes(path));
+  const lastAssistantMessageId = useMemo(() => findLastAssistantMessageId(items), [items]);
   const ref = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
@@ -168,6 +169,7 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
             key={item.type === 'message' ? item.data.id : `c-${i}`}
             item={item}
             prevItem={i > 0 ? items[i - 1] : undefined}
+            lastAssistantMessageId={lastAssistantMessageId}
           />
         ))}
         {isSessionStreaming && (
@@ -181,35 +183,12 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
   );
 });
 
-// ── ScrollToBottom 按钮 ──
-
-let _scrollBtn = { el: null as HTMLElement | null, visible: false, listeners: [] as (() => void)[] };
-
-function ScrollToBottomBtn() {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const update = () => setVisible(_scrollBtn.visible);
-    _scrollBtn.listeners.push(update);
-    return () => { _scrollBtn.listeners = _scrollBtn.listeners.filter(f => f !== update); };
-  }, []);
-
-  if (!visible) return null;
-  return (
-    <button className={styles.scrollToBottomFab} onClick={() => {
-      _scrollBtn.el?.scrollTo({ top: _scrollBtn.el.scrollHeight, behavior: 'smooth' });
-    }}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </button>
-  );
-}
-
 // ── ItemView ──
 
-const ItemView = memo(function ItemView({ item, prevItem }: {
+const ItemView = memo(function ItemView({ item, prevItem, lastAssistantMessageId }: {
   item: ChatListItem;
   prevItem?: ChatListItem;
+  lastAssistantMessageId: string | null;
 }) {
   if (item.type === 'compaction') return null;
   const msg = item.data;
@@ -218,5 +197,5 @@ const ItemView = memo(function ItemView({ item, prevItem }: {
   if (msg.role === 'user') {
     return <UserMessage message={msg} showAvatar={showAvatar} />;
   }
-  return <AssistantMessage message={msg} showAvatar={showAvatar} />;
+  return <AssistantMessage message={msg} showAvatar={showAvatar} isLastAssistant={msg.id === lastAssistantMessageId} />;
 });

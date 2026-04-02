@@ -6,6 +6,7 @@
  * 不按流式到达顺序。
  */
 
+import type { ComposerDraft, QuotedSelection } from './input-slice';
 
 // ── 工具调用 ──
 
@@ -33,6 +34,12 @@ export interface ToolCall {
 
 // ── 用户附件 ──
 
+export interface PromptImage {
+  type: 'image';
+  data: string;
+  mimeType: string;
+}
+
 export interface UserAttachment {
   path: string;
   name: string;
@@ -59,8 +66,9 @@ export type ContentBlock =
   | { type: 'artifact'; artifactId: string; artifactType: string; title: string; content: string; language?: string }
   | { type: 'browser_screenshot'; base64: string; mimeType: string }
   | { type: 'skill'; skillName: string; skillFilePath: string }
-  | { type: 'cron_confirm'; jobData: Record<string, unknown>; status: 'pending' | 'approved' | 'rejected' }
-  | { type: 'settings_confirm'; confirmId: string; settingKey: string; cardType: 'toggle' | 'list' | 'text'; currentValue: string; proposedValue: string; options?: string[]; optionLabels?: Record<string, string>; label: string; description?: string; frontend?: boolean; status: 'pending' | 'confirmed' | 'rejected' | 'timeout' };
+  | { type: 'cron_confirm'; confirmId?: string; jobData: Record<string, unknown>; status: 'pending' | 'approved' | 'rejected' }
+  | { type: 'settings_confirm'; confirmId: string; settingKey: string; cardType: 'toggle' | 'list' | 'text'; currentValue: string; proposedValue: string; options?: string[]; optionLabels?: Record<string, string>; label: string; description?: string; frontend?: boolean; status: 'pending' | 'confirmed' | 'rejected' | 'timeout' }
+  | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; status: 'pending' | 'confirmed' | 'rejected' };
 
 // ── 消息 ──
 
@@ -68,11 +76,16 @@ export interface ChatMessage {
   id: string;              // 服务端返回的稳定 ID（JSONL 行号）
   role: 'user' | 'assistant';
   // User
+  taskMode?: 'prompt' | 'steer';
   text?: string;
   textHtml?: string;
   quotedText?: string;
+  quotedSelection?: QuotedSelection | null;
   attachments?: UserAttachment[];
   deskContext?: DeskContext | null;
+  requestText?: string;
+  requestImages?: PromptImage[];
+  retryDraft?: ComposerDraft | null;
   // Assistant
   blocks?: ContentBlock[];
   // 通用

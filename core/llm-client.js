@@ -1,5 +1,19 @@
 import { AppError } from '../shared/errors.js';
 import { errorBus } from '../shared/error-bus.js';
+import {
+  buildClientAgentHeaders,
+  readClientAgentKeyFromPreferencesFile,
+} from './client-agent-identity.js';
+
+const ZAI_PROVIDER_IDS = new Set(["zhipu", "glm", "glm-5", "zai", "z-ai"]);
+
+function shouldDisableZaiThinking({ api, provider, baseUrl }) {
+  if (api !== "openai-completions") return false;
+  const normalizedProvider = String(provider || "").toLowerCase();
+  if (ZAI_PROVIDER_IDS.has(normalizedProvider)) return true;
+  const normalizedBaseUrl = String(baseUrl || "").toLowerCase();
+  return normalizedBaseUrl.includes("open.bigmodel.cn") || normalizedBaseUrl.includes("api.z.ai");
+}
 
 /**
  * core/llm-client.js — 统一的非流式 LLM 调用入口
@@ -30,6 +44,7 @@ import { errorBus } from '../shared/error-bus.js';
  * @param {number} [opts.maxTokens]    最大输出 token (default 512)
  * @param {number} [opts.timeoutMs]    超时毫秒 (default 60000)
  * @param {AbortSignal} [opts.signal]  外部取消信号
+ * @param {Record<string, string>} [opts.requestHeaders] 额外请求头
  * @returns {Promise<string>} 生成的文本
  */
 export async function callText({
@@ -45,6 +60,7 @@ export async function callText({
   maxTokens = 512,
   timeoutMs = 60_000,
   signal,
+  requestHeaders = null,
 }) {
   // ── 1. 消息归一化：提取 system 消息合并到 systemPrompt ──
   let mergedSystem = systemPrompt || "";
@@ -68,6 +84,11 @@ export async function callText({
     ? AbortSignal.any([signal, timeoutSignal])
     : timeoutSignal;
 
+  const clientAgentHeaders = {
+    ...buildClientAgentHeaders(readClientAgentKeyFromPreferencesFile()),
+    ...(requestHeaders || {}),
+  };
+
   // ── 3. 按协议构造请求 ──
   const base = (baseUrl || "").replace(/\/+$/, "");
   let endpoint, headers, body;
@@ -75,7 +96,11 @@ export async function callText({
   if (api === "anthropic-messages") {
     // Anthropic Messages API：baseUrl + /v1/messages（和 Pi SDK Anthropic provider 一致）
     endpoint = `${base}/v1/messages`;
-    headers = { "Content-Type": "application/json", "anthropic-version": "2023-06-01" };
+    headers = {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      ...clientAgentHeaders,
+    };
     if (apiKey) headers["x-api-key"] = apiKey;
 
     // Anthropic 格式：system 和 messages 分离
@@ -89,7 +114,7 @@ export async function callText({
   } else if (api === "openai-responses" || api === "openai-codex-responses") {
     // OpenAI Responses API
     endpoint = `${base}/responses`;
-    headers = { "Content-Type": "application/json" };
+    headers = { "Content-Type": "application/json", ...clientAgentHeaders };
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
     body = {
       model, temperature, max_output_tokens: maxTokens,
@@ -99,7 +124,7 @@ export async function callText({
   } else {
     // OpenAI Completions API（默认）：baseUrl + /chat/completions
     endpoint = `${base}/chat/completions`;
-    headers = { "Content-Type": "application/json" };
+    headers = { "Content-Type": "application/json", ...clientAgentHeaders };
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
 
     const allMessages = [];
@@ -109,6 +134,7 @@ export async function callText({
       model, temperature, max_tokens: maxTokens,
       messages: allMessages,
       ...(quirks.includes("enable_thinking") && { enable_thinking: false }),
+      ...(shouldDisableZaiThinking({ api, provider, baseUrl: base }) && { thinking: { type: "disabled" } }),
     };
   }
 

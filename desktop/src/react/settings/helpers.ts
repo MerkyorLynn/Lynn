@@ -161,10 +161,10 @@ export const PROVIDER_PRESETS = [
 ];
 
 export const API_FORMAT_OPTIONS = [
-  { value: 'openai-completions', label: 'OpenAI Compatible' },
-  { value: 'anthropic-messages', label: 'Anthropic Messages' },
-  { value: 'openai-responses', label: 'OpenAI Responses' },
-  { value: 'openai-codex-responses', label: 'ChatGPT Codex (Plus/Pro)' },
+  { value: 'openai-completions', label: t('onboarding.provider.apiOpenai') || 'OpenAI Compatible' },
+  { value: 'anthropic-messages', label: t('onboarding.provider.apiAnthropic') || 'Anthropic Messages' },
+  { value: 'openai-responses', label: t('settings.providers.apiResponses') || 'OpenAI Responses' },
+  { value: 'openai-codex-responses', label: t('settings.providers.apiCodex') || 'ChatGPT Codex (Plus/Pro)' },
 ];
 
 export const CONTEXT_PRESETS = [

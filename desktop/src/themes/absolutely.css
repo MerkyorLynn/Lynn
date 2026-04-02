@@ -1,5 +1,5 @@
 /*
- * Hana Theme: Absolutely
+ * Lynn Theme: Absolutely
  * Claude Desktop 配色致敬 — 暖奶油底 + 哑光赤陶 accent
  */
 
@@ -45,6 +45,7 @@
     --user-bg:      rgba(0, 0, 0, 0.035);
     --drop-overlay-bg: rgba(244, 243, 238, 0.85);
     --attach-bg:    rgba(0, 0, 0, 0.04);
+    --tool-shimmer: rgba(255, 255, 255, 0.5);
 
     /* 辅助色 */
     --accent-rgb:   181, 132, 110;

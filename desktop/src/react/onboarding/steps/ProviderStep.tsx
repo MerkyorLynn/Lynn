@@ -6,7 +6,7 @@ import { useState, useCallback } from 'react';
 import { PROVIDER_PRESETS } from '../constants';
 import type { ProviderPreset } from '../constants';
 import { testConnection, saveProvider as saveProviderAction } from '../onboarding-actions';
-import type { HanaFetch } from '../onboarding-actions';
+import type { OnboardingFetch } from '../onboarding-actions';
 import { StepContainer, Multiline } from '../onboarding-ui';
 
 // ── SVG Icons (local to this step) ──
@@ -27,14 +27,14 @@ const EyeOffIcon = () => (
 
 interface ProviderStepProps {
   preview: boolean;
-  hanaFetch: HanaFetch;
+  onboardingFetch: OnboardingFetch;
   goToStep: (index: number) => void;
   showError: (msg: string) => void;
   onProviderReady: (providerName: string, providerUrl: string, providerApi: string, apiKey: string) => void;
 }
 
 export function ProviderStep({
-  preview, hanaFetch, goToStep, showError, onProviderReady,
+  preview, onboardingFetch, goToStep, showError, onProviderReady,
 }: ProviderStepProps) {
   // ── Provider state ──
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function ProviderStep({
     }
     setTestStatus({ type: 'loading', text: t('onboarding.provider.testing') });
     try {
-      const result = await testConnection({ hanaFetch, providerUrl, providerApi, apiKey });
+      const result = await testConnection({ onboardingFetch, providerUrl, providerApi, apiKey });
       if (result.ok) {
         setTestStatus({ type: 'success', text: result.text });
         setConnectionTested(true);
@@ -125,21 +125,21 @@ export function ProviderStep({
       setTestStatus({ type: 'error', text: msg });
       setConnectionTested(false);
     }
-  }, [preview, hanaFetch, providerUrl, providerApi, apiKey]);
+  }, [preview, onboardingFetch, providerUrl, providerApi, apiKey]);
 
   // ── Next ──
   const onNext = useCallback(async () => {
     if (preview) { goToStep(3); return; }
     if (!connectionTested) return;
     try {
-      await saveProviderAction({ hanaFetch, providerName, providerUrl, apiKey, providerApi });
+      await saveProviderAction({ onboardingFetch, providerName, providerUrl, apiKey, providerApi });
       onProviderReady(providerName, providerUrl, providerApi, apiKey);
       goToStep(3);
     } catch (err) {
       console.error('[onboarding] save provider failed:', err);
       showError(t('onboarding.provider.testFailed'));
     }
-  }, [preview, connectionTested, hanaFetch, providerName, providerUrl, apiKey, providerApi, goToStep, showError, onProviderReady]);
+  }, [preview, connectionTested, onboardingFetch, providerName, providerUrl, apiKey, providerApi, goToStep, showError, onProviderReady]);
 
   return (
     <StepContainer>

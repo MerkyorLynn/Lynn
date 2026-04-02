@@ -4,6 +4,7 @@ import { t, autoSaveConfig } from '../../helpers';
 import { Toggle } from '../../widgets/Toggle';
 import { loadSettingsConfig } from '../../actions';
 import { SkillRow } from './SkillRow';
+import { useDialogA11y } from '../../../hooks/use-dialog-a11y';
 import styles from '../../Settings.module.css';
 
 interface LearnConfig {
@@ -51,6 +52,15 @@ export function SkillCapabilities({
     await loadSettingsConfig();
   };
 
+  const githubDialogRef = useDialogA11y({
+    open: showGithubWarning,
+    onClose: () => setShowGithubWarning(false),
+  });
+  const safetyDialogRef = useDialogA11y({
+    open: showSafetyWarning,
+    onClose: () => setShowSafetyWarning(false),
+  });
+
   return (
     <>
       <section className={styles['settings-section']}>
@@ -79,35 +89,27 @@ export function SkillCapabilities({
             <Toggle
               on={learnEnabled}
               onChange={async (on) => {
-                if (!on && githubEnabled) {
-                  await autoSaveConfig(
-                    { capabilities: { learn_skills: { enabled: false, allow_github_fetch: false } } },
-                    { silent: true },
-                  );
-                } else {
-                  await autoSaveConfig(
-                    { capabilities: { learn_skills: { enabled: on } } },
-                    { silent: true },
-                  );
-                }
+                await autoSaveConfig(
+                  { capabilities: { learn_skills: { enabled: on } } },
+                  { silent: true },
+                );
                 await loadSettingsConfig();
               }}
             />
           </div>
+
           {learnEnabled && (
-            <div className={`${styles['tool-caps-item']} ${styles['tool-caps-sub']}`}>
+            <div className={styles['tool-caps-item']}>
               <div className={styles['tool-caps-label']}>
-                <span className={styles['tool-caps-name']}>{t('settings.skills.fetchRemote')}</span>
-                <span className={`${styles['tool-caps-desc']} ${styles['warn']}`}>{t('settings.skills.fetchRemoteDesc')}</span>
+                <span className={styles['tool-caps-name']}>{t('settings.skills.fetchGithub')}</span>
+                <span className={styles['tool-caps-desc']}>{t('settings.skills.fetchGithubDesc')}</span>
               </div>
-              <Toggle
-                on={githubEnabled}
-                onChange={handleGithubToggle}
-              />
+              <Toggle on={githubEnabled} onChange={handleGithubToggle} />
             </div>
           )}
-          {learnEnabled && (
-            <div className={`${styles['tool-caps-item']} ${styles['tool-caps-sub']}`}>
+
+          {learnEnabled && githubEnabled && (
+            <div className={styles['tool-caps-item']}>
               <div className={styles['tool-caps-label']}>
                 <span className={styles['tool-caps-name']}>{t('settings.skills.safetyReview')}</span>
                 <span className={styles['tool-caps-desc']}>{t('settings.skills.safetyReviewDesc')}</span>
@@ -134,8 +136,16 @@ export function SkillCapabilities({
 
       {showGithubWarning && (
         <div className="hana-warning-overlay" onClick={() => setShowGithubWarning(false)}>
-          <div className="hana-warning-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="hana-warning-title">{t('settings.skills.fetchWarning.title')}</h3>
+          <div
+            ref={githubDialogRef}
+            className="hana-warning-box"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="skills-github-warning-title"
+            tabIndex={-1}
+          >
+            <h3 id="skills-github-warning-title" className="hana-warning-title">{t('settings.skills.fetchWarning.title')}</h3>
             <div className="hana-warning-body">
               <p>{t('settings.skills.fetchWarning.body1')}</p>
               <p>{t('settings.skills.fetchWarning.body2')}</p>
@@ -159,8 +169,16 @@ export function SkillCapabilities({
 
       {showSafetyWarning && (
         <div className="hana-warning-overlay" onClick={() => setShowSafetyWarning(false)}>
-          <div className="hana-warning-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="hana-warning-title">{t('settings.skills.safetyWarning.title')}</h3>
+          <div
+            ref={safetyDialogRef}
+            className="hana-warning-box"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="skills-safety-warning-title"
+            tabIndex={-1}
+          >
+            <h3 id="skills-safety-warning-title" className="hana-warning-title">{t('settings.skills.safetyWarning.title')}</h3>
             <div className="hana-warning-body">
               <p>{t('settings.skills.safetyWarning.body1')}</p>
               <p>

@@ -4,40 +4,112 @@
  * Electron 环境下这些操作走 IPC（preload.cjs），
  * Web / 云部署环境下前端通过这些 HTTP 端点读取文件。
  *
- * 安全：路径限定在 ~/.lynn/ 和 desk 工作空间内。
+ * 安全：路径限定在受信任的 Lynn/工作区/技能目录内。
  */
 
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { Hono } from "hono";
 import { safeReadFile } from "../../shared/safe-fs.js";
 
-/** 安全路径校验：resolved 必须在 allowedRoots 之一内部 */
+function resolveCanonicalPath(rawPath) {
+  if (typeof rawPath !== "string") return null;
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes("\0")) return null;
+
+  const absolute = path.resolve(trimmed);
+  try {
+    return fs.realpathSync(absolute);
+  } catch (err) {
+    if (err?.code !== "ENOENT") return null;
+
+    const pending = [];
+    let current = absolute;
+    while (true) {
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      pending.unshift(path.basename(current));
+      try {
+        const realParent = fs.realpathSync(parent);
+        return path.join(realParent, ...pending);
+      } catch (parentErr) {
+        if (parentErr?.code !== "ENOENT") return null;
+        current = parent;
+      }
+    }
+  }
+}
+
+function isInsideRoot(targetPath, rootPath) {
+  return targetPath === rootPath || targetPath.startsWith(rootPath + path.sep);
+}
+
+function uniqueCanonicalPaths(paths) {
+  const out = [];
+  const seen = new Set();
+  for (const entry of paths) {
+    const canonical = resolveCanonicalPath(entry);
+    if (!canonical || seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push(canonical);
+  }
+  return out;
+}
+
+function getWorkspaceRoots(engine) {
+  const config = engine.config || {};
+  const prefs = engine.getPreferences?.() || {};
+  const history = Array.isArray(config.cwd_history) ? config.cwd_history : [];
+  return uniqueCanonicalPaths([
+    engine.homeCwd,
+    prefs.home_folder,
+    config.last_cwd,
+    ...history,
+  ]);
+}
+
+function getAllowedRoots(engine, mode) {
+  const workspaceRoots = getWorkspaceRoots(engine);
+  const uploadsRoots = workspaceRoots.map(root => path.join(root, ".lynn-uploads"));
+
+  if (mode === "write") {
+    return uniqueCanonicalPaths([
+      ...workspaceRoots,
+      ...uploadsRoots,
+      path.join(os.tmpdir(), ".lynn-uploads"),
+    ]);
+  }
+
+  const externalSkillPaths = Array.isArray(engine.getPreferences?.()?.external_skill_paths)
+    ? engine.getPreferences().external_skill_paths
+    : [];
+
+  return uniqueCanonicalPaths([
+    engine.lynnHome,
+    engine.skillsDir,
+    engine.agent?.deskManager?.deskDir,
+    engine.learnedSkillsDir,
+    ...workspaceRoots,
+    ...uploadsRoots,
+    path.join(os.tmpdir(), ".lynn-uploads"),
+    ...externalSkillPaths,
+  ]);
+}
+
 function isSafePath(filePath, allowedRoots) {
-  const resolved = path.resolve(filePath);
-  return allowedRoots.some(
-    (root) => resolved === root || resolved.startsWith(root + path.sep)
-  );
+  const resolved = resolveCanonicalPath(filePath);
+  if (!resolved) return false;
+  return allowedRoots.some(root => isInsideRoot(resolved, root));
 }
 
 export function createFsRoute(engine) {
   const route = new Hono();
-  const lynnHome = path.resolve(engine.lynnHome);
 
-  // 收集允许的根目录
-  function getAllowedRoots() {
-    const roots = [lynnHome];
-    // desk 工作空间目录（用户可能配在 ~/.lynn 外面）
-    const deskHome = engine.agent?.deskManager?.homePath;
-    if (deskHome) roots.push(path.resolve(deskHome));
-    return roots;
-  }
-
-  // GET /fs/read?path=... → UTF-8 文本
   route.get("/fs/read", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots())) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
       return c.json({ error: "path not allowed" }, 403);
     }
     const content = safeReadFile(filePath, null);
@@ -45,11 +117,10 @@ export function createFsRoute(engine) {
     return c.text(content);
   });
 
-  // GET /fs/read-base64?path=... → base64 编码
   route.get("/fs/read-base64", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots())) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
       return c.json({ error: "path not allowed" }, 403);
     }
     try {
@@ -60,11 +131,10 @@ export function createFsRoute(engine) {
     }
   });
 
-  // GET /fs/docx-html?path=... → mammoth 转 HTML
   route.get("/fs/docx-html", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots())) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
       return c.json({ error: "path not allowed" }, 403);
     }
     try {
@@ -80,7 +150,6 @@ export function createFsRoute(engine) {
     }
   });
 
-  // POST /fs/apply — 将代码内容写入指定文件
   route.post("/fs/apply", async (c) => {
     try {
       const body = await c.req.json();
@@ -88,10 +157,9 @@ export function createFsRoute(engine) {
       if (!filePath || typeof content !== "string") {
         return c.json({ error: "missing filePath or content" }, 400);
       }
-      if (!isSafePath(filePath, getAllowedRoots())) {
+      if (!isSafePath(filePath, getAllowedRoots(engine, "write"))) {
         return c.json({ error: "path not allowed" }, 403);
       }
-      // 确保父目录存在
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });

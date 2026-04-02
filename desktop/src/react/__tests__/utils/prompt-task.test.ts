@@ -1,0 +1,182 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  buildAttachmentMeta,
+  buildComposerContextOverview,
+  prepareComposerTask,
+} from '../../utils/prompt-task';
+
+describe('prompt-task', () => {
+  it('buildAttachmentMeta 过滤图片并生成 working set', () => {
+    const result = buildAttachmentMeta([
+      { path: '/repo/spec.md', name: 'spec.md' },
+      { path: '/repo/assets/logo.png', name: 'logo.png' },
+      { path: '/repo/docs', name: 'docs', isDirectory: true },
+    ]);
+
+    expect(result.otherFiles).toEqual([
+      { path: '/repo/spec.md', name: 'spec.md' },
+      { path: '/repo/docs', name: 'docs', isDirectory: true },
+    ]);
+    expect(result.workingSet).toEqual([
+      { path: '/repo/spec.md', name: 'spec.md', source: 'recent', isDirectory: false },
+      { path: '/repo/docs', name: 'docs', source: 'desk', isDirectory: true },
+    ]);
+  });
+
+  it('buildComposerContextOverview 在 steer 模式标记被暂缓的富上下文', () => {
+    const overview = buildComposerContextOverview({
+      mode: 'steer',
+      composerText: '继续往下做',
+      attachedFiles: [
+        { path: '/repo/spec.md', name: 'spec.md' },
+        { path: '/repo/screen.png', name: 'screen.png' },
+      ],
+      docContextAttached: true,
+      currentDoc: { path: '/repo/current.md', name: 'current.md' },
+      quotedSelection: { text: 'foo', sourceTitle: 'current.md', charCount: 3 },
+      supportsVision: true,
+    });
+
+    expect(overview.textLength).toBe(5);
+    expect(overview.attachmentNames).toEqual([]);
+    expect(overview.imageNames).toEqual([]);
+    expect(overview.heldBack).toEqual(['quote', 'doc', 'files', 'images']);
+  });
+
+  it('buildComposerContextOverview 在 prompt 模式展示引用文档和图片区分', () => {
+    const overview = buildComposerContextOverview({
+      mode: 'prompt',
+      composerText: '整理这段代码',
+      attachedFiles: [
+        { path: '/repo/spec.md', name: 'spec.md' },
+        { path: '/repo/screen.png', name: 'screen.png' },
+      ],
+      docContextAttached: true,
+      currentDoc: { path: '/repo/current.md', name: 'current.md' },
+      quotedSelection: {
+        text: 'const x = 1',
+        sourceTitle: 'current.ts',
+        sourceFilePath: '/repo/current.ts',
+        lineStart: 4,
+        lineEnd: 6,
+        charCount: 11,
+      },
+      supportsVision: true,
+    });
+
+    expect(overview.quotedSummary).toBe('/repo/current.ts · L4-6 · 11 chars');
+    expect(overview.docName).toBe('current.md');
+    expect(overview.attachmentNames).toEqual(['spec.md']);
+    expect(overview.imageNames).toEqual(['screen.png']);
+    expect(overview.heldBack).toEqual([]);
+  });
+
+  it('prepareComposerTask 为 prompt 组装 requestText、附件、图片与 working set', async () => {
+    const readFileBase64 = vi.fn().mockResolvedValue('ZmFrZS1pbWFnZQ==');
+
+    const prepared = await prepareComposerTask({
+      mode: 'prompt',
+      composerText: '请检查这些输入',
+      attachedFiles: [
+        { path: '/repo/notes/spec.md', name: 'spec.md' },
+        { path: '/repo/assets/screen.png', name: 'screen.png' },
+        { path: '/repo/docs', name: 'docs', isDirectory: true },
+      ],
+      docContextAttached: true,
+      currentDoc: { path: '/repo/current.md', name: 'current.md' },
+      quotedSelection: {
+        text: 'const x = 1',
+        sourceTitle: 'current.ts',
+        sourceFilePath: '/repo/current.ts',
+        lineStart: 4,
+        lineEnd: 6,
+        charCount: 11,
+      },
+      workingSetRecentFiles: [{ path: '/repo/seen.ts', name: 'seen.ts', source: 'recent' }],
+      supportsVision: true,
+      readFileBase64,
+    });
+
+    expect(prepared.submission.mode).toBe('prompt');
+    expect(prepared.submission.requestText).toContain('请检查这些输入');
+    expect(prepared.submission.requestText).toContain('[附件] /repo/notes/spec.md');
+    expect(prepared.submission.requestText).toContain('[目录] /repo/docs');
+    expect(prepared.submission.requestText).toContain('[参考文档] /repo/current.md');
+    expect(prepared.submission.requestText).toContain('[引用片段] /repo/current.ts · 行 4-6 · 11 字符');
+    expect(prepared.submission.quotedText).toBe('/repo/current.ts · L4-6 · 11 chars');
+    expect(prepared.submission.images).toEqual([
+      { type: 'image', data: 'ZmFrZS1pbWFnZQ==', mimeType: 'image/png' },
+    ]);
+    expect(prepared.submission.attachments).toEqual([
+      { path: '/repo/notes/spec.md', name: 'spec.md', isDir: false, base64Data: undefined, mimeType: undefined },
+      { path: '/repo/assets/screen.png', name: 'screen.png', isDir: false, base64Data: 'ZmFrZS1pbWFnZQ==', mimeType: 'image/png' },
+      { path: '/repo/docs', name: 'docs', isDir: true, base64Data: undefined, mimeType: undefined },
+      { path: '/repo/current.md', name: 'current.md', isDir: false, base64Data: undefined, mimeType: undefined },
+    ]);
+    expect(prepared.otherFiles).toEqual([
+      { path: '/repo/notes/spec.md', name: 'spec.md' },
+      { path: '/repo/docs', name: 'docs', isDirectory: true },
+    ]);
+    expect(prepared.docForRender).toEqual({ path: '/repo/current.md', name: 'current.md' });
+    expect(prepared.draft.workingSet).toEqual([
+      { path: '/repo/seen.ts', name: 'seen.ts', source: 'recent' },
+      { path: '/repo/notes/spec.md', name: 'spec.md', source: 'recent', isDirectory: false },
+      { path: '/repo/docs', name: 'docs', source: 'desk', isDirectory: true },
+      { path: '/repo/current.md', name: 'current.md', source: 'current', isDirectory: false },
+    ]);
+    expect(readFileBase64).toHaveBeenCalledWith('/repo/assets/screen.png');
+  });
+
+  it('prepareComposerTask 在图片读取失败时降级为文本附件提示', async () => {
+    const prepared = await prepareComposerTask({
+      mode: 'prompt',
+      composerText: '看下这张图',
+      attachedFiles: [{ path: '/repo/screen.png', name: 'screen.png' }],
+      docContextAttached: false,
+      currentDoc: null,
+      quotedSelection: null,
+      workingSetRecentFiles: [],
+      supportsVision: true,
+      readFileBase64: vi.fn().mockRejectedValue(new Error('boom')),
+    });
+
+    expect(prepared.submission.requestText).toContain('[附件] /repo/screen.png');
+    expect(prepared.submission.images).toBeUndefined();
+    expect(prepared.submission.attachments).toEqual([
+      { path: '/repo/screen.png', name: 'screen.png', isDir: false, base64Data: undefined, mimeType: undefined },
+    ]);
+  });
+
+  it('prepareComposerTask 在 steer 模式只发送纯文本并保留 draft', async () => {
+    const prepared = await prepareComposerTask({
+      mode: 'steer',
+      composerText: '继续执行第二步',
+      attachedFiles: [{ path: '/repo/spec.md', name: 'spec.md' }],
+      docContextAttached: true,
+      currentDoc: { path: '/repo/current.md', name: 'current.md' },
+      quotedSelection: { text: 'const y = 2', sourceTitle: 'current.ts', charCount: 11 },
+      workingSetRecentFiles: [{ path: '/repo/existing.ts', name: 'existing.ts', source: 'recent' }],
+      supportsVision: true,
+      readFileBase64: vi.fn(),
+    });
+
+    expect(prepared.submission).toEqual({
+      mode: 'steer',
+      text: '继续执行第二步',
+      displayText: '继续执行第二步',
+      requestText: '继续执行第二步',
+      retryDraft: {
+        text: '继续执行第二步',
+        attachedFiles: [{ path: '/repo/spec.md', name: 'spec.md' }],
+        quotedSelection: { text: 'const y = 2', sourceTitle: 'current.ts', charCount: 11 },
+        docContextFile: null,
+        workingSet: [
+          { path: '/repo/existing.ts', name: 'existing.ts', source: 'recent' },
+          { path: '/repo/spec.md', name: 'spec.md', source: 'recent', isDirectory: false },
+        ],
+      },
+    });
+    expect(prepared.docForRender).toBeNull();
+    expect(prepared.otherFiles).toEqual([]);
+  });
+});

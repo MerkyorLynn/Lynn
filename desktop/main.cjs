@@ -13,6 +13,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, execFileSync } = require("child_process");
 const fs = require("fs");
+const yaml = require("js-yaml");
 const { initAutoUpdater, checkForUpdatesAuto, setMainWindow: setUpdaterMainWindow, setUpdateChannel } = require("./auto-updater.cjs");
 const { wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
 
@@ -103,6 +104,7 @@ let tray = null;
 let reusedServerPid = null; // 复用已有 server 时记录其 PID，退出时发 SIGTERM
 let isExitingServer = false; // 只有托盘"退出"时才 kill server，其余路径仅关前端
 let forceQuitApp = false;   // 启动失败等场景需要真正退出，绕过"隐藏保持运行"拦截
+let _localAuthHeaderHookInstalled = false;
 
 // ── 主进程 i18n ──
 // 从 agent config.yaml 读取 locale，加载对应语言包的 "main" 部分
@@ -168,6 +170,221 @@ function killPid(pid, force = false) {
   } else {
     try { process.kill(pid, force ? "SIGKILL" : "SIGTERM"); } catch {}
   }
+}
+
+function shouldAttachLocalAuthHeader(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    const isLocalHost = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+    return parsed.protocol === "http:" && isLocalHost && (!serverPort || parsed.port === String(serverPort));
+  } catch {
+    return false;
+  }
+}
+
+function ensureLocalAuthHeaderHook() {
+  if (_localAuthHeaderHookInstalled || !session.defaultSession) return;
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (!serverToken || !shouldAttachLocalAuthHeader(details.url)) {
+      callback({ requestHeaders: details.requestHeaders });
+      return;
+    }
+    const requestHeaders = { ...details.requestHeaders };
+    if (!requestHeaders.Authorization) {
+      requestHeaders.Authorization = `Bearer ${serverToken}`;
+    }
+    callback({ requestHeaders });
+  });
+  _localAuthHeaderHookInstalled = true;
+}
+
+const _fileAccessGrants = new Map();
+const _trackedGrantWebContents = new Set();
+
+function normalizePolicyPath(p) {
+  return process.platform === "win32" ? p.toLowerCase() : p;
+}
+
+function resolveCanonicalPath(rawPath) {
+  if (typeof rawPath !== "string") return null;
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes("\0")) return null;
+
+  const absolute = path.resolve(trimmed);
+  try {
+    return fs.realpathSync(absolute);
+  } catch (err) {
+    if (err?.code !== "ENOENT") return null;
+
+    const pending = [];
+    let current = absolute;
+    while (true) {
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      pending.unshift(path.basename(current));
+      try {
+        const realParent = fs.realpathSync(parent);
+        return path.join(realParent, ...pending);
+      } catch (parentErr) {
+        if (parentErr?.code !== "ENOENT") return null;
+        current = parent;
+      }
+    }
+  }
+}
+
+function isPathInsideRoot(targetPath, rootPath) {
+  const target = normalizePolicyPath(path.resolve(targetPath));
+  const root = normalizePolicyPath(path.resolve(rootPath));
+  return target === root || target.startsWith(root + path.sep);
+}
+
+function uniqueCanonicalPaths(paths) {
+  const out = [];
+  const seen = new Set();
+  for (const p of paths) {
+    const canonical = resolveCanonicalPath(p);
+    if (!canonical) continue;
+    const key = normalizePolicyPath(canonical);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(canonical);
+  }
+  return out;
+}
+
+function readUserPreferences() {
+  return safeReadJSON(path.join(lynnHome, "user", "preferences.json"), {}) || {};
+}
+
+function readCurrentAgentConfig() {
+  const agentId = getCurrentAgentId();
+  if (!agentId) return {};
+  try {
+    const configPath = path.join(lynnHome, "agents", agentId, "config.yaml");
+    return yaml.load(fs.readFileSync(configPath, "utf-8")) || {};
+  } catch {
+    return {};
+  }
+}
+
+function listAgentRoots(subdir) {
+  const agentsDir = path.join(lynnHome, "agents");
+  try {
+    return fs.readdirSync(agentsDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory() && fs.existsSync(path.join(agentsDir, entry.name, "config.yaml")))
+      .map(entry => path.join(agentsDir, entry.name, subdir));
+  } catch {
+    return [];
+  }
+}
+
+function getWorkspaceRoots() {
+  const prefs = readUserPreferences();
+  const config = readCurrentAgentConfig();
+  const history = Array.isArray(config.cwd_history) ? config.cwd_history : [];
+  return uniqueCanonicalPaths([
+    prefs.home_folder,
+    config.last_cwd,
+    ...history,
+  ]);
+}
+
+function getExternalSkillRoots() {
+  const prefs = readUserPreferences();
+  return uniqueCanonicalPaths(Array.isArray(prefs.external_skill_paths) ? prefs.external_skill_paths : []);
+}
+
+function getTrustedPathPolicy() {
+  const workspaceRoots = getWorkspaceRoots();
+  const uploadsRoots = workspaceRoots.map(root => path.join(root, ".lynn-uploads"));
+  return {
+    read: uniqueCanonicalPaths([
+      path.join(lynnHome, "skills"),
+      ...listAgentRoots("desk"),
+      ...listAgentRoots("learned-skills"),
+      ...workspaceRoots,
+      ...uploadsRoots,
+      path.join(os.tmpdir(), ".lynn-uploads"),
+      ...getExternalSkillRoots(),
+    ]),
+    write: uniqueCanonicalPaths([
+      ...workspaceRoots,
+      ...uploadsRoots,
+      path.join(os.tmpdir(), ".lynn-uploads"),
+    ]),
+  };
+}
+
+function resolveGrantTarget(target) {
+  if (!target) return null;
+  if (typeof target.id === "number" && typeof target.send === "function") return target;
+  if (target.webContents && typeof target.webContents.id === "number") return target.webContents;
+  return null;
+}
+
+function getGrantBucket(target) {
+  const webContents = resolveGrantTarget(target);
+  if (!webContents) return null;
+  let bucket = _fileAccessGrants.get(webContents.id);
+  if (!bucket) {
+    bucket = { read: new Set(), write: new Set() };
+    _fileAccessGrants.set(webContents.id, bucket);
+  }
+  if (!_trackedGrantWebContents.has(webContents.id)) {
+    _trackedGrantWebContents.add(webContents.id);
+    webContents.once("destroyed", () => {
+      _fileAccessGrants.delete(webContents.id);
+      _trackedGrantWebContents.delete(webContents.id);
+    });
+  }
+  return bucket;
+}
+
+function grantWebContentsAccess(target, rawPath, level = "read") {
+  const canonical = resolveCanonicalPath(rawPath);
+  const bucket = getGrantBucket(target);
+  if (!canonical || !bucket) return null;
+  bucket.read.add(canonical);
+  if (level === "write" || level === "readwrite") {
+    bucket.write.add(canonical);
+  }
+  return canonical;
+}
+
+function hasGrantedAccess(target, canonicalPath, mode) {
+  const webContents = resolveGrantTarget(target);
+  if (!webContents) return false;
+  const bucket = _fileAccessGrants.get(webContents.id);
+  if (!bucket) return false;
+
+  const candidates = mode === "write"
+    ? [...bucket.write]
+    : [...bucket.read, ...bucket.write];
+  return candidates.some(root => isPathInsideRoot(canonicalPath, root));
+}
+
+function hasTrustedAccess(canonicalPath, mode) {
+  const policy = getTrustedPathPolicy();
+  const roots = mode === "write" ? policy.write : policy.read;
+  return roots.some(root => isPathInsideRoot(canonicalPath, root));
+}
+
+function canAccessPath(target, rawPath, mode = "read") {
+  const canonical = resolveCanonicalPath(rawPath);
+  if (!canonical) return { allowed: false, canonical: null };
+  return {
+    allowed: hasTrustedAccess(canonical, mode) || hasGrantedAccess(target, canonical, mode),
+    canonical,
+  };
+}
+
+function canReadPath(target, rawPath) {
+  return canAccessPath(target, rawPath, "read");
+}
+
+function canWritePath(target, rawPath) {
+  return canAccessPath(target, rawPath, "write");
 }
 
 /** 跨平台标题栏选项：macOS hiddenInset + 红绿灯，Windows/Linux 无框 */
@@ -309,6 +526,8 @@ async function startServer() {
           serverPort = existingInfo.port;
           serverToken = existingInfo.token;
           reusedServerPid = existingInfo.pid;
+          // 复用现有 server 时也要给本地子资源请求补认证头，避免 avatar/img 等 403。
+          ensureLocalAuthHeaderHook();
           reused = true;
         }
       } catch { /* health check 网络抖动，继续 kill 旧 server */ }
@@ -408,6 +627,7 @@ async function startServer() {
   });
   serverPort = info.port;
   serverToken = info.token;
+  ensureLocalAuthHeaderHook();
   serverProcess.unref(); // 脱离 Electron 事件循环，允许 Electron 独立退出
 }
 
@@ -431,11 +651,11 @@ function monitorServer() {
         monitorServer(); // 重新挂监控
         // 通知前端重连
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("server-restarted", { port: serverPort });
+          mainWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
         }
         // 设置窗口也需要知道新端口（否则旧端口的 API 全部失败）
         if (settingsWindow && !settingsWindow.isDestroyed()) {
-          settingsWindow.webContents.send("server-restarted", { port: serverPort });
+          settingsWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
         }
       } catch (err) {
         console.error("[desktop] Server 重启失败:", err.message);
@@ -757,8 +977,20 @@ const THEME_BG = {
   "contemplation":"#F3F5F7",
 };
 
+function normalizeSettingsNavigationTarget(target) {
+  if (!target) return null;
+  if (typeof target === "string") return { tab: target };
+  if (typeof target !== "object") return null;
+  const next = {};
+  if (typeof target.tab === "string" && target.tab) next.tab = target.tab;
+  if (target.providerId === null || typeof target.providerId === "string") next.providerId = target.providerId ?? null;
+  if (target.resetProviderSelection === true) next.resetProviderSelection = true;
+  return Object.keys(next).length > 0 ? next : null;
+}
+
 // ── 创建设置窗口 ──
-function createSettingsWindow(tab, theme) {
+function createSettingsWindow(target, theme) {
+  const navigationTarget = normalizeSettingsNavigationTarget(target);
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     // renderer 已崩溃：销毁旧窗口，走下方重建流程
     if (settingsWindow.webContents.isCrashed()) {
@@ -766,7 +998,7 @@ function createSettingsWindow(tab, theme) {
       settingsWindow.destroy();
       settingsWindow = null;
     } else {
-      if (tab) settingsWindow.webContents.send("settings-switch-tab", tab);
+      if (navigationTarget) settingsWindow.webContents.send("settings-switch-tab", navigationTarget);
       settingsWindow.show();
       settingsWindow.focus();
       return;
@@ -796,10 +1028,10 @@ function createSettingsWindow(tab, theme) {
 
   loadWindowURL(settingsWindow, "settings");
 
-  // 窗口加载完后切换到指定 tab
-  if (tab) {
+  // 窗口加载完后切换到指定 tab / provider
+  if (navigationTarget) {
     settingsWindow.webContents.once("did-finish-load", () => {
-      settingsWindow.webContents.send("settings-switch-tab", tab);
+      settingsWindow.webContents.send("settings-switch-tab", navigationTarget);
     });
   }
 
@@ -1469,11 +1701,12 @@ function setupBrowserCommands() {
   if (!serverPort || !serverToken) return;
 
   const WebSocket = require("ws");
-  const url = `ws://127.0.0.1:${serverPort}/internal/browser?token=${serverToken}`;
+  const url = `ws://127.0.0.1:${serverPort}/internal/browser`;
+  const protocols = serverToken ? ["hana-browser", `token.${serverToken}`] : ["hana-browser"];
   let ws;
 
   function connect() {
-    ws = new WebSocket(url);
+    ws = new WebSocket(url, protocols);
     ws.on("open", () => {
       console.log("[desktop] Browser control WS connected");
     });
@@ -1599,9 +1832,11 @@ wrapIpcHandler("browser-emergency-stop", () => {
 let editorWindow = null;
 let _editorFileData = null; // { filePath, title, type, language }
 
-wrapIpcHandler("open-editor-window", (_event, data) => {
+wrapIpcHandler("open-editor-window", (event, data) => {
+  if (!data?.filePath || !canWritePath(event.sender, data.filePath).allowed) return;
   _editorFileData = data;
   if (editorWindow && !editorWindow.isDestroyed()) {
+    grantWebContentsAccess(editorWindow, data.filePath, "readwrite");
     editorWindow.show();
     editorWindow.focus();
     editorWindow.webContents.send("editor-load", data);
@@ -1629,6 +1864,7 @@ wrapIpcHandler("open-editor-window", (_event, data) => {
     },
   });
 
+  grantWebContentsAccess(editorWindow, data.filePath, "readwrite");
   loadWindowURL(editorWindow, "editor-window");
 
   editorWindow.webContents.on("did-finish-load", () => {
@@ -1748,7 +1984,6 @@ wrapIpcHandler("get-splash-info", () => {
 
 // 选择文件夹（系统原生对话框）
 wrapIpcHandler("select-folder", async (event) => {
-  // 找到发起请求的窗口
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (!win) return null;
   const result = await dialog.showOpenDialog(win, {
@@ -1756,7 +1991,9 @@ wrapIpcHandler("select-folder", async (event) => {
     title: mt("dialog.selectFolder", null, "Select Working Folder"),
   });
   if (result.canceled || !result.filePaths.length) return null;
-  return result.filePaths[0];
+  const selectedPath = result.filePaths[0];
+  grantWebContentsAccess(event.sender, selectedPath, "readwrite");
+  return selectedPath;
 });
 
 // 选择技能文件/文件夹（支持 .zip / .skill / 文件夹）
@@ -1772,12 +2009,24 @@ wrapIpcHandler("select-skill", async (event) => {
     ],
   });
   if (result.canceled || !result.filePaths.length) return null;
-  return result.filePaths[0];
+  const selectedPath = result.filePaths[0];
+  grantWebContentsAccess(event.sender, selectedPath, "read");
+  return selectedPath;
 });
 
 // ── Skill 预览窗口 IPC ──
-wrapIpcHandler("open-skill-viewer", (_event, data) => {
+wrapIpcHandler("open-skill-viewer", (event, data) => {
   if (!data) return;
+
+  if (data.skillPath) {
+    const skillPathAccess = canReadPath(event.sender, data.skillPath);
+    if (!skillPathAccess.allowed) return;
+  }
+
+  if (data.baseDir) {
+    const baseDirAccess = canReadPath(event.sender, data.baseDir);
+    if (!baseDirAccess.allowed) return;
+  }
 
   // .skill / .zip 文件 → 优先查找已安装目录，否则解压临时目录
   if (data.skillPath && path.isAbsolute(data.skillPath)) {
@@ -1788,6 +2037,7 @@ wrapIpcHandler("open-skill-viewer", (_event, data) => {
       // 先检查同名 skill 是否已安装在 skills 目录
       const installedDir = path.join(lynnHome, "skills", baseName);
       if (fs.existsSync(path.join(installedDir, "SKILL.md"))) {
+        grantWebContentsAccess(mainWindow, installedDir, "read");
         _showSkillViewer({ name: baseName, baseDir: installedDir, installed: false });
         return;
       }
@@ -1826,6 +2076,7 @@ wrapIpcHandler("open-skill-viewer", (_event, data) => {
         const nameMatch = fmMatch?.[1]?.match(/^name:\s*(.+)$/m);
         const name = nameMatch ? nameMatch[1].trim().replace(/^["']|["']$/g, "") : baseName;
 
+        grantWebContentsAccess(mainWindow, skillDir, "read");
         _showSkillViewer({ name, baseDir: skillDir, installed: false });
       } catch (err) {
         console.error("[skill-viewer] Failed to extract .skill file:", err.message);
@@ -1835,26 +2086,28 @@ wrapIpcHandler("open-skill-viewer", (_event, data) => {
   }
 
   if (!data.baseDir || !path.isAbsolute(data.baseDir)) return;
+  grantWebContentsAccess(mainWindow, data.baseDir, "read");
   _showSkillViewer(data);
 });
 
-wrapIpcHandler("skill-viewer-list-files", (_event, baseDir) => {
-  if (!baseDir || !path.isAbsolute(baseDir)) return [];
+wrapIpcHandler("skill-viewer-list-files", (event, baseDir) => {
+  const access = canReadPath(event.sender, baseDir);
+  if (!baseDir || !path.isAbsolute(baseDir) || !access.allowed) return [];
   try {
-    if (!fs.statSync(baseDir).isDirectory()) return [];
-    return scanSkillDir(baseDir, baseDir);
+    if (!fs.statSync(access.canonical).isDirectory()) return [];
+    return scanSkillDir(access.canonical, access.canonical);
   } catch {
     return [];
   }
 });
 
-wrapIpcHandler("skill-viewer-read-file", (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return null;
-  // 安全检查：只允许读取文本文件，限制大小
+wrapIpcHandler("skill-viewer-read-file", (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return null;
   try {
-    const stat = fs.statSync(filePath);
-    if (!stat.isFile() || stat.size > 2 * 1024 * 1024) return null; // 2MB 限制
-    return fs.readFileSync(filePath, "utf-8");
+    const stat = fs.statSync(access.canonical);
+    if (!stat.isFile() || stat.size > 2 * 1024 * 1024) return null;
+    return fs.readFileSync(access.canonical, "utf-8");
   } catch {
     return null;
   }
@@ -1864,22 +2117,28 @@ wrapIpcHandler("skill-viewer-read-file", (_event, filePath) => {
 wrapIpcHandler("close-skill-viewer", () => {});
 
 // 在系统文件管理器中打开文件夹（限制为目录且为绝对路径）
-wrapIpcHandler("open-folder", (_event, folderPath) => {
-  if (!folderPath || !path.isAbsolute(folderPath)) return;
+wrapIpcHandler("open-folder", (event, folderPath) => {
+  const access = canReadPath(event.sender, folderPath);
+  if (!folderPath || !path.isAbsolute(folderPath) || !access.allowed) return;
   try {
-    if (!fs.statSync(folderPath).isDirectory()) return;
+    if (!fs.statSync(access.canonical).isDirectory()) return;
   } catch { return; }
-  shell.openPath(folderPath);
+  shell.openPath(access.canonical);
 });
 
 // 原生拖拽：书桌文件拖到 Finder / 聊天区
 wrapIpcOn("start-drag", async (event, filePaths) => {
-  const paths = Array.isArray(filePaths) ? filePaths : [filePaths];
+  const requestedPaths = Array.isArray(filePaths) ? filePaths : [filePaths];
+  const paths = requestedPaths
+    .map(filePath => canReadPath(event.sender, filePath))
+    .filter(result => result.allowed && result.canonical)
+    .map(result => result.canonical);
+  if (paths.length === 0) return;
+
   let icon;
   try {
     icon = await app.getFileIcon(paths[0], { size: "small" });
   } catch {
-    // macOS 要求 icon 非空，用 1x1 透明 PNG 兜底
     icon = nativeImage.createFromDataURL(
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4z8BQDwAEgAF/QualIQAAAABJRU5ErkJggg=="
     );
@@ -1891,17 +2150,19 @@ wrapIpcOn("start-drag", async (event, filePaths) => {
   }
 });
 
-wrapIpcHandler("show-in-finder", (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return;
-  shell.showItemInFolder(filePath);
+wrapIpcHandler("show-in-finder", (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return;
+  shell.showItemInFolder(access.canonical);
 });
 
-wrapIpcHandler("open-file", (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return;
+wrapIpcHandler("open-file", (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return;
   try {
-    if (!fs.statSync(filePath).isFile()) return;
+    if (!fs.statSync(access.canonical).isFile()) return;
   } catch { return; }
-  shell.openPath(filePath);
+  shell.openPath(access.canonical);
 });
 
 wrapIpcHandler("save-file-dialog", async (event, opts = {}) => {
@@ -1913,6 +2174,7 @@ wrapIpcHandler("save-file-dialog", async (event, opts = {}) => {
     filters: Array.isArray(opts.filters) ? opts.filters : undefined,
   });
   if (result.canceled || !result.filePath) return null;
+  grantWebContentsAccess(event.sender, result.filePath, "readwrite");
   return result.filePath;
 });
 
@@ -1926,23 +2188,40 @@ wrapIpcHandler("open-external", (_event, url) => {
   } catch {}
 });
 
+wrapIpcHandler("confirm-action", async (event, opts = {}) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  const result = await dialog.showMessageBox(win || undefined, {
+    type: "question",
+    title: opts.title || "Lynn",
+    message: opts.message || mt("common.confirm", null, "Confirm"),
+    detail: opts.detail || "",
+    buttons: [opts.confirmLabel || mt("common.confirm", null, "Confirm"), opts.cancelLabel || mt("common.cancel", null, "Cancel")],
+    defaultId: 0,
+    cancelId: 1,
+    normalizeAccessKeys: true,
+    noLink: true,
+  });
+  return result.response === 0;
+});
+
 // 读取文件内容（仅文本文件，用于 Artifacts 预览）
-wrapIpcHandler("read-file", (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return null;
+wrapIpcHandler("read-file", (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return null;
   try {
-    const stat = fs.statSync(filePath);
+    const stat = fs.statSync(access.canonical);
     if (!stat.isFile()) return null;
-    // 限制 5MB，防止读大文件卡死
     if (stat.size > 5 * 1024 * 1024) return null;
-    return fs.readFileSync(filePath, "utf-8");
+    return fs.readFileSync(access.canonical, "utf-8");
   } catch { return null; }
 });
 
 // 写入文本文件（artifact 编辑用）
-wrapIpcHandler("write-file", (_event, filePath, content) => {
-  if (!filePath || !path.isAbsolute(filePath)) return false;
+wrapIpcHandler("write-file", (event, filePath, content) => {
+  const access = canWritePath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed || typeof content !== "string") return false;
   try {
-    fs.writeFileSync(filePath, content, "utf-8");
+    fs.writeFileSync(access.canonical, content, "utf-8");
     return true;
   } catch { return false; }
 });
@@ -1950,68 +2229,72 @@ wrapIpcHandler("write-file", (_event, filePath, content) => {
 // 文件监听（artifact 编辑 — 外部变更刷新用）
 const _fileWatchers = new Map();
 wrapIpcHandler("watch-file", (event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return false;
-  // 取消旧的 watcher
-  if (_fileWatchers.has(filePath)) {
-    _fileWatchers.get(filePath).close();
-    _fileWatchers.delete(filePath);
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return false;
+  if (_fileWatchers.has(access.canonical)) {
+    _fileWatchers.get(access.canonical).close();
+    _fileWatchers.delete(access.canonical);
   }
   try {
-    const watcher = fs.watch(filePath, { persistent: false }, (eventType) => {
+    const watcher = fs.watch(access.canonical, { persistent: false }, (eventType) => {
       if (eventType === "change") {
         const win = BrowserWindow.fromWebContents(event.sender);
         if (win && !win.isDestroyed()) {
-          win.webContents.send("file-changed", filePath);
+          win.webContents.send("file-changed", access.canonical);
         }
       }
     });
-    _fileWatchers.set(filePath, watcher);
+    _fileWatchers.set(access.canonical, watcher);
     return true;
   } catch { return false; }
 });
 
 wrapIpcHandler("unwatch-file", (_event, filePath) => {
-  if (_fileWatchers.has(filePath)) {
-    _fileWatchers.get(filePath).close();
-    _fileWatchers.delete(filePath);
+  const canonical = resolveCanonicalPath(filePath);
+  if (canonical && _fileWatchers.has(canonical)) {
+    _fileWatchers.get(canonical).close();
+    _fileWatchers.delete(canonical);
   }
   return true;
 });
 
 // 读取二进制文件为 base64（图片、PDF 等）
-wrapIpcHandler("read-file-base64", (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return null;
+wrapIpcHandler("read-file-base64", (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return null;
   try {
-    const stat = fs.statSync(filePath);
+    const stat = fs.statSync(access.canonical);
     if (!stat.isFile()) return null;
-    if (stat.size > 20 * 1024 * 1024) return null; // 20MB 限制
-    return fs.readFileSync(filePath).toString("base64");
+    if (stat.size > 20 * 1024 * 1024) return null;
+    return fs.readFileSync(access.canonical).toString("base64");
   } catch { return null; }
 });
 
 // 读取 docx 文件并转为 HTML（mammoth）
-wrapIpcHandler("read-docx-html", async (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return null;
+wrapIpcHandler("read-docx-html", async (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return null;
   try {
-    const stat = fs.statSync(filePath);
+    const stat = fs.statSync(access.canonical);
     if (!stat.isFile()) return null;
     if (stat.size > 20 * 1024 * 1024) return null;
     const mammoth = require("mammoth");
-    const result = await mammoth.convertToHtml({ path: filePath });
-    return result.value; // HTML string
+    const result = await mammoth.convertToHtml({ path: access.canonical });
+    return result.value;
   } catch { return null; }
 });
 
 // 读取 xlsx 文件并转为 HTML 表格（ExcelJS）
-wrapIpcHandler("read-xlsx-html", async (_event, filePath) => {
-  if (!filePath || !path.isAbsolute(filePath)) return null;
+wrapIpcHandler("read-xlsx-html", async (event, filePath) => {
+  const access = canReadPath(event.sender, filePath);
+  if (!filePath || !path.isAbsolute(filePath) || !access.allowed) return null;
   try {
-    const stat = fs.statSync(filePath);
+    const stat = fs.statSync(access.canonical);
     if (!stat.isFile()) return null;
     if (stat.size > 20 * 1024 * 1024) return null;
     const ExcelJS = require("exceljs");
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
+    await workbook.xlsx.readFile(access.canonical);
     const sheet = workbook.worksheets[0];
     if (!sheet || sheet.rowCount === 0) return null;
     const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -2028,6 +2311,8 @@ wrapIpcHandler("read-xlsx-html", async (_event, filePath) => {
   } catch { return null; }
 });
 
+wrapIpcHandler("grant-file-access", (event, filePath) => !!grantWebContentsAccess(event.sender, filePath, "read"));
+
 // 重新加载主窗口（DevTools 用）
 wrapIpcHandler("reload-main-window", () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2039,7 +2324,7 @@ wrapIpcHandler("reload-main-window", () => {
 wrapIpcHandler("show-notification", (_event, title, body) => {
   if (!Notification.isSupported()) return;
   const notif = new Notification({
-    title: title || "Hana",
+    title: title || "Lynn",
     body: body || "",
     silent: false,
   });
@@ -2113,7 +2398,7 @@ wrapIpcHandler("app-ready", () => {
     const settings = systemPreferences.getNotificationSettings?.();
     const status = settings?.authorizationStatus;
     if (settings && status === "not-determined") {
-      const notif = new Notification({ title: "Hana", body: mt("notification.ready", null, "Notifications enabled"), silent: true });
+      const notif = new Notification({ title: "Lynn", body: mt("notification.ready", null, "Notifications enabled"), silent: true });
       notif.show();
     }
   }
@@ -2131,6 +2416,35 @@ wrapIpcHandler("app-ready", () => {
 
 // ── App 生命周期 ──
 app.whenReady().then(async () => {
+  // 设置应用菜单（macOS 需要 Edit 菜单才能使用 Cmd+C/V/A 等快捷键）
+  const appMenu = Menu.buildFromTemplate([
+    ...(process.platform === "darwin" ? [{
+      label: app.name,
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    }] : []),
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(appMenu);
+
   try {
     // 1. 立刻显示启动窗口
     createSplashWindow();
@@ -2144,9 +2458,9 @@ app.whenReady().then(async () => {
     setupBrowserCommands();
     createTray();
 
-    // 3. 确保 splash 至少显示 3 秒
+    // 3. 控制 splash 最短停留时间。冷启动优化后不再额外卡住 3 秒。
     const elapsed = Date.now() - splashShownAt;
-    const minSplashMs = 3000;
+    const minSplashMs = 1200;
     if (elapsed < minSplashMs) {
       await new Promise(r => setTimeout(r, minSplashMs - elapsed));
     }

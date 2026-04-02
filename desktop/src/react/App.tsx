@@ -5,7 +5,7 @@
  * 此文件只负责 titlebar + sidebar + 主区域 + overlays 的组装。
  */
 
-import { useEffect, lazy, Suspense, useState, useCallback } from 'react';
+import { useEffect, lazy, Suspense, useState, useCallback, useRef } from 'react';
 import { useStore } from './stores';
 import type { ActivePanel } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -26,6 +26,7 @@ import { ChannelTabBar } from './components/channels/ChannelTabBar';
 import { ChannelListSidebar } from './components/channels/ChannelList';
 import { ChannelHeader } from './components/channels/ChannelHeader';
 import { ChannelCreateOverlay } from './components/channels/ChannelCreateOverlay';
+import { AddMemberOverlay } from './components/channels/AddMemberOverlay';
 import { AgentDiscoveryDialog } from './components/AgentDiscoveryDialog';
 import { SidebarLayout, toggleSidebar } from './components/SidebarLayout';
 import { FloatPreviewCard, useFloatCard } from './components/FloatPreviewCard';
@@ -34,11 +35,12 @@ import { createNewSession } from './stores/session-actions';
 import { toggleJianSidebar } from './stores/desk-actions';
 import { WindowControls } from './components/WindowControls';
 import { ToastContainer } from './components/ToastContainer';
+import { ConfirmationDialog } from './components/ConfirmationDialog';
 import { StatusBar } from './components/StatusBar';
 import { initTheme, initDragPrevention } from './bootstrap';
 import { initApp } from './app-init';
 import { MainContent } from './MainContent';
-import { hanaUrl } from './hooks/use-hana-fetch';
+import { hanaUrl, hanaFetch } from './hooks/use-hana-fetch';
 import { yuanFallbackAvatar } from './utils/agent-helpers';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
@@ -83,6 +85,8 @@ function SettingsButton() {
     if (showPulse) {
       setShowPulse(false);
       try { localStorage.setItem('hanako-settings-clicked', '1'); } catch {}
+      window.platform.openSettings('providers');
+      return;
     }
     window.platform.openSettings();
   }, [showPulse]);
@@ -140,12 +144,117 @@ function ChannelInputArea() {
   );
 }
 
+/** 频道成员项：显示 agent 头像 + 名字 + 当前使用的模型（可点击切换） */
+function ChannelAgentMember({ agent }: { agent: any }) {
+  const [showModels, setShowModels] = useState(false);
+  const [currentModel, setCurrentModel] = useState<string | null>(null);
+  const [models, setModels] = useState<any[]>([]);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // 加载 agent 当前模型
+  useEffect(() => {
+    hanaFetch(`/api/agents/${agent.id}/config`)
+      .then(r => r.json())
+      .then(d => setCurrentModel(d?.models?.chat || null))
+      .catch(() => {});
+  }, [agent.id]);
+
+  // 加载可用模型列表
+  useEffect(() => {
+    if (!showModels) return;
+    hanaFetch('/api/models')
+      .then(r => r.json())
+      .then(d => setModels(d?.models || []))
+      .catch(() => {});
+  }, [showModels]);
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (!showModels) return;
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowModels(false);
+    };
+    const timer = setTimeout(() => document.addEventListener('click', close, true), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close, true); };
+  }, [showModels]);
+
+  const handleSelectModel = useCallback(async (modelId: string) => {
+    setShowModels(false);
+    try {
+      await hanaFetch(`/api/agents/${agent.id}/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ models: { chat: modelId } }),
+      });
+      setCurrentModel(modelId);
+    } catch (err) {
+      console.error('[ChannelAgentMember] set model failed:', err);
+    }
+  }, [agent.id]);
+
+  const modelDisplay = currentModel
+    ? currentModel.length > 16 ? currentModel.slice(0, 14) + '…' : currentModel
+    : '—';
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', padding: '4px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <img
+          src={agent.hasAvatar ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${Date.now()}`) : yuanFallbackAvatar(agent.yuan)}
+          style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+          onError={e => {
+            (e.target as HTMLImageElement).onerror = null;
+            (e.target as HTMLImageElement).src = yuanFallbackAvatar(agent.yuan);
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.85rem' }}>{agent.name || agent.id}</div>
+          <button
+            onClick={() => setShowModels(v => !v)}
+            style={{
+              fontSize: '0.65rem', color: 'var(--accent, #4ecdc4)', background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0, textAlign: 'left', opacity: 0.85,
+            }}
+            title={t('expert.recommendedModel')}
+          >
+            ⚡ {modelDisplay}
+          </button>
+        </div>
+      </div>
+      {showModels && models.length > 0 && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 100,
+          background: 'var(--bg-secondary, #2a2a2a)', border: '1px solid var(--border-light, #444)',
+          borderRadius: 6, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}>
+          {models.map((m: any) => (
+            <div
+              key={m.name || m.id}
+              onClick={() => handleSelectModel(m.name || m.id)}
+              style={{
+                padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer',
+                background: (m.name || m.id) === currentModel ? 'var(--overlay-light)' : 'transparent',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--overlay-light)')}
+              onMouseLeave={e => (e.currentTarget.style.background = (m.name || m.id) === currentModel ? 'var(--overlay-light)' : 'transparent')}
+            >
+              {m.name || m.id}
+              {m.provider ? <span style={{ opacity: 0.5, marginLeft: 4 }}>({m.provider})</span> : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JianChannelInfo() {
   const channelInfoName = useStore(s => s.channelInfoName);
   const isDM = useStore(s => s.channelIsDM);
   const channelMembers = useStore(s => s.channelMembers);
   const agents = useStore(s => s.agents);
   const currentAgentId = useStore(s => s.currentAgentId);
+  const userName = useStore(s => s.userName);
 
   if (isDM) {
     const peerId = channelMembers[0] || '';
@@ -176,6 +285,12 @@ function JianChannelInfo() {
     );
   }
 
+  // 群聊：只显示用户 + 在 agents 列表中能找到的成员，过滤残留
+  const validMembers = channelMembers.filter(id => {
+    if (id === 'user' || id === userName) return false; // 用户单独显示
+    return agents.some(a => a.id === id || a.name === id);
+  });
+
   return (
     <div className="jian-card">
       <div className="channel-info-section">
@@ -185,7 +300,19 @@ function JianChannelInfo() {
       <div className="channel-info-section">
         <div className="channel-info-label">{t('channel.members')}</div>
         <div className="channel-members-list">
-          <ChannelMembers />
+          {/* 用户 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--accent, #4ecdc4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: '#fff', flexShrink: 0 }}>
+              {(userName || 'U').charAt(0).toUpperCase()}
+            </span>
+            <span style={{ fontSize: '0.85rem' }}>{userName || 'user'}</span>
+          </div>
+          {/* Agent 成员 */}
+          {validMembers.map(id => {
+            const agent = agents.find(a => a.id === id || a.name === id);
+            if (!agent) return null;
+            return <ChannelAgentMember key={id} agent={agent} />;
+          })}
         </div>
       </div>
     </div>
@@ -385,6 +512,9 @@ function App() {
       {/* Channel create overlay */}
       <ChannelCreateOverlay />
 
+      {/* Add member overlay */}
+      <AddMemberOverlay />
+
       {/* Skill viewer overlay */}
       <Suspense fallback={null}><SkillViewerOverlay /></Suspense>
 
@@ -404,7 +534,8 @@ function App() {
       {/* Connection status bar */}
       <StatusBar />
 
-      {/* Toast notifications */}
+      {/* Confirmation + toast notifications */}
+      <ConfirmationDialog />
       <ToastContainer />
     </ErrorBoundary>
   );

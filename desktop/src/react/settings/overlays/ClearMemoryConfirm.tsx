@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
+import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import styles from '../Settings.module.css';
 
 export function ClearMemoryConfirm() {
@@ -15,6 +16,7 @@ export function ClearMemoryConfirm() {
   }, []);
 
   const close = () => setVisible(false);
+  const dialogRef = useDialogA11y({ open: visible, onClose: close });
 
   const doClear = async () => {
     close();
@@ -33,8 +35,15 @@ export function ClearMemoryConfirm() {
 
   return (
     <div className={`${styles['memory-confirm-overlay']} ${styles['visible']}`} onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className={styles['memory-confirm-card']}>
-        <p className={styles['memory-confirm-text']}>{t('settings.memory.actions.clearConfirm')}</p>
+      <div
+        ref={dialogRef}
+        className={styles['memory-confirm-card']}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="clear-memory-confirm-title"
+        tabIndex={-1}
+      >
+        <p id="clear-memory-confirm-title" className={styles['memory-confirm-text']}>{t('settings.memory.actions.clearConfirm')}</p>
         <div className={styles['memory-confirm-actions']}>
           <button className={styles['memory-confirm-cancel']} onClick={close}>{t('settings.memory.actions.cancel')}</button>
           <button className={styles['memory-confirm-danger']} onClick={doClear}>{t('settings.memory.actions.confirmClear')}</button>

@@ -1,5 +1,5 @@
 /**
- * Hana Desktop — Preload 桥接
+ * Lynn Desktop — Preload 桥接
  *
  * 业务通信走 HTTP/WS 到 server。
  * IPC 仅用于：窗口管理、系统对话框、跨窗口消息转发。
@@ -23,7 +23,11 @@ contextBridge.exposeInMainWorld("hana", {
   autoUpdateInstall: () => ipcRenderer.invoke("auto-update-install"),
   autoUpdateState: () => ipcRenderer.invoke("auto-update-state"),
   autoUpdateSetChannel: (ch) => ipcRenderer.invoke("auto-update-set-channel", ch),
-  onAutoUpdateState: (cb) => ipcRenderer.on("auto-update-state", (_, state) => cb(state)),
+  onAutoUpdateState: (cb) => {
+    const handler = (_event, state) => cb(state);
+    ipcRenderer.on("auto-update-state", handler);
+    return () => ipcRenderer.removeListener("auto-update-state", handler);
+  },
   appReady: () => ipcRenderer.invoke("app-ready"),
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   selectSkill: () => ipcRenderer.invoke("select-skill"),
@@ -40,7 +44,12 @@ contextBridge.exposeInMainWorld("hana", {
   readFileBase64: (path) => ipcRenderer.invoke("read-file-base64", path),
   readDocxHtml: (path) => ipcRenderer.invoke("read-docx-html", path),
   readXlsxHtml: (path) => ipcRenderer.invoke("read-xlsx-html", path),
-  getFilePath: (file) => webUtils.getPathForFile(file),
+  getFilePath: async (file) => {
+    const filePath = webUtils.getPathForFile(file);
+    if (!filePath) return null;
+    const granted = await ipcRenderer.invoke("grant-file-access", filePath);
+    return granted ? filePath : null;
+  },
   getAvatarPath: (role) => ipcRenderer.invoke("get-avatar-path", role),
   getSplashInfo: () => ipcRenderer.invoke("get-splash-info"),
   reloadMainWindow: () => ipcRenderer.invoke("reload-main-window"),
@@ -51,10 +60,15 @@ contextBridge.exposeInMainWorld("hana", {
   // Skill Viewer overlay（主进程 → 渲染进程）
   onShowSkillViewer: (cb) => ipcRenderer.on("show-skill-viewer", (_, data) => cb(data)),
   // 设置窗口
-  openSettings: (tab) => ipcRenderer.invoke("open-settings", tab, resolveTheme()),
+  openSettings: (target) => ipcRenderer.invoke("open-settings", target ?? null, resolveTheme()),
   settingsChanged: (type, data) => ipcRenderer.send("settings-changed", type, data),
   onSettingsChanged: (cb) => ipcRenderer.on("settings-changed", (_, type, data) => cb(type, data)),
-  onSwitchTab: (cb) => ipcRenderer.on("settings-switch-tab", (_, tab) => cb(tab)),
+  notifyMainWindow: (event, payload) => ipcRenderer.send("settings-changed", event, payload),
+  onSwitchTab: (cb) => {
+    const handler = (_event, target) => cb(target);
+    ipcRenderer.on("settings-switch-tab", handler);
+    return () => ipcRenderer.removeListener("settings-switch-tab", handler);
+  },
   onServerRestarted: (cb) => ipcRenderer.on("server-restarted", (_, data) => cb(data)),
   // 浏览器查看器窗口
   openBrowserViewer: () => ipcRenderer.invoke("open-browser-viewer", resolveTheme()),
@@ -81,6 +95,7 @@ contextBridge.exposeInMainWorld("hana", {
   startDrag: (filePaths) => ipcRenderer.send("start-drag", filePaths),
   // 系统通知
   showNotification: (title, body) => ipcRenderer.invoke("show-notification", title, body),
+  confirmAction: (opts) => ipcRenderer.invoke("confirm-action", opts),
   // 窗口控制（Windows/Linux 自绘标题栏）
   getPlatform: () => ipcRenderer.invoke("get-platform"),
   windowMinimize: () => ipcRenderer.invoke("window-minimize"),

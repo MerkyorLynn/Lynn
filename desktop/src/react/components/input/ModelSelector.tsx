@@ -6,6 +6,17 @@ import { loadModels } from '../../utils/ui-helpers';
 import { lookupKnownModel } from '../../utils/known-models';
 import styles from './InputArea.module.css';
 
+interface SelectorModel {
+  id: string;
+  name: string;
+  provider?: string;
+  isCurrent?: boolean;
+  contextWindow?: number;
+  maxTokens?: number;
+  locked?: boolean;
+  metaLabel?: string;
+}
+
 function formatProviderLabel(provider?: string): string {
   if (!provider) return '';
   return provider
@@ -15,8 +26,9 @@ function formatProviderLabel(provider?: string): string {
     .join(' ');
 }
 
-function modelMetaLine(model?: { id: string; provider?: string; contextWindow?: number; maxTokens?: number }): string {
+function modelMetaLine(model?: SelectorModel): string {
   if (!model) return '';
+  if (model.metaLabel) return model.metaLabel;
   const meta = lookupKnownModel(model.provider || '', model.id);
   const parts: string[] = [];
   const providerLabel = formatProviderLabel(model.provider);
@@ -28,12 +40,13 @@ function modelMetaLine(model?: { id: string; provider?: string; contextWindow?: 
   return parts.join(' · ');
 }
 
-export function ModelSelector({ models, disabled }: { models: Array<{ id: string; name: string; provider?: string; isCurrent?: boolean; contextWindow?: number }>; disabled?: boolean }) {
+export function ModelSelector({ models, disabled }: { models: SelectorModel[]; disabled?: boolean }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const current = models.find(m => m.isCurrent);
+  const hasSwitchableModels = models.some(m => !m.locked);
 
   useEffect(() => {
     if (!open) return;
@@ -66,7 +79,7 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
   }, []);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, typeof models> = {};
+    const groups: Record<string, SelectorModel[]> = {};
     for (const m of models) {
       const key = m.provider || '';
       if (!groups[key]) groups[key] = [];
@@ -86,12 +99,19 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
 
   return (
     <div className={`${styles['model-selector']}${open ? ` ${styles.open}` : ''}`} ref={ref}>
-      <button className={`${styles['model-pill']}${disabled ? ` ${styles['model-pill-disabled']}` : ''}`} onClick={(e) => { e.stopPropagation(); if (!disabled) setOpen(!open); }} title={currentMeta || current?.id || ''}>
+      <button
+        className={`${styles['model-pill']}${disabled ? ` ${styles['model-pill-disabled']}` : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled && hasSwitchableModels) setOpen(!open);
+        }}
+        title={currentMeta || current?.id || ''}
+      >
         <span className={styles['model-pill-name']}>{current?.name || t('model.unknown') || '...'}</span>
         {currentMeta && <span className={styles['model-pill-meta']}>{currentMeta}</span>}
-        <span className={styles['model-arrow']}>▾</span>
+        {hasSwitchableModels && <span className={styles['model-arrow']}>▾</span>}
       </button>
-      {open && (
+      {open && hasSwitchableModels && (
         <div className={styles['model-dropdown']}>
           {groupKeys.map(provider => {
             const items = grouped[provider];
@@ -104,10 +124,13 @@ export function ModelSelector({ models, disabled }: { models: Array<{ id: string
                   const meta = modelMetaLine(m);
                   return (
                     <button
-                      key={`${m.provider}/${m.id}`}
+                      key={`${m.provider || '__default'}/${m.id}`}
                       className={`${styles['model-option']}${m.isCurrent ? ` ${styles.active}` : ''}`}
-                      onClick={() => switchModel(m.id, m.provider)}
+                      onClick={() => {
+                        if (!m.locked) switchModel(m.id, m.provider);
+                      }}
                       title={m.id}
+                      disabled={m.locked}
                     >
                       <span className={styles['model-option-name']}>{m.name}</span>
                       <span className={styles['model-option-meta']}>{meta || m.id}</span>

@@ -10,6 +10,7 @@
 import { useStore } from './stores';
 import { hanaFetch } from './hooks/use-hana-fetch';
 import { applyAgentIdentity, loadAgents, loadAvatars } from './stores/agent-actions';
+import { loadChannels } from './stores/channel-actions';
 import { loadSessions } from './stores/session-actions';
 import { connectWebSocket } from './services/websocket';
 import { setStatus, loadModels } from './utils/ui-helpers';
@@ -107,48 +108,58 @@ export async function initApp(): Promise<void> {
   connectWebSocket();
   initErrorBusBridge();
 
-  // 9. 加载模型
-  await loadModels();
-
-  // 10. 加载 agents + sessions
+  // 9. 先准备基础可交互状态，尽快解除 splash；主数据改为后台补齐。
   useStore.setState({ pendingNewSession: true });
-  await loadAgents();
-  await loadSessions();
 
-  // 11. 初始化书桌
+  // 10. 初始化书桌
   initJian();
 
-  // 12. 初始化编辑器事件
+  // 11. 初始化编辑器事件
   initEditorEvents();
 
-  // 13b. 初始 layout 计算
+  // 12. 主窗口基础内容已可用，先解除 splash。
+  platform.appReady();
+
+  // 13. 初始 layout 计算
   updateLayout();
 
-  // 14. 任务计划 badge 初始值
-  try {
-    const res = await hanaFetch('/api/desk/cron');
-    const data = await res.json();
-    const count = (data.jobs || []).length;
-    useStore.setState({ automationCount: count });
-  } catch { /* ignore */ }
-
-  // 15. Bridge 状态指示点（启动时就查一次，不等用户打开面板）
-  try {
-    const res = await hanaFetch('/api/bridge/status');
-    const data = await res.json();
-    const anyConnected = data.telegram?.status === 'connected' || data.feishu?.status === 'connected' || data.qq?.status === 'connected' || data.whatsapp?.status === 'connected';
-    useStore.setState({ bridgeDotConnected: anyConnected });
-  } catch { /* ignore */ }
-
-  // 16. 自动发现其他 AI 智能体
-  try {
-    const res = await hanaFetch('/api/skills/external-paths');
-    const data = await res.json();
-    const found = (data.discovered || []).filter((a: any) => a.exists);
-    if (found.length > 0 && !localStorage.getItem('agent-discovery-seen')) {
-      useStore.setState({ discoveredAgents: found, agentDiscoveryVisible: true });
-    }
-  } catch { /* ignore */ }
+  // 14-17. 主数据与次要状态统一转后台补齐，避免阻塞首屏。
+  void Promise.allSettled([
+    loadAgents(),
+    loadSessions(),
+    loadModels(),
+    (async () => {
+      try {
+        await loadChannels();
+      } catch { /* ignore */ }
+    })(),
+    (async () => {
+      try {
+        const res = await hanaFetch('/api/desk/cron');
+        const data = await res.json();
+        const count = (data.jobs || []).length;
+        useStore.setState({ automationCount: count });
+      } catch { /* ignore */ }
+    })(),
+    (async () => {
+      try {
+        const res = await hanaFetch('/api/bridge/status');
+        const data = await res.json();
+        const anyConnected = data.telegram?.status === 'connected' || data.feishu?.status === 'connected' || data.qq?.status === 'connected' || data.whatsapp?.status === 'connected';
+        useStore.setState({ bridgeDotConnected: anyConnected });
+      } catch { /* ignore */ }
+    })(),
+    (async () => {
+      try {
+        const res = await hanaFetch('/api/skills/external-paths');
+        const data = await res.json();
+        const found = (data.discovered || []).filter((a: any) => a.exists);
+        if (found.length > 0 && !localStorage.getItem('agent-discovery-seen')) {
+          useStore.setState({ discoveredAgents: found, agentDiscoveryVisible: true });
+        }
+      } catch { /* ignore */ }
+    })(),
+  ]);
 
   // 18. 设置快捷键
   document.addEventListener('keydown', (e) => {
@@ -158,7 +169,17 @@ export async function initApp(): Promise<void> {
     }
   });
 
-  // 19. 设置变更监听
+  // 19. 服务端重启后同步新端口/令牌并主动重连 WS
+  platform.onServerRestarted?.((data: { port: number; token: string }) => {
+    useStore.setState({ serverPort: String(data.port), serverToken: data.token });
+    connectWebSocket(String(data.port), data.token);
+    hanaFetch('/api/health')
+      .then((res) => res.json())
+      .then((healthData) => loadAvatars(healthData?.avatars))
+      .catch(() => loadAvatars());
+  });
+
+  // 20. 设置变更监听
   platform.onSettingsChanged((type: string, data: any) => {
     switch (type) {
       case 'agent-switched':
@@ -167,6 +188,7 @@ export async function initApp(): Promise<void> {
           agentId: data.agentId,
         });
         loadSessions();
+        loadChannels();
         window.__loadDeskSkills?.();
         break;
       case 'skills-changed':
@@ -184,6 +206,7 @@ export async function initApp(): Promise<void> {
       case 'agent-created':
       case 'agent-deleted':
         loadAgents();
+        loadChannels();
         break;
       case 'agent-updated':
         applyAgentIdentity({
@@ -201,11 +224,10 @@ export async function initApp(): Promise<void> {
     }
   });
 
-  // 20. Skill Viewer overlay（主进程 / 设置窗口 → 渲染进程）
+  // 21. Skill Viewer overlay（主进程 / 设置窗口 → 渲染进程）
   window.hana?.onShowSkillViewer?.((data: any) => {
     useStore.setState({ skillViewerData: data });
   });
 
-  // 21. 通知 app ready
-  platform.appReady();
+  // appReady 已提前触发，避免 splash 额外阻塞。
 }

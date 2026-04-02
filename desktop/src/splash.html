@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' file:;">
-    <title>Hanako</title>
+    <title>Lynn</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; overflow: hidden; }
@@ -31,6 +31,9 @@
             width: 72px; height: 72px;
             border-radius: 50%;
             object-fit: cover;
+            object-position: center center;
+            -webkit-clip-path: circle(50% at 50% 50%);
+            clip-path: circle(50% at 50% 50%);
             pointer-events: none;
             user-select: none;
         }

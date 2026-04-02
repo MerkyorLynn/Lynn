@@ -12,6 +12,7 @@ const PRIORITY_LABELS = new Set(['Cursor', 'Codex', 'Claude Code', 'CodeBuddy', 
 
 export function DeskSkillsSection() {
   const skills = useStore(state => state.deskSkills);
+  const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(DESK_SKILLS_KEY) === '1',
   );
@@ -48,6 +49,8 @@ export function DeskSkillsSection() {
       );
     } catch {
       // ignore
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -90,7 +93,7 @@ export function DeskSkillsSection() {
   );
   const t = window.t ?? ((key: string) => key);
 
-  if (skills.length === 0) return null;
+  if (!loading && skills.length === 0) return null;
 
   return (
     <div className={styles.skillsSection}>

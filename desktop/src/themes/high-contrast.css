@@ -1,5 +1,5 @@
 /*
- * Hana Theme: 素白（High Contrast）
+ * Lynn Theme: 素白（High Contrast）
  * 基于暖纸主题，降低暖黄、提高对比度
  */
 
@@ -45,6 +45,7 @@
     --user-bg:      rgba(58, 107, 133, 0.08);
     --drop-overlay-bg: rgba(250, 249, 246, 0.88);
     --attach-bg:    rgba(0, 0, 0, 0.05);
+    --tool-shimmer: rgba(255, 255, 255, 0.55);
 
     /* 辅助色 */
     --accent-rgb:   58, 107, 133;

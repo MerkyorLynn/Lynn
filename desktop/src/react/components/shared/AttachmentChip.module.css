@@ -14,6 +14,16 @@
     max-width: 185px;
 }
 
+.compact {
+    gap: 0.28rem;
+    padding: 0.22rem 0.48rem;
+    font-size: 0.7rem;
+    border-radius: 999px;
+    box-shadow: none;
+    background: rgba(var(--accent-rgb), 0.06);
+    max-width: min(220px, 48vw);
+}
+
 .name {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -23,6 +33,10 @@
     gap: 4px;
     color: var(--text);
     min-width: 0;
+}
+
+.compact .name {
+    gap: 3px;
 }
 
 .icon {
@@ -37,6 +51,16 @@
 .icon svg {
     width: 13px;
     height: 13px;
+}
+
+.compact .icon {
+    width: 12px;
+    height: 12px;
+}
+
+.compact .icon svg {
+    width: 12px;
+    height: 12px;
 }
 
 .remove {
@@ -54,6 +78,12 @@
     flex-shrink: 0;
     opacity: 0.5;
     transition: opacity 0.12s;
+}
+
+.compact .remove {
+    width: 16px;
+    height: 16px;
+    opacity: 0.72;
 }
 
 .remove:hover {

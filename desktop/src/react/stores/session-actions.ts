@@ -9,15 +9,31 @@
 
 import { useStore } from './index';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
-import { buildItemsFromHistory } from '../utils/history-builder';
 import { loadAvatars as loadAvatarsAction, clearChat as clearChatAction } from './agent-actions';
 import { loadDeskFiles } from './desk-actions';
 import { saveTabState, restoreTabState } from './artifact-actions';
 import { loadModels } from '../utils/ui-helpers';
+import { getComposerSessionKey, PENDING_COMPOSER_KEY } from '../utils/composer-state';
 
 // ── 防竞争计数器 ──
 
 let _switchVersion = 0;
+
+function tr(key: string, fallback: string, vars?: Record<string, string | number>): string {
+  const value = window.t?.(key, vars);
+  return !value || value === key ? fallback : String(value);
+}
+
+function formatActionError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  return raw.replace(/^hanaFetch\s+\S+:\s*/, '').trim();
+}
+
+function showActionError(key: string, fallback: string, err: unknown, dedupeKey?: string): void {
+  const detail = formatActionError(err);
+  const text = detail ? `${tr(key, fallback)}: ${detail}` : tr(key, fallback);
+  showSidebarToast(text, 5000, 'error', dedupeKey);
+}
 
 // ══════════════════════════════════════════════════════
 // 消息加载（从 app-messages-shim 迁移）
@@ -29,6 +45,7 @@ export async function loadMessages(forPath?: string): Promise<void> {
   try {
     const res = await hanaFetch(`/api/sessions/messages?path=${encodeURIComponent(targetPath)}`);
     const data = await res.json();
+    const { buildItemsFromHistory } = await import('../utils/history-builder');
     // per-session todos
     useStore.getState().setSessionTodosForPath(targetPath, data.todos || []);
     const items = buildItemsFromHistory(data);
@@ -40,7 +57,10 @@ export async function loadMessages(forPath?: string): Promise<void> {
     } else {
       useStore.getState().initSession(targetPath, [], false);
     }
-  } catch (err) { console.error('[loadMessages] error:', err); }
+  } catch (err) {
+    console.error('[loadMessages] error:', err);
+    showActionError('session.loadFailed', 'Failed to load session', err, 'session-load-failed');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -60,7 +80,10 @@ export async function loadSessions(): Promise<void> {
       // 首次加载：走完整的 switchSession 确保后端同步 + 消息加载
       await switchSession(sessions[0].path);
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error('[session] load failed:', err);
+    showActionError('session.loadFailed', 'Failed to load sessions', err, 'session-list-load-failed');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -89,6 +112,7 @@ export async function switchSession(path: string): Promise<void> {
     if (myVersion !== _switchVersion) return;
     if (data.error) {
       console.error('[session] switch failed:', data.error);
+      showActionError('session.switchFailed', 'Failed to switch session', data.error, 'session-switch-failed');
       return;
     }
 
@@ -113,8 +137,10 @@ export async function switchSession(path: string): Promise<void> {
       };
     }
 
-    // 保存当前 session 的 tab 状态
+    // 保存当前 session 的 tab 状态与输入草稿
     const currentPath = s.currentSessionPath;
+    const currentComposerKey = getComposerSessionKey(currentPath, s.pendingNewSession);
+    useStore.getState().saveComposerDraft(currentComposerKey);
     if (currentPath) saveTabState(currentPath);
 
     // 批量更新 store
@@ -136,11 +162,14 @@ export async function switchSession(path: string): Promise<void> {
     // 刷新模型列表（当前 session 的模型可能不同）
     loadModels();
 
-    // 恢复目标 session 的 tab 状态 + 清除 quotedSelection
+    // 恢复目标 session 的 tab 状态与输入草稿
     restoreTabState(path);
-    useStore.getState().clearQuotedSelection();
+    useStore.getState().restoreComposerDraft(getComposerSessionKey(path, false));
 
-    // Sync plan mode for the switched-to session
+    // Sync session-scoped security state after switching sessions
+    const nextSecurityMode = data.securityMode || 'authorized';
+    useStore.getState().setSecurityMode(nextSecurityMode);
+    window.dispatchEvent(new CustomEvent('hana-security-mode', { detail: { mode: nextSecurityMode } }));
     window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: data.planMode ?? false } }));
 
     // renderBrowserCard — no-op (browser card rendering handled by React)
@@ -165,6 +194,7 @@ export async function switchSession(path: string): Promise<void> {
     }
   } catch (err) {
     console.error('[session] switch failed:', err);
+    showActionError('session.switchFailed', 'Failed to switch session', err, 'session-switch-failed');
   }
 }
 
@@ -201,6 +231,7 @@ export async function createNewSession(): Promise<void> {
   // updateFolderButton — no-op (React-driven)
 
   const currentState = useStore.getState();
+  useStore.getState().restoreComposerDraft(PENDING_COMPOSER_KEY);
   loadDeskFiles('', currentState.selectedFolder || currentState.homeFolder || undefined);
 
   useStore.getState().requestInputFocus();
@@ -286,7 +317,10 @@ export async function ensureSession(): Promise<boolean> {
 
     useStore.setState(patch);
 
-    // New session defaults to plan mode OFF
+    // New session inherits the current security mode selection from the server
+    const nextSecurityMode = data.securityMode || 'authorized';
+    useStore.getState().setSecurityMode(nextSecurityMode);
+    window.dispatchEvent(new CustomEvent('hana-security-mode', { detail: { mode: nextSecurityMode } }));
     window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: data.planMode ?? false } }));
 
     await loadSessions();
@@ -364,6 +398,7 @@ export async function renameSession(path: string, title: string): Promise<boolea
     const data = await res.json();
     if (data.error) {
       console.error('[session] rename failed:', data.error);
+      showActionError('session.renameFailed', 'Failed to rename session', data.error, 'session-rename-failed');
       return false;
     }
     // 乐观更新 store 中的 title
@@ -374,6 +409,7 @@ export async function renameSession(path: string, title: string): Promise<boolea
     return true;
   } catch (err) {
     console.error('[session] rename failed:', err);
+    showActionError('session.renameFailed', 'Failed to rename session', err, 'session-rename-failed');
     return false;
   }
 }
@@ -382,6 +418,11 @@ export async function renameSession(path: string, title: string): Promise<boolea
 // Toast
 // ══════════════════════════════════════════════════════
 
-export function showSidebarToast(text: string, duration = 3000): void {
-  useStore.getState().addToast(text, 'info', duration);
+export function showSidebarToast(
+  text: string,
+  duration = 3000,
+  type: 'success' | 'error' | 'info' | 'warning' = 'info',
+  dedupeKey?: string,
+): void {
+  useStore.getState().addToast(text, type, duration, dedupeKey ? { dedupeKey } : undefined);
 }

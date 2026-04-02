@@ -15,18 +15,34 @@
 
   // Web / 非 Electron 环境 — HTTP fallback
   const params = new URLSearchParams(location.search);
-  const token = params.get("token") || localStorage.getItem("hana-token") || "";
+  const tokenFromQuery = params.get('token') || '';
+  const tokenFromStorage = localStorage.getItem('hana-token') || '';
+  const token = tokenFromQuery || tokenFromStorage;
+
+  if (token) {
+    try {
+      localStorage.setItem('hana-token', token);
+      document.cookie = `hana_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
+      if (tokenFromQuery) {
+        params.delete('token');
+        const nextQuery = params.toString();
+        const nextUrl = `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`;
+        window.history.replaceState({}, '', nextUrl);
+      }
+    } catch {}
+  }
+
   const baseUrl = `${location.protocol}//${location.host}`;
 
   function apiFetch(path, opts = {}) {
     const headers = { ...opts.headers };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, { ...opts, headers });
   }
 
   window.platform = {
     // 服务器连接
-    getServerPort: async () => location.port || "3000",
+    getServerPort: async () => location.port || '3000',
     getServerToken: async () => token,
     appReady: async () => {},
 
@@ -57,9 +73,10 @@
     // OS 集成 → 静默降级
     openFolder: () => {},
     openFile: () => {},
-    openExternal: (url) => { try { window.open(url, "_blank"); } catch {} },
+    openExternal: (url) => { try { window.open(url, '_blank'); } catch {} },
     showInFinder: () => {},
     startDrag: () => {},
+    confirmAction: async (opts = {}) => window.confirm(opts.message || 'Confirm'),
 
     // 窗口管理 → 单页降级
     openSettings: () => {},
@@ -91,7 +108,7 @@
     debugOpenOnboardingPreview: async () => {},
 
     // 窗口控制（Web 不需要）
-    getPlatform: async () => "web",
+    getPlatform: async () => 'web',
     windowMinimize: () => {},
     windowMaximize: () => {},
     windowClose: () => {},
@@ -105,6 +122,6 @@
   const p = window.platform;
   if (!p?.getPlatform) return;
   const plat = await p.getPlatform();
-  document.documentElement.setAttribute("data-platform", plat);
+  document.documentElement.setAttribute('data-platform', plat);
   // Windows/Linux 窗口控制按钮已迁移到 React (App.tsx WindowControls)
 })();

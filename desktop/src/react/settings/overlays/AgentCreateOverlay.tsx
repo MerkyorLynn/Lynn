@@ -3,6 +3,8 @@ import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { switchToAgent } from '../actions';
+import { resolveBundledAvatar } from '../../utils/agent-helpers';
+import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import styles from '../Settings.module.css';
 
 const platform = window.platform;
@@ -20,13 +22,13 @@ export function AgentCreateOverlay() {
       setName('');
       setYuan('hanako');
       setVisible(true);
-      requestAnimationFrame(() => inputRef.current?.focus());
     };
     window.addEventListener('hana-show-agent-create', handler);
     return () => window.removeEventListener('hana-show-agent-create', handler);
   }, []);
 
   const close = () => setVisible(false);
+  const dialogRef = useDialogA11y({ open: visible, onClose: close, initialFocusRef: inputRef });
 
   const create = async () => {
     if (creating) return;
@@ -56,12 +58,19 @@ export function AgentCreateOverlay() {
   if (!visible) return null;
 
   const types = t('yuan.types') || {};
-  const entries = Object.entries(types) as [string, any][];
+  const entries = Object.entries(types) as [string, { name?: string; label?: string; avatar?: string }][];
 
   return (
     <div className={`${styles['agent-create-overlay']} ${styles['visible']}`} onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className={styles['agent-create-card']}>
-        <h3 className={styles['agent-create-title']}>{t('settings.agent.createTitle')}</h3>
+      <div
+        ref={dialogRef}
+        className={styles['agent-create-card']}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-create-title"
+        tabIndex={-1}
+      >
+        <h3 id="agent-create-title" className={styles['agent-create-title']}>{t('settings.agent.createTitle')}</h3>
         <div className={styles['settings-field']}>
           <input
             ref={inputRef}
@@ -72,7 +81,6 @@ export function AgentCreateOverlay() {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') { e.preventDefault(); create(); }
-              if (e.key === 'Escape') close();
             }}
           />
         </div>
@@ -82,13 +90,13 @@ export function AgentCreateOverlay() {
               {entries.filter(([key]) => key !== 'kong').map(([key, meta]) => (
                 <button
                   key={key}
-                  className={`${'yuan-chip'}${key === yuan  ? ' ' + styles['selected'] : ''}`}
+                  className={`${'yuan-chip'}${key === yuan ? ' ' + styles['selected'] : ''}`}
                   type="button"
                   onClick={() => setYuan(key)}
                 >
-                  <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Lynn.png'}`} draggable={false} />
+                  <img className="yuan-chip-avatar" src={resolveBundledAvatar(meta.avatar || 'Lynn.png')} draggable={false} />
                   <div className="yuan-chip-info">
-                    <span className="yuan-chip-name">{key}</span>
+                    <span className="yuan-chip-name">{meta.name || key}</span>
                     <span className="yuan-chip-desc">{meta.label || ''}</span>
                   </div>
                 </button>
@@ -97,13 +105,13 @@ export function AgentCreateOverlay() {
             {entries.filter(([key]) => key === 'kong').map(([key, meta]) => (
               <button
                 key={key}
-                className={`${'yuan-chip'}${key === yuan  ? ' ' + styles['selected'] : ''}`}
+                className={`${'yuan-chip'}${key === yuan ? ' ' + styles['selected'] : ''}`}
                 type="button"
                 onClick={() => setYuan(key)}
               >
-                <img className="yuan-chip-avatar" src={`assets/${meta.avatar || 'Lynn.png'}`} draggable={false} />
+                <img className="yuan-chip-avatar" src={resolveBundledAvatar(meta.avatar || 'Lynn.png')} draggable={false} />
                 <div className="yuan-chip-info">
-                  <span className="yuan-chip-name">{key}</span>
+                  <span className="yuan-chip-name">{meta.name || key}</span>
                   <span className="yuan-chip-desc">{meta.label || ''}</span>
                 </div>
               </button>

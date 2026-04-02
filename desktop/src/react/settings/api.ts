@@ -7,10 +7,8 @@ import { useSettingsStore } from './store';
 const DEFAULT_TIMEOUT = 30_000;
 
 export function hanaUrl(path: string): string {
-  const { serverPort, serverToken } = useSettingsStore.getState();
-  const sep = path.includes('?') ? '&' : '?';
-  const tokenParam = serverToken ? `${sep}token=${serverToken}` : '';
-  return `http://127.0.0.1:${serverPort}${path}${tokenParam}`;
+  const { serverPort } = useSettingsStore.getState();
+  return `http://127.0.0.1:${serverPort}${path}`;
 }
 
 export async function hanaFetch(
@@ -34,7 +32,17 @@ export async function hanaFetch(
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new Error(`hanaFetch ${path}: ${res.status} ${res.statusText}`);
+      let detail = `${res.status} ${res.statusText}`;
+      try {
+        const ct = res.headers.get('content-type');
+        if (ct?.includes('application/json')) {
+          const j = (await res.clone().json()) as { error?: string };
+          if (j?.error) detail = j.error;
+        }
+      } catch {
+        /* keep status text */
+      }
+      throw new Error(`hanaFetch ${path}: ${detail}`);
     }
     return res;
   } finally {
@@ -47,5 +55,10 @@ export function yuanFallbackAvatar(yuan?: string): string {
   const t = window.t || ((k: string) => k);
   const types = (t('yuan.types') || {}) as Record<string, { avatar?: string }>;
   const entry = types[yuan || 'hanako'];
-  return `assets/${entry?.avatar || 'Lynn.png'}`;
+  const avatar = entry?.avatar || 'Lynn.png';
+  if (avatar === 'Hanako.png') return 'assets/Hanako-1600.jpg';
+  if (avatar === 'Butter.png') return 'assets/Butter-1600.jpg';
+  if (avatar === 'Ming.png') return 'assets/Ming-512-opt.png';
+  if (avatar === 'Lynn.png') return 'assets/Lynn-512-opt.png';
+  return `assets/${avatar}`;
 }

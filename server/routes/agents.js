@@ -156,15 +156,18 @@ export function createAgentsRoute(engine) {
     }
     const avatarPath = path.join(agentDir(engine, id), "avatars");
     const mimeMap = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp" };
-    for (const ext of ["png", "jpg", "jpeg", "webp"]) {
-      const p = path.join(avatarPath, `agent.${ext}`);
-      try {
-        await fs.access(p);
-        const buf = await fs.readFile(p);
-        c.header("Content-Type", mimeMap[ext]);
-        c.header("Cache-Control", "no-cache");
-        return c.body(buf);
-      } catch {}
+    // 先找 agent.* 再找 avatar.*（兼容专家头像预设）
+    for (const name of ["agent", "avatar"]) {
+      for (const ext of ["png", "jpg", "jpeg", "webp"]) {
+        const p = path.join(avatarPath, `${name}.${ext}`);
+        try {
+          await fs.access(p);
+          const buf = await fs.readFile(p);
+          c.header("Content-Type", mimeMap[ext]);
+          c.header("Cache-Control", "no-cache");
+          return c.body(buf);
+        } catch {}
+      }
     }
     return c.json({ error: "no avatar" }, 404);
   });

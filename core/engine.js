@@ -58,6 +58,12 @@ import {
 import { debugLog } from "../lib/debug-log.js";
 import { createSandboxedTools } from "../lib/sandbox/index.js";
 import { t } from "../server/i18n.js";
+import {
+  SecurityMode,
+  SECURITY_MODE_CONFIG,
+  normalizeSecurityMode,
+  DEFAULT_SECURITY_MODE,
+} from "../shared/security-mode.js";
 
 export class HanaEngine {
   /**
@@ -76,6 +82,7 @@ export class HanaEngine {
 
     // ── Core managers ──
     this._prefs = new PreferencesManager({ userDir: this.userDir, agentsDir: this.agentsDir });
+    this._prefs.ensureClientAgentKey();
     this._models = new ModelManager({ lynnHome });
 
     // 确定启动时焦点 agent
@@ -88,6 +95,7 @@ export class HanaEngine {
       agentsDir: this.agentsDir,
       userDir: this.userDir,
       getHub: () => this._hub,
+      deleteAgent: (agentId) => this._agentMgr?.deleteAgent(agentId),
     });
 
     // ── Agent Manager ──
@@ -139,6 +147,12 @@ export class HanaEngine {
       listAgents: () => this.listAgents(),
       getConfirmStore: () => this._confirmStore,
     });
+
+    // Initialize security mode from saved preference
+    const savedSecurityMode = this._prefs.getSecurityMode();
+    if (savedSecurityMode) {
+      this._sessionCoord._pendingSecurityMode = normalizeSecurityMode(savedSecurityMode);
+    }
 
     // ── Config Coordinator ──
     this._configCoord = new ConfigCoordinator({
@@ -292,6 +306,7 @@ export class HanaEngine {
   get memoryEnabled() { return this.agent.memoryEnabled; }
   get memoryModelUnavailableReason() { return this.agent.memoryModelUnavailableReason; }
   get planMode() { return this._sessionCoord.getPlanMode(); }
+  get securityMode() { return this._sessionCoord.getSecurityMode(); }
   get homeCwd() { return this._configCoord.getHomeFolder() || null; }
   get authStorage() { return this._models.authStorage; }
   get modelRegistry() { return this._models.modelRegistry; }
@@ -340,6 +355,8 @@ export class HanaEngine {
   setThinkingLevel(l) { return this._configCoord.setThinkingLevel(l); }
   getSandbox() { return this._prefs.getSandbox(); }
   setSandbox(v) { this._prefs.setSandbox(v); }
+  getSecurityModePreference() { return this._prefs.getSecurityMode(); }
+  setSecurityModePreference(v) { this._prefs.setSecurityMode(v); }
   getLearnSkills() { return this._prefs.getLearnSkills(); }
   setLearnSkills(p) { this._prefs.setLearnSkills(p); }
   getLocale() { return this._prefs.getLocale(); }
@@ -352,6 +369,11 @@ export class HanaEngine {
   setMemoryMasterEnabled(id, v) { return this._configCoord.setMemoryMasterEnabled(id, v); }
   persistSessionMeta() { return this._configCoord.persistSessionMeta(); }
   setPlanMode(enabled) { return this._sessionCoord.setPlanMode(enabled, allBuiltInTools); }
+  setSecurityMode(mode) {
+    this._sessionCoord.setSecurityMode(mode, allBuiltInTools);
+    // Persist default mode preference
+    this._prefs.setSecurityMode(mode);
+  }
   async updateConfig(p) { return this._configCoord.updateConfig(p); }
 
   getPreferences() { return this._readPreferences(); }
@@ -361,7 +383,9 @@ export class HanaEngine {
   //  Channel 代理（→ ChannelManager）
   // ════════════════════════════
 
+  createChannel(opts) { return this._channels.createChannel(opts); }
   deleteChannelByName(n) { return this._channels.deleteChannelByName(n); }
+  archiveChannelByName(n) { return this._channels.archiveChannelByName(n); }
   async triggerChannelTriage(n, o) { return this._channels.triggerChannelTriage(n, o); }
 
   // ════════════════════════════
@@ -516,6 +540,35 @@ export class HanaEngine {
       }
     }
 
+    // 2c. 清理绑定到已不存在频道的孤儿专家
+    const orphanedExperts = this._channels.listOrphanedChannelExperts();
+    if (orphanedExperts.length > 0) {
+      const orphanSet = new Set(orphanedExperts);
+      if (orphanSet.has(this.currentAgentId)) {
+        const fallbackId = [...this._agentMgr.agents.keys()].find((id) => !orphanSet.has(id));
+        if (fallbackId) {
+          await this._agentMgr.switchAgentOnly(fallbackId);
+          log(`[init] 当前 agent 绑定频道已失效，已切换到 ${fallbackId}`);
+        } else {
+          orphanSet.delete(this.currentAgentId);
+          log(`[init] 检测到当前 agent 是孤儿频道专家，但没有可切换的其他 agent，暂不删除`);
+        }
+      }
+
+      let cleanedCount = 0;
+      for (const agentId of orphanSet) {
+        try {
+          await this._agentMgr.deleteAgent(agentId);
+          cleanedCount += 1;
+        } catch (err) {
+          log(`[init] 清理孤儿频道专家失败 (${agentId}): ${err.message}`);
+        }
+      }
+      if (cleanedCount > 0) {
+        log(`[init] 已清理 ${cleanedCount} 个孤儿频道专家`);
+      }
+    }
+
     // 3. ResourceLoader + Skills
     log(`[init] 3/5 ResourceLoader 初始化...`);
     const t_rl = Date.now();
@@ -565,19 +618,20 @@ export class HanaEngine {
       const chatRef = this.agent.config.models?.chat;
       const preferredId = typeof chatRef === "object" ? chatRef?.id : chatRef;
       const preferredProvider = typeof chatRef === "object" ? chatRef?.provider : undefined;
-      if (!preferredId) {
-        console.warn("[engine] ⚠ 未配置 models.chat，defaultModel 为 null");
-        this._models.defaultModel = null;
-      } else {
-        const model = findModel(availableModels, preferredId, preferredProvider);
+      let model = null;
+      if (preferredId) {
+        model = findModel(availableModels, preferredId, preferredProvider);
         if (!model) {
-          console.error(`[engine] ⚠ 配置的模型 "${preferredId}" 不在可用列表中，defaultModel 为 null`);
-          this._models.defaultModel = null;
-        } else {
-          this._models.defaultModel = model;
-          log(`✿ 使用模型: ${model.name} (${model.provider})`);
+          console.warn(`[engine] ⚠ 配置的模型 "${preferredId}" 不在可用列表中，尝试自动选择第一个可用模型`);
         }
       }
+      // 自动回退：未配置 models.chat 或配置的模型不可用时，取第一个可用模型
+      if (!model) {
+        model = availableModels[0];
+        console.log(`[engine] 自动选择默认模型: ${model.name || model.id} (${model.provider})`);
+      }
+      this._models.defaultModel = model;
+      log(`✿ 使用模型: ${model.name} (${model.provider})`);
     }
 
     // 5. Sync skills + watch skillsDir
@@ -649,13 +703,28 @@ export class HanaEngine {
     const effectiveAgentDir = opts.agentDir || this.agent.agentDir;
     const effectiveWorkspace = opts.workspace !== undefined ? opts.workspace : this.homeCwd;
     const sandboxEnabled = this._readPreferences().sandbox !== false;
-    const effectiveMode = opts.mode || (sandboxEnabled ? "standard" : "full-access");
+
+    // Derive sandbox mode from security mode
+    let effectiveMode;
+    if (opts.mode) {
+      effectiveMode = opts.mode;
+    } else if (!sandboxEnabled) {
+      effectiveMode = "full-access";
+    } else {
+      // Use security mode config to determine sandbox behavior
+      const secMode = this.securityMode;
+      const secConfig = SECURITY_MODE_CONFIG[secMode];
+      effectiveMode = secConfig ? secConfig.sandboxMode : "standard";
+    }
 
     return createSandboxedTools(cwd, allTools, {
       agentDir: effectiveAgentDir,
       workspace: effectiveWorkspace,
       lynnHome: this.lynnHome,
       mode: effectiveMode,
+      confirmStore: this._confirmStore,
+      emitEvent: (e, sp) => this._emitEvent(e, sp),
+      getSessionPath: opts.getSessionPath,
     });
   }
 

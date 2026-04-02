@@ -22,6 +22,7 @@ import { HanaEngine } from "../core/engine.js";
 import { ensureFirstRun } from "../core/first-run.js";
 import { initDebugLog } from "../lib/debug-log.js";
 import { safeJson } from "./hono-helpers.js";
+import { resolveRequestAuthToken } from "./auth-token.js";
 
 // Pi SDK 的 fetch 请求会累积 AbortSignal listener，提高上限避免无害警告
 setMaxListeners(50);
@@ -50,6 +51,7 @@ import { createExpertsRoute } from "./routes/experts.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
+import { getAllowlist } from "../lib/sandbox/index.js";
 import { BridgeManager } from "../lib/bridge/bridge-manager.js";
 import { Hub } from "../hub/index.js";
 import { startCLI } from "./cli.js";
@@ -93,10 +95,8 @@ import { BrowserManager } from "../lib/browser/browser-manager.js";
 BrowserManager.setSessionResolver(() => engine.currentSessionPath);
 
 if (engine.currentModel) {
-  console.log("[server] ③ 创建 session...");
-  await engine.createSession();
-  console.log("[server] ③ Session created");
-  dlog.log("server", `session created, model=${engine.currentModel.name}`);
+  console.log("[server] ③ 跳过启动期 session 预创建，延后到首次发消息时创建...");
+  dlog.log("server", `session creation deferred, model=${engine.currentModel.name}`);
 } else {
   console.warn("[server] ⚠ 无可用模型，跳过 session 创建。请在设置中配置 API key。");
   dlog.warn("server", "no models available, session creation skipped");
@@ -144,10 +144,14 @@ app.use("*", async (c, next) => {
   c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (c.req.method === "OPTIONS") return c.text("", 204);
 
-  // 验证 token：优先 Authorization header，WebSocket 升级请求允许 URL 参数传 token
+  // 验证 token：优先 Authorization header，WebSocket 走 Sec-WebSocket-Protocol，
+  // 浏览器资源请求允许走同源 cookie，避免把 token 暴露在 URL。
   const isUpgrade = (c.req.header("upgrade") || "").toLowerCase() === "websocket";
-  const token = c.req.header("authorization")?.replace("Bearer ", "")
-    || (isUpgrade ? c.req.query("token") : undefined);
+  const token = resolveRequestAuthToken({
+    authorization: c.req.header("authorization"),
+    protocolHeader: isUpgrade ? c.req.header("sec-websocket-protocol") : "",
+    cookieHeader: c.req.header("cookie"),
+  });
   if (token !== SERVER_TOKEN) return c.json({ error: "forbidden" }, 403);
 
   await next();
@@ -228,7 +232,7 @@ app.post("/api/log", async (c) => {
   return c.json({ ok: true });
 });
 
-// Plan Mode（只读探索模式）
+// Plan Mode（只读探索模式）— 保留向后兼容
 app.get("/api/plan-mode", async (c) => {
   return c.json({ enabled: engine.planMode });
 });
@@ -236,6 +240,33 @@ app.post("/api/plan-mode", async (c) => {
   const { enabled } = await safeJson(c);
   engine.setPlanMode(!!enabled);
   return c.json({ ok: true, enabled: engine.planMode });
+});
+
+// Security Mode（三模式安全策略）
+app.get("/api/security-mode", async (c) => {
+  return c.json({ mode: engine.securityMode });
+});
+app.post("/api/security-mode", async (c) => {
+  const { mode } = await safeJson(c);
+  engine.setSecurityMode(mode);
+  return c.json({ ok: true, mode: engine.securityMode });
+});
+
+// Security Allowlist（白名单管理）
+app.get("/api/security-allowlist", async (c) => {
+  const allowlist = getAllowlist(lynnHome);
+  return c.json({ items: allowlist.list() });
+});
+app.delete("/api/security-allowlist/:key", async (c) => {
+  const key = decodeURIComponent(c.req.param("key"));
+  const allowlist = getAllowlist(lynnHome);
+  allowlist.removeByKey(key);
+  return c.json({ ok: true });
+});
+app.delete("/api/security-allowlist", async (c) => {
+  const allowlist = getAllowlist(lynnHome);
+  allowlist.clear();
+  return c.json({ ok: true });
 });
 
 // 远程关闭（供 desktop 端复用 server 退出时调用，跨平台可靠的 graceful shutdown）
@@ -274,10 +305,12 @@ try {
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
     if (url.pathname !== "/internal/browser") return; // let Hono handle it
 
-    // Prefer Sec-WebSocket-Protocol header for auth; fall back to URL param (localhost only)
-    const protoHeader = req.headers["sec-websocket-protocol"] || "";
-    const protoToken = protoHeader.split(",").map(s => s.trim()).find(s => s.startsWith("token."))?.slice(6);
-    const token = protoToken || url.searchParams.get("token");
+    // Read auth token from headers / protocol / cookie without leaking it in URLs.
+    const token = resolveRequestAuthToken({
+      authorization: req.headers.authorization,
+      protocolHeader: req.headers["sec-websocket-protocol"],
+      cookieHeader: req.headers.cookie,
+    });
     if (token !== SERVER_TOKEN) {
       socket.destroy();
       return;

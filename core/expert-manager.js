@@ -2,7 +2,7 @@
  * ExpertManager — 专家管理器
  *
  * 负责加载预设专家、列出可用专家、实例化专家为 Agent。
- * 挂在 HanaEngine 上，与 AgentManager 协作。
+ * 挂在核心引擎上，与 AgentManager 协作。
  *
  * 设计原则：
  * - 平台不提供默认 AI 模型，所有 AI 调用均走用户自己的 API Key
@@ -76,6 +76,7 @@ export class ExpertManager {
       name: p.name[lang] || p.name.en || p.slug,
       nameI18n: p.name,
       icon: p.icon,
+      avatarUrl: `/api/experts/${encodeURIComponent(p.slug)}/avatar`,
       category: p.category,
       tier: p.tier,
       model_binding: {
@@ -106,6 +107,7 @@ export class ExpertManager {
       name: preset.name[lang] || preset.name.en || preset.slug,
       nameI18n: preset.name,
       icon: preset.icon,
+      avatarUrl: `/api/experts/${encodeURIComponent(preset.slug)}/avatar`,
       category: preset.category,
       tier: preset.tier,
       model_binding: preset.model_binding,
@@ -115,6 +117,7 @@ export class ExpertManager {
       descriptionI18n: preset.description,
       identity: preset._identity || "",
       ishiki: preset._ishiki || "",
+      _dir: preset._dir,
     };
   }
 
@@ -215,14 +218,40 @@ export class ExpertManager {
     const locale = "zh"; // 默认中文
     const expertName = preset.name[locale] || preset.name.en || slug;
 
-    // 解析最佳可用模型
-    const modelId = this.resolveModelForExpert(slug);
+    // 根据专家 category 选择最匹配的 yuan（思维风格）
+    // ming = 冷静拆解（金融/法律/技术）  butter = 共情洞察（心理/创意）  hanako = 通用
+    const yuanType = ExpertManager.resolveYuanForCategory(preset.category);
+
+    const modelMgr = this._getModelMgr();
+    const availableModels = modelMgr.availableModels || [];
+
+    // 解析最佳可用模型，优先尊重用户显式选择的 provider + model
+    let modelId = null;
+    let modelProvider = opts.provider || "";
+    if (opts.modelId) {
+      const explicitModel = availableModels.find((m) => m.id === opts.modelId && (!opts.provider || m.provider === opts.provider))
+        || availableModels.find((m) => m.id === opts.modelId);
+      if (!explicitModel) {
+        throw new Error(`Model not found: ${opts.modelId}`);
+      }
+      modelId = explicitModel.id;
+      modelProvider = explicitModel.provider || modelProvider;
+    } else {
+      modelId = this.resolveModelForExpert(slug);
+      modelProvider = availableModels.find((m) => m.id === modelId)?.provider || modelProvider;
+      if (!modelProvider && modelId) {
+        const rawProviders = modelMgr.providerRegistry?.getAllProvidersRaw?.() || {};
+        modelProvider = Object.entries(rawProviders).find(([, raw]) =>
+          Array.isArray(raw?.models) && raw.models.some((m) => (typeof m === "object" ? m.id : m) === modelId)
+        )?.[0] || modelProvider;
+      }
+    }
 
     // 通过 AgentManager 创建 Agent
     const agentMgr = this._getAgentMgr();
     const result = await agentMgr.createAgent({
       name: expertName,
-      yuan: "hanako",  // 专家默认使用 hanako 模板，identity.md 会覆盖人格
+      yuan: yuanType,
     });
 
     // 注入 expert 配置到新创建的 agent
@@ -239,14 +268,17 @@ export class ExpertManager {
           credit_cost: preset.credit_cost,
           category: preset.category,
           icon: preset.icon,
+          ...(opts.channelId ? { spawnedForChannel: opts.channelId } : {}),
         },
       });
 
-      // 如果有模型绑定且用户有该模型，设置 chat 模型
+      // 如果有模型绑定或用户显式选择模型，写入 chat 模型与 provider
       if (modelId) {
-        agent.updateConfig({
+        const modelPatch = {
           models: { chat: modelId },
-        });
+          ...(modelProvider ? { api: { provider: modelProvider } } : {}),
+        };
+        agent.updateConfig(modelPatch);
       }
 
       // 写入 identity.md 和 ishiki.md（覆盖默认模板）
@@ -266,8 +298,29 @@ export class ExpertManager {
         );
       }
 
+      // 复制专家头像（如果预设目录有 avatars/avatar.png 等）
+      if (preset._dir) {
+        const presetAvatarsDir = path.join(preset._dir, "avatars");
+        const agentAvatarsDir = path.join(agent.agentDir, "avatars");
+        try {
+          const avatarFiles = fs.readdirSync(presetAvatarsDir).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f));
+          for (const f of avatarFiles) {
+            const src = path.join(presetAvatarsDir, f);
+            const ext = path.extname(f).toLowerCase();
+            fs.copyFileSync(src, path.join(agentAvatarsDir, `avatar${ext}`));
+            fs.copyFileSync(src, path.join(agentAvatarsDir, `agent${ext}`));
+          }
+          if (avatarFiles.length > 0) log.log(`复制了 ${avatarFiles.length} 个专家头像到 ${result.id}`);
+        } catch {}
+      }
+
       // 重建 system prompt
       agent._systemPrompt = agent.buildSystemPrompt();
+
+      // 启用主动技能获取：专家遇到专业问题时自动搜索安装 skill
+      agent.updateConfig({
+        capabilities: { learn_skills: { enabled: true, allow_github_fetch: true } },
+      });
     }
 
     // 扣费
@@ -294,5 +347,29 @@ export class ExpertManager {
 
   get creditInterface() {
     return this._creditInterface;
+  }
+
+  // ════════════════════════════
+  //  Yuan 匹配
+  // ════════════════════════════
+
+  /**
+   * 根据专家 category 选择最匹配的 yuan（思维风格）
+   *
+   * ming  = 冷静拆解式思维（Premise → Conduct → Reflection → Act）
+   *         适合：金融、法律、技术、商业 — 需要逻辑链和前提审查的领域
+   *
+   * butter = 共情洞察式思维（Vibe → Echo → Read → Will）
+   *          适合：心理、教育、创意 — 需要感知言外之意和情绪的领域
+   *
+   * hanako = 通用平衡式思维（Vibe → Sparks → Reflections → Will）
+   *          适合：产品、通用 — 兼顾感性灵感与理性反思
+   */
+  static resolveYuanForCategory(category) {
+    const MING_CATEGORIES = new Set(["finance", "legal", "business", "tech", "engineering", "data"]);
+    const BUTTER_CATEGORIES = new Set(["wellness", "psychology", "education", "creative"]);
+    if (MING_CATEGORIES.has(category)) return "ming";
+    if (BUTTER_CATEGORIES.has(category)) return "butter";
+    return "hanako";
   }
 }

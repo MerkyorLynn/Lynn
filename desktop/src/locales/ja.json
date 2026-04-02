@@ -30,6 +30,13 @@
     "deleteConfirm": "チャンネル「{name}」を削除しますか？メッセージ履歴は復元できません。",
     "deleted": "チャンネルを削除しました",
     "deleteFailed": "削除に失敗しました",
+    "addMember": "メンバーを追加",
+    "addMemberTitle": "メンバーを追加",
+    "addMemberAgents": "既存のエージェント",
+    "addMemberExperts": "エキスパートプリセット",
+    "addMemberConfirm": "追加",
+    "addMemberNone": "すべてのエージェントがこのチャンネルに参加済みです",
+    "memberAdded": "メンバーを追加しました",
     "warningTitle": "チャンネルについて",
     "warningBody": "異なる記憶や思考スタイルを持つアシスタント同士が交流することで、より多くのインスピレーションが生まれると考え、あなたがいない時でもエージェント同士が会話できる場を作りました。\n\nチャンネルは実験的な機能であり、以下の問題が発生する可能性があります：\n1. token 消費量の増加\n2. 予期しない応答\n3. 記憶の混乱\n\nご注意の上ご利用ください",
     "warningConfirm": "理解しました。チャンネルを有効にする",
@@ -115,7 +122,8 @@
     "stop": "停止",
     "browserScreenshot": "ブラウザスクリーンショット",
     "compacting": "コンテキスト圧縮中",
-    "needWsConnection": "アシスタントとの接続が切れています。再接続を待つか、ステータスバーの「再接続」をタップしてください"
+    "needWsConnection": "アシスタントとの接続が切れています。再接続を待つか、ステータスバーの「再接続」をタップしてください",
+    "retry": "Retry"
   },
   "time": {
     "justNow": "たった今",
@@ -159,7 +167,20 @@
       "xhigh": "フル推論"
     },
     "contextWindow": "コンテキスト {windowK}k",
-    "tokensUsed": "使用済み {tokensK}k ({pct}%)"
+    "tokensUsed": "使用済み {tokensK}k ({pct}%)",
+    "contextOverview": "今回含まれるコンテキスト",
+    "contextOverviewSubtitle": "送信前にひと目で確認して、持ち込む文脈を揃えます。",
+    "contextMode": "モード",
+    "contextModel": "モデル",
+    "contextText": "本文",
+    "contextTextValue": "{count} 文字",
+    "contextQuote": "引用範囲",
+    "contextDoc": "参照ドキュメント",
+    "contextFiles": "添付",
+    "contextImages": "画像",
+    "contextHeldBack": "下書きに保持",
+    "modeSend": "送信",
+    "modeSteer": "操舵"
   },
   "slash": {
     "diary": "今日の日記を書く",
@@ -180,7 +201,22 @@
     ],
     "memoryOn": "記憶",
     "memoryOff": "このチャットでは記憶を使用しません",
-    "agentSelector": "エージェントを選択"
+    "agentSelector": "エージェントを選択",
+    "focusHint": "Cmd/Ctrl + K ですぐ入力できます",
+    "quickActions": {
+      "askFolder": {
+        "label": "このプロジェクトを見る",
+        "prompt": "現在のワークスペースを手早く見て、このプロジェクトが何か、今最初にやる価値が高いことは何かを教えてください。"
+      },
+      "summarizeWork": {
+        "label": "ファイルを要約する",
+        "prompt": "現在のワークスペースの主要ファイルを読んで、このプロジェクトの概要、今の進捗、次にやるべきことを短くまとめてください。"
+      },
+      "planToday": {
+        "label": "今日の計画を作る",
+        "prompt": "現在のワークスペースをもとに、今日進めるための 3 ステップ計画を優先順で作ってください。"
+      }
+    }
   },
   "drop": {
     "hint": "ドロップして {name} にファイルを送る"
@@ -227,7 +263,8 @@
     "types": {
       "hanako": {
         "label": "バランス型アシスタント",
-        "avatar": "Hanako.png"
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       },
       "butter": {
         "label": "より感情豊か",
@@ -612,7 +649,9 @@
       "addCustom": "カスタムプロバイダーを追加",
       "noKey": "未設定",
       "remove": "削除",
-      "deleteConfirm": "プロバイダー {name} を削除しますか？関連するモデルも削除されます。"
+      "deleteConfirm": "プロバイダー {name} を削除しますか？関連するモデルも削除されます。",
+      "apiResponses": "OpenAI Responses",
+      "apiCodex": "ChatGPT Codex (Plus/Pro)"
     },
     "oauth": {
       "title": "クイックログイン",
@@ -895,15 +934,24 @@
   "onboarding": {
     "welcome": {
       "title": "こんにちは、{name} です ✿",
-      "subtitle": "あなた専用の AI アシスタントです。\n簡単なセットアップから始めましょう。",
-      "next": "はじめる"
+      "subtitle": "あなた専用の AI アシスタントです。\nまずは始め方を選んで、すぐにアプリへ入りましょう。",
+      "next": "はじめる",
+      "quickTitle": "まず使い始める",
+      "quickDesc": "最小限のステップだけにします。\n名前は後でもOK、モデルやテーマも後から設定できます。",
+      "quickAction": "Quick Start へ",
+      "advancedTitle": "今まとめて設定する",
+      "advancedDesc": "すでに provider / model の好みがあるなら、\n接続・モデル・テーマをまとめて設定できます。",
+      "advancedAction": "Advanced Setup へ"
     },
     "name": {
       "title": "なんとお呼びすればいいですか？",
       "subtitle": "会話がより自然になります",
+      "quickSubtitle": "今入れても、あとで設定から変えても大丈夫です",
       "placeholder": "お名前を入力",
+      "quickHint": "空欄のままでも構いません。まず中に入りましょう。",
       "back": "戻る",
-      "next": "次へ"
+      "next": "次へ",
+      "quickNext": "Quick Start を続ける"
     },
     "provider": {
       "title": "AI プロバイダーを選択",
@@ -943,6 +991,9 @@
     },
     "tutorial": {
       "title": "準備完了 ✿",
+      "quickTitle": "Quick Start の準備ができました ✿",
+      "quickBannerTitle": "もうこのまま話し始められます",
+      "quickBannerDesc": "Provider・モデル・テーマはまだ後回しで大丈夫です。\n使い始めてから、必要になった時に設定で整えてください。",
       "memory": {
         "title": "記憶",
         "desc": "会話の要点を覚えています。古くなったり参照されなくなった記憶は自然と薄れていきます。人間の記憶と同じように。"
@@ -959,7 +1010,8 @@
         "title": "Jian",
         "desc": "任意のフォルダに jian.md を置いて指示を書いてください。\n巡回時に見つけて自動的に実行します。"
       },
-      "finish": "さあ、始めましょう"
+      "finish": "さあ、始めましょう",
+      "quickFinish": "今すぐ Lynn に入る"
     }
   },
   "activity": {
@@ -1511,6 +1563,8 @@
       "frontendOnly": "クライアント側のみ",
       "sandbox": "サンドボックスセキュリティ",
       "sandboxDesc": "ファイルシステムの書き込み範囲を制限",
+      "securityMode": "セキュリティモード",
+      "securityModeDesc": "3モードセキュリティポリシー（認証/計画/安全）",
       "locale": "言語",
       "timezone": "タイムゾーン",
       "timezoneDesc": "IANA タイムゾーン（例: Asia/Shanghai）",
@@ -1598,7 +1652,45 @@
     "opRead": "読み取り",
     "opWrite": "書き込み",
     "opDelete": "削除",
-    "denied": "{op}が拒否されました：{path}（アクセスレベル: {level}）"
+    "denied": "{op}が拒否されました：{path}（アクセスレベル: {level}）",
+    "authDesc": {
+      "sudo": "管理者権限でコマンドを実行 — ソフトウェアのインストールやシステム設定の変更に使用します",
+      "su": "別のユーザーに切り替え — 異なるユーザーの権限を取得します",
+      "chmod": "ファイル/ディレクトリの権限を変更 — 誰がファイルを読み書き実行できるかを制御します",
+      "chown": "ファイルの所有者を変更 — ファイルの所有権を別のユーザーに移します",
+      "delRecursive": "ファイルを再帰的に削除 — 指定ディレクトリ内の全ファイルを削除します",
+      "rmdirRecursive": "ディレクトリを再帰的に削除 — ディレクトリツリー全体を削除、元に戻せません",
+      "regEdit": "Windowsレジストリを変更 — システムとアプリケーションの設定に影響します",
+      "takeown": "ファイルの所有権を取得 — ファイルの完全な制御を取得します",
+      "icacls": "ファイルのACLを変更 — ファイルのセキュリティ権限を変更します",
+      "netUser": "システムユーザー/グループの管理 — ユーザーアカウントの作成・削除・変更",
+      "schtasks": "スケジュールタスクを作成 — プログラムの自動実行を設定します",
+      "scService": "システムサービスの操作 — Windowsサービスの作成・削除",
+      "psBypass": "PowerShell実行ポリシーをバイパス — 未署名スクリプトの実行を許可します",
+      "format": "ディスクをフォーマット — ディスク上の全データが消去されます、元に戻せません",
+      "bcdedit": "起動設定を変更 — システムの起動方法を変更します",
+      "wmic": "WMI管理コマンドを実行 — システム管理情報にアクセス・変更します",
+      "pathOp": "{op}パス {path} — このパスは保護領域にあります"
+    }
+  },
+  "security": {
+    "mode": {
+      "authorized": "認証モード",
+      "authorizedDesc": "危険な操作は確認後に実行",
+      "plan": "計画モード",
+      "planDesc": "分析のみ、実行なし",
+      "safe": "安全モード",
+      "safeDesc": "厳格なサンドボックス、直接拒否"
+    },
+    "auth": {
+      "title": "認証が必要です",
+      "commandLabel": "実行予定：",
+      "allow": "許可",
+      "reject": "拒否",
+      "allowed": "許可済み",
+      "rejected": "拒否済み",
+      "alwaysAllow": "今後もこの種類の操作を常に許可"
+    }
   },
   "error.llmTimeout": "Model request timed out",
   "error.llmRateLimited": "Model rate limited, please wait",
@@ -1624,5 +1716,9 @@
   "status.reconnecting": "Reconnecting...",
   "status.disconnected": "Connection lost",
   "status.reconnect": "Reconnect",
-  "action.retry": "Retry"
+  "action.retry": "Retry",
+  "agentDiscovery.title": "スキルが見つかりました",
+  "agentDiscovery.body": "以下のツールからスキルを再利用できます：",
+  "agentDiscovery.enable": "有効にする",
+  "agentDiscovery.later": "スキップ"
 }

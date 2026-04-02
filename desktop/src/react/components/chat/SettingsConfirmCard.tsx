@@ -5,7 +5,7 @@
  * 用户可编辑后确认/取消，通过 REST API resolve 阻塞的 tool Promise。
  */
 
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import styles from './Chat.module.css';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
@@ -71,6 +71,10 @@ export const SettingsConfirmCard = memo(function SettingsConfirmCard(props: Prop
   const { t } = useI18n();
   const [status, setStatus] = useState(initialStatus);
   const [editValue, setEditValue] = useState(proposedValue);
+
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   // 本地化标签：优先用外部传入的，否则卡片自行查 i18n
   const optionLabels = useMemo(() => {

@@ -42,7 +42,7 @@
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { builtinModules } from "module";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -334,6 +334,81 @@ try {
 
 const nmDir = path.join(outDir, "node_modules");
 
+function resolveInstalledPackageJson(specifier, fromDir = outDir) {
+  let currentDir = fromDir;
+
+  while (currentDir.startsWith(outDir)) {
+    const candidate = path.join(currentDir, "node_modules", specifier, "package.json");
+    if (fs.existsSync(candidate)) return candidate;
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+
+  const topLevelCandidate = path.join(nmDir, specifier, "package.json");
+  return fs.existsSync(topLevelCandidate) ? topLevelCandidate : null;
+}
+
+function collectProtectedPackageDirs(entryPackages) {
+  const protectedDirs = new Set();
+  const queue = entryPackages.map(name => ({ name, fromDir: outDir }));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current?.name) continue;
+
+    const pkgJsonPath = resolveInstalledPackageJson(current.name, current.fromDir);
+    if (!pkgJsonPath) continue;
+
+    const pkgDir = path.dirname(pkgJsonPath);
+    if (protectedDirs.has(pkgDir)) continue;
+    protectedDirs.add(pkgDir);
+
+    let pkg;
+    try {
+      pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+    } catch {
+      continue;
+    }
+
+    const nextDeps = new Set([
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.optionalDependencies || {}),
+    ]);
+
+    for (const peerDep of Object.keys(pkg.peerDependencies || {})) {
+      if (resolveInstalledPackageJson(peerDep, pkgDir)) nextDeps.add(peerDep);
+    }
+
+    for (const depName of nextDeps) {
+      queue.push({ name: depName, fromDir: pkgDir });
+    }
+  }
+
+  return protectedDirs;
+}
+
+async function verifyRuntimeImports(entries) {
+  for (const entry of entries) {
+    const pkgJsonPath = resolveInstalledPackageJson(entry.packageName);
+    if (!pkgJsonPath) {
+      throw new Error(`[build-server] runtime resolve failed for ${entry.packageName}: package.json not found`);
+    }
+
+    const resolvedPath = path.join(path.dirname(pkgJsonPath), entry.relativePath);
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`[build-server] runtime resolve failed for ${entry.packageName}: missing ${entry.relativePath}`);
+    }
+
+    try {
+      await import(pathToFileURL(resolvedPath).href);
+    } catch (error) {
+      throw new Error(`[build-server] runtime import failed for ${entry.packageName}/${entry.relativePath}: ${error.message}`);
+    }
+  }
+}
+
 if (fileList) {
 // 把追踪结果转成绝对路径 Set
 const tracedFiles = new Set();
@@ -341,20 +416,13 @@ for (const f of fileList) {
   tracedFiles.add(path.resolve(outDir, f));
 }
 
-// Vite externals 是显式标记为运行时必须的包，nft 不一定能正确追踪
-// （CJS/ESM 交叉解析在 Windows 上有边缘情况），整个包目录跳过裁剪。
-const protectedDirs = new Set();
-for (const ext of viteExternals) {
-  if (typeof ext === "string" && !builtinSet.has(ext)) {
-    // path.join 自动处理 scoped 包（@scope/pkg → node_modules/@scope/pkg）
-    const pkgDir = path.resolve(nmDir, ext);
-    if (fs.existsSync(pkgDir)) protectedDirs.add(pkgDir);
-  }
-}
+// Vite externals 及其依赖子树是运行时必须的包，nft 对跨包 ESM 依赖
+//（尤其 transitive deps）不一定能完整追踪，整棵依赖树都需要跳过裁剪。
+const protectedDirs = collectProtectedPackageDirs(Object.keys(externalDeps));
 
 if (protectedDirs.size > 0) {
-  const names = [...protectedDirs].map(d => path.relative(nmDir, d));
-  console.log(`[build-server] nft: protecting ${protectedDirs.size} Vite externals from pruning: ${names.join(", ")}`);
+  const names = [...protectedDirs].map(d => path.relative(nmDir, d)).sort();
+  console.log(`[build-server] nft: protecting ${protectedDirs.size} external package dirs from pruning: ${names.join(", ")}`);
 }
 
 // 遍历 node_modules，删除未追踪的文件（跳过受保护的包）
@@ -392,6 +460,12 @@ const keptFiles = fileList.size;
 const MB = (n) => (n / 1024 / 1024).toFixed(0);
 console.log(`[build-server] nft: kept ${keptFiles} files, removed ${removedFiles} files (${MB(removedSize)}MB)`);
 } // end if (fileList)
+
+await verifyRuntimeImports([
+  { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/google.js" },
+  { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/openai-completions.js" },
+]);
+console.log("[build-server] runtime import smoke test passed");
 
 // ── 8b. 处理 koffi ──
 // koffi 只在 Windows 终端增强里使用，macOS/Linux 路径不会触发 require。

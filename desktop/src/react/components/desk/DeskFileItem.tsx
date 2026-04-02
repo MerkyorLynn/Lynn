@@ -57,7 +57,7 @@ async function handleExternalDropToFolder(
 
   const paths: string[] = [];
   for (const f of Array.from(droppedFiles)) {
-    const p = window.platform?.getFilePath?.(f);
+    const p = await window.platform?.getFilePath?.(f);
     if (p) paths.push(p);
   }
   if (paths.length === 0) return;
@@ -100,6 +100,8 @@ export function DeskFileItem({
   renamingFile, renameValue, onRenameStart, onRenameChange, onRenameCommit, onRenameCancel,
   onShowContextMenu,
 }: DeskFileItemProps) {
+  const setPendingConfirm = useStore(s => s.setPendingConfirm);
+  const addToast = useStore(s => s.addToast);
   const icon = file.isDir ? ICONS.folder : getFileIcon(file.name);
   const [dropTarget, setDropTarget] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -176,15 +178,37 @@ export function DeskFileItem({
     const deleteLabel = bulkNames ? tFn('desk.ctx.deleteN', { n: bulkNames.length }) : tFn('desk.ctx.delete');
     items.push({ label: deleteLabel, danger: true, action: async () => {
       const names = bulkNames || [file.name];
-      // 删除确认：批量删除或单个文件都需确认
       const confirmMsg = names.length > 1
         ? (tFn('desk.ctx.confirmDeleteN', { n: names.length }) || `确定要删除这 ${names.length} 个文件吗？此操作不可恢复。`)
         : (tFn('desk.ctx.confirmDelete', { name: names[0] }) || `确定要删除 "${names[0]}" 吗？此操作不可恢复。`);
-      if (!confirm(confirmMsg)) return;
-      for (const n of names) await deskRemoveFile(n);
+
+      setPendingConfirm({
+        title: tFn('common.delete') || 'Delete',
+        message: confirmMsg,
+        confirmLabel: tFn('common.delete') || 'Delete',
+        cancelLabel: tFn('common.cancel') || 'Cancel',
+        onConfirm: async () => {
+          const failed: string[] = [];
+          for (const n of names) {
+            const ok = await deskRemoveFile(n);
+            if (!ok) failed.push(n);
+          }
+          if (failed.length > 0) {
+            const prefix = tFn('settings.saveFailed') || 'Operation failed';
+            addToast(`${prefix}: ${failed.join(', ')}`, 'error');
+            throw new Error(`delete failed: ${failed.join(', ')}`);
+          }
+          addToast(
+            names.length > 1
+              ? (tFn('desk.ctx.deleteN', { n: names.length }) || `Deleted ${names.length} items`)
+              : (tFn('desk.ctx.delete') || 'Deleted'),
+            'success',
+          );
+        },
+      });
     } });
     onShowContextMenu({ position: { x: e.clientX, y: e.clientY }, items });
-  }, [file, allSelectedFiles, onRenameStart, onShowContextMenu]);
+  }, [addToast, allSelectedFiles, file, onRenameStart, onShowContextMenu, setPendingConfirm]);
 
   // ── 文件夹作为 drop target ──
 

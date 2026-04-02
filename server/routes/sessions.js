@@ -2,6 +2,8 @@
  * Session 管理 REST 路由
  */
 import fs from "fs/promises";
+import { appendFileSync, mkdirSync } from "fs";
+import { homedir } from "os";
 import path from "path";
 import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
@@ -263,6 +265,7 @@ export function createSessionsRoute(engine) {
         agentId: engine.currentAgentId,
         agentName: engine.agentName,
         planMode: engine.planMode,
+        securityMode: engine.securityMode,
         memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
         currentModelId: engine.currentModel?.id || null,
         currentModelProvider: engine.currentModel?.provider || null,
@@ -299,6 +302,7 @@ export function createSessionsRoute(engine) {
         messageCount: engine.messages.length,
         memoryEnabled: engine.memoryEnabled,
         planMode: engine.planMode,
+        securityMode: engine.securityMode,
         memoryModelUnavailableReason: engine.memoryModelUnavailableReason || null,
         cwd: engine.cwd,
         agentId: engine.currentAgentId,
@@ -312,7 +316,11 @@ export function createSessionsRoute(engine) {
     } catch (err) {
       const errDetail = `${err.message}\n${err.stack || ""}`;
       console.error("[sessions/switch] error:", errDetail);
-      try { require("fs").appendFileSync(require("path").join(require("os").homedir(), ".lynn", "switch-error.log"), `${new Date().toISOString()}\n${errDetail}\n---\n`); } catch {}
+      try {
+        const logDir = path.join(homedir(), ".lynn");
+        mkdirSync(logDir, { recursive: true });
+        appendFileSync(path.join(logDir, "switch-error.log"), `${new Date().toISOString()}\n${errDetail}\n---\n`);
+      } catch {}
       return c.json({ error: err.message }, 500);
     }
   });

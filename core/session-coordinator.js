@@ -18,6 +18,17 @@ import { BrowserManager } from "../lib/browser/browser-manager.js";
 import { t, getLocale } from "../server/i18n.js";
 import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { findModel } from "../shared/model-ref.js";
+import {
+  SecurityMode,
+  DEFAULT_SECURITY_MODE,
+  normalizeSecurityMode,
+  SECURITY_MODE_CONFIG,
+} from "../shared/security-mode.js";
+import {
+  buildClientAgentHeaders,
+  buildClientAgentMetadata,
+  readClientAgentKeyFromPreferencesFile,
+} from "./client-agent-identity.js";
 
 const log = createModuleLogger("session");
 
@@ -65,6 +76,7 @@ export class SessionCoordinator {
     this._headlessRefCount = 0;
     this._titlesCache = new Map(); // sessionDir → { titles, ts }
     this._pendingPlanMode = false;
+    this._pendingSecurityMode = DEFAULT_SECURITY_MODE;
   }
 
   static _TITLES_TTL = 60_000; // 60 秒
@@ -107,7 +119,7 @@ export class SessionCoordinator {
     const baseResourceLoader = this._d.getResourceLoader();
     const sessionEntry = {}; // populated after session creation; resourceLoader proxy references this
 
-    // Wrap resourceLoader to dynamically inject plan mode context and proactive recall into system prompt
+    // Wrap resourceLoader to dynamically inject security mode context and proactive recall into system prompt
     const resourceLoader = Object.create(baseResourceLoader, {
       getAppendSystemPrompt: {
         value: () => {
@@ -119,18 +131,35 @@ export class SessionCoordinator {
             extras.push(sessionEntry._lastRecallContext);
           }
 
-          if (!sessionEntry.planMode) return extras;
+          const secMode = sessionEntry.securityMode || DEFAULT_SECURITY_MODE;
           const isZh = String(this._d.getAgent().config?.locale || "").startsWith("zh");
-          const planModePrompt = isZh
-            ? "【系统通知】当前处于「只读模式」，用户在设置中关闭了「操作电脑」权限。你只能使用只读工具（read、grep、find、ls）和自定义工具。不能执行写入、编辑、删除等操作。如果用户要求你做这些操作，请告知当前处于只读模式，需要先在输入框旁的按钮开启「操作电脑」权限。"
-            : "[System Notice] Currently in READ-ONLY MODE. The user has disabled 'Computer Access' in settings. You can only use read-only tools (read, grep, find, ls) and custom tools. You cannot write, edit, or delete. If the user asks for these operations, inform them that read-only mode is active and they need to enable 'Computer Access' via the button next to the input area.";
-          extras.push(planModePrompt);
+
+          if (secMode === SecurityMode.PLAN) {
+            const planModePrompt = isZh
+              ? "【系统通知】当前处于「规划模式」，用户在设置中选择了只读规划。你只能使用只读工具（read、grep、find、ls）和自定义工具。不能执行写入、编辑、删除等操作。如果用户要求你做这些操作，请告知当前处于规划模式，需要先在输入框左下角切换到「授权模式」。"
+              : "[System Notice] Currently in PLAN MODE. You can only use read-only tools (read, grep, find, ls) and custom tools. You cannot write, edit, or delete. If the user asks for these operations, inform them to switch to 'Authorized Mode' via the selector at the bottom-left of the input area.";
+            extras.push(planModePrompt);
+          } else if (secMode === SecurityMode.SAFE) {
+            const safeModePrompt = isZh
+              ? "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受限路径的写入将被直接拒绝，无确认机会。如果用户需要执行这些操作，请告知需要在输入框左下角切换到「授权模式」。"
+              : "[System Notice] Currently in SAFE MODE. All dangerous operations (sudo, chmod, etc.) and writes to restricted paths will be directly blocked with no confirmation option. If the user needs these operations, inform them to switch to 'Authorized Mode' via the selector at the bottom-left of the input area.";
+            extras.push(safeModePrompt);
+          }
+          // authorized mode: no special system prompt needed
+
           return extras;
         },
       },
     });
 
-    const { tools: sessionTools, customTools: sessionCustomTools } = this._d.buildTools(effectiveCwd, null, { workspace: this._d.getHomeCwd() });
+    let sessionPathRef = null;
+    const { tools: sessionTools, customTools: sessionCustomTools } = this._d.buildTools(effectiveCwd, null, {
+      workspace: this._d.getHomeCwd(),
+      getSessionPath: () => sessionPathRef,
+    });
+    const clientAgentKey = readClientAgentKeyFromPreferencesFile();
+    const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+    const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
     const { session } = await createAgentSession({
       cwd: effectiveCwd,
       sessionManager: sessionMgr,
@@ -142,6 +171,8 @@ export class SessionCoordinator {
       resourceLoader,
       tools: sessionTools,
       customTools: sessionCustomTools,
+      ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+      ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
     });
     const elapsed = Date.now() - t0;
     log.log(`session created (${elapsed}ms), model=${effectiveModel?.name || "?"}`);
@@ -150,6 +181,7 @@ export class SessionCoordinator {
 
     // 事件转发
     const sessionPath = session.sessionManager?.getSessionFile?.();
+    sessionPathRef = sessionPath || null;
     const unsub = session.subscribe((event) => {
       this._d.emitEvent(event, sessionPath);
     });
@@ -162,11 +194,15 @@ export class SessionCoordinator {
     const initialPlanMode = this._pendingPlanMode;
     this._pendingPlanMode = false;
 
+    const initialSecurityMode = this._pendingSecurityMode || DEFAULT_SECURITY_MODE;
+    // Don't reset _pendingSecurityMode — new sessions inherit the current selection
+
     Object.assign(sessionEntry, {
       session,
       agentId: this._d.getActiveAgentId(),
       memoryEnabled,
       planMode: initialPlanMode,
+      securityMode: initialSecurityMode,
       modelId: effectiveModel?.id || null,
       modelProvider: effectiveModel?.provider || null,
       lastTouchedAt: Date.now(),
@@ -399,6 +435,57 @@ export class SessionCoordinator {
 
     this._d.emitEvent({ type: "plan_mode", enabled: entry.planMode }, sp);
     this._d.emitDevLog(`Plan Mode: ${entry.planMode ? "ON (只读)" : "OFF (正常)"}`, "info");
+  }
+
+  /** Get security mode for the current (focused) session */
+  getSecurityMode() {
+    const sp = this.currentSessionPath;
+    if (!sp) return this._pendingSecurityMode || DEFAULT_SECURITY_MODE;
+    return this._sessions.get(sp)?.securityMode ?? DEFAULT_SECURITY_MODE;
+  }
+
+  /** Set security mode for the current (focused) session */
+  setSecurityMode(mode, allBuiltInTools) {
+    const effectiveMode = normalizeSecurityMode(mode);
+    const sp = this.currentSessionPath;
+    const config = SECURITY_MODE_CONFIG[effectiveMode];
+
+    // No session yet (welcome page) — store for when session is created
+    if (!sp) {
+      this._pendingSecurityMode = effectiveMode;
+      // Also update plan mode pending state for backward compatibility
+      this._pendingPlanMode = effectiveMode === SecurityMode.PLAN;
+      this._d.emitEvent({ type: "security_mode", mode: effectiveMode }, null);
+      this._d.emitEvent({ type: "plan_mode", enabled: effectiveMode === SecurityMode.PLAN }, null);
+      this._d.emitDevLog(`Security Mode: ${effectiveMode}`, "info");
+      return;
+    }
+
+    const entry = this._sessions.get(sp);
+    if (!entry) return;
+
+    entry.securityMode = effectiveMode;
+    entry.planMode = effectiveMode === SecurityMode.PLAN;
+
+    const agent = this._d.getAgent();
+    const customNames = (agent.tools || []).map(t => t.name);
+
+    if (config.toolsRestricted) {
+      // Plan mode: restrict to read-only tools
+      entry.session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customNames]);
+    } else {
+      // Authorized or Safe: all tools available
+      const allNames = allBuiltInTools.map(t => t.name);
+      entry.session.setActiveToolsByName([...allNames, ...customNames]);
+    }
+
+    // Update pending so new sessions inherit
+    this._pendingSecurityMode = effectiveMode;
+
+    this._d.emitEvent({ type: "security_mode", mode: effectiveMode }, sp);
+    // Backward-compatible plan_mode event
+    this._d.emitEvent({ type: "plan_mode", enabled: entry.planMode }, sp);
+    this._d.emitDevLog(`Security Mode: ${effectiveMode}`, "info");
   }
 
   /** 获取当前焦点 session 的 modelId 快照 */
@@ -688,7 +775,13 @@ export class SessionCoordinator {
       const execModel = models.resolveExecutionModel(resolvedModel);
       tempSessionMgr = SessionManager.create(execCwd, sessionDir);
       const { tools: allBuiltinTools, customTools: allCustomTools } = this._d.buildTools(
-        execCwd, targetAgent.tools, { agentDir: targetAgent.agentDir, workspace: this._d.getHomeCwd() }
+        execCwd,
+        targetAgent.tools,
+        {
+          agentDir: targetAgent.agentDir,
+          workspace: this._d.getHomeCwd(),
+          getSessionPath: () => tempSessionMgr?.getSessionFile?.() || null,
+        }
       );
 
       const patrolAllowed = opts.toolFilter
@@ -712,6 +805,9 @@ export class SessionCoordinator {
             getSkills: { value: () => skills.getSkillsForAgent(targetAgent) },
           });
 
+      const clientAgentKey = readClientAgentKeyFromPreferencesFile();
+      const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+      const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
       const { session } = await createAgentSession({
         cwd: execCwd,
         sessionManager: tempSessionMgr,
@@ -723,6 +819,8 @@ export class SessionCoordinator {
         resourceLoader: execResourceLoader,
         tools: actTools,
         customTools: actCustomTools,
+        ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+        ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       });
 
       let replyText = "";

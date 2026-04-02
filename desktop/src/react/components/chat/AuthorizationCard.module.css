@@ -1,0 +1,159 @@
+/* ========================================
+   AuthorizationCard — 授权确认卡片
+   ======================================== */
+
+.card {
+    margin: var(--space-sm) 0;
+    padding: var(--space-md);
+    background: var(--bg-card, #fff);
+    border: 1px solid rgba(255, 180, 50, 0.25);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 180, 50, 0.08);
+    font-size: 0.82rem;
+    width: fit-content;
+    max-width: 420px;
+    min-width: 280px;
+}
+
+.card.cardConfirmed {
+    border-color: rgba(91, 168, 140, 0.3);
+    opacity: 0.8;
+}
+
+.card.cardRejected {
+    border-color: rgba(192, 128, 128, 0.3);
+    opacity: 0.8;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: var(--space-sm);
+}
+
+.headerIcon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.headerText {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 0.88rem;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: var(--space-md);
+}
+
+.commandLine {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.commandLabel {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.command {
+    display: block;
+    padding: 0.35rem 0.5rem;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+/* 人类可读的说明 — 帮助小白用户理解 */
+.description {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+    background: rgba(var(--accent-rgb), 0.04);
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.descIcon {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
+.reason {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.alwaysAllow {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.2rem 0;
+    user-select: none;
+}
+
+.alwaysAllow input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.alwaysAllow:hover {
+    color: var(--text);
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.btn {
+    padding: 0.35rem 0.7rem;
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btnReject {
+    color: var(--text-muted);
+    background: var(--bg-card);
+}
+
+.btnReject:hover {
+    color: #c08080;
+    border-color: #c08080;
+    background: rgba(192, 128, 128, 0.06);
+}
+
+.btnAllow {
+    color: white;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.btnAllow:hover {
+    filter: brightness(1.1);
+}

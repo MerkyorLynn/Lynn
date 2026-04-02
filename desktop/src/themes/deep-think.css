@@ -1,5 +1,5 @@
 /*
- * Hana Theme: Deep Think
+ * Lynn Theme: Deep Think
  * DeepSeek 配色致敬 — 干净白底 + 克制的蓝紫点缀
  */
 
@@ -45,6 +45,7 @@
     --user-bg:      rgba(0, 0, 0, 0.035);
     --drop-overlay-bg: rgba(252, 252, 253, 0.85);
     --attach-bg:    rgba(0, 0, 0, 0.04);
+    --tool-shimmer: rgba(255, 255, 255, 0.55);
 
     /* 辅助色 */
     --accent-rgb:   99, 106, 232;

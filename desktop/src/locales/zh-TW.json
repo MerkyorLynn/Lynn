@@ -30,6 +30,13 @@
     "deleteConfirm": "確定刪除頻道「{name}」？訊息記錄將不可恢復。",
     "deleted": "頻道已刪除",
     "deleteFailed": "刪除失敗",
+    "addMember": "新增成員",
+    "addMemberTitle": "新增成員",
+    "addMemberAgents": "現有智能體",
+    "addMemberExperts": "專家預設",
+    "addMemberConfirm": "新增",
+    "addMemberNone": "所有智能體都已在此頻道中",
+    "memberAdded": "成員已新增",
     "warningTitle": "關於頻道",
     "warningBody": "我相信讓不同記憶與思維方式的助手互動、聊天可以帶來更多靈感的碰撞，所以我給 agents 們搭建了一個可以互相說話的地方，在你不在的時候也可以消耗用不完的 token。\n\n但你需要注意的是，頻道功能目前是測試版，可能會出現以下問題：\n1. token 消耗過多\n2. 助手未按預期回覆\n3. 記憶出現錯亂\n\n建議謹慎使用",
     "warningConfirm": "我了解了，開啟頻道",
@@ -115,7 +122,8 @@
     "stop": "停止",
     "browserScreenshot": "瀏覽器截圖",
     "compacting": "上下文壓縮中",
-    "needWsConnection": "與助手連線已中斷，請等待重新連線或點選狀態列「重新連線」"
+    "needWsConnection": "與助手連線已中斷，請等待重新連線或點選狀態列「重新連線」",
+    "retry": "Retry"
   },
   "time": {
     "justNow": "剛剛",
@@ -159,7 +167,20 @@
       "xhigh": "最強推理"
     },
     "contextWindow": "上下文 {windowK}k",
-    "tokensUsed": "已用 {tokensK}k ({pct}%)"
+    "tokensUsed": "已用 {tokensK}k ({pct}%)",
+    "contextOverview": "這次會帶上的上下文",
+    "contextOverviewSubtitle": "送出前先看一眼，避免帶多或帶少。",
+    "contextMode": "模式",
+    "contextModel": "模型",
+    "contextText": "正文",
+    "contextTextValue": "{count} 字",
+    "contextQuote": "引用片段",
+    "contextDoc": "參考文件",
+    "contextFiles": "附件",
+    "contextImages": "圖片",
+    "contextHeldBack": "草稿裡暫存",
+    "modeSend": "傳送",
+    "modeSteer": "插話"
   },
   "slash": {
     "diary": "寫今日日記",
@@ -180,13 +201,29 @@
     ],
     "memoryOn": "記憶",
     "memoryOff": "此次聊天不參考記憶",
-    "agentSelector": "選擇助手"
+    "agentSelector": "選擇助手",
+    "focusHint": "按 Cmd/Ctrl + K 隨時開始輸入",
+    "quickActions": {
+      "askFolder": {
+        "label": "看看目前專案",
+        "prompt": "請先快速瀏覽目前工作空間，告訴我這是什麼專案、現在最值得先做的事是什麼。"
+      },
+      "summarizeWork": {
+        "label": "總結這堆檔案",
+        "prompt": "請先閱讀目前工作空間的關鍵檔案，給我一個簡短總結：專案做什麼、現在進展到哪、接下來建議做什麼。"
+      },
+      "planToday": {
+        "label": "給我今日計畫",
+        "prompt": "根據目前工作空間，給我一個今天可執行的 3 步計畫，按優先級排好。"
+      }
+    }
   },
   "yuan": {
     "types": {
       "hanako": {
         "label": "均衡的助手",
-        "avatar": "Hanako.png"
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       },
       "butter": {
         "label": "更富有感情",
@@ -613,7 +650,9 @@
       "addCustom": "新增自訂供應商",
       "noKey": "未設定",
       "remove": "移除",
-      "deleteConfirm": "確定刪除供應商 {name}？相關模型將一併清除。"
+      "deleteConfirm": "確定刪除供應商 {name}？相關模型將一併清除。",
+      "apiResponses": "OpenAI Responses",
+      "apiCodex": "ChatGPT Codex（Plus/Pro）"
     },
     "oauth": {
       "title": "快速登入",
@@ -905,15 +944,24 @@
   "onboarding": {
     "welcome": {
       "title": "你好，我是 {name} ✿",
-      "subtitle": "我是你的個人 AI 助手。\n來做一些簡單的設定，讓我們開始吧。",
-      "next": "開始設定"
+      "subtitle": "我是你的個人 AI 助手。\n先選一種開始方式，我們就直接進入主介面。",
+      "next": "開始設定",
+      "quickTitle": "先直接用起來",
+      "quickDesc": "只保留最少步驟。\n名字可先留空，模型和主題之後再補。",
+      "quickAction": "進入 Quick Start",
+      "advancedTitle": "現在一次配完整",
+      "advancedDesc": "如果你已經有 provider / model 偏好，\n現在就把連線、模型與主題一起配好。",
+      "advancedAction": "進入 Advanced Setup"
     },
     "name": {
       "title": "我該怎麼稱呼你？",
       "subtitle": "這會讓我們的對話更自然",
+      "quickSubtitle": "可以先填，也可以之後再到設定裡修改",
       "placeholder": "輸入你的名字",
+      "quickHint": "留空也沒關係，先進去再說。",
       "back": "上一步",
-      "next": "下一步"
+      "next": "下一步",
+      "quickNext": "繼續 Quick Start"
     },
     "provider": {
       "title": "選擇 AI 供應商",
@@ -953,6 +1001,9 @@
     },
     "tutorial": {
       "title": "準備就緒 ✿",
+      "quickTitle": "Quick Start 已完成 ✿",
+      "quickBannerTitle": "你現在已經可以直接開始聊了",
+      "quickBannerDesc": "Provider、模型和主題都可以先放著。\n先進去用起來，之後再到設定裡慢慢補齊。",
       "memory": {
         "title": "記憶",
         "desc": "有多少記憶能被記住由你決定。\n記憶的留存不需要絕對一致。允許褶皺和縫隙存在，大語言模型能在具體的對話中辨認出哪些是符合現實情況的。"
@@ -969,7 +1020,8 @@
         "title": "箋",
         "desc": "在任意資料夾放一個 jian.md，寫上你的指令。\n我會在巡檢時看到它並自動執行。"
       },
-      "finish": "開始使用"
+      "finish": "開始使用",
+      "quickFinish": "直接進入 Lynn"
     }
   },
   "activity": {
@@ -1521,6 +1573,8 @@
       "frontendOnly": "僅在客戶端可見",
       "sandbox": "沙盒安全",
       "sandboxDesc": "限制檔案系統寫入範圍",
+      "securityMode": "安全模式",
+      "securityModeDesc": "三模式安全策略（授權/規劃/安全）",
       "locale": "語言",
       "timezone": "時區",
       "timezoneDesc": "IANA 時區（如 Asia/Shanghai）",
@@ -1608,7 +1662,45 @@
     "opRead": "讀取",
     "opWrite": "寫入",
     "opDelete": "刪除",
-    "denied": "{op}被拒絕：{path}（權限級別: {level}）"
+    "denied": "{op}被拒絕：{path}（權限等級: {level}）",
+    "authDesc": {
+      "sudo": "使用管理員權限執行命令 — 通常用於安裝軟體、修改系統設定等需要更高權限的操作",
+      "su": "切換到其他使用者身份 — 獲取不同使用者的操作權限",
+      "chmod": "修改檔案或目錄的存取權限 — 控制誰可以讀寫執行這些檔案",
+      "chown": "修改檔案的擁有者 — 將檔案歸屬轉移給其他使用者",
+      "delRecursive": "遞迴刪除檔案 — 會刪除指定目錄下的所有檔案，請確認範圍",
+      "rmdirRecursive": "遞迴刪除目錄 — 會移除整個目錄樹，此操作不可復原",
+      "regEdit": "修改 Windows 登錄檔 — 影響系統和應用程式的設定",
+      "takeown": "奪取檔案擁有權 — 獲取對檔案的完全控制",
+      "icacls": "修改檔案的存取控制清單 — 改變檔案的安全權限",
+      "netUser": "管理系統使用者和群組 — 建立、刪除或修改使用者帳戶",
+      "schtasks": "建立排程工作 — 設定定時自動執行的程式",
+      "scService": "操作系統服務 — 建立或刪除 Windows 服務",
+      "psBypass": "繞過 PowerShell 安全原則 — 允許執行未簽署的指令碼",
+      "format": "格式化磁碟 — 將清除磁碟上的所有資料，此操作不可復原",
+      "bcdedit": "修改啟動設定 — 改變系統啟動方式",
+      "wmic": "執行 WMI 管理命令 — 存取和修改系統管理資訊",
+      "pathOp": "{op}路徑 {path} — 此路徑位於受保護區域"
+    }
+  },
+  "security": {
+    "mode": {
+      "authorized": "授權模式",
+      "authorizedDesc": "危險操作需確認後執行",
+      "plan": "規劃模式",
+      "planDesc": "僅分析規劃，不執行",
+      "safe": "安全模式",
+      "safeDesc": "嚴格沙盒，直接拒絕"
+    },
+    "auth": {
+      "title": "需要授權",
+      "commandLabel": "即將執行：",
+      "allow": "允許執行",
+      "reject": "拒絕",
+      "allowed": "已授權執行",
+      "rejected": "已拒絕",
+      "alwaysAllow": "以後都允許此類操作"
+    }
   },
   "error.llmTimeout": "模型请求超时",
   "error.llmRateLimited": "模型限流，请稍候",
@@ -1634,5 +1726,9 @@
   "status.reconnecting": "正在重连...",
   "status.disconnected": "连接已断开",
   "status.reconnect": "重新连接",
-  "action.retry": "重试"
+  "action.retry": "重试",
+  "agentDiscovery.title": "發現已有技能",
+  "agentDiscovery.body": "偵測到以下工具的技能庫，啟用後可直接複用：",
+  "agentDiscovery.enable": "啟用",
+  "agentDiscovery.later": "跳過"
 }

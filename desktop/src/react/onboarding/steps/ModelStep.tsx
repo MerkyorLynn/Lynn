@@ -4,12 +4,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { loadModels as loadModelsAction, saveModel as saveModelAction } from '../onboarding-actions';
-import type { HanaFetch } from '../onboarding-actions';
+import type { OnboardingFetch } from '../onboarding-actions';
 import { StepContainer } from '../onboarding-ui';
 
 interface ModelStepProps {
   preview: boolean;
-  hanaFetch: HanaFetch;
+  onboardingFetch: OnboardingFetch;
   providerName: string;
   providerUrl: string;
   providerApi: string;
@@ -19,7 +19,7 @@ interface ModelStepProps {
 }
 
 export function ModelStep({
-  preview, hanaFetch, providerName, providerUrl, providerApi, apiKey,
+  preview, onboardingFetch, providerName, providerUrl, providerApi, apiKey,
   goToStep, showError,
 }: ModelStepProps) {
   const [fetchedModels, setFetchedModels] = useState<{ id: string }[]>([]);
@@ -41,7 +41,7 @@ export function ModelStep({
     setModelLoading(t('onboarding.model.loading'));
     setModelError(false);
     try {
-      const result = await loadModelsAction({ hanaFetch, providerName, providerUrl, providerApi, apiKey });
+      const result = await loadModelsAction({ onboardingFetch, providerName, providerUrl, providerApi, apiKey });
       if (result.error) {
         setModelLoading(result.error);
         setModelError(true);
@@ -56,7 +56,7 @@ export function ModelStep({
       setModelLoading(msg);
       setModelError(true);
     }
-  }, [preview, hanaFetch, providerName, providerUrl, providerApi, apiKey]);
+  }, [preview, onboardingFetch, providerName, providerUrl, providerApi, apiKey]);
 
   useEffect(() => {
     if (modelsLoadedFor.current === providerName) return;
@@ -74,14 +74,14 @@ export function ModelStep({
     if (!selectedModel) return;
     try {
       await saveModelAction({
-        hanaFetch, selectedModel, fetchedModels, providerName,
+        onboardingFetch, selectedModel, fetchedModels, providerName,
       });
       goToStep(4);
     } catch (err) {
       console.error('[onboarding] save model failed:', err);
       showError(t('onboarding.error'));
     }
-  }, [preview, selectedModel, hanaFetch, fetchedModels, providerName, goToStep, showError]);
+  }, [preview, selectedModel, onboardingFetch, fetchedModels, providerName, goToStep, showError]);
 
   return (
     <StepContainer>

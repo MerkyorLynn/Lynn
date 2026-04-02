@@ -3,6 +3,7 @@
  */
 import React, { useState } from 'react';
 import { t } from '../../helpers';
+import { useDialogA11y } from '../../../hooks/use-dialog-a11y';
 import styles from '../../Settings.module.css';
 
 // ── Types ──
@@ -42,6 +43,7 @@ interface OwnerSelectProps {
 
 export function OwnerSelect({ platform, users, currentOwner, onChange }: OwnerSelectProps) {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const dialogRef = useDialogA11y({ open: pendingUserId !== null, onClose: () => setPendingUserId(null) });
 
   const handleChange = (value: string) => {
     if (!value) {
@@ -78,8 +80,15 @@ export function OwnerSelect({ platform, users, currentOwner, onChange }: OwnerSe
 
       {pendingUserId !== null && (
         <div className={`${styles['memory-confirm-overlay']} ${styles['visible']}`} onClick={(e) => { if (e.target === e.currentTarget) cancel(); }}>
-          <div className={styles['memory-confirm-card']}>
-            <p className={styles['memory-confirm-text']}>
+          <div
+            ref={dialogRef}
+            className={styles['memory-confirm-card']}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`bridge-owner-confirm-title-${platform}`}
+            tabIndex={-1}
+          >
+            <p id={`bridge-owner-confirm-title-${platform}`} className={styles['memory-confirm-text']}>
               {t('settings.bridge.ownerConfirmText')}
             </p>
             <div className={styles['memory-confirm-actions']}>

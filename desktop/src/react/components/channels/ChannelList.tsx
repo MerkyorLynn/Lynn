@@ -5,11 +5,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '../../stores';
 import { useI18n } from '../../hooks/use-i18n';
-import { hanaFetch, hanaUrl } from '../../hooks/use-hana-fetch';
+import { hanaUrl } from '../../hooks/use-hana-fetch';
 import {
-  loadChannels,
   openChannel,
   deleteChannel,
+  archiveChannel,
 } from '../../stores/channel-actions';
 import { toggleSidebar } from '../SidebarLayout';
 import { ContextMenu } from '../ContextMenu';
@@ -18,7 +18,6 @@ import type { Channel, Agent } from '../../types';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { ExpertTeamGuide } from './ExpertTeamGuide';
 import styles from './Channels.module.css';
-
 
 // ── 稳定头像时间戳（避免每次渲染生成新 URL） ──
 let _avatarTs = Date.now();
@@ -176,7 +175,8 @@ export function ChannelList() {
   }
 
   const dms = channels.filter((ch) => ch.isDM === true);
-  const groups = channels.filter((ch) => !ch.isDM);
+  const groups = channels.filter((ch) => !ch.isDM && !ch.archived);
+  const archivedGroups = channels.filter((ch) => !ch.isDM && ch.archived);
 
   return (
     <>
@@ -219,6 +219,24 @@ export function ChannelList() {
           ))}
         </>
       )}
+      {archivedGroups.length > 0 && (
+        <>
+          <div className={styles.channelSectionLabel}>{t('channel.archivedLabel')}</div>
+          {archivedGroups.map((ch) => (
+            <ChannelItem
+              key={ch.id}
+              channel={ch}
+              isDM={false}
+              isActive={ch.id === currentChannel}
+              agents={agents}
+              userName={userName}
+              userAvatarUrl={userAvatarUrl}
+              currentAgentId={currentAgentId}
+              onOpen={openChannel}
+            />
+          ))}
+        </>
+      )}
     </>
   );
 }
@@ -237,11 +255,11 @@ interface ChannelItemProps {
 }
 
 function confirmDeleteChannel(channelId: string) {
-  const ch = useStore.getState().channels.find((c) => c.id === channelId);
-  const displayName = ch?.name || channelId;
-  const msg = (window.t('channel.deleteConfirm', { name: displayName }) || '');
-  if (!confirm(msg)) return;
-  deleteChannel(channelId);
+  void deleteChannel(channelId);
+}
+
+function confirmArchiveChannel(channelId: string) {
+  void archiveChannel(channelId);
 }
 
 function ChannelItem({ channel, isDM, isActive, agents, userName, userAvatarUrl, currentAgentId, onOpen }: ChannelItemProps) {
@@ -265,6 +283,10 @@ function ChannelItem({ channel, isDM, isActive, agents, userName, userAvatarUrl,
   const selfInfo = resolveChannelMember(currentAgentId || '', userName, userAvatarUrl, agents, currentAgentId);
 
   const ctxMenuItems: ContextMenuItem[] = ctxMenu ? [
+    ...(!channel.archived ? [{
+      label: window.t('channel.archiveChannel'),
+      action: () => confirmArchiveChannel(channel.id),
+    } as ContextMenuItem, { divider: true } as ContextMenuItem] : []),
     {
       label: window.t('channel.deleteChannel'),
       danger: true,
@@ -287,8 +309,8 @@ function ChannelItem({ channel, isDM, isActive, agents, userName, userAvatarUrl,
       <div className={styles.channelItemBody}>
         <div className={styles.channelItemName}>
           {isDM
-            ? `${selfInfo.displayName} \u00B7 ${channel.peerName || channel.name}`
-            : (channel.name || channel.id)
+            ? `${selfInfo.displayName} · ${channel.peerName || channel.name}`
+            : `${channel.name || channel.id}${channel.archived ? ` · ${window.t('channel.archivedBadge')}` : ''}`
           }
         </div>
         <div className={styles.channelItemPreview}>

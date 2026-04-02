@@ -5,9 +5,9 @@
 If you discover a security vulnerability, please report it through GitHub:
 
 - Open a private vulnerability report in the repository Security tab when available:
-  https://github.com/liliMozi/openhanako/security
+  https://github.com/MerkyorLynn/Lynn/security
 - If private reporting is not available, open an issue:
-  https://github.com/liliMozi/openhanako/issues
+  https://github.com/MerkyorLynn/Lynn/issues
 
 Please include:
 - Description of the vulnerability

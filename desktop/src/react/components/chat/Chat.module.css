@@ -45,10 +45,12 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
+    overflow: hidden;
 }
 
 .hanaAvatar {
     object-fit: cover;
+    object-position: center center;
     pointer-events: none;
     user-select: none;
 }
@@ -609,6 +611,22 @@
     padding: 0.16rem 0;
     line-height: 1.45;
     max-width: 540px;
+    position: relative;
+    overflow: hidden;
+}
+
+.toolIndicator:not([data-done="true"])::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, var(--tool-shimmer, rgba(255,255,255,0.45)) 50%, transparent 100%);
+    animation: toolSweep 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes toolSweep {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
 
 .toolGroupSingle .toolIndicator {

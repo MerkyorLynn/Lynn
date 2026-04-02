@@ -25,6 +25,7 @@ import { CompiledMemoryViewer } from './overlays/CompiledMemoryViewer';
 import { ClearMemoryConfirm } from './overlays/ClearMemoryConfirm';
 import { BridgeTutorial } from './overlays/BridgeTutorial';
 import { WechatQrcodeOverlay } from './overlays/WechatQrcodeOverlay';
+import type { SettingsNavigationTarget } from '../types';
 import styles from './Settings.module.css';
 
 const platform = window.platform;
@@ -42,28 +43,97 @@ const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   about: AboutTab,
 };
 
+const SETTINGS_ACTIVE_TAB_KEY = 'hana-settings-active-tab';
+const SETTINGS_PROVIDER_KEY = 'hana-settings-provider';
+
+function readPersistedSettingsUi(): { activeTab?: string; selectedProviderId?: string | null } {
+  try {
+    const activeTab = localStorage.getItem(SETTINGS_ACTIVE_TAB_KEY);
+    const selectedProviderId = localStorage.getItem(SETTINGS_PROVIDER_KEY);
+    return {
+      activeTab: activeTab && TAB_COMPONENTS[activeTab] ? activeTab : undefined,
+      selectedProviderId: selectedProviderId || null,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function persistSettingsUi(activeTab: string, selectedProviderId: string | null) {
+  try {
+    if (TAB_COMPONENTS[activeTab]) {
+      localStorage.setItem(SETTINGS_ACTIVE_TAB_KEY, activeTab);
+    }
+    if (selectedProviderId) {
+      localStorage.setItem(SETTINGS_PROVIDER_KEY, selectedProviderId);
+    } else {
+      localStorage.removeItem(SETTINGS_PROVIDER_KEY);
+    }
+  } catch {
+    // ignore persistence failures
+  }
+}
+
+function normalizeNavigationTarget(target?: string | SettingsNavigationTarget | null): SettingsNavigationTarget | null {
+  if (!target) return null;
+  if (typeof target === 'string') {
+    return TAB_COMPONENTS[target] ? { tab: target } : null;
+  }
+  const next: SettingsNavigationTarget = {};
+  if (target.tab && TAB_COMPONENTS[target.tab]) next.tab = target.tab;
+  if ('providerId' in target) next.providerId = target.providerId ?? null;
+  if (target.resetProviderSelection) next.resetProviderSelection = true;
+  return Object.keys(next).length > 0 ? next : null;
+}
+
+function applyNavigationTarget(target?: string | SettingsNavigationTarget | null) {
+  const normalized = normalizeNavigationTarget(target);
+  if (!normalized) return false;
+  const nextState: Record<string, string | null> = {};
+  if (normalized.tab) nextState.activeTab = normalized.tab;
+  if ('providerId' in normalized) {
+    nextState.selectedProviderId = normalized.providerId ?? null;
+  } else if (normalized.resetProviderSelection) {
+    nextState.selectedProviderId = null;
+  }
+  useSettingsStore.setState(nextState);
+  return true;
+}
+
 export function SettingsApp() {
-  const { activeTab, set, ready } = useSettingsStore();
+  const { activeTab, ready, selectedProviderId } = useSettingsStore();
+  const [uiRestored, setUiRestored] = React.useState(false);
 
   useEffect(() => {
+    const restored = readPersistedSettingsUi();
+    if (restored.activeTab || restored.selectedProviderId) {
+      useSettingsStore.setState(restored);
+    }
+
+    const unsubscribe = platform?.onSwitchTab?.((target: string | SettingsNavigationTarget) => {
+      applyNavigationTarget(target);
+    });
+
+    setUiRestored(true);
     initSettings();
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
-  // 外部 tab 切换请求
   useEffect(() => {
-    if (!platform?.onSwitchTab) return;
-    platform.onSwitchTab((tab: string) => {
-      set({ activeTab: tab });
-    });
-  }, [set]);
+    if (!uiRestored) return;
+    persistSettingsUi(activeTab, selectedProviderId);
+  }, [activeTab, selectedProviderId, uiRestored]);
 
   // Server 重启后用新端口重新加载数据
   useEffect(() => {
     if (!platform?.onServerRestarted) return;
-    platform.onServerRestarted((data: { port: number }) => {
+    platform.onServerRestarted((data: { port: number; token: string }) => {
       const store = useSettingsStore.getState();
       console.log('[settings] server restarted, new port:', data.port);
-      store.set({ serverPort: data.port });
+      store.set({ serverPort: data.port, serverToken: data.token });
       loadAgents().catch(() => {});
       loadSettingsConfig().catch(() => {});
     });

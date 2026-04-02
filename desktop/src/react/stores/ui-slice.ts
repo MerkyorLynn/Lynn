@@ -14,10 +14,24 @@ export interface UiSlice {
   skillViewerData: { name: string; baseDir: string; filePath?: string; installed?: boolean } | null;
   /** 频道创建弹窗是否可见 */
   channelCreateOverlayVisible: boolean;
+  /** 添加成员弹窗是否可见 */
+  addMemberOverlayVisible: boolean;
+  /** 添加成员目标频道 ID */
+  addMemberTargetChannel: string | null;
   /** AI 智能体发现弹窗是否可见 */
   agentDiscoveryVisible: boolean;
   /** 发现的其他 AI 智能体列表 */
   discoveredAgents: Array<{ dirPath: string; label: string; exists: boolean }>;
+  /** 统一确认对话框 */
+  pendingConfirm: {
+    title?: string;
+    message: string;
+    detail?: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm: () => Promise<void> | void;
+    onCancel?: () => void;
+  } | null;
   setSidebarOpen: (open: boolean) => void;
   setSidebarAutoCollapsed: (collapsed: boolean) => void;
   setJianOpen: (open: boolean) => void;
@@ -27,8 +41,11 @@ export interface UiSlice {
   setCurrentTab: (tab: TabType) => void;
   setActivePanel: (panel: ActivePanel) => void;
   setChannelCreateOverlayVisible: (visible: boolean) => void;
+  setAddMemberOverlayVisible: (visible: boolean) => void;
+  setAddMemberTargetChannel: (channelId: string | null) => void;
   setAgentDiscoveryVisible: (visible: boolean) => void;
   setDiscoveredAgents: (agents: Array<{ dirPath: string; label: string; exists: boolean }>) => void;
+  setPendingConfirm: (confirm: UiSlice['pendingConfirm']) => void;
   toggleSidebar: () => void;
   toggleJian: () => void;
 }
@@ -49,8 +66,11 @@ export const createUiSlice = (
   locale: '',
   skillViewerData: null,
   channelCreateOverlayVisible: false,
+  addMemberOverlayVisible: false,
+  addMemberTargetChannel: null,
   agentDiscoveryVisible: false,
   discoveredAgents: [],
+  pendingConfirm: null,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSidebarAutoCollapsed: (collapsed) => set({ sidebarAutoCollapsed: collapsed }),
   setJianOpen: (open) => set({ jianOpen: open }),
@@ -60,8 +80,11 @@ export const createUiSlice = (
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setActivePanel: (panel) => set({ activePanel: panel }),
   setChannelCreateOverlayVisible: (visible) => set({ channelCreateOverlayVisible: visible }),
+  setAddMemberOverlayVisible: (visible) => set({ addMemberOverlayVisible: visible }),
+  setAddMemberTargetChannel: (channelId) => set({ addMemberTargetChannel: channelId }),
   setAgentDiscoveryVisible: (visible) => set({ agentDiscoveryVisible: visible }),
   setDiscoveredAgents: (agents) => set({ discoveredAgents: agents }),
+  setPendingConfirm: (confirm) => set({ pendingConfirm: confirm }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleJian: () => set((s) => ({ jianOpen: !s.jianOpen })),
 });

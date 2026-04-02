@@ -62,7 +62,7 @@ export function DeskDropZone({ children, onShowMenu }: { children: React.ReactNo
     if (files && files.length > 0) {
       const paths: string[] = [];
       for (const f of Array.from(files)) {
-        const p = window.platform?.getFilePath?.(f);
+        const p = await window.platform?.getFilePath?.(f);
         if (p) paths.push(p);
       }
       if (paths.length > 0) {

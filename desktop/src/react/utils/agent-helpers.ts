@@ -10,10 +10,25 @@ import { useStore } from '../stores';
 
 declare function t(key: string, vars?: Record<string, string>): any;
 
+export function resolveBundledAvatar(assetName?: string): string {
+  switch (assetName) {
+    case 'Hanako.png':
+      return 'assets/Hanako-1600.jpg';
+    case 'Butter.png':
+      return 'assets/Butter-1600.jpg';
+    case 'Ming.png':
+      return 'assets/Ming-512-opt.png';
+    case 'Lynn.png':
+      return 'assets/Lynn-512-opt.png';
+    default:
+      return `assets/${assetName || 'Lynn.png'}`;
+  }
+}
+
 export function yuanFallbackAvatar(yuan?: string): string {
   const types = t('yuan.types') || {};
   const entry = types[yuan || 'hanako'];
-  return `assets/${entry?.avatar || 'Lynn.png'}`;
+  return resolveBundledAvatar(entry?.avatar || 'Lynn.png');
 }
 
 export function randomWelcome(agentName?: string, yuan?: string): string {

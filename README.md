@@ -1,9 +1,9 @@
 <p align="center">
-  <img src=".github/assets/banner.png" width="100%" alt="OpenHanako Banner">
+  <img src=".github/assets/banner.png" width="100%" alt="Lynn Banner">
 </p>
 
 <p align="center">
-  <img src=".github/assets/Hanako-280.png" width="80" alt="Lynn">
+  <img src="desktop/src/assets/Lynn.png" width="80" alt="Lynn">
 </p>
 
 <h1 align="center">Lynn</h1>
@@ -13,7 +13,7 @@
 <p align="center"><a href="README_CN.md">中文版</a></p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/liliMozi/openhanako/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/MerkyorLynn/Lynn/releases)
 
 ---
 
@@ -56,11 +56,11 @@ As a tool, it is powerful: it remembers everything you've said, operates your co
 
 ### Download
 
-**macOS (Apple Silicon / Intel):** download the latest `.dmg` from [Releases](https://github.com/liliMozi/openhanako/releases).
+**macOS (Apple Silicon / Intel):** download the latest `.dmg` from [Releases](https://github.com/MerkyorLynn/Lynn/releases).
 
 The app is signed and notarized with an Apple Developer ID. macOS should allow it to launch directly.
 
-**Windows:** download the latest `.exe` installer from [Releases](https://github.com/liliMozi/openhanako/releases).
+**Windows:** download the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases).
 
 > **Windows SmartScreen notice:** The installer is not yet code-signed. Windows Defender SmartScreen may show a warning on first run. Click **More info** → **Run anyway**. This is expected for unsigned builds.
 
@@ -135,8 +135,8 @@ npm run typecheck
 
 ## Links
 
-- [Homepage](https://openhanako.com)
-- [Report an Issue](https://github.com/liliMozi/openhanako/issues)
-- [Security](https://github.com/liliMozi/openhanako/security)
+- [Report an Issue](https://github.com/MerkyorLynn/Lynn/issues)
+- [Security](https://github.com/MerkyorLynn/Lynn/security)
+- [Project Repository](https://github.com/MerkyorLynn/Lynn)
 - [Security Policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)

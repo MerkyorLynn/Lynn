@@ -32,6 +32,7 @@ const REACT_CHAT_EVENTS = new Set([
   'tool_start', 'tool_end', 'turn_end',
   'file_output', 'skill_activated', 'artifact',
   'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
+  'tool_authorization',
   'compaction_start', 'compaction_end',
 ]);
 
@@ -215,6 +216,11 @@ export function handleServerMessage(msg: any): void {
       window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: !!msg.enabled } }));
       break;
 
+    case 'security_mode':
+      useStore.getState().setSecurityMode(msg.mode || 'authorized');
+      window.dispatchEvent(new CustomEvent('hana-security-mode', { detail: { mode: msg.mode } }));
+      break;
+
     case 'channel_new_message': {
       const store = useStore.getState();
       const isViewing = store.currentTab === 'channels' && store.currentChannel === msg.channelName && document.visibilityState === 'visible';
@@ -222,6 +228,16 @@ export function handleServerMessage(msg: any): void {
         openChannelAction(msg.channelName);
       } else if (msg.channelName) {
         loadChannelsAction();
+      }
+      break;
+    }
+
+    case 'channel_archived': {
+      const store = useStore.getState();
+      const isViewing = store.currentTab === 'channels' && store.currentChannel === msg.channelName;
+      loadChannelsAction();
+      if (msg.channelName && isViewing) {
+        openChannelAction(msg.channelName);
       }
       break;
     }
@@ -260,8 +276,11 @@ export function handleServerMessage(msg: any): void {
         useStore.getState().updateLastMessage(sp, (m: any) => {
           if (!m.blocks) return m;
           const updated = m.blocks.map((b: any) => {
-            if ((b.type === 'settings_confirm' || b.type === 'cron_confirm') && b.confirmId === msg.confirmId) {
-              return { ...b, status: msg.action === 'confirmed' ? 'confirmed' : 'rejected' };
+            if ((b.type === 'settings_confirm' || b.type === 'cron_confirm' || b.type === 'tool_authorization') && b.confirmId === msg.confirmId) {
+              const status = b.type === 'cron_confirm'
+                ? (msg.action === 'confirmed' ? 'approved' : 'rejected')
+                : (msg.action === 'confirmed' ? 'confirmed' : 'rejected');
+              return { ...b, status };
             }
             return b;
           });

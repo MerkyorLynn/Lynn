@@ -1,5 +1,5 @@
 /**
- * Hana Desktop — 全局类型声明
+ * Lynn Desktop — 全局类型声明
  *
  * 集中声明 window 上的全局属性，避免散落的 `(window as any)` 和重复的 declare global。
  */

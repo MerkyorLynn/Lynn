@@ -1568,6 +1568,18 @@
       "vision": true,
       "reasoning": true
     },
+    "glm-5.1": {
+      "name": "GLM-5.1",
+      "context": 128000,
+      "maxOutput": 16384,
+      "reasoning": true
+    },
+    "glm-5-turbo": {
+      "name": "GLM-5 Turbo",
+      "context": 128000,
+      "maxOutput": 16384,
+      "reasoning": true
+    },
     "glm-4-plus": {
       "name": "GLM-4 Plus",
       "context": 131072,

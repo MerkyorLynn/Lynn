@@ -6,6 +6,7 @@
  */
 
 import { useI18n } from '../../hooks/use-i18n';
+import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 
 interface ChannelWarningModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface ChannelWarningModalProps {
 
 export function ChannelWarningModal({ open, onConfirm, onCancel }: ChannelWarningModalProps) {
   const { t } = useI18n();
+  const dialogRef = useDialogA11y({ open, onClose: onCancel });
 
   if (!open) return null;
 
@@ -22,9 +24,17 @@ export function ChannelWarningModal({ open, onConfirm, onCancel }: ChannelWarnin
   const paragraphs = bodyText.split('\n\n');
 
   return (
-    <div className="hana-warning-overlay">
-      <div className="hana-warning-box">
-        <h3 className="hana-warning-title">{t('channel.warningTitle')}</h3>
+    <div className="hana-warning-overlay" onClick={onCancel}>
+      <div
+        ref={dialogRef}
+        className="hana-warning-box"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="channel-warning-title"
+        tabIndex={-1}
+      >
+        <h3 id="channel-warning-title" className="hana-warning-title">{t('channel.warningTitle')}</h3>
         <div className="hana-warning-body">
           {paragraphs.map((para, i) => {
             const lines = para.split('\n');

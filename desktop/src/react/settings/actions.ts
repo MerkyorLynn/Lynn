@@ -13,7 +13,9 @@ export async function loadAgents() {
     const res = await hanaFetch('/api/agents');
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    const agents = data.agents || [];
+    const allAgents = data.agents || [];
+    // 设置页只显示普通助手，不显示频道顾问（tier === 'expert'）
+    const agents = allAgents.filter((a: any) => a.tier !== 'expert');
     let currentAgentId = store.currentAgentId;
     if (!currentAgentId) {
       const primary = agents.find((a: any) => a.isPrimary) || agents[0];

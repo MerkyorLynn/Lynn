@@ -1,5 +1,5 @@
 /**
- * TutorialStep.tsx — Step 5: Feature tutorial + finish
+ * TutorialStep.tsx — Finish step for quick start / advanced setup
  */
 
 import { useState, useCallback } from 'react';
@@ -35,8 +35,6 @@ const JianIcon = () => (
   </svg>
 );
 
-// ── Tutorial card sub-component ──
-
 function TutorialCard({ icon, title, desc }: {
   icon: React.ReactNode;
   title: string;
@@ -53,15 +51,17 @@ function TutorialCard({ icon, title, desc }: {
   );
 }
 
-// ── Main component ──
+type OnboardingTrack = 'quick' | 'advanced';
 
 interface TutorialStepProps {
   preview: boolean;
   showError: (msg: string) => void;
+  track: OnboardingTrack;
 }
 
-export function TutorialStep({ preview, showError }: TutorialStepProps) {
+export function TutorialStep({ preview, showError, track }: TutorialStepProps) {
   const [finishing, setFinishing] = useState(false);
+  const isQuickTrack = track === 'quick';
 
   const onFinish = useCallback(async () => {
     if (preview) { window.close(); return; }
@@ -77,7 +77,13 @@ export function TutorialStep({ preview, showError }: TutorialStepProps) {
 
   return (
     <StepContainer>
-      <h1 className="onboarding-title">{t('onboarding.tutorial.title')}</h1>
+      <h1 className="onboarding-title">{t(isQuickTrack ? 'onboarding.tutorial.quickTitle' : 'onboarding.tutorial.title')}</h1>
+      {isQuickTrack && (
+        <div className="ob-step-banner">
+          <div className="ob-step-banner-title">{t('onboarding.tutorial.quickBannerTitle')}</div>
+          <Multiline className="ob-step-banner-desc" text={t('onboarding.tutorial.quickBannerDesc')} />
+        </div>
+      )}
 
       <div className="tutorial-cards">
         <TutorialCard
@@ -103,7 +109,7 @@ export function TutorialStep({ preview, showError }: TutorialStepProps) {
       </div>
 
       <button className="ob-finish-btn" disabled={finishing} onClick={onFinish}>
-        {t('onboarding.tutorial.finish')}
+        {t(isQuickTrack ? 'onboarding.tutorial.quickFinish' : 'onboarding.tutorial.finish')}
       </button>
     </StepContainer>
   );

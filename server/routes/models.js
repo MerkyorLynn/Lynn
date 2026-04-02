@@ -27,6 +27,7 @@ export function createModelsRoute(engine) {
   // 列出可用模型
   route.get("/models", async (c) => {
     try {
+      await engine.refreshAvailableModels?.();
       const overrides = engine.config?.models?.overrides;
       const cur = engine.currentModel;
       const models = engine.availableModels.map(m => {

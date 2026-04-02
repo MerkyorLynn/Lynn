@@ -21,6 +21,13 @@ import { findModel } from "../shared/model-ref.js";
 
 const log = createModuleLogger("agent-mgr");
 
+function firstExistingPath(...paths) {
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 export class AgentManager {
   /**
    * @param {object} deps
@@ -78,6 +85,91 @@ export class AgentManager {
     return store;
   }
 
+  _repairExpertAgentConfigs() {
+    const models = this._d.getModels();
+    let repaired = 0;
+
+    for (const entry of this._scanAgentDirs()) {
+      const configPath = path.join(this._d.agentsDir, entry.name, "config.yaml");
+      if (!fs.existsSync(configPath)) continue;
+
+      try {
+        const cfg = safeReadYAMLSync(configPath, {}, YAML);
+        const isExpert = cfg?.agent?.tier === "expert" || !!cfg?.expert?.slug;
+        if (!isExpert) continue;
+
+        let changed = false;
+
+        // ── 1. 修复缺失的 provider ──
+        const rawChat = cfg?.models?.chat;
+        const chatModelId = typeof rawChat === "object" ? rawChat?.id : rawChat;
+        const chatProviderInModel = typeof rawChat === "object" ? rawChat?.provider : "";
+        const currentProvider = cfg?.api?.provider || chatProviderInModel || "";
+        if (chatModelId && !currentProvider) {
+          let inferredProvider = models.inferModelProvider(chatModelId);
+          if (!inferredProvider) {
+            const rawProviders = models.providerRegistry?.getAllProvidersRaw?.() || {};
+            inferredProvider = Object.entries(rawProviders).find(([, raw]) =>
+              Array.isArray(raw?.models) && raw.models.some((m) => (typeof m === "object" ? m.id : m) === chatModelId)
+            )?.[0] || "";
+          }
+          if (inferredProvider) {
+            cfg.api = { ...(cfg.api || {}), provider: inferredProvider };
+            if (typeof rawChat === "object") {
+              cfg.models = cfg.models || {};
+              cfg.models.chat = { ...rawChat, provider: rawChat.provider || inferredProvider };
+            }
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          fs.writeFileSync(
+            configPath,
+            YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }),
+            "utf-8",
+          );
+          repaired += 1;
+        }
+
+        // ── 2. 修复缺失/错误的专家头像：从预设目录同步 ──
+        const slug = cfg?.expert?.slug;
+        if (slug && this._d.productDir) {
+          const presetAvatarsDir = path.join(this._d.productDir, "experts", "presets", slug, "avatars");
+          const agentAvatarsDir = path.join(this._d.agentsDir, entry.name, "avatars");
+          try {
+            if (fs.existsSync(presetAvatarsDir)) {
+              fs.mkdirSync(agentAvatarsDir, { recursive: true });
+              const presetFiles = fs.readdirSync(presetAvatarsDir).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f));
+              for (const f of presetFiles) {
+                const src = path.join(presetAvatarsDir, f);
+                const ext = path.extname(f).toLowerCase();
+                const agentDst = path.join(agentAvatarsDir, `agent${ext}`);
+                const avatarDst = path.join(agentAvatarsDir, `avatar${ext}`);
+                // 只有当 agent.* 头像不存在时才同步（避免覆盖用户自定义头像）
+                if (!fs.existsSync(agentDst)) {
+                  fs.copyFileSync(src, agentDst);
+                  fs.copyFileSync(src, avatarDst);
+                  log.log(`同步专家头像 ${slug} → ${entry.name}`);
+                }
+              }
+            }
+          } catch (avatarErr) {
+            log.warn(`同步专家头像失败 (${entry.name}): ${avatarErr.message}`);
+          }
+        }
+      } catch (err) {
+        log.warn(`修复专家配置失败 (${entry.name}): ${err.message}`);
+      }
+    }
+
+    if (repaired > 0) {
+      clearConfigCache();
+      this.invalidateAgentListCache();
+      log.log(`已修复 ${repaired} 个专家配置中的缺失 provider`);
+    }
+  }
+
   // ── Init ──
 
   async initAllAgents(log, startId) {
@@ -88,6 +180,7 @@ export class AgentManager {
     const resolveModel = (bareId) =>
       this._d.getModels().resolveModelWithCredentials(bareId);
 
+    this._repairExpertAgentConfigs();
     const entries = this._scanAgentDirs();
     const initOne = async (agentId) => {
       const agentDir = path.join(this._d.agentsDir, agentId);
@@ -200,29 +293,54 @@ export class AgentManager {
     fs.mkdirSync(path.join(agentDir, "sessions"), { recursive: true });
     fs.mkdirSync(path.join(agentDir, "avatars"), { recursive: true });
 
-    // 从模板复制 config.yaml
+    // 从模板复制 config.yaml（优先解析 YAML，避免模板文案微调导致 replace 失效）
     const templateConfig = fs.readFileSync(path.join(this._d.productDir, "config.example.yaml"), "utf-8");
     const currentAgent = this.agent;
     const userName = currentAgent?.userName || "";
-    const safeName = name.trim().replace(/"/g, '\\"');
-    const VALID_YUAN = ["hanako", "butter", "ming"];
+    const VALID_YUAN = ["hanako", "butter", "ming", "kong"];
     const yuanType = VALID_YUAN.includes(yuan) ? yuan : "hanako";
-    let config = templateConfig.replace(/name: Lynn/, `name: "${safeName}"`);
-    config = config.replace(/yuan: hanako/, `yuan: ${yuanType}`);
-    if (userName) {
-      config = config.replace(/user:\s*\n\s+name:\s*""/, `user:\n  name: "${userName}"`);
-    }
-    // 继承主 agent 的模型配置
     const primaryChat = currentAgent?.config?.models?.chat || this._d.getModels().defaultModel?.id || "";
-    if (primaryChat) {
-      config = config.replace(/chat: ""/, `chat: "${primaryChat}"`);
-    }
-    fs.writeFileSync(path.join(agentDir, "config.yaml"), config, "utf-8");
 
-    // identity.md
-    const identityTemplate = path.join(this._d.productDir, "identity.example.md");
-    if (fs.existsSync(identityTemplate)) {
-      const tmpl = fs.readFileSync(identityTemplate, "utf-8");
+    let configYamlOut;
+    try {
+      const cfg = YAML.load(templateConfig);
+      if (!cfg || typeof cfg !== "object") throw new Error("invalid template");
+      cfg.agent = cfg.agent || {};
+      cfg.agent.name = name.trim();
+      cfg.agent.yuan = yuanType;
+      if (userName) {
+        cfg.user = cfg.user || {};
+        cfg.user.name = userName;
+      }
+      if (primaryChat) {
+        cfg.models = cfg.models || {};
+        cfg.models.chat = primaryChat;
+      }
+      configYamlOut = YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' });
+    } catch (e) {
+      log.warn(`createAgent: YAML 模板解析失败，回退字符串替换: ${e.message}`);
+      const safeName = name.trim().replace(/"/g, '\\"');
+      let config = templateConfig.replace(/name: Lynn/, `name: "${safeName}"`);
+      config = config.replace(/yuan: hanako/, `yuan: ${yuanType}`);
+      if (userName) {
+        config = config.replace(/user:\s*\n\s+name:\s*""/, `user:\n  name: "${userName}"`);
+      }
+      if (primaryChat) {
+        config = config.replace(/chat: ""/, `chat: "${primaryChat}"`);
+      }
+      configYamlOut = config;
+    }
+    fs.writeFileSync(path.join(agentDir, "config.yaml"), configYamlOut, "utf-8");
+
+    const pd = this._d.productDir;
+    // identity.md（按 yuan 选模板，缺省回退 hanako / identity.example）
+    const identityPath = firstExistingPath(
+      path.join(pd, "identity-templates", `${yuanType}.md`),
+      path.join(pd, "identity-templates", "hanako.md"),
+      path.join(pd, "identity.example.md"),
+    );
+    if (identityPath) {
+      const tmpl = fs.readFileSync(identityPath, "utf-8");
       const filled = tmpl
         .replace(/\{\{agentName\}\}/g, name.trim())
         .replace(/\{\{userName\}\}/g, currentAgent?.userName || t("error.fallbackUserName"));
@@ -230,15 +348,22 @@ export class AgentManager {
     }
 
     // ishiki.md
-    const ishikiSrc = path.join(this._d.productDir, "ishiki.example.md");
-    if (fs.existsSync(ishikiSrc)) {
-      fs.copyFileSync(ishikiSrc, path.join(agentDir, "ishiki.md"));
+    const ishikiPath = firstExistingPath(
+      path.join(pd, "ishiki-templates", `${yuanType}.md`),
+      path.join(pd, "ishiki-templates", "hanako.md"),
+      path.join(pd, "ishiki.example.md"),
+    );
+    if (ishikiPath) {
+      fs.copyFileSync(ishikiPath, path.join(agentDir, "ishiki.md"));
     }
 
-    // public-ishiki.md（对外意识模板）
-    const publicIshikiSrc = path.join(this._d.productDir, "public-ishiki-templates", `${yuanType}.md`);
-    if (fs.existsSync(publicIshikiSrc)) {
-      fs.copyFileSync(publicIshikiSrc, path.join(agentDir, "public-ishiki.md"));
+    // public-ishiki.md（对外意识；kong 等无专用文件时回退 hanako）
+    const publicIshikiPath = firstExistingPath(
+      path.join(pd, "public-ishiki-templates", `${yuanType}.md`),
+      path.join(pd, "public-ishiki-templates", "hanako.md"),
+    );
+    if (publicIshikiPath) {
+      fs.copyFileSync(publicIshikiPath, path.join(agentDir, "public-ishiki.md"));
     }
 
     // 可选文件：确保存在（即使为空），避免运行时 ENOENT

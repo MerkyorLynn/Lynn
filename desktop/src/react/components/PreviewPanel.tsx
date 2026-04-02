@@ -10,15 +10,16 @@
  * - ArtifactEditor 不依赖 PreviewPanel，可脱离到独立窗口
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, lazy, Suspense } from 'react';
 import { useStore } from '../stores';
-import { ArtifactEditor } from './ArtifactEditor';
 import { ArtifactRenderer } from './preview/ArtifactRenderer';
 import { TabBar } from './preview/TabBar';
 import { FloatingActions } from './preview/FloatingActions';
 import { captureSelection, clearSelection } from '../stores/selection-actions';
 import type { Artifact } from '../types';
 import previewStyles from './Preview.module.css';
+
+const ArtifactEditor = lazy(() => import('./ArtifactEditor').then((m) => ({ default: m.ArtifactEditor })));
 
 const EDITABLE_TYPES = new Set(['markdown', 'code', 'csv']);
 
@@ -124,15 +125,17 @@ export function PreviewPanel() {
             <ArtifactRenderer artifact={artifact} />
           )}
           {previewOpen && artifact && editable && (
-            <ArtifactEditor
-              content={artifact.content}
-              filePath={artifact.filePath}
-              mode={getEditorMode(artifact)}
-              language={artifact.language}
-              onSelectionChange={(view) => {
-                if (artifact) captureSelection(artifact, view);
-              }}
-            />
+            <Suspense fallback={null}>
+              <ArtifactEditor
+                content={artifact.content}
+                filePath={artifact.filePath}
+                mode={getEditorMode(artifact)}
+                language={artifact.language}
+                onSelectionChange={(view) => {
+                  if (artifact) captureSelection(artifact, view);
+                }}
+              />
+            </Suspense>
           )}
         </div>
       </div>

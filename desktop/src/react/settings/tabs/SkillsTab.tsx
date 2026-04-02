@@ -115,8 +115,13 @@ export function SkillsTab() {
   };
 
   const deleteSkill = async (name: string) => {
-    const msg = t('settings.skills.deleteConfirm', { name });
-    if (!confirm(msg)) return;
+    const confirmed = await platform?.confirmAction?.({
+      title: t('common.delete') || 'Delete',
+      message: t('settings.skills.deleteConfirm', { name }),
+      confirmLabel: t('common.delete') || 'Delete',
+      cancelLabel: t('common.cancel') || 'Cancel',
+    });
+    if (!confirmed) return;
     try {
       const res = await hanaFetch(`/api/skills/${encodeURIComponent(name)}`, { method: 'DELETE' });
       const data = await res.json();
@@ -155,14 +160,20 @@ export function SkillsTab() {
     (e.currentTarget as HTMLElement).classList.remove(styles['drag-over']);
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    const filePath = platform?.getFilePath?.(file) || (file as File & { path?: string })?.path;
+    const filePath = (await platform?.getFilePath?.(file)) || (file as File & { path?: string })?.path;
     if (filePath) await installSkillFromPath(filePath);
   };
 
-  const addExternalPath = async () => {
-    const folder = await platform?.selectFolder?.();
-    if (!folder) return;
-    const newPaths = [...externalPathsData.configured, folder];
+  const removeExternalPath = async (pathToRemove: string) => {
+    const confirmed = await platform?.confirmAction?.({
+      title: t('common.confirm') || 'Confirm',
+      message: t('settings.skills.externalPathRemoveConfirm', { path: pathToRemove }) || pathToRemove,
+      confirmLabel: t('common.confirm') || 'Confirm',
+      cancelLabel: t('common.cancel') || 'Cancel',
+    });
+    if (!confirmed) return;
+
+    const newPaths = externalPathsData.configured.filter(p => p !== pathToRemove);
     try {
       await hanaFetch('/api/skills/external-paths', {
         method: 'PUT',
@@ -178,8 +189,10 @@ export function SkillsTab() {
     }
   };
 
-  const removeExternalPath = async (pathToRemove: string) => {
-    const newPaths = externalPathsData.configured.filter(p => p !== pathToRemove);
+  const addExternalPath = async () => {
+    const folder = await platform?.selectFolder?.();
+    if (!folder) return;
+    const newPaths = [...externalPathsData.configured, folder];
     try {
       await hanaFetch('/api/skills/external-paths', {
         method: 'PUT',

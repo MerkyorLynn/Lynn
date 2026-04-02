@@ -1,11 +1,12 @@
 import React from 'react';
 import { t } from '../../helpers';
+import { resolveBundledAvatar } from '../../../utils/agent-helpers';
 
-import kongBannerUrl from '../../../../assets/kong-banner.jpg';
+const kongBannerUrl = 'assets/kong-banner.jpg';
 
 export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; onChange: (key: string) => void }) {
   const types = t('yuan.types') || {};
-  const entries = Object.entries(types) as [string, { label?: string; avatar?: string }][];
+  const entries = Object.entries(types) as [string, { name?: string; label?: string; avatar?: string }][];
   const hIdx = entries.findIndex(([k]) => k === 'hanako');
   if (hIdx >= 0 && entries.length >= 3) {
     const [h] = entries.splice(hIdx, 1);
@@ -27,11 +28,11 @@ export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; o
           >
             <img
               className="yuan-chip-avatar"
-              src={`assets/${meta.avatar || 'Lynn.png'}`}
+              src={resolveBundledAvatar(meta.avatar || 'Lynn.png')}
               draggable={false}
             />
             <div className="yuan-chip-info">
-              <span className="yuan-chip-name">{key}</span>
+              <span className="yuan-chip-name">{meta.name || key}</span>
               <span className="yuan-chip-desc">{meta.label || ''}</span>
             </div>
           </button>

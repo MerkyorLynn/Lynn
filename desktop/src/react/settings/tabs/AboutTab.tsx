@@ -3,11 +3,13 @@ import { useSettingsStore } from '../store';
 import { autoSaveConfig, t } from '../helpers';
 import { Toggle } from '../widgets/Toggle';
 import { loadSettingsConfig } from '../actions';
+import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import iconUrl from '../../../assets/Lynn.png';
 import styles from '../Settings.module.css';
 import type { AutoUpdateState } from '../../types';
 
 const hana = window.hana;
+const REPO_URL = 'https://github.com/MerkyorLynn/Lynn';
 
 export function AboutTab() {
   const { settingsConfig } = useSettingsStore();
@@ -16,7 +18,6 @@ export function AboutTab() {
   const [autoUpdate, setAutoUpdate] = useState<AutoUpdateState | null>(null);
   const isBeta = settingsConfig?.update_channel === 'beta';
 
-  // 全权模式 easter egg：点击头像 5 次解锁
   const [devUnlocked, setDevUnlocked] = useState(false);
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -29,18 +30,25 @@ export function AboutTab() {
     if (tapTimer.current) clearTimeout(tapTimer.current);
     if (tapCount.current >= 5) {
       tapCount.current = 0;
-      setDevUnlocked(prev => !prev);
+      setDevUnlocked((prev) => !prev);
     } else {
-      tapTimer.current = setTimeout(() => { tapCount.current = 0; }, 1500);
+      tapTimer.current = setTimeout(() => {
+        tapCount.current = 0;
+      }, 1500);
     }
   };
 
   useEffect(() => {
     hana?.getAppVersion?.().then((v: string) => setVersion(v || ''));
-    hana?.autoUpdateState?.().then((s: AutoUpdateState) => {
-      if (s) setAutoUpdate(s);
+    hana?.autoUpdateState?.().then((state: AutoUpdateState) => {
+      if (state) setAutoUpdate(state);
     });
-    hana?.onAutoUpdateState?.((s: AutoUpdateState) => setAutoUpdate(s));
+    const unsub = hana?.onAutoUpdateState?.((state: AutoUpdateState) => setAutoUpdate(state));
+
+    return () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      if (typeof unsub === 'function') unsub();
+    };
   }, []);
 
   const handleCheck = useCallback(() => {
@@ -57,14 +65,14 @@ export function AboutTab() {
 
   const handleBetaToggle = useCallback(async (on: boolean) => {
     const channel = on ? 'beta' : 'stable';
-    hana?.autoUpdateSetChannel?.(channel);
+    await hana?.autoUpdateSetChannel?.(channel);
     await autoSaveConfig({ update_channel: channel }, { silent: true });
     await loadSettingsConfig();
   }, []);
 
   const renderUpdateStatus = () => {
     if (!autoUpdate) return null;
-    const { status, version: newVer, progress, error } = autoUpdate;
+    const { status, version: newVersion, progress, error } = autoUpdate;
 
     switch (status) {
       case 'checking':
@@ -76,9 +84,15 @@ export function AboutTab() {
       case 'available':
         return (
           <div className={styles['about-update']}>
-            <span>{t('settings.about.updateAvailable', { version: newVer })}</span>
-            <a className={styles['about-update-link']} href="#"
-              onClick={(e) => { e.preventDefault(); handleDownload(); }}>
+            <span>{t('settings.about.updateAvailable', { version: newVersion || '-' })}</span>
+            <a
+              className={styles['about-update-link']}
+              href="#"
+              onClick={(event) => {
+                event.preventDefault();
+                handleDownload();
+              }}
+            >
               {t('settings.about.updateDownload')}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -91,10 +105,10 @@ export function AboutTab() {
       case 'downloading':
         return (
           <div className={styles['about-update']}>
-            <span>{t('settings.about.updateDownloading', { version: newVer })}</span>
+            <span>{t('settings.about.updateDownloading', { version: newVersion || '-' })}</span>
             {progress && (
               <span className={styles['about-update-progress']}>
-                {t('settings.about.updateProgress', { percent: progress.percent })}
+                {t('settings.about.updateProgress', { percent: Math.round(progress.percent || 0) })}
               </span>
             )}
           </div>
@@ -102,9 +116,15 @@ export function AboutTab() {
       case 'downloaded':
         return (
           <div className={styles['about-update']}>
-            <span>{t('settings.about.updateReadyInstall', { version: newVer })}</span>
-            <a className={styles['about-update-link']} href="#"
-              onClick={(e) => { e.preventDefault(); handleInstall(); }}>
+            <span>{t('settings.about.updateReadyInstall', { version: newVersion || '-' })}</span>
+            <a
+              className={styles['about-update-link']}
+              href="#"
+              onClick={(event) => {
+                event.preventDefault();
+                handleInstall();
+              }}
+            >
               {t('settings.about.updateInstall')}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
@@ -131,8 +151,13 @@ export function AboutTab() {
     }
   };
 
+  const fullAccessDialogRef = useDialogA11y({
+    open: showFullAccessWarning,
+    onClose: () => setShowFullAccessWarning(false),
+  });
+
   return (
-    <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="about">
+    <div className={`${styles['settings-tab-content']} ${styles.active}`} data-tab="about">
       <div className={styles['about-hero']}>
         <img
           className={`${styles['about-icon']} ${styles['about-icon-clickable']}`}
@@ -157,28 +182,20 @@ export function AboutTab() {
           <span className={styles['about-value']}>Apache License 2.0</span>
         </div>
         <div className={styles['about-row']}>
-          <span className={styles['about-label']}>{t('settings.about.description')}</span>
-          <span className={styles['about-value']}>{t('settings.about.descriptionText')}</span>
-        </div>
-        <div className={styles['about-row']}>
           <span className={styles['about-label']}>{t('settings.about.copyright')}</span>
-          <span className={styles['about-value']}>
-            &copy; 2026 liliMozi{t('settings.about.copyrightOriginal')}
-            <br />
-            &copy; 2026 Merkyor{t('settings.about.copyrightDerived')}
-          </span>
+          <span className={styles['about-value']}>&copy; 2026 liliMozi / Merkyor</span>
         </div>
         <div className={styles['about-row']}>
           <span className={styles['about-label']}>GitHub</span>
           <a
             className={`${styles['about-value']} ${styles['about-link']}`}
             href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              hana?.openExternal?.('https://github.com/MerkyorLynn/Lynn');
+            onClick={(event) => {
+              event.preventDefault();
+              hana?.openExternal?.(REPO_URL);
             }}
           >
-            github.com/MerkyorLynn
+            github.com/MerkyorLynn/Lynn
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
               <polyline points="15 3 21 3 21 9" />
@@ -194,7 +211,7 @@ export function AboutTab() {
 
       <button
         className={styles['about-license-toggle']}
-        onClick={() => setLicenseOpen(!licenseOpen)}
+        onClick={() => setLicenseOpen((prev) => !prev)}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points={licenseOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
@@ -213,7 +230,7 @@ export function AboutTab() {
             <div className={styles['tool-caps-item']}>
               <div className={styles['tool-caps-label']}>
                 <span className={styles['tool-caps-name']}>{t('settings.about.fullAccess')}</span>
-                <span className={`${styles['tool-caps-desc']} ${styles['warn']}`}>
+                <span className={`${styles['tool-caps-desc']} ${styles.warn}`}>
                   {t('settings.about.fullAccessDesc')}
                 </span>
               </div>
@@ -235,8 +252,16 @@ export function AboutTab() {
 
       {showFullAccessWarning && (
         <div className="hana-warning-overlay" onClick={() => setShowFullAccessWarning(false)}>
-          <div className="hana-warning-box" onClick={(e) => e.stopPropagation()}>
-            <h3 className="hana-warning-title">{t('settings.about.fullAccessWarningTitle')}</h3>
+          <div
+            ref={fullAccessDialogRef}
+            className="hana-warning-box"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="full-access-warning-title"
+            tabIndex={-1}
+          >
+            <h3 id="full-access-warning-title" className="hana-warning-title">{t('settings.about.fullAccessWarningTitle')}</h3>
             <div className="hana-warning-body">
               <p>{t('settings.about.fullAccessWarningBody1')}</p>
               <p style={{ whiteSpace: 'pre-line' }}>
@@ -248,11 +273,14 @@ export function AboutTab() {
               <button className="hana-warning-cancel" onClick={() => setShowFullAccessWarning(false)}>
                 {t('settings.about.fullAccessCancel')}
               </button>
-              <button className="hana-warning-confirm" onClick={async () => {
-                setShowFullAccessWarning(false);
-                await autoSaveConfig({ sandbox: false }, { silent: true });
-                await loadSettingsConfig();
-              }}>
+              <button
+                className="hana-warning-confirm"
+                onClick={async () => {
+                  setShowFullAccessWarning(false);
+                  await autoSaveConfig({ sandbox: false }, { silent: true });
+                  await loadSettingsConfig();
+                }}
+              >
                 {t('settings.about.fullAccessConfirm')}
               </button>
             </div>
@@ -265,20 +293,20 @@ export function AboutTab() {
 
 const LICENSE_TEXT = `Apache License, Version 2.0
 
-Copyright 2026 liliMozi（原始版权）
-Copyright 2026 Merkyor（二次开发）
-
-基于 liliMozi 的开源项目开发
-项目仓库：https://github.com/MerkyorLynn/Lynn
+Copyright 2026 liliMozi
+Portions Copyright 2026 Merkyor
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.`;
+limitations under the License.
+
+This project is based on the open source work of liliMozi.
+Original repository: https://github.com/liliMozi
+Modified and extended by Merkyor.
+Project repository: https://github.com/MerkyorLynn/Lynn`;

@@ -48,9 +48,9 @@ export function connectWebSocket(port?: string, token?: string): void {
     try { _ws.onclose = null; _ws.close(); } catch { /* silent */ }
   }
 
-  const tokenParam = serverToken ? `?token=${serverToken}` : '';
-  const url = `ws://127.0.0.1:${serverPort}/ws${tokenParam}`;
-  _ws = new WebSocket(url);
+  const url = `ws://127.0.0.1:${serverPort}/ws`;
+  const protocols = serverToken ? ['hana-v1', `token.${serverToken}`] : ['hana-v1'];
+  _ws = new WebSocket(url, protocols);
 
   _ws.onopen = () => {
     _wsRetryDelay = 1000;

@@ -7,15 +7,16 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../stores';
-import { isImageFile } from '../utils/format';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
-import { ensureSession, loadSessions, showSidebarToast } from '../stores/session-actions';
-import { getWebSocket } from '../services/websocket';
+import { showSidebarToast } from '../stores/session-actions';
+import { getWebSocket, manualReconnect } from '../services/websocket';
+import { sendPrompt, submitPromptTask } from '../stores/prompt-actions';
 import type { ThinkingLevel } from '../stores/model-slice';
+import type { WorkingSetFile } from '../stores/input-slice';
 import { TodoDisplay } from './input/TodoDisplay';
 import { AttachedFilesBar } from './input/AttachedFilesBar';
-import { PlanModeButton } from './input/PlanModeButton';
+import { SecurityModeSelector } from './input/SecurityModeSelector';
 import { DocContextButton } from './input/DocContextButton';
 import { ContextRing } from './input/ContextRing';
 import { ThinkingLevelButton } from './input/ThinkingLevelButton';
@@ -24,15 +25,25 @@ import { SlashCommandMenu } from './input/SlashCommandMenu';
 import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
+import { WorkingSetBar } from './input/WorkingSetBar';
+import { ContextOverviewCard } from './input/ContextOverviewCard';
 import {
   XING_PROMPT, executeDiary, executeCompact, buildSlashCommands,
   type SlashCommand,
 } from './input/slash-commands';
+import {
+  fileToWorkingSet,
+  getComposerSessionKey,
+  mergeWorkingSetFiles,
+} from '../utils/composer-state';
+import {
+  buildComposerContextOverview,
+  prepareComposerTask,
+  type ComposerTaskMode,
+} from '../utils/prompt-task';
 import styles from './input/InputArea.module.css';
 
 export type { SlashCommand };
-
-// ── 主组件 ──
 
 export function InputArea() {
   return <InputAreaInner />;
@@ -41,17 +52,21 @@ export function InputArea() {
 function InputAreaInner() {
   const { t } = useI18n();
 
-  // Zustand state
   const isStreaming = useStore(s => s.isStreaming);
   const connected = useStore(s => s.connected);
   const pendingNewSession = useStore(s => s.pendingNewSession);
   const currentSessionPath = useStore(s => s.currentSessionPath);
+  const composerSessionKey = getComposerSessionKey(currentSessionPath, pendingNewSession);
   const compacting = useStore(s => currentSessionPath ? s.compactingSessions.includes(currentSessionPath) : false);
   const inlineError = useStore(s => s.inlineError);
+  const wsState = useStore(s => s.wsState);
+  const wsReconnectAttempt = useStore(s => s.wsReconnectAttempt);
+  const recoverableDraft = useStore(s => s.lastSubmittedDrafts[composerSessionKey] || null);
   const todosBySession = useStore(s => s.todosBySession);
   const sessionTodos = (todosBySession && currentSessionPath && todosBySession[currentSessionPath]) || [];
   const attachedFiles = useStore(s => s.attachedFiles);
   const docContextAttached = useStore(s => s.docContextAttached);
+  const docContextFile = useStore(s => s.docContextFile);
   const quotedSelection = useStore(s => s.quotedSelection);
   const artifacts = useStore(s => s.artifacts);
   const activeTabId = useStore(s => s.activeTabId);
@@ -60,79 +75,94 @@ function InputAreaInner() {
   const agentYuan = useStore(s => s.agentYuan);
   const thinkingLevel = useStore(s => s.thinkingLevel);
   const setThinkingLevel = useStore(s => s.setThinkingLevel);
+  const composerText = useStore(s => s.composerText);
+  const setComposerText = useStore(s => s.setComposerText);
+  const saveComposerDraft = useStore(s => s.saveComposerDraft);
+  const restoreComposerDraft = useStore(s => s.restoreComposerDraft);
+  const restoreLastSubmittedDraft = useStore(s => s.restoreLastSubmittedDraft);
+  const clearComposerState = useStore(s => s.clearComposerState);
+  const setLastSubmittedDraft = useStore(s => s.setLastSubmittedDraft);
+  const setInlineError = useStore(s => s.setInlineError);
+  const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
+  const rememberWorkingSetFile = useStore(s => s.rememberWorkingSetFile);
+  const deskFiles = useStore(s => s.deskFiles);
+  const deskBasePath = useStore(s => s.deskBasePath);
+  const deskCurrentPath = useStore(s => s.deskCurrentPath);
 
   const currentModelInfo = useMemo(() => models.find(m => m.isCurrent), [models]);
-  const supportsVision = currentModelInfo?.vision !== false;
-  const chatSessions = useStore(s => s.chatSessions);
-  const sessionHasMessages = !!(currentSessionPath && chatSessions[currentSessionPath]?.items?.length);
+  const activeModelInfo = currentModelInfo || (models.length > 0 ? models[0] : null);
+  const selectorModels = models;
+  const noModelsAtAll = models.length === 0;
+  const supportsVision = activeModelInfo?.vision !== false && activeModelInfo !== null;
 
-  // Local state
-  const [inputText, setInputText] = useState('');
-  const [planMode, setPlanMode] = useState(false);
   const [sending, setSending] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
   const [slashSelected, setSlashSelected] = useState(0);
   const [slashBusy, setSlashBusy] = useState<string | null>(null);
   const [slashResult, setSlashResult] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
-  // @ mention state
   const [atMenuOpen, setAtMenuOpen] = useState(false);
   const [atQuery, setAtQuery] = useState('');
   const [atSelected, setAtSelected] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
+  const skipNextDraftSaveRef = useRef(true);
 
-  // Focus trigger from store
   const inputFocusTrigger = useStore(s => s.inputFocusTrigger);
+  const requestInputFocus = useStore(s => s.requestInputFocus);
   useEffect(() => {
     if (inputFocusTrigger > 0) textareaRef.current?.focus();
   }, [inputFocusTrigger]);
 
-  // Zustand actions
   const addAttachedFile = useStore(s => s.addAttachedFile);
   const removeAttachedFile = useStore(s => s.removeAttachedFile);
-  const clearAttachedFiles = useStore(s => s.clearAttachedFiles);
   const toggleDocContext = useStore(s => s.toggleDocContext);
   const setDocContextAttached = useStore(s => s.setDocContextAttached);
+  const setDocContextFile = useStore(s => s.setDocContextFile);
+  const clearQuotedSelection = useStore(s => s.clearQuotedSelection);
 
-  // Doc context
   const currentDoc = useMemo(() => {
+    if (docContextFile) return docContextFile;
     if (!previewOpen || !activeTabId) return null;
     const art = artifacts.find(a => a.id === activeTabId);
     if (!art?.filePath) return null;
     return { path: art.filePath, name: art.title || art.filePath.split('/').pop() || '' };
-  }, [previewOpen, activeTabId, artifacts]);
+  }, [docContextFile, previewOpen, activeTabId, artifacts]);
   const hasDoc = !!currentDoc;
 
-  // ── 统一命令发送 ──
+  const deskWorkingSetFiles = useMemo(() => {
+    if (!deskBasePath) return [];
+    const baseDir = deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath;
+    return deskFiles
+      .filter(file => !file.isDir)
+      .slice(0, 6)
+      .map(file => fileToWorkingSet({ path: `${baseDir}/${file.name}`, name: file.name }, 'desk'));
+  }, [deskBasePath, deskCurrentPath, deskFiles]);
+
+  const visibleWorkingSetFiles = useMemo(() => mergeWorkingSetFiles(
+    workingSetRecentFiles,
+    deskWorkingSetFiles,
+  ), [workingSetRecentFiles, deskWorkingSetFiles]);
+
+  useEffect(() => {
+    skipNextDraftSaveRef.current = true;
+    restoreComposerDraft(composerSessionKey);
+  }, [composerSessionKey, restoreComposerDraft]);
+
+  useEffect(() => {
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    saveComposerDraft(composerSessionKey);
+  }, [composerSessionKey, composerText, attachedFiles, quotedSelection, docContextFile, workingSetRecentFiles, saveComposerDraft]);
 
   const sendAsUser = useCallback(async (text: string, displayText?: string): Promise<boolean> => {
-    const ws = getWebSocket();
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    if (useStore.getState().isStreaming) return false;
-
-    if (pendingNewSession) {
-      const ok = await ensureSession();
-      if (!ok) return false;
-      loadSessions();
+    if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
+      useStore.setState({ selectedFolder: useStore.getState().homeFolder });
     }
-
-    const sessionPath = useStore.getState().currentSessionPath;
-    if (sessionPath) {
-      const { renderMarkdown } = await import('../utils/markdown');
-      const msgText = displayText ?? text;
-      useStore.getState().appendItem(sessionPath, {
-        type: 'message',
-        data: { id: `user-${Date.now()}`, role: 'user', text: msgText, textHtml: renderMarkdown(msgText) },
-      });
-      useStore.setState({ welcomeVisible: false });
-    }
-    ws.send(JSON.stringify({ type: 'prompt', text, sessionPath: useStore.getState().currentSessionPath }));
-    return true;
+    return sendPrompt({ text, displayText });
   }, [pendingNewSession]);
-
-  // ── 斜杠命令 ──
 
   const showSlashResult = useCallback((text: string, type: 'success' | 'error') => {
     setSlashBusy(null);
@@ -141,17 +171,17 @@ function InputAreaInner() {
   }, []);
 
   const diaryFn = useCallback(
-    executeDiary(t, showSlashResult, setSlashBusy, setInputText, setSlashMenuOpen),
-    [t, showSlashResult],
+    executeDiary(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [t, showSlashResult, setComposerText],
   );
   const xingFn = useCallback(async () => {
-    setInputText('');
+    setComposerText('');
     setSlashMenuOpen(false);
     await sendAsUser(XING_PROMPT);
-  }, [sendAsUser]);
+  }, [sendAsUser, setComposerText]);
   const compactFn = useCallback(
-    executeCompact(setSlashBusy, setInputText, setSlashMenuOpen),
-    [],
+    executeCompact(setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText],
   );
 
   const slashCommands = useMemo(
@@ -160,13 +190,13 @@ function InputAreaInner() {
   );
 
   const filteredCommands = useMemo(() => {
-    if (!inputText.startsWith('/')) return slashCommands;
-    const query = inputText.slice(1).toLowerCase();
+    if (!composerText.startsWith('/')) return slashCommands;
+    const query = composerText.slice(1).toLowerCase();
     return slashCommands.filter(c => c.name.startsWith(query));
-  }, [inputText, slashCommands]);
+  }, [composerText, slashCommands]);
 
   const handleInputChange = useCallback((value: string) => {
-    setInputText(value);
+    setComposerText(value);
     if (value.startsWith('/') && value.length <= 20) {
       setSlashMenuOpen(true);
       setSlashSelected(0);
@@ -175,7 +205,6 @@ function InputAreaInner() {
       setSlashMenuOpen(false);
     }
 
-    // @ mention detection: look for @ followed by query text
     const atMatch = value.match(/@(\S*)$/);
     if (atMatch && !value.startsWith('/')) {
       setAtMenuOpen(true);
@@ -185,27 +214,72 @@ function InputAreaInner() {
       setAtMenuOpen(false);
       setAtQuery('');
     }
-  }, []);
+  }, [setComposerText]);
 
-  // Can send?
-  const hasContent = inputText.trim().length > 0 || attachedFiles.length > 0 || docContextAttached || !!quotedSelection;
+  const handleAttachWorkingSetFile = useCallback((file: WorkingSetFile) => {
+    if (currentDoc?.path && file.path === currentDoc.path) {
+      setDocContextFile({ path: currentDoc.path, name: currentDoc.name });
+      rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
+      requestInputFocus();
+      return;
+    }
+    if (!attachedFiles.some(attached => attached.path === file.path)) {
+      addAttachedFile({ path: file.path, name: file.name, isDirectory: file.isDirectory });
+    }
+    rememberWorkingSetFile(file);
+    requestInputFocus();
+  }, [attachedFiles, addAttachedFile, currentDoc, rememberWorkingSetFile, requestInputFocus, setDocContextFile]);
+
+  const handleAttachCurrentDoc = useCallback(() => {
+    if (!currentDoc) return;
+    setDocContextFile({ path: currentDoc.path, name: currentDoc.name });
+    rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
+    requestInputFocus();
+  }, [currentDoc, rememberWorkingSetFile, requestInputFocus, setDocContextFile]);
+
+  const handleRestoreLastDraft = useCallback(() => {
+    restoreLastSubmittedDraft(composerSessionKey);
+    setInlineError(null);
+    requestInputFocus();
+  }, [composerSessionKey, requestInputFocus, restoreLastSubmittedDraft, setInlineError]);
+
+  const openProvidersSettings = useCallback(() => {
+    try { localStorage.setItem('hanako-settings-clicked', '1'); } catch {}
+    window.platform?.openSettings?.({
+      tab: 'providers',
+      providerId: activeModelInfo?.provider ?? null,
+      resetProviderSelection: !activeModelInfo?.provider,
+    });
+  }, [activeModelInfo?.provider]);
+
+  const recoveryMessage = useMemo(() => {
+    if (wsState === 'reconnecting') {
+      return `${t('status.reconnecting')} (${wsReconnectAttempt}) · 你可以继续编辑，连接恢复后再发送`;
+    }
+    if (wsState === 'disconnected') {
+      return `${t('status.disconnected')} · 草稿和上下文会保留，恢复连接后可继续发送`;
+    }
+    if (inlineError && recoverableDraft) {
+      return `${inlineError} · 可恢复到输入框继续修改`;
+    }
+    return null;
+  }, [inlineError, recoverableDraft, t, wsReconnectAttempt, wsState]);
+
+  const hasContent = composerText.trim().length > 0 || attachedFiles.length > 0 || docContextAttached || !!quotedSelection;
   const canSend = hasContent && connected && !isStreaming;
 
-  // ── Auto resize ──
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }, [inputText]);
+  }, [composerText]);
 
-  // ── Placeholder ──
   const placeholder = (() => {
     const yuanPh = t(`yuan.placeholder.${agentYuan}`);
     return (yuanPh && !yuanPh.startsWith('yuan.')) ? yuanPh : t('input.placeholder');
   })();
 
-  // ── Paste image ──
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -234,201 +308,183 @@ function InputAreaInner() {
     }
   }, [addAttachedFile, t, supportsVision]);
 
-  // ── Load thinking level on mount + listen for plan mode sync ──
   useEffect(() => {
     hanaFetch('/api/config')
       .then(r => r.json())
       .then(d => { if (d.thinking_level) setThinkingLevel(d.thinking_level as ThinkingLevel); })
       .catch((err: unknown) => console.warn('[InputArea] load config failed', err));
-
-    const handler = (e: Event) => {
-      setPlanMode((e as CustomEvent).detail?.enabled ?? false);
-    };
-    window.addEventListener('hana-plan-mode', handler);
-    return () => window.removeEventListener('hana-plan-mode', handler);
   }, [setThinkingLevel]);
 
-  // ── Send message ──
-  const handleSend = useCallback(async () => {
-    const text = inputText.trim();
+  const currentTaskMode: ComposerTaskMode = isStreaming && composerText.trim() ? 'steer' : 'prompt';
+  const contextOverview = useMemo(() => buildComposerContextOverview({
+    mode: currentTaskMode,
+    composerText,
+    attachedFiles,
+    docContextAttached,
+    currentDoc,
+    quotedSelection,
+    supportsVision,
+  }), [attachedFiles, composerText, currentDoc, currentTaskMode, docContextAttached, quotedSelection, supportsVision]);
 
-    // 斜杠命令拦截
-    if (text.startsWith('/') && slashMenuOpen && filteredCommands.length > 0) {
-      const cmd = filteredCommands[slashSelected] || filteredCommands[0];
-      if (cmd) { cmd.execute(); return; }
+  const heldBackLabels = useMemo(() => contextOverview.heldBack.map((item) => {
+    switch (item) {
+      case 'quote':
+        return t('input.contextQuote');
+      case 'doc':
+        return t('input.contextDoc');
+      case 'files':
+        return t('input.contextFiles');
+      case 'images':
+        return t('input.contextImages');
+      default:
+        return item;
+    }
+  }), [contextOverview.heldBack, t]);
+
+  const modelLabel = useMemo(() => {
+    if (!activeModelInfo?.id) return null;
+    if ('metaLabel' in activeModelInfo && activeModelInfo.metaLabel) {
+      return `${activeModelInfo.name} · ${activeModelInfo.metaLabel}`;
+    }
+    return ('provider' in activeModelInfo && activeModelInfo.provider) ? `${activeModelInfo.provider} / ${activeModelInfo.id}` : activeModelInfo.id;
+  }, [activeModelInfo]);
+
+  const contextCardVisible = hasContent;
+
+  const handleSubmitTask = useCallback(async (mode: ComposerTaskMode) => {
+    if (mode === 'prompt') {
+      if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
+        useStore.setState({ selectedFolder: useStore.getState().homeFolder });
+      }
+      const hasSendable = !!(composerText.trim() || attachedFiles.length > 0 || docContextAttached || quotedSelection);
+      if (!hasSendable || !connected) {
+        if (!connected && hasSendable) showSidebarToast(t('chat.needWsConnection'));
+        return;
+      }
+    } else {
+      if (!composerText.trim()) return;
     }
 
-    const hasFiles = attachedFiles.length > 0;
-    const hasSendable = !!(text || hasFiles || docContextAttached || useStore.getState().quotedSelection);
-    if (!hasSendable || !connected) {
-      if (!connected && hasSendable) showSidebarToast(t('chat.needWsConnection'));
-      return;
-    }
-    if (isStreaming) return;
     if (sending) return;
+    if (mode === 'prompt' && isStreaming) return;
+
     setSending(true);
-
     try {
-      if (pendingNewSession) {
-        const ok = await ensureSession();
-        if (!ok) return;
-        loadSessions();
+      const prepared = await prepareComposerTask({
+        mode,
+        composerText,
+        attachedFiles,
+        docContextAttached,
+        currentDoc,
+        quotedSelection,
+        workingSetRecentFiles,
+        supportsVision,
+        readFileBase64: window.hana?.readFileBase64?.bind(window.hana),
+      });
+
+      const sent = await submitPromptTask(prepared.submission);
+      if (!sent) return;
+
+      const nextSessionPath = useStore.getState().currentSessionPath;
+      if (nextSessionPath) {
+        setLastSubmittedDraft(nextSessionPath, prepared.draft);
       }
 
-      // 分离图片和非图片附件（模型不支持 vision 时，图片降级为普通附件路径）
-      const imageFiles = hasFiles && supportsVision ? attachedFiles.filter(f => !f.isDirectory && isImageFile(f.name)) : [];
-      const otherFiles = hasFiles ? attachedFiles.filter(f => f.isDirectory || !isImageFile(f.name) || !supportsVision) : [];
-
-      let finalText = text;
-      if (otherFiles.length > 0) {
-        const fileBlock = otherFiles.map(f => f.isDirectory ? `[目录] ${f.path}` : `[附件] ${f.path}`).join('\n');
-        finalText = text ? `${text}\n\n${fileBlock}` : fileBlock;
-      }
-
-      // 图片读 base64
-      const hana = window.hana;
-      const images: Array<{ type: 'image'; data: string; mimeType: string }> = [];
-      const imageBase64Map = new Map<string, { base64Data: string; mimeType: string }>();
-      for (const img of imageFiles) {
-        try {
-          if (img.base64Data && img.mimeType) {
-            images.push({ type: 'image', data: img.base64Data, mimeType: img.mimeType });
-          } else if (hana?.readFileBase64) {
-            const base64 = await hana.readFileBase64(img.path);
-            if (base64) {
-              const ext = img.name.toLowerCase().replace(/^.*\./, '');
-              const mimeMap: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml' };
-              const mimeType = mimeMap[ext] || 'image/png';
-              imageBase64Map.set(img.path, { base64Data: base64, mimeType });
-              images.push({ type: 'image', data: base64, mimeType });
-            }
-          }
-        } catch {
-          finalText = finalText ? `${finalText}\n\n[附件] ${img.path}` : `[附件] ${img.path}`;
-        }
-      }
-
-      // 文档上下文
-      let docForRender: { path: string; name: string } | null = null;
-      if (docContextAttached && currentDoc) {
-        finalText = finalText ? `${finalText}\n\n[参考文档] ${currentDoc.path}` : `[参考文档] ${currentDoc.path}`;
-        docForRender = currentDoc;
-      }
-      if (docContextAttached) setDocContextAttached(false);
-
-      // 引用片段
-      const qs = useStore.getState().quotedSelection;
-      if (qs) {
-        let quoteStr: string;
-        if (qs.sourceFilePath && qs.lineStart != null && qs.lineEnd != null) {
-          quoteStr = `[引用片段] ${qs.sourceTitle}（第${qs.lineStart}-${qs.lineEnd}行，共${qs.charCount}字）路径: ${qs.sourceFilePath}`;
-        } else {
-          quoteStr = `[引用片段] ${qs.text}`;
-        }
-        finalText = finalText ? `${finalText}\n\n${quoteStr}` : quoteStr;
-      }
-
-      const allFiles = [...(hasFiles ? attachedFiles : [])];
-      if (docForRender) allFiles.push({ path: docForRender.path, name: docForRender.name });
-
-      // 写入 store
-      const sessionPath = useStore.getState().currentSessionPath;
-      if (sessionPath) {
-        const { renderMarkdown } = await import('../utils/markdown');
-        useStore.getState().appendItem(sessionPath, {
-          type: 'message',
-          data: {
-            id: `user-${Date.now()}`, role: 'user', text,
-            textHtml: renderMarkdown(text),
-            quotedText: qs?.text,
-            attachments: allFiles.length > 0 ? allFiles.map(f => {
-              const cached = imageBase64Map.get(f.path);
-              return {
-                path: f.path, name: f.name, isDir: false,
-                base64Data: f.base64Data || cached?.base64Data || undefined,
-                mimeType: f.mimeType || cached?.mimeType || undefined,
-              };
-            }) : undefined,
-          },
+      if (mode === 'prompt') {
+        prepared.otherFiles.forEach(file => {
+          rememberWorkingSetFile(fileToWorkingSet({ path: file.path, name: file.name }, file.isDirectory ? 'desk' : 'recent', file.isDirectory));
         });
-        useStore.setState({ welcomeVisible: false });
+        if (prepared.docForRender) {
+          rememberWorkingSetFile(fileToWorkingSet(prepared.docForRender, 'current'));
+        }
+
+        clearComposerState();
+        setSlashMenuOpen(false);
+        setAtMenuOpen(false);
+        setAtQuery('');
+        if (quotedSelection) clearQuotedSelection();
+        if (docContextAttached) setDocContextAttached(false, null);
+      } else {
+        setComposerText('');
       }
-
-      setInputText('');
-      clearAttachedFiles();
-      const qs2 = useStore.getState().quotedSelection;
-      if (qs2) useStore.getState().clearQuotedSelection();
-
-      const ws = getWebSocket();
-      const wsMsg: Record<string, unknown> = { type: 'prompt', text: finalText, sessionPath: useStore.getState().currentSessionPath };
-      if (images.length > 0) wsMsg.images = images;
-      ws?.send(JSON.stringify(wsMsg));
     } finally {
       setSending(false);
     }
-  }, [inputText, attachedFiles, docContextAttached, connected, isStreaming, sending, pendingNewSession, currentDoc, clearAttachedFiles, setDocContextAttached, slashMenuOpen, filteredCommands, slashSelected]);
+  }, [
+    attachedFiles,
+    clearComposerState,
+    clearQuotedSelection,
+    composerText,
+    connected,
+    currentDoc,
+    docContextAttached,
+    isStreaming,
+    pendingNewSession,
+    quotedSelection,
+    rememberWorkingSetFile,
+    sending,
+    setDocContextAttached,
+    setLastSubmittedDraft,
+    setComposerText,
+    supportsVision,
+    t,
+    workingSetRecentFiles,
+  ]);
 
-  // ── @ mention select ──
-  const handleAtSelect = useCallback((file: { name: string; path: string; rel: string; isDir: boolean }) => {
-    // Replace the @query with the file attachment
-    const atMatch = inputText.match(/@(\S*)$/);
-    if (atMatch) {
-      const before = inputText.slice(0, inputText.length - atMatch[0].length);
-      setInputText(before + '@' + file.name + ' ');
+  const handleSend = useCallback(async () => {
+    const text = composerText.trim();
+
+    if (text.startsWith('/') && slashMenuOpen && filteredCommands.length > 0) {
+      const cmd = filteredCommands[slashSelected] || filteredCommands[0];
+      if (cmd) {
+        cmd.execute();
+        return;
+      }
     }
-    // Add file to attached files
+
+    await handleSubmitTask('prompt');
+  }, [composerText, filteredCommands, handleSubmitTask, slashMenuOpen, slashSelected]);
+
+  const handleAtSelect = useCallback((file: { name: string; path: string; rel: string; isDir: boolean }) => {
+    const atMatch = composerText.match(/@(\S*)$/);
+    if (atMatch) {
+      const before = composerText.slice(0, composerText.length - atMatch[0].length);
+      setComposerText(before + '@' + file.name + ' ');
+    }
     addAttachedFile({ path: file.path, name: file.name, isDirectory: file.isDir });
     setAtMenuOpen(false);
     setAtQuery('');
     textareaRef.current?.focus();
-  }, [inputText, addAttachedFile]);
+  }, [composerText, addAttachedFile, setComposerText]);
 
-  // ── Steer ──
   const handleSteer = useCallback(async () => {
-    const text = inputText.trim();
-    if (!text || !isStreaming) return;
-    const ws = getWebSocket();
-    if (!ws) return;
-    const sessionPath = useStore.getState().currentSessionPath;
-    if (sessionPath) {
-      const { renderMarkdown } = await import('../utils/markdown');
-      useStore.getState().appendItem(sessionPath, {
-        type: 'message',
-        data: { id: `user-${Date.now()}`, role: 'user', text, textHtml: renderMarkdown(text) },
-      });
-    }
-    setInputText('');
-    ws.send(JSON.stringify({ type: 'steer', text, sessionPath: useStore.getState().currentSessionPath }));
-  }, [inputText, isStreaming]);
+    await handleSubmitTask('steer');
+  }, [handleSubmitTask]);
 
-  // ── Stop ──
   const handleStop = useCallback(() => {
     const ws = getWebSocket();
     if (!isStreaming || !ws) return;
     ws.send(JSON.stringify({ type: 'abort', sessionPath: useStore.getState().currentSessionPath }));
   }, [isStreaming]);
 
-  // ── Key handler ──
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // @ mention menu keyboard navigation
     if (atMenuOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setAtSelected(i => i + 1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setAtSelected(i => Math.max(0, i - 1)); return; }
       if (e.key === 'Escape') { e.preventDefault(); setAtMenuOpen(false); return; }
-      // Tab/Enter in @ menu handled by component onSelect
     }
 
     if (slashMenuOpen && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setSlashSelected(i => (i + 1) % filteredCommands.length); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSlashSelected(i => (i - 1 + filteredCommands.length) % filteredCommands.length); return; }
-      if (e.key === 'Tab') { e.preventDefault(); const cmd = filteredCommands[slashSelected]; if (cmd) setInputText('/' + cmd.name); return; }
+      if (e.key === 'Tab') { e.preventDefault(); const cmd = filteredCommands[slashSelected]; if (cmd) setComposerText('/' + cmd.name); return; }
       if (e.key === 'Escape') { e.preventDefault(); setSlashMenuOpen(false); return; }
     }
     if (e.key === 'Enter' && !e.shiftKey && !isComposing.current) {
       e.preventDefault();
-      if (isStreaming && inputText.trim()) handleSteer(); else handleSend();
+      if (isStreaming && composerText.trim()) handleSteer(); else handleSend();
     }
-  }, [handleSend, handleSteer, isStreaming, inputText, slashMenuOpen, filteredCommands, slashSelected]);
+  }, [handleSend, handleSteer, isStreaming, composerText, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen]);
 
   return (
     <>
@@ -444,7 +500,24 @@ function InputAreaInner() {
           <span>{t('chat.compacting')}</span>
         </div>
       )}
-      {inlineError && (
+      {recoveryMessage && (
+        <div className={styles['connection-recovery-bar']}>
+          <span>{recoveryMessage}</span>
+          <div className={styles['recovery-actions']}>
+            {recoverableDraft && (
+              <button className={styles['recovery-action']} onClick={handleRestoreLastDraft}>
+                恢复草稿
+              </button>
+            )}
+            {wsState !== 'connected' && (
+              <button className={styles['recovery-action']} onClick={() => manualReconnect()}>
+                {t('status.reconnect')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {inlineError && !recoverableDraft && (
         <div className={styles['slash-error-bar']}>
           <span className={styles['slash-error-dot']} />
           <span>{inlineError}</span>
@@ -453,10 +526,29 @@ function InputAreaInner() {
       {!slashBusy && !compacting && !inlineError && slashResult && (
         <div className={styles['slash-busy-bar']}><span>{slashResult.text}</span></div>
       )}
-      {(attachedFiles.length > 0 || quotedSelection || sessionTodos.length > 0) && (
+      <WorkingSetBar
+        files={visibleWorkingSetFiles}
+        currentDocPath={currentDoc?.path}
+        docContextPath={docContextAttached ? currentDoc?.path ?? null : null}
+        attachedPaths={attachedFiles.map(file => file.path)}
+        onAttachFile={handleAttachWorkingSetFile}
+        onAttachCurrentDoc={handleAttachCurrentDoc}
+      />
+      {contextCardVisible && (
+        <ContextOverviewCard
+          mode={contextOverview.mode}
+          modelLabel={modelLabel}
+          textLength={contextOverview.textLength}
+          quotedSummary={contextOverview.quotedSummary}
+          docName={contextOverview.docName}
+          attachmentNames={contextOverview.attachmentNames}
+          imageNames={contextOverview.imageNames}
+          heldBackLabels={heldBackLabels}
+        />
+      )}
+      {(quotedSelection || sessionTodos.length > 0) && (
         <div className={styles['input-context-row']}>
           <div className={styles['input-context-left']}>
-            {attachedFiles.length > 0 && <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />}
             <QuotedSelectionCard />
           </div>
           <TodoDisplay todos={sessionTodos} />
@@ -475,23 +567,42 @@ function InputAreaInner() {
         />
       )}
       <div className={styles['input-wrapper']}>
+        {attachedFiles.length > 0 && (
+          <div className={styles['input-inline-attachments']}>
+            <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
+          </div>
+        )}
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
-          rows={1} spellCheck={false} value={inputText}
+          rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={() => { isComposing.current = false; }} />
         <div className={styles['input-bottom-bar']}>
           <div className={styles['input-actions']}>
-            <PlanModeButton enabled={planMode} onToggle={setPlanMode} />
-            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={toggleDocContext} />
+            <SecurityModeSelector />
+            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={() => toggleDocContext(currentDoc)} />
             <ContextRing />
           </div>
           <div className={styles['input-controls']}>
-            {currentModelInfo?.reasoning !== false && (
+            {activeModelInfo?.reasoning !== false && (
               <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
             )}
-            <ModelSelector models={models} disabled={sessionHasMessages} />
-            <SendButton isStreaming={isStreaming} hasInput={!!inputText.trim()}
+            <ModelSelector models={selectorModels} disabled={isStreaming} />
+            {(noModelsAtAll || models.length <= 1) && (
+              <button
+                type="button"
+                className={styles['model-upgrade-btn']}
+                onClick={openProvidersSettings}
+                title={t('input.embeddedModel.upgradeTitle')}
+              >
+                <span className={styles['model-upgrade-icon']}>✦</span>
+                <span className={styles['model-upgrade-copy']}>
+                  <span className={styles['model-upgrade-title']}>{t('input.embeddedModel.upgrade')}</span>
+                  <span className={styles['model-upgrade-subtitle']}>{t('input.embeddedModel.hint')}</span>
+                </span>
+              </button>
+            )}
+            <SendButton isStreaming={isStreaming} hasInput={!!composerText.trim()}
               disabled={isStreaming ? false : !canSend} onSend={handleSend} onSteer={handleSteer} onStop={handleStop} />
           </div>
         </div>

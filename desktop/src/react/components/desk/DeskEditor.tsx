@@ -67,7 +67,7 @@ export function JianEditor() {
       // 文件拖入 → 生成 Markdown 链接
       const links: string[] = [];
       for (const f of Array.from(files)) {
-        const p = window.platform?.getFilePath?.(f);
+        const p = await window.platform?.getFilePath?.(f);
         if (p) {
           const name = p.split('/').pop() || p;
           links.push(`[${name}](${p})`);

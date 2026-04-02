@@ -288,8 +288,10 @@ export function createBridgeRoute(engine, bridgeManager) {
     // 路径安全检查（对齐 fs.js 的 getAllowedRoots 逻辑）
     const hanaHome = path.resolve(engine.lynnHome);
     const allowedRoots = [hanaHome];
-    const deskHome = engine.agent?.deskManager?.homePath;
+    const deskHome = engine.agent?.deskManager?.deskDir;
     if (deskHome) allowedRoots.push(path.resolve(deskHome));
+    if (engine.homeCwd) allowedRoots.push(path.resolve(engine.homeCwd));
+    if (engine.cwd) allowedRoots.push(path.resolve(engine.cwd));
 
     // 先检查文件是否存在
     const resolved = path.resolve(filePath);

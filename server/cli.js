@@ -24,7 +24,8 @@ const c = {
 };
 
 export function startCLI({ port, token, agentName, userName }) {
-  const wsUrl = `ws://127.0.0.1:${port}/ws?token=${token}`;
+  const wsUrl = `ws://127.0.0.1:${port}/ws`;
+  const wsProtocols = token ? ["hana-cli", `token.${token}`] : ["hana-cli"];
   const apiBase = `http://127.0.0.1:${port}`;
 
   let ws = null;
@@ -46,7 +47,7 @@ export function startCLI({ port, token, agentName, userName }) {
 
   // ── WebSocket ──
   function connect() {
-    ws = new WebSocket(wsUrl);
+    ws = new WebSocket(wsUrl, wsProtocols);
 
     ws.on("open", () => {
       showPrompt();

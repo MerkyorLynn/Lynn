@@ -61,8 +61,10 @@ export interface Model {
 
 export interface ExpertPreset {
   slug: string;
-  name: Record<string, string>;
+  name: string | Record<string, string>;
+  nameI18n?: Record<string, string>;
   icon: string;
+  avatarUrl?: string;
   category: string;
   tier: 'expert';
   model_binding: {
@@ -74,7 +76,8 @@ export interface ExpertPreset {
     per_extra_round: number;
   };
   skills: string[];
-  description: Record<string, string>;
+  description: string | Record<string, string>;
+  descriptionI18n?: Record<string, string>;
 }
 
 export interface Channel {
@@ -86,6 +89,8 @@ export interface Channel {
   lastSender: string;
   lastTimestamp: string;
   newMessageCount: number;
+  archived?: boolean;
+  archivedAt?: string;
   isDM?: boolean;
   peerId?: string;
   peerName?: string;
@@ -141,10 +146,16 @@ export type ActivePanel = 'activity' | 'automation' | 'bridge' | null;
 export type TabType = 'chat' | 'channels';
 
 // ── Platform API 类型声明 ──
+export interface SettingsNavigationTarget {
+  tab?: string;
+  providerId?: string | null;
+  resetProviderSelection?: boolean;
+}
+
 export interface PlatformApi {
   getServerPort(): Promise<string>;
   getServerToken(): Promise<string>;
-  openSettings(tab?: string): void;
+  openSettings(target?: string | SettingsNavigationTarget): void;
   openBrowserViewer(url?: string, theme?: string): void;
   selectFolder(): Promise<string | null>;
   selectSkill(): Promise<string | null>;
@@ -168,9 +179,9 @@ export interface PlatformApi {
   openSkillViewer?(opts: { skillPath?: string; name?: string; baseDir?: string; filePath?: string; installed?: boolean }): void;
   settingsChanged(event: string, payload?: unknown): void;
   onSettingsChanged(callback: (event: string, payload: unknown) => void): void;
-  onSwitchTab?(callback: (tab: string) => void): void;
-  onServerRestarted?(callback: (data: { port: number }) => void): void;
-  getFilePath?(file: File): string | null;
+  onSwitchTab?(callback: (target: string | SettingsNavigationTarget) => void): (() => void) | void;
+  onServerRestarted?(callback: (data: { port: number; token: string }) => void): void;
+  getFilePath?(file: File): Promise<string | null>;
   startDrag?(filePaths: string | string[]): void;
   appReady(): void;
 
@@ -202,6 +213,7 @@ export interface PlatformApi {
 
   // ── Notification ──
   showNotification?(title: string, body: string): void;
+  confirmAction?(opts: { title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string }): Promise<boolean>;
 
   // ── App info ──
   getAppVersion?(): Promise<string>;
@@ -213,7 +225,7 @@ export interface PlatformApi {
   autoUpdateInstall?(): void;
   autoUpdateState?(): Promise<AutoUpdateState>;
   autoUpdateSetChannel?(channel: 'stable' | 'beta'): Promise<void>;
-  onAutoUpdateState?(callback: (state: AutoUpdateState) => void): void;
+  onAutoUpdateState?(callback: (state: AutoUpdateState) => void): (() => void) | void;
 
   // ── Skill viewer overlay ──
   onShowSkillViewer?(callback: (data: unknown) => void): void;

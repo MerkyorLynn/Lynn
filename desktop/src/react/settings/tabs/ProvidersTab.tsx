@@ -24,6 +24,14 @@ export function ProvidersTab() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   const providerIds = Object.keys(providersSummary);
+
+  useEffect(() => {
+    if (selectedProviderId) return;
+    const fallback = providerIds[0] || PROVIDER_PRESETS[0]?.value || null;
+    if (fallback) {
+      useSettingsStore.setState({ selectedProviderId: fallback });
+    }
+  }, [providerIds, selectedProviderId]);
   const selected = selectedProviderId;
 
   // 分组：OAuth / Coding Plan / API Key

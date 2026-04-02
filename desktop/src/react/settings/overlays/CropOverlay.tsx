@@ -24,7 +24,7 @@ export function CropOverlay() {
   const [imgSrc, setImgSrc] = useState('');
   const viewportRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0 });
+  const dragRef = useRef({ dragging: false, offX: 0, offY: 0 });
 
   // Listen for crop events
   useEffect(() => {
@@ -34,10 +34,13 @@ export function CropOverlay() {
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          const minScale = CROP_SIZE / Math.min(img.width, img.height);
+          const nw = img.naturalWidth;
+          const nh = img.naturalHeight;
+          if (!nw || !nh) return;
+          const minScale = CROP_SIZE / Math.min(nw, nh);
           const scale = minScale;
-          const ox = (CROP_SIZE - img.width * scale) / 2;
-          const oy = (CROP_SIZE - img.height * scale) / 2;
+          const ox = (CROP_SIZE - nw * scale) / 2;
+          const oy = (CROP_SIZE - nh * scale) / 2;
           setCropState({ role, img, scale, minScale, ox, oy });
           setImgSrc(reader.result as string);
           setVisible(true);
@@ -56,29 +59,48 @@ export function CropOverlay() {
   }, []);
 
   const clamp = useCallback((s: CropState) => {
-    const sw = s.img.width * s.scale;
-    const sh = s.img.height * s.scale;
+    const nw = s.img.naturalWidth;
+    const nh = s.img.naturalHeight;
+    const sw = nw * s.scale;
+    const sh = nh * s.scale;
     s.ox = Math.min(0, Math.max(CROP_SIZE - sw, s.ox));
     s.oy = Math.min(0, Math.max(CROP_SIZE - sh, s.oy));
   }, []);
 
+  /** 用显式 width/height 代替 transform: scale()，避免 Electron 下 img+scale 合成异常与裁剪导出不一致 */
   const updateTransform = useCallback(() => {
     if (!cropState || !imgRef.current) return;
-    imgRef.current.style.transform = `translate(${cropState.ox}px, ${cropState.oy}px) scale(${cropState.scale})`;
+    const el = imgRef.current;
+    const nw = cropState.img.naturalWidth;
+    const nh = cropState.img.naturalHeight;
+    if (!nw || !nh) return;
+    el.style.width = `${nw * cropState.scale}px`;
+    el.style.height = `${nh * cropState.scale}px`;
+    el.style.transform = `translate(${cropState.ox}px, ${cropState.oy}px)`;
   }, [cropState]);
 
   useEffect(() => { updateTransform(); }, [cropState, updateTransform]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (!cropState) return;
-    dragRef.current = { dragging: true, startX: e.clientX - cropState.ox, startY: e.clientY - cropState.oy };
-    viewportRef.current?.setPointerCapture(e.pointerId);
+    if (!cropState || !viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    dragRef.current = {
+      dragging: true,
+      offX: mx - cropState.ox,
+      offY: my - cropState.oy,
+    };
+    viewportRef.current.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!cropState || !dragRef.current.dragging) return;
-    cropState.ox = e.clientX - dragRef.current.startX;
-    cropState.oy = e.clientY - dragRef.current.startY;
+    if (!cropState || !dragRef.current.dragging || !viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    cropState.ox = mx - dragRef.current.offX;
+    cropState.oy = my - dragRef.current.offY;
     clamp(cropState);
     updateTransform();
   };
@@ -104,15 +126,28 @@ export function CropOverlay() {
   const confirm = async () => {
     if (!cropState) return;
     const s = cropState;
+    const srcEl = s.img;
+    const nw = srcEl.naturalWidth;
+    const nh = srcEl.naturalHeight;
+    if (!nw || !nh) return;
+    // 与视口内 CSS（translate + 显式宽高缩放）同一变换链，避免手写源矩形与 DOM 映射不一致
     // eslint-disable-next-line no-restricted-syntax -- offscreen canvas for image crop, not part of React tree
+    const scratch = document.createElement('canvas');
+    scratch.width = CROP_SIZE;
+    scratch.height = CROP_SIZE;
+    const sctx = scratch.getContext('2d')!;
+    sctx.imageSmoothingEnabled = true;
+    sctx.imageSmoothingQuality = 'high';
+    sctx.setTransform(s.scale, 0, 0, s.scale, s.ox, s.oy);
+    sctx.drawImage(srcEl, 0, 0);
+    // eslint-disable-next-line no-restricted-syntax -- offscreen canvas for export, not part of React tree
     const canvas = document.createElement('canvas');
     canvas.width = OUTPUT_SIZE;
     canvas.height = OUTPUT_SIZE;
     const ctx = canvas.getContext('2d')!;
-    const srcX = -s.ox / s.scale;
-    const srcY = -s.oy / s.scale;
-    const srcSize = CROP_SIZE / s.scale;
-    ctx.drawImage(s.img, srcX, srcY, srcSize, srcSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(scratch, 0, 0, CROP_SIZE, CROP_SIZE, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
     const dataUrl = canvas.toDataURL('image/png');
     const role = s.role;
     close();
@@ -136,8 +171,14 @@ export function CropOverlay() {
           onPointerUp={handlePointerUp}
           onWheel={handleWheel}
         >
-          <img className={styles['crop-img']} ref={imgRef} src={imgSrc} draggable={false} />
-          <div className={styles['crop-circle']} />
+          <img
+            className={styles['crop-img']}
+            ref={imgRef}
+            src={imgSrc}
+            draggable={false}
+            onLoad={() => updateTransform()}
+          />
+          <div className={styles['crop-vignette']} aria-hidden />
         </div>
         <div className={styles['crop-hint']}>{t('settings.crop.hint')}</div>
         <div className={styles['crop-actions']}>

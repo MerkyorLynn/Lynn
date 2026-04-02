@@ -147,7 +147,7 @@ export async function deskMoveFiles(names: string[], destFolder: string): Promis
   }
 }
 
-export async function deskRemoveFile(name: string): Promise<void> {
+export async function deskRemoveFile(name: string): Promise<boolean> {
   const s = useStore.getState();
   try {
     const res = await hanaFetch('/api/desk/files', {
@@ -156,9 +156,15 @@ export async function deskRemoveFile(name: string): Promise<void> {
       body: JSON.stringify({ action: 'remove', dir: s.deskBasePath || undefined, subdir: s.deskCurrentPath || '', name }),
     });
     const data = await res.json();
+    if (data.error) {
+      console.error('[jian-desk] remove error:', data.error);
+      return false;
+    }
     if (data.files) useStore.getState().setDeskFiles(data.files);
+    return true;
   } catch (err) {
     console.error('[jian-desk] remove failed:', err);
+    return false;
   }
 }
 

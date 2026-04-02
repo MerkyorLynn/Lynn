@@ -200,6 +200,10 @@ export class Hub {
     return this._channelRouter.triggerImmediate(channelName, opts);
   }
 
+  async triggerChannelConclusion(channelName, opts) {
+    return this._channelRouter.triggerConclusion(channelName, opts);
+  }
+
   async toggleChannels(enabled) {
     return this._channelRouter.toggle(enabled);
   }

@@ -103,7 +103,7 @@ function AddProviderForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
       </div>
       <div className={styles['pv-add-form-field']}>
         <label className={styles['pv-add-form-label']}>{t('settings.providers.apiFormat')}</label>
-        <SelectWidget options={API_FORMAT_OPTIONS} value={api} onChange={setApi} placeholder="API Format" />
+        <SelectWidget options={API_FORMAT_OPTIONS} value={api} onChange={setApi} placeholder={t('settings.providers.apiFormat')} />
       </div>
       <div className={styles['pv-add-form-actions']}>
         <button className={styles['pv-add-form-btn']} onClick={onCancel}>{t('settings.api.cancel')}</button>

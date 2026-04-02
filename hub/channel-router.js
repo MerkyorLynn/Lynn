@@ -16,7 +16,12 @@
 import fs from "fs";
 import path from "path";
 import { createChannelTicker } from "../lib/channels/channel-ticker.js";
-import { appendMessage, formatMessagesForLLM } from "../lib/channels/channel-store.js";
+import {
+  appendMessage,
+  formatMessagesForLLM,
+  getChannelMembers,
+  parseChannel,
+} from "../lib/channels/channel-store.js";
 import { loadConfig } from "../lib/memory/config-loader.js";
 import { callText } from "../core/llm-client.js";
 import { runAgentSession } from "./agent-executor.js";
@@ -53,6 +58,8 @@ export class ChannelRouter {
         this._executeCheck(agentId, channelName, newMessages, allUpdates, opts),
       onMemorySummarize: (agentId, channelName, contextText) =>
         this._memorySummarize(agentId, channelName, contextText),
+      onAllReplied: (channelName, opts) =>
+        this._executeHostSummary(channelName, opts),
       onEvent: (event, data) => {
         this._hub.eventBus.emit({ type: event, ...data }, null);
       },
@@ -78,6 +85,10 @@ export class ChannelRouter {
 
   triggerImmediate(channelName, opts) {
     return this._ticker?.triggerImmediate(channelName, opts);
+  }
+
+  async triggerConclusion(channelName, opts) {
+    return this._executeConclusion(channelName, opts);
   }
 
   /**
@@ -127,6 +138,9 @@ export class ChannelRouter {
     const engine = this._engine;
     const msgText = formatMessagesForLLM(newMessages);
 
+    // ── 主持人跳过 triage：她只在 onAllReplied 阶段作为审查者+主持人发言 ──
+    const isHost = agentId === engine.currentAgentId;
+
     // ── 读 agent 完整上下文 ──
     const readFile = (p) => { try { return fs.readFileSync(p, "utf-8"); } catch { return ""; } };
     const agentDir = path.join(engine.agentsDir, agentId);
@@ -155,8 +169,45 @@ export class ChannelRouter {
     // ── 检测 @ ──
     const isMentioned = msgText.includes(`@${agentName}`) || msgText.includes(`@${agentId}`);
 
+    // 主持人在没有被 @ 时跳过 triage（她只在 onAllReplied 阶段发言，避免说两遍话）
+    if (isHost && !isMentioned) {
+      debugLog()?.log("channel", `${agentId}/#${channelName}: 主持人跳过 triage（未被 @），等待 onAllReplied`);
+      return { replied: false };
+    }
+
+    // ── 检查最后一条消息是否是用户发的（防止 agent 回复触发无限循环） ──
+    let lastMsgIsUser = false;
+    try {
+      const content = fs.readFileSync(path.join(engine.channelsDir, `${channelName}.md`), "utf-8");
+      const lines = content.split("\n");
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const match = lines[i].match(/^### (.+?) \| \d{4}-\d{2}-\d{2}/);
+        if (match) {
+          const sender = match[1].trim();
+          // 检查 sender 是否是任何已知 agent（按 ID 或展示名匹配）
+          let senderIsAgent = false;
+          if (engine.agents) {
+            for (const [id, ag] of engine.agents) {
+              const name = ag?.config?.agent?.name || id;
+              if (sender === id || sender === name) {
+                senderIsAgent = true;
+                break;
+              }
+            }
+          }
+          lastMsgIsUser = !senderIsAgent;
+          break;
+        }
+      }
+    } catch {}
+
     // ── Step 1: Triage ──
     let shouldReply = isMentioned;
+
+    // 只有最后一条消息是用户发的，才进入 triage 判断
+    if (!shouldReply && !lastMsgIsUser) {
+      return { replied: false };
+    }
 
     if (!shouldReply) {
       try {
@@ -218,12 +269,12 @@ export class ChannelRouter {
         return { replied: false };
       }
 
-      // 写入频道文件
+      // 写入频道文件（用 agentName 作为 sender，而非 agentId，让消息更可读）
       const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
-      appendMessage(channelFile, agentId, replyText);
+      appendMessage(channelFile, agentName, replyText);
 
-      console.log(`\x1b[90m[channel] ${agentId} replied #${channelName} (${replyText.length} chars)\x1b[0m`);
-      debugLog()?.log("channel", `${agentId} replied #${channelName} (${replyText.length} chars)`);
+      console.log(`\x1b[90m[channel] ${agentName}(${agentId}) replied #${channelName} (${replyText.length} chars)\x1b[0m`);
+      debugLog()?.log("channel", `${agentName}(${agentId}) replied #${channelName} (${replyText.length} chars)`);
 
       // WS 广播
       this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: agentId }, null);
@@ -231,6 +282,7 @@ export class ChannelRouter {
       return { replied: true, replyContent: replyText };
     } catch (err) {
       console.error(`[channel] 回复失败 (${agentId}/#${channelName}): ${err.message}`);
+      console.error(err.stack || err);
       debugLog()?.error("channel", `回复失败 (${agentId}/#${channelName}): ${err.message}`);
       return { replied: false };
     }
@@ -241,6 +293,10 @@ export class ChannelRouter {
    */
   async _executeReply(agentId, channelName, msgText, { signal } = {}) {
     const isZh = getLocale().startsWith("zh");
+    const replyTimeout = AbortSignal.timeout(45_000);
+    const replySignal = signal
+      ? AbortSignal.any([signal, replyTimeout])
+      : replyTimeout;
     const text = await runAgentSession(
       agentId,
       [
@@ -258,24 +314,35 @@ export class ChannelRouter {
           text: isZh
             ? `现在请给出你想在 #${channelName} 群聊中发送的回复。这条回复会直接发送到群聊，所有人都能看到。\n\n`
               + `回复规定：\n`
-              + `- 默认30字以内，像在群里说话，简短自然\n`
-              + `- 如果话题确实需要展开（比如讲故事、分析问题、详细解释），可以写到1000字\n`
-              + `- 直接输出回复内容，不要加任何前缀、解释、MOOD 或代码块\n`
-              + `- 不要重复别人已经说过的内容\n`
+              + `- 简短回复控制在 50 tokens 以内（约 25 个中文字），像群里聊天一样自然\n`
+              + `- 需要展开讨论时（分析问题、讲故事、详细解释），上限 800 tokens（约 400 字）\n`
+              + `- 直接输出回复内容，不要加任何前缀、解释、MOOD/PULSE/沉思 区块或代码块\n`
+              + `- 不要重复其他成员最近 3 条消息中已表达的观点\n`
+              + `- 必须回应前面的具体内容（引用或补充），不要泛泛而谈\n`
               + `- 只说真实发生过的事，不要编造你没做过的活动或经历\n`
-              + `- 如果你觉得没什么好说的，回复 [NO_REPLY]`
+              + `- 如果你觉得没什么新观点可以补充，回复 [NO_REPLY]`
             : `Now give the reply you want to post in #${channelName}. This reply will be sent directly to the group chat — everyone can see it.\n\n`
               + `Reply rules:\n`
-              + `- Keep it under 30 words by default — short and natural, like chatting in a group\n`
-              + `- If the topic truly requires elaboration (storytelling, analysis, detailed explanation), you may write up to 1000 words\n`
-              + `- Output the reply directly — no prefixes, explanations, MOOD blocks, or code fences\n`
-              + `- Don't repeat what others have already said\n`
+              + `- Short replies: max 50 tokens (~30 words), natural like group chat\n`
+              + `- Extended discussion (analysis, stories, explanations): max 800 tokens (~400 words)\n`
+              + `- Output the reply directly — no prefixes, explanations, MOOD/PULSE/reflect blocks, or code fences\n`
+              + `- Don't repeat points already made in the last 3 messages by other members\n`
+              + `- Must respond to specific prior content (quote or build on it), don't be generic\n`
               + `- Only mention things that actually happened — don't fabricate activities or experiences\n`
-              + `- If you have nothing to say, reply [NO_REPLY]`,
+              + `- If you have no new perspective to add, reply [NO_REPLY]`,
           capture: true,
         },
       ],
-      { engine: this._engine, signal, sessionSuffix: "channel-temp" },
+      {
+        engine: this._engine,
+        signal: replySignal,
+        sessionSuffix: `channel-${channelName}`,
+        keepSession: true,
+        readOnly: true,
+        systemAppend: isZh
+          ? `\n## 频道工具优先级\n1. search_memory — 先查记忆了解上下文\n2. web_search — 需要事实支撑时搜索\n3. 频道回复中禁止使用文件读写、bash、edit 等重工具`
+          : `\n## Channel Tool Priority\n1. search_memory — check memory for context first\n2. web_search — search when facts are needed\n3. Do NOT use file read/write, bash, or edit tools in channel replies`,
+      },
     );
 
     if (!text || text.includes("[NO_REPLY]")) {
@@ -286,9 +353,144 @@ export class ChannelRouter {
     return text;
   }
 
+  async _executeConclusion(channelName, { signal, reason = "manual" } = {}) {
+    const engine = this._engine;
+    const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
+    if (!fs.existsSync(channelFile)) {
+      throw new Error(`频道不存在: ${channelName}`);
+    }
+
+    const { meta, messages } = parseChannel(fs.readFileSync(channelFile, "utf-8"));
+    const members = Array.isArray(meta.members) ? meta.members : getChannelMembers(channelFile);
+    const isZh = getLocale().startsWith("zh");
+    const hostId = this._resolveConclusionHostId(members);
+    if (!hostId) {
+      throw new Error(isZh ? "找不到可用的主持人来生成结论" : "No available host to generate conclusion");
+    }
+
+    const hostAgent = engine.agents?.get(hostId);
+    const hostName = hostAgent?.config?.agent?.name || hostId;
+    const recentMessages = messages.slice(-60);
+    if (recentMessages.length === 0) {
+      return { reportText: null, savedFactCount: 0, hostId };
+    }
+
+    const msgText = formatMessagesForLLM(recentMessages, { tokenBudget: 6000, maxCharsPerMsg: 1200 });
+    const reportText = await runAgentSession(
+      hostId,
+      [{
+        text: isZh
+          ? `你是频道 #${channelName} 的主持人，请基于以下完整讨论生成一份结构化结论报告：\n\n${msgText}\n\n`
+            + `输出要求：\n`
+            + `- 使用 Markdown 标题\n`
+            + `- 包含以下 5 部分：\n`
+            + `  1. 核心问题\n`
+            + `  2. 观点汇总\n`
+            + `  3. 已达成共识\n`
+            + `  4. 仍存分歧\n`
+            + `  5. 下一步建议\n`
+            + `- 每部分 2-5 条，尽量具体，不要空话\n`
+            + `- 直接输出报告正文，不要加前缀、解释、MOOD 或代码块\n`
+            + `- 如果讨论信息不足，也要明确写出当前结论和缺失信息\n`
+            + (reason === "archive"
+              ? `- 这是归档前的最终报告，语气收束一些，便于后续回看`
+              : `- 这是用户主动请求的结论报告，重点给出当前阶段可执行建议`)
+          : `You are the host of #${channelName}. Generate a structured conclusion report from the discussion below:\n\n${msgText}\n\n`
+            + `Requirements:\n`
+            + `- Use Markdown headings\n`
+            + `- Include exactly these 5 sections:\n`
+            + `  1. Core question\n`
+            + `  2. Viewpoints\n`
+            + `  3. Consensus\n`
+            + `  4. Remaining disagreements\n`
+            + `  5. Recommended next steps\n`
+            + `- Give 2-5 concrete bullet points per section\n`
+            + `- Output the report directly with no prefix, explanation, MOOD, or code fences\n`
+            + `- If the discussion is incomplete, clearly state the current best conclusion and missing information\n`
+            + (reason === "archive"
+              ? `- This is the final archival report, so write it in a concise wrap-up tone`
+              : `- This is an on-demand conclusion report, so emphasize actionable next steps`),
+        capture: true,
+      }],
+      { engine, signal, sessionSuffix: `conclusion-${channelName}`, keepSession: true, noTools: true },
+    );
+
+    if (!reportText || reportText.includes("[NO_REPLY]")) {
+      return { reportText: null, savedFactCount: 0, hostId };
+    }
+
+    const heading = isZh
+      ? (reason === "archive" ? "## 最终归档报告" : "## 讨论结论")
+      : (reason === "archive" ? "## Final Archived Report" : "## Discussion Conclusion");
+    const finalText = reportText.trim().startsWith("##") ? reportText.trim() : `${heading}\n\n${reportText.trim()}`;
+
+    appendMessage(channelFile, hostName, finalText);
+    const savedFactCount = await this._saveConclusionFacts(channelName, members, finalText);
+    this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: hostId }, null);
+    debugLog()?.log("channel", `主持人 ${hostName} 生成结论 #${channelName} (${finalText.length} chars)`);
+
+    return { reportText: finalText, savedFactCount, hostId };
+  }
+
+  _resolveConclusionHostId(members) {
+    const engine = this._engine;
+    if (engine.currentAgentId && members.includes(engine.currentAgentId)) {
+      return engine.currentAgentId;
+    }
+
+    for (const memberId of members) {
+      if (memberId === "user") continue;
+      if (engine.agents?.has(memberId)) return memberId;
+    }
+
+    return engine.currentAgentId || null;
+  }
+
+  async _saveConclusionFacts(channelName, members, reportText) {
+    const engine = this._engine;
+    const isZh = getLocale().startsWith("zh");
+    const agentIds = [...new Set((members || []).filter((agentId) => agentId && agentId !== "user"))];
+    const now = new Date();
+    let savedCount = 0;
+
+    for (const agentId of agentIds) {
+      try {
+        const isCurrentAgent = agentId === engine.currentAgentId;
+        let factStore = null;
+        let needClose = false;
+
+        if (isCurrentAgent && engine.agent?.factStore) {
+          factStore = engine.agent.factStore;
+        } else {
+          const dbPath = path.join(engine.agentsDir, agentId, "memory", "facts.db");
+          if (!fs.existsSync(path.dirname(dbPath))) continue;
+          const { FactStore } = await import("../lib/memory/fact-store.js");
+          factStore = new FactStore(dbPath);
+          needClose = true;
+        }
+
+        try {
+          factStore.add({
+            fact: `[#${channelName}] ${reportText}`,
+            tags: [isZh ? "频道结论" : "channel-conclusion", channelName],
+            time: now.toISOString().slice(0, 16),
+            session_id: `channel-conclusion-${channelName}`,
+          });
+          savedCount += 1;
+        } finally {
+          if (needClose) factStore.close();
+        }
+      } catch (err) {
+        console.warn(`[channel] 写入结论记忆失败 (${agentId}/#${channelName}): ${err.message}`);
+      }
+    }
+
+    return savedCount;
+  }
+
   /**
-   * 频道记忆摘要
-   * 从 engine._channelMemorySummarize 搬入
+   * 频道记忆摘要（结构化版本，Auto Dream 频道版）
+   * 将频道讨论整理为结构化记忆：话题 + 各方立场 + 共识 + 分歧
    */
   async _memorySummarize(agentId, channelName, contextText) {
     const engine = this._engine;
@@ -306,11 +508,11 @@ export class ChannelRouter {
         apiKey: api_key,
         baseUrl: base_url,
         systemPrompt: isZhMem
-          ? "将频道对话摘要为一条简短的记忆（一两句话），记录关键信息和结论。直接输出摘要，不要前缀。"
-          : "Summarize the channel conversation into a brief memory (one or two sentences), capturing key information and conclusions. Output the summary directly, no prefix.",
+          ? "将频道讨论整理为结构化记忆。按以下格式输出，每项一句话，直接输出不要前缀：\n话题：...\n我的立场：...\n他人观点：...\n共识：...\n待定：..."
+          : "Organize the channel discussion into structured memory. Output in this format, one sentence each, no prefix:\nTopic: ...\nMy stance: ...\nOthers' views: ...\nConsensus: ...\nOpen questions: ...",
         messages: [{ role: "user", content: isZhMem ? `频道 #${channelName}：\n${contextText.slice(0, 2000)}` : `Channel #${channelName}:\n${contextText.slice(0, 2000)}` }],
         temperature: 0.3,
-        maxTokens: 200,
+        maxTokens: 300,
       });
 
       // 写入 agent 的 fact store
@@ -342,6 +544,82 @@ export class ChannelRouter {
       console.log(`\x1b[90m[channel] ${agentId} memory saved (#${channelName}, ${summaryText.length} chars)\x1b[0m`);
     } catch (err) {
       console.error(`[channel] 记忆摘要失败 (${agentId}/#${channelName}): ${err.message}`);
+      debugLog()?.error("channel", `记忆摘要失败 (${agentId}/#${channelName}): ${err.message}`);
+    }
+  }
+
+  /**
+   * 频道主持人总结（Lynn/hanako 角色）
+   * 在所有专家回复后自动触发，总结分歧、追问盲点、或引导下一步讨论。
+   */
+  async _executeHostSummary(channelName, { signal } = {}) {
+    const engine = this._engine;
+    const hostId = engine.currentAgentId; // Lynn = 当前活跃 agent（主持人兼验证者）
+    if (!hostId) return;
+
+    const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
+    if (!fs.existsSync(channelFile)) return;
+
+    // 放宽 members 检查：主持人作为平台级角色，即使不在频道 members 中也可以总结
+    // （用户通过 ExpertTeamGuide 创建频道时可能只选了专家没选主 agent）
+    const { getChannelMembers: _getMembers } = await import("../lib/channels/channel-store.js");
+    const members = _getMembers(channelFile);
+    const agentMembers = members.filter(id => id !== hostId && id !== "user");
+    if (agentMembers.length === 0) return; // 频道里没有专家，不总结
+
+    const isZh = getLocale().startsWith("zh");
+    const { getRecentMessages: getRecent, formatMessagesForLLM: fmtMsg } = await import("../lib/channels/channel-store.js");
+    const recentMsgs = getRecent(channelFile, 20);
+    if (recentMsgs.length < 2) return; // 至少需要 2 条消息
+
+    const msgText = fmtMsg(recentMsgs);
+    const hostAgent = engine.agents?.get(hostId);
+    const hostName = hostAgent?.config?.agent?.name || hostId;
+
+    try {
+      const summaryText = await runAgentSession(
+        hostId,
+        [{
+          text: isZh
+            ? `你是频道 #${channelName} 的主持人兼独立审查者。以下是最近的讨论：\n\n${msgText}\n\n`
+              + `请依次完成两个任务：\n\n`
+              + `## 任务 1：审查（必做，50 tokens 以内）\n`
+              + `- 指出讨论中的事实性错误或逻辑漏洞（如果有）\n`
+              + `- 标记被忽略的重要角度（如果有）\n`
+              + `- 如果全部观点都站得住，写"审查通过"\n\n`
+              + `## 任务 2：主持（选最合适的一项，100-200 tokens）\n`
+              + `1. 有分歧 → 总结各方观点和分歧点\n`
+              + `2. 遗漏盲点 → 追问\n`
+              + `3. 讨论充分 → 2-3 句结论\n`
+              + `4. 只有一人回复 → 引导其他人参与\n\n`
+              + `规则：直接输出，不加前缀/MOOD，如果不需要总结就回复 [NO_REPLY]`
+            : `You are the host and independent reviewer of #${channelName}. Recent discussion:\n\n${msgText}\n\n`
+              + `Complete two tasks in order:\n\n`
+              + `## Task 1: Review (required, max 50 tokens)\n`
+              + `- Point out factual errors or logical flaws (if any)\n`
+              + `- Flag important angles that were missed (if any)\n`
+              + `- If all viewpoints hold up, write "Review passed"\n\n`
+              + `## Task 2: Moderate (pick the most appropriate, 100-200 tokens)\n`
+              + `1. If experts disagree → summarize positions and key differences\n`
+              + `2. If blind spots exist → ask about them\n`
+              + `3. If discussion is thorough → give 2-3 sentence conclusion\n`
+              + `4. If only one expert replied → nudge others to participate\n\n`
+              + `Rules: output directly, no prefix/MOOD, reply [NO_REPLY] if no summary needed`,
+          capture: true,
+        }],
+        { engine, signal, sessionSuffix: `host-${channelName}`, keepSession: true, noTools: true },
+      );
+
+      if (!summaryText || summaryText.includes("[NO_REPLY]")) return;
+
+      appendMessage(channelFile, hostName, summaryText);
+      this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: hostId }, null);
+      console.log(`\x1b[90m[channel] 主持人 ${hostName} 审查+总结 #${channelName} (${summaryText.length} chars)\x1b[0m`);
+      debugLog()?.log("channel", `主持人 ${hostName} 审查+总结 #${channelName} (${summaryText.length} chars)`);
+    } catch (err) {
+      if (signal?.aborted) return;
+      console.error(`[channel] 主持人总结失败 (#${channelName}): ${err.message}`);
+      debugLog()?.error("channel", `主持人总结失败 (#${channelName}): ${err.message}`);
     }
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Hana Theme: Warm Paper（暖纸）
- * 默认主题 — 延续"Hana 的手抄本"视觉语言
+ * Lynn Theme: Warm Paper（暖纸）
+ * 默认主题 — 延续 Lynn 的手抄本视觉语言
  */
 
 [data-theme="warm-paper"],
@@ -46,6 +46,7 @@
     --user-bg:      rgba(83, 125, 150, 0.08);
     --drop-overlay-bg: rgba(248, 245, 237, 0.85);
     --attach-bg:    rgba(0, 0, 0, 0.04);
+    --tool-shimmer: rgba(255, 255, 255, 0.5);
 
     /* 辅助色（用于 rgba 拆分和语义色） */
     --accent-rgb:   83, 125, 150;

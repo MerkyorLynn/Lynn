@@ -11,6 +11,7 @@ export interface ChannelSlice {
   channelHeaderMembersText: string;
   channelInfoName: string;
   channelIsDM: boolean;
+  channelArchived: boolean;
   setChannels: (channels: Channel[]) => void;
   setCurrentChannel: (channel: string | null) => void;
   setChannelMessages: (messages: ChannelMessage[]) => void;
@@ -31,6 +32,7 @@ export const createChannelSlice = (
   channelHeaderMembersText: '',
   channelInfoName: '',
   channelIsDM: false,
+  channelArchived: false,
   setChannels: (channels) => set({ channels }),
   setCurrentChannel: (channel) => set({ currentChannel: channel }),
   setChannelMessages: (messages) => set({ channelMessages: messages }),

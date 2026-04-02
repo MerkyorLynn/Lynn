@@ -312,7 +312,13 @@ describe("saveProvider", () => {
 
     const persisted = readAddedModels();
     expect(persisted["new-provider"]).toBeDefined();
-    expect(persisted["new-provider"].api_key).toBe("sk-new");
+    expect(typeof persisted["new-provider"].api_key).toBe("string");
+    expect(persisted["new-provider"].api_key.startsWith("enc:")).toBe(true);
+    expect(reg.getCredentials("new-provider")).toEqual({
+      apiKey: "sk-new",
+      baseUrl: "https://new.api.com/v1",
+      api: "openai-completions",
+    });
   });
 
   it("更新已有 provider 的配置（合并）", () => {
@@ -330,10 +336,16 @@ describe("saveProvider", () => {
     });
 
     const persisted = readAddedModels();
-    expect(persisted["test-provider"].api_key).toBe("sk-new");
+    expect(typeof persisted["test-provider"].api_key).toBe("string");
+    expect(persisted["test-provider"].api_key.startsWith("enc:")).toBe(true);
     expect(persisted["test-provider"].base_url).toBe("https://new.api.com/v1");
     // 原有的 models 保留
     expect(persisted["test-provider"].models).toEqual(["model-a"]);
+    expect(reg.getCredentials("test-provider")).toEqual({
+      apiKey: "sk-new",
+      baseUrl: "https://new.api.com/v1",
+      api: "openai-completions",
+    });
   });
 
   it("写入后缓存失效，下次 get() 反映新值", () => {

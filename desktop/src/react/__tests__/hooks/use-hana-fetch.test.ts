@@ -13,14 +13,14 @@ vi.mock('../../stores', () => ({
 import { hanaUrl, hanaFetch } from '../../hooks/use-hana-fetch';
 
 describe('hanaUrl', () => {
-  it('构建带 token 的 URL', () => {
+  it('构建本地 server URL，不把 token 放进 query string', () => {
     const url = hanaUrl('/api/health');
-    expect(url).toBe('http://127.0.0.1:3210/api/health?token=test-token-123');
+    expect(url).toBe('http://127.0.0.1:3210/api/health');
   });
 
-  it('路径已有 query param 时用 & 连接', () => {
+  it('保留已有 query param，不追加 token', () => {
     const url = hanaUrl('/api/sessions?limit=10');
-    expect(url).toBe('http://127.0.0.1:3210/api/sessions?limit=10&token=test-token-123');
+    expect(url).toBe('http://127.0.0.1:3210/api/sessions?limit=10');
   });
 });
 

@@ -6,6 +6,11 @@
  */
 import fs from "fs";
 import path from "path";
+import {
+  CLIENT_AGENT_KEY_PREF_KEY,
+  generateClientAgentKey,
+  sanitizeClientAgentKey,
+} from "./client-agent-identity.js";
 
 export class PreferencesManager {
   /**
@@ -49,6 +54,26 @@ export class PreferencesManager {
   setSandbox(enabled) {
     const prefs = this.getPreferences();
     prefs.sandbox = typeof enabled === "string" ? enabled === "true" : !!enabled;
+    this.savePreferences(prefs);
+  }
+
+  /** 读取安全模式偏好（全局默认） */
+  getSecurityMode() {
+    const prefs = this.getPreferences();
+    // Migration: if securityMode not set but sandbox was explicitly false (old full-access),
+    // default to authorized mode (the new default that allows confirmation)
+    if (prefs.securityMode) return prefs.securityMode;
+    if (prefs.sandbox === false) return "authorized"; // was full-access, map to authorized
+    return "authorized"; // default
+  }
+
+  /** 保存安全模式偏好（全局默认） */
+  setSecurityMode(mode) {
+    const prefs = this.getPreferences();
+    prefs.securityMode = mode;
+    // 向后兼容：同步 sandbox 字段
+    // authorized/safe → sandbox: true, plan → sandbox: true
+    prefs.sandbox = true;
     this.savePreferences(prefs);
   }
 
@@ -141,6 +166,22 @@ export class PreferencesManager {
     const prefs = this.getPreferences();
     prefs.update_channel = channel === "beta" ? "beta" : "stable";
     this.savePreferences(prefs);
+  }
+
+  /** 读取当前客户端的 Agent Key */
+  getClientAgentKey() {
+    return sanitizeClientAgentKey(this.getPreferences()[CLIENT_AGENT_KEY_PREF_KEY]);
+  }
+
+  /** 确保当前客户端存在稳定的 Agent Key（首次启动自动生成） */
+  ensureClientAgentKey() {
+    const existing = this.getClientAgentKey();
+    if (existing) return existing;
+    const prefs = this.getPreferences();
+    const created = generateClientAgentKey();
+    prefs[CLIENT_AGENT_KEY_PREF_KEY] = created;
+    this.savePreferences(prefs);
+    return created;
   }
 
   /** 读取 primary agent ID */

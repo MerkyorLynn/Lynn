@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useStore } from '../../stores';
 import styles from './FloatingActions.module.css';
 import type { Artifact } from '../../types';
 
@@ -13,6 +14,9 @@ interface Props {
 export function FloatingActions({ artifact, content, editable, onDetach, onExport }: Props) {
   const [copyLabel, setCopyLabel] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestInputFocus = useStore((s) => s.requestInputFocus);
+  const setDocContextFile = useStore((s) => s.setDocContextFile);
+
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
@@ -24,6 +28,15 @@ export function FloatingActions({ artifact, content, editable, onDetach, onExpor
       timerRef.current = setTimeout(() => setCopyLabel(null), 1500);
     });
   }, [content]);
+
+  const handleAttachToInput = useCallback(() => {
+    if (!artifact.filePath) return;
+    setDocContextFile({
+      path: artifact.filePath,
+      name: artifact.title || artifact.filePath.split('/').pop() || artifact.filePath,
+    });
+    requestInputFocus();
+  }, [artifact.filePath, artifact.title, requestInputFocus, setDocContextFile]);
 
   const t = window.t ?? ((p: string) => p);
   const canReveal = !!artifact.filePath;
@@ -37,6 +50,17 @@ export function FloatingActions({ artifact, content, editable, onDetach, onExpor
         </svg>
         <span>{copyLabel ?? t('attach.copy')}</span>
       </button>
+      {artifact.filePath && (
+        <button className={styles.actionBtn} onClick={handleAttachToInput} title={t('input.docContext')}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="17" x2="14" y2="17" />
+          </svg>
+          <span>{t('input.docContext')}</span>
+        </button>
+      )}
       <button className={styles.actionBtn} onClick={onExport} title={canReveal ? t('desk.openInFinder') : t('common.save')}> 
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {canReveal ? (

@@ -1,5 +1,5 @@
 /*
- * Hana Theme: 沉思（Contemplation）
+ * Lynn Theme: 沉思（Contemplation）
  * Ming 灰蓝系，雨天窗外的安静感
  */
 
@@ -45,6 +45,11 @@
     --user-bg:      rgba(126, 153, 168, 0.08);
     --drop-overlay-bg: rgba(243, 245, 247, 0.85);
     --attach-bg:    rgba(0, 0, 0, 0.04);
+    --tool-shimmer: rgba(255, 255, 255, 0.5);
+    --composer-bg:   #FCFDFE;
+    --composer-text: #1A232B;
+    --composer-placeholder: #66727B;
+    --composer-focus-border: rgba(126, 153, 168, 0.22);
 
     /* 辅助色 */
     --accent-rgb:   126, 153, 168;

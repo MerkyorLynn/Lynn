@@ -4,7 +4,7 @@
  * 用法：
  *   await i18n.load("zh");           // 加载语言包
  *   t("sidebar.title")               // → "对话"
- *   t("tool.bash.running", { name }) // → "💻 Hana 正在小心翼翼地用你的电脑"
+ *   t("tool.bash.running", { name }) // → "💻 Lynn 正在小心翼翼地用你的电脑"
  *
  * 占位符：{key} 格式，在第二个参数对象中查找替换
  *
@@ -83,7 +83,7 @@ const i18n = {
   /**
    * 翻译
    * @param {string} path   如 "sidebar.title"
-   * @param {object} [vars] 占位符变量，如 { name: "Hana", n: 3 }
+   * @param {object} [vars] 占位符变量，如 { name: "Lynn", n: 3 }
    * @returns {string}
    */
   t(path, vars) {

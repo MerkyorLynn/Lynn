@@ -368,6 +368,24 @@ class StreamBufferManager {
         }));
         break;
 
+      case 'tool_authorization':
+        this.ensureMessage(buf);
+        this.flush(buf);
+        useStore.getState().updateLastMessage(sessionPath, (m) => ({
+          ...m,
+          blocks: [...(m.blocks || []), {
+            type: 'tool_authorization' as const,
+            confirmId: msg.confirmId,
+            command: msg.command,
+            reason: msg.reason,
+            description: msg.description,
+            category: msg.category,
+            identifier: msg.identifier,
+            status: 'pending' as const,
+          }],
+        }));
+        break;
+
       case 'compaction_start':
         break;
 

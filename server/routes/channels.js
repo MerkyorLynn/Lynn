@@ -19,11 +19,11 @@ import { safeJson } from "../hono-helpers.js";
 import { debugLog } from "../../lib/debug-log.js";
 import {
   parseChannel,
-  createChannel,
   appendMessage,
   readBookmarks,
   updateBookmark,
   addBookmarkEntry,
+  addChannelMember,
   getChannelMeta,
 } from "../../lib/channels/channel-store.js";
 
@@ -105,7 +105,7 @@ export function createChannelsRoute(engine, hub) {
   route.post("/channels", async (c) => {
     try {
       const body = await safeJson(c);
-      const { name, description, members, intro } = body;
+      const { name, description, members, intro, spawnedExpertIds } = body;
 
       if (!name || typeof name !== "string") {
         return c.json({ error: "name is required" }, 400);
@@ -114,28 +114,15 @@ export function createChannelsRoute(engine, hub) {
         return c.json({ error: "members must be an array with at least 2 items" }, 400);
       }
 
-      const channelsDir = engine.channelsDir;
-      fs.mkdirSync(channelsDir, { recursive: true });
+      fs.mkdirSync(engine.channelsDir, { recursive: true });
 
-      const { id: channelId } = createChannel(channelsDir, {
+      const channelId = engine.createChannel({
         name,
         description: description || undefined,
         members,
         intro: intro || undefined,
+        spawnedExpertIds: Array.isArray(spawnedExpertIds) ? spawnedExpertIds : [],
       });
-
-      // 给每个 agent 成员的 channels.md 添加 bookmark
-      const agentsDir = engine.agentsDir;
-      for (const memberId of members) {
-        const memberDir = path.join(agentsDir, memberId);
-        if (fs.existsSync(memberDir)) {
-          const memberChannelsMd = path.join(memberDir, "channels.md");
-          addBookmarkEntry(memberChannelsMd, channelId);
-        }
-      }
-
-      // 也给用户添加 bookmark
-      addBookmarkEntry(userBookmarkPath(), channelId);
 
       debugLog()?.log("api", `POST /channels — created "${channelId}" (${name}) members=[${members}]`);
       return c.json({ ok: true, id: channelId, name, members });
@@ -193,33 +180,45 @@ export function createChannelsRoute(engine, hub) {
       }
 
       const senderName = engine.userName || "user";
-      const result = appendMessage(filePath, senderName, body);
 
-      debugLog()?.log("api", `POST /channels/${name}/messages`);
+      // 检测 /结论 /总结 /conclusion 斜杠命令
+      const trimmed = body.trim();
+      const isConclusionCmd = /^\/(?:结论|总结|conclusion|summary)$/i.test(trimmed);
 
-      // 提取 @ 提及
-      const atMatches = body.match(/@(\S+)/g) || [];
-      const mentionedAgents = [];
-      if (atMatches.length > 0) {
-        const meta = getChannelMeta(filePath);
-        const channelMembers = Array.isArray(meta.members) ? meta.members : [];
-        const allAgents = engine.listAgents?.() || [];
-        for (const at of atMatches) {
-          const atName = at.slice(1);
-          const matched = allAgents.find(a =>
-            a.name === atName || a.id === atName
-          );
-          if (matched && channelMembers.includes(matched.id)) {
-            mentionedAgents.push(matched.id);
+      const result = appendMessage(filePath, senderName, isConclusionCmd ? "📋 请总结讨论并给出结论" : body);
+
+      debugLog()?.log("api", `POST /channels/${name}/messages${isConclusionCmd ? " [conclusion]" : ""}`);
+
+      if (isConclusionCmd) {
+        // 触发结论生成
+        hub.triggerChannelConclusion?.(name)?.catch(err =>
+          console.error(`[channel] 触发结论生成失败: ${err.message}`)
+        );
+      } else {
+        // 提取 @ 提及
+        const atMatches = body.match(/@(\S+)/g) || [];
+        const mentionedAgents = [];
+        if (atMatches.length > 0) {
+          const meta = getChannelMeta(filePath);
+          const channelMembers = Array.isArray(meta.members) ? meta.members : [];
+          const allAgents = engine.listAgents?.() || [];
+          for (const at of atMatches) {
+            const atName = at.slice(1);
+            const matched = allAgents.find(a =>
+              a.name === atName || a.id === atName
+            );
+            if (matched && channelMembers.includes(matched.id)) {
+              mentionedAgents.push(matched.id);
+            }
           }
         }
+
+        hub.triggerChannelTriage(name, { mentionedAgents })?.catch(err =>
+          console.error(`[channel] 触发立即 triage 失败: ${err.message}`)
+        );
       }
 
-      hub.triggerChannelTriage(name, { mentionedAgents })?.catch(err =>
-        console.error(`[channel] 触发立即 triage 失败: ${err.message}`)
-      );
-
-      return c.json({ ok: true, timestamp: result.timestamp });
+      return c.json({ ok: true, timestamp: result.timestamp, isConclusion: isConclusionCmd });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }
@@ -253,13 +252,62 @@ export function createChannelsRoute(engine, hub) {
       const filePath = safeChannelPath(name);
       if (!filePath) return c.json({ error: "Invalid channel id" }, 400);
 
-      engine.deleteChannelByName(name);
+      const result = await engine.deleteChannelByName(name);
       debugLog()?.log("api", `DELETE /channels/${name}`);
-      return c.json({ ok: true });
+      return c.json({ ok: true, deletedAgentIds: result?.deletedAgentIds || [], failedAgentIds: result?.failedAgentIds || [] });
     } catch (err) {
       if (err.message?.includes("不存在")) {
         return c.json({ error: err.message }, 404);
       }
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 添加频道成员 ──
+  route.patch("/channels/:name/members", async (c) => {
+    try {
+      const name = c.req.param("name");
+      const filePath = safeChannelPath(name);
+      if (!filePath) return c.json({ error: "Invalid channel id" }, 400);
+
+      if (!fs.existsSync(filePath)) {
+        return c.json({ error: "Channel not found" }, 404);
+      }
+
+      const channelMeta = getChannelMeta(filePath);
+      if (channelMeta.archived === true || channelMeta.archived === "true") {
+        return c.json({ error: "Channel is archived" }, 409);
+      }
+
+      const body = await safeJson(c);
+      const { add } = body;
+
+      if (!Array.isArray(add) || add.length === 0) {
+        return c.json({ error: "add must be a non-empty array of member IDs" }, 400);
+      }
+
+      // 逐个添加成员到频道
+      for (const memberId of add) {
+        addChannelMember(filePath, memberId);
+      }
+
+      // 给每个新成员的 channels.md 添加 bookmark
+      const agentsDir = engine.agentsDir;
+      for (const memberId of add) {
+        const memberDir = path.join(agentsDir, memberId);
+        if (fs.existsSync(memberDir)) {
+          const memberChannelsMd = path.join(memberDir, "channels.md");
+          addBookmarkEntry(memberChannelsMd, name);
+        }
+      }
+
+      // 读取更新后的成员列表
+      const meta = getChannelMeta(filePath);
+      const members = Array.isArray(meta.members) ? meta.members : [];
+
+      debugLog()?.log("api", `PATCH /channels/${name}/members — added [${add}]`);
+      return c.json({ ok: true, members });
+    } catch (err) {
       return c.json({ error: err.message }, 500);
     }
   });

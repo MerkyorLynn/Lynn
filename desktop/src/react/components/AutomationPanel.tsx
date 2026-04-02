@@ -74,6 +74,8 @@ export function AutomationPanel() {
   const agentName = useStore(s => s.agentName);
   const agentYuan = useStore(s => s.agentYuan);
   const currentAgentId = useStore(s => s.currentAgentId);
+  const setPendingConfirm = useStore(s => s.setPendingConfirm);
+  const addToast = useStore(s => s.addToast);
 
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -123,19 +125,31 @@ export function AutomationPanel() {
 
   const removeJob = useCallback(async (jobId: string) => {
     const t = window.t ?? ((p: string) => p);
-    const msg = t('automation.deleteConfirm') || '确定要删除这个定时任务吗？';
-    if (!confirm(msg)) return;
-    try {
-      await hanaFetch('/api/desk/cron', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove', id: jobId }),
-      });
-      await loadData();
-    } catch (err) {
-      console.error('[automation] remove failed:', err);
-    }
-  }, [loadData]);
+    setPendingConfirm({
+      title: t('common.delete') || 'Delete',
+      message: t('automation.deleteConfirm') || '确定要删除这个定时任务吗？',
+      confirmLabel: t('common.delete') || 'Delete',
+      cancelLabel: t('common.cancel') || 'Cancel',
+      onConfirm: async () => {
+        try {
+          const res = await hanaFetch('/api/desk/cron', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'remove', id: jobId }),
+          });
+          const data = await res.json();
+          if (data?.error) throw new Error(data.error);
+          await loadData();
+          addToast(t('automation.delete') || 'Deleted', 'success');
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          addToast(`${t('settings.saveFailed') || 'Operation failed'}: ${msg}`, 'error');
+          console.error('[automation] remove failed:', err);
+          throw err;
+        }
+      },
+    });
+  }, [addToast, loadData, setPendingConfirm]);
 
   const updateJob = useCallback(async (jobId: string, fields: Record<string, unknown>) => {
     try {

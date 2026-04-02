@@ -8,11 +8,13 @@
  */
 import fs from "fs";
 import path from "path";
+import YAML from "js-yaml";
 import { createModuleLogger } from "../lib/debug-log.js";
-import { t, getLocale } from "../server/i18n.js";
+import { saveConfig } from "../lib/memory/config-loader.js";
+import { safeReadYAMLSync } from "../shared/safe-fs.js";
+import { t } from "../server/i18n.js";
 import {
   createChannel as createChannelFile,
-  generateChannelId,
   addBookmarkEntry,
   addChannelMember,
   getChannelMembers,
@@ -20,6 +22,7 @@ import {
   removeChannelMember,
   removeBookmarkEntry,
   deleteChannel,
+  setChannelArchived,
 } from "../lib/channels/channel-store.js";
 
 const log = createModuleLogger("channel");
@@ -31,12 +34,37 @@ export class ChannelManager {
    * @param {string} deps.agentsDir  - agents 根目录
    * @param {string} deps.userDir    - 用户数据目录
    * @param {() => object|null} deps.getHub - 返回 Hub（可能为 null）
+   * @param {(agentId: string) => Promise<void>} [deps.deleteAgent] - 删除 agent 的回调（可选）
    */
   constructor(deps) {
     this._channelsDir = deps.channelsDir;
     this._agentsDir = deps.agentsDir;
     this._userDir = deps.userDir;
     this._getHub = deps.getHub;
+    this._deleteAgent = deps.deleteAgent || null;
+  }
+
+  /**
+   * 统一创建频道：写入频道文件 + 成员/用户 bookmark + 绑定频道专家
+   */
+  createChannel({ name, description, members, intro, spawnedExpertIds = [] }) {
+    const { id: channelId } = createChannelFile(this._channelsDir, {
+      name,
+      description: description || undefined,
+      members,
+      intro: intro || undefined,
+    });
+
+    for (const memberId of members || []) {
+      const memberDir = path.join(this._agentsDir, memberId);
+      if (!fs.existsSync(memberDir)) continue;
+      addBookmarkEntry(path.join(memberDir, "channels.md"), channelId);
+    }
+
+    addBookmarkEntry(this._userBookmarkPath(), channelId);
+    this.markAgentsSpawnedForChannel(spawnedExpertIds, channelId);
+    log.log(`已创建频道: ${channelId} members=[${(members || []).join(",")}]`);
+    return channelId;
   }
 
   /**
@@ -78,29 +106,61 @@ export class ChannelManager {
 
   /**
    * 删除频道及其所有关联数据
+   * - 先识别该频道 spawn 出来的专家
+   * - 删除频道文件和 bookmark
+   * - 再级联删除频道专家 agent
    */
-  deleteChannelByName(channelId) {
+  async deleteChannelByName(channelId) {
     const filePath = path.join(this._channelsDir, `${channelId}.md`);
     if (!fs.existsSync(filePath)) {
       throw new Error(t("error.channelNotFoundById", { id: channelId }));
     }
 
+    const members = getChannelMembers(filePath);
+    const scopedExperts = this._getChannelScopedExperts(channelId, members);
+
     deleteChannel(filePath);
+    this._cleanupBookmarks([channelId]);
 
-    // 清理所有 agent 的 bookmark
-    const agentDirs = fs.readdirSync(this._agentsDir, { withFileTypes: true })
-      .filter(d => d.isDirectory());
+    const deletedAgentIds = [];
+    const failedAgentIds = [];
 
-    for (const d of agentDirs) {
-      const channelsMd = path.join(this._agentsDir, d.name, "channels.md");
-      removeBookmarkEntry(channelsMd, channelId);
+    for (const agentId of scopedExperts) {
+      try {
+        await this._deleteScopedAgent(agentId);
+        deletedAgentIds.push(agentId);
+      } catch (err) {
+        failedAgentIds.push(agentId);
+        log.error(`删除频道专家失败 (${agentId} @ ${channelId}): ${err.message}`);
+      }
     }
 
-    // 清理用户 bookmark
-    const userBookmarkPath = path.join(this._userDir, "channel-bookmarks.md");
-    removeBookmarkEntry(userBookmarkPath, channelId);
+    log.log(`已删除频道: ${channelId}${deletedAgentIds.length ? `，级联清理专家 [${deletedAgentIds.join(",")}]` : ""}`);
+    return { deletedAgentIds, failedAgentIds };
+  }
 
-    log.log(`已删除频道: ${channelId}`);
+  /**
+   * 归档频道：保留历史消息并切换为只读
+   */
+  archiveChannelByName(channelId) {
+    const filePath = path.join(this._channelsDir, `${channelId}.md`);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(t("error.channelNotFoundById", { id: channelId }));
+    }
+
+    const meta = getChannelMeta(filePath);
+    const alreadyArchived = meta.archived === true || meta.archived === "true";
+    if (!alreadyArchived) {
+      setChannelArchived(filePath, true);
+    }
+
+    const updatedMeta = getChannelMeta(filePath);
+    log.log(`已归档频道: ${channelId}`);
+    return {
+      archived: true,
+      alreadyArchived,
+      archivedAt: updatedMeta.archivedAt || meta.archivedAt || null,
+    };
   }
 
   /**
@@ -154,6 +214,74 @@ export class ChannelManager {
     }
   }
 
+  /** 给 spawn 出的专家写入频道归属，便于删频道时级联清理 */
+  markAgentSpawnedForChannel(agentId, channelId) {
+    if (!agentId || !channelId) return false;
+    const configPath = path.join(this._agentsDir, agentId, "config.yaml");
+    if (!fs.existsSync(configPath)) return false;
+    saveConfig(configPath, { expert: { spawnedForChannel: channelId } });
+    return true;
+  }
+
+  markAgentsSpawnedForChannel(agentIds, channelId) {
+    if (!Array.isArray(agentIds) || !channelId) return [];
+    return agentIds.filter((agentId) => this.markAgentSpawnedForChannel(agentId, channelId));
+  }
+
+  /** 扫描所有 agent，找出绑定了不存在频道的孤儿专家 */
+  listOrphanedChannelExperts() {
+    if (!this._agentsDir || !fs.existsSync(this._agentsDir)) return [];
+
+    const orphaned = [];
+    const agentDirs = fs.readdirSync(this._agentsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory());
+
+    for (const entry of agentDirs) {
+      const agentId = entry.name;
+      const cfg = this._readAgentConfig(agentId);
+      const boundChannelId = cfg?.expert?.spawnedForChannel;
+      if (!boundChannelId || typeof boundChannelId !== "string") continue;
+
+      const channelFile = path.join(this._channelsDir, `${boundChannelId}.md`);
+      if (!fs.existsSync(channelFile)) {
+        orphaned.push(agentId);
+        continue;
+      }
+
+      const members = getChannelMembers(channelFile);
+      if (!members.includes(agentId)) {
+        orphaned.push(agentId);
+      }
+    }
+
+    return orphaned;
+  }
+
+  _getChannelScopedExperts(channelId, members) {
+    return (members || []).filter((agentId) => {
+      const cfg = this._readAgentConfig(agentId);
+      return cfg?.expert?.spawnedForChannel === channelId;
+    });
+  }
+
+  _readAgentConfig(agentId) {
+    const configPath = path.join(this._agentsDir, agentId, "config.yaml");
+    if (!fs.existsSync(configPath)) return null;
+    return safeReadYAMLSync(configPath, {}, YAML);
+  }
+
+  async _deleteScopedAgent(agentId) {
+    if (this._deleteAgent) {
+      await this._deleteAgent(agentId);
+      return;
+    }
+    fs.rmSync(path.join(this._agentsDir, agentId), { recursive: true, force: true });
+  }
+
+  _userBookmarkPath() {
+    return path.join(this._userDir, "channel-bookmarks.md");
+  }
+
   /** 清理被删频道的 bookmark（从其他 agent 和用户的 bookmark 中移除） */
   _cleanupBookmarks(deletedChannels, excludeAgentId) {
     const agentDirs = fs.readdirSync(this._agentsDir, { withFileTypes: true })
@@ -170,7 +298,7 @@ export class ChannelManager {
       }
     }
 
-    const userBookmarkPath = path.join(this._userDir, "channel-bookmarks.md");
+    const userBookmarkPath = this._userBookmarkPath();
     for (const ch of deletedChannels) {
       try {
         removeBookmarkEntry(userBookmarkPath, ch);

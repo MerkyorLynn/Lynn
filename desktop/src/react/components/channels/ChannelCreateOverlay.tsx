@@ -2,7 +2,7 @@
  * ChannelCreateOverlay — 创建频道弹窗
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../stores';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
@@ -15,8 +15,8 @@ import styles from './Channels.module.css';
 let _avatarTs = Date.now();
 export function refreshCreateAvatarTs() { _avatarTs = Date.now(); }
 
-function AgentChipAvatar({ agentId, agentName, yuan, hasAvatar }: {
-  agentId: string; agentName: string; yuan?: string; hasAvatar?: boolean;
+function AgentChipAvatar({ agentId, yuan, hasAvatar }: {
+  agentId: string; yuan?: string; hasAvatar?: boolean;
 }) {
   const [error, setError] = useState(false);
   const src = hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`) : null;
@@ -39,6 +39,7 @@ function AgentChipAvatar({ agentId, agentName, yuan, hasAvatar }: {
 export function ChannelCreateOverlay() {
   const { t } = useI18n();
   const agents = useStore(s => s.agents);
+  const currentAgentId = useStore(s => s.currentAgentId);
   const visible = useStore(s => s.channelCreateOverlayVisible);
   const setVisible = useStore(s => s.setChannelCreateOverlayVisible);
 
@@ -50,24 +51,37 @@ export function ChannelCreateOverlay() {
   const [membersError, setMembersError] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  // When overlay becomes visible, reset form and select all agents
+  const baseAgent = useMemo(
+    () => agents.find((agent) => agent.id === currentAgentId)
+      || agents.find((agent) => agent.isPrimary)
+      || agents[0]
+      || null,
+    [agents, currentAgentId],
+  );
+
+  const selectableAgents = useMemo(
+    () => agents.filter((agent) => agent.id !== baseAgent?.id),
+    [agents, baseAgent],
+  );
+
   useEffect(() => {
     if (visible) {
       setName('');
       setIntro('');
-      setSelectedMembers(agents.map((a) => a.id));
+      setSelectedMembers([]);
       setNameError(false);
       setMembersError(false);
+      _avatarTs = Date.now();
       requestAnimationFrame(() => nameRef.current?.focus());
     }
-  }, [visible, agents]);
+  }, [visible]);
 
   const toggleMember = useCallback((agentId: string) => {
-    setSelectedMembers((prev) =>
+    setSelectedMembers((prev) => (
       prev.includes(agentId)
         ? prev.filter((id) => id !== agentId)
-        : [...prev, agentId],
-    );
+        : [...prev, agentId]
+    ));
     setMembersError(false);
   }, []);
 
@@ -87,7 +101,7 @@ export function ChannelCreateOverlay() {
       nameRef.current?.focus();
       return;
     }
-    if (selectedMembers.length < 2) {
+    if (!baseAgent || selectedMembers.length < 1) {
       setMembersError(true);
       setTimeout(() => setMembersError(false), 1500);
       return;
@@ -95,7 +109,8 @@ export function ChannelCreateOverlay() {
 
     setCreating(true);
     try {
-      await createChannel(name.trim(), selectedMembers, intro.trim() || undefined);
+      const members = Array.from(new Set([baseAgent.id, ...selectedMembers]));
+      await createChannel(name.trim(), members, intro.trim() || undefined);
       setVisible(false);
     } catch (err: any) {
       const msg = String(err?.message || err || '');
@@ -109,7 +124,7 @@ export function ChannelCreateOverlay() {
     } finally {
       setCreating(false);
     }
-  }, [creating, name, selectedMembers, intro, setVisible]);
+  }, [baseAgent, creating, intro, name, selectedMembers, setVisible]);
 
   const handleNameKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') handleCancel();
@@ -117,16 +132,16 @@ export function ChannelCreateOverlay() {
 
   return (
     <div
-      className={`agent-create-overlay${visible ? ' visible' : ''}`}
+      className={`${styles.channelOverlay}${visible ? ` ${styles.channelOverlayVisible}` : ''}`}
       onClick={handleOverlayClick}
     >
-      <div className="agent-create-card">
-        <h3 className="agent-create-title">{t('channel.createTitle')}</h3>
-        <div className="settings-field">
-          <label className="settings-field-label">{t('channel.createName')}</label>
+      <div className={styles.channelOverlayCard}>
+        <h3 className={styles.channelOverlayTitle}>{t('channel.createTitle')}</h3>
+        <div className={styles.channelOverlayField}>
+          <label className={styles.channelOverlayLabel}>{t('channel.createName')}</label>
           <input
             ref={nameRef}
-            className="settings-input"
+            className={styles.channelOverlayInput}
             type="text"
             placeholder={nameError ? t('channel.nameExists') : t('channel.createNamePlaceholder')}
             autoComplete="off"
@@ -136,37 +151,61 @@ export function ChannelCreateOverlay() {
             style={nameError ? { outline: '1.5px solid var(--danger, #c44)' } : undefined}
           />
         </div>
-        <div className="settings-field">
-          <label className="settings-field-label">{t('channel.createMembers')}</label>
-          <div
-            className={styles.channelCreateMembers}
-            style={membersError ? { outline: '1.5px solid var(--danger, #c44)' } : undefined}
-          >
-            {agents.map((agent) => {
-              const isSelected = selectedMembers.includes(agent.id);
-              return (
-                <button
-                  key={agent.id}
-                  type="button"
-                  className={`${styles.channelCreateMemberChip}${isSelected ? ` ${styles.channelCreateMemberChipSelected}` : ''}`}
-                  onClick={() => toggleMember(agent.id)}
-                >
-                  <AgentChipAvatar agentId={agent.id} agentName={agent.name} yuan={agent.yuan} hasAvatar={agent.hasAvatar} />
-                  <span>{agent.name || agent.id}</span>
-                </button>
-              );
-            })}
-          </div>
+
+        <div className={styles.channelOverlayField}>
+          <label className={styles.channelOverlayLabel}>{t('channel.createBaseAgent') || '已包含当前助手'}</label>
+          {baseAgent ? (
+            <div className={styles.channelCreateMembers}>
+              <div className={`${styles.channelCreateMemberChip} ${styles.channelCreateMemberChipSelected} ${styles.channelCreateMemberChipLocked}`}>
+                <AgentChipAvatar agentId={baseAgent.id} yuan={baseAgent.yuan} hasAvatar={baseAgent.hasAvatar} />
+                <span>{baseAgent.name || baseAgent.id}</span>
+              </div>
+            </div>
+          ) : (
+            <p className={styles.channelOverlayHint}>
+              {t('channel.createNeedAssistant') || '当前没有可用助手，无法创建频道'}
+            </p>
+          )}
         </div>
-        <div className="settings-field">
-          <label className="settings-field-label">
+
+        <div className={styles.channelOverlayField}>
+          <label className={styles.channelOverlayLabel}>{t('channel.createSelectAdvisors') || '再选择要加入的顾问'}</label>
+          {selectableAgents.length > 0 ? (
+            <div
+              className={styles.channelCreateMembers}
+              style={membersError ? { outline: '1.5px solid var(--danger, #c44)', borderRadius: '10px', padding: '6px' } : undefined}
+            >
+              {selectableAgents.map((agent) => {
+                const isSelected = selectedMembers.includes(agent.id);
+                return (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    className={`${styles.channelCreateMemberChip}${isSelected ? ` ${styles.channelCreateMemberChipSelected}` : ''}`}
+                    onClick={() => toggleMember(agent.id)}
+                  >
+                    <AgentChipAvatar agentId={agent.id} yuan={agent.yuan} hasAvatar={agent.hasAvatar} />
+                    <span>{agent.name || agent.id}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={styles.channelOverlayHint}>
+              {t('channel.createNeedAdvisor') || '至少需要先有 1 位顾问智能体'}
+            </p>
+          )}
+        </div>
+
+        <div className={styles.channelOverlayField}>
+          <label className={styles.channelOverlayLabel}>
             {t('channel.createIntro')}{' '}
             <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>
               {t('channel.createIntroOptional')}
             </span>
           </label>
           <textarea
-            className={`settings-input ${styles.channelCreateIntro}`}
+            className={`${styles.channelOverlayInput} ${styles.channelCreateIntro}`}
             rows={2}
             placeholder={t('channel.createIntroPlaceholder')}
             style={{ resize: 'vertical', minHeight: '2.4rem' }}
@@ -174,11 +213,11 @@ export function ChannelCreateOverlay() {
             onChange={(e) => setIntro(e.target.value)}
           />
         </div>
-        <div className="agent-create-actions">
-          <button className="agent-create-cancel" onClick={handleCancel}>
+        <div className={styles.channelOverlayActions}>
+          <button className={styles.channelOverlayCancel} onClick={handleCancel}>
             {t('channel.createCancel')}
           </button>
-          <button className="agent-create-confirm" onClick={handleSubmit} disabled={creating}>
+          <button className={styles.channelOverlayConfirm} onClick={handleSubmit} disabled={creating || !baseAgent}>
             {t('channel.createConfirm')}
           </button>
         </div>
