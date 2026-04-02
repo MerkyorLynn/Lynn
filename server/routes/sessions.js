@@ -150,6 +150,7 @@ export function createSessionsRoute(engine) {
       // 每条消息带稳定 id（原始 sourceMessages 索引）
       const allMessages = [];
       const fileOutputs = [];
+      const fileDiffs = [];
       const artifacts = [];
       let globalIdx = 0;
 
@@ -172,6 +173,26 @@ export function createSessionsRoute(engine) {
           const d = m.details || {};
           if (m.toolName === "present_files" && d.files?.length) {
             fileOutputs.push({ afterIndex: allMessages.length - 1, files: d.files });
+          } else if ((m.toolName === "edit" || m.toolName === "edit-diff") && d.diff) {
+            const assistantMsg = allMessages[allMessages.length - 1];
+            const toolCalls = assistantMsg?.toolCalls || [];
+            const matchingToolCall = [...toolCalls].reverse().find(tc => tc.name === m.toolName);
+            const args = matchingToolCall?.args || {};
+            const diffFilePath = args.file_path || args.path || "";
+            let linesAdded = 0;
+            let linesRemoved = 0;
+            for (const line of String(d.diff).split("\n")) {
+              if (line.startsWith("+") && !line.startsWith("+++")) linesAdded++;
+              if (line.startsWith("-") && !line.startsWith("---")) linesRemoved++;
+            }
+            fileDiffs.push({
+              afterIndex: allMessages.length - 1,
+              filePath: diffFilePath,
+              diff: d.diff,
+              linesAdded,
+              linesRemoved,
+              rollbackId: m.toolCallId || undefined,
+            });
           } else if (m.toolName === "create_artifact" && d.content) {
             artifacts.push({
               afterIndex: allMessages.length - 1,
@@ -189,6 +210,7 @@ export function createSessionsRoute(engine) {
       let messages;
       let hasMore = false;
       let slicedFileOutputs = fileOutputs;
+      let slicedFileDiffs = fileDiffs;
       let slicedArtifacts = artifacts;
 
       if (beforeId != null && beforeId > 0) {
@@ -200,6 +222,9 @@ export function createSessionsRoute(engine) {
         slicedFileOutputs = fileOutputs
           .filter(fo => fo.afterIndex >= startIdx && fo.afterIndex < endIdx)
           .map(fo => ({ ...fo, afterIndex: fo.afterIndex - startIdx }));
+        slicedFileDiffs = fileDiffs
+          .filter(fd => fd.afterIndex >= startIdx && fd.afterIndex < endIdx)
+          .map(fd => ({ ...fd, afterIndex: fd.afterIndex - startIdx }));
         slicedArtifacts = artifacts
           .filter(a => a.afterIndex >= startIdx && a.afterIndex < endIdx)
           .map(a => ({ ...a, afterIndex: a.afterIndex - startIdx }));
@@ -218,7 +243,7 @@ export function createSessionsRoute(engine) {
         }
       }
 
-      return c.json({ messages, todos, fileOutputs: slicedFileOutputs, artifacts: slicedArtifacts, hasMore });
+      return c.json({ messages, todos, fileOutputs: slicedFileOutputs, fileDiffs: slicedFileDiffs, artifacts: slicedArtifacts, hasMore });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }

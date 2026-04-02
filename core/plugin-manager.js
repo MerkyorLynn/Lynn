@@ -12,10 +12,11 @@ export class PluginManager {
    * pluginsDirs: 多个扫描目录，先内嵌后用户（靠前的优先）
    * 兼容旧签名 { pluginsDir: string } → 自动转为单元素数组
    */
-  constructor({ pluginsDirs, pluginsDir, dataDir, bus }) {
+  constructor({ pluginsDirs, pluginsDir, dataDir, bus, engine }) {
     this._pluginsDirs = pluginsDirs || (pluginsDir ? [pluginsDir] : []);
     this._dataDir = dataDir;
     this._bus = bus;
+    this._engine = engine || null;
     this._plugins = new Map();
     this._scanned = [];
     this.routeRegistry = new Map();
@@ -112,6 +113,7 @@ export class PluginManager {
       pluginDir: entry.pluginDir,
       dataDir: path.join(this._dataDir, entry.id),
       bus: this._bus,
+      engine: this._engine || null,
     });
     instance.register = (disposable) => {
       if (typeof disposable === "function") entry._disposables.push(disposable);
@@ -127,6 +129,7 @@ export class PluginManager {
     const files = fs.readdirSync(toolsDir).filter((f) => f.endsWith(".js"));
     const ctx = {
       bus: this._bus,
+      engine: this._engine || null,
       config: {
         get: (key) => {
           try {
@@ -214,26 +217,41 @@ export class PluginManager {
     const { Hono } = await import("hono");
     const app = new Hono();
     const files = fs.readdirSync(routesDir).filter((f) => f.endsWith(".js"));
+    const ctx = createPluginContext({
+      pluginId: entry.id,
+      pluginDir: entry.pluginDir,
+      dataDir: path.join(this._dataDir, entry.id),
+      bus: this._bus,
+      engine: this._engine || null,
+    });
     for (const file of files) {
       const filePath = path.join(routesDir, file);
+      const prefix = "/" + path.basename(file, ".js");
       try {
         const mod = await import(filePath);
+        if (mod.default && typeof mod.default.fetch === "function") {
+          app.route(prefix, mod.default);
+          continue;
+        }
         if (typeof mod.default === "function") {
-          // Default export is a Hono app or a function that returns one
-          const sub = mod.default;
-          if (sub && typeof sub.fetch === "function") {
-            // It's a Hono app — mount under the file's basename
-            const prefix = "/" + path.basename(file, ".js");
-            app.route(prefix, sub);
-          } else if (typeof sub === "function") {
-            // It's a factory: sub(app) registers routes
-            sub(app);
+          if (mod.default.length >= 2) {
+            mod.default(app, ctx);
+          } else {
+            const maybeApp = mod.default(ctx);
+            if (maybeApp && typeof maybeApp.fetch === "function") {
+              app.route(prefix, maybeApp);
+            }
           }
-        } else if (mod.register && typeof mod.register === "function") {
-          mod.register(app);
+          continue;
+        }
+        if (mod.register && typeof mod.register === "function") {
+          const maybeApp = mod.register(app, ctx);
+          if (maybeApp && typeof maybeApp.fetch === "function") {
+            app.route(prefix, maybeApp);
+          }
         }
       } catch (err) {
-        console.error(`[plugin-manager] route "${file}" in "${entry.id}" failed to load:`, err.message);
+        console.error('[plugin-manager] route "' + file + '" in "' + entry.id + '" failed to load:', err.message);
       }
     }
     this.routeRegistry.set(entry.id, app);

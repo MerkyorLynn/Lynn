@@ -106,9 +106,26 @@ export function PreviewPanel() {
     clearSelection();
   }, [activeTabId]);
 
+  // 折叠时点击 strip 重新打开面板
+  const handleCollapsedClick = useCallback(() => {
+    if (!previewOpen && artifact) {
+      setPreviewOpen(true);
+    }
+  }, [previewOpen, artifact, setPreviewOpen]);
+
   return (
-    <div className={`${previewStyles.previewPanel}${previewOpen ? '' : ` ${previewStyles.previewPanelCollapsed}`}`} id="previewPanel">
+    <div
+      className={`${previewStyles.previewPanel}${previewOpen ? '' : ` ${previewStyles.previewPanelCollapsed}`}`}
+      id="previewPanel"
+      onClick={!previewOpen && artifact ? handleCollapsedClick : undefined}
+      style={!previewOpen && artifact ? { cursor: 'pointer' } : undefined}
+    >
       <div className="resize-handle resize-handle-left" id="previewResizeHandle"></div>
+      {!previewOpen && artifact && (
+        <div className={previewStyles.collapsedStrip}>
+          {artifact.title || 'Preview'}
+        </div>
+      )}
       <div className={previewStyles.previewPanelInner}>
         <TabBar />
         <div className={previewStyles.previewPanelBody} id="previewBody" onMouseUp={handleMouseUp}>

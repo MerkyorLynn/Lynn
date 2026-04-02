@@ -155,6 +155,11 @@
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
     "retry": "Retry"
   },
+  "review": {
+    "button": "Review",
+    "cardTitle": "Review",
+    "noReviewer": "No reviewer agent available. Create a second agent first."
+  },
   "time": {
     "justNow": "Just now",
     "minutesAgo": "{n}m ago",
@@ -184,6 +189,7 @@
     "deskContext": "With desk context",
     "pastedImage": "Pasted image",
     "docContext": "With document",
+    "docContextOpenRecent": "Click to open a recent document",
     "embeddedModel": {
       "name": "Default model",
       "meta": "Ready to chat",
@@ -300,7 +306,7 @@
     "types": {
       "hanako": {
         "label": "Balanced assistant",
-        "avatar": "Lynn.png",
+        "avatar": "Hanako.png",
         "name": "Lynn"
       },
       "butter": {

@@ -6,6 +6,7 @@
  */
 
 import { memo, useState, useCallback, useMemo } from 'react';
+import { hanaFetch } from '../../hooks/use-hana-fetch';
 import styles from './DiffViewer.module.css';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   diff: string;
   linesAdded: number;
   linesRemoved: number;
+  rollbackId?: string;
 }
 
 interface DiffLine {
@@ -30,7 +32,6 @@ function parseDiff(diff: string): DiffLine[] {
 
   for (const line of lines) {
     if (line.startsWith('@@')) {
-      // Hunk header: @@ -old,count +new,count @@
       const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
       if (match) {
         oldLine = parseInt(match[1], 10);
@@ -38,7 +39,6 @@ function parseDiff(diff: string): DiffLine[] {
       }
       result.push({ type: 'header', content: line });
     } else if (line.startsWith('---') || line.startsWith('+++')) {
-      // File headers, skip
       continue;
     } else if (line.startsWith('+')) {
       result.push({ type: 'add', content: line.slice(1), newLineNum: newLine });
@@ -59,20 +59,41 @@ function getFileName(filePath: string): string {
   return filePath.split('/').pop() || filePath;
 }
 
-export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded, linesRemoved }: Props) {
+export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded, linesRemoved, rollbackId }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [status, setStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending');
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const parsedLines = useMemo(() => parseDiff(diff), [diff]);
 
-  const toggle = useCallback(() => setExpanded(v => !v), []);
+  const toggle = useCallback(() => setExpanded((v) => !v), []);
 
-  const handleAccept = useCallback(() => setStatus('accepted'), []);
-  const handleReject = useCallback(async () => {
-    // TODO: 如果需要真正还原文件，可以调用 /api/fs/apply 写回原内容
-    setStatus('rejected');
+  const handleAccept = useCallback(() => {
+    setError(null);
+    setStatus('accepted');
   }, []);
 
+  const handleReject = useCallback(async () => {
+    if (!rollbackId || isRejecting) return;
+
+    setIsRejecting(true);
+    setError(null);
+    try {
+      await hanaFetch('/api/fs/revert-edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollbackId }),
+      });
+      setStatus('rejected');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rollback failed');
+    } finally {
+      setIsRejecting(false);
+    }
+  }, [isRejecting, rollbackId]);
+
   const fileName = getFileName(filePath);
+  const rejectDisabled = !rollbackId || isRejecting;
 
   return (
     <div className={`${styles.diffCard}${status !== 'pending' ? ` ${styles.diffCardResolved}` : ''}`}>
@@ -108,9 +129,7 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
                 <span className={styles.diffLinePrefix}>
                   {line.type === 'add' ? '+' : line.type === 'remove' ? '-' : line.type === 'header' ? '' : ' '}
                 </span>
-                <span className={styles.diffLineContent}>
-                  {line.type === 'header' ? line.content : line.content}
-                </span>
+                <span className={styles.diffLineContent}>{line.content}</span>
               </div>
             ))}
           </div>
@@ -121,8 +140,13 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
           <button className={styles.diffAcceptBtn} onClick={handleAccept} title="Accept changes">
             ✓ Accept
           </button>
-          <button className={styles.diffRejectBtn} onClick={handleReject} title="Reject changes">
-            ✗ Reject
+          <button
+            className={styles.diffRejectBtn}
+            onClick={handleReject}
+            title={rollbackId ? 'Reject changes and restore original file' : 'Rollback unavailable'}
+            disabled={rejectDisabled}
+          >
+            {isRejecting ? '… Reverting' : '✗ Reject'}
           </button>
         </div>
       )}
@@ -131,6 +155,7 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
           {status === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
         </div>
       )}
+      {error && <div className={styles.diffError}>{error}</div>}
     </div>
   );
 });

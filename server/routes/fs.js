@@ -7,6 +7,7 @@
  * 安全：路径限定在受信任的 Lynn/工作区/技能目录内。
  */
 
+import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -105,6 +106,7 @@ function isSafePath(filePath, allowedRoots) {
 
 export function createFsRoute(engine) {
   const route = new Hono();
+  const editRollbackStore = engine.editRollbackStore || null;
 
   route.get("/fs/read", async (c) => {
     const filePath = c.req.query("path");
@@ -168,6 +170,52 @@ export function createFsRoute(engine) {
       return c.json({ ok: true, bytesWritten: Buffer.byteLength(content, "utf-8") });
     } catch (err) {
       return c.json({ error: err?.message || "write failed" }, 500);
+    }
+  });
+
+  route.post("/fs/revert-edit", async (c) => {
+    try {
+      const body = await c.req.json();
+      const rollbackId = typeof body?.rollbackId === "string" ? body.rollbackId.trim() : "";
+
+      if (!rollbackId) {
+        return c.json({ error: "missing rollbackId" }, 400);
+      }
+      if (!editRollbackStore?.get) {
+        return c.json({ error: "rollback unavailable" }, 503);
+      }
+
+      const snapshot = editRollbackStore.get(rollbackId);
+      if (!snapshot) {
+        return c.json({ error: "rollback not found" }, 404);
+      }
+      if (!snapshot.filePath || typeof snapshot.originalContent !== "string") {
+        return c.json({ error: "rollback snapshot invalid" }, 500);
+      }
+      if (!isSafePath(snapshot.filePath, getAllowedRoots(engine, "write"))) {
+        return c.json({ error: "path not allowed" }, 403);
+      }
+
+      const currentContent = safeReadFile(snapshot.filePath, null);
+      const currentHash = currentContent == null
+        ? null
+        : crypto.createHash("sha256").update(currentContent).digest("hex");
+      const snapshotHash = crypto.createHash("sha256").update(snapshot.originalContent).digest("hex");
+
+      const dir = path.dirname(snapshot.filePath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(snapshot.filePath, snapshot.originalContent, "utf-8");
+
+      return c.json({
+        ok: true,
+        filePath: snapshot.filePath,
+        bytesWritten: Buffer.byteLength(snapshot.originalContent, "utf-8"),
+        rollbackId,
+        restoredHash: snapshotHash,
+        replacedHash: currentHash,
+      });
+    } catch (err) {
+      return c.json({ error: err?.message || "rollback failed" }, 500);
     }
   });
 

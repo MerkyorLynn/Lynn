@@ -34,6 +34,46 @@ describe('history-builder', () => {
     expect(message.data.quotedText).toBe('/repo/src/app.ts · 行 4-5 · 12 字符');
   });
 
+  it('重建 file diff，并保留 rollbackId', () => {
+    const history: HistoryApiResponse = {
+      messages: [{
+        id: 'a3',
+        role: 'assistant',
+        content: '已修改文件',
+        toolCalls: [{ name: 'edit', args: { path: 'src/app.ts' } }],
+      }],
+      fileDiffs: [{
+        afterIndex: 0,
+        filePath: 'src/app.ts',
+        diff: '@@ -1 +1 @@\n-old\n+new',
+        linesAdded: 1,
+        linesRemoved: 1,
+        rollbackId: 'call_123',
+      }],
+    };
+
+    const items = buildItemsFromHistory(history);
+    const message = items[0];
+    if (message.type !== 'message' || message.data.role !== 'assistant') throw new Error('expected assistant message');
+
+    expect(message.data.blocks).toEqual([
+      {
+        type: 'tool_group',
+        tools: [{ name: 'edit', args: { path: 'src/app.ts' }, done: true, success: true }],
+        collapsed: false,
+      },
+      { type: 'text', html: '<p>已修改文件</p>\n' },
+      {
+        type: 'file_diff',
+        filePath: 'src/app.ts',
+        diff: '@@ -1 +1 @@\n-old\n+new',
+        linesAdded: 1,
+        linesRemoved: 1,
+        rollbackId: 'call_123',
+      },
+    ]);
+  });
+
   it('把文件输出和 artifact 追加到对应 assistant 消息后', () => {
     const history: HistoryApiResponse = {
       messages: [

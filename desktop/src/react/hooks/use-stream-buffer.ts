@@ -299,6 +299,7 @@ class StreamBufferManager {
             diff: msg.diff,
             linesAdded: msg.linesAdded || 0,
             linesRemoved: msg.linesRemoved || 0,
+            rollbackId: msg.rollbackId,
           }],
         }));
         break;

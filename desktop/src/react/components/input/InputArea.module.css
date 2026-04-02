@@ -108,6 +108,17 @@
     cursor: not-allowed;
 }
 
+.desk-context-btn.hint {
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+.desk-context-btn.hint:hover {
+    opacity: 0.8;
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.2);
+}
+
 .desk-context-btn.active {
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.3);

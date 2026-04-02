@@ -1,4 +1,7 @@
 import { Hono } from "hono";
+import fsPromises from "fs/promises";
+import os from "os";
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createChatRoute } from "../server/routes/chat.js";
 
@@ -27,6 +30,7 @@ describe("chat route event forwarding", () => {
   let engine;
   let app;
   let clients;
+  let editRollbackStore;
 
   beforeEach(() => {
     subscribed = null;
@@ -44,12 +48,14 @@ describe("chat route event forwarding", () => {
       promptSession: vi.fn(),
       steerSession: vi.fn(() => false),
       abortSession: vi.fn(() => false),
+      cwd: process.cwd(),
     };
     const wsHarness = makeWebSocketHarness();
     clients = wsHarness.clients;
-    const { wsRoute } = createChatRoute(engine, hub, { upgradeWebSocket: wsHarness.upgradeWebSocket });
+    const route = createChatRoute(engine, hub, { upgradeWebSocket: wsHarness.upgradeWebSocket });
+    editRollbackStore = route.editRollbackStore;
     app = new Hono();
-    app.route("", wsRoute);
+    app.route("", route.wsRoute);
   });
 
   it("forwards tool_authorization events to websocket clients", async () => {
@@ -75,6 +81,53 @@ describe("chat route event forwarding", () => {
       command: "sudo rm -rf /tmp/test",
       category: "elevated_command",
     }));
+  });
+
+  it("captures edit snapshots and emits rollbackId on file_diff events", async () => {
+    const tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), "lynn-chat-route-"));
+    const filePath = path.join(tmpDir, "sample.txt");
+    try {
+      await fsPromises.writeFile(filePath, "before\n", "utf8");
+      engine.getSessionByPath = vi.fn(() => ({
+        sessionManager: { getCwd: () => tmpDir },
+        messages: [],
+      }));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      subscribed({
+        type: "tool_execution_start",
+        toolCallId: "call_123",
+        toolName: "edit",
+        args: { path: "sample.txt" },
+      }, "/sessions/current.jsonl");
+
+      await fsPromises.writeFile(filePath, "after\n", "utf8");
+
+      subscribed({
+        type: "tool_execution_end",
+        toolCallId: "call_123",
+        toolName: "edit",
+        args: { path: "sample.txt" },
+        result: { details: { diff: "@@ -1 +1 @@\n-before\n+after" } },
+        isError: false,
+      }, "/sessions/current.jsonl");
+
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({
+        type: "file_diff",
+        rollbackId: "call_123",
+        filePath: "sample.txt",
+      }));
+
+      expect(editRollbackStore.get("call_123")).toEqual(expect.objectContaining({
+        rollbackId: "call_123",
+        filePath,
+        originalContent: "before\n",
+      }));
+    } finally {
+      await fsPromises.rm(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it("broadcasts security_mode updates", async () => {

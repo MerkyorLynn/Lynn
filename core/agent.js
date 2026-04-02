@@ -145,7 +145,11 @@ export class Agent {
     // 4. 记忆 v2：FactStore + SessionSummaryManager + ticker
     log(`  [agent] 4. FactStore...`);
     fs.mkdirSync(path.join(this.agentDir, "memory", "summaries"), { recursive: true });
-    this._factStore = new FactStore(this.factsDbPath);
+    this._factStore = new FactStore(this.factsDbPath, {
+      baseImportance: this._config?.memory?.base_importance,
+      hitBonus: this._config?.memory?.hit_bonus,
+      compileThreshold: this._config?.memory?.compile_threshold,
+    });
     this._summaryManager = new SessionSummaryManager(this.summariesDir);
 
     // v1 → v2 迁移：仅当迁移标记不存在且旧 memories.db 存在时执行一次
@@ -242,8 +246,19 @@ export class Agent {
       console.warn(`[agent] ⚠ 未配置 utility 模型，记忆系统暂不可用（用户可在设置中配置后重启）`);
     }
 
-    // Phase 4: 混合检索器（替代直接 FactStore 调用）
-    const retriever = new HybridRetriever({ factStore: this._factStore });
+    // Phase 4: 混合检索器（标签 + FTS + 本地向量）
+    const retriever = new HybridRetriever({
+      factStore: this._factStore,
+      vectorConfig: {
+        type: 'local-file',
+        dbPath: path.join(this.agentDir, 'memory', 'vectors.db'),
+        dimensions: this._config?.models?.embedding_dimensions || 128,
+      },
+    });
+    this._retriever = retriever;
+    retriever.rebuildIndex().catch((err) => {
+      console.warn(`[memory] vector index rebuild failed: ${err.message}`);
+    });
 
     // 7. 创建工具（记忆 + 通用）
     log(`  [agent] 7. 创建工具...`);
@@ -381,6 +396,7 @@ export class Agent {
    */
   async dispose() {
     await this._memoryTicker?.stop();
+    this._retriever?.close?.();
     this._factStore?.close();
   }
 
@@ -392,11 +408,14 @@ export class Agent {
     this._disposing = true;
     const ticker = this._memoryTicker;
     const factStore = this._factStore;
+    const retriever = this._retriever;
 
     const cleanup = () => {
       this._memoryTicker = null;
+      this._retriever = null;
       this._factStore = null;
       this._disposing = false;
+      retriever?.close?.();
       factStore?.close();
     };
 

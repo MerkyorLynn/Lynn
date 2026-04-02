@@ -236,6 +236,75 @@
     opacity: 0.7;
 }
 
+/* ── Review Card ── */
+
+.reviewCard {
+    margin: var(--space-sm) 0;
+    padding: var(--space-md);
+    background: var(--bg-card, #fff);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    font-size: 0.85rem;
+    max-width: 520px;
+    border-left: 3px solid var(--hana-accent, #7D1C4A);
+}
+
+.reviewCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--hana-accent, #7D1C4A);
+    font-weight: 600;
+    font-size: 0.8rem;
+    margin-bottom: var(--space-xs);
+}
+
+.reviewCardTitle {
+    flex: 1;
+}
+
+.reviewCardLoading {
+    display: inline-flex;
+    align-items: center;
+}
+
+.reviewCardBody {
+    color: var(--hana-text);
+    line-height: 1.6;
+}
+
+.reviewCardBody :global(.md-content) {
+    font-size: 0.85rem;
+}
+
+.reviewCardError {
+    color: var(--hana-error, #d33);
+    font-style: italic;
+}
+
+.reviewBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: 1px solid var(--hana-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    color: var(--hana-text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    position: absolute;
+    top: 4px;
+    right: 60px;
+}
+
+.messageGroupAssistant:hover .reviewBtn { opacity: 0.6; }
+.reviewBtn:hover { opacity: 1 !important; color: var(--hana-accent, #7D1C4A); background: var(--hana-bg-hover, rgba(125, 28, 74, 0.06)); }
+.reviewBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
 /* ── Cron 确认卡片 ── */
 
 .cronConfirmCard {

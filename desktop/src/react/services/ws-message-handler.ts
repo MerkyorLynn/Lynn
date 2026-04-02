@@ -30,6 +30,7 @@ const REACT_CHAT_EVENTS = new Set([
   'mood_start', 'mood_text', 'mood_end',
   'xing_start', 'xing_text', 'xing_end',
   'tool_start', 'tool_end', 'turn_end',
+  'file_diff',
   'file_output', 'skill_activated', 'artifact',
   'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
   'tool_authorization',
@@ -316,6 +317,71 @@ export function handleServerMessage(msg: any): void {
       if (!sp || sp === state.currentSessionPath) {
         applyStreamingStatus(msg.isStreaming);
       }
+      break;
+    }
+
+    case 'review_start': {
+      // 在当前 session 的最后一条助手消息末尾插入 loading review block
+      const sessionPath = state.currentSessionPath;
+      if (!sessionPath) break;
+      const chatSession = state.chatSessions[sessionPath];
+      if (!chatSession?.items) break;
+
+      const updatedItems = [...chatSession.items];
+      for (let i = updatedItems.length - 1; i >= 0; i--) {
+        const item = updatedItems[i];
+        if (item.type !== 'message' || item.data.role !== 'assistant') continue;
+        const newBlocks = [...(item.data.blocks || []), {
+          type: 'review' as const,
+          reviewId: msg.reviewId,
+          reviewerName: msg.reviewerName,
+          content: '',
+          status: 'loading' as const,
+        }];
+        updatedItems[i] = { ...item, data: { ...item.data, blocks: newBlocks } };
+        break;
+      }
+
+      useStore.setState({
+        chatSessions: {
+          ...state.chatSessions,
+          [sessionPath]: { ...chatSession, items: updatedItems },
+        },
+      });
+      break;
+    }
+
+    case 'review_result': {
+      // 找到 loading 状态的 review block，更新为 done
+      const sessionPath2 = state.currentSessionPath;
+      if (!sessionPath2) break;
+      const chatSession2 = state.chatSessions[sessionPath2];
+      if (!chatSession2?.items) break;
+
+      const updatedItems2 = chatSession2.items.map((item: any) => {
+        if (item.type !== 'message' || item.data.role !== 'assistant') return item;
+        const blocks = item.data.blocks;
+        if (!blocks?.some((b: any) => b.type === 'review' && b.reviewId === msg.reviewId)) return item;
+
+        return {
+          ...item,
+          data: {
+            ...item.data,
+            blocks: blocks.map((b: any) =>
+              b.type === 'review' && b.reviewId === msg.reviewId
+                ? { ...b, content: msg.content || '', error: msg.error, status: 'done' }
+                : b,
+            ),
+          },
+        };
+      });
+
+      useStore.setState({
+        chatSessions: {
+          ...state.chatSessions,
+          [sessionPath2]: { ...chatSession2, items: updatedItems2 },
+        },
+      });
       break;
     }
   }

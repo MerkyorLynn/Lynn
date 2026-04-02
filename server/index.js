@@ -48,6 +48,7 @@ import { createDiaryRoute } from "./routes/diary.js";
 import { createConfirmRoute } from "./routes/confirm.js";
 import { createPluginsRoute } from "./routes/plugins.js";
 import { createExpertsRoute } from "./routes/experts.js";
+import { createReviewRoute } from "./routes/review.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
@@ -177,9 +178,16 @@ engine.setConfirmStore(confirmStore);
 const bridgeManager = new BridgeManager({ engine, hub });
 hub.bridgeManager = bridgeManager;
 
-const { restRoute: chatRestRoute, wsRoute: chatWsRoute } = createChatRoute(engine, hub, { upgradeWebSocket });
+const {
+  restRoute: chatRestRoute,
+  wsRoute: chatWsRoute,
+  broadcast: chatBroadcast,
+  editRollbackStore,
+} = createChatRoute(engine, hub, { upgradeWebSocket });
+engine.editRollbackStore = editRollbackStore;
 app.route("/api", chatRestRoute);
 app.route("", chatWsRoute);
+app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast }));
 app.route("/api", createSessionsRoute(engine));
 app.route("/api", createModelsRoute(engine));
 app.route("/api", createConfigRoute(engine));

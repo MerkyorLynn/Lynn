@@ -15,6 +15,18 @@ describe("plugin route proxy", () => {
     expect(await res.json()).toEqual({ msg: "world" });
   });
 
+  it("dispatches to plugin root routes without a trailing segment", async () => {
+    const routeRegistry = new Map();
+    const pluginApp = new Hono();
+    pluginApp.get("/", (c) => c.json({ ok: true }));
+    routeRegistry.set("rooty", pluginApp);
+    const app = new Hono();
+    app.route("/api", createPluginProxyRoute(routeRegistry));
+    const res = await app.request("/api/plugins/rooty");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
   it("returns 404 for unknown plugin", async () => {
     const routeRegistry = new Map();
     const app = new Hono();

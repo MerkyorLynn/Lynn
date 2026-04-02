@@ -155,6 +155,11 @@
     "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
     "retry": "Retry"
   },
+  "review": {
+    "button": "复查",
+    "cardTitle": "复查",
+    "noReviewer": "没有可用的复查 Agent，请先创建第二个助手"
+  },
   "time": {
     "justNow": "刚刚",
     "minutesAgo": "{n} 分钟前",
@@ -184,6 +189,7 @@
     "deskContext": "看着书桌说",
     "pastedImage": "粘贴图片",
     "docContext": "看着文档说",
+    "docContextOpenRecent": "点击打开最近的文档",
     "embeddedModel": {
       "name": "默认模型",
       "meta": "开箱可聊",
@@ -259,7 +265,7 @@
     "types": {
       "hanako": {
         "label": "均衡的助手",
-        "avatar": "Lynn.png",
+        "avatar": "Hanako.png",
         "name": "Lynn"
       },
       "butter": {

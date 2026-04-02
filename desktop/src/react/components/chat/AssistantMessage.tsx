@@ -11,6 +11,7 @@ import { XingCard } from './XingCard';
 import { SettingsConfirmCard } from './SettingsConfirmCard';
 import { AuthorizationCard } from './AuthorizationCard';
 import { DiffViewer } from './DiffViewer';
+import { ReviewCard } from './ReviewCard';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
@@ -68,6 +69,35 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
 
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const [reviewRequested, setReviewRequested] = useState(false);
+
+  const handleReview = useCallback(async () => {
+    if (reviewRequested) return;
+    const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
+    if (textBlocks.length === 0) return;
+    const parser = new DOMParser();
+    const plainText = textBlocks
+      .map((block) => {
+        const doc = parser.parseFromString(block.html, 'text/html');
+        return (doc.body.innerText || doc.body.textContent || '').trim();
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    if (!plainText) return;
+
+    setReviewRequested(true);
+    try {
+      await hanaFetch('/api/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: plainText }),
+      });
+    } catch (err) {
+      console.error('[review] request failed:', err);
+      setReviewRequested(false);
+    }
+  }, [blocks, reviewRequested]);
   const handleCopy = useCallback(() => {
     const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
     if (textBlocks.length === 0) return;
@@ -169,6 +199,14 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
         </svg>
       </button>
       {isLastAssistant && (
+        <button className={styles.reviewBtn} onClick={handleReview} disabled={reviewRequested} title={t('review.button') || 'Review'} aria-label={t('review.button') || 'Review'}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          {t('review.button') || 'Review'}
+        </button>
+      )}
+      {isLastAssistant && (
         <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="1 4 1 10 7 10" />
@@ -198,7 +236,7 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName }: {
     case 'file_output':
       return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} />;
     case 'file_diff':
-      return <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} />;
+      return <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />;
     case 'artifact':
       return <ArtifactCard title={block.title} artifactType={block.artifactType} artifactId={block.artifactId} content={block.content} language={block.language} />;
     case 'browser_screenshot':
@@ -217,6 +255,14 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName }: {
         description={(block as any).description}
         category={(block as any).category}
         identifier={(block as any).identifier}
+        status={(block as any).status}
+      />;
+    case 'review':
+      return <ReviewCard
+        reviewId={(block as any).reviewId}
+        reviewerName={(block as any).reviewerName}
+        content={(block as any).content}
+        error={(block as any).error}
         status={(block as any).status}
       />;
     default:

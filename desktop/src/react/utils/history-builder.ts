@@ -25,6 +25,14 @@ export interface HistoryApiResponse {
     afterIndex: number;
     files: Array<{ filePath: string; label: string; ext: string }>;
   }>;
+  fileDiffs?: Array<{
+    afterIndex: number;
+    filePath: string;
+    diff: string;
+    linesAdded: number;
+    linesRemoved: number;
+    rollbackId?: string;
+  }>;
   artifacts?: Array<{
     afterIndex: number;
     artifactId: string;
@@ -44,10 +52,14 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
 
   // 按 afterIndex 分组 fileOutputs 和 artifacts
   const fileMap: Record<number, Array<{ filePath: string; label: string; ext: string }>> = {};
+  const diffMap: Record<number, Array<{ filePath: string; diff: string; linesAdded: number; linesRemoved: number; rollbackId?: string }>> = {};
   const artMap: Record<number, Array<{ artifactId: string; artifactType: string; title: string; content: string; language?: string }>> = {};
 
   for (const fo of (data.fileOutputs || [])) {
     (fileMap[fo.afterIndex] ??= []).push(...fo.files);
+  }
+  for (const fd of (data.fileDiffs || [])) {
+    (diffMap[fd.afterIndex] ??= []).push(fd);
   }
   for (const ar of (data.artifacts || [])) {
     (artMap[ar.afterIndex] ??= []).push(ar);
@@ -168,7 +180,22 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
         }
       }
 
-      // 7. 跟在这条消息后面的 artifacts
+      // 7. 跟在这条消息后面的 file diffs
+      const diffs = diffMap[i];
+      if (diffs) {
+        for (const d of diffs) {
+          blocks.push({
+            type: 'file_diff',
+            filePath: d.filePath,
+            diff: d.diff,
+            linesAdded: d.linesAdded,
+            linesRemoved: d.linesRemoved,
+            rollbackId: d.rollbackId,
+          });
+        }
+      }
+
+      // 8. 跟在这条消息后面的 artifacts
       const arts = artMap[i];
       if (arts) {
         for (const a of arts) {

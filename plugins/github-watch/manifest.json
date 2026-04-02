@@ -1,0 +1,42 @@
+{
+  "id": "github-watch",
+  "name": "GitHub Watch",
+  "version": "0.1.0",
+  "description": "Receive GitHub webhook events, store recent PR activity, and trigger lightweight review notifications.",
+  "contributes": {
+    "configuration": {
+      "properties": {
+        "webhook_secret": {
+          "type": "string",
+          "title": "Webhook Secret",
+          "default": "",
+          "description": "Optional GitHub webhook secret used to verify X-Hub-Signature-256."
+        },
+        "notify_on_pr": {
+          "type": "boolean",
+          "title": "Notify On PR",
+          "default": true,
+          "description": "Emit desktop notifications when pull requests are opened or updated."
+        },
+        "auto_review": {
+          "type": "boolean",
+          "title": "Auto Review",
+          "default": true,
+          "description": "Run a lightweight read-only agent review when pull requests change."
+        },
+        "auto_review_agent": {
+          "type": "string",
+          "title": "Auto Review Agent",
+          "default": "",
+          "description": "Optional agent id to use for GitHub PR auto-reviews. Defaults to the current agent."
+        },
+        "max_events": {
+          "type": "number",
+          "title": "Max Events",
+          "default": 100,
+          "description": "How many recent GitHub events to retain in plugin storage."
+        }
+      }
+    }
+  }
+}

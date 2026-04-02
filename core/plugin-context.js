@@ -3,9 +3,9 @@ import path from "path";
 
 /**
  * Create a PluginContext for a plugin.
- * @param {{ pluginId: string, pluginDir: string, dataDir: string, bus: object }} opts
+ * @param {{ pluginId: string, pluginDir: string, dataDir: string, bus: object, engine?: object }} opts
  */
-export function createPluginContext({ pluginId, pluginDir, dataDir, bus }) {
+export function createPluginContext({ pluginId, pluginDir, dataDir, bus, engine = null }) {
   const configPath = path.join(dataDir, "config.json");
 
   const config = {
@@ -33,5 +33,5 @@ export function createPluginContext({ pluginId, pluginDir, dataDir, bus }) {
     debug: (...args) => console.debug(prefix, ...args),
   };
 
-  return { pluginId, pluginDir, dataDir, bus, config, log };
+  return { pluginId, pluginDir, dataDir, bus, engine, config, log };
 }

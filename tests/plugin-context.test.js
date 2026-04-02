@@ -4,16 +4,19 @@ import { createPluginContext } from "../core/plugin-context.js";
 describe("createPluginContext", () => {
   it("returns ctx with all required properties", () => {
     const bus = { emit() {}, subscribe() {} };
+    const engine = { currentAgentId: "lynn-main" };
     const ctx = createPluginContext({
       pluginId: "test-plugin",
       pluginDir: "/plugins/test-plugin",
       dataDir: "/plugin-data/test-plugin",
       bus,
+      engine,
     });
     expect(ctx.pluginId).toBe("test-plugin");
     expect(ctx.pluginDir).toBe("/plugins/test-plugin");
     expect(ctx.dataDir).toBe("/plugin-data/test-plugin");
     expect(ctx.bus).toBe(bus);
+    expect(ctx.engine).toBe(engine);
     expect(ctx.log).toBeDefined();
     expect(ctx.config).toBeDefined();
     expect(typeof ctx.config.get).toBe("function");
@@ -28,7 +31,7 @@ describe("createPluginContext", () => {
     fs.mkdirSync(tmpDir, { recursive: true });
     try {
       const ctx = createPluginContext({
-        pluginId: "x", pluginDir: "/tmp", dataDir: tmpDir, bus: {},
+        pluginId: "x", pluginDir: "/tmp", dataDir: tmpDir, bus: {}, engine: null,
       });
       ctx.config.set("foo", 42);
       expect(ctx.config.get("foo")).toBe(42);
@@ -41,7 +44,7 @@ describe("createPluginContext", () => {
 
   it("log has scoped prefix", () => {
     const ctx = createPluginContext({
-      pluginId: "my-plug", pluginDir: "/tmp", dataDir: "/tmp", bus: {},
+      pluginId: "my-plug", pluginDir: "/tmp", dataDir: "/tmp", bus: {}, engine: null,
     });
     expect(typeof ctx.log.info).toBe("function");
     expect(typeof ctx.log.error).toBe("function");

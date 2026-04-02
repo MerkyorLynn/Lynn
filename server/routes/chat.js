@@ -4,6 +4,8 @@
  * 桥接 Pi SDK streaming 事件 → WebSocket 消息
  * 支持多 session 并发：后台 session 静默运行，只转发当前活跃 session 的事件
  */
+import fs from "fs";
+import path from "path";
 import { Hono } from "hono";
 import { MoodParser, XingParser, ThinkTagParser } from "../../core/events.js";
 import { wsSend, wsParse } from "../ws-protocol.js";
@@ -33,6 +35,16 @@ function extractText(content) {
     .filter(b => b.type === "text" && b.text)
     .map(b => b.text)
     .join("");
+}
+
+function resolveEditSnapshotPath(session, engine, rawPath) {
+  if (typeof rawPath !== "string") return null;
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes("\0")) return null;
+  if (path.isAbsolute(trimmed)) return path.resolve(trimmed);
+
+  const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
+  return path.resolve(cwd, trimmed);
 }
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
@@ -132,6 +144,46 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   if (_sessionEvictTimer.unref) _sessionEvictTimer.unref();
 
   const clients = new Set();
+
+  const pendingEditSnapshots = new Map(); // toolCallId -> { filePath, originalContent, sessionPath }
+  const rollbackSnapshots = new Map(); // rollbackId -> snapshot
+  const rollbackOrder = [];
+  const MAX_ROLLBACK_SNAPSHOTS = 200;
+
+  const editRollbackStore = {
+    get(rollbackId) {
+      return rollbackSnapshots.get(rollbackId) || null;
+    },
+    setPending(toolCallId, snapshot) {
+      if (!toolCallId || !snapshot) return;
+      pendingEditSnapshots.set(toolCallId, snapshot);
+    },
+    discardPending(toolCallId) {
+      if (!toolCallId) return;
+      pendingEditSnapshots.delete(toolCallId);
+    },
+    finalize(toolCallId) {
+      if (!toolCallId) return null;
+      const snapshot = pendingEditSnapshots.get(toolCallId);
+      pendingEditSnapshots.delete(toolCallId);
+      if (!snapshot) return null;
+
+      const rollbackId = toolCallId;
+      if (!rollbackSnapshots.has(rollbackId)) rollbackOrder.push(rollbackId);
+      rollbackSnapshots.set(rollbackId, {
+        rollbackId,
+        createdAt: Date.now(),
+        ...snapshot,
+      });
+
+      while (rollbackOrder.length > MAX_ROLLBACK_SNAPSHOTS) {
+        const oldestId = rollbackOrder.shift();
+        if (oldestId) rollbackSnapshots.delete(oldestId);
+      }
+
+      return rollbackSnapshots.get(rollbackId);
+    },
+  };
 
   function broadcast(msg) {
     for (const client of clients) {
@@ -282,6 +334,27 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
       }
+
+      if ((event.toolName === "edit" || event.toolName === "edit-diff") && event.toolCallId) {
+        const session = engine.getSessionByPath(sessionPath);
+        const rawPath = event.args?.file_path || event.args?.path || "";
+        const resolvedPath = resolveEditSnapshotPath(session, engine, rawPath);
+
+        if (resolvedPath) {
+          try {
+            const originalContent = fs.readFileSync(resolvedPath, "utf-8");
+            editRollbackStore.setPending(event.toolCallId, {
+              sessionPath,
+              cwd: session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd(),
+              filePath: resolvedPath,
+              originalContent,
+            });
+          } catch {
+            editRollbackStore.discardPending(event.toolCallId);
+          }
+        }
+      }
+
       // 只保留前端 extractToolDetail 需要的字段，避免广播完整文件内容
       const rawArgs = event.args;
       let args;
@@ -353,6 +426,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
 
+      if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
+        if (event.isError || !rawDetails.diff) {
+          editRollbackStore.discardPending(event.toolCallId);
+        }
+      }
+
       if (event.toolName === "present_files") {
         const details = event.result?.details || {};
         const files = details.files || [];
@@ -372,12 +451,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       // 编辑类工具完成后发送 file_diff 事件（内联 diff 查看器）
       if ((event.toolName === "edit" || event.toolName === "edit-diff") && rawDetails.diff && !event.isError) {
         const diffFilePath = event.args?.file_path || event.args?.path || "";
+        const rollback = event.toolCallId ? editRollbackStore.finalize(event.toolCallId) : null;
         emitStreamEvent(sessionPath, ss, {
           type: "file_diff",
           filePath: diffFilePath,
           diff: rawDetails.diff,
           linesAdded: toolSummary.linesAdded || 0,
           linesRemoved: toolSummary.linesRemoved || 0,
+          rollbackId: rollback?.rollbackId,
         });
       }
 
@@ -829,7 +910,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     })
   );
 
-  return { restRoute, wsRoute };
+  return { restRoute, wsRoute, broadcast, editRollbackStore };
 }
 
 /**

@@ -1,4 +1,7 @@
+import { useCallback } from 'react';
+import { useStore } from '../../stores';
 import { useI18n } from '../../hooks/use-i18n';
+import { openFilePreview } from '../../utils/file-preview';
 import styles from './InputArea.module.css';
 
 export function DocContextButton({ active, disabled, onToggle }: {
@@ -7,13 +10,31 @@ export function DocContextButton({ active, disabled, onToggle }: {
   onToggle: () => void;
 }) {
   const { t } = useI18n();
+  const artifacts = useStore(s => s.artifacts);
+
+  const handleClick = useCallback(() => {
+    if (!disabled) {
+      onToggle();
+      return;
+    }
+    // disabled = no doc open; try to open the most recent file artifact
+    const fileArtifact = [...artifacts].reverse().find(a => a.filePath);
+    if (fileArtifact) {
+      const ext = fileArtifact.ext || fileArtifact.language || 'md';
+      openFilePreview(fileArtifact.filePath!, fileArtifact.title, ext);
+    }
+  }, [disabled, onToggle, artifacts]);
+
+  // Show as "soft" (not fully disabled) when there are file artifacts to open
+  const hasFileArtifacts = artifacts.some(a => a.filePath);
+  const visuallyDisabled = disabled && !hasFileArtifacts;
 
   return (
     <button
-      className={`${styles['desk-context-btn']}${active ? ` ${styles.active}` : ''}`}
-      title={t('input.docContext')}
-      disabled={disabled}
-      onClick={onToggle}
+      className={`${styles['desk-context-btn']}${active ? ` ${styles.active}` : ''}${!disabled ? '' : hasFileArtifacts ? ` ${styles.hint}` : ''}`}
+      title={disabled && hasFileArtifacts ? (t('input.docContextOpenRecent') || '点击打开最近的文档') : t('input.docContext')}
+      disabled={visuallyDisabled}
+      onClick={handleClick}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />

@@ -62,13 +62,14 @@ export type ContentBlock =
   | { type: 'text'; html: string }
   | { type: 'xing'; title: string; content: string; sealed: boolean }
   | { type: 'file_output'; filePath: string; label: string; ext: string }
-  | { type: 'file_diff'; filePath: string; diff: string; linesAdded: number; linesRemoved: number }
+  | { type: 'file_diff'; filePath: string; diff: string; linesAdded: number; linesRemoved: number; rollbackId?: string }
   | { type: 'artifact'; artifactId: string; artifactType: string; title: string; content: string; language?: string }
   | { type: 'browser_screenshot'; base64: string; mimeType: string }
   | { type: 'skill'; skillName: string; skillFilePath: string }
   | { type: 'cron_confirm'; confirmId?: string; jobData: Record<string, unknown>; status: 'pending' | 'approved' | 'rejected' }
   | { type: 'settings_confirm'; confirmId: string; settingKey: string; cardType: 'toggle' | 'list' | 'text'; currentValue: string; proposedValue: string; options?: string[]; optionLabels?: Record<string, string>; label: string; description?: string; frontend?: boolean; status: 'pending' | 'confirmed' | 'rejected' | 'timeout' }
-  | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; status: 'pending' | 'confirmed' | 'rejected' };
+  | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; status: 'pending' | 'confirmed' | 'rejected' }
+  | { type: 'review'; reviewId: string; reviewerName: string; content: string; error?: string; status: 'loading' | 'done' };
 
 // ── 消息 ──
 

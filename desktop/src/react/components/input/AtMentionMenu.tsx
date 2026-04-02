@@ -5,16 +5,13 @@
  * 架构与 SlashCommandMenu 一致：textarea 上方 popup。
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { useStore } from '../../stores';
+import { buildAtMentionResults, type AtMentionFileResult } from '../../utils/at-mention-search';
 import styles from './InputArea.module.css';
 
-interface FileResult {
-  name: string;
-  path: string;
-  rel: string;
-  isDir: boolean;
-}
+type FileResult = AtMentionFileResult;
 
 interface Props {
   query: string;
@@ -24,30 +21,50 @@ interface Props {
 }
 
 export function AtMentionMenu({ query, selected, onSelect, onHover }: Props) {
-  const [results, setResults] = useState<FileResult[]>([]);
+  const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
+  const deskBasePath = useStore(s => s.deskBasePath);
+  const [searchResults, setSearchResults] = useState<FileResult[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+
+  const results = useMemo(() => buildAtMentionResults({
+    query,
+    searchResults,
+    recentFiles: workingSetRecentFiles,
+    basePath: deskBasePath || null,
+  }), [deskBasePath, query, searchResults, workingSetRecentFiles]);
 
   useEffect(() => {
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!query.trim()) {
-      setResults([]);
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      setSearchResults([]);
+      setLoading(false);
       return;
     }
+
+    setSearchResults([]);
 
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await hanaFetch(`/api/desk/search?q=${encodeURIComponent(query)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data.files || []);
-        }
+        const res = await hanaFetch(`/api/desk/search?q=${encodeURIComponent(normalizedQuery)}`);
+        const data = await res.json();
+        if (requestId !== requestIdRef.current) return;
+        setSearchResults(Array.isArray(data.files) ? data.files : []);
       } catch {
-        // silently fail
+        if (requestId === requestIdRef.current) {
+          setSearchResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     }, 80); // 80ms debounce for responsiveness
 
