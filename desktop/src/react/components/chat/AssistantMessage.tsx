@@ -18,7 +18,7 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
 import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
 import { openPreview } from '../../stores/artifact-actions';
-import { resolveBundledAvatar } from '../../utils/agent-helpers';
+import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { buildRetryDraftFromMessage } from '../../utils/composer-state';
 import { resendPromptRequest } from '../../stores/prompt-actions';
 import styles from './Chat.module.css';
@@ -29,6 +29,20 @@ interface Props {
   message: ChatMessage;
   showAvatar: boolean;
   isLastAssistant: boolean;
+}
+
+interface ReviewConfigAgent {
+  id: string;
+  name: string;
+  yuan: string;
+  hasAvatar?: boolean;
+}
+
+interface ReviewConfigResponse {
+  defaultReviewer: 'hanako' | 'butter';
+  hanakoReviewerId?: string | null;
+  butterReviewerId?: string | null;
+  resolvedReviewer?: ReviewConfigAgent | null;
 }
 
 function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number } {
@@ -42,20 +56,53 @@ function summarizeToolState(blocks: ContentBlock[]): { running: number; total: n
   return { running, total };
 }
 
+function extractPlainTextFromBlocks(blocks: ContentBlock[]): string {
+  const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
+  if (textBlocks.length === 0) return '';
+  const parser = new DOMParser();
+  return textBlocks
+    .map((block) => {
+      const doc = parser.parseFromString(block.html, 'text/html');
+      return (doc.body.innerText || doc.body.textContent || '').trim();
+    })
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
+function reviewerKindFromConfig(config: ReviewConfigResponse | null): 'hanako' | 'butter' {
+  return config?.defaultReviewer === 'butter' ? 'butter' : 'hanako';
+}
+
+function reviewerNameFromKind(kind: 'hanako' | 'butter'): string {
+  return kind === 'butter' ? 'Butter' : 'Hanako';
+}
+
+function findLatestReviewBlock(blocks: ContentBlock[]): Extract<ContentBlock, { type: 'review' }> | null {
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i];
+    if (block.type === 'review') return block;
+  }
+  return null;
+}
+
+function shouldShowFollowUpAction(reviewBlock: Extract<ContentBlock, { type: 'review' }> | null): boolean {
+  if (!reviewBlock || reviewBlock.status !== 'done') return false;
+  if (!reviewBlock.followUpPrompt) return false;
+  return reviewBlock.workflowGate === 'follow_up' || reviewBlock.workflowGate === 'hold';
+}
+
 export const AssistantMessage = memo(function AssistantMessage({ message, showAvatar, isLastAssistant }: Props) {
   const agentName = useStore(s => s.agentName) || 'Lynn';
   const agentYuan = useStore(s => s.agentYuan) || 'hanako';
   const agentAvatarUrl = useStore(s => s.agentAvatarUrl);
   const sessionAgent = useStore(s => s.sessionAgent);
+  const addToast = useStore(s => s.addToast);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   const displayName = sessionAgent?.name || agentName;
   const displayYuan = sessionAgent?.yuan || agentYuan;
-  const fallbackAvatar = useMemo(() => {
-    const types = (window.t?.('yuan.types') || {}) as Record<string, { avatar?: string }>;
-    const entry = types[displayYuan] || types['hanako'];
-    return resolveBundledAvatar(entry?.avatar || 'Lynn.png');
-  }, [displayYuan]);
+  const fallbackAvatar = useMemo(() => yuanFallbackAvatar(displayYuan), [displayYuan]);
   const avatarSrc = sessionAgent?.avatarUrl || agentAvatarUrl || fallbackAvatar;
 
   useEffect(() => {
@@ -63,59 +110,127 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [sessionAgent?.avatarUrl, agentAvatarUrl, fallbackAvatar]);
 
   const blocks = useMemo(() => message.blocks || [], [message.blocks]);
+  const plainText = useMemo(() => extractPlainTextFromBlocks(blocks), [blocks]);
+  const latestReviewBlock = useMemo(() => findLatestReviewBlock(blocks), [blocks]);
   const currentModel = useStore(s => s.currentModel);
   const { running: runningTools, total: totalTools } = useMemo(() => summarizeToolState(blocks), [blocks]);
   const showStreamingMeta = !!message.id?.startsWith('stream-') && (runningTools > 0 || blocks.some(block => block.type === 'thinking' && !block.sealed));
 
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
-  const [reviewRequested, setReviewRequested] = useState(false);
+  const [reviewRequestPending, setReviewRequestPending] = useState(false);
+  const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
+  const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
+  const [reviewConfigLoaded, setReviewConfigLoaded] = useState(false);
+  const reviewBusy = reviewRequestPending || !!pendingReviewId || latestReviewBlock?.status === 'loading';
+  const canRequestReview = plainText.length > 0 && !showStreamingMeta;
+  const showFollowUpAction = shouldShowFollowUpAction(latestReviewBlock);
+  const showReviewActions = canRequestReview || showFollowUpAction || isLastAssistant;
+
+  useEffect(() => {
+    if (!isLastAssistant) return;
+
+    let cancelled = false;
+    const loadConfig = () => {
+      hanaFetch('/api/review/config')
+        .then((res) => res.json())
+        .then((data) => {
+          if (!cancelled) setReviewConfig(data);
+        })
+        .catch((err) => {
+          console.warn('[review] config load failed:', err);
+        })
+        .finally(() => {
+          if (!cancelled) setReviewConfigLoaded(true);
+        });
+    };
+
+    loadConfig();
+    const handleSettingsFocus = () => loadConfig();
+    const handleReviewConfigChanged = () => loadConfig();
+    window.addEventListener('focus', handleSettingsFocus);
+    window.addEventListener('review-config-changed', handleReviewConfigChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', handleSettingsFocus);
+      window.removeEventListener('review-config-changed', handleReviewConfigChanged);
+    };
+  }, [isLastAssistant]);
+
+  useEffect(() => {
+    if (!pendingReviewId) return;
+    if (latestReviewBlock?.reviewId !== pendingReviewId) return;
+    setPendingReviewId(null);
+  }, [latestReviewBlock, pendingReviewId]);
+
+  const defaultReviewerKind = reviewerKindFromConfig(reviewConfig);
+  const defaultReviewerName = reviewerNameFromKind(defaultReviewerKind);
+  const reviewTargetLabel = reviewConfigLoaded
+    ? defaultReviewerName
+    : (isLastAssistant ? (t('review.loading') || 'Loading') : (t('review.auto') || 'Auto select'));
+  const reviewButtonLabel = `${t('review.button') || 'Review'} ${reviewConfigLoaded ? defaultReviewerName : (t('review.auto') || 'Auto select')}`;
+
+  const openReviewSettings = useCallback((reviewerKind?: 'hanako' | 'butter', reviewerAgentId?: string | null) => {
+    if (reviewerAgentId) {
+      window.platform?.openSettings?.({ tab: 'agent', agentId: reviewerAgentId });
+      return;
+    }
+    window.platform?.openSettings?.({ tab: 'work', reviewerKind: reviewerKind ?? null });
+  }, []);
+
+  const resolveReviewConfig = useCallback(async (): Promise<ReviewConfigResponse | null> => {
+    if (reviewConfigLoaded) return reviewConfig;
+    try {
+      const res = await hanaFetch('/api/review/config');
+      const data = await res.json() as ReviewConfigResponse;
+      setReviewConfig(data);
+      setReviewConfigLoaded(true);
+      return data;
+    } catch (err) {
+      console.warn('[review] config load failed:', err);
+      setReviewConfigLoaded(true);
+      return reviewConfig;
+    }
+  }, [reviewConfig, reviewConfigLoaded]);
 
   const handleReview = useCallback(async () => {
-    if (reviewRequested) return;
-    const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
-    if (textBlocks.length === 0) return;
-    const parser = new DOMParser();
-    const plainText = textBlocks
-      .map((block) => {
-        const doc = parser.parseFromString(block.html, 'text/html');
-        return (doc.body.innerText || doc.body.textContent || '').trim();
-      })
-      .filter(Boolean)
-      .join('\n')
-      .trim();
-    if (!plainText) return;
+    if (reviewBusy || !plainText) return;
 
-    setReviewRequested(true);
+    const config = await resolveReviewConfig();
+    const reviewerKind = reviewerKindFromConfig(config);
+    setReviewRequestPending(true);
     try {
-      await hanaFetch('/api/review', {
+      const res = await hanaFetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context: plainText }),
+        body: JSON.stringify({ context: plainText, reviewerKind }),
       });
+      const data = await res.json().catch(() => null) as { reviewId?: string } | null;
+      setPendingReviewId(typeof data?.reviewId === 'string' ? data.reviewId : null);
     } catch (err) {
+      const messageText = err instanceof Error ? err.message : String(err);
+      const normalized = messageText.replace(/^hanaFetch\s+\S+:\s*/, '').trim();
       console.error('[review] request failed:', err);
-      setReviewRequested(false);
+      if (/reviewer_not_configured/i.test(messageText) || /Hanako reviewer|Butter reviewer|Settings > Work/.test(messageText)) {
+        addToast(normalized || (t('review.needsConfig') || 'Configure a reviewer first'), 'error');
+        openReviewSettings(reviewerKind);
+      } else {
+        addToast(normalized || (t('review.requestFailed') || 'Review request failed'), 'error');
+      }
+      setPendingReviewId(null);
+    } finally {
+      setReviewRequestPending(false);
     }
-  }, [blocks, reviewRequested]);
+  }, [addToast, openReviewSettings, plainText, resolveReviewConfig, reviewBusy, t]);
+
   const handleCopy = useCallback(() => {
-    const textBlocks = blocks.filter((b): b is ContentBlock & { type: 'text' } => b.type === 'text');
-    if (textBlocks.length === 0) return;
-    const parser = new DOMParser();
-    const text = textBlocks
-      .map((block) => {
-        const doc = parser.parseFromString(block.html, 'text/html');
-        return (doc.body.innerText || doc.body.textContent || '').trim();
-      })
-      .filter(Boolean)
-      .join('\n')
-      .trim();
-    if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
+    if (!plainText) return;
+    navigator.clipboard.writeText(plainText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }).catch(() => {});
-  }, [blocks]);
+  }, [plainText]);
+
 
   const handleRetry = useCallback(() => {
     const state = useStore.getState();
@@ -144,6 +259,16 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
     }
   }, [message.id]);
 
+  const handleReviewFollowUp = useCallback(() => {
+    if (!latestReviewBlock?.followUpPrompt) return;
+    const state = useStore.getState();
+    state.applyComposerDraft({ text: latestReviewBlock.followUpPrompt });
+    state.requestInputFocus();
+  }, [latestReviewBlock]);
+
+  const handleReviewTaskCreated = useCallback(() => {
+    useStore.getState().setActivePanel('activity');
+  }, []);
 
   return (
     <div className={`${styles.messageGroup} ${styles.messageGroupAssistant}`}>
@@ -184,7 +309,12 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
       )}
       <div className={`${styles.message} ${styles.messageAssistant}`}>
         {blocks.map((block, i) => (
-          <ContentBlockView key={`block-${i}`} block={block} agentName={displayName} />
+          <ContentBlockView
+            key={`block-${i}`}
+            block={block}
+            agentName={displayName}
+            onReviewTaskCreated={handleReviewTaskCreated}
+          />
         ))}
       </div>
       <button className={`${styles.msgCopyBtn}${copied ? ` ${styles.msgCopyBtnCopied}` : ''}`} onClick={handleCopy} title={t('common.copyText')} aria-label={t('common.copyText')}>
@@ -198,13 +328,44 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
           }
         </svg>
       </button>
-      {isLastAssistant && (
-        <button className={styles.reviewBtn} onClick={handleReview} disabled={reviewRequested} title={t('review.button') || 'Review'} aria-label={t('review.button') || 'Review'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          {t('review.button') || 'Review'}
-        </button>
+      {showReviewActions && (
+        <div className={styles.reviewActionGroup} data-last-assistant={isLastAssistant ? 'true' : 'false'}>
+          {canRequestReview && (
+            <button
+              className={styles.reviewBtn}
+              onClick={handleReview}
+              disabled={reviewBusy}
+              title={reviewButtonLabel}
+              aria-label={reviewButtonLabel}
+            >
+              <span className={styles.reviewBtnPrefix}>{t('review.button') || 'Review'}</span>
+              <span className={styles.reviewBtnTarget}>{reviewTargetLabel}</span>
+            </button>
+          )}
+          {showFollowUpAction && (
+            <button
+              className={`${styles.reviewBtn} ${styles.reviewFollowUpBtn}`}
+              onClick={handleReviewFollowUp}
+              title={t('review.followUp') || 'Handle review findings'}
+              aria-label={t('review.followUp') || 'Handle review findings'}
+            >
+              <span className={styles.reviewBtnPrefix}>{t('review.followUp') || 'Handle findings'}</span>
+            </button>
+          )}
+          {isLastAssistant && (
+            <button
+              className={styles.reviewConfigBtn}
+              onClick={() => openReviewSettings(defaultReviewerKind, reviewConfig?.resolvedReviewer?.id || null)}
+              title={t('review.configure') || 'Configure reviewer'}
+              aria-label={t('review.configure') || 'Configure reviewer'}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a2.5 2.5 0 0 1 2.45 2h1.13a2 2 0 0 1 1.73 1l.57.99 1-.58a2 2 0 0 1 2.73.73l1 1.73a2 2 0 0 1-.73 2.73l-.98.57.57.99a2 2 0 0 1 0 2l-.57.99.98.57a2 2 0 0 1 .73 2.73l-1 1.73a2 2 0 0 1-2.73.73l-1-.58-.57.99a2 2 0 0 1-1.73 1h-1.13a2.5 2.5 0 0 1-4.9 0H8.55a2 2 0 0 1-1.73-1l-.57-.99-1 .58a2 2 0 0 1-2.73-.73l-1-1.73a2 2 0 0 1 .73-2.73l.98-.57-.57-.99a2 2 0 0 1 0-2l.57-.99-.98-.57a2 2 0 0 1-.73-2.73l1-1.73a2 2 0 0 1 2.73-.73l1 .58.57-.99a2 2 0 0 1 1.73-1h1.13A2.5 2.5 0 0 1 12 3Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          )}
+        </div>
       )}
       {isLastAssistant && (
         <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
@@ -218,9 +379,10 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   );
 });
 
-const ContentBlockView = memo(function ContentBlockView({ block, agentName }: {
+const ContentBlockView = memo(function ContentBlockView({ block, agentName, onReviewTaskCreated }: {
   block: ContentBlock;
   agentName: string;
+  onReviewTaskCreated?: () => void;
 }) {
   switch (block.type) {
     case 'thinking':
@@ -255,15 +417,29 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName }: {
         description={(block as any).description}
         category={(block as any).category}
         identifier={(block as any).identifier}
+        trustedRoot={(block as any).trustedRoot}
         status={(block as any).status}
       />;
     case 'review':
       return <ReviewCard
         reviewId={(block as any).reviewId}
         reviewerName={(block as any).reviewerName}
+        reviewerAgent={(block as any).reviewerAgent}
+        reviewerAgentName={(block as any).reviewerAgentName}
+        reviewerYuan={(block as any).reviewerYuan}
+        reviewerHasAvatar={(block as any).reviewerHasAvatar}
         content={(block as any).content}
         error={(block as any).error}
         status={(block as any).status}
+        stage={(block as any).stage}
+        findingsCount={(block as any).findingsCount}
+        verdict={(block as any).verdict}
+        workflowGate={(block as any).workflowGate}
+        structured={(block as any).structured}
+        contextPack={(block as any).contextPack}
+        followUpPrompt={(block as any).followUpPrompt}
+        followUpTask={(block as any).followUpTask}
+        onFollowUpTaskCreated={onReviewTaskCreated}
       />;
     default:
       return null;
@@ -289,73 +465,89 @@ function FileOutputCard({ filePath, label, ext }: { filePath: string; label: str
       onMouseLeave={() => setHover(false)}
     >
       <div className={styles.fileOutputHead}>
-        <span className={styles.fileOutputIcon}>📄</span>
-        <span className={styles.fileOutputName}>{label || filePath.split('/').pop() || filePath}</span>
-        <span className={styles.fileOutputExt}>{extLabel(ext)}</span>
+        <span className={styles.fileOutputBadge}>{extLabel(ext)}</span>
+        <span className={styles.fileOutputLabel}>{label || filePath.split('/').pop() || filePath}</span>
       </div>
+      <div className={styles.fileOutputPath}>{filePath}</div>
       {hover && (
-        <div className={styles.fileOutputActions}>
-          <button onClick={() => openFilePreview(filePath, label, ext)}>{window.t?.('common.preview') || 'Preview'}</button>
-          <button onClick={() => window.platform?.showInFinder?.(filePath)}>{window.t?.('desk.openInFinder') || 'Show in Finder'}</button>
-        </div>
+        <button className={styles.fileOutputOpen} onClick={() => openFilePreview(filePath, label, ext)}>
+          {window.t('common.open') || 'Open'}
+        </button>
       )}
     </div>
   );
 }
 
-function ArtifactCard({ title, artifactType, artifactId, content, language }: { title: string; artifactType: string; artifactId: string; content: string; language?: string }) {
-  const handleOpen = useCallback(() => {
-    openPreview({ id: artifactId, type: artifactType, title, content, language });
-  }, [artifactId, artifactType, title, content, language]);
-
+function ArtifactCard({ title, artifactType, artifactId, content, language }: {
+  title: string;
+  artifactType: string;
+  artifactId: string;
+  content: string;
+  language?: string;
+}) {
   return (
-    <button className={styles.artifactCard} onClick={handleOpen}>
-      <span className={styles.artifactIcon}>✦</span>
-      <span className={styles.artifactTitle}>{title}</span>
-      <span className={styles.artifactType}>{artifactType}</span>
+    <button
+      className={styles.fileOutputCard}
+      onClick={() => openPreview({ id: artifactId, type: artifactType as any, title, content, language })}
+    >
+      <div className={styles.fileOutputHead}>
+        <span className={styles.fileOutputBadge}>{artifactType.toUpperCase()}</span>
+        <span className={styles.fileOutputLabel}>{title}</span>
+      </div>
     </button>
   );
 }
 
 function BrowserScreenshot({ base64, mimeType }: { base64: string; mimeType: string }) {
-  return <img className={styles.browserShot} src={`data:${mimeType};base64,${base64}`} alt="browser screenshot" />;
+  return <img className={styles.browserShot} src={`data:${mimeType};base64,${base64}`} alt="Browser Screenshot" />;
 }
 
 function SkillCard({ skillName, skillFilePath }: { skillName: string; skillFilePath: string }) {
   return (
-    <button className={styles.skillCard} onClick={() => openSkillPreview(skillName, skillFilePath)}>
-      <span className={styles.skillIcon}>✧</span>
-      <span className={styles.skillName}>{skillName}</span>
+    <button
+      className={styles.fileOutputCard}
+      onClick={() => openSkillPreview(skillName, skillFilePath)}
+    >
+      <div className={styles.fileOutputHead}>
+        <span className={styles.fileOutputBadge}>SKILL</span>
+        <span className={styles.fileOutputLabel}>{skillName}</span>
+      </div>
+      <div className={styles.fileOutputPath}>{skillFilePath}</div>
     </button>
   );
 }
 
-function CronConfirmCard({ confirmId, jobData, status }: { confirmId?: string; jobData: Record<string, unknown>; status: string }) {
+function CronConfirmCard({ confirmId, jobData, status }: { confirmId?: string; jobData: any; status: string }) {
   const { t } = useI18n();
+  const addToast = useStore((s) => s.addToast);
   const [submitting, setSubmitting] = useState(false);
 
-  const sendDecision = useCallback(async (action: 'approve' | 'reject') => {
+  const sendDecision = useCallback(async (action: 'approved' | 'rejected') => {
     if (!confirmId || submitting) return;
     setSubmitting(true);
     try {
-      await hanaFetch(`/api/confirm/${confirmId}`, {
+      await hanaFetch(`/api/cron/confirm/${confirmId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: action === 'approve' ? 'confirmed' : 'rejected' }),
+        body: JSON.stringify({ action }),
       });
+      addToast(action === 'approved' ? t('common.saved') : t('common.cancelled'), 'success');
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : String(err), 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [confirmId, submitting]);
+  }, [addToast, confirmId, submitting, t]);
 
   return (
-    <div className={styles.confirmCard}>
-      <div className={styles.confirmTitle}>{jobData.label as string || t('cron.typeCron')}</div>
-      <div className={styles.confirmMeta}>{jobData.prompt as string}</div>
+    <div className={styles.cronConfirmCard}>
+      <div className={styles.cronConfirmTitle}>{jobData.label || t('cron.confirm.title')}</div>
+      <div className={styles.cronConfirmMeta}>{jobData.schedule}</div>
+      <div className={styles.cronConfirmPrompt}>{jobData.prompt}</div>
       {status === 'pending' && confirmId && (
-        <div className={styles.confirmActions}>
-          <button disabled={submitting} onClick={() => sendDecision('approve')}>{t('cron.confirm.approve')}</button>
-          <button disabled={submitting} onClick={() => sendDecision('reject')}>{t('cron.confirm.reject')}</button>
+        <div className={styles.cronConfirmActions}>
+          <button onClick={() => sendDecision('rejected')} disabled={submitting}>{t('common.cancel')}</button>
+          <button onClick={() => sendDecision('approved')} disabled={submitting}>{t('common.confirm')}</button>
         </div>
       )}
     </div>

@@ -22,33 +22,43 @@ export function WorkingSetBar({
 
   const t = window.t ?? ((key: string) => key);
   const attachedSet = new Set(attachedPaths);
+  const totalItems = files.length + (currentDocPath ? 1 : 0);
 
   return (
     <div className={styles['working-set-row']}>
-      <span className={styles['working-set-label']}>{t('input.docContext')}</span>
-      {currentDocPath && (
-        <button
-          className={`${styles['working-set-chip']}${docContextPath === currentDocPath ? ` ${styles.active}` : ''}`}
-          onClick={onAttachCurrentDoc}
-        >
-          <PinIcon />
-          <span>{t('input.currentFile') || '当前文件'}</span>
-        </button>
-      )}
-      {files.map((file) => {
-        const active = attachedSet.has(file.path) || docContextPath === file.path;
-        return (
+      <div className={styles['working-set-head']}>
+        <span className={styles['working-set-label']}>{t('input.docContext')}</span>
+        <span className={styles['working-set-count']} title={`${totalItems}`}>
+          {totalItems}
+        </span>
+      </div>
+      <div className={styles['working-set-rail']}>
+        {currentDocPath && (
           <button
-            key={file.path}
-            className={`${styles['working-set-chip']}${active ? ` ${styles.active}` : ''}`}
-            onClick={() => onAttachFile(file)}
-            title={file.path}
+            type="button"
+            className={`${styles['working-set-chip']}${docContextPath === currentDocPath ? ` ${styles.active}` : ''}`}
+            onClick={onAttachCurrentDoc}
           >
-            <FileIcon />
-            <span>{file.name}</span>
+            <PinIcon />
+            <span>{t('input.currentFile') || '当前文件'}</span>
           </button>
-        );
-      })}
+        )}
+        {files.map((file) => {
+          const active = attachedSet.has(file.path) || docContextPath === file.path;
+          return (
+            <button
+              type="button"
+              key={file.path}
+              className={`${styles['working-set-chip']}${active ? ` ${styles.active}` : ''}`}
+              onClick={() => onAttachFile(file)}
+              title={file.path}
+            >
+              <FileIcon />
+              <span>{file.name}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld("hana", {
   onShowSkillViewer: (cb) => ipcRenderer.on("show-skill-viewer", (_, data) => cb(data)),
   // 设置窗口
   openSettings: (target) => ipcRenderer.invoke("open-settings", target ?? null, resolveTheme()),
+  getInitialSettingsNavigationTarget: () => ipcRenderer.invoke("get-initial-settings-navigation-target"),
   settingsChanged: (type, data) => ipcRenderer.send("settings-changed", type, data),
   onSettingsChanged: (cb) => ipcRenderer.on("settings-changed", (_, type, data) => cb(type, data)),
   notifyMainWindow: (event, payload) => ipcRenderer.send("settings-changed", event, payload),
@@ -69,6 +70,12 @@ contextBridge.exposeInMainWorld("hana", {
     ipcRenderer.on("settings-switch-tab", handler);
     return () => ipcRenderer.removeListener("settings-switch-tab", handler);
   },
+  onConfirmActionRequest: (cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on("confirm-action-request", handler);
+    return () => ipcRenderer.removeListener("confirm-action-request", handler);
+  },
+  respondConfirmAction: (requestId, approved) => ipcRenderer.send(`confirm-action-response:${requestId}`, { approved: !!approved }),
   onServerRestarted: (cb) => ipcRenderer.on("server-restarted", (_, data) => cb(data)),
   // 浏览器查看器窗口
   openBrowserViewer: () => ipcRenderer.invoke("open-browser-viewer", resolveTheme()),
@@ -95,6 +102,8 @@ contextBridge.exposeInMainWorld("hana", {
   startDrag: (filePaths) => ipcRenderer.send("start-drag", filePaths),
   // 系统通知
   showNotification: (title, body) => ipcRenderer.invoke("show-notification", title, body),
+  getNotificationPermissionStatus: () => ipcRenderer.invoke("get-notification-permission-status"),
+  requestNotificationPermission: () => ipcRenderer.invoke("request-notification-permission"),
   confirmAction: (opts) => ipcRenderer.invoke("confirm-action", opts),
   // 窗口控制（Windows/Linux 自绘标题栏）
   getPlatform: () => ipcRenderer.invoke("get-platform"),

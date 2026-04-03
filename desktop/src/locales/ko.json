@@ -823,7 +823,10 @@
       "homeFolderPlaceholder": "미설정 (매번 수동 선택)",
       "homeFolderClear": "지우기",
       "homeFolderBrowse": "찾아보기",
+      "trustedRoots": "신뢰된 경로",
       "trustedRootsDesc": "실행 모드에서 워크스페이스 수준 읽기/쓰기를 허용하는 경로 목록",
+      "addTrustedRoot": "신뢰된 경로 추가",
+      "trustedRootsHint": "적어도 하나의 프로젝트 폴더를 추가하면 Lynn이 명시적으로 허용한 범위 안에서만 파일을 읽고 쓸 수 있어요.",
       "review": {
         "title": "리뷰 체인",
         "desc": "리뷰는 이제 Hanako / Butter 중에서만 고르며, 다른 채널용이나 전문가 에이전트는 섞이지 않습니다. 각 리뷰어에 전용 Agent를 바인딩하면 서로 다른 모델을 따로 쓸 수 있습니다.",
@@ -1020,6 +1023,33 @@
       "back": "뒤로",
       "next": "다음"
     },
+    "permissions": {
+      "title": "권한을 한 번에 준비하기",
+      "subtitle": "먼저 작업 공간을 고르고, 그다음 알림을 켜요.\n이렇게 하면 Lynn이 시작할 때 macOS 권한 팝업이 연달아 뜨지 않아요.",
+      "workspace": {
+        "title": "작업 공간",
+        "desc": "실제로 작업하는 폴더를 골라 주세요. 순찰, 예약 작업, 파일 작업은 명시적으로 허용한 위치 안에서만 이루어져요.",
+        "selected": "선택됨",
+        "pending": "설정 필요",
+        "placeholder": "아직 선택하지 않았어요. 계속하면 폴더 선택 창이 열려요."
+      },
+      "notifications": {
+        "title": "알림",
+        "desc": "알림은 Lynn이 주의를 끌어야 할 때만 사용해요. 시작 중에 갑자기 띄우지 않고 여기서 의도적으로 요청해요.",
+        "detail": "지금 건너뛰어도 나중에 시스템 설정에서 다시 켤 수 있어요.",
+        "status": {
+          "checking": "확인 중",
+          "pending": "미허용",
+          "granted": "활성화됨",
+          "denied": "거부됨",
+          "unsupported": "권한 불필요"
+        }
+      },
+      "note": "계속하면 Lynn이 작업 공간 선택을 안내하고, macOS에 필요할 때만 알림 권한을 요청해요.",
+      "back": "뒤로",
+      "continue": "권한 설정 후 계속",
+      "working": "처리 중..."
+    },
     "tutorial": {
       "title": "준비 완료 ✿",
       "quickTitle": "Quick Start 준비 완료 ✿",
@@ -1051,6 +1081,7 @@
     "back": "뒤로",
     "heartbeat": "정기 순찰",
     "delegate": "위임 작업",
+    "reviewFollowUp": "리뷰 후속 실행",
     "cron": "예약 작업",
     "patrolDone": "순찰 완료",
     "cronDone": "예약 작업 완료",
@@ -1763,6 +1794,8 @@
     "loading": "불러오는 중",
     "auto": "자동 선택",
     "needsConfig": "사용 가능한 리뷰어가 아직 설정되지 않았습니다",
-    "requestFailed": "리뷰 요청에 실패했습니다"
+    "requestFailed": "리뷰 요청에 실패했습니다",
+    "followUp": "발견 사항 처리",
+    "taskCreated": "백그라운드 실행 작업을 만들었습니다"
   }
 }

@@ -60,7 +60,6 @@ export function ensureFirstRun(lynnHome, productDir) {
       prefsPath,
       JSON.stringify({
         primaryAgent: "lynn",
-        home_folder: path.join(os.homedir(), "Desktop"),
       }, null, 2) + "\n",
       "utf-8",
     );

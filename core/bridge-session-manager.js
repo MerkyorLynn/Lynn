@@ -17,10 +17,11 @@ import { t, getLocale } from "../server/i18n.js";
 import { safeReadJSON } from "../shared/safe-fs.js";
 import { findModel } from "../shared/model-ref.js";
 import {
-  buildClientAgentHeaders,
   buildClientAgentMetadata,
   readClientAgentKeyFromPreferencesFile,
+  readSignedClientAgentHeaders,
 } from "./client-agent-identity.js";
+import { resolveCompactionSettings } from "./compaction-settings.js";
 
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
@@ -224,7 +225,10 @@ export class BridgeSessionManager {
       }
 
       const clientAgentKey = readClientAgentKeyFromPreferencesFile();
-      const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+      const clientAgentHeaders = readSignedClientAgentHeaders({
+        method: "POST",
+        pathname: "/chat/completions",
+      });
       const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
       const { session } = await createAgentSession({
         cwd: homeCwd,
@@ -338,14 +342,10 @@ export class BridgeSessionManager {
     }
   }
 
-  /** 创建 bridge 专用 settings：compaction 由 SDK 默认触发（contextWindow - 16384） */
+  /** 创建 bridge 专用 settings：按模型上下文窗口自适应保留最近上下文 */
   _createSettings(model) {
     return SettingsManager.inMemory({
-      compaction: {
-        enabled: true,
-        reserveTokens: 16384,
-        keepRecentTokens: 20_000,
-      },
+      compaction: resolveCompactionSettings(model),
     });
   }
 }

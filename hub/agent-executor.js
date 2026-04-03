@@ -27,9 +27,12 @@ import { t } from "../server/i18n.js";
  * @param {boolean} [opts.noMemory=false] - 不注入记忆，只用 personality
  * @param {boolean} [opts.noTools=false] - 不注入工具
  * @param {boolean} [opts.readOnly=false] - 只读模式（只保留读取类工具，排除写/编辑/ask_agent/dm 等）
+ * @param {(sessionPath: string|null) => void} [opts.onSessionReady] - session 创建后立即回调
+ * @param {string|null} [opts.sessionPath=null] - 继续已有 session 文件
+ * @param {string|null} [opts.cwdOverride=null] - 覆盖默认 cwd
  * @returns {Promise<string>}  capture 轮的输出（已去掉 MOOD 块）
  */
-export async function runAgentSession(agentId, rounds, { engine, signal, sessionSuffix = "temp", systemAppend, keepSession = false, noMemory = false, noTools = false, readOnly = false } = {}) {
+export async function runAgentSession(agentId, rounds, { engine, signal, sessionSuffix = "temp", systemAppend, keepSession = false, noMemory = false, noTools = false, readOnly = false, onSessionReady, sessionPath = null, cwdOverride = null } = {}) {
   // 1. 从长驻 Map 获取 Agent 实例
   const agent = engine.getAgent(agentId);
   if (!agent) {
@@ -48,10 +51,13 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
   tempResourceLoader.getSkills = () => ctx.getSkillsForAgent(agent);
 
   // 3. 临时 session
-  const cwd = engine.homeCwd || process.cwd();
-  const sessionDir = path.join(agentDir, "sessions", sessionSuffix);
+  const cwd = cwdOverride || engine.homeCwd || process.cwd();
+  const defaultSessionDir = path.join(agentDir, "sessions", sessionSuffix);
+  const sessionDir = sessionPath ? path.dirname(sessionPath) : defaultSessionDir;
   fs.mkdirSync(sessionDir, { recursive: true });
-  const tempSessionMgr = SessionManager.create(cwd, sessionDir);
+  const tempSessionMgr = sessionPath
+    ? SessionManager.open(sessionPath, sessionDir)
+    : SessionManager.create(cwd, sessionDir);
 
   // 工具模式：noTools = 无工具，readOnly = 只读工具，默认 = 全部
   let tools, customTools;
@@ -59,7 +65,11 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
     tools = [];
     customTools = [];
   } else {
-    const built = ctx.buildTools(cwd, agent.tools, { agentDir, workspace: engine.homeCwd });
+    const built = ctx.buildTools(cwd, agent.tools, {
+      agentDir,
+      workspace: engine.homeCwd,
+      getSessionPath: () => tempSessionMgr?.getSessionFile?.() || null,
+    });
     if (readOnly) {
       const READ_ONLY_BUILTIN = ["read", "grep", "find", "ls"];
       const READ_ONLY_CUSTOM = ["search_memory", "recall_experience", "web_search", "web_fetch"];
@@ -89,6 +99,8 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
     tools,
     customTools,
   });
+
+  onSessionReady?.(session.sessionManager?.getSessionFile?.() || null);
 
   // 4. AbortSignal 连接
   let onAbort;

@@ -37,6 +37,42 @@ const REACT_CHAT_EVENTS = new Set([
   'compaction_start', 'compaction_end',
 ]);
 
+function patchReviewBlock(sessionPath: string, reviewId: string, patch: Record<string, unknown>): void {
+  const nextPatch = Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  );
+  if (Object.keys(nextPatch).length === 0) return;
+
+  const state = useStore.getState();
+  const chatSession = state.chatSessions[sessionPath];
+  if (!chatSession?.items) return;
+
+  const updatedItems = chatSession.items.map((item: any) => {
+    if (item.type !== 'message' || item.data.role !== 'assistant') return item;
+    const blocks = item.data.blocks;
+    if (!blocks?.some((b: any) => b.type === 'review' && b.reviewId === reviewId)) return item;
+
+    return {
+      ...item,
+      data: {
+        ...item.data,
+        blocks: blocks.map((b: any) =>
+          b.type === 'review' && b.reviewId === reviewId
+            ? { ...b, ...nextPatch }
+            : b,
+        ),
+      },
+    };
+  });
+
+  useStore.setState({
+    chatSessions: {
+      ...state.chatSessions,
+      [sessionPath]: { ...chatSession, items: updatedItems },
+    },
+  });
+}
+
 // ── Session 可见性 + 流状态 ──
 
 function ensureCurrentSessionVisible(): void {
@@ -191,6 +227,26 @@ export function handleServerMessage(msg: any): void {
       break;
     }
 
+    case 'task_update': {
+      const task = msg.task;
+      if (!task || task.source !== 'review_follow_up') break;
+      const taskReviewId = task.metadata?.reviewId;
+      const taskSessionPath = task.sessionPath || state.currentSessionPath;
+      const taskId = task.taskId || task.id;
+      if (!taskReviewId || !taskSessionPath || !taskId) break;
+      patchReviewBlock(taskSessionPath, taskReviewId, {
+        followUpTask: {
+          taskId,
+          title: task.title || null,
+          status: task.status,
+          resultSummary: task.resultSummary || null,
+          error: task.error || null,
+          updatedAt: task.updatedAt || null,
+        },
+      });
+      break;
+    }
+
     case 'activity_update':
       if (msg.activity) {
         useStore.setState({ activities: [msg.activity, ...state.activities.slice(0, 499)] });
@@ -238,91 +294,59 @@ export function handleServerMessage(msg: any): void {
       const isViewing = store.currentTab === 'channels' && store.currentChannel === msg.channelName;
       loadChannelsAction();
       if (msg.channelName && isViewing) {
-        openChannelAction(msg.channelName);
+        useStore.setState({ currentChannel: null });
       }
       break;
     }
 
-    case 'dm_new_message': {
-      const dmId = `dm:${msg.from}`;
-      const store2 = useStore.getState();
-      const isViewingDM = store2.currentTab === 'channels' && store2.currentChannel === dmId && document.visibilityState === 'visible';
-      if (isViewingDM) {
-        openChannelAction(dmId, true);
-      } else {
-        loadChannelsAction();
+    case 'dm_new_message':
+      if (document.visibilityState !== 'visible') {
+        showError('info.dmNewMessage');
       }
       break;
-    }
-
-    case 'context_usage':
-      if (msg.tokens != null && msg.contextWindow != null) {
-        useStore.setState({
-          contextTokens: msg.tokens,
-          contextWindow: msg.contextWindow,
-          contextPercent: msg.percent,
-        });
-      }
-      break;
-
-    case 'error': {
-      useStore.getState().setInlineError(msg.message);
-      break;
-    }
 
     case 'confirmation_resolved': {
-      // 更新所有 session 中匹配 confirmId 的确认卡片状态
-      const sessions = state.chatSessions || {};
-      for (const sp of Object.keys(sessions)) {
-        useStore.getState().updateLastMessage(sp, (m: any) => {
-          if (!m.blocks) return m;
-          const updated = m.blocks.map((b: any) => {
-            if ((b.type === 'settings_confirm' || b.type === 'cron_confirm' || b.type === 'tool_authorization') && b.confirmId === msg.confirmId) {
-              const status = b.type === 'cron_confirm'
-                ? (msg.action === 'confirmed' ? 'approved' : 'rejected')
-                : (msg.action === 'confirmed' ? 'confirmed' : 'rejected');
-              return { ...b, status };
-            }
-            return b;
-          });
-          return { ...m, blocks: updated };
-        });
-      }
+      const targetPath = msg.sessionPath || state.currentSessionPath;
+      if (!targetPath) break;
+      const chatSession = state.chatSessions[targetPath];
+      if (!chatSession?.items) break;
+
+      const nextStatus = msg.action === 'rejected' ? 'rejected' : 'confirmed';
+      const updatedItems = chatSession.items.map((item: any) => {
+        if (item.type !== 'message' || item.data.role !== 'assistant') return item;
+        const blocks = item.data.blocks || [];
+        if (!blocks.some((b: any) => (b.type === 'settings_confirm' || b.type === 'cron_confirm' || b.type === 'tool_authorization') && b.confirmId === msg.confirmId)) return item;
+        return {
+          ...item,
+          data: {
+            ...item.data,
+            blocks: blocks.map((b: any) => {
+              if ((b.type === 'settings_confirm' || b.type === 'cron_confirm' || b.type === 'tool_authorization') && b.confirmId === msg.confirmId) {
+                return { ...b, status: nextStatus };
+              }
+              return b;
+            }),
+          },
+        };
+      });
+
+      useStore.setState({
+        chatSessions: {
+          ...state.chatSessions,
+          [targetPath]: { ...chatSession, items: updatedItems },
+        },
+      });
       break;
     }
 
     case 'apply_frontend_setting': {
-      if (msg.key === 'theme') {
-        window.applyTheme?.(msg.value);
-        // 通知其他窗口（设置窗口等）同步主题
-        window.platform?.settingsChanged?.('theme');
-      }
-      break;
-    }
-
-    case 'status': {
-      // 元数据层：维护所有 session 的 streaming 状态
-      const sp = msg.sessionPath;
-      if (sp) {
-        const list: string[] = state.streamingSessions || [];
-        if (msg.isStreaming) {
-          if (!list.includes(sp)) useStore.setState({ streamingSessions: [...list, sp] });
-          // 新一轮 streaming 开始时清除上次的 inline error
-          if (sp === state.currentSessionPath) useStore.setState({ inlineError: null });
-        } else {
-          useStore.setState({ streamingSessions: list.filter((p: string) => p !== sp) });
-        }
-      }
-      // 渲染层：只有焦点 session 才影响 UI
-      if (!sp || sp === state.currentSessionPath) {
-        applyStreamingStatus(msg.isStreaming);
-      }
+      window.dispatchEvent(new CustomEvent('hana-apply-frontend-setting', { detail: { key: msg.key, value: msg.value } }));
       break;
     }
 
     case 'review_start': {
-      // 在当前 session 的最后一条助手消息末尾插入 loading review block
-      const sessionPath = state.currentSessionPath;
+      // 在目标 session 的最后一条助手消息末尾插入 loading review block
+      const sessionPath = msg.sessionPath || state.currentSessionPath;
       if (!sessionPath) break;
       const chatSession = state.chatSessions[sessionPath];
       if (!chatSession?.items) break;
@@ -335,8 +359,19 @@ export function handleServerMessage(msg: any): void {
           type: 'review' as const,
           reviewId: msg.reviewId,
           reviewerName: msg.reviewerName,
+          reviewerAgent: msg.reviewerAgent,
+          reviewerAgentName: msg.reviewerAgentName,
+          reviewerYuan: msg.reviewerYuan,
+          reviewerHasAvatar: !!msg.reviewerHasAvatar,
           content: '',
           status: 'loading' as const,
+          stage: 'packing_context' as const,
+          findingsCount: 0,
+          workflowGate: 'clear' as const,
+          structured: null,
+          contextPack: null,
+          followUpPrompt: null,
+          followUpTask: null,
         }];
         updatedItems[i] = { ...item, data: { ...item.data, blocks: newBlocks } };
         break;
@@ -351,36 +386,43 @@ export function handleServerMessage(msg: any): void {
       break;
     }
 
+    case 'review_progress': {
+      const sessionPath = msg.sessionPath || state.currentSessionPath;
+      if (!sessionPath || !msg.reviewId) break;
+      patchReviewBlock(sessionPath, msg.reviewId, {
+        stage: msg.stage || 'reviewing',
+        findingsCount: typeof msg.findingsCount === 'number' ? msg.findingsCount : undefined,
+        verdict: msg.verdict,
+        workflowGate: msg.workflowGate,
+        reviewerName: msg.reviewerName,
+        reviewerAgent: msg.reviewerAgent,
+        reviewerAgentName: msg.reviewerAgentName,
+        reviewerYuan: msg.reviewerYuan,
+        reviewerHasAvatar: msg.reviewerHasAvatar,
+      });
+      break;
+    }
+
     case 'review_result': {
       // 找到 loading 状态的 review block，更新为 done
-      const sessionPath2 = state.currentSessionPath;
-      if (!sessionPath2) break;
-      const chatSession2 = state.chatSessions[sessionPath2];
-      if (!chatSession2?.items) break;
-
-      const updatedItems2 = chatSession2.items.map((item: any) => {
-        if (item.type !== 'message' || item.data.role !== 'assistant') return item;
-        const blocks = item.data.blocks;
-        if (!blocks?.some((b: any) => b.type === 'review' && b.reviewId === msg.reviewId)) return item;
-
-        return {
-          ...item,
-          data: {
-            ...item.data,
-            blocks: blocks.map((b: any) =>
-              b.type === 'review' && b.reviewId === msg.reviewId
-                ? { ...b, content: msg.content || '', error: msg.error, status: 'done' }
-                : b,
-            ),
-          },
-        };
-      });
-
-      useStore.setState({
-        chatSessions: {
-          ...state.chatSessions,
-          [sessionPath2]: { ...chatSession2, items: updatedItems2 },
-        },
+      const sessionPath2 = msg.sessionPath || state.currentSessionPath;
+      if (!sessionPath2 || !msg.reviewId) break;
+      patchReviewBlock(sessionPath2, msg.reviewId, {
+        reviewerName: msg.reviewerName,
+        reviewerAgent: msg.reviewerAgent,
+        reviewerAgentName: msg.reviewerAgentName,
+        reviewerYuan: msg.reviewerYuan,
+        reviewerHasAvatar: msg.reviewerHasAvatar,
+        content: msg.content || '',
+        error: msg.error,
+        status: 'done',
+        stage: 'done',
+        findingsCount: msg.structured?.findings?.length ?? 0,
+        verdict: msg.structured?.verdict,
+        workflowGate: msg.structured?.workflowGate ?? msg.workflowGate,
+        structured: msg.structured || null,
+        contextPack: msg.contextPack || null,
+        followUpPrompt: msg.followUpPrompt || null,
       });
       break;
     }

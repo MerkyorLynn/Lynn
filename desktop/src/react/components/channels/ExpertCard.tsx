@@ -13,9 +13,9 @@ import type { ExpertPreset } from '../../types';
 import styles from './Channels.module.css';
 
 function expertYuanProfile(category: string | undefined): { key: string; label: string; emoji: string } {
-  const MING = new Set(['finance', 'legal', 'business', 'tech', 'engineering', 'data']);
+  const LYNN = new Set(['finance', 'legal', 'business', 'tech', 'engineering', 'data']);
   const BUTTER = new Set(['wellness', 'psychology', 'education', 'creative']);
-  if (MING.has(category || '')) return { key: 'ming', label: '逻辑拆解', emoji: '🧊' };
+  if (LYNN.has(category || '')) return { key: 'lynn', label: '逻辑拆解', emoji: '🧊' };
   if (BUTTER.has(category || '')) return { key: 'butter', label: '共情洞察', emoji: '🌸' };
   return { key: 'hanako', label: '平衡通用', emoji: '✿' };
 }

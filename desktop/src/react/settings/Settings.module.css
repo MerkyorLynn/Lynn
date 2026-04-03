@@ -1039,6 +1039,78 @@
     color: var(--error, #e05c5c);
 }
 
+
+.work-review-persona {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.work-review-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 1px 3px var(--shadow);
+    flex-shrink: 0;
+}
+
+.work-review-persona-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.work-review-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: min(320px, 48%);
+}
+
+.work-review-actions :global(button) {
+    min-width: 0;
+}
+
+.work-review-link {
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--accent);
+    font-size: 0.74rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.work-review-link:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    transform: translateY(-1px);
+}
+
+
+.work-review-unbound {
+    font-size: 0.71rem;
+    color: var(--error, #e05c5c);
+    line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+    .work-review-actions {
+        width: 100%;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .work-review-link {
+        width: 100%;
+    }
+}
+
 /* Skills 列表块 */
 .skills-list-block {
     display: flex;

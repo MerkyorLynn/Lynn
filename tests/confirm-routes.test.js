@@ -9,7 +9,7 @@ function makeConfirmStore() {
 }
 
 describe("confirm route", () => {
-  it("accepts cron confirmation using path param and normalized actions", async () => {
+  it("accepts legacy confirmed action", async () => {
     const confirmStore = makeConfirmStore();
     const engine = { emitEvent: vi.fn() };
     const app = new Hono();
@@ -29,6 +29,22 @@ describe("confirm route", () => {
       action: "confirmed",
       value: undefined,
     }, null);
+  });
+
+  it("accepts new authorization actions", async () => {
+    const confirmStore = makeConfirmStore();
+    const engine = { emitEvent: vi.fn() };
+    const app = new Hono();
+    app.route("/api", createConfirmRoute(confirmStore, engine));
+
+    const res = await app.request("/api/confirm/test-confirm-id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "confirmed_session" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(confirmStore.resolve).toHaveBeenCalledWith("test-confirm-id", "confirmed_session", undefined);
   });
 
   it("rejects invalid action payloads", async () => {

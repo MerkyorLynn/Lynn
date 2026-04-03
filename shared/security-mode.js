@@ -5,6 +5,7 @@
  *   authorized — 默认，沙盒基础规则生效，危险操作弹确认卡片
  *   plan       — 只读规划，不执行任何工具（原 plan-mode）
  *   safe       — 严格沙盒，危险操作直接拒绝
+ *   full-access — 关闭沙盒与命令限制
  */
 
 /** 安全模式枚举 */
@@ -12,6 +13,7 @@ export const SecurityMode = {
   AUTHORIZED: "authorized",
   PLAN: "plan",
   SAFE: "safe",
+  FULL_ACCESS: "full-access",
 };
 
 /** 默认安全模式 */
@@ -22,6 +24,7 @@ export const VALID_SECURITY_MODES = new Set([
   SecurityMode.AUTHORIZED,
   SecurityMode.PLAN,
   SecurityMode.SAFE,
+  SecurityMode.FULL_ACCESS,
 ]);
 
 /** 校验安全模式值是否合法，不合法则返回默认值 */
@@ -54,6 +57,11 @@ export const SECURITY_MODE_CONFIG = {
   },
   [SecurityMode.SAFE]: {
     sandboxMode: "standard",
+    toolsRestricted: false,
+    allowConfirmation: false,
+  },
+  [SecurityMode.FULL_ACCESS]: {
+    sandboxMode: "full-access",
     toolsRestricted: false,
     allowConfirmation: false,
   },

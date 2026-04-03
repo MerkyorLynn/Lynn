@@ -29,6 +29,7 @@ export interface UiSlice {
     detail?: string;
     confirmLabel?: string;
     cancelLabel?: string;
+    tone?: 'default' | 'danger';
     onConfirm: () => Promise<void> | void;
     onCancel?: () => void;
   } | null;

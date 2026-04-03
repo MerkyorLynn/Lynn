@@ -82,7 +82,7 @@ export class HanaEngine {
 
     // ── Core managers ──
     this._prefs = new PreferencesManager({ userDir: this.userDir, agentsDir: this.agentsDir });
-    this._prefs.ensureClientAgentKey();
+    this._prefs.ensureClientIdentity();
     this._models = new ModelManager({ lynnHome });
 
     // 确定启动时焦点 agent
@@ -339,6 +339,8 @@ export class HanaEngine {
 
   getHomeFolder() { return this._configCoord.getHomeFolder(); }
   setHomeFolder(f) { return this._configCoord.setHomeFolder(f); }
+  getTrustedRoots() { return this._configCoord.getTrustedRoots(); }
+  setTrustedRoots(r) { return this._configCoord.setTrustedRoots(r); }
   getSharedModels() { return this._configCoord.getSharedModels(); }
   setSharedModels(p) { return this._configCoord.setSharedModels(p); }
   getSearchConfig() { return this._configCoord.getSearchConfig(); }
@@ -721,6 +723,7 @@ export class HanaEngine {
     return createSandboxedTools(cwd, allTools, {
       agentDir: effectiveAgentDir,
       workspace: effectiveWorkspace,
+      trustedRoots: this.getTrustedRoots(),
       lynnHome: this.lynnHome,
       mode: effectiveMode,
       confirmStore: this._confirmStore,

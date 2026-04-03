@@ -87,4 +87,21 @@ describe('at-mention-search', () => {
 
     expect(results).toEqual([]);
   });
+
+  it('query 为空时展示 recent 文件作为默认建议', () => {
+    const results = buildAtMentionResults({
+      query: '',
+      recentFiles: [
+        makeRecentFile({ path: '/repo/src/app.ts', name: 'app.ts' }),
+        makeRecentFile({ path: '/repo/docs', name: 'docs', isDirectory: true, source: 'desk' }),
+      ],
+      searchResults: [],
+      basePath: '/repo',
+    });
+
+    expect(results).toEqual([
+      { path: '/repo/src/app.ts', name: 'app.ts', rel: 'src/app.ts', isDir: false },
+      { path: '/repo/docs', name: 'docs', rel: 'docs', isDir: true },
+    ]);
+  });
 });

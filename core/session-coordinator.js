@@ -25,10 +25,11 @@ import {
   SECURITY_MODE_CONFIG,
 } from "../shared/security-mode.js";
 import {
-  buildClientAgentHeaders,
   buildClientAgentMetadata,
   readClientAgentKeyFromPreferencesFile,
+  readSignedClientAgentHeaders,
 } from "./client-agent-identity.js";
+import { resolveCompactionSettings } from "./compaction-settings.js";
 
 const log = createModuleLogger("session");
 
@@ -163,7 +164,10 @@ export class SessionCoordinator {
       getSessionPath: () => sessionPathRef,
     });
     const clientAgentKey = readClientAgentKeyFromPreferencesFile();
-    const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+    const clientAgentHeaders = readSignedClientAgentHeaders({
+      method: "POST",
+      pathname: "/chat/completions",
+    });
     const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
     const { session } = await createAgentSession({
       cwd: effectiveCwd,
@@ -811,7 +815,10 @@ export class SessionCoordinator {
           });
 
       const clientAgentKey = readClientAgentKeyFromPreferencesFile();
-      const clientAgentHeaders = buildClientAgentHeaders(clientAgentKey);
+      const clientAgentHeaders = readSignedClientAgentHeaders({
+        method: "POST",
+        pathname: "/chat/completions",
+      });
       const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
       const { session } = await createAgentSession({
         cwd: execCwd,
@@ -885,11 +892,7 @@ export class SessionCoordinator {
   /** 创建 session 专用 settings（控制 compaction + max_completion_tokens） */
   _createSettings(model) {
     return SettingsManager.inMemory({
-      compaction: {
-        enabled: true,
-        reserveTokens: 16384,
-        keepRecentTokens: 20_000,
-      },
+      compaction: resolveCompactionSettings(model),
     });
   }
 }

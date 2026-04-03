@@ -21,6 +21,7 @@ async function confirmDeleteChannel(channelId: string): Promise<boolean> {
     message: window.t?.('channel.deleteConfirm', { name: displayName }) || '',
     confirmLabel: window.t?.('common.delete') || 'Delete',
     cancelLabel: window.t?.('common.cancel') || 'Cancel',
+    tone: 'danger',
   }) ?? false;
 }
 
@@ -32,6 +33,7 @@ async function confirmArchiveChannel(channelId: string): Promise<boolean> {
     message: window.t?.('channel.archiveConfirm', { name: displayName }) || '',
     confirmLabel: window.t?.('channel.archiveAction') || 'Archive',
     cancelLabel: window.t?.('common.cancel') || 'Cancel',
+    tone: 'danger',
   }) ?? false;
 }
 

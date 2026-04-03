@@ -49,12 +49,14 @@ import { createConfirmRoute } from "./routes/confirm.js";
 import { createPluginsRoute } from "./routes/plugins.js";
 import { createExpertsRoute } from "./routes/experts.js";
 import { createReviewRoute } from "./routes/review.js";
+import { createTasksRoute } from "./routes/tasks.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
 import { getAllowlist } from "../lib/sandbox/index.js";
 import { BridgeManager } from "../lib/bridge/bridge-manager.js";
 import { Hub } from "../hub/index.js";
+import { TaskRuntime } from "../hub/task-runtime.js";
 import { startCLI } from "./cli.js";
 import { fromRoot } from "../shared/hana-root.js";
 
@@ -114,6 +116,9 @@ dlog.header(appVersion, {
 
 // ── 初始化 Hub（调度中枢，包装 engine） ──
 const hub = new Hub({ engine });
+
+// ── 后台任务运行器（review findings -> execute 等异步任务） ──
+const taskRuntime = new TaskRuntime({ hub, engine, lynnHome });
 
 // ── 初始化插件系统 ──
 await engine.initPlugins(hub.eventBus);
@@ -187,7 +192,8 @@ const {
 engine.editRollbackStore = editRollbackStore;
 app.route("/api", chatRestRoute);
 app.route("", chatWsRoute);
-app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast }));
+app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast, taskRuntime }));
+app.route("/api", createTasksRoute(taskRuntime, engine));
 app.route("/api", createSessionsRoute(engine));
 app.route("/api", createModelsRoute(engine));
 app.route("/api", createConfigRoute(engine));

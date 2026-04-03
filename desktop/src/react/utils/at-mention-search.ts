@@ -107,6 +107,21 @@ function recentFileToMentionResult(file: WorkingSetFile, basePath?: string | nul
   };
 }
 
+function buildRecentResults(recentFiles: WorkingSetFile[], basePath?: string | null): AtMentionFileResult[] {
+  const seen = new Set<string>();
+  const out: AtMentionFileResult[] = [];
+
+  for (const file of recentFiles) {
+    const result = recentFileToMentionResult(file, basePath);
+    const key = normalizeSeparators(result.path);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(result);
+  }
+
+  return out;
+}
+
 export function buildAtMentionResults({
   query,
   searchResults,
@@ -119,7 +134,7 @@ export function buildAtMentionResults({
   basePath?: string | null;
 }): AtMentionFileResult[] {
   const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) return [];
+  if (!normalizedQuery) return buildRecentResults(recentFiles, basePath);
 
   const candidates = new Map<string, RankedAtMentionFileResult>();
 

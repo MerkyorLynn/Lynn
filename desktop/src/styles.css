@@ -2429,31 +2429,42 @@ body.resizing .jian-sidebar-inner {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.35);
-    animation: fade-in 0.2s ease;
+    background:
+      radial-gradient(circle at top, rgba(var(--accent-rgb), 0.12), transparent 36%),
+      rgba(12, 16, 24, 0.34);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    animation: fade-in 0.18s ease;
 }
 .hana-warning-box {
-    width: 420px;
-    max-width: 90vw;
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-    padding: 1.6rem 1.8rem 1.3rem;
-    animation: dropdown-in 0.25s var(--ease-out);
+    width: min(460px, calc(100vw - 28px));
+    max-width: 92vw;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.9)),
+      var(--bg-card);
+    border-radius: 20px;
+    border: 1px solid rgba(24, 28, 36, 0.08);
+    box-shadow: 0 24px 80px rgba(9, 12, 18, 0.18), 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+    padding: 1.5rem 1.5rem 1.2rem;
+    animation: dropdown-in 0.2s var(--ease-out);
+}
+.hana-warning-box.danger {
+    border-color: rgba(192, 97, 107, 0.22);
 }
 .hana-warning-title {
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 650;
     color: var(--text);
-    margin: 0 0 0.8rem;
+    margin: 0 0 0.7rem;
+    letter-spacing: 0.01em;
 }
 .hana-warning-body {
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     line-height: 1.7;
     color: var(--text-secondary);
 }
 .hana-warning-body p {
-    margin: 0 0 0.6rem;
+    margin: 0 0 0.55rem;
 }
 .hana-warning-body p:last-child {
     margin-bottom: 0;
@@ -2461,32 +2472,44 @@ body.resizing .jian-sidebar-inner {
 .hana-warning-actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-sm);
-    margin-top: 1.2rem;
+    gap: 0.55rem;
+    margin-top: 1.1rem;
 }
 .hana-warning-cancel,
 .hana-warning-confirm {
+    min-width: 88px;
     font-family: inherit;
-    font-size: 0.8rem;
-    padding: 0.4rem 1rem;
-    border-radius: var(--radius-md);
-    border: none;
+    font-size: 0.82rem;
+    padding: 0.52rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .hana-warning-cancel {
-    background: var(--bg-secondary);
+    background: rgba(23, 28, 40, 0.06);
+    border-color: rgba(23, 28, 40, 0.08);
     color: var(--text-secondary);
 }
 .hana-warning-cancel:hover {
-    background: var(--overlay-medium);
+    background: rgba(23, 28, 40, 0.1);
+    transform: translateY(-1px);
 }
 .hana-warning-confirm {
-    background: var(--accent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 85%, white), var(--accent));
     color: #fff;
+    box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.22);
 }
 .hana-warning-confirm:hover {
-    opacity: 0.85;
+    transform: translateY(-1px);
+    box-shadow: 0 16px 36px rgba(var(--accent-rgb), 0.28);
+}
+.hana-warning-confirm.danger {
+    background: linear-gradient(135deg, #d06a75, #b94856);
+    box-shadow: 0 12px 28px rgba(185, 72, 86, 0.24);
+}
+.hana-warning-confirm.danger:hover {
+    box-shadow: 0 16px 36px rgba(185, 72, 86, 0.3);
 }
 
 /* ========================================
@@ -2999,6 +3022,85 @@ html[data-platform="linux"] .onboarding {
     text-align: left;
 }
 
+/* ── Permissions step ── */
+.permission-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.permission-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: var(--radius-lg, 12px);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    background: var(--bg-card, var(--bg));
+    box-sizing: border-box;
+}
+
+.permission-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.permission-card-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.permission-card-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.permission-card-status-granted {
+    background: rgba(95, 153, 102, 0.12);
+    color: #4d7c57;
+}
+
+.permission-card-status-pending {
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent);
+}
+
+.permission-card-status-denied {
+    background: rgba(198, 102, 102, 0.12);
+    color: var(--coral, #c66);
+}
+
+.permission-card-status-neutral {
+    background: rgba(127, 127, 127, 0.12);
+    color: var(--text-muted);
+}
+
+.permission-card-desc {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+    text-align: left;
+}
+
+.permission-card-value {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--text);
+    word-break: break-word;
+}
+
 /* ── Finish button ── */
 .ob-finish-btn {
     font-family: inherit;
@@ -3149,7 +3251,7 @@ html[data-platform="linux"] .onboarding {
 }
 
 .hana-confirm-box {
-  max-width: 420px;
+  max-width: 460px;
 }
 
 .hana-confirm-detail {

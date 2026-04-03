@@ -28,6 +28,7 @@ vi.mock("../lib/debug-log.js", () => ({
 }));
 
 import { SessionCoordinator } from "../core/session-coordinator.js";
+import { resolveCompactionSettings } from "../core/compaction-settings.js";
 
 describe("SessionCoordinator", () => {
   let tempDir;
@@ -206,6 +207,38 @@ describe("SessionCoordinator", () => {
     expect(coordinator.getPlanMode()).toBe(true);
   });
 
+  it("sizes compaction windows adaptively for different context windows", () => {
+    expect(resolveCompactionSettings({ contextWindow: 32_768 })).toEqual({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 8_192,
+    });
+
+    expect(resolveCompactionSettings({ contextWindow: 128_000 })).toEqual({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 19_200,
+    });
+
+    expect(resolveCompactionSettings({ contextWindow: 1_000_000 })).toEqual({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 65_536,
+    });
+
+    expect(resolveCompactionSettings({ provider: "openai", id: "gpt-4o" })).toEqual({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 19_200,
+    });
+
+    expect(resolveCompactionSettings({ id: "unknown-model" })).toEqual({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 20_000,
+    });
+  });
+
   it("cleans up the temporary session file when aborted after session creation", async () => {
     const sessionFile = path.join(tempDir, "isolated.jsonl");
     fs.writeFileSync(sessionFile, "temp");
@@ -222,6 +255,7 @@ describe("SessionCoordinator", () => {
           sessionManager: { getSessionFile: () => sessionFile },
           subscribe: vi.fn(() => vi.fn()),
           abort: vi.fn(),
+          prompt: vi.fn(),
         },
       };
     });

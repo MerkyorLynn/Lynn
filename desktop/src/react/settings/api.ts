@@ -53,12 +53,12 @@ export async function hanaFetch(
 /** 根据 yuan 类型返回 fallback 头像路径 */
 export function yuanFallbackAvatar(yuan?: string): string {
   const t = window.t || ((k: string) => k);
+  const normalizedYuan = yuan === 'ming' ? 'lynn' : (yuan || 'hanako');
   const types = (t('yuan.types') || {}) as Record<string, { avatar?: string }>;
-  const entry = types[yuan || 'hanako'];
-  const avatar = entry?.avatar || 'Lynn.png';
+  const entry = types[normalizedYuan] || types['hanako'];
+  const avatar = entry?.avatar === 'Ming.png' ? 'Lynn.png' : (entry?.avatar || 'Lynn.png');
   if (avatar === 'Hanako.png') return 'assets/Hanako-1600.jpg';
   if (avatar === 'Butter.png') return 'assets/Butter-1600.jpg';
-  if (avatar === 'Ming.png') return 'assets/Ming-512-opt.png';
   if (avatar === 'Lynn.png') return 'assets/Lynn-512-opt.png';
   return `assets/${avatar}`;
 }

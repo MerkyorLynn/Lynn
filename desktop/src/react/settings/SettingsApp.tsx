@@ -83,6 +83,9 @@ function normalizeNavigationTarget(target?: string | SettingsNavigationTarget | 
   if (target.tab && TAB_COMPONENTS[target.tab]) next.tab = target.tab;
   if ('providerId' in target) next.providerId = target.providerId ?? null;
   if (target.resetProviderSelection) next.resetProviderSelection = true;
+  if ('agentId' in target) next.agentId = target.agentId ?? null;
+  if (target.resetAgentSelection) next.resetAgentSelection = true;
+  if ('reviewerKind' in target) next.reviewerKind = target.reviewerKind ?? null;
   return Object.keys(next).length > 0 ? next : null;
 }
 
@@ -96,12 +99,20 @@ function applyNavigationTarget(target?: string | SettingsNavigationTarget | null
   } else if (normalized.resetProviderSelection) {
     nextState.selectedProviderId = null;
   }
+  if ('agentId' in normalized) {
+    nextState.settingsAgentId = normalized.agentId ?? null;
+  } else if (normalized.resetAgentSelection) {
+    nextState.settingsAgentId = null;
+  }
+  if ('reviewerKind' in normalized) {
+    nextState.pendingReviewerKind = normalized.reviewerKind ?? null;
+  }
   useSettingsStore.setState(nextState);
   return true;
 }
 
 export function SettingsApp() {
-  const { activeTab, ready, selectedProviderId } = useSettingsStore();
+  const { activeTab, ready, selectedProviderId, settingsAgentId } = useSettingsStore();
   const [uiRestored, setUiRestored] = React.useState(false);
 
   useEffect(() => {
@@ -109,6 +120,12 @@ export function SettingsApp() {
     if (restored.activeTab || restored.selectedProviderId) {
       useSettingsStore.setState(restored);
     }
+
+    platform?.getInitialSettingsNavigationTarget?.()
+      .then((target: SettingsNavigationTarget | null) => {
+        applyNavigationTarget(target);
+      })
+      .catch(() => {});
 
     const unsubscribe = platform?.onSwitchTab?.((target: string | SettingsNavigationTarget) => {
       applyNavigationTarget(target);
@@ -126,6 +143,11 @@ export function SettingsApp() {
     if (!uiRestored) return;
     persistSettingsUi(activeTab, selectedProviderId);
   }, [activeTab, selectedProviderId, uiRestored]);
+
+  useEffect(() => {
+    if (!ready || !settingsAgentId) return;
+    loadSettingsConfig().catch((err) => console.warn('[settings] reload for target agent failed:', err));
+  }, [ready, settingsAgentId]);
 
   // Server 重启后用新端口重新加载数据
   useEffect(() => {
@@ -175,17 +197,14 @@ export function SettingsApp() {
         </div>
       )}
 
-      {/* Windows/Linux 窗口控制按钮，渲染到 settings.html 的 .titlebar 容器 */}
       {titlebarEl && createPortal(<WindowControls />, titlebarEl)}
     </ErrorBoundary>
   );
 }
 
-/** 初始化：加载 port/token → i18n → agents → 头像 → config */
 async function initSettings() {
   const store = useSettingsStore.getState();
 
-  // 超时保护：15 秒后强制显示，防止无限白屏
   const timeout = setTimeout(() => {
     if (!store.ready) {
       console.warn('[settings] init timeout (15s), forcing ready');
@@ -198,7 +217,6 @@ async function initSettings() {
     const serverToken = await platform.getServerToken();
     store.set({ serverPort, serverToken });
 
-    // i18n
     const i18n = window.i18n;
     try {
       const cfgRes = await hanaFetch('/api/config');
@@ -209,19 +227,14 @@ async function initSettings() {
       try { await i18n.load('zh-CN'); } catch { /* i18n fallback failed, continue */ }
     }
 
-    // agents
     await loadAgents();
-
-    // avatars
     await loadAvatars();
-
-    // config
     await loadSettingsConfig();
 
     store.set({ ready: true });
   } catch (err) {
     console.error('[settings] init failed:', err);
-    store.set({ ready: true }); // 即使失败也移除 mask，让用户能操作
+    store.set({ ready: true });
   } finally {
     clearTimeout(timeout);
   }

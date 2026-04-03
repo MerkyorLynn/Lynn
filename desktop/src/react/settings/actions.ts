@@ -88,6 +88,7 @@ export async function loadSettingsConfig() {
       settingsConfig: config,
       globalModelsConfig: globalModels,
       homeFolder: config.desk?.home_folder || null,
+      trustedRoots: Array.isArray(config.desk?.trusted_roots) ? config.desk.trusted_roots : [],
       currentPins: pinnedData.pins || [],
     });
   } catch (err) {

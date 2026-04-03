@@ -16,6 +16,7 @@ export function hanaUrl(path: string): string {
  * 带认证的 fetch 封装
  * - 默认 30s 超时
  * - 自动校验 res.ok，非 2xx 抛错
+ * - 尽量返回服务端 JSON error 文案，避免前端只能拿到 400/500 状态码
  */
 export async function hanaFetch(
   path: string,
@@ -24,7 +25,7 @@ export async function hanaFetch(
   const { serverPort, serverToken } = useStore.getState();
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
   if (serverToken) {
-    headers['Authorization'] = `Bearer ${serverToken}`;
+    headers.Authorization = `Bearer ${serverToken}`;
   }
 
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = opts;
@@ -38,7 +39,17 @@ export async function hanaFetch(
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new Error(`hanaFetch ${path}: ${res.status} ${res.statusText}`);
+      let detail = `${res.status} ${res.statusText}`;
+      try {
+        const ct = res.headers.get('content-type');
+        if (ct?.includes('application/json')) {
+          const data = (await res.clone().json()) as { error?: string };
+          if (data?.error) detail = data.error;
+        }
+      } catch {
+        // ignore parse failures and keep status text
+      }
+      throw new Error(`hanaFetch ${path}: ${detail}`);
     }
     return res;
   } finally {
@@ -56,7 +67,7 @@ export async function hanaFetchAllowError(
   const { serverPort, serverToken } = useStore.getState();
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
   if (serverToken) {
-    headers['Authorization'] = `Bearer ${serverToken}`;
+    headers.Authorization = `Bearer ${serverToken}`;
   }
 
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = opts;

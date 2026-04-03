@@ -92,6 +92,7 @@ export async function initApp(): Promise<void> {
     // 5. 设置 desk 相关状态
     useStore.setState({
       homeFolder: configData.desk?.home_folder || null,
+      trustedRoots: Array.isArray(configData.desk?.trusted_roots) ? configData.desk.trusted_roots : [],
       selectedFolder: configData.desk?.home_folder || null,
     });
     if (Array.isArray(configData.cwd_history)) {
@@ -179,6 +180,23 @@ export async function initApp(): Promise<void> {
       .catch(() => loadAvatars());
   });
 
+  platform.onConfirmActionRequest?.((payload) => {
+    useStore.getState().setPendingConfirm({
+      title: payload.title,
+      message: payload.message,
+      detail: payload.detail,
+      confirmLabel: payload.confirmLabel,
+      cancelLabel: payload.cancelLabel,
+      tone: payload.tone,
+      onConfirm: () => {
+        window.platform?.respondConfirmAction?.(payload.requestId, true);
+      },
+      onCancel: () => {
+        window.platform?.respondConfirmAction?.(payload.requestId, false);
+      },
+    });
+  });
+
   // 20. 设置变更监听
   platform.onSettingsChanged((type: string, data: any) => {
     switch (type) {
@@ -214,6 +232,9 @@ export async function initApp(): Promise<void> {
           agentId: data.agentId,
           ui: { settings: false },
         });
+        break;
+      case 'review-config-changed':
+        window.dispatchEvent(new CustomEvent('review-config-changed', { detail: data || null }));
         break;
       case 'theme-changed':
         setTheme(data.theme);

@@ -1,8 +1,12 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { callText } from "../core/llm-client.js";
+import {
+  buildClientSignaturePayload,
+} from "../core/client-agent-identity.js";
 
 const tempDirs = [];
 
@@ -80,12 +84,17 @@ describe("callText", () => {
     expect(body.thinking).toBeUndefined();
   });
 
-  it("attaches client agent key header from preferences.json", async () => {
+  it("attaches signed client identity headers from preferences.json", async () => {
     const lynnHome = makeTempDir("hanako-llm-");
+    const clientKey = "ak_test_client_001";
+    const clientSecret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     fs.mkdirSync(path.join(lynnHome, "user"), { recursive: true });
     fs.writeFileSync(
       path.join(lynnHome, "user", "preferences.json"),
-      JSON.stringify({ client_agent_key: "ak_test_client_001" }, null, 2),
+      JSON.stringify({
+        client_agent_key: clientKey,
+        client_agent_secret: clientSecret,
+      }, null, 2),
       "utf-8",
     );
     vi.stubEnv("LYNN_HOME", lynnHome);
@@ -109,6 +118,23 @@ describe("callText", () => {
     });
 
     const [, requestInit] = fetchMock.mock.calls[0];
-    expect(requestInit.headers["X-Agent-Key"]).toBe("ak_test_client_001");
+    expect(requestInit.headers["X-Agent-Key"]).toBe(clientKey);
+    expect(requestInit.headers["X-Lynn-Timestamp"]).toBeTruthy();
+    expect(requestInit.headers["X-Lynn-Nonce"]).toMatch(/^[a-f0-9]{24}$/);
+    expect(requestInit.headers["X-Lynn-Signature"]).toMatch(/^v1:[a-f0-9]{64}$/);
+    expect(requestInit.headers["X-Lynn-Client-Platform"]).toBeTruthy();
+
+    const payload = buildClientSignaturePayload({
+      method: "POST",
+      pathname: "/chat/completions",
+      timestamp: requestInit.headers["X-Lynn-Timestamp"],
+      nonce: requestInit.headers["X-Lynn-Nonce"],
+      agentKey: clientKey,
+    });
+    const expectedSignature = crypto
+      .createHmac("sha256", clientSecret)
+      .update(payload)
+      .digest("hex");
+    expect(requestInit.headers["X-Lynn-Signature"]).toBe(`v1:${expectedSignature}`);
   });
 });

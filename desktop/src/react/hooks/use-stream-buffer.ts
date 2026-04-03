@@ -382,6 +382,7 @@ class StreamBufferManager {
             description: msg.description,
             category: msg.category,
             identifier: msg.identifier,
+            trustedRoot: msg.trustedRoot || null,
             status: 'pending' as const,
           }],
         }));

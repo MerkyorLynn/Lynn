@@ -1,8 +1,7 @@
 import { AppError } from '../shared/errors.js';
 import { errorBus } from '../shared/error-bus.js';
 import {
-  buildClientAgentHeaders,
-  readClientAgentKeyFromPreferencesFile,
+  readSignedClientAgentHeaders,
 } from './client-agent-identity.js';
 
 const ZAI_PROVIDER_IDS = new Set(["zhipu", "glm", "glm-5", "zai", "z-ai"]);
@@ -85,7 +84,14 @@ export async function callText({
     : timeoutSignal;
 
   const clientAgentHeaders = {
-    ...buildClientAgentHeaders(readClientAgentKeyFromPreferencesFile()),
+    ...readSignedClientAgentHeaders({
+      method: "POST",
+      pathname: api === "anthropic-messages"
+        ? "/v1/messages"
+        : (api === "openai-responses" || api === "openai-codex-responses")
+          ? "/responses"
+          : "/chat/completions",
+    }),
     ...(requestHeaders || {}),
   };
 

@@ -25,6 +25,7 @@ export interface DeskSlice {
   cwdSkills: CwdSkillInfo[];
   cwdSkillsOpen: boolean;
   homeFolder: string | null;
+  trustedRoots: string[];
   selectedFolder: string | null;
   cwdHistory: string[];
   setCwdSkills: (skills: CwdSkillInfo[]) => void;
@@ -36,6 +37,7 @@ export interface DeskSlice {
   setDeskJianContent: (content: string | null) => void;
   setDeskSkills: (skills: DeskSkillInfo[]) => void;
   setHomeFolder: (folder: string | null) => void;
+  setTrustedRoots: (roots: string[]) => void;
   setSelectedFolder: (folder: string | null) => void;
   setCwdHistory: (history: string[]) => void;
 }
@@ -52,6 +54,7 @@ export const createDeskSlice = (
   cwdSkills: [],
   cwdSkillsOpen: false,
   homeFolder: null,
+  trustedRoots: [],
   selectedFolder: null,
   cwdHistory: [],
   setCwdSkills: (skills) => set({ cwdSkills: skills }),
@@ -63,6 +66,7 @@ export const createDeskSlice = (
   setDeskJianContent: (content) => set({ deskJianContent: content }),
   setDeskSkills: (skills) => set({ deskSkills: skills }),
   setHomeFolder: (folder) => set({ homeFolder: folder }),
+  setTrustedRoots: (roots) => set({ trustedRoots: roots }),
   setSelectedFolder: (folder) => set({ selectedFolder: folder }),
   setCwdHistory: (history) => set({ cwdHistory: history }),
 });

@@ -59,6 +59,7 @@ let mainWindow = null;
 let onboardingWindow = null;
 
 let settingsWindow = null;
+let settingsWindowInitialNavigationTarget = null;
 
 let browserViewerWindow = null;
 let _browserWebView = null;        // 当前活跃的 WebContentsView
@@ -257,6 +258,85 @@ function readUserPreferences() {
   return safeReadJSON(path.join(lynnHome, "user", "preferences.json"), {}) || {};
 }
 
+function normalizeTrustedRoot(rawPath) {
+  if (typeof rawPath !== "string") return null;
+  const trimmed = rawPath.trim();
+  if (!trimmed || trimmed.includes("\0")) return null;
+  const expanded = trimmed.replace(/^~(?=$|[\\/])/, os.homedir());
+  return path.resolve(expanded);
+}
+
+function uniqueTrustedRoots(paths) {
+  const out = [];
+  const seen = new Set();
+  for (const entry of paths || []) {
+    const normalized = normalizeTrustedRoot(entry);
+    if (!normalized) continue;
+    const key = normalizePolicyPath(normalized);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function getDefaultDesktopRoot() {
+  return path.join(os.homedir(), "Desktop");
+}
+
+function isLegacyDesktopWorkspaceSeed(prefs = {}, configuredRoots = null) {
+  if (prefs?.setupComplete === true) return false;
+
+  const desktopRoot = getDefaultDesktopRoot();
+  const topLevelHome = normalizeTrustedRoot(prefs?.home_folder);
+  const deskHome = normalizeTrustedRoot(prefs?.desk?.home_folder);
+  const topLevelRoots = configuredRoots ?? uniqueTrustedRoots(
+    Array.isArray(prefs?.trusted_roots) ? prefs.trusted_roots : []
+  );
+  const deskRoots = uniqueTrustedRoots(
+    Array.isArray(prefs?.desk?.trusted_roots) ? prefs.desk.trusted_roots : []
+  );
+
+  if (deskHome || deskRoots.length > 0) return false;
+
+  const usesDesktopHome = topLevelHome === desktopRoot;
+  const usesOnlyDesktopRoots = topLevelRoots.length > 0 && topLevelRoots.every((root) => root === desktopRoot);
+  const hasOnlyLegacyTopLevelRoots = topLevelRoots.length === 0 || usesOnlyDesktopRoots;
+
+  return hasOnlyLegacyTopLevelRoots && (usesDesktopHome || usesOnlyDesktopRoots);
+}
+
+function getPreferredHomeFolder(prefs = {}) {
+  const configured = normalizeTrustedRoot(prefs?.home_folder)
+    || normalizeTrustedRoot(prefs?.desk?.home_folder);
+  if (!configured) return null;
+  return isLegacyDesktopWorkspaceSeed(prefs) ? null : configured;
+}
+
+function getConfiguredTrustedRoots(prefs = {}) {
+  const configuredRoots = uniqueTrustedRoots([
+    ...(Array.isArray(prefs?.trusted_roots) ? prefs.trusted_roots : []),
+    ...(Array.isArray(prefs?.desk?.trusted_roots) ? prefs.desk.trusted_roots : []),
+  ]);
+  return isLegacyDesktopWorkspaceSeed(prefs, configuredRoots) ? [] : configuredRoots;
+}
+
+function getEffectiveTrustedRoots(prefs = {}) {
+  return uniqueTrustedRoots([
+    getPreferredHomeFolder(prefs),
+    ...getConfiguredTrustedRoots(prefs),
+  ]);
+}
+
+function getConfiguredWorkspaceRoots(config = {}, prefs = {}) {
+  const history = Array.isArray(config?.cwd_history) ? config.cwd_history : [];
+  return uniqueTrustedRoots([
+    ...getEffectiveTrustedRoots(prefs),
+    config?.last_cwd,
+    ...history,
+  ]);
+}
+
 function readCurrentAgentConfig() {
   const agentId = getCurrentAgentId();
   if (!agentId) return {};
@@ -282,12 +362,7 @@ function listAgentRoots(subdir) {
 function getWorkspaceRoots() {
   const prefs = readUserPreferences();
   const config = readCurrentAgentConfig();
-  const history = Array.isArray(config.cwd_history) ? config.cwd_history : [];
-  return uniqueCanonicalPaths([
-    prefs.home_folder,
-    config.last_cwd,
-    ...history,
-  ]);
+  return uniqueCanonicalPaths(getConfiguredWorkspaceRoots(config, prefs));
 }
 
 function getExternalSkillRoots() {
@@ -985,6 +1060,9 @@ function normalizeSettingsNavigationTarget(target) {
   if (typeof target.tab === "string" && target.tab) next.tab = target.tab;
   if (target.providerId === null || typeof target.providerId === "string") next.providerId = target.providerId ?? null;
   if (target.resetProviderSelection === true) next.resetProviderSelection = true;
+  if (target.agentId === null || typeof target.agentId === "string") next.agentId = target.agentId ?? null;
+  if (target.resetAgentSelection === true) next.resetAgentSelection = true;
+  if (target.reviewerKind === "hanako" || target.reviewerKind === "butter") next.reviewerKind = target.reviewerKind;
   return Object.keys(next).length > 0 ? next : null;
 }
 
@@ -1004,6 +1082,8 @@ function createSettingsWindow(target, theme) {
       return;
     }
   }
+
+  settingsWindowInitialNavigationTarget = navigationTarget;
 
   settingsWindow = new BrowserWindow({
     width: 720,
@@ -1028,13 +1108,6 @@ function createSettingsWindow(target, theme) {
 
   loadWindowURL(settingsWindow, "settings");
 
-  // 窗口加载完后切换到指定 tab / provider
-  if (navigationTarget) {
-    settingsWindow.webContents.once("did-finish-load", () => {
-      settingsWindow.webContents.send("settings-switch-tab", navigationTarget);
-    });
-  }
-
   // 拦截设置窗口内的链接导航
   settingsWindow.webContents.on("will-navigate", (event, url) => {
     try {
@@ -1056,6 +1129,7 @@ function createSettingsWindow(target, theme) {
   });
 
   settingsWindow.on("closed", () => {
+    settingsWindowInitialNavigationTarget = null;
     settingsWindow = null;
   });
 }
@@ -1798,6 +1872,13 @@ wrapIpcHandler("check-update", () => {
 });
 
 wrapIpcHandler("open-settings", (_event, tab, theme) => createSettingsWindow(tab, theme));
+wrapIpcHandler("get-initial-settings-navigation-target", (event) => {
+  if (!settingsWindow || settingsWindow.isDestroyed()) return null;
+  if (event.sender !== settingsWindow.webContents) return null;
+  const target = settingsWindowInitialNavigationTarget;
+  settingsWindowInitialNavigationTarget = null;
+  return target;
+});
 
 // 浏览器查看器窗口
 wrapIpcHandler("open-browser-viewer", (_event, theme) => {
@@ -2189,19 +2270,46 @@ wrapIpcHandler("open-external", (_event, url) => {
 });
 
 wrapIpcHandler("confirm-action", async (event, opts = {}) => {
-  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
-  const result = await dialog.showMessageBox(win || undefined, {
-    type: "question",
-    title: opts.title || "Lynn",
-    message: opts.message || mt("common.confirm", null, "Confirm"),
-    detail: opts.detail || "",
-    buttons: [opts.confirmLabel || mt("common.confirm", null, "Confirm"), opts.cancelLabel || mt("common.cancel", null, "Cancel")],
-    defaultId: 0,
-    cancelId: 1,
-    normalizeAccessKeys: true,
-    noLink: true,
+  const sender = event.sender;
+  const webContents = sender?.isDestroyed?.() ? null : sender;
+  if (!webContents) return false;
+
+  const requestId = `confirm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return await new Promise((resolve) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      ipcMain.removeListener(`confirm-action-response:${requestId}`, handleResponse);
+      resolve(false);
+    }, 5 * 60 * 1000);
+
+    const handleResponse = (_respEvent, payload = {}) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      ipcMain.removeListener(`confirm-action-response:${requestId}`, handleResponse);
+      resolve(payload.approved === true);
+    };
+
+    ipcMain.once(`confirm-action-response:${requestId}`, handleResponse);
+
+    try {
+      webContents.send("confirm-action-request", {
+        requestId,
+        title: opts.title || "Lynn",
+        message: opts.message || mt("common.confirm", null, "Confirm"),
+        detail: opts.detail || "",
+        confirmLabel: opts.confirmLabel || mt("common.confirm", null, "Confirm"),
+        cancelLabel: opts.cancelLabel || mt("common.cancel", null, "Cancel"),
+        tone: opts.tone === "danger" ? "danger" : "default",
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      ipcMain.removeListener(`confirm-action-response:${requestId}`, handleResponse);
+      resolve(false);
+    }
   });
-  return result.response === 0;
 });
 
 // 读取文件内容（仅文本文件，用于 Artifacts 预览）
@@ -2320,6 +2428,46 @@ wrapIpcHandler("reload-main-window", () => {
   }
 });
 
+function getNotificationPermissionStatus() {
+  if (!Notification.isSupported()) return "unsupported";
+  if (process.platform !== "darwin") return "granted";
+
+  const settings = systemPreferences.getNotificationSettings?.();
+  const status = settings?.authorizationStatus;
+  if (status === "authorized" || status === "provisional" || status === "ephemeral") {
+    return "granted";
+  }
+  if (status === "denied") return "denied";
+  if (status === "not-determined") return "not-determined";
+  return "granted";
+}
+
+async function requestNotificationPermission() {
+  const currentStatus = getNotificationPermissionStatus();
+  if (currentStatus !== "not-determined") return currentStatus;
+
+  try {
+    const notif = new Notification({
+      title: "Lynn",
+      body: mt("notification.ready", null, "Notifications enabled"),
+      silent: true,
+    });
+    notif.show();
+  } catch {}
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 15000) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const nextStatus = getNotificationPermissionStatus();
+    if (nextStatus !== "not-determined") return nextStatus;
+  }
+
+  return getNotificationPermissionStatus();
+}
+
+wrapIpcHandler("get-notification-permission-status", () => getNotificationPermissionStatus());
+wrapIpcHandler("request-notification-permission", () => requestNotificationPermission());
+
 // 系统通知（由 agent 的 notify 工具触发）
 wrapIpcHandler("show-notification", (_event, title, body) => {
   if (!Notification.isSupported()) return;
@@ -2391,16 +2539,6 @@ wrapIpcHandler("window-is-maximized", (event) => {
 wrapIpcHandler("app-ready", () => {
   if (mainWindow) {
     mainWindow.show();
-  }
-
-  // 首次启动时请求通知权限（macOS）
-  if (process.platform === "darwin" && Notification.isSupported()) {
-    const settings = systemPreferences.getNotificationSettings?.();
-    const status = settings?.authorizationStatus;
-    if (settings && status === "not-determined") {
-      const notif = new Notification({ title: "Lynn", body: mt("notification.ready", null, "Notifications enabled"), silent: true });
-      notif.show();
-    }
   }
 
   // 稍微延迟关闭 splash / onboarding，让主窗口先稳定显示

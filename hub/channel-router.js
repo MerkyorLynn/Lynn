@@ -134,7 +134,7 @@ export class ChannelRouter {
    * 频道检查回调：triage → 两轮 Agent Session → 写入回复
    * 从 engine._executeChannelCheck 搬入
    */
-  async _executeCheck(agentId, channelName, newMessages, _allChannelUpdates, { signal } = {}) {
+  async _executeCheck(agentId, channelName, newMessages, _allChannelUpdates, { signal, triggerMessage } = {}) {
     const engine = this._engine;
     const msgText = formatMessagesForLLM(newMessages);
 
@@ -175,37 +175,47 @@ export class ChannelRouter {
       return { replied: false };
     }
 
-    // ── 检查最后一条消息是否是用户发的（防止 agent 回复触发无限循环） ──
+    const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
+    let channelMessages = [];
     let lastMsgIsUser = false;
     try {
-      const content = fs.readFileSync(path.join(engine.channelsDir, `${channelName}.md`), "utf-8");
-      const lines = content.split("\n");
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const match = lines[i].match(/^### (.+?) \| \d{4}-\d{2}-\d{2}/);
-        if (match) {
-          const sender = match[1].trim();
-          // 检查 sender 是否是任何已知 agent（按 ID 或展示名匹配）
-          let senderIsAgent = false;
-          if (engine.agents) {
-            for (const [id, ag] of engine.agents) {
-              const name = ag?.config?.agent?.name || id;
-              if (sender === id || sender === name) {
-                senderIsAgent = true;
-                break;
-              }
+      const parsed = parseChannel(fs.readFileSync(channelFile, "utf-8"));
+      channelMessages = parsed.messages || [];
+      const lastMessage = channelMessages[channelMessages.length - 1] || null;
+      if (lastMessage) {
+        let senderIsAgent = false;
+        if (engine.agents) {
+          for (const [id, ag] of engine.agents) {
+            const name = ag?.config?.agent?.name || id;
+            if (lastMessage.sender === id || lastMessage.sender === name) {
+              senderIsAgent = true;
+              break;
             }
           }
-          lastMsgIsUser = !senderIsAgent;
-          break;
         }
+        lastMsgIsUser = !senderIsAgent;
       }
     } catch {}
+
+    const triggerSender = typeof triggerMessage?.sender === "string" ? triggerMessage.sender.trim() : "";
+    const triggerTimestamp = triggerMessage?.timestamp || "";
+    const triggeredByImmediateTurn = !!triggerTimestamp;
+    const triggerIsSelf = triggerSender === agentId || triggerSender === agentName;
+    const alreadyRepliedToTrigger = triggeredByImmediateTurn
+      && channelMessages.some((message) =>
+        message.timestamp > triggerTimestamp
+        && (message.sender === agentId || message.sender === agentName)
+      );
+
+    if (triggerIsSelf || alreadyRepliedToTrigger) {
+      return { replied: false };
+    }
 
     // ── Step 1: Triage ──
     let shouldReply = isMentioned;
 
-    // 只有最后一条消息是用户发的，才进入 triage 判断
-    if (!shouldReply && !lastMsgIsUser) {
+    // 普通轮询仍要求最后一条是用户消息；立即 triage 则绑定到触发消息，不被前一个 agent 的回复打断
+    if (!shouldReply && !lastMsgIsUser && !triggeredByImmediateTurn) {
       return { replied: false };
     }
 

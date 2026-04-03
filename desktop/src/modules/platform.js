@@ -77,6 +77,10 @@
     showInFinder: () => {},
     startDrag: () => {},
     confirmAction: async (opts = {}) => window.confirm(opts.message || 'Confirm'),
+    onConfirmActionRequest: () => () => {},
+    respondConfirmAction: () => {},
+    getNotificationPermissionStatus: async () => 'unsupported',
+    requestNotificationPermission: async () => 'unsupported',
 
     // 窗口管理 → 单页降级
     openSettings: () => {},

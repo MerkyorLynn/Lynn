@@ -132,7 +132,6 @@ function copyLegacyFiles(): Plugin {
         'Hanako-1600.jpg',
         'Kong.png',
         'Lynn-512-opt.png',
-        'Ming-512-opt.png',
         'kong-banner.jpg',
       ];
 

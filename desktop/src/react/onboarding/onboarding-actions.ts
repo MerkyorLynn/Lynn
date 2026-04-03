@@ -152,3 +152,13 @@ export async function saveUserName(onboardingFetch: OnboardingFetch, name: strin
     body: JSON.stringify({ user: { name } }),
   });
 }
+
+// ── Save workspace ──
+
+export async function saveHomeFolder(onboardingFetch: OnboardingFetch, folder: string): Promise<void> {
+  await onboardingFetch('/api/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ desk: { home_folder: folder } }),
+  });
+}

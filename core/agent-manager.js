@@ -100,6 +100,11 @@ export class AgentManager {
 
         let changed = false;
 
+        if (cfg?.agent?.yuan === "ming") {
+          cfg.agent = { ...(cfg.agent || {}), yuan: "lynn" };
+          changed = true;
+        }
+
         // ── 1. 修复缺失的 provider ──
         const rawChat = cfg?.models?.chat;
         const chatModelId = typeof rawChat === "object" ? rawChat?.id : rawChat;
@@ -297,8 +302,9 @@ export class AgentManager {
     const templateConfig = fs.readFileSync(path.join(this._d.productDir, "config.example.yaml"), "utf-8");
     const currentAgent = this.agent;
     const userName = currentAgent?.userName || "";
-    const VALID_YUAN = ["hanako", "butter", "ming", "kong"];
-    const yuanType = VALID_YUAN.includes(yuan) ? yuan : "hanako";
+    const normalizedYuan = normalizeYuanType(yuan);
+    const VALID_YUAN = ["hanako", "butter", "lynn", "kong"];
+    const yuanType = VALID_YUAN.includes(normalizedYuan) ? normalizedYuan : "hanako";
     const primaryChat = currentAgent?.config?.models?.chat || this._d.getModels().defaultModel?.id || "";
 
     let configYamlOut;

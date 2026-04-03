@@ -2,9 +2,9 @@
  * MoodParser — 从 streaming text 中解析内省标签
  *
  * 支持三种标签（对应三个 yuan 的思维框架）：
- *   <mood></mood>       — Lynn（MOOD 意识流四池）
+ *   <mood></mood>       — Hanako（MOOD 意识流四池）
  *   <pulse></pulse>     — Butter（PULSE 体感三拍）
- *   <reflect></reflect> — Ming（沉思两层）
+ *   <reflect></reflect> — Lynn（沉思两层）
  *
  * 无论哪种标签，都输出统一的事件流：
  *   mood_start / mood_text / mood_end

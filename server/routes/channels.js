@@ -9,6 +9,7 @@
  * GET    /channels/:id          — 获取频道消息 + 成员列表
  * POST   /channels/:id/messages — 用户发送群聊消息
  * POST   /channels/:id/read     — 更新用户已读 bookmark
+ * POST   /channels/:id/archive  — 归档频道
  * DELETE /channels/:id          — 删除频道
  */
 
@@ -46,6 +47,13 @@ export function createChannelsRoute(engine, hub) {
     return resolved;
   }
 
+  function getArchivedState(meta = {}) {
+    return {
+      archived: meta.archived === true || meta.archived === "true",
+      archivedAt: meta.archivedAt || "",
+    };
+  }
+
   // ── 列出所有频道 ──
   route.get("/channels", async (c) => {
     try {
@@ -54,7 +62,7 @@ export function createChannelsRoute(engine, hub) {
         return c.json({ channels: [], bookmarks: {} });
       }
 
-      const files = fs.readdirSync(channelsDir).filter(f => f.endsWith(".md"));
+      const files = fs.readdirSync(channelsDir).filter((f) => f.endsWith(".md"));
       const bookmarks = readBookmarks(userBookmarkPath());
 
       const channels = [];
@@ -64,13 +72,14 @@ export function createChannelsRoute(engine, hub) {
         const content = fs.readFileSync(filePath, "utf-8");
         const { meta, messages } = parseChannel(content);
         const members = Array.isArray(meta.members) ? meta.members : [];
+        const { archived, archivedAt } = getArchivedState(meta);
 
         const lastMsg = messages[messages.length - 1];
         const bookmark = bookmarks.get(channelId);
 
         let newMessageCount = 0;
         if (bookmark && bookmark !== "never") {
-          newMessageCount = messages.filter(m => m.timestamp > bookmark).length;
+          newMessageCount = messages.filter((m) => m.timestamp > bookmark).length;
         } else {
           newMessageCount = messages.length;
         }
@@ -85,6 +94,8 @@ export function createChannelsRoute(engine, hub) {
           lastMessage: lastMsg?.body?.slice(0, 60) || "",
           lastSender: lastMsg?.sender || "",
           lastTimestamp: lastMsg?.timestamp || "",
+          archived,
+          archivedAt,
         });
       }
 
@@ -148,6 +159,7 @@ export function createChannelsRoute(engine, hub) {
       const content = fs.readFileSync(filePath, "utf-8");
       const { meta, messages } = parseChannel(content);
       const members = Array.isArray(meta.members) ? meta.members : [];
+      const { archived, archivedAt } = getArchivedState(meta);
 
       return c.json({
         id: meta.id || name,
@@ -155,6 +167,8 @@ export function createChannelsRoute(engine, hub) {
         description: meta.description || "",
         messages,
         members,
+        archived,
+        archivedAt,
       });
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -179,6 +193,12 @@ export function createChannelsRoute(engine, hub) {
         return c.json({ error: "Channel not found" }, 404);
       }
 
+      const channelMeta = getChannelMeta(filePath);
+      const { archived } = getArchivedState(channelMeta);
+      if (archived) {
+        return c.json({ error: "Channel is archived" }, 409);
+      }
+
       const senderName = engine.userName || "user";
 
       // 检测 /结论 /总结 /conclusion 斜杠命令
@@ -191,7 +211,7 @@ export function createChannelsRoute(engine, hub) {
 
       if (isConclusionCmd) {
         // 触发结论生成
-        hub.triggerChannelConclusion?.(name)?.catch(err =>
+        hub.triggerChannelConclusion?.(name)?.catch((err) =>
           console.error(`[channel] 触发结论生成失败: ${err.message}`)
         );
       } else {
@@ -204,7 +224,7 @@ export function createChannelsRoute(engine, hub) {
           const allAgents = engine.listAgents?.() || [];
           for (const at of atMatches) {
             const atName = at.slice(1);
-            const matched = allAgents.find(a =>
+            const matched = allAgents.find((a) =>
               a.name === atName || a.id === atName
             );
             if (matched && channelMembers.includes(matched.id)) {
@@ -213,7 +233,7 @@ export function createChannelsRoute(engine, hub) {
           }
         }
 
-        hub.triggerChannelTriage(name, { mentionedAgents })?.catch(err =>
+        hub.triggerChannelTriage(name, { mentionedAgents })?.catch((err) =>
           console.error(`[channel] 触发立即 triage 失败: ${err.message}`)
         );
       }
@@ -241,6 +261,39 @@ export function createChannelsRoute(engine, hub) {
       updateBookmark(userBookmarkPath(), name, timestamp);
       return c.json({ ok: true });
     } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 归档频道 ──
+  route.post("/channels/:name/archive", async (c) => {
+    try {
+      const name = c.req.param("name");
+      const filePath = safeChannelPath(name);
+      if (!filePath) return c.json({ error: "Invalid channel id" }, 400);
+
+      if (!fs.existsSync(filePath)) {
+        return c.json({ error: "Channel not found" }, 404);
+      }
+
+      const result = await engine.archiveChannelByName(name);
+      hub.eventBus?.emit({
+        type: "channel_archived",
+        channelName: name,
+        archived: true,
+        archivedAt: result?.archivedAt || "",
+      }, null);
+      debugLog()?.log("api", `POST /channels/${name}/archive`);
+      return c.json({
+        ok: true,
+        archived: true,
+        alreadyArchived: !!result?.alreadyArchived,
+        archivedAt: result?.archivedAt || "",
+      });
+    } catch (err) {
+      if (err.message?.includes("不存在")) {
+        return c.json({ error: err.message }, 404);
+      }
       return c.json({ error: err.message }, 500);
     }
   });

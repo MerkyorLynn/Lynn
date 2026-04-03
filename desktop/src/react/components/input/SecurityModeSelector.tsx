@@ -1,7 +1,7 @@
 /**
  * SecurityModeSelector — 安全模式下拉选择器
  *
- * 替代 PlanModeButton，在输入区底部工具栏展示三个模式。
+ * 替代 PlanModeButton，在输入区底部工具栏展示四个模式。
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -16,9 +16,10 @@ const MODES: Array<{
   labelKey: string;
   descKey: string;
 }> = [
-  { value: 'authorized', labelKey: 'security.mode.authorized', descKey: 'security.mode.authorizedDesc' },
-  { value: 'plan',       labelKey: 'security.mode.plan',       descKey: 'security.mode.planDesc' },
-  { value: 'safe',       labelKey: 'security.mode.safe',       descKey: 'security.mode.safeDesc' },
+  { value: 'authorized',  labelKey: 'security.mode.authorized',  descKey: 'security.mode.authorizedDesc' },
+  { value: 'plan',        labelKey: 'security.mode.plan',        descKey: 'security.mode.planDesc' },
+  { value: 'safe',        labelKey: 'security.mode.safe',        descKey: 'security.mode.safeDesc' },
+  { value: 'full-access', labelKey: 'security.mode.fullAccess',  descKey: 'security.mode.fullAccessDesc' },
 ];
 
 export function SecurityModeSelector() {

@@ -93,6 +93,27 @@ export function mergeWorkingSetFiles(...groups: Array<WorkingSetFile[] | null | 
   return merged;
 }
 
+export function toggleComposerAttachment(files: AttachedFile[], file: AttachedFile): AttachedFile[] {
+  if (files.some((entry) => entry.path === file.path)) {
+    return files.filter((entry) => entry.path !== file.path);
+  }
+  return [...files, { ...file }];
+}
+
+export function resolveDocContextToggle(
+  activePath: string | null | undefined,
+  targetFile: DocContextFile | null | undefined,
+): { attached: boolean; file: DocContextFile | null } {
+  const normalizedTarget = cloneDocContextFile(targetFile);
+  if (!normalizedTarget) {
+    return { attached: false, file: null };
+  }
+  if (activePath && activePath === normalizedTarget.path) {
+    return { attached: false, file: null };
+  }
+  return { attached: true, file: normalizedTarget };
+}
+
 export function fileToWorkingSet(file: { path: string; name: string }, source: WorkingSetFile['source'], isDirectory = false): WorkingSetFile {
   return { path: file.path, name: file.name, source, isDirectory };
 }

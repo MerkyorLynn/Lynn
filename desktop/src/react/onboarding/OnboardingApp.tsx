@@ -7,14 +7,15 @@ import { NameStep } from './steps/NameStep';
 import { ProviderStep } from './steps/ProviderStep';
 import { ModelStep } from './steps/ModelStep';
 import { ThemeStep } from './steps/ThemeStep';
+import { PermissionsStep } from './steps/PermissionsStep';
 import { TutorialStep } from './steps/TutorialStep';
 
 interface OnboardingAppProps { preview: boolean; skipToTutorial: boolean }
 
 type OnboardingTrack = 'quick' | 'advanced';
 
-const QUICK_START_STEPS = [0, 1, 5] as const;
-const ADVANCED_SETUP_STEPS = [0, 1, 2, 3, 4, 5] as const;
+const QUICK_START_STEPS = [0, 1, 5, 6] as const;
+const ADVANCED_SETUP_STEPS = [0, 1, 2, 3, 4, 5, 6] as const;
 
 export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const [serverPort, setServerPort] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   }, []);
 
   const goToStep = useCallback((index: number) => {
-    if (index < 0 || index > 5) return;
+    if (index < 0 || index > 6) return;
     setStepKey(k => k + 1);
     setStep(index);
   }, []);
@@ -168,8 +169,18 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
       )}
       {step === 4 && <ThemeStep key={`step-4-${stepKey}`} goToStep={goToStep} />}
       {step === 5 && (
-        <TutorialStep
+        <PermissionsStep
           key={`step-5-${stepKey}`}
+          preview={preview}
+          onboardingFetch={onboardingFetch}
+          goToStep={goToStep}
+          showError={showError}
+          track={track ?? 'quick'}
+        />
+      )}
+      {step === 6 && (
+        <TutorialStep
+          key={`step-6-${stepKey}`}
           preview={preview}
           showError={showError}
           track={track ?? 'quick'}

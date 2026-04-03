@@ -53,6 +53,13 @@
     border-color: rgba(91, 168, 140, 0.2);
 }
 
+/* 全权模式 — 高风险提示 */
+.pill-full-access {
+    color: #da6f6f;
+    background: rgba(218, 111, 111, 0.08);
+    border-color: rgba(218, 111, 111, 0.28);
+}
+
 .pillIcon {
     font-size: 0.68rem;
     line-height: 1;

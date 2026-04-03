@@ -164,7 +164,9 @@
     "loading": "Loading",
     "auto": "Auto select",
     "needsConfig": "No reviewer is configured yet",
-    "requestFailed": "Review request failed"
+    "requestFailed": "Review request failed",
+    "followUp": "Handle findings",
+    "taskCreated": "Execution task created"
   },
   "time": {
     "justNow": "Just now",
@@ -874,7 +876,7 @@
       "trustedRoots": "Trusted roots",
       "trustedRootsDesc": "Paths that are allowed for workspace-level read and write in execute mode",
       "addTrustedRoot": "Add trusted path",
-      "desktopAutoTrustedHint": "Desktop is trusted by default and always included.",
+      "trustedRootsHint": "Add at least one project folder so Lynn only reads and writes inside places you explicitly trust.",
       "review": {
         "title": "Review chain",
         "desc": "Review now only picks from Hanako / Butter, never from unrelated channel or expert agents. Bind a dedicated agent for each reviewer so they can run on separate models.",
@@ -1086,6 +1088,33 @@
       "back": "Back",
       "next": "Next"
     },
+    "permissions": {
+      "title": "Set Permissions In One Pass",
+      "subtitle": "Pick a workspace first, then enable notifications.\nThat keeps Lynn from triggering a stack of macOS permission prompts during startup.",
+      "workspace": {
+        "title": "Workspace",
+        "desc": "Choose a folder you actually work in. Patrols, scheduled tasks, and file actions will stay inside places you explicitly approved.",
+        "selected": "Selected",
+        "pending": "Needs setup",
+        "placeholder": "Not chosen yet. We'll open the folder picker when you continue."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "desc": "Notifications are only used when Lynn needs to get your attention. We ask here on purpose instead of popping it up during launch.",
+        "detail": "If you skip it now, you can still enable notifications later in System Settings.",
+        "status": {
+          "checking": "Checking",
+          "pending": "Not granted",
+          "granted": "Enabled",
+          "denied": "Denied",
+          "unsupported": "No prompt needed"
+        }
+      },
+      "note": "When you continue, Lynn will guide you through choosing a workspace and request notification access only if macOS still needs it.",
+      "back": "Back",
+      "continue": "Authorize and Continue",
+      "working": "Working..."
+    },
     "tutorial": {
       "title": "All Set ✿",
       "quickTitle": "Quick Start is ready ✿",
@@ -1117,6 +1146,7 @@
     "back": "Back",
     "heartbeat": "Routine patrol",
     "delegate": "Delegated task",
+    "reviewFollowUp": "Review follow-up",
     "cron": "Scheduled task",
     "patrolDone": "Patrol completed",
     "cronDone": "Scheduled task completed",

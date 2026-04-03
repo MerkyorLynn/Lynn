@@ -120,6 +120,7 @@ export function SkillsTab() {
       message: t('settings.skills.deleteConfirm', { name }),
       confirmLabel: t('common.delete') || 'Delete',
       cancelLabel: t('common.cancel') || 'Cancel',
+      tone: 'danger',
     });
     if (!confirmed) return;
     try {

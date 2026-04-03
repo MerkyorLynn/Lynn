@@ -11,17 +11,17 @@ const DEFAULT_NAME = 'Lynn';
 const YUAN_AVATARS: Record<string, string> = {
   hanako: 'Hanako-1600.jpg',
   butter: 'Butter-1600.jpg',
-  ming: 'Ming-512-opt.png',
+  lynn: 'Lynn-512-opt.png',
 };
 const YUAN_SYMBOLS: Record<string, string> = {
   hanako: '\u273F',  // ✿
   butter: '\u274A',  // ❊
-  ming: '\u25C8',    // ◈
+  lynn: '\u25C8',    // ◈
 };
 const YUAN_COLORS: Record<string, string> = {
   hanako: '#537D96',
   butter: '#5BA88C',
-  ming: '#8BA4B4',
+  lynn: '#8BA4B4',
 };
 
 export function SplashApp() {

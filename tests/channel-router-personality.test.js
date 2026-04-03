@@ -11,9 +11,39 @@ vi.mock("../lib/debug-log.js", () => ({
   }),
 }));
 
+function parseChannel(content) {
+  const lines = String(content || "").split("\n");
+  const messages = [];
+  let current = null;
+  const bodyLines = [];
+
+  for (const line of lines) {
+    const match = line.match(/^### (.+?) \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?)$/);
+    if (match) {
+      if (current) {
+        current.body = bodyLines.join("\n").trim();
+        messages.push(current);
+        bodyLines.length = 0;
+      }
+      current = { sender: match[1], timestamp: match[2], body: "" };
+      continue;
+    }
+    if (!current || line.trim() === "---") continue;
+    bodyLines.push(line);
+  }
+
+  if (current) {
+    current.body = bodyLines.join("\n").trim();
+    messages.push(current);
+  }
+
+  return { meta: {}, messages };
+}
+
 vi.mock("../lib/channels/channel-store.js", () => ({
-  formatMessagesForLLM: (msgs) => msgs.map(m => `${m.sender}: ${m.text}`).join("\n"),
+  formatMessagesForLLM: (msgs) => msgs.map((m) => `${m.sender}: ${m.text ?? m.body ?? ""}`).join("\n"),
   appendMessage: vi.fn(),
+  parseChannel,
 }));
 
 vi.mock("../lib/memory/config-loader.js", () => ({
@@ -122,5 +152,87 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
 
     expect(result.replied).toBe(false);
     expect(loadConfig).toHaveBeenCalled();
+  });
+
+  it("立即 triage 时不会因为前一个 agent 已回复而阻断后续 agent", async () => {
+    const { callText } = await import("../core/llm-client.js");
+    const { appendMessage } = await import("../lib/channels/channel-store.js");
+    callText.mockResolvedValue("YES");
+    appendMessage.mockClear();
+
+    const agentA = {
+      config: { agent: { name: "Alpha", yuan: "hanako" } },
+      personality: "Alpha personality",
+    };
+    const agentB = {
+      config: { agent: { name: "Beta", yuan: "hanako" } },
+      personality: "Beta personality",
+    };
+    const realReadFileSync = fs.readFileSync;
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
+      if (String(filePath).endsWith("/general.md")) {
+        return [
+          "### user | 2026-04-01 10:00:00",
+          "",
+          "大家怎么看？",
+          "",
+          "---",
+          "",
+          "### Alpha | 2026-04-01 10:00:05",
+          "",
+          "我先说一句。",
+          "",
+          "---",
+          "",
+        ].join("\n");
+      }
+      return realReadFileSync(filePath, ...args);
+    });
+
+    const router = new ChannelRouter({
+      hub: {
+        engine: {
+          currentAgentId: "host",
+          agentsDir: "/fake/agents",
+          channelsDir: "/fake/channels",
+          productDir: "/fake/product",
+          userDir: "/fake/user",
+          agents: new Map([
+            ["alpha", agentA],
+            ["beta", agentB],
+          ]),
+          resolveUtilityConfig: () => ({
+            utility: "test-model",
+            utility_large: "test-model-large",
+            api_key: "test-key",
+            base_url: "https://test.api",
+            api: "openai-completions",
+            large_api_key: "test-key",
+            large_base_url: "https://test.api",
+            large_api: "openai-completions",
+          }),
+        },
+        eventBus: { emit: vi.fn() },
+      },
+    });
+
+    router._executeReply = vi.fn().mockResolvedValue("Beta 来补充一下。");
+
+    const result = await router._executeCheck(
+      "beta",
+      "general",
+      [
+        { sender: "user", text: "大家怎么看？" },
+        { sender: "Alpha", text: "我先说一句。" },
+      ],
+      [],
+      { triggerMessage: { sender: "user", timestamp: "2026-04-01 10:00:00" } },
+    );
+
+    readSpy.mockRestore();
+    expect(callText).toHaveBeenCalled();
+    expect(router._executeReply).toHaveBeenCalledOnce();
+    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Beta", "Beta 来补充一下。");
+    expect(result).toEqual({ replied: true, replyContent: "Beta 来补充一下。" });
   });
 });

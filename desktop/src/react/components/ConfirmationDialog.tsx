@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useStore } from '../stores';
 import { useDialogA11y } from '../hooks/use-dialog-a11y';
 
-
 export function ConfirmationDialog() {
   const confirm = useStore(s => s.pendingConfirm);
   const setPendingConfirm = useStore(s => s.setPendingConfirm);
   const [busy, setBusy] = useState(false);
+  const isDestructive = confirm?.tone === 'danger';
 
   const handleCancel = () => {
     if (busy) return;
@@ -35,7 +35,7 @@ export function ConfirmationDialog() {
     <div className="hana-warning-overlay" onClick={handleCancel}>
       <div
         ref={dialogRef}
-        className="hana-warning-box hana-confirm-box"
+        className={`hana-warning-box hana-confirm-box${isDestructive ? ' danger' : ''}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -51,7 +51,7 @@ export function ConfirmationDialog() {
           <button className="hana-warning-cancel" onClick={handleCancel} disabled={busy}>
             {confirm.cancelLabel || window.t?.('common.cancel') || 'Cancel'}
           </button>
-          <button className="hana-warning-confirm" onClick={handleConfirm} disabled={busy}>
+          <button className={`hana-warning-confirm${isDestructive ? ' danger' : ''}`} onClick={handleConfirm} disabled={busy}>
             {busy ? (window.t?.('common.executing') || 'Executing...') : (confirm.confirmLabel || window.t?.('common.confirm') || 'Confirm')}
           </button>
         </div>

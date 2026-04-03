@@ -22,7 +22,8 @@
  *   { type: "session_title", title: "...", path: "..." }
  *   { type: "jian_update", content: "..." }
  *   { type: "devlog", text: "...", level: "info"|"heartbeat"|"error" }
- *   { type: "activity_update", activity: { id, type, startedAt, finishedAt, summary, sessionFile, status } }
+ *   { type: "activity_update", activity: { id, type, startedAt, finishedAt, summary, sessionFile, status, taskId?, source? } }
+ *   { type: "task_update", task: { taskId, title, status, source, sessionPath?, metadata?, resultSummary?, error? } }
  *   { type: "file_output", filePath: "...", label: "...", ext: "pdf"|"docx"|"xlsx"|... }  (由 present_files 工具触发，每个文件一条)
  *   { type: "file_diff", filePath: "...", diff: "...", linesAdded: number, linesRemoved: number, rollbackId?: "..." }  (由 edit/edit-diff 工具触发，用于审查与回滚)
  *   { type: "artifact", artifactId: "...", artifactType: "html"|"code"|"markdown", title: "...", content: "...", language?: "..." }  (由 create_artifact 工具触发)
@@ -32,7 +33,8 @@
  *   { type: "cron_confirmation", jobData: { type, schedule, prompt, label } }  (cron add 操作需要用户确认)
  *   { type: "bridge_status", platform: "telegram"|"feishu", status: "connected"|"disconnected"|"error", error?: "..." }  (外部平台连接状态变更)
  *   { type: "review_start", reviewId: "...", reviewerName: "...", reviewerAgent: "..." }  (review 开始，前端显示 loading 卡片)
- *   { type: "review_result", reviewId: "...", reviewerName: "...", reviewerAgent: "...", content: "...", error?: "..." }  (review 结果到达)
+ *   { type: "review_progress", reviewId: "...", stage: "packing_context"|"reviewing"|"structuring"|"done", findingsCount?: number, verdict?: "pass"|"concerns"|"blocker", workflowGate?: "clear"|"follow_up"|"hold" }  (review 进度更新)
+ *   { type: "review_result", reviewId: "...", reviewerName: "...", reviewerAgent: "...", content: "...", structured?: object, contextPack?: object, error?: "..." }  (review 结果到达)
  *   { type: "stream_resume", sessionPath: "...", streamId: "...", sinceSeq: number, nextSeq: number, reset: bool, truncated: bool, isStreaming: bool, events: [{ seq, event, ts }] }  (新协议)
  */
 

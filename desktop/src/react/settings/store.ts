@@ -60,9 +60,11 @@ export interface SettingsState {
   settingsConfig: Record<string, any> | null;
   globalModelsConfig: Record<string, any> | null;
   homeFolder: string | null;
+  trustedRoots: string[];
 
   // ui
   activeTab: string;
+  pendingReviewerKind: 'hanako' | 'butter' | null;
   ready: boolean;
 
   // pins
@@ -110,9 +112,11 @@ export const useSettingsStore = create<SettingsStore>()((set, get) => ({
   settingsConfig: null,
   globalModelsConfig: null,
   homeFolder: null,
+  trustedRoots: [],
 
   // ui
   activeTab: 'agent',
+  pendingReviewerKind: null,
   ready: false,
 
   // pins

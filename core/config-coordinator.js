@@ -7,10 +7,15 @@
  */
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { createModuleLogger } from "../lib/debug-log.js";
 import { saveConfig } from "../lib/memory/config-loader.js";
 import { findModel } from "../shared/model-ref.js";
+import {
+  getEffectiveTrustedRoots,
+  getPreferredHomeFolder,
+  normalizeTrustedRoot,
+  uniqueTrustedRoots,
+} from "../shared/trusted-roots.js";
 import { t } from "../server/i18n.js";
 
 const log = createModuleLogger("config");
@@ -50,21 +55,50 @@ export class ConfigCoordinator {
   // ── Home Folder ──
 
   getHomeFolder() {
-    const configured = this._prefs().home_folder;
+    const prefs = this._prefs();
+    const configured = getPreferredHomeFolder(prefs);
     if (configured && fs.existsSync(configured)) return configured;
-    // 配置的文件夹已被删除 → fallback 到桌面
-    return path.join(os.homedir(), "Desktop");
+
+    const trustedRoot = getEffectiveTrustedRoots(prefs).find((root) => fs.existsSync(root));
+    if (trustedRoot) return trustedRoot;
+
+    return null;
   }
 
   setHomeFolder(folder) {
     const prefs = this._prefs();
-    if (folder) {
-      prefs.home_folder = folder;
+    const normalized = normalizeTrustedRoot(folder);
+    if (normalized) {
+      prefs.home_folder = normalized;
+      prefs.trusted_roots = uniqueTrustedRoots([
+        ...getEffectiveTrustedRoots(prefs),
+        normalized,
+      ]);
     } else {
       delete prefs.home_folder;
+      prefs.trusted_roots = getEffectiveTrustedRoots(prefs);
     }
     this._savePrefs(prefs);
-    log.log(`setHomeFolder: ${folder || "(cleared)"}`);
+    log.log(`setHomeFolder: ${normalized || "(cleared)"}`);
+  }
+
+  getTrustedRoots() {
+    return getEffectiveTrustedRoots(this._prefs());
+  }
+
+  setTrustedRoots(roots) {
+    const prefs = this._prefs();
+    prefs.trusted_roots = uniqueTrustedRoots(roots);
+
+    const currentHome = normalizeTrustedRoot(prefs.home_folder);
+    const effective = getEffectiveTrustedRoots(prefs);
+    if (currentHome && !effective.includes(currentHome)) {
+      if (effective[0]) prefs.home_folder = effective[0];
+      else delete prefs.home_folder;
+    }
+
+    this._savePrefs(prefs);
+    log.log(`setTrustedRoots: ${prefs.trusted_roots.join(", ") || "(defaults only)"}`);
   }
 
   // ── Shared Models ──

@@ -1,20 +1,16 @@
 import React from 'react';
 import { t } from '../../helpers';
-import { resolveBundledAvatar } from '../../../utils/agent-helpers';
+import { getDisplayYuanEntries, normalizeYuanKey, resolveBundledAvatar } from '../../../utils/agent-helpers';
 
 const kongBannerUrl = 'assets/kong-banner.jpg';
 
 export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; onChange: (key: string) => void }) {
   const types = t('yuan.types') || {};
-  const entries = Object.entries(types) as [string, { name?: string; label?: string; avatar?: string }][];
-  const hIdx = entries.findIndex(([k]) => k === 'hanako');
-  if (hIdx >= 0 && entries.length >= 3) {
-    const [h] = entries.splice(hIdx, 1);
-    entries.splice(1, 0, h);
-  }
+  const entries = getDisplayYuanEntries(types);
+  const normalizedCurrentYuan = normalizeYuanKey(currentYuan);
 
   const chips = entries.filter(([k]) => k !== 'kong');
-  const kongMeta = (types as Record<string, { label?: string }>).kong;
+  const kongMeta = entries.find(([k]) => k === 'kong')?.[1];
 
   return (
     <div className="yuan-selector">
@@ -22,9 +18,9 @@ export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; o
         {chips.map(([key, meta]) => (
           <button
             key={key}
-            className={`yuan-chip${key === currentYuan ? ' selected' : ''}`}
+            className={`yuan-chip${key === normalizedCurrentYuan ? ' selected' : ''}`}
             type="button"
-            onClick={() => { if (key !== currentYuan) onChange(key); }}
+            onClick={() => { if (key !== normalizedCurrentYuan) onChange(key); }}
           >
             <img
               className="yuan-chip-avatar"

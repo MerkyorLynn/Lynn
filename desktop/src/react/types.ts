@@ -40,6 +40,28 @@ export interface Agent {
   hasAvatar?: boolean;
 }
 
+export interface ReviewCandidate {
+  id: string;
+  name: string;
+  displayName?: string;
+  yuan: 'hanako' | 'butter';
+  hasAvatar?: boolean;
+  modelId?: string | null;
+  modelProvider?: string | null;
+  isCurrent?: boolean;
+}
+
+export interface ReviewConfig {
+  defaultReviewer: 'hanako' | 'butter';
+  hanakoReviewerId: string | null;
+  butterReviewerId: string | null;
+  candidates: {
+    hanako: ReviewCandidate[];
+    butter: ReviewCandidate[];
+  };
+  resolvedReviewer: (ReviewCandidate & { reviewerName?: string }) | null;
+}
+
 export interface SessionStream {
   streamId: string | null;
   lastSeq: number;
@@ -150,12 +172,18 @@ export interface SettingsNavigationTarget {
   tab?: string;
   providerId?: string | null;
   resetProviderSelection?: boolean;
+  agentId?: string | null;
+  resetAgentSelection?: boolean;
+  reviewerKind?: 'hanako' | 'butter' | null;
 }
+
+export type NotificationPermissionStatus = 'granted' | 'denied' | 'not-determined' | 'unsupported';
 
 export interface PlatformApi {
   getServerPort(): Promise<string>;
   getServerToken(): Promise<string>;
   openSettings(target?: string | SettingsNavigationTarget): void;
+  getInitialSettingsNavigationTarget?(): Promise<SettingsNavigationTarget | null>;
   openBrowserViewer(url?: string, theme?: string): void;
   selectFolder(): Promise<string | null>;
   selectSkill(): Promise<string | null>;
@@ -211,9 +239,13 @@ export interface PlatformApi {
   getSplashInfo?(): Promise<{ agentName?: string; locale?: string; yuan?: string } | null>;
   onboardingComplete?(): Promise<void>;
 
-  // ── Notification ──
+  // ── Notification / confirm ──
   showNotification?(title: string, body: string): void;
-  confirmAction?(opts: { title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string }): Promise<boolean>;
+  getNotificationPermissionStatus?(): Promise<NotificationPermissionStatus>;
+  requestNotificationPermission?(): Promise<NotificationPermissionStatus>;
+  confirmAction?(opts: { title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string; tone?: 'default' | 'danger' }): Promise<boolean>;
+  onConfirmActionRequest?(callback: (payload: { requestId: string; title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string; tone?: 'default' | 'danger' }) => void): (() => void) | void;
+  respondConfirmAction?(requestId: string, approved: boolean): void;
 
   // ── App info ──
   getAppVersion?(): Promise<string>;

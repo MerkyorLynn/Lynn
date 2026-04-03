@@ -119,8 +119,25 @@ console.log("[build-server] Node.js runtime ready");
 // PATH 前置目标 Node 的 bin 目录，确保 lifecycle scripts（如 prebuild-install）
 // 也用目标 Node 而非系统 Node（两者 ABI 可能不同）
 const targetNodeDir = path.dirname(cachedNodeBin);
+// npm run 会注入当前包的 lifecycle/package 元数据；子 npm install 继承后
+// 可能把根包的 postinstall 错误套用到 dist-server，导致打包链路失败。
+const nestedInstallEnv = { ...process.env };
+for (const key of Object.keys(nestedInstallEnv)) {
+  if (
+    key === "INIT_CWD" ||
+    key === "npm_command" ||
+    key === "npm_config_local_prefix" ||
+    key === "npm_config_prefix" ||
+    key === "npm_execpath" ||
+    key === "npm_prefix" ||
+    key.startsWith("npm_lifecycle_") ||
+    key.startsWith("npm_package_")
+  ) {
+    delete nestedInstallEnv[key];
+  }
+}
 const targetEnv = {
-  ...process.env,
+  ...nestedInstallEnv,
   NODE_ENV: "production",
   PATH: `${targetNodeDir}${path.delimiter}${process.env.PATH}`,
 };

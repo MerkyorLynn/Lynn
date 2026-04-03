@@ -59,6 +59,45 @@ export interface GitContext {
   changedCount?: number | null;
 }
 
+export interface ReviewContextPack {
+  request: string;
+  workspacePath?: string;
+  gitContext?: {
+    sessionPath?: string | null;
+    sessionFile?: string | null;
+  } | null;
+  sessionContext?: {
+    userText?: string;
+    assistantText?: string;
+    toolUses?: Array<{ name: string; argsPreview?: string }>;
+  } | null;
+}
+
+export interface ReviewFinding {
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  detail: string;
+  suggestion?: string;
+  filePath?: string;
+}
+
+export interface StructuredReview {
+  summary: string;
+  verdict: 'pass' | 'concerns' | 'blocker';
+  findings: ReviewFinding[];
+  nextStep?: string;
+  workflowGate: 'clear' | 'follow_up' | 'hold';
+}
+
+export interface ReviewFollowUpTaskState {
+  taskId: string;
+  title?: string | null;
+  status: 'pending' | 'running' | 'waiting_approval' | 'completed' | 'failed' | 'cancelled';
+  resultSummary?: string | null;
+  error?: string | null;
+  updatedAt?: string | null;
+}
+
 // ── 内容块 ──
 
 export type ContentBlock =
@@ -75,7 +114,26 @@ export type ContentBlock =
   | { type: 'cron_confirm'; confirmId?: string; jobData: Record<string, unknown>; status: 'pending' | 'approved' | 'rejected' }
   | { type: 'settings_confirm'; confirmId: string; settingKey: string; cardType: 'toggle' | 'list' | 'text'; currentValue: string; proposedValue: string; options?: string[]; optionLabels?: Record<string, string>; label: string; description?: string; frontend?: boolean; status: 'pending' | 'confirmed' | 'rejected' | 'timeout' }
   | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; trustedRoot?: string | null; status: 'pending' | 'confirmed' | 'rejected' }
-  | { type: 'review'; reviewId: string; reviewerName: string; reviewerAgent?: string; reviewerAgentName?: string; reviewerYuan?: string; reviewerHasAvatar?: boolean; content: string; error?: string; status: 'loading' | 'done' };
+  | {
+      type: 'review';
+      reviewId: string;
+      reviewerName: string;
+      reviewerAgent?: string;
+      reviewerAgentName?: string;
+      reviewerYuan?: string;
+      reviewerHasAvatar?: boolean;
+      content: string;
+      error?: string;
+      status: 'loading' | 'done';
+      stage?: 'packing_context' | 'reviewing' | 'structuring' | 'done';
+      findingsCount?: number;
+      verdict?: StructuredReview['verdict'];
+      workflowGate?: StructuredReview['workflowGate'];
+      structured?: StructuredReview | null;
+      contextPack?: ReviewContextPack | null;
+      followUpPrompt?: string | null;
+      followUpTask?: ReviewFollowUpTaskState | null;
+    };
 
 // ── 消息 ──
 

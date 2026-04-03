@@ -823,7 +823,10 @@
       "homeFolderPlaceholder": "未設定（每次手動選擇）",
       "homeFolderClear": "清除",
       "homeFolderBrowse": "選擇資料夾",
+      "trustedRoots": "受信任路徑",
       "trustedRootsDesc": "執行模式下允許工作區級讀寫的路徑列表",
+      "addTrustedRoot": "新增受信任路徑",
+      "trustedRootsHint": "建議至少加入一個專案資料夾，這樣 Lynn 只會在你明確授權的範圍內讀寫檔案。",
       "review": {
         "title": "複查鏈路",
         "desc": "複查只會從 Hanako / Butter 中選擇，不再混入其他頻道或專家智能體。為每位複查人綁定獨立 Agent 後，就能分別配置各自的模型。",
@@ -1020,6 +1023,33 @@
       "back": "上一步",
       "next": "下一步"
     },
+    "permissions": {
+      "title": "一次把權限準備好",
+      "subtitle": "先選一個工作空間，再把系統通知開好。\n這樣 Lynn 啟動時就不會再被動觸發一串 macOS 權限彈窗。",
+      "workspace": {
+        "title": "工作空間",
+        "desc": "選一個你平常使用的專案資料夾。巡檢、定時任務和檔案操作都只會在你明確授權的範圍內進行。",
+        "selected": "已選擇",
+        "pending": "待設定",
+        "placeholder": "還沒選，繼續時會開啟資料夾選擇器"
+      },
+      "notifications": {
+        "title": "系統通知",
+        "desc": "通知只會在 Lynn 需要提醒你時使用。我們把授權放在這裡一次處理，不再在啟動階段自動跳出。",
+        "detail": "如果你現在不授權，也可以之後在系統設定裡再開啟。",
+        "status": {
+          "checking": "檢查中",
+          "pending": "待授權",
+          "granted": "已開啟",
+          "denied": "已拒絕",
+          "unsupported": "無需授權"
+        }
+      },
+      "note": "點擊繼續後，Lynn 會依序引導你選擇工作空間，並在需要時請求通知權限。",
+      "back": "上一步",
+      "continue": "授權並繼續",
+      "working": "處理中..."
+    },
     "tutorial": {
       "title": "準備就緒 ✿",
       "quickTitle": "Quick Start 已完成 ✿",
@@ -1051,6 +1081,7 @@
     "back": "返回",
     "heartbeat": "日常巡檢",
     "delegate": "委派任務",
+    "reviewFollowUp": "複查後續執行",
     "cron": "定時任務",
     "patrolDone": "日常巡檢完畢",
     "cronDone": "定時任務執行完畢",
@@ -1763,6 +1794,8 @@
     "loading": "載入中",
     "auto": "自動選擇",
     "needsConfig": "還沒有設定可用的複查人",
-    "requestFailed": "複查請求失敗"
+    "requestFailed": "複查請求失敗",
+    "followUp": "處理發現",
+    "taskCreated": "已建立背景執行任務"
   }
 }

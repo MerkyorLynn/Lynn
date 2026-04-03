@@ -3,7 +3,7 @@ import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { switchToAgent } from '../actions';
-import { resolveBundledAvatar } from '../../utils/agent-helpers';
+import { getDisplayYuanEntries, resolveBundledAvatar } from '../../utils/agent-helpers';
 import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import styles from '../Settings.module.css';
 

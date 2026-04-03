@@ -18,9 +18,10 @@ interface Props {
   selected: number;
   onSelect: (file: FileResult) => void;
   onHover: (i: number) => void;
+  onResultsChange?: (results: FileResult[]) => void;
 }
 
-export function AtMentionMenu({ query, selected, onSelect, onHover }: Props) {
+export function AtMentionMenu({ query, selected, onSelect, onHover, onResultsChange }: Props) {
   const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
   const deskBasePath = useStore(s => s.deskBasePath);
   const [searchResults, setSearchResults] = useState<FileResult[]>([]);
@@ -34,6 +35,10 @@ export function AtMentionMenu({ query, selected, onSelect, onHover }: Props) {
     recentFiles: workingSetRecentFiles,
     basePath: deskBasePath || null,
   }), [deskBasePath, query, searchResults, workingSetRecentFiles]);
+
+  useEffect(() => {
+    onResultsChange?.(results);
+  }, [onResultsChange, results]);
 
   useEffect(() => {
     requestIdRef.current += 1;

@@ -6,16 +6,19 @@ export function AttachedFilesBar({ files, onRemove }: {
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className={styles['attached-files']}>
-      {files.map((f, i) => (
-        <AttachmentChip
-          key={f.path}
-          variant="compact"
-          icon={f.isDirectory ? <FolderIcon /> : <ClipIcon />}
-          name={f.name}
-          onRemove={() => onRemove(i)}
-        />
-      ))}
+    <div className={styles['attached-files-wrap']}>
+      <div className={styles['attached-files-label']}>{window.t?.('input.contextFiles') || '附件'}</div>
+      <div className={styles['attached-files']}>
+        {files.map((f, i) => (
+          <AttachmentChip
+            key={f.path}
+            variant="compact"
+            icon={f.isDirectory ? <FolderIcon /> : <ClipIcon />}
+            name={f.name}
+            onRemove={() => onRemove(i)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

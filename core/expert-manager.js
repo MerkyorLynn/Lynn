@@ -219,7 +219,7 @@ export class ExpertManager {
     const expertName = preset.name[locale] || preset.name.en || slug;
 
     // 根据专家 category 选择最匹配的 yuan（思维风格）
-    // ming = 冷静拆解（金融/法律/技术）  butter = 共情洞察（心理/创意）  hanako = 通用
+    // lynn = 冷静拆解（金融/法律/技术）  butter = 共情洞察（心理/创意）  hanako = 通用
     const yuanType = ExpertManager.resolveYuanForCategory(preset.category);
 
     const modelMgr = this._getModelMgr();
@@ -356,8 +356,8 @@ export class ExpertManager {
   /**
    * 根据专家 category 选择最匹配的 yuan（思维风格）
    *
-   * ming  = 冷静拆解式思维（Premise → Conduct → Reflection → Act）
-   *         适合：金融、法律、技术、商业 — 需要逻辑链和前提审查的领域
+   * lynn   = 冷静拆解式思维（Premise → Conduct → Reflection → Act）
+   *          适合：金融、法律、技术、商业 — 需要逻辑链和前提审查的领域
    *
    * butter = 共情洞察式思维（Vibe → Echo → Read → Will）
    *          适合：心理、教育、创意 — 需要感知言外之意和情绪的领域
@@ -366,9 +366,9 @@ export class ExpertManager {
    *          适合：产品、通用 — 兼顾感性灵感与理性反思
    */
   static resolveYuanForCategory(category) {
-    const MING_CATEGORIES = new Set(["finance", "legal", "business", "tech", "engineering", "data"]);
+    const LYNN_CATEGORIES = new Set(["finance", "legal", "business", "tech", "engineering", "data"]);
     const BUTTER_CATEGORIES = new Set(["wellness", "psychology", "education", "creative"]);
-    if (MING_CATEGORIES.has(category)) return "ming";
+    if (LYNN_CATEGORIES.has(category)) return "lynn";
     if (BUTTER_CATEGORIES.has(category)) return "butter";
     return "hanako";
   }

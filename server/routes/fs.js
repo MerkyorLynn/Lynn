@@ -13,6 +13,7 @@ import os from "os";
 import path from "path";
 import { Hono } from "hono";
 import { safeReadFile } from "../../shared/safe-fs.js";
+import { getWorkspaceRoots as getConfiguredWorkspaceRoots } from "../../shared/trusted-roots.js";
 
 function resolveCanonicalPath(rawPath) {
   if (typeof rawPath !== "string") return null;
@@ -61,13 +62,7 @@ function uniqueCanonicalPaths(paths) {
 function getWorkspaceRoots(engine) {
   const config = engine.config || {};
   const prefs = engine.getPreferences?.() || {};
-  const history = Array.isArray(config.cwd_history) ? config.cwd_history : [];
-  return uniqueCanonicalPaths([
-    engine.homeCwd,
-    prefs.home_folder,
-    config.last_cwd,
-    ...history,
-  ]);
+  return uniqueCanonicalPaths(getConfiguredWorkspaceRoots(config, prefs));
 }
 
 function getAllowedRoots(engine, mode) {

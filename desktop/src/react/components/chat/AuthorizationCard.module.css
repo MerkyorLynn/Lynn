@@ -1,159 +1,160 @@
-/* ========================================
-   AuthorizationCard — 授权确认卡片
-   ======================================== */
-
 .card {
-    margin: var(--space-sm) 0;
-    padding: var(--space-md);
-    background: var(--bg-card, #fff);
-    border: 1px solid rgba(255, 180, 50, 0.25);
-    border-radius: var(--radius-md);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 180, 50, 0.08);
-    font-size: 0.82rem;
-    width: fit-content;
-    max-width: 420px;
-    min-width: 280px;
+  margin: var(--space-sm) 0;
+  padding: 0.85rem;
+  background: linear-gradient(180deg, rgba(24, 27, 34, 0.96), rgba(18, 20, 28, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.85rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #edf0f7;
+  max-width: 560px;
+  width: min(560px, 100%);
+  animation: authCardIn 160ms ease-out;
 }
 
-.card.cardConfirmed {
-    border-color: rgba(91, 168, 140, 0.3);
-    opacity: 0.8;
+.cardConfirmed {
+  border-color: rgba(98, 204, 160, 0.4);
 }
 
-.card.cardRejected {
-    border-color: rgba(192, 128, 128, 0.3);
-    opacity: 0.8;
+.cardRejected {
+  border-color: rgba(230, 110, 110, 0.4);
 }
 
 .header {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: var(--space-sm);
-}
-
-.headerIcon {
-    font-size: 1rem;
-    line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
 }
 
 .headerText {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.88rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f8f9fd;
 }
 
-.body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: var(--space-md);
+.scopeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(129, 146, 186, 0.5);
+  color: #c8d2ec;
+  background: rgba(87, 99, 129, 0.25);
 }
 
-.commandLine {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  border: 1px solid rgba(148, 161, 191, 0.5);
+  color: #dde4f8;
+  background: rgba(87, 99, 129, 0.25);
 }
 
-.commandLabel {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-weight: 500;
+.commandBlock {
+  margin: 0;
+  padding: 0.62rem 0.68rem;
+  border-radius: 0.68rem;
+  border: 1px solid rgba(148, 161, 191, 0.35);
+  background: rgba(9, 11, 16, 0.75);
+  color: #e6ebff;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.command {
-    display: block;
-    padding: 0.35rem 0.5rem;
-    background: rgba(0, 0, 0, 0.03);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--text);
-    word-break: break-all;
-    line-height: 1.4;
-}
-
-/* 人类可读的说明 — 帮助小白用户理解 */
 .description {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.35rem;
-    padding: 0.4rem 0.5rem;
-    background: rgba(var(--accent-rgb), 0.04);
-    border-radius: var(--radius-sm);
-    font-size: 0.78rem;
-    color: var(--text);
-    line-height: 1.5;
-}
-
-.descIcon {
-    flex-shrink: 0;
-    font-size: 0.8rem;
-    line-height: 1.5;
+  margin: 0.64rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #d7ddf1;
 }
 
 .reason {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-style: italic;
+  margin: 0.36rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #a5b0ce;
 }
 
-.alwaysAllow {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0.2rem 0;
-    user-select: none;
-}
-
-.alwaysAllow input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    accent-color: var(--accent);
-    cursor: pointer;
-}
-
-.alwaysAllow:hover {
-    color: var(--text);
+.rootHint {
+  margin: 0.46rem 0 0;
+  font-size: 0.71rem;
+  color: #8ec7ff;
 }
 
 .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
+  margin-top: 0.74rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  justify-content: flex-end;
 }
 
 .btn {
-    padding: 0.35rem 0.7rem;
-    font-family: inherit;
-    font-size: 0.78rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all 0.15s;
+  border: 1px solid transparent;
+  border-radius: 0.58rem;
+  font-size: 0.74rem;
+  line-height: 1;
+  padding: 0.45rem 0.64rem;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
-.btnReject {
-    color: var(--text-muted);
-    background: var(--bg-card);
+.btn:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
-.btnReject:hover {
-    color: #c08080;
-    border-color: #c08080;
-    background: rgba(192, 128, 128, 0.06);
+.btnPrimary {
+  color: #0a1022;
+  font-weight: 600;
+  background: linear-gradient(135deg, #79ccff, #89f0d0);
 }
 
-.btnAllow {
-    color: white;
-    background: var(--accent);
-    border-color: var(--accent);
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
 }
 
-.btnAllow:hover {
-    filter: brightness(1.1);
+.btnSecondary {
+  color: #e6ecff;
+  border-color: rgba(140, 153, 186, 0.5);
+  background: rgba(77, 89, 117, 0.35);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: rgba(172, 187, 225, 0.7);
+  background: rgba(95, 108, 140, 0.42);
+}
+
+.btnGhost {
+  color: #d2d9ef;
+  border-color: rgba(140, 153, 186, 0.36);
+  background: rgba(44, 50, 67, 0.35);
+}
+
+.btnGhost:hover:not(:disabled) {
+  color: #ffcece;
+  border-color: rgba(229, 123, 123, 0.68);
+  background: rgba(125, 54, 54, 0.25);
+}
+
+@keyframes authCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

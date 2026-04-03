@@ -8,6 +8,8 @@ import {
   formatQuotedSelectionPrompt,
   getComposerSessionKey,
   mergeWorkingSetFiles,
+  resolveDocContextToggle,
+  toggleComposerAttachment,
 } from '../../utils/composer-state';
 
 describe('composer-state', () => {
@@ -134,6 +136,24 @@ describe('composer-state', () => {
       { path: '/b', name: 'b', source: 'recent' },
       { path: '/c', name: 'c', source: 'current' },
     ]);
+  });
+
+  it('toggleComposerAttachment 可二次取消附件', () => {
+    const file = { path: '/repo/spec.md', name: 'spec.md' };
+    const attached = toggleComposerAttachment([], file);
+    expect(attached).toEqual([{ path: '/repo/spec.md', name: 'spec.md' }]);
+    expect(toggleComposerAttachment(attached, file)).toEqual([]);
+  });
+
+  it('resolveDocContextToggle 同一路径二次点击时会取消文档上下文', () => {
+    expect(resolveDocContextToggle('/repo/doc.md', { path: '/repo/doc.md', name: 'doc.md' })).toEqual({
+      attached: false,
+      file: null,
+    });
+    expect(resolveDocContextToggle('/repo/other.md', { path: '/repo/doc.md', name: 'doc.md' })).toEqual({
+      attached: true,
+      file: { path: '/repo/doc.md', name: 'doc.md' },
+    });
   });
 
   it('fileToWorkingSet 保留目录标记', () => {

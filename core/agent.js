@@ -598,7 +598,7 @@ export class Agent {
       .replace(/\{\{agentId\}\}/g, path.basename(this.agentDir));
     const readFile = (p) => safeReadFile(p, "");
     const langDir = isZh ? "" : "en/";
-    const yuanType = this._config?.agent?.yuan || "hanako";
+    const yuanType = this._config?.agent?.yuan === "ming" ? "lynn" : (this._config?.agent?.yuan || "hanako");
     const identityMd = readFile(path.join(this.agentDir, "identity.md"))
       || readFile(path.join(this.productDir, "identity-templates", `${langDir}${yuanType}.md`))
       || readFile(path.join(this.productDir, "identity-templates", `${yuanType}.md`))
@@ -613,7 +613,8 @@ export class Agent {
 
   /** 读取 yuan 模板（能力定义） */
   _readYuan() {
-    const yuanType = this._config?.agent?.yuan || "hanako";
+    const rawYuan = this._config?.agent?.yuan || "hanako";
+    const yuanType = rawYuan === "ming" ? "lynn" : rawYuan;
     const isZh = String(this._config.locale || "").startsWith("zh");
     const langDir = isZh ? "" : "en/";
     return safeReadFile(path.join(this.productDir, "yuan", `${langDir}${yuanType}.md`), "")
@@ -627,7 +628,8 @@ export class Agent {
       .replace(/\{\{userName\}\}/g, this.userName)
       .replace(/\{\{agentName\}\}/g, this.agentName)
       .replace(/\{\{agentId\}\}/g, path.basename(this.agentDir));
-    const yuanType = this._config?.agent?.yuan || "hanako";
+    const rawYuan = this._config?.agent?.yuan || "hanako";
+    const yuanType = rawYuan === "ming" ? "lynn" : rawYuan;
     const isZh = String(this._config.locale || "").startsWith("zh");
     const langDir = isZh ? "" : "en/";
     const raw = readFile(path.join(this.agentDir, "public-ishiki.md"))
@@ -656,7 +658,8 @@ export class Agent {
 
   /** 静态 prompt（personality + 固定规则 + skills），config 不变时缓存复用 */
   _buildStaticPrompt(isZh) {
-    const yuanType = this._config?.agent?.yuan || "hanako";
+    const rawYuan = this._config?.agent?.yuan || "hanako";
+    const yuanType = rawYuan === "ming" ? "lynn" : rawYuan;
     if (!this._readYuan()) throw new Error(`Cannot find yuan "${yuanType}". Check lib/yuan/`);
     const ishiki = this.personality;
     const skillsText = this._enabledSkills?.length > 0 ? formatSkillsForPrompt(this._enabledSkills) : "";

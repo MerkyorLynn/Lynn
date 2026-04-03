@@ -547,6 +547,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         description: event.description,
         category: event.category,
         identifier: event.identifier,
+        trustedRoot: event.trustedRoot || null,
       });
     } else if (event.type === "confirmation_resolved") {
       broadcast({
@@ -561,6 +562,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         key: event.key,
         value: event.value,
       });
+    } else if (event.type === "task_update") {
+      broadcast({ type: "task_update", task: event.task });
     } else if (event.type === "activity_update") {
       broadcast({ type: "activity_update", activity: event.activity });
     } else if (event.type === "bridge_message") {
@@ -575,6 +578,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       broadcast({ type: "notification", title: event.title, body: event.body });
     } else if (event.type === "channel_new_message") {
       broadcast({ type: "channel_new_message", channelName: event.channelName, sender: event.sender });
+    } else if (event.type === "channel_archived") {
+      broadcast({
+        type: "channel_archived",
+        channelName: event.channelName,
+        archived: event.archived ?? true,
+        archivedAt: event.archivedAt || null,
+      });
     } else if (event.type === "dm_new_message") {
       broadcast({ type: "dm_new_message", from: event.from, to: event.to });
     } else if (event.type === "turn_end") {

@@ -8,8 +8,11 @@ import fs from "fs";
 import path from "path";
 import {
   CLIENT_AGENT_KEY_PREF_KEY,
+  CLIENT_AGENT_SECRET_PREF_KEY,
   generateClientAgentKey,
+  generateClientAgentSecret,
   sanitizeClientAgentKey,
+  sanitizeClientAgentSecret,
 } from "./client-agent-identity.js";
 
 export class PreferencesManager {
@@ -63,7 +66,7 @@ export class PreferencesManager {
     // Migration: if securityMode not set but sandbox was explicitly false (old full-access),
     // default to authorized mode (the new default that allows confirmation)
     if (prefs.securityMode) return prefs.securityMode;
-    if (prefs.sandbox === false) return "authorized"; // was full-access, map to authorized
+    if (prefs.sandbox === false) return "full-access"; // legacy full-access toggle
     return "authorized"; // default
   }
 
@@ -71,9 +74,8 @@ export class PreferencesManager {
   setSecurityMode(mode) {
     const prefs = this.getPreferences();
     prefs.securityMode = mode;
-    // 向后兼容：同步 sandbox 字段
-    // authorized/safe → sandbox: true, plan → sandbox: true
-    prefs.sandbox = true;
+    // 向后兼容：full-access <=> sandbox: false
+    prefs.sandbox = mode !== "full-access";
     this.savePreferences(prefs);
   }
 
@@ -173,6 +175,11 @@ export class PreferencesManager {
     return sanitizeClientAgentKey(this.getPreferences()[CLIENT_AGENT_KEY_PREF_KEY]);
   }
 
+  /** 读取当前客户端的签名密钥 */
+  getClientAgentSecret() {
+    return sanitizeClientAgentSecret(this.getPreferences()[CLIENT_AGENT_SECRET_PREF_KEY]);
+  }
+
   /** 确保当前客户端存在稳定的 Agent Key（首次启动自动生成） */
   ensureClientAgentKey() {
     const existing = this.getClientAgentKey();
@@ -182,6 +189,24 @@ export class PreferencesManager {
     prefs[CLIENT_AGENT_KEY_PREF_KEY] = created;
     this.savePreferences(prefs);
     return created;
+  }
+
+  /** 确保当前客户端存在稳定的签名密钥（首次启动自动生成） */
+  ensureClientAgentSecret() {
+    const existing = this.getClientAgentSecret();
+    if (existing) return existing;
+    const prefs = this.getPreferences();
+    const created = generateClientAgentSecret();
+    prefs[CLIENT_AGENT_SECRET_PREF_KEY] = created;
+    this.savePreferences(prefs);
+    return created;
+  }
+
+  /** 同时确保客户端 ID 与签名密钥都存在 */
+  ensureClientIdentity() {
+    const key = this.ensureClientAgentKey();
+    const secret = this.ensureClientAgentSecret();
+    return { key, secret };
   }
 
   /** 读取 primary agent ID */

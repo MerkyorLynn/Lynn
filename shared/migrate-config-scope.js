@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import YAML from "js-yaml";
 import { CONFIG_SCHEMA } from './config-schema.js';
+import { uniqueTrustedRoots } from './trusted-roots.js';
 
 /**
  * 一次性迁移：将 agent config.yaml 中的 global scope 字段
@@ -23,12 +24,10 @@ import { CONFIG_SCHEMA } from './config-schema.js';
 export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () => {} }) {
   const preferences = prefs.getPreferences();
 
-  // 已迁移过则跳过
   if (preferences._configScopeMigrated) return;
 
   log("[migrate] config scope 迁移开始...");
 
-  // 收集所有 agent 的 config.yaml
   let agentConfigs = [];
   try {
     const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
@@ -52,14 +51,12 @@ export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () 
     return;
   }
 
-  // 按优先级排序：primary agent 在前
   agentConfigs.sort((a, b) => {
     if (a.id === primaryAgentId) return -1;
     if (b.id === primaryAgentId) return 1;
     return 0;
   });
 
-  // 默认值表（用于判断 preferences 中是否有有效值）
   const DEFAULTS = {
     locale: "",
     timezone: "",
@@ -68,26 +65,28 @@ export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () 
     thinking_level: "auto",
   };
 
-  // Phase 1: migrate up — 将 agent config 中的全局值提升到 preferences
   let prefsChanged = false;
   for (const [schemaPath, def] of Object.entries(CONFIG_SCHEMA)) {
     if (def.scope !== 'global') continue;
 
     const parts = schemaPath.split('.');
-    // 读 preferences 中的当前值
     let prefsValue;
-    if (parts.length === 1) {
+    if (schemaPath === 'desk.trusted_roots') {
+      prefsValue = preferences.trusted_roots;
+    } else if (schemaPath === 'desk.home_folder') {
+      prefsValue = preferences.home_folder;
+    } else if (parts.length === 1) {
       prefsValue = preferences[parts[0]];
     } else if (parts.length === 2) {
       prefsValue = preferences[parts[0]]?.[parts[1]];
     }
 
-    // 判断 preferences 是否已有非默认值
     const defaultVal = DEFAULTS[parts[0]];
-    const prefsHasValue = prefsValue !== undefined && prefsValue !== defaultVal;
-    if (prefsHasValue) continue; // preferences 已有值，不覆盖
+    const prefsHasValue = schemaPath === 'desk.trusted_roots'
+      ? Array.isArray(prefsValue) && prefsValue.length > 0
+      : prefsValue !== undefined && prefsValue !== defaultVal;
+    if (prefsHasValue) continue;
 
-    // 从 agent configs 中找第一个有值的（已按 primary 优先排序）
     for (const ac of agentConfigs) {
       let agentValue;
       if (parts.length === 1) {
@@ -96,9 +95,19 @@ export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () 
         agentValue = ac.config[parts[0]]?.[parts[1]];
       }
 
+      if (schemaPath === 'desk.trusted_roots') {
+        const normalizedRoots = uniqueTrustedRoots(agentValue);
+        if (normalizedRoots.length === 0) continue;
+        preferences.trusted_roots = normalizedRoots;
+        prefsChanged = true;
+        log(`[migrate] ${schemaPath}: ${JSON.stringify(normalizedRoots)} migrated from agent "${ac.id}" to preferences`);
+        break;
+      }
+
       if (agentValue !== undefined && agentValue !== defaultVal) {
-        // 写入 preferences
-        if (parts.length === 1) {
+        if (schemaPath === 'desk.home_folder') {
+          preferences.home_folder = agentValue;
+        } else if (parts.length === 1) {
           preferences[parts[0]] = agentValue;
         } else if (parts.length === 2) {
           if (!preferences[parts[0]]) preferences[parts[0]] = {};
@@ -111,7 +120,15 @@ export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () 
     }
   }
 
-  // Phase 2: clean — 从所有 agent config.yaml 中删除 global scope 字段
+  const mergedRoots = uniqueTrustedRoots([
+    ...(preferences.trusted_roots || []),
+    preferences.home_folder,
+  ]);
+  if (mergedRoots.length > 0) {
+    preferences.trusted_roots = mergedRoots;
+    prefsChanged = true;
+  }
+
   for (const ac of agentConfigs) {
     let changed = false;
     for (const schemaPath of Object.keys(CONFIG_SCHEMA)) {
@@ -131,20 +148,17 @@ export function migrateConfigScope({ agentsDir, prefs, primaryAgentId, log = () 
     }
 
     if (changed) {
-      // 备份
       const backupPath = ac.path + ".pre-scope-migration";
       if (!fs.existsSync(backupPath)) {
         fs.writeFileSync(backupPath, ac.content, "utf-8");
       }
-      // 写回清理后的 config
       fs.writeFileSync(ac.path, YAML.dump(ac.config, { lineWidth: -1 }), "utf-8");
       log(`[migrate] cleaned global fields from ${ac.id}/config.yaml`);
     }
   }
 
-  // 标记迁移完成并写入（无论是否有值变更，都需要持久化 _configScopeMigrated）
   preferences._configScopeMigrated = true;
   prefs.savePreferences(preferences);
 
-  log("[migrate] config scope 迁移完成");
+  log(`[migrate] config scope 迁移完成${prefsChanged ? '' : '（无值变更）'}`);
 }

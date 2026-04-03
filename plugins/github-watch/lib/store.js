@@ -47,8 +47,12 @@ export function normalizeGithubEvent({ eventName, deliveryId, payload }) {
   const prNumber = pullRequest?.number || null;
   const title = pullRequest?.title || payload?.repository?.full_name || repository;
 
+  const idSource = deliveryId || [eventName, repository, action, prNumber || title].join(':');
+  const stableId = crypto.createHash('sha1').update(idSource).digest('hex');
+
   return {
-    id: deliveryId || `${eventName}-${Date.now()}`,
+    id: stableId,
+    deliveryId: deliveryId || null,
     event: eventName,
     action,
     repository,

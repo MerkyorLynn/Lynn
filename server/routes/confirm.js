@@ -7,6 +7,14 @@
 import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 
+const VALID_ACTIONS = new Set([
+  "confirmed",
+  "rejected",
+  "confirmed_once",
+  "confirmed_session",
+  "confirmed_persistent",
+]);
+
 export function createConfirmRoute(confirmStore, engine) {
   const route = new Hono();
 
@@ -15,8 +23,10 @@ export function createConfirmRoute(confirmStore, engine) {
     const body = await safeJson(c);
     const { action, value } = body;
 
-    if (!action || !["confirmed", "rejected"].includes(action)) {
-      return c.json({ error: "action must be 'confirmed' or 'rejected'" }, 400);
+    if (!action || !VALID_ACTIONS.has(action)) {
+      return c.json({
+        error: "action must be one of: confirmed, rejected, confirmed_once, confirmed_session, confirmed_persistent",
+      }, 400);
     }
 
     const found = confirmStore.resolve(confirmId, action, value);

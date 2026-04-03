@@ -822,7 +822,10 @@
       "homeFolderPlaceholder": "未設定（毎回手動で選択）",
       "homeFolderClear": "クリア",
       "homeFolderBrowse": "参照",
+      "trustedRoots": "信頼済みパス",
       "trustedRootsDesc": "実行モードでワークスペース級の読み書きを許可するパス一覧",
+      "addTrustedRoot": "信頼済みパスを追加",
+      "trustedRootsHint": "少なくとも 1 つのプロジェクトフォルダを追加すると、Lynn は明示的に許可された範囲だけを読み書きします。",
       "review": {
         "title": "レビュー経路",
         "desc": "レビューは Hanako / Butter のみから選ばれ、他のチャンネル用や専門家エージェントは混ざりません。各レビュアーに専用 Agent を割り当てると、それぞれ別モデルで運用できます。",
@@ -1010,6 +1013,33 @@
       "back": "戻る",
       "next": "次へ"
     },
+    "permissions": {
+      "title": "権限をここでまとめて準備",
+      "subtitle": "まずワークスペースを選び、その後で通知を有効にします。\n起動時に macOS の権限ダイアログが連続で出るのを防ぎます。",
+      "workspace": {
+        "title": "ワークスペース",
+        "desc": "普段使うプロジェクトフォルダを選んでください。巡回、定期タスク、ファイル操作は、明示的に許可した場所だけで行われます。",
+        "selected": "選択済み",
+        "pending": "未設定",
+        "placeholder": "まだ未選択です。続行時にフォルダ選択を開きます。"
+      },
+      "notifications": {
+        "title": "通知",
+        "desc": "通知は Lynn が注意を引く必要がある時だけ使います。起動時ではなく、この画面で意図的に許可を取ります。",
+        "detail": "今は許可しなくても、あとでシステム設定から有効にできます。",
+        "status": {
+          "checking": "確認中",
+          "pending": "未許可",
+          "granted": "有効",
+          "denied": "拒否済み",
+          "unsupported": "許可不要"
+        }
+      },
+      "note": "続行すると、Lynn がワークスペースの選択を案内し、必要な場合のみ通知の権限を要求します。",
+      "back": "戻る",
+      "continue": "許可して続行",
+      "working": "処理中..."
+    },
     "tutorial": {
       "title": "準備完了 ✿",
       "quickTitle": "Quick Start の準備ができました ✿",
@@ -1041,6 +1071,7 @@
     "back": "戻る",
     "heartbeat": "定期巡回",
     "delegate": "委任タスク",
+    "reviewFollowUp": "レビュー後続実行",
     "cron": "スケジュールタスク",
     "patrolDone": "巡回完了",
     "cronDone": "スケジュールタスク完了",
@@ -1753,6 +1784,8 @@
     "loading": "読み込み中",
     "auto": "自動選択",
     "needsConfig": "利用可能なレビュアーがまだ設定されていません",
-    "requestFailed": "レビュー要求に失敗しました"
+    "requestFailed": "レビュー要求に失敗しました",
+    "followUp": "指摘に対応",
+    "taskCreated": "バックグラウンド実行タスクを作成しました"
   }
 }

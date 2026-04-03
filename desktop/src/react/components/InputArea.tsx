@@ -35,6 +35,8 @@ import {
   fileToWorkingSet,
   getComposerSessionKey,
   mergeWorkingSetFiles,
+  resolveDocContextToggle,
+  toggleComposerAttachment,
 } from '../utils/composer-state';
 import {
   buildComposerContextOverview,
@@ -105,6 +107,7 @@ function InputAreaInner() {
   const [atMenuOpen, setAtMenuOpen] = useState(false);
   const [atQuery, setAtQuery] = useState('');
   const [atSelected, setAtSelected] = useState(0);
+  const [atResults, setAtResults] = useState<Array<{ name: string; path: string; rel: string; isDir: boolean }>>([]);
   const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -119,9 +122,8 @@ function InputAreaInner() {
 
   const addAttachedFile = useStore(s => s.addAttachedFile);
   const removeAttachedFile = useStore(s => s.removeAttachedFile);
-  const toggleDocContext = useStore(s => s.toggleDocContext);
+  const setAttachedFiles = useStore(s => s.setAttachedFiles);
   const setDocContextAttached = useStore(s => s.setDocContextAttached);
-  const setDocContextFile = useStore(s => s.setDocContextFile);
   const clearQuotedSelection = useStore(s => s.clearQuotedSelection);
 
   const currentDoc = useMemo(() => {
@@ -216,29 +218,58 @@ function InputAreaInner() {
     } else {
       setAtMenuOpen(false);
       setAtQuery('');
+      setAtResults([]);
     }
   }, [setComposerText]);
 
+  useEffect(() => {
+    setAtSelected((index) => {
+      if (atResults.length === 0) return 0;
+      return Math.min(index, atResults.length - 1);
+    });
+  }, [atResults]);
+
   const handleAttachWorkingSetFile = useCallback((file: WorkingSetFile) => {
     if (currentDoc?.path && file.path === currentDoc.path) {
-      setDocContextFile({ path: currentDoc.path, name: currentDoc.name });
+      const next = resolveDocContextToggle(docContextAttached ? currentDoc.path : null, {
+        path: currentDoc.path,
+        name: currentDoc.name,
+      });
+      setDocContextAttached(next.attached, next.file);
       rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
       requestInputFocus();
       return;
     }
-    if (!attachedFiles.some(attached => attached.path === file.path)) {
-      addAttachedFile({ path: file.path, name: file.name, isDirectory: file.isDirectory });
-    }
+
+    const nextFiles = toggleComposerAttachment(attachedFiles, {
+      path: file.path,
+      name: file.name,
+      isDirectory: file.isDirectory,
+    });
+    setAttachedFiles(nextFiles);
     rememberWorkingSetFile(file);
     requestInputFocus();
-  }, [attachedFiles, addAttachedFile, currentDoc, rememberWorkingSetFile, requestInputFocus, setDocContextFile]);
+  }, [attachedFiles, currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setAttachedFiles, setDocContextAttached]);
 
   const handleAttachCurrentDoc = useCallback(() => {
     if (!currentDoc) return;
-    setDocContextFile({ path: currentDoc.path, name: currentDoc.name });
+    const next = resolveDocContextToggle(docContextAttached ? currentDoc.path : null, {
+      path: currentDoc.path,
+      name: currentDoc.name,
+    });
+    setDocContextAttached(next.attached, next.file);
     rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
     requestInputFocus();
-  }, [currentDoc, rememberWorkingSetFile, requestInputFocus, setDocContextFile]);
+  }, [currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setDocContextAttached]);
+
+  const handleToggleDocContext = useCallback(() => {
+    const next = resolveDocContextToggle(docContextAttached ? currentDoc?.path ?? null : null, currentDoc);
+    setDocContextAttached(next.attached, next.file);
+    if (currentDoc && next.attached) {
+      rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
+    }
+    requestInputFocus();
+  }, [currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setDocContextAttached]);
 
   const handleRestoreLastDraft = useCallback(() => {
     restoreLastSubmittedDraft(composerSessionKey);
@@ -509,8 +540,21 @@ function InputAreaInner() {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (atMenuOpen) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setAtSelected(i => i + 1); return; }
-      if (e.key === 'ArrowUp') { e.preventDefault(); setAtSelected(i => Math.max(0, i - 1)); return; }
+      if (e.key === 'ArrowDown' && atResults.length > 0) {
+        e.preventDefault();
+        setAtSelected(i => (i + 1) % atResults.length);
+        return;
+      }
+      if (e.key === 'ArrowUp' && atResults.length > 0) {
+        e.preventDefault();
+        setAtSelected(i => (i - 1 + atResults.length) % atResults.length);
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === 'Tab') && atResults.length > 0) {
+        e.preventDefault();
+        handleAtSelect(atResults[atSelected] || atResults[0]);
+        return;
+      }
       if (e.key === 'Escape') { e.preventDefault(); setAtMenuOpen(false); return; }
     }
 
@@ -524,7 +568,7 @@ function InputAreaInner() {
       e.preventDefault();
       if (isStreaming && composerText.trim()) handleSteer(); else handleSend();
     }
-  }, [handleSend, handleSteer, isStreaming, composerText, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen]);
+  }, [handleAtSelect, handleSend, handleSteer, isStreaming, composerText, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen, atResults, atSelected]);
 
   return (
     <>
@@ -599,20 +643,19 @@ function InputAreaInner() {
         <SlashCommandMenu commands={filteredCommands} selected={slashSelected} busy={slashBusy}
           onSelect={(cmd) => cmd.execute()} onHover={(i) => setSlashSelected(i)} />
       )}
-      {atMenuOpen && atQuery && (
+      {atMenuOpen && (
         <AtMentionMenu
           query={atQuery}
           selected={atSelected}
           onSelect={handleAtSelect}
           onHover={(i) => setAtSelected(i)}
+          onResultsChange={setAtResults}
         />
       )}
+      {attachedFiles.length > 0 && (
+        <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
+      )}
       <div className={styles['input-wrapper']}>
-        {attachedFiles.length > 0 && (
-          <div className={styles['input-inline-attachments']}>
-            <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
-          </div>
-        )}
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
           rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
@@ -621,7 +664,7 @@ function InputAreaInner() {
         <div className={styles['input-bottom-bar']}>
           <div className={styles['input-actions']}>
             <SecurityModeSelector />
-            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={() => toggleDocContext(currentDoc)} />
+            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={handleToggleDocContext} />
             <ContextRing />
           </div>
           <div className={styles['input-controls']}>

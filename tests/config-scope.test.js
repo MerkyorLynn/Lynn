@@ -68,6 +68,20 @@ describe("splitByScope", () => {
     expect(agent.desk.home_folder).toBeUndefined();
   });
 
+  it("extracts desk.trusted_roots while keeping other desk fields", () => {
+    const partial = {
+      desk: { trusted_roots: ["/tmp/a", "/tmp/b"], heartbeat_interval: 30 },
+    };
+    const { global: g, agent } = splitByScope(partial);
+
+    expect(g).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "desk.trusted_roots", value: ["/tmp/a", "/tmp/b"] }),
+    ]));
+    expect(agent.desk).toBeDefined();
+    expect(agent.desk.heartbeat_interval).toBe(30);
+    expect(agent.desk.trusted_roots).toBeUndefined();
+  });
+
   it("returns empty global array when no global fields present", () => {
     const partial = { models: ["qwen-plus"], name: "Alice" };
     const { global: g, agent } = splitByScope(partial);
@@ -117,6 +131,7 @@ describe("injectGlobalFields", () => {
       getThinkingLevel: () => "high",
       getLearnSkills: () => true,
       getHomeFolder: () => "/home/user",
+      getTrustedRoots: () => ["/home/user", "/Users/me/Desktop"],
     };
     const config = {};
     injectGlobalFields(config, engine);
@@ -128,6 +143,7 @@ describe("injectGlobalFields", () => {
     expect(config.thinking_level).toBe("high");
     expect(config.capabilities?.learn_skills).toBe(true);
     expect(config.desk?.home_folder).toBe("/home/user");
+    expect(config.desk?.trusted_roots).toEqual(["/home/user", "/Users/me/Desktop"]);
   });
 
   it("skips getters that don't exist on engine (doesn't throw)", () => {
@@ -146,6 +162,7 @@ describe("injectGlobalFields", () => {
     const engine = {
       getLearnSkills: () => false,
       getHomeFolder: () => "/docs",
+      getTrustedRoots: () => ["/docs", "/Users/me/Desktop"],
     };
     const config = {};
     injectGlobalFields(config, engine);
@@ -154,6 +171,7 @@ describe("injectGlobalFields", () => {
     expect(config.capabilities.learn_skills).toBe(false);
     expect(config.desk).toBeDefined();
     expect(config.desk.home_folder).toBe("/docs");
+    expect(config.desk.trusted_roots).toEqual(["/docs", "/Users/me/Desktop"]);
   });
 });
 
@@ -298,5 +316,31 @@ describe("migrateConfigScope", () => {
     expect(cfg.capabilities?.other).toBe("keep");
     // agent-scoped field must still be in config.yaml
     expect(cfg.name).toBe("Alice");
+  });
+
+  it("migrates trusted roots and merges home folder", () => {
+    const agentsDir = path.join(tmpDir, "agents");
+    writeAgentConfig(agentsDir, "agent-1", {
+      desk: {
+        home_folder: "/tmp/workspace",
+        trusted_roots: ["/tmp/workspace", "/tmp/extra"],
+      },
+    });
+
+    const prefs = makeMockPrefs({});
+    migrateConfigScope({ agentsDir, prefs, primaryAgentId: "agent-1" });
+
+    const store = prefs._getStore();
+    expect(store.home_folder).toBe("/tmp/workspace");
+    expect(Array.isArray(store.trusted_roots)).toBe(true);
+    expect(store.trusted_roots).toEqual(expect.arrayContaining([
+      "/tmp/workspace",
+      "/tmp/extra",
+    ]));
+
+    const cfg = YAML.load(
+      fs.readFileSync(path.join(agentsDir, "agent-1", "config.yaml"), "utf-8")
+    );
+    expect(cfg.desk).toBeUndefined();
   });
 });
