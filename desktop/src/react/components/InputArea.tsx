@@ -40,6 +40,7 @@ import {
   buildComposerContextOverview,
   prepareComposerTask,
   type ComposerTaskMode,
+  type GitContextSnapshot,
 } from '../utils/prompt-task';
 import styles from './input/InputArea.module.css';
 
@@ -55,6 +56,7 @@ function InputAreaInner() {
   const isStreaming = useStore(s => s.isStreaming);
   const connected = useStore(s => s.connected);
   const pendingNewSession = useStore(s => s.pendingNewSession);
+  const selectedFolder = useStore(s => s.selectedFolder);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const composerSessionKey = getComposerSessionKey(currentSessionPath, pendingNewSession);
   const compacting = useStore(s => currentSessionPath ? s.compactingSessions.includes(currentSessionPath) : false);
@@ -103,6 +105,7 @@ function InputAreaInner() {
   const [atMenuOpen, setAtMenuOpen] = useState(false);
   const [atQuery, setAtQuery] = useState('');
   const [atSelected, setAtSelected] = useState(0);
+  const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
@@ -315,6 +318,31 @@ function InputAreaInner() {
       .catch((err: unknown) => console.warn('[InputArea] load config failed', err));
   }, [setThinkingLevel]);
 
+  useEffect(() => {
+    const dir = deskBasePath
+      ? (deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath)
+      : (pendingNewSession ? selectedFolder : null);
+    if (!dir) {
+      setGitContext(null);
+      return;
+    }
+
+    let cancelled = false;
+    const params = new URLSearchParams({ dir });
+    hanaFetch(`/api/desk/git-context?${params.toString()}`)
+      .then(r => r.json())
+      .then((data) => {
+        if (!cancelled) setGitContext(data?.available ? data : null);
+      })
+      .catch(() => {
+        if (!cancelled) setGitContext(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deskBasePath, deskCurrentPath, pendingNewSession, selectedFolder]);
+
   const currentTaskMode: ComposerTaskMode = isStreaming && composerText.trim() ? 'steer' : 'prompt';
   const contextOverview = useMemo(() => buildComposerContextOverview({
     mode: currentTaskMode,
@@ -324,7 +352,8 @@ function InputAreaInner() {
     currentDoc,
     quotedSelection,
     supportsVision,
-  }), [attachedFiles, composerText, currentDoc, currentTaskMode, docContextAttached, quotedSelection, supportsVision]);
+    gitContext,
+  }), [attachedFiles, composerText, currentDoc, currentTaskMode, docContextAttached, gitContext, quotedSelection, supportsVision]);
 
   const heldBackLabels = useMemo(() => contextOverview.heldBack.map((item) => {
     switch (item) {
@@ -336,6 +365,8 @@ function InputAreaInner() {
         return t('input.contextFiles');
       case 'images':
         return t('input.contextImages');
+      case 'git':
+        return t('input.contextGit');
       default:
         return item;
     }
@@ -379,10 +410,18 @@ function InputAreaInner() {
         quotedSelection,
         workingSetRecentFiles,
         supportsVision,
+        gitContext,
         readFileBase64: window.hana?.readFileBase64?.bind(window.hana),
       });
 
-      const sent = await submitPromptTask(prepared.submission);
+      const sent = await submitPromptTask({
+        ...prepared.submission,
+        gitContext: gitContext ? {
+          repoName: gitContext.repoName,
+          branch: gitContext.branch,
+          changedCount: gitContext.totalChanged,
+        } : null,
+      });
       if (!sent) return;
 
       const nextSessionPath = useStore.getState().currentSessionPath;
@@ -429,6 +468,7 @@ function InputAreaInner() {
     supportsVision,
     t,
     workingSetRecentFiles,
+    gitContext,
   ]);
 
   const handleSend = useCallback(async () => {
@@ -543,6 +583,7 @@ function InputAreaInner() {
           docName={contextOverview.docName}
           attachmentNames={contextOverview.attachmentNames}
           imageNames={contextOverview.imageNames}
+          gitSummary={contextOverview.gitSummary}
           heldBackLabels={heldBackLabels}
         />
       )}

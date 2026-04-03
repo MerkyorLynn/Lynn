@@ -7,8 +7,8 @@
 
 // ── Mood 解析 ──
 
-const TAG_TO_YUAN: Record<string, string> = { mood: 'hanako', pulse: 'butter', reflect: 'ming' };
-const YUAN_LABELS: Record<string, string> = { hanako: '✿ MOOD', butter: '❊ PULSE', ming: '◈ REFLECT' };
+const TAG_TO_YUAN: Record<string, string> = { mood: 'hanako', pulse: 'butter', reflect: 'lynn' };
+const YUAN_LABELS: Record<string, string> = { hanako: '✿ MOOD', butter: '❊ PULSE', lynn: '◈ REFLECT' };
 
 export function moodLabel(yuan: string): string {
   return YUAN_LABELS[yuan] || YUAN_LABELS.hanako;
@@ -50,21 +50,40 @@ export function parseXingFromContent(text: string): { xingBlocks: ParsedXing[]; 
 
 // ── 用户附件解析 ──
 
+export interface ParsedGitContext {
+  repoName: string | null;
+  branch: string | null;
+  changedCount: number | null;
+}
+
 export interface ParsedAttachments {
   text: string;
   files: Array<{ path: string; name: string; isDirectory: boolean }>;
   deskContext: { dir: string; fileCount: number } | null;
   quotedText: string | null;
+  gitContext: ParsedGitContext | null;
+}
+
+function parseGitContextHeader(raw: string): ParsedGitContext {
+  const repoMatch = raw.match(/repo=([^;]+)/);
+  const branchMatch = raw.match(/branch=([^;]+)/);
+  const changedMatch = raw.match(/changed=(\d+)/);
+  return {
+    repoName: repoMatch ? repoMatch[1].trim() : null,
+    branch: branchMatch ? branchMatch[1].trim() : null,
+    changedCount: changedMatch ? Number(changedMatch[1]) : null,
+  };
 }
 
 export function parseUserAttachments(content: string): ParsedAttachments {
-  if (!content) return { text: '', files: [], deskContext: null, quotedText: null };
+  if (!content) return { text: '', files: [], deskContext: null, quotedText: null, gitContext: null };
   const lines = content.split('\n');
   const textLines: string[] = [];
   const files: Array<{ path: string; name: string; isDirectory: boolean }> = [];
   const attachRe = /^\[(附件|目录|参考文档)\]\s+(.+)$/;
   let deskContext: { dir: string; fileCount: number } | null = null;
   let quotedText: string | null = null;
+  let gitContext: ParsedGitContext | null = null;
   let inDeskBlock = false;
 
   for (const line of lines) {
@@ -80,6 +99,15 @@ export function parseUserAttachments(content: string): ParsedAttachments {
         continue;
       }
       inDeskBlock = false;
+    }
+
+    const gitHeaderMatch = line.match(/^\[Git 上下文\]\s+(.+)$/);
+    if (gitHeaderMatch) {
+      gitContext = parseGitContextHeader(gitHeaderMatch[1]);
+      continue;
+    }
+    if (line.startsWith('[Git 根目录] ') || line.startsWith('[Git 变更] ') || line.startsWith('[Git 提交] ')) {
+      continue;
     }
 
     const quoteMatch = line.match(/^\[引用片段\]\s+(.+)$/);
@@ -101,7 +129,7 @@ export function parseUserAttachments(content: string): ParsedAttachments {
     }
   }
   const text = textLines.join('\n').replace(/\n+$/, '').trim();
-  return { text, files, deskContext, quotedText };
+  return { text, files, deskContext, quotedText, gitContext };
 }
 
 // ── 工具详情提取 ──

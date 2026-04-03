@@ -34,6 +34,28 @@ describe('history-builder', () => {
     expect(message.data.quotedText).toBe('/repo/src/app.ts · 行 4-5 · 12 字符');
   });
 
+  it('重建用户消息中的 Git 上下文摘要', () => {
+    const history: HistoryApiResponse = {
+      messages: [{
+        id: 'u2',
+        role: 'user',
+        content: '请结合当前仓库状态继续\n\n[Git 上下文] repo=openhanako; branch=main; changed=4; staged=2; unstaged=1; untracked=3; ahead=1; behind=0\n[Git 根目录] /repo\n[Git 变更] src/app.ts',
+      }],
+    };
+
+    const items = buildItemsFromHistory(history);
+    const message = items[0];
+    if (message.type !== 'message' || message.data.role !== 'user') throw new Error('expected user message');
+
+    expect(message.data.text).toBe('请结合当前仓库状态继续');
+    expect(message.data.gitContext).toEqual({
+      repoName: 'openhanako',
+      branch: 'main',
+      changedCount: 4,
+    });
+    expect(message.data.requestText).toContain('[Git 上下文] repo=openhanako; branch=main; changed=4');
+  });
+
   it('重建 file diff，并保留 rollbackId', () => {
     const history: HistoryApiResponse = {
       messages: [{

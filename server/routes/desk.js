@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { parseSkillMetadata } from "../../lib/skills/skill-metadata.js";
 import { t } from "../i18n.js";
+import { readGitContext } from "../git-context.js";
 
 /** 解析真实路径（跟踪 symlink），失败返回 null */
 function realPath(p) {
@@ -483,6 +484,16 @@ export function createDeskRoute(engine, hub) {
     if (c.req.query("dir") && !isApprovedDir(dir, engine)) return c.json({ error: t("error.dirNotAllowed") });
     fs.mkdirSync(dir, { recursive: true });
     return c.json({ path: dir });
+  });
+
+  /** 读取当前工作目录的本地 Git 上下文 */
+  route.get("/desk/git-context", async (c) => {
+    const dir = c.req.query("dir") ? decodeURIComponent(c.req.query("dir")) : engine.deskCwd;
+    if (!dir) return c.json({ available: false });
+    if (c.req.query("dir") && !isApprovedDir(dir, engine)) return c.json({ error: t("error.dirNotAllowed") });
+
+    const gitContext = readGitContext(dir);
+    return c.json(gitContext);
   });
 
   /** 模糊搜索工作空间文件（@mention 用） */

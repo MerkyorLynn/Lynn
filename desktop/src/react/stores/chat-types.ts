@@ -53,6 +53,12 @@ export interface DeskContext {
   fileCount: number;
 }
 
+export interface GitContext {
+  repoName?: string | null;
+  branch?: string | null;
+  changedCount?: number | null;
+}
+
 // ── 内容块 ──
 
 export type ContentBlock =
@@ -68,8 +74,8 @@ export type ContentBlock =
   | { type: 'skill'; skillName: string; skillFilePath: string }
   | { type: 'cron_confirm'; confirmId?: string; jobData: Record<string, unknown>; status: 'pending' | 'approved' | 'rejected' }
   | { type: 'settings_confirm'; confirmId: string; settingKey: string; cardType: 'toggle' | 'list' | 'text'; currentValue: string; proposedValue: string; options?: string[]; optionLabels?: Record<string, string>; label: string; description?: string; frontend?: boolean; status: 'pending' | 'confirmed' | 'rejected' | 'timeout' }
-  | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; status: 'pending' | 'confirmed' | 'rejected' }
-  | { type: 'review'; reviewId: string; reviewerName: string; content: string; error?: string; status: 'loading' | 'done' };
+  | { type: 'tool_authorization'; confirmId: string; command: string; reason: string; description: string; category: string; identifier: string; trustedRoot?: string | null; status: 'pending' | 'confirmed' | 'rejected' }
+  | { type: 'review'; reviewId: string; reviewerName: string; reviewerAgent?: string; reviewerAgentName?: string; reviewerYuan?: string; reviewerHasAvatar?: boolean; content: string; error?: string; status: 'loading' | 'done' };
 
 // ── 消息 ──
 
@@ -84,6 +90,7 @@ export interface ChatMessage {
   quotedSelection?: QuotedSelection | null;
   attachments?: UserAttachment[];
   deskContext?: DeskContext | null;
+  gitContext?: GitContext | null;
   requestText?: string;
   requestImages?: PromptImage[];
   retryDraft?: ComposerDraft | null;

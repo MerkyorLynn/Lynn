@@ -114,7 +114,8 @@
     "me": "나",
     "more": "더보기",
     "empty": "비어 있음",
-    "edit": "편집"
+    "edit": "편집",
+    "delete": "삭제"
   },
   "chat": {
     "send": "보내기",
@@ -180,7 +181,8 @@
     "contextImages": "이미지",
     "contextHeldBack": "초안에 보관",
     "modeSend": "보내기",
-    "modeSteer": "방향 전환"
+    "modeSteer": "방향 전환",
+    "contextGit": "Git 컨텍스트"
   },
   "slash": {
     "diary": "오늘의 일기 쓰기",
@@ -263,20 +265,21 @@
     "types": {
       "hanako": {
         "label": "균형 잡힌 어시스턴트",
-        "avatar": "Lynn.png",
-        "name": "Lynn"
+        "avatar": "Hanako.png",
+        "name": "Hanako"
       },
       "butter": {
         "label": "더 풍부한 감성",
         "avatar": "Butter.png"
       },
-      "ming": {
-        "label": "더 믿음직한 성격",
-        "avatar": "Ming.png"
-      },
       "kong": {
         "label": "기본형",
         "avatar": "Kong.png"
+      },
+      "lynn": {
+        "label": "더 믿음직한 성격",
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       }
     },
     "title": "元",
@@ -293,7 +296,7 @@
         "{name}이(가) 하고 싶은 말을 아주 작은 쪽지에 접고 있어요",
         "오늘 구름이 그날 당신이 찍은 사진이랑 똑같아요"
       ],
-      "ming": [
+      "lynn": [
         "{name}이(가) 초안 여백에 참조선을 그었어요",
         "오래된 질문은 가라앉고, 새로운 아이디어가 떠오르고 있어요",
         "어제의 단서를 한 번 더 살펴보았어요",
@@ -314,7 +317,7 @@
         "{name}이(가) 여기서 기다리고 있었어요",
         "{name}이(가) 방금 당신에게 할 말이 있었어요"
       ],
-      "ming": [
+      "lynn": [
         "안녕하세요. 준비되면 말씀하세요.",
         "{name} 준비됐어요",
         "무엇을 처리할까요?",
@@ -323,7 +326,7 @@
     },
     "placeholder": {
       "butter": "생각나는 대로 말해 주세요...",
-      "ming": "말씀하세요..."
+      "lynn": "말씀하세요..."
     }
   },
   "thinking": {
@@ -353,7 +356,9 @@
       "어떤 감정은 풀어내는 데 시간이 걸려요",
       "당신의 말을 위한 포근한 자리를 만드는 중"
     ],
-    "ming": [
+    "done": "생각 완료",
+    "active": "생각하는 중",
+    "lynn": [
       "분석 중",
       "시나리오 검토 중",
       "사실 확인 중",
@@ -364,9 +369,7 @@
       "검증 중",
       "문제를 분해하는 중",
       "종합하는 중"
-    ],
-    "done": "생각 완료",
-    "active": "생각하는 중"
+    ]
   },
   "toolGroup": {
     "success": "✿ {name} 다 끝났어요, 식은 죽 먹기 ~ · {n}단계",
@@ -513,7 +516,7 @@
       "grassAroma": "풀 향기",
       "grassAromaMode": "Butter",
       "contemplation": "사색",
-      "contemplationMode": "Ming",
+      "contemplationMode": "Lynn",
       "absolutely": "Absolutely",
       "absolutelyMode": "어디서 본 듯한",
       "delve": "Delve",
@@ -819,7 +822,25 @@
       "homeFolderDesc": "새 대화, 순찰, 예약 작업의 기본 작업 디렉토리",
       "homeFolderPlaceholder": "미설정 (매번 수동 선택)",
       "homeFolderClear": "지우기",
-      "homeFolderBrowse": "찾아보기"
+      "homeFolderBrowse": "찾아보기",
+      "trustedRootsDesc": "실행 모드에서 워크스페이스 수준 읽기/쓰기를 허용하는 경로 목록",
+      "review": {
+        "title": "리뷰 체인",
+        "desc": "리뷰는 이제 Hanako / Butter 중에서만 고르며, 다른 채널용이나 전문가 에이전트는 섞이지 않습니다. 각 리뷰어에 전용 Agent를 바인딩하면 서로 다른 모델을 따로 쓸 수 있습니다.",
+        "defaultReviewer": "기본 리뷰어",
+        "defaultReviewerDesc": "리뷰 버튼을 눌렀을 때 먼저 호출되는 인격입니다.",
+        "hanakoTitle": "Hanako 리뷰어",
+        "hanakoDesc": "꼼꼼하고 안정적인 1차 리뷰에 적합합니다.",
+        "butterTitle": "Butter 리뷰어",
+        "butterDesc": "다른 시각의 보조 리뷰에 적합합니다.",
+        "chooseReviewer": "리뷰어 Agent 선택",
+        "createReviewer": "리뷰어 Agent 만들기",
+        "configureModel": "모델 설정",
+        "unboundHint": "전용 리뷰어 Agent가 아직 연결되지 않았습니다.",
+        "boundModel": "현재 모델: {provider} / {model}",
+        "modelHint": "각 리뷰어 Agent의 모델은 Agent 탭에서 따로 설정합니다. Hanako, Butter, Lynn이 하나의 큰 모델을 공유할 필요가 없습니다.",
+        "createSuccess": "리뷰어 Agent를 만들었습니다: {name}"
+      }
     },
     "toolCaps": {
       "title": "자기 학습 스킬"
@@ -1574,7 +1595,7 @@
       "sandbox": "샌드박스 보안",
       "sandboxDesc": "파일 시스템 쓰기 범위 제한",
       "securityMode": "보안 모드",
-      "securityModeDesc": "3모드 보안 정책 (인증/계획/안전)",
+      "securityModeDesc": "3모드 보안 정책 (실행/계획/안전)",
       "locale": "언어",
       "timezone": "시간대",
       "timezoneDesc": "IANA 시간대 (예: Asia/Shanghai)",
@@ -1685,21 +1706,27 @@
   },
   "security": {
     "mode": {
-      "authorized": "인증 모드",
-      "authorizedDesc": "위험한 작업은 확인 후 실행",
+      "authorized": "실행 모드",
+      "authorizedDesc": "위험한 작업은 확인 후 실행하고, 샌드박스와 신뢰 경로 제한은 유지해요",
       "plan": "계획 모드",
       "planDesc": "분석만, 실행 없음",
       "safe": "안전 모드",
-      "safeDesc": "엄격한 샌드박스, 직접 거부"
+      "safeDesc": "엄격한 샌드박스, 직접 거부",
+      "fullAccess": "전체 접근",
+      "fullAccessDesc": "샌드박스 격리와 명령 제한을 비활성화해요"
     },
     "auth": {
-      "title": "인증 필요",
+      "title": "확인이 필요해요",
       "commandLabel": "실행 예정:",
-      "allow": "허용",
+      "allow": "실행 허용",
       "reject": "거부",
-      "allowed": "허용됨",
+      "allowed": "실행 허용됨",
       "rejected": "거부됨",
-      "alwaysAllow": "이 유형의 작업을 항상 허용"
+      "alwaysAllow": "이 유형의 작업을 항상 허용",
+      "allowOnce": "이번만 허용",
+      "allowSession": "이 세션에서 허용",
+      "allowAlwaysHere": "이 위치는 항상 허용",
+      "trustedRoot": "신뢰 경로"
     }
   },
   "error.llmTimeout": "Model request timed out",
@@ -1730,5 +1757,12 @@
   "agentDiscovery.title": "스킬 발견",
   "agentDiscovery.body": "다음 도구의 스킬을 재사용할 수 있습니다:",
   "agentDiscovery.enable": "활성화",
-  "agentDiscovery.later": "건너뛰기"
+  "agentDiscovery.later": "건너뛰기",
+  "review": {
+    "configure": "리뷰어 설정",
+    "loading": "불러오는 중",
+    "auto": "자동 선택",
+    "needsConfig": "사용 가능한 리뷰어가 아직 설정되지 않았습니다",
+    "requestFailed": "리뷰 요청에 실패했습니다"
+  }
 }

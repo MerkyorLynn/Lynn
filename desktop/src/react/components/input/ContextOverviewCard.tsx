@@ -10,6 +10,7 @@ export interface ContextOverviewCardProps {
   docName?: string | null;
   attachmentNames?: string[];
   imageNames?: string[];
+  gitSummary?: string | null;
   heldBackLabels?: string[];
 }
 
@@ -21,6 +22,7 @@ export function ContextOverviewCard({
   docName,
   attachmentNames = [],
   imageNames = [],
+  gitSummary,
   heldBackLabels = [],
 }: ContextOverviewCardProps) {
   const { t } = useI18n();
@@ -58,9 +60,15 @@ export function ContextOverviewCard({
         value: summarizeNames(imageNames),
       });
     }
+    if (gitSummary) {
+      nextRows.push({
+        label: t('input.contextGit'),
+        value: gitSummary,
+      });
+    }
 
     return nextRows;
-  }, [attachmentNames, docName, imageNames, mode, modelLabel, quotedSummary, t, textLength]);
+  }, [attachmentNames, docName, gitSummary, imageNames, mode, modelLabel, quotedSummary, t, textLength]);
 
   if (rows.length === 0 && heldBackLabels.length === 0) return null;
 

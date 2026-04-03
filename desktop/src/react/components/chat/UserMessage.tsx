@@ -5,7 +5,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
 import { AttachmentChip } from '../shared/AttachmentChip';
-import type { ChatMessage, UserAttachment, DeskContext } from '../../stores/chat-types';
+import type { ChatMessage, UserAttachment, DeskContext, GitContext } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import styles from './Chat.module.css';
 
@@ -52,7 +52,12 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
         </div>
       )}
       {message.attachments && message.attachments.length > 0 && (
-        <UserAttachmentsView attachments={message.attachments} deskContext={message.deskContext} />
+        <UserAttachmentsView attachments={message.attachments} deskContext={message.deskContext} gitContext={message.gitContext} />
+      )}
+      {!message.attachments?.length && message.gitContext && (
+        <div className={styles.userAttachments}>
+          <GitContextChip gitContext={message.gitContext} />
+        </div>
       )}
       <div className={`${styles.message} ${styles.messageUser}`}>
         {message.textHtml && <MarkdownContent html={message.textHtml} />}
@@ -63,9 +68,10 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
 
 // ── 附件区 ──
 
-const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, deskContext }: {
+const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, deskContext, gitContext }: {
   attachments: UserAttachment[];
   deskContext?: DeskContext | null;
+  gitContext?: GitContext | null;
 }) {
   const isImage = useCallback((att: UserAttachment) => {
     return /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(att.name);
@@ -101,7 +107,23 @@ const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, des
           name={`${t('sidebar.jian')} (${deskContext.fileCount})`}
         />
       )}
+      {gitContext && <GitContextChip gitContext={gitContext} />}
     </div>
+  );
+});
+
+const GitContextChip = memo(function GitContextChip({ gitContext }: { gitContext: GitContext }) {
+  const label = [
+    gitContext.repoName,
+    gitContext.branch,
+    gitContext.changedCount != null ? `${gitContext.changedCount} changed` : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <AttachmentChip
+      icon={<GitIcon />}
+      name={label || 'Git'}
+    />
   );
 });
 
@@ -131,6 +153,16 @@ function FileIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
+}
+
+function GitIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3 4 9l8 6 8-6-8-6Z" />
+      <path d="M4 15l8 6 8-6" />
+      <path d="M12 9v12" />
     </svg>
   );
 }

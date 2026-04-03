@@ -40,11 +40,11 @@ describe('parseMoodFromContent', () => {
     expect(result.yuan).toBe('butter');
   });
 
-  it('解析 <reflect> 标签映射到 ming', () => {
+  it('解析 <reflect> 标签映射到 lynn', () => {
     const input = '<reflect>pondering</reflect>\nContent.';
     const result = parseMoodFromContent(input);
     expect(result.mood).toBe('pondering');
-    expect(result.yuan).toBe('ming');
+    expect(result.yuan).toBe('lynn');
   });
 
   it('mood 内容去除代码块包裹', () => {
@@ -96,6 +96,7 @@ describe('parseUserAttachments', () => {
     expect(result.text).toBe('hello');
     expect(result.files).toEqual([]);
     expect(result.deskContext).toBeNull();
+    expect(result.gitContext).toBeNull();
   });
 
   it('空内容', () => {
@@ -138,6 +139,17 @@ describe('parseUserAttachments', () => {
     expect(result.deskContext!.dir).toBe('/home/user/desk');
     expect(result.deskContext!.fileCount).toBe(2);
     expect(result.text).toBe('Some text');
+  });
+
+  it('解析 Git 上下文并从正文里剥离结构化行', () => {
+    const input = '帮我看一下这次改动\n\n[Git 上下文] repo=openhanako; branch=main; changed=4; staged=2; unstaged=1; untracked=3; ahead=1; behind=0\n[Git 根目录] /repo\n[Git 变更] src/app.ts\n[Git 提交] abc123 feat: test';
+    const result = parseUserAttachments(input);
+    expect(result.text).toBe('帮我看一下这次改动');
+    expect(result.gitContext).toEqual({
+      repoName: 'openhanako',
+      branch: 'main',
+      changedCount: 4,
+    });
   });
 });
 

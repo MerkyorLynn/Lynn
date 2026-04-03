@@ -9,7 +9,23 @@ import {
 } from './composer-state';
 
 export type ComposerTaskMode = 'prompt' | 'steer';
-export type HeldBackContext = 'quote' | 'doc' | 'files' | 'images';
+export type HeldBackContext = 'quote' | 'doc' | 'files' | 'images' | 'git';
+
+export interface GitContextSnapshot {
+  available: boolean;
+  root: string;
+  repoName: string;
+  branch: string | null;
+  detached?: boolean;
+  ahead?: number;
+  behind?: number;
+  stagedCount: number;
+  unstagedCount: number;
+  untrackedCount: number;
+  totalChanged: number;
+  changedFiles: readonly string[];
+  recentCommits: readonly string[];
+}
 
 export interface ComposerContextOverview {
   mode: ComposerTaskMode;
@@ -18,6 +34,7 @@ export interface ComposerContextOverview {
   docName: string | null;
   attachmentNames: string[];
   imageNames: string[];
+  gitSummary: string | null;
   heldBack: HeldBackContext[];
 }
 
@@ -47,6 +64,7 @@ export interface PrepareComposerTaskOptions {
   quotedSelection: QuotedSelection | null;
   workingSetRecentFiles: WorkingSetFile[];
   supportsVision: boolean;
+  gitContext?: GitContextSnapshot | null;
   readFileBase64?: (path: string) => Promise<string | null | undefined>;
 }
 
@@ -61,6 +79,46 @@ export function buildAttachmentMeta(attachedFiles: Array<{ path: string; name: s
   return { otherFiles, workingSet };
 }
 
+export function summarizeGitContext(gitContext: GitContextSnapshot | null | undefined): string | null {
+  if (!gitContext?.available) return null;
+  const branch = gitContext.branch || (gitContext.detached ? 'detached' : null);
+  const changeLabel = `${gitContext.totalChanged} changed`;
+  const syncBits: string[] = [];
+  if (gitContext.ahead) syncBits.push(`↑${gitContext.ahead}`);
+  if (gitContext.behind) syncBits.push(`↓${gitContext.behind}`);
+  return [gitContext.repoName, branch, changeLabel, syncBits.join(' ')].filter(Boolean).join(' · ');
+}
+
+export function formatGitContextPrompt(gitContext: GitContextSnapshot | null | undefined): string {
+  if (!gitContext?.available) return '';
+
+  const headerFields = [
+    `repo=${gitContext.repoName}`,
+    `branch=${gitContext.branch || (gitContext.detached ? 'detached' : 'unknown')}`,
+    `changed=${gitContext.totalChanged}`,
+    `staged=${gitContext.stagedCount}`,
+    `unstaged=${gitContext.unstagedCount}`,
+    `untracked=${gitContext.untrackedCount}`,
+    `ahead=${gitContext.ahead || 0}`,
+    `behind=${gitContext.behind || 0}`,
+  ];
+
+  const lines = [
+    `[Git 上下文] ${headerFields.join('; ')}`,
+    `[Git 根目录] ${gitContext.root}`,
+  ];
+
+  for (const file of gitContext.changedFiles || []) {
+    lines.push(`[Git 变更] ${file}`);
+  }
+
+  for (const commit of gitContext.recentCommits || []) {
+    lines.push(`[Git 提交] ${commit}`);
+  }
+
+  return lines.join('\n');
+}
+
 export function buildComposerContextOverview({
   mode,
   composerText,
@@ -69,6 +127,7 @@ export function buildComposerContextOverview({
   currentDoc,
   quotedSelection,
   supportsVision,
+  gitContext,
 }: {
   mode: ComposerTaskMode;
   composerText: string;
@@ -77,6 +136,7 @@ export function buildComposerContextOverview({
   currentDoc: { path: string; name: string } | null;
   quotedSelection: QuotedSelection | null;
   supportsVision: boolean;
+  gitContext?: GitContextSnapshot | null;
 }): ComposerContextOverview {
   const richContextEnabled = mode === 'prompt';
   const imageNames = richContextEnabled
@@ -96,6 +156,7 @@ export function buildComposerContextOverview({
     if (docContextAttached && currentDoc) heldBack.push('doc');
     if (hasFileContext) heldBack.push('files');
     if (hasImageContext) heldBack.push('images');
+    if (gitContext?.available) heldBack.push('git');
   }
 
   return {
@@ -105,6 +166,7 @@ export function buildComposerContextOverview({
     docName: richContextEnabled && docContextAttached && currentDoc ? currentDoc.name : null,
     attachmentNames,
     imageNames,
+    gitSummary: richContextEnabled ? summarizeGitContext(gitContext) : null,
     heldBack,
   };
 }
@@ -118,6 +180,7 @@ export async function prepareComposerTask({
   quotedSelection,
   workingSetRecentFiles,
   supportsVision,
+  gitContext,
   readFileBase64,
 }: PrepareComposerTaskOptions): Promise<PreparedComposerTask> {
   const text = composerText.trim();
@@ -140,6 +203,11 @@ export async function prepareComposerTask({
 
   if (richContextEnabled && docForRender) {
     requestText = requestText ? `${requestText}\n\n[参考文档] ${docForRender.path}` : `[参考文档] ${docForRender.path}`;
+  }
+
+  if (richContextEnabled && gitContext?.available) {
+    const gitBlock = formatGitContextPrompt(gitContext);
+    requestText = requestText ? `${requestText}\n\n${gitBlock}` : gitBlock;
   }
 
   if (richContextEnabled && quotedSelection) {

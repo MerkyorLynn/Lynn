@@ -2,8 +2,25 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildAttachmentMeta,
   buildComposerContextOverview,
+  formatGitContextPrompt,
   prepareComposerTask,
+  summarizeGitContext,
 } from '../../utils/prompt-task';
+
+const gitContext = {
+  available: true,
+  root: '/repo',
+  repoName: 'openhanako',
+  branch: 'main',
+  ahead: 1,
+  behind: 0,
+  stagedCount: 2,
+  unstagedCount: 1,
+  untrackedCount: 3,
+  totalChanged: 4,
+  changedFiles: ['src/app.ts', 'README.md'],
+  recentCommits: ['abc123 feat: test', 'def456 fix: bug'],
+} as const;
 
 describe('prompt-task', () => {
   it('buildAttachmentMeta 过滤图片并生成 working set', () => {
@@ -35,12 +52,13 @@ describe('prompt-task', () => {
       currentDoc: { path: '/repo/current.md', name: 'current.md' },
       quotedSelection: { text: 'foo', sourceTitle: 'current.md', charCount: 3 },
       supportsVision: true,
+      gitContext,
     });
 
     expect(overview.textLength).toBe(5);
     expect(overview.attachmentNames).toEqual([]);
     expect(overview.imageNames).toEqual([]);
-    expect(overview.heldBack).toEqual(['quote', 'doc', 'files', 'images']);
+    expect(overview.heldBack).toEqual(['quote', 'doc', 'files', 'images', 'git']);
   });
 
   it('buildComposerContextOverview 在 prompt 模式展示引用文档和图片区分', () => {
@@ -62,13 +80,23 @@ describe('prompt-task', () => {
         charCount: 11,
       },
       supportsVision: true,
+      gitContext,
     });
 
     expect(overview.quotedSummary).toBe('/repo/current.ts · L4-6 · 11 chars');
     expect(overview.docName).toBe('current.md');
     expect(overview.attachmentNames).toEqual(['spec.md']);
     expect(overview.imageNames).toEqual(['screen.png']);
+    expect(overview.gitSummary).toBe('openhanako · main · 4 changed · ↑1');
     expect(overview.heldBack).toEqual([]);
+  });
+
+  it('formatGitContextPrompt 和 summarizeGitContext 生成稳定摘要', () => {
+    expect(summarizeGitContext(gitContext)).toBe('openhanako · main · 4 changed · ↑1');
+    expect(formatGitContextPrompt(gitContext)).toContain('[Git 上下文] repo=openhanako; branch=main; changed=4; staged=2; unstaged=1; untracked=3; ahead=1; behind=0');
+    expect(formatGitContextPrompt(gitContext)).toContain('[Git 根目录] /repo');
+    expect(formatGitContextPrompt(gitContext)).toContain('[Git 变更] src/app.ts');
+    expect(formatGitContextPrompt(gitContext)).toContain('[Git 提交] abc123 feat: test');
   });
 
   it('prepareComposerTask 为 prompt 组装 requestText、附件、图片与 working set', async () => {
@@ -94,6 +122,7 @@ describe('prompt-task', () => {
       },
       workingSetRecentFiles: [{ path: '/repo/seen.ts', name: 'seen.ts', source: 'recent' }],
       supportsVision: true,
+      gitContext,
       readFileBase64,
     });
 
@@ -102,6 +131,8 @@ describe('prompt-task', () => {
     expect(prepared.submission.requestText).toContain('[附件] /repo/notes/spec.md');
     expect(prepared.submission.requestText).toContain('[目录] /repo/docs');
     expect(prepared.submission.requestText).toContain('[参考文档] /repo/current.md');
+    expect(prepared.submission.requestText).toContain('[Git 上下文] repo=openhanako; branch=main; changed=4; staged=2; unstaged=1; untracked=3; ahead=1; behind=0');
+    expect(prepared.submission.requestText).toContain('[Git 变更] src/app.ts');
     expect(prepared.submission.requestText).toContain('[引用片段] /repo/current.ts · 行 4-6 · 11 字符');
     expect(prepared.submission.quotedText).toBe('/repo/current.ts · L4-6 · 11 chars');
     expect(prepared.submission.images).toEqual([
@@ -157,6 +188,7 @@ describe('prompt-task', () => {
       quotedSelection: { text: 'const y = 2', sourceTitle: 'current.ts', charCount: 11 },
       workingSetRecentFiles: [{ path: '/repo/existing.ts', name: 'existing.ts', source: 'recent' }],
       supportsVision: true,
+      gitContext,
       readFileBase64: vi.fn(),
     });
 

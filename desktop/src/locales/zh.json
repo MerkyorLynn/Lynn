@@ -144,7 +144,8 @@
     "me": "我",
     "more": "更多",
     "empty": "空",
-    "edit": "编辑"
+    "edit": "编辑",
+    "delete": "删除"
   },
   "chat": {
     "send": "发送",
@@ -158,7 +159,12 @@
   "review": {
     "button": "复查",
     "cardTitle": "复查",
-    "noReviewer": "没有可用的复查 Agent，请先创建第二个助手"
+    "noReviewer": "没有可用的复查 Agent，请先创建第二个助手",
+    "configure": "配置复查人",
+    "loading": "加载中",
+    "auto": "自动选择",
+    "needsConfig": "还没有配置可用的复查人",
+    "requestFailed": "复查请求失败"
   },
   "time": {
     "justNow": "刚刚",
@@ -223,7 +229,8 @@
     "contextImages": "图片",
     "contextHeldBack": "草稿里暂存",
     "modeSend": "发送",
-    "modeSteer": "插话"
+    "modeSteer": "插话",
+    "contextGit": "Git 上下文"
   },
   "slash": {
     "diary": "写今日日记",
@@ -266,19 +273,20 @@
       "hanako": {
         "label": "均衡的助手",
         "avatar": "Hanako.png",
-        "name": "Lynn"
+        "name": "Hanako"
       },
       "butter": {
         "label": "更富有感情",
         "avatar": "Butter.png"
       },
-      "ming": {
-        "label": "更理性冷静",
-        "avatar": "Ming.png"
-      },
       "kong": {
         "label": "模型原本的样子",
         "avatar": "Kong.png"
+      },
+      "lynn": {
+        "label": "更理性冷静",
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       }
     },
     "title": "元",
@@ -295,7 +303,7 @@
         "{name} 正在把想说的话叠成很小很小的纸条",
         "今天的云和那天你拍的那张很像"
       ],
-      "ming": [
+      "lynn": [
         "{name} 在草稿纸的空白处画了一条辅助线",
         "旧的问题在沉淀，新的思路在浮现",
         "Ta 把昨天的线索重新梳理了一遍",
@@ -316,7 +324,7 @@
         "{name} 一直在这里等你",
         "{name} 刚好想找你说点什么"
       ],
-      "ming": [
+      "lynn": [
         "你好。有需要的话，随时开始。",
         "{name} 准备好了",
         "有什么需要处理的？",
@@ -325,7 +333,7 @@
     },
     "placeholder": {
       "butter": "想说什么都可以...",
-      "ming": "请讲..."
+      "lynn": "请讲..."
     }
   },
   "drop": {
@@ -396,7 +404,9 @@
       "有些感受需要慢慢捋",
       "在心里给你的话腾了个柔软的位置"
     ],
-    "ming": [
+    "done": "思考完成",
+    "active": "思考中",
+    "lynn": [
       "正在分析",
       "推演中",
       "核实一下",
@@ -407,9 +417,7 @@
       "验证中",
       "正在拆解问题",
       "归纳中"
-    ],
-    "done": "思考完成",
-    "active": "思考中"
+    ]
   },
   "toolGroup": {
     "success": "✿ {name} 忙完了，小事一桩～ · {n} 步",
@@ -556,7 +564,7 @@
       "grassAroma": "草香",
       "grassAromaMode": "Butter",
       "contemplation": "沉思",
-      "contemplationMode": "Ming",
+      "contemplationMode": "Lynn",
       "absolutely": "Absolutely",
       "absolutelyMode": "有一点点熟悉",
       "delve": "随时准备接住你",
@@ -862,7 +870,28 @@
       "homeFolderDesc": "新建对话默认使用的工作目录，巡检和定时任务也在这里执行",
       "homeFolderPlaceholder": "未设置（每次手动选择）",
       "homeFolderClear": "清除",
-      "homeFolderBrowse": "选择文件夹"
+      "homeFolderBrowse": "选择文件夹",
+      "trustedRoots": "受信任路径",
+      "trustedRootsDesc": "执行模式下允许工作区级读写的路径列表",
+      "addTrustedRoot": "添加受信任路径",
+      "desktopAutoTrustedHint": "桌面默认受信任，并会始终包含在白名单中。",
+      "review": {
+        "title": "复查链路",
+        "desc": "复查只会从 Hanako / Butter 中选择，不再混入其他频道或专家智能体。为每位复查人绑定独立 Agent 后，就能分别配置各自的模型。",
+        "defaultReviewer": "默认复查人",
+        "defaultReviewerDesc": "点击复查时优先调用的审查人格。",
+        "hanakoTitle": "Hanako 审查人",
+        "hanakoDesc": "用于细致、稳定的一轮复查。",
+        "butterTitle": "Butter 审查人",
+        "butterDesc": "用于补充另一种审查视角。",
+        "chooseReviewer": "选择复查 Agent",
+        "createReviewer": "创建复查 Agent",
+        "configureModel": "配置模型",
+        "unboundHint": "还没有绑定独立复查 Agent。",
+        "boundModel": "当前模型：{provider} / {model}",
+        "modelHint": "每个复查 Agent 的模型都在 Agent 页单独设置。Hanako、Butter、Lynn 不必共享同一个大模型。",
+        "createSuccess": "已创建复查 Agent：{name}"
+      }
     },
     "toolCaps": {
       "title": "自学 Skills"
@@ -1642,7 +1671,7 @@
       "sandbox": "沙盒安全",
       "sandboxDesc": "限制文件系统写入范围",
       "securityMode": "安全模式",
-      "securityModeDesc": "三模式安全策略（授权/规划/安全）",
+      "securityModeDesc": "三模式安全策略（执行/规划/安全）",
       "locale": "语言",
       "timezone": "时区",
       "timezoneDesc": "IANA 时区（如 Asia/Shanghai）",
@@ -1753,21 +1782,27 @@
   },
   "security": {
     "mode": {
-      "authorized": "授权模式",
-      "authorizedDesc": "危险操作需确认后执行",
+      "authorized": "执行模式",
+      "authorizedDesc": "危险操作需确认后执行，仍受沙盒与受信任路径限制",
       "plan": "规划模式",
       "planDesc": "仅分析规划，不执行",
       "safe": "安全模式",
-      "safeDesc": "危险行为直接拒绝"
+      "safeDesc": "危险行为直接拒绝",
+      "fullAccess": "全权模式",
+      "fullAccessDesc": "关闭沙盒隔离与命令限制"
     },
     "auth": {
-      "title": "需要授权",
+      "title": "需要确认",
       "commandLabel": "即将执行：",
       "allow": "允许执行",
+      "allowOnce": "仅本次允许",
+      "allowSession": "本会话允许",
+      "allowAlwaysHere": "始终允许此处",
       "reject": "拒绝",
-      "allowed": "已授权执行",
+      "allowed": "已允许执行",
       "rejected": "已拒绝",
-      "alwaysAllow": "以后都允许此类操作"
+      "alwaysAllow": "以后都允许此类操作",
+      "trustedRoot": "受信任根目录"
     }
   },
   "error.llmTimeout": "模型请求超时",

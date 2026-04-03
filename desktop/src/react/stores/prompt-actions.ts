@@ -1,5 +1,5 @@
 import { useStore } from './index';
-import type { PromptImage, UserAttachment } from './chat-types';
+import type { PromptImage, UserAttachment, GitContext } from './chat-types';
 import type { ComposerDraft, QuotedSelection } from './input-slice';
 import { ensureSession, showSidebarToast } from './session-actions';
 import { getWebSocket } from '../services/websocket';
@@ -14,6 +14,7 @@ export interface SendPromptOptions {
   retryDraft?: ComposerDraft | null;
   attachments?: UserAttachment[];
   images?: PromptImage[];
+  gitContext?: GitContext | null;
 }
 
 function canSendPayload(text: string, images?: PromptImage[]): boolean {
@@ -69,6 +70,7 @@ export async function submitPromptTask(options: SendPromptOptions): Promise<bool
       quotedText: options.quotedText,
       quotedSelection: options.quotedSelection ?? null,
       attachments: options.attachments,
+      gitContext: options.gitContext ?? undefined,
       requestText,
       requestImages: options.images,
       retryDraft: options.retryDraft ?? null,

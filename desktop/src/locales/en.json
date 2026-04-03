@@ -144,7 +144,8 @@
     "me": "Me",
     "more": "More",
     "empty": "Empty",
-    "edit": "Edit"
+    "edit": "Edit",
+    "delete": "Delete"
   },
   "chat": {
     "send": "Send",
@@ -158,7 +159,12 @@
   "review": {
     "button": "Review",
     "cardTitle": "Review",
-    "noReviewer": "No reviewer agent available. Create a second agent first."
+    "noReviewer": "No reviewer agent available. Create a second agent first.",
+    "configure": "Configure reviewer",
+    "loading": "Loading",
+    "auto": "Auto select",
+    "needsConfig": "No reviewer is configured yet",
+    "requestFailed": "Review request failed"
   },
   "time": {
     "justNow": "Just now",
@@ -223,7 +229,8 @@
     "contextImages": "Images",
     "contextHeldBack": "Kept in draft",
     "modeSend": "Send",
-    "modeSteer": "Steer"
+    "modeSteer": "Steer",
+    "contextGit": "Git context"
   },
   "slash": {
     "diary": "Write today's diary",
@@ -307,19 +314,20 @@
       "hanako": {
         "label": "Balanced assistant",
         "avatar": "Hanako.png",
-        "name": "Lynn"
+        "name": "Hanako"
       },
       "butter": {
         "label": "More expressive",
         "avatar": "Butter.png"
       },
-      "ming": {
-        "label": "More dependable",
-        "avatar": "Ming.png"
-      },
       "kong": {
         "label": "Vanilla",
         "avatar": "Kong.png"
+      },
+      "lynn": {
+        "label": "More dependable",
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       }
     },
     "title": "Yuan",
@@ -336,7 +344,7 @@
         "{name} is folding what they want to say into tiny tiny notes",
         "Today's clouds look just like the photo you took that day"
       ],
-      "ming": [
+      "lynn": [
         "{name} drew a reference line in the margin of the draft paper",
         "Old questions are settling, new ideas are emerging",
         "They reviewed yesterday's clues once more",
@@ -357,7 +365,7 @@
         "{name} has been here waiting for you",
         "{name} was just thinking of saying something to you"
       ],
-      "ming": [
+      "lynn": [
         "Hello. Whenever you're ready.",
         "{name} is ready",
         "What needs handling?",
@@ -366,7 +374,7 @@
     },
     "placeholder": {
       "butter": "Say whatever's on your mind...",
-      "ming": "Go ahead..."
+      "lynn": "Go ahead..."
     }
   },
   "thinking": {
@@ -396,7 +404,9 @@
       "Some feelings need time to untangle",
       "Making a soft space for your words"
     ],
-    "ming": [
+    "done": "Thinking complete",
+    "active": "Thinking",
+    "lynn": [
       "Analyzing",
       "Running scenarios",
       "Fact-checking",
@@ -407,9 +417,7 @@
       "Verifying",
       "Breaking down the problem",
       "Synthesizing"
-    ],
-    "done": "Thinking complete",
-    "active": "Thinking"
+    ]
   },
   "toolGroup": {
     "success": "✿ {name} all done, piece of cake ~ · {n} steps",
@@ -556,7 +564,7 @@
       "grassAroma": "Grass Aroma",
       "grassAromaMode": "Butter",
       "contemplation": "Contemplation",
-      "contemplationMode": "Ming",
+      "contemplationMode": "Lynn",
       "absolutely": "Absolutely",
       "absolutelyMode": "A bit familiar",
       "delve": "Delve",
@@ -862,7 +870,28 @@
       "homeFolderDesc": "Default working directory for new chats, patrol and cron tasks",
       "homeFolderPlaceholder": "Not set (choose manually each time)",
       "homeFolderClear": "Clear",
-      "homeFolderBrowse": "Browse"
+      "homeFolderBrowse": "Browse",
+      "trustedRoots": "Trusted roots",
+      "trustedRootsDesc": "Paths that are allowed for workspace-level read and write in execute mode",
+      "addTrustedRoot": "Add trusted path",
+      "desktopAutoTrustedHint": "Desktop is trusted by default and always included.",
+      "review": {
+        "title": "Review chain",
+        "desc": "Review now only picks from Hanako / Butter, never from unrelated channel or expert agents. Bind a dedicated agent for each reviewer so they can run on separate models.",
+        "defaultReviewer": "Default reviewer",
+        "defaultReviewerDesc": "The reviewer persona used first when you click review.",
+        "hanakoTitle": "Hanako reviewer",
+        "hanakoDesc": "Use for the careful default review pass.",
+        "butterTitle": "Butter reviewer",
+        "butterDesc": "Use for a second perspective with a different model if needed.",
+        "chooseReviewer": "Choose reviewer agent",
+        "createReviewer": "Create reviewer agent",
+        "configureModel": "Configure model",
+        "unboundHint": "No dedicated reviewer agent is bound yet.",
+        "boundModel": "Current model: {provider} / {model}",
+        "modelHint": "Each reviewer agent keeps its own model setting on the Agent tab. Hanako, Butter, and Lynn no longer need to share one large model.",
+        "createSuccess": "Created reviewer agent: {name}"
+      }
     },
     "toolCaps": {
       "title": "Self-learning Skills"
@@ -1642,7 +1671,7 @@
       "sandbox": "Sandbox Security",
       "sandboxDesc": "Restrict file system write scope",
       "securityMode": "Security Mode",
-      "securityModeDesc": "Three-mode security policy (Authorized/Plan/Safe)",
+      "securityModeDesc": "Three-mode security policy (Execute/Plan/Safe)",
       "locale": "Language",
       "timezone": "Timezone",
       "timezoneDesc": "IANA timezone (e.g. Asia/Shanghai)",
@@ -1753,21 +1782,27 @@
   },
   "security": {
     "mode": {
-      "authorized": "Authorized",
-      "authorizedDesc": "Dangerous ops need confirmation",
+      "authorized": "Execute",
+      "authorizedDesc": "Prompts for risky operations, still bounded by sandbox and trusted roots",
       "plan": "Plan",
       "planDesc": "Analyze only, no execution",
       "safe": "Safe",
-      "safeDesc": "Strict sandbox, blocked directly"
+      "safeDesc": "Strict sandbox, blocked directly",
+      "fullAccess": "Full Access",
+      "fullAccessDesc": "Disable sandbox isolation and allow unrestricted execution"
     },
     "auth": {
-      "title": "Authorization Required",
+      "title": "Confirmation Required",
       "commandLabel": "About to execute:",
       "allow": "Allow",
-      "reject": "Reject",
-      "allowed": "Authorized",
+      "allowOnce": "Allow once",
+      "allowSession": "Allow this session",
+      "allowAlwaysHere": "Always allow here",
+      "reject": "Deny",
+      "allowed": "Execution allowed",
       "rejected": "Rejected",
-      "alwaysAllow": "Always allow this type of operation"
+      "alwaysAllow": "Always allow this type of operation",
+      "trustedRoot": "Trusted root"
     }
   },
   "error.llmTimeout": "Model request timed out",

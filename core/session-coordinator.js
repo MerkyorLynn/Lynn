@@ -47,6 +47,10 @@ function getSteerPrefix() {
 }
 const MAX_CACHED_SESSIONS = 20;
 
+function getBuiltinToolNames(tools) {
+  return tools.map((tool) => tool.name);
+}
+
 export class SessionCoordinator {
   /**
    * @param {object} deps
@@ -57,6 +61,7 @@ export class SessionCoordinator {
    * @param {() => object} deps.getResourceLoader
    * @param {() => import('./skill-manager.js').SkillManager} deps.getSkills
    * @param {(cwd, customTools?, opts?) => object} deps.buildTools
+   * @param {() => object} deps.getConfirmStore
    * @param {(event, sp) => void} deps.emitEvent
    * @param {() => string|null} deps.getHomeCwd
    * @param {(path) => string|null} deps.agentIdFromSessionPath
@@ -136,13 +141,13 @@ export class SessionCoordinator {
 
           if (secMode === SecurityMode.PLAN) {
             const planModePrompt = isZh
-              ? "【系统通知】当前处于「规划模式」，用户在设置中选择了只读规划。你只能使用只读工具（read、grep、find、ls）和自定义工具。不能执行写入、编辑、删除等操作。如果用户要求你做这些操作，请告知当前处于规划模式，需要先在输入框左下角切换到「授权模式」。"
-              : "[System Notice] Currently in PLAN MODE. You can only use read-only tools (read, grep, find, ls) and custom tools. You cannot write, edit, or delete. If the user asks for these operations, inform them to switch to 'Authorized Mode' via the selector at the bottom-left of the input area.";
+              ? "【系统通知】当前处于「规划模式」，用户在设置中选择了只读规划。你只能使用只读工具（read、grep、find、ls）和自定义工具。不能执行写入、编辑、删除等操作。如果用户要求你做这些操作，请告知当前处于规划模式，需要先在输入框左下角切换到「执行模式」。"
+              : "[System Notice] Currently in PLAN MODE. You can only use read-only tools (read, grep, find, ls) and custom tools. You cannot write, edit, or delete. If the user asks for these operations, inform them to switch to 'Execute Mode' via the selector at the bottom-left of the input area.";
             extras.push(planModePrompt);
           } else if (secMode === SecurityMode.SAFE) {
             const safeModePrompt = isZh
-              ? "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受限路径的写入将被直接拒绝，无确认机会。如果用户需要执行这些操作，请告知需要在输入框左下角切换到「授权模式」。"
-              : "[System Notice] Currently in SAFE MODE. All dangerous operations (sudo, chmod, etc.) and writes to restricted paths will be directly blocked with no confirmation option. If the user needs these operations, inform them to switch to 'Authorized Mode' via the selector at the bottom-left of the input area.";
+              ? "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受限路径的写入将被直接拒绝，无确认机会。如果用户需要执行这些操作，请告知需要在输入框左下角切换到「执行模式」。"
+              : "[System Notice] Currently in SAFE MODE. All dangerous operations (sudo, chmod, etc.) and writes to restricted paths will be directly blocked with no confirmation option. If the user needs these operations, inform them to switch to 'Execute Mode' via the selector at the bottom-left of the input area.";
             extras.push(safeModePrompt);
           }
           // authorized mode: no special system prompt needed
@@ -210,13 +215,7 @@ export class SessionCoordinator {
       _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
     });
     this._sessions.set(mapKey, sessionEntry);
-
-    // If plan mode was pending, apply tool restriction now
-    if (initialPlanMode) {
-      const agent = this._d.getAgent();
-      const customNames = (agent.tools || []).map(t => t.name);
-      session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customNames]);
-    }
+    this._applySessionToolRuntime(mapKey, initialSecurityMode);
 
     // LRU 淘汰：按 lastTouchedAt 排序，跳过 streaming 和焦点 session
     if (this._sessions.size > MAX_CACHED_SESSIONS) {
@@ -407,34 +406,58 @@ export class SessionCoordinator {
     return this._sessions.get(sp)?.planMode ?? false;
   }
 
+  _buildSessionTools(entry, modeOverride = null) {
+    const cwd = entry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || process.cwd();
+    const sessionPath = entry.session?.sessionManager?.getSessionFile?.() || null;
+    const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
+    return this._d.buildTools(cwd, null, {
+      agentDir: this._d.getAgentById(entry.agentId)?.agentDir || this._d.getAgent().agentDir,
+      workspace: this._d.getHomeCwd(),
+      mode: SECURITY_MODE_CONFIG[effectiveMode]?.sandboxMode,
+      getSessionPath: () => sessionPath,
+    });
+  }
+
+  _applySessionToolRuntime(sessionPath, modeOverride = null) {
+    const entry = this._sessions.get(sessionPath);
+    if (!entry) return;
+
+    const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
+    const config = SECURITY_MODE_CONFIG[effectiveMode];
+    const { tools, customTools } = this._buildSessionTools(entry, effectiveMode);
+    const baseToolsOverride = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
+    const customNames = (customTools || []).map((tool) => tool.name);
+    const activeToolNames = config.toolsRestricted
+      ? [...READ_ONLY_BUILTIN_TOOLS, ...customNames]
+      : [...getBuiltinToolNames(tools), ...customNames];
+
+    entry.securityMode = effectiveMode;
+    entry.planMode = effectiveMode === SecurityMode.PLAN;
+    entry.session._customTools = customTools || [];
+    entry.session._baseToolsOverride = baseToolsOverride;
+    entry.session._buildRuntime({ activeToolNames });
+  }
+
   /** Set plan mode for the current (focused) session */
   setPlanMode(enabled, allBuiltInTools) {
+    const targetMode = enabled ? SecurityMode.PLAN : SecurityMode.AUTHORIZED;
     const sp = this.currentSessionPath;
 
-    // No session yet (welcome page) — store for when session is created
     if (!sp) {
       this._pendingPlanMode = !!enabled;
+      this._pendingSecurityMode = targetMode;
       this._d.emitEvent({ type: "plan_mode", enabled: this._pendingPlanMode }, null);
+      this._d.emitEvent({ type: "security_mode", mode: targetMode }, null);
       this._d.emitDevLog(`Plan Mode: ${this._pendingPlanMode ? "ON (只读)" : "OFF (正常)"}`, "info");
       return;
     }
 
-    const entry = this._sessions.get(sp);
-    if (!entry) return;
-
-    entry.planMode = !!enabled;
-    const agent = this._d.getAgent();
-    const customNames = (agent.tools || []).map(t => t.name);
-
-    if (entry.planMode) {
-      entry.session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customNames]);
-    } else {
-      const allNames = allBuiltInTools.map(t => t.name);
-      entry.session.setActiveToolsByName([...allNames, ...customNames]);
-    }
-
-    this._d.emitEvent({ type: "plan_mode", enabled: entry.planMode }, sp);
-    this._d.emitDevLog(`Plan Mode: ${entry.planMode ? "ON (只读)" : "OFF (正常)"}`, "info");
+    this._applySessionToolRuntime(sp, targetMode);
+    this._pendingSecurityMode = targetMode;
+    this._pendingPlanMode = !!enabled;
+    this._d.emitEvent({ type: "plan_mode", enabled: !!enabled }, sp);
+    this._d.emitEvent({ type: "security_mode", mode: targetMode }, sp);
+    this._d.emitDevLog(`Plan Mode: ${enabled ? "ON (只读)" : "OFF (正常)"}`, "info");
   }
 
   /** Get security mode for the current (focused) session */
@@ -448,12 +471,9 @@ export class SessionCoordinator {
   setSecurityMode(mode, allBuiltInTools) {
     const effectiveMode = normalizeSecurityMode(mode);
     const sp = this.currentSessionPath;
-    const config = SECURITY_MODE_CONFIG[effectiveMode];
 
-    // No session yet (welcome page) — store for when session is created
     if (!sp) {
       this._pendingSecurityMode = effectiveMode;
-      // Also update plan mode pending state for backward compatibility
       this._pendingPlanMode = effectiveMode === SecurityMode.PLAN;
       this._d.emitEvent({ type: "security_mode", mode: effectiveMode }, null);
       this._d.emitEvent({ type: "plan_mode", enabled: effectiveMode === SecurityMode.PLAN }, null);
@@ -464,27 +484,12 @@ export class SessionCoordinator {
     const entry = this._sessions.get(sp);
     if (!entry) return;
 
-    entry.securityMode = effectiveMode;
-    entry.planMode = effectiveMode === SecurityMode.PLAN;
-
-    const agent = this._d.getAgent();
-    const customNames = (agent.tools || []).map(t => t.name);
-
-    if (config.toolsRestricted) {
-      // Plan mode: restrict to read-only tools
-      entry.session.setActiveToolsByName([...READ_ONLY_BUILTIN_TOOLS, ...customNames]);
-    } else {
-      // Authorized or Safe: all tools available
-      const allNames = allBuiltInTools.map(t => t.name);
-      entry.session.setActiveToolsByName([...allNames, ...customNames]);
-    }
-
-    // Update pending so new sessions inherit
+    this._applySessionToolRuntime(sp, effectiveMode);
     this._pendingSecurityMode = effectiveMode;
+    this._pendingPlanMode = effectiveMode === SecurityMode.PLAN;
 
     this._d.emitEvent({ type: "security_mode", mode: effectiveMode }, sp);
-    // Backward-compatible plan_mode event
-    this._d.emitEvent({ type: "plan_mode", enabled: entry.planMode }, sp);
+    this._d.emitEvent({ type: "plan_mode", enabled: effectiveMode === SecurityMode.PLAN }, sp);
     this._d.emitDevLog(`Security Mode: ${effectiveMode}`, "info");
   }
 

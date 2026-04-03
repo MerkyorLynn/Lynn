@@ -114,7 +114,8 @@
     "me": "自分",
     "more": "もっと見る",
     "empty": "空",
-    "edit": "編集"
+    "edit": "編集",
+    "delete": "削除"
   },
   "chat": {
     "send": "送信",
@@ -180,7 +181,8 @@
     "contextImages": "画像",
     "contextHeldBack": "下書きに保持",
     "modeSend": "送信",
-    "modeSteer": "操舵"
+    "modeSteer": "操舵",
+    "contextGit": "Git コンテキスト"
   },
   "slash": {
     "diary": "今日の日記を書く",
@@ -263,20 +265,21 @@
     "types": {
       "hanako": {
         "label": "バランス型アシスタント",
-        "avatar": "Lynn.png",
-        "name": "Lynn"
+        "avatar": "Hanako.png",
+        "name": "Hanako"
       },
       "butter": {
         "label": "より感情豊か",
         "avatar": "Butter.png"
       },
-      "ming": {
-        "label": "より堅実",
-        "avatar": "Ming.png"
-      },
       "kong": {
         "label": "素のまま",
         "avatar": "Kong.png"
+      },
+      "lynn": {
+        "label": "より堅実",
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       }
     },
     "title": "元",
@@ -293,7 +296,7 @@
         "{name} は伝えたいことを小さな小さなメモに折りたたんでいます",
         "今日の雲、あの日あなたが撮った写真にそっくりです"
       ],
-      "ming": [
+      "lynn": [
         "{name} は下書き用紙の余白に参照線を引きました",
         "古い問いが沈殿し、新しいアイデアが浮かんできています",
         "昨日の手がかりをもう一度見直しました",
@@ -314,7 +317,7 @@
         "{name} はずっとここで待っていました",
         "{name} はちょうどあなたに何か言おうとしていました"
       ],
-      "ming": [
+      "lynn": [
         "こんにちは。準備ができたらどうぞ。",
         "{name} は準備できています",
         "何を処理しますか？",
@@ -323,7 +326,7 @@
     },
     "placeholder": {
       "butter": "思ったことをそのまま...",
-      "ming": "どうぞ..."
+      "lynn": "どうぞ..."
     }
   },
   "thinking": {
@@ -353,7 +356,9 @@
       "ほどくのに時間がかかる気持ちもあります",
       "あなたの言葉にやさしい場所を作っています"
     ],
-    "ming": [
+    "done": "思考完了",
+    "active": "思考中",
+    "lynn": [
       "分析中",
       "シナリオを検討中",
       "事実を確認中",
@@ -364,9 +369,7 @@
       "検証中",
       "問題を分解中",
       "統合中"
-    ],
-    "done": "思考完了",
-    "active": "思考中"
+    ]
   },
   "toolGroup": {
     "success": "✿ {name} 完了です、お茶の子さいさい～ · {n} ステップ",
@@ -512,7 +515,7 @@
       "grassAroma": "草の香り",
       "grassAromaMode": "Butter",
       "contemplation": "沈思",
-      "contemplationMode": "Ming",
+      "contemplationMode": "Lynn",
       "absolutely": "Absolutely",
       "absolutelyMode": "どこか見覚えが",
       "delve": "Delve",
@@ -818,7 +821,25 @@
       "homeFolderDesc": "新しいチャット、巡回、cron タスクのデフォルト作業ディレクトリ",
       "homeFolderPlaceholder": "未設定（毎回手動で選択）",
       "homeFolderClear": "クリア",
-      "homeFolderBrowse": "参照"
+      "homeFolderBrowse": "参照",
+      "trustedRootsDesc": "実行モードでワークスペース級の読み書きを許可するパス一覧",
+      "review": {
+        "title": "レビュー経路",
+        "desc": "レビューは Hanako / Butter のみから選ばれ、他のチャンネル用や専門家エージェントは混ざりません。各レビュアーに専用 Agent を割り当てると、それぞれ別モデルで運用できます。",
+        "defaultReviewer": "既定のレビュアー",
+        "defaultReviewerDesc": "レビューを押した時に最初に呼ばれる人格です。",
+        "hanakoTitle": "Hanako レビュアー",
+        "hanakoDesc": "丁寧で安定した一次レビュー向け。",
+        "butterTitle": "Butter レビュアー",
+        "butterDesc": "別視点の補助レビュー向け。",
+        "chooseReviewer": "レビュアー Agent を選択",
+        "createReviewer": "レビュアー Agent を作成",
+        "configureModel": "モデルを設定",
+        "unboundHint": "専用レビュアー Agent がまだ紐付いていません。",
+        "boundModel": "現在のモデル: {provider} / {model}",
+        "modelHint": "各レビュアー Agent のモデルは Agent タブで個別に設定します。Hanako、Butter、Lynn が同じ大モデルを共有する必要はありません。",
+        "createSuccess": "レビュアー Agent を作成しました: {name}"
+      }
     },
     "toolCaps": {
       "title": "自律学習スキル"
@@ -1564,7 +1585,7 @@
       "sandbox": "サンドボックスセキュリティ",
       "sandboxDesc": "ファイルシステムの書き込み範囲を制限",
       "securityMode": "セキュリティモード",
-      "securityModeDesc": "3モードセキュリティポリシー（認証/計画/安全）",
+      "securityModeDesc": "3モードセキュリティポリシー（実行/計画/安全）",
       "locale": "言語",
       "timezone": "タイムゾーン",
       "timezoneDesc": "IANA タイムゾーン（例: Asia/Shanghai）",
@@ -1675,21 +1696,27 @@
   },
   "security": {
     "mode": {
-      "authorized": "認証モード",
-      "authorizedDesc": "危険な操作は確認後に実行",
+      "authorized": "実行モード",
+      "authorizedDesc": "危険な操作は確認後に実行し、サンドボックスと信頼済みパスの制限は維持",
       "plan": "計画モード",
       "planDesc": "分析のみ、実行なし",
       "safe": "安全モード",
-      "safeDesc": "厳格なサンドボックス、直接拒否"
+      "safeDesc": "厳格なサンドボックス、直接拒否",
+      "fullAccess": "フルアクセス",
+      "fullAccessDesc": "サンドボックス隔離とコマンド制限を無効にする"
     },
     "auth": {
-      "title": "認証が必要です",
+      "title": "確認が必要です",
       "commandLabel": "実行予定：",
-      "allow": "許可",
+      "allow": "実行を許可",
       "reject": "拒否",
-      "allowed": "許可済み",
+      "allowed": "実行を許可済み",
       "rejected": "拒否済み",
-      "alwaysAllow": "今後もこの種類の操作を常に許可"
+      "alwaysAllow": "今後もこの種類の操作を常に許可",
+      "allowOnce": "今回のみ許可",
+      "allowSession": "この会話で許可",
+      "allowAlwaysHere": "この場所では常に許可",
+      "trustedRoot": "信頼済みルート"
     }
   },
   "error.llmTimeout": "Model request timed out",
@@ -1720,5 +1747,12 @@
   "agentDiscovery.title": "スキルが見つかりました",
   "agentDiscovery.body": "以下のツールからスキルを再利用できます：",
   "agentDiscovery.enable": "有効にする",
-  "agentDiscovery.later": "スキップ"
+  "agentDiscovery.later": "スキップ",
+  "review": {
+    "configure": "レビュアーを設定",
+    "loading": "読み込み中",
+    "auto": "自動選択",
+    "needsConfig": "利用可能なレビュアーがまだ設定されていません",
+    "requestFailed": "レビュー要求に失敗しました"
+  }
 }

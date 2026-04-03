@@ -43,6 +43,8 @@ function makeMockEngine(overrides = {}) {
     setLocale: vi.fn(function (v) { prefs.setLocale(v); }),
     setTimezone: vi.fn(function (v) { prefs.setTimezone(v); }),
     setThinkingLevel: vi.fn(function (v) { prefs.setThinkingLevel(v); }),
+    setSecurityMode: vi.fn(),
+    securityMode: overrides.securityMode || "authorized",
     currentSessionPath: "/sessions/test",
     emitSessionEvent: vi.fn(),
   };
@@ -105,6 +107,16 @@ describe("update-settings-tool", () => {
       await tool.execute("c3", { action: "apply", key: "locale", value: "en" });
 
       expect(engine.setLocale).toHaveBeenCalledWith("en");
+    });
+  });
+
+  describe("security mode labels", () => {
+    it("search security mode 时向用户展示 Execute 文案，但内部值仍是 authorized", async () => {
+      const { tool } = buildTool({ securityMode: 'authorized' });
+      const result = await tool.execute('c-sec', { action: 'search', query: 'security mode' });
+      const text = result.content[0].text;
+      expect(text).toContain('Execute');
+      expect(text).toContain('authorized (Execute)');
     });
   });
 

@@ -114,7 +114,8 @@
     "me": "我",
     "more": "更多",
     "empty": "空",
-    "edit": "編輯"
+    "edit": "編輯",
+    "delete": "刪除"
   },
   "chat": {
     "send": "傳送",
@@ -180,7 +181,8 @@
     "contextImages": "圖片",
     "contextHeldBack": "草稿裡暫存",
     "modeSend": "傳送",
-    "modeSteer": "插話"
+    "modeSteer": "插話",
+    "contextGit": "Git 上下文"
   },
   "slash": {
     "diary": "寫今日日記",
@@ -222,20 +224,21 @@
     "types": {
       "hanako": {
         "label": "均衡的助手",
-        "avatar": "Lynn.png",
-        "name": "Lynn"
+        "avatar": "Hanako.png",
+        "name": "Hanako"
       },
       "butter": {
         "label": "更富有感情",
         "avatar": "Butter.png"
       },
-      "ming": {
-        "label": "更理性冷靜",
-        "avatar": "Ming.png"
-      },
       "kong": {
         "label": "模型原本的樣子",
         "avatar": "Kong.png"
+      },
+      "lynn": {
+        "label": "更理性冷靜",
+        "avatar": "Lynn.png",
+        "name": "Lynn"
       }
     },
     "title": "元",
@@ -252,7 +255,7 @@
         "{name} 正在把想說的話疊成很小很小的紙條",
         "今天的雲和那天你拍的那張很像"
       ],
-      "ming": [
+      "lynn": [
         "{name} 在草稿紙的空白處畫了一條輔助線",
         "舊的問題在沉澱，新的思路在浮現",
         "Ta 把昨天的線索重新梳理了一遍",
@@ -273,7 +276,7 @@
         "{name} 一直在這裡等你",
         "{name} 剛好想找你說點什麼"
       ],
-      "ming": [
+      "lynn": [
         "你好。有需要的話，隨時開始。",
         "{name} 準備好了",
         "有什麼需要處理的？",
@@ -282,7 +285,7 @@
     },
     "placeholder": {
       "butter": "想說什麼都可以...",
-      "ming": "請講..."
+      "lynn": "請講..."
     }
   },
   "drop": {
@@ -353,7 +356,9 @@
       "有些感受需要慢慢捋",
       "在心裡給你的話騰了個柔軟的位置"
     ],
-    "ming": [
+    "done": "思考完成",
+    "active": "思考中",
+    "lynn": [
       "正在分析",
       "推演中",
       "核實一下",
@@ -364,9 +369,7 @@
       "驗證中",
       "正在拆解問題",
       "歸納中"
-    ],
-    "done": "思考完成",
-    "active": "思考中"
+    ]
   },
   "toolGroup": {
     "success": "✿ {name} 忙完了，小事一樁～ · {n} 步",
@@ -513,7 +516,7 @@
       "grassAroma": "草香",
       "grassAromaMode": "Butter",
       "contemplation": "沉思",
-      "contemplationMode": "Ming",
+      "contemplationMode": "Lynn",
       "absolutely": "Absolutely",
       "absolutelyMode": "有一點點熟悉",
       "delve": "隨時準備接住你",
@@ -819,7 +822,25 @@
       "homeFolderDesc": "新建對話預設使用的工作目錄，巡檢和定時任務也在這裡執行",
       "homeFolderPlaceholder": "未設定（每次手動選擇）",
       "homeFolderClear": "清除",
-      "homeFolderBrowse": "選擇資料夾"
+      "homeFolderBrowse": "選擇資料夾",
+      "trustedRootsDesc": "執行模式下允許工作區級讀寫的路徑列表",
+      "review": {
+        "title": "複查鏈路",
+        "desc": "複查只會從 Hanako / Butter 中選擇，不再混入其他頻道或專家智能體。為每位複查人綁定獨立 Agent 後，就能分別配置各自的模型。",
+        "defaultReviewer": "預設複查人",
+        "defaultReviewerDesc": "點擊複查時優先呼叫的審查人格。",
+        "hanakoTitle": "Hanako 審查人",
+        "hanakoDesc": "用於細緻、穩定的一輪複查。",
+        "butterTitle": "Butter 審查人",
+        "butterDesc": "用於補充另一種審查視角。",
+        "chooseReviewer": "選擇複查 Agent",
+        "createReviewer": "建立複查 Agent",
+        "configureModel": "設定模型",
+        "unboundHint": "還沒有綁定獨立複查 Agent。",
+        "boundModel": "目前模型：{provider} / {model}",
+        "modelHint": "每個複查 Agent 的模型都在 Agent 頁單獨設定。Hanako、Butter、Lynn 不必共用同一個大模型。",
+        "createSuccess": "已建立複查 Agent：{name}"
+      }
     },
     "toolCaps": {
       "title": "自學 Skills"
@@ -1574,7 +1595,7 @@
       "sandbox": "沙盒安全",
       "sandboxDesc": "限制檔案系統寫入範圍",
       "securityMode": "安全模式",
-      "securityModeDesc": "三模式安全策略（授權/規劃/安全）",
+      "securityModeDesc": "三模式安全策略（執行/規劃/安全）",
       "locale": "語言",
       "timezone": "時區",
       "timezoneDesc": "IANA 時區（如 Asia/Shanghai）",
@@ -1685,21 +1706,27 @@
   },
   "security": {
     "mode": {
-      "authorized": "授權模式",
-      "authorizedDesc": "危險操作需確認後執行",
+      "authorized": "執行模式",
+      "authorizedDesc": "危險操作需確認後執行，仍受沙盒與受信任路徑限制",
       "plan": "規劃模式",
       "planDesc": "僅分析規劃，不執行",
       "safe": "安全模式",
-      "safeDesc": "嚴格沙盒，直接拒絕"
+      "safeDesc": "嚴格沙盒，直接拒絕",
+      "fullAccess": "全權模式",
+      "fullAccessDesc": "關閉沙盒隔離與命令限制"
     },
     "auth": {
-      "title": "需要授權",
+      "title": "需要確認",
       "commandLabel": "即將執行：",
       "allow": "允許執行",
       "reject": "拒絕",
-      "allowed": "已授權執行",
+      "allowed": "已允許執行",
       "rejected": "已拒絕",
-      "alwaysAllow": "以後都允許此類操作"
+      "alwaysAllow": "以後都允許此類操作",
+      "allowOnce": "僅本次允許",
+      "allowSession": "本會話允許",
+      "allowAlwaysHere": "始終允許此處",
+      "trustedRoot": "受信任根目錄"
     }
   },
   "error.llmTimeout": "模型请求超时",
@@ -1730,5 +1757,12 @@
   "agentDiscovery.title": "發現已有技能",
   "agentDiscovery.body": "偵測到以下工具的技能庫，啟用後可直接複用：",
   "agentDiscovery.enable": "啟用",
-  "agentDiscovery.later": "跳過"
+  "agentDiscovery.later": "跳過",
+  "review": {
+    "configure": "設定複查人",
+    "loading": "載入中",
+    "auto": "自動選擇",
+    "needsConfig": "還沒有設定可用的複查人",
+    "requestFailed": "複查請求失敗"
+  }
 }

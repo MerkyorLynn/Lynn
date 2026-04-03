@@ -119,6 +119,25 @@ describe('prompt-actions', () => {
     expect(ensureSession).toHaveBeenCalledOnce();
   });
 
+  it('append user message 时保留 gitContext 摘要', async () => {
+    const { submitPromptTask } = await import('../../stores/prompt-actions');
+
+    await submitPromptTask({
+      mode: 'prompt',
+      text: '显示文本',
+      requestText: '真实请求',
+      gitContext: { repoName: 'openhanako', branch: 'main', changedCount: 4 },
+    });
+
+    const appended = mockState.appended[0].item.data;
+    expect(appended.gitContext).toEqual({ repoName: 'openhanako', branch: 'main', changedCount: 4 });
+    expect(websocketRef?.send).toHaveBeenCalledWith(JSON.stringify({
+      type: 'prompt',
+      text: '真实请求',
+      sessionPath: '/sessions/current',
+    }));
+  });
+
   it('append user message 时保留 requestText、images 和 retryDraft', async () => {
     const { submitPromptTask } = await import('../../stores/prompt-actions');
     const retryDraft = {
