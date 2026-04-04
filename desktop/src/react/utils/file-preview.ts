@@ -101,21 +101,25 @@ export async function openFilePreview(filePath: string, label: string, ext: stri
 
   const canPreview = ext in PREVIEWABLE_EXTS;
   if (canPreview) {
-    const content = await readFileForPreview(filePath, ext);
-    if (content != null) {
-      const previewType = PREVIEWABLE_EXTS[ext];
-      const artifact: Artifact = {
-        id: `file-${filePath}`,
-        type: previewType,
-        title: fileName,
-        content,
-        filePath,
-        ext,
-        language: previewType === 'code' ? ext : undefined,
-      };
-      upsertArtifact(artifact);
-      openPreview(artifact);
-      return;
+    try {
+      const content = await readFileForPreview(filePath, ext);
+      if (content != null) {
+        const previewType = PREVIEWABLE_EXTS[ext];
+        const artifact: Artifact = {
+          id: `file-${filePath}`,
+          type: previewType,
+          title: fileName,
+          content,
+          filePath,
+          ext,
+          language: previewType === 'code' ? ext : undefined,
+        };
+        upsertArtifact(artifact);
+        openPreview(artifact);
+        return;
+      }
+    } catch (err) {
+      console.error('[file-preview] read failed:', err);
     }
   }
 

@@ -320,6 +320,7 @@ export function handleServerMessage(msg: any): void {
 
     case 'channel_new_message': {
       const store = useStore.getState();
+      if (!store.channelsEnabled) break;
       const isViewing = store.currentTab === 'channels' && store.currentChannel === msg.channelName && document.visibilityState === 'visible';
       if (msg.channelName && isViewing) {
         openChannelAction(msg.channelName);
@@ -331,6 +332,7 @@ export function handleServerMessage(msg: any): void {
 
     case 'channel_archived': {
       const store = useStore.getState();
+      if (!store.channelsEnabled) break;
       const isViewing = store.currentTab === 'channels' && store.currentChannel === msg.channelName;
       loadChannelsAction();
       if (msg.channelName && isViewing) {
@@ -340,6 +342,7 @@ export function handleServerMessage(msg: any): void {
     }
 
     case 'dm_new_message':
+      if (!useStore.getState().channelsEnabled) break;
       if (document.visibilityState !== 'visible') {
         showError('info.dmNewMessage');
       }

@@ -778,6 +778,17 @@ export class Agent {
         + "When the user asks to change preferences (including but not limited to: appearance/theme, language/region, model selection, security/permissions, memory, personal info, working directory), use the update_settings tool. Do not search the web or edit config files. When intent is clear, apply directly; when unsure, search first."
     );
 
+    parts.push(isZh
+      ? "\n## 技能创建与安装\n\n"
+        + "当你已经整理好一个可复用技能时，默认直接使用 install_skill 工具安装到 Lynn 自己的技能目录，让技能立刻生效。\n"
+        + "不要把 SKILL.md 先写到桌面或工作区，再让用户自己 mv/复制到技能目录。\n"
+        + "只有当用户明确要求导出一个工作区副本时，才额外写一份到指定目录。"
+      : "\n## Skill Authoring And Installation\n\n"
+        + "When you have finished drafting a reusable skill, install it directly with the install_skill tool so it takes effect immediately in Lynn's own skill directory.\n"
+        + "Do not write SKILL.md into the desktop or workspace first and then ask the user to move or copy it manually.\n"
+        + "Only write an extra workspace copy when the user explicitly asks for an exported copy."
+    );
+
     // 主动技能获取引导
     if (learnCfg.enabled && learnCfg.allow_github_fetch) {
       parts.push(isZh
