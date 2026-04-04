@@ -13,11 +13,9 @@ import { showSidebarToast } from '../stores/session-actions';
 import { getWebSocket, manualReconnect } from '../services/websocket';
 import { sendPrompt, submitPromptTask } from '../stores/prompt-actions';
 import type { ThinkingLevel } from '../stores/model-slice';
-import type { WorkingSetFile } from '../stores/input-slice';
 import { TodoDisplay } from './input/TodoDisplay';
 import { AttachedFilesBar } from './input/AttachedFilesBar';
 import { SecurityModeSelector } from './input/SecurityModeSelector';
-import { DocContextButton } from './input/DocContextButton';
 import { ContextRing } from './input/ContextRing';
 import { ThinkingLevelButton } from './input/ThinkingLevelButton';
 import { ModelSelector } from './input/ModelSelector';
@@ -25,21 +23,15 @@ import { SlashCommandMenu } from './input/SlashCommandMenu';
 import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
-import { WorkingSetBar } from './input/WorkingSetBar';
-import { ContextOverviewCard } from './input/ContextOverviewCard';
 import {
-  XING_PROMPT, executeDiary, executeCompact, buildSlashCommands,
+  XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
   type SlashCommand,
 } from './input/slash-commands';
 import {
   fileToWorkingSet,
   getComposerSessionKey,
-  mergeWorkingSetFiles,
-  resolveDocContextToggle,
-  toggleComposerAttachment,
 } from '../utils/composer-state';
 import {
-  buildComposerContextOverview,
   prepareComposerTask,
   type ComposerTaskMode,
   type GitContextSnapshot,
@@ -50,6 +42,28 @@ export type { SlashCommand };
 
 export function InputArea() {
   return <InputAreaInner />;
+}
+
+function deriveRunRisk(command: string): 'low' | 'medium' | 'high' {
+  const normalized = command.trim().toLowerCase();
+  if (/\b(rm|sudo|chmod|chown|mv|scp|ssh|docker\s+rm|git\s+push|npm\s+publish)\b/.test(normalized)) {
+    return 'high';
+  }
+  if (/\b(git|npm|pnpm|yarn|bun|cargo|go|python|node|uv|make|brew|curl|wget)\b/.test(normalized)) {
+    return 'medium';
+  }
+  return 'low';
+}
+
+function runRiskLabel(risk: 'low' | 'medium' | 'high', t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (risk === 'high') return t('markdown.runRisk.high') || '高风险';
+  if (risk === 'medium') return t('markdown.runRisk.medium') || '中风险';
+  return t('markdown.runRisk.low') || '低风险';
+}
+
+function buildRunCommandPrompt(command: string, cwd: string | null): string {
+  const cwdLine = cwd ? `当前工作目录：${cwd}\n` : '';
+  return `请直接在终端执行下面的命令，并基于真实结果回复。不要只解释命令本身。\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``;
 }
 
 function InputAreaInner() {
@@ -69,12 +83,7 @@ function InputAreaInner() {
   const todosBySession = useStore(s => s.todosBySession);
   const sessionTodos = (todosBySession && currentSessionPath && todosBySession[currentSessionPath]) || [];
   const attachedFiles = useStore(s => s.attachedFiles);
-  const docContextAttached = useStore(s => s.docContextAttached);
-  const docContextFile = useStore(s => s.docContextFile);
   const quotedSelection = useStore(s => s.quotedSelection);
-  const artifacts = useStore(s => s.artifacts);
-  const activeTabId = useStore(s => s.activeTabId);
-  const previewOpen = useStore(s => s.previewOpen);
   const models = useStore(s => s.models);
   const agentYuan = useStore(s => s.agentYuan);
   const thinkingLevel = useStore(s => s.thinkingLevel);
@@ -89,9 +98,11 @@ function InputAreaInner() {
   const setInlineError = useStore(s => s.setInlineError);
   const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
   const rememberWorkingSetFile = useStore(s => s.rememberWorkingSetFile);
-  const deskFiles = useStore(s => s.deskFiles);
   const deskBasePath = useStore(s => s.deskBasePath);
   const deskCurrentPath = useStore(s => s.deskCurrentPath);
+  const taskSnapshot = useStore(s => s.taskSnapshot);
+  const setActivePanel = useStore(s => s.setActivePanel);
+  const setPendingConfirm = useStore(s => s.setPendingConfirm);
 
   const currentModelInfo = useMemo(() => models.find(m => m.isCurrent), [models]);
   const activeModelInfo = currentModelInfo || (models.length > 0 ? models[0] : null);
@@ -111,6 +122,7 @@ function InputAreaInner() {
   const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isComposing = useRef(false);
   const skipNextDraftSaveRef = useRef(true);
 
@@ -122,32 +134,7 @@ function InputAreaInner() {
 
   const addAttachedFile = useStore(s => s.addAttachedFile);
   const removeAttachedFile = useStore(s => s.removeAttachedFile);
-  const setAttachedFiles = useStore(s => s.setAttachedFiles);
-  const setDocContextAttached = useStore(s => s.setDocContextAttached);
   const clearQuotedSelection = useStore(s => s.clearQuotedSelection);
-
-  const currentDoc = useMemo(() => {
-    if (docContextFile) return docContextFile;
-    if (!previewOpen || !activeTabId) return null;
-    const art = artifacts.find(a => a.id === activeTabId);
-    if (!art?.filePath) return null;
-    return { path: art.filePath, name: art.title || art.filePath.split('/').pop() || '' };
-  }, [docContextFile, previewOpen, activeTabId, artifacts]);
-  const hasDoc = !!currentDoc;
-
-  const deskWorkingSetFiles = useMemo(() => {
-    if (!deskBasePath) return [];
-    const baseDir = deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath;
-    return deskFiles
-      .filter(file => !file.isDir)
-      .slice(0, 6)
-      .map(file => fileToWorkingSet({ path: `${baseDir}/${file.name}`, name: file.name }, 'desk'));
-  }, [deskBasePath, deskCurrentPath, deskFiles]);
-
-  const visibleWorkingSetFiles = useMemo(() => mergeWorkingSetFiles(
-    workingSetRecentFiles,
-    deskWorkingSetFiles,
-  ), [workingSetRecentFiles, deskWorkingSetFiles]);
 
   useEffect(() => {
     skipNextDraftSaveRef.current = true;
@@ -160,7 +147,7 @@ function InputAreaInner() {
       return;
     }
     saveComposerDraft(composerSessionKey);
-  }, [composerSessionKey, composerText, attachedFiles, quotedSelection, docContextFile, workingSetRecentFiles, saveComposerDraft]);
+  }, [composerSessionKey, composerText, attachedFiles, quotedSelection, workingSetRecentFiles, saveComposerDraft]);
 
   const sendAsUser = useCallback(async (text: string, displayText?: string): Promise<boolean> => {
     if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
@@ -188,10 +175,22 @@ function InputAreaInner() {
     executeCompact(setSlashBusy, setComposerText, setSlashMenuOpen),
     [setComposerText],
   );
+  const clearFn = useCallback(
+    executeClear(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText, t],
+  );
+  const planFn = useCallback(
+    executePlan(setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText],
+  );
+  const saveFn = useCallback(
+    executeSave(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText, t],
+  );
 
   const slashCommands = useMemo(
-    () => buildSlashCommands(t, diaryFn, xingFn, compactFn),
-    [diaryFn, xingFn, compactFn, t],
+    () => buildSlashCommands(t, diaryFn, xingFn, compactFn, clearFn, planFn, saveFn),
+    [diaryFn, xingFn, compactFn, clearFn, planFn, saveFn, t],
   );
 
   const filteredCommands = useMemo(() => {
@@ -229,47 +228,7 @@ function InputAreaInner() {
     });
   }, [atResults]);
 
-  const handleAttachWorkingSetFile = useCallback((file: WorkingSetFile) => {
-    if (currentDoc?.path && file.path === currentDoc.path) {
-      const next = resolveDocContextToggle(docContextAttached ? currentDoc.path : null, {
-        path: currentDoc.path,
-        name: currentDoc.name,
-      });
-      setDocContextAttached(next.attached, next.file);
-      rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
-      requestInputFocus();
-      return;
-    }
 
-    const nextFiles = toggleComposerAttachment(attachedFiles, {
-      path: file.path,
-      name: file.name,
-      isDirectory: file.isDirectory,
-    });
-    setAttachedFiles(nextFiles);
-    rememberWorkingSetFile(file);
-    requestInputFocus();
-  }, [attachedFiles, currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setAttachedFiles, setDocContextAttached]);
-
-  const handleAttachCurrentDoc = useCallback(() => {
-    if (!currentDoc) return;
-    const next = resolveDocContextToggle(docContextAttached ? currentDoc.path : null, {
-      path: currentDoc.path,
-      name: currentDoc.name,
-    });
-    setDocContextAttached(next.attached, next.file);
-    rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
-    requestInputFocus();
-  }, [currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setDocContextAttached]);
-
-  const handleToggleDocContext = useCallback(() => {
-    const next = resolveDocContextToggle(docContextAttached ? currentDoc?.path ?? null : null, currentDoc);
-    setDocContextAttached(next.attached, next.file);
-    if (currentDoc && next.attached) {
-      rememberWorkingSetFile(fileToWorkingSet(currentDoc, 'current'));
-    }
-    requestInputFocus();
-  }, [currentDoc, docContextAttached, rememberWorkingSetFile, requestInputFocus, setDocContextAttached]);
 
   const handleRestoreLastDraft = useCallback(() => {
     restoreLastSubmittedDraft(composerSessionKey);
@@ -278,13 +237,18 @@ function InputAreaInner() {
   }, [composerSessionKey, requestInputFocus, restoreLastSubmittedDraft, setInlineError]);
 
   const openProvidersSettings = useCallback(() => {
-    try { localStorage.setItem('hanako-settings-clicked', '1'); } catch {}
+    const hana = window.hana as { debugOpenOnboarding?: () => Promise<void> } | undefined;
+    try { localStorage.setItem('hanako-settings-clicked', '1'); } catch { /* ignore */ }
+    if (models.length === 0 && hana?.debugOpenOnboarding) {
+      void hana.debugOpenOnboarding();
+      return;
+    }
     window.platform?.openSettings?.({
       tab: 'providers',
       providerId: activeModelInfo?.provider ?? null,
       resetProviderSelection: !activeModelInfo?.provider,
     });
-  }, [activeModelInfo?.provider]);
+  }, [activeModelInfo?.provider, models.length]);
 
   const recoveryMessage = useMemo(() => {
     if (wsState === 'reconnecting') {
@@ -299,8 +263,68 @@ function InputAreaInner() {
     return null;
   }, [inlineError, recoverableDraft, t, wsReconnectAttempt, wsState]);
 
-  const hasContent = composerText.trim().length > 0 || attachedFiles.length > 0 || docContextAttached || !!quotedSelection;
+  const taskRecoveryMessage = useMemo(() => {
+    if (!taskSnapshot?.activeCount) return null;
+    if (taskSnapshot.waitingApprovalCount > 0) {
+      return t('status.tasksRecoveredWaiting', {
+        count: taskSnapshot.activeCount,
+        waiting: taskSnapshot.waitingApprovalCount,
+      });
+    }
+    return t('status.tasksRecoveredRunning', { count: taskSnapshot.activeCount });
+  }, [t, taskSnapshot]);
+
+  const securityMode = useStore(s => s.securityMode);
+  const hasContent = composerText.trim().length > 0 || attachedFiles.length > 0 || !!quotedSelection;
   const canSend = hasContent && connected && !isStreaming;
+
+  useEffect(() => {
+    const handleRunCommand = (event: Event) => {
+      const detail = (event as CustomEvent<{ command?: string; language?: string }>).detail || {};
+      const command = String(detail.command || '').trim();
+      if (!command) return;
+
+      const cwd = deskBasePath
+        ? (deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath)
+        : (selectedFolder || useStore.getState().homeFolder || null);
+      const risk = deriveRunRisk(command);
+      const riskText = runRiskLabel(risk, t);
+      const modeText = securityMode === 'safe'
+        ? (t('security.mode.safe') || '只读')
+        : securityMode === 'plan'
+          ? (t('security.mode.plan') || '规划')
+          : securityMode === 'full-access'
+            ? (t('security.mode.fullAccess') || '完全访问')
+            : (t('security.mode.authorized') || '执行');
+
+      setPendingConfirm({
+        title: t('markdown.runConfirm.title') || '执行代码块命令',
+        message: (t('markdown.runConfirm.message') || '将把这段命令发给 Lynn 执行。').replace('{mode}', modeText),
+        detail: [
+          `${t('markdown.runConfirm.cwd') || '工作目录'}: ${cwd || (t('markdown.runConfirm.cwdUnknown') || '未指定')}`,
+          `${t('markdown.runConfirm.risk') || '风险级别'}: ${riskText}`,
+          command,
+        ].join('\n'),
+        confirmLabel: t('markdown.runConfirm.confirm') || '继续执行',
+        cancelLabel: t('common.cancel') || '取消',
+        tone: risk === 'high' ? 'danger' : 'default',
+        onConfirm: async () => {
+          const ok = await submitPromptTask({
+            mode: 'prompt',
+            text: command,
+            displayText: command,
+            requestText: buildRunCommandPrompt(command, cwd),
+          });
+          if (!ok) {
+            throw new Error(t('chat.needWsConnection') || '连接未就绪');
+          }
+        },
+      });
+    };
+
+    window.addEventListener('hana-run-command', handleRunCommand);
+    return () => window.removeEventListener('hana-run-command', handleRunCommand);
+  }, [deskBasePath, deskCurrentPath, securityMode, selectedFolder, setPendingConfirm, t]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -309,10 +333,60 @@ function InputAreaInner() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, [composerText]);
 
-  const placeholder = (() => {
+  const placeholderHints = useMemo(() => {
     const yuanPh = t(`yuan.placeholder.${agentYuan}`);
-    return (yuanPh && !yuanPh.startsWith('yuan.')) ? yuanPh : t('input.placeholder');
-  })();
+    const base = (yuanPh && !yuanPh.startsWith('yuan.')) ? yuanPh : t('input.placeholder');
+    return [
+      base,
+      t('input.hintSlash') || '输入 / 查看快捷命令',
+      t('input.hintDrag') || '拖拽文件到此处附加上下文',
+      t('input.hintCmdK') || 'Cmd+K 搜索历史对话',
+      t('input.hintDesk') || 'Cmd+J 打开右侧书桌',
+    ];
+  }, [agentYuan, t]);
+
+  const [phIndex, setPhIndex] = useState(0);
+  useEffect(() => {
+    if (composerText.trim()) return;
+    const timer = setInterval(() => setPhIndex(i => (i + 1) % placeholderHints.length), 6000);
+    return () => clearInterval(timer);
+  }, [composerText, placeholderHints.length]);
+
+  const placeholder = placeholderHints[phIndex] || placeholderHints[0];
+
+  const handleAttachClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    for (const file of Array.from(files)) {
+      if (useStore.getState().attachedFiles.length >= 9) break;
+      const filePath = await window.platform?.getFilePath?.(file);
+      if (filePath) {
+        addAttachedFile({ path: filePath, name: file.name });
+      } else if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+          if (!match) return;
+          const [, mimeType, base64Data] = match;
+          addAttachedFile({
+            path: `local-${Date.now()}-${file.name}`,
+            name: file.name,
+            base64Data,
+            mimeType,
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        addAttachedFile({ path: file.name, name: file.name });
+      }
+    }
+    e.target.value = '';
+  }, [addAttachedFile]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
@@ -374,51 +448,14 @@ function InputAreaInner() {
     };
   }, [deskBasePath, deskCurrentPath, pendingNewSession, selectedFolder]);
 
-  const currentTaskMode: ComposerTaskMode = isStreaming && composerText.trim() ? 'steer' : 'prompt';
-  const contextOverview = useMemo(() => buildComposerContextOverview({
-    mode: currentTaskMode,
-    composerText,
-    attachedFiles,
-    docContextAttached,
-    currentDoc,
-    quotedSelection,
-    supportsVision,
-    gitContext,
-  }), [attachedFiles, composerText, currentDoc, currentTaskMode, docContextAttached, gitContext, quotedSelection, supportsVision]);
-
-  const heldBackLabels = useMemo(() => contextOverview.heldBack.map((item) => {
-    switch (item) {
-      case 'quote':
-        return t('input.contextQuote');
-      case 'doc':
-        return t('input.contextDoc');
-      case 'files':
-        return t('input.contextFiles');
-      case 'images':
-        return t('input.contextImages');
-      case 'git':
-        return t('input.contextGit');
-      default:
-        return item;
-    }
-  }), [contextOverview.heldBack, t]);
-
-  const modelLabel = useMemo(() => {
-    if (!activeModelInfo?.id) return null;
-    if ('metaLabel' in activeModelInfo && activeModelInfo.metaLabel) {
-      return `${activeModelInfo.name} · ${activeModelInfo.metaLabel}`;
-    }
-    return ('provider' in activeModelInfo && activeModelInfo.provider) ? `${activeModelInfo.provider} / ${activeModelInfo.id}` : activeModelInfo.id;
-  }, [activeModelInfo]);
-
-  const contextCardVisible = hasContent;
+  const canSteer = isStreaming && composerText.trim().length > 0;
 
   const handleSubmitTask = useCallback(async (mode: ComposerTaskMode) => {
     if (mode === 'prompt') {
       if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
         useStore.setState({ selectedFolder: useStore.getState().homeFolder });
       }
-      const hasSendable = !!(composerText.trim() || attachedFiles.length > 0 || docContextAttached || quotedSelection);
+      const hasSendable = !!(composerText.trim() || attachedFiles.length > 0 || quotedSelection);
       if (!hasSendable || !connected) {
         if (!connected && hasSendable) showSidebarToast(t('chat.needWsConnection'));
         return;
@@ -436,8 +473,8 @@ function InputAreaInner() {
         mode,
         composerText,
         attachedFiles,
-        docContextAttached,
-        currentDoc,
+        docContextAttached: false,
+        currentDoc: null,
         quotedSelection,
         workingSetRecentFiles,
         supportsVision,
@@ -473,7 +510,6 @@ function InputAreaInner() {
         setAtMenuOpen(false);
         setAtQuery('');
         if (quotedSelection) clearQuotedSelection();
-        if (docContextAttached) setDocContextAttached(false, null);
       } else {
         setComposerText('');
       }
@@ -486,14 +522,11 @@ function InputAreaInner() {
     clearQuotedSelection,
     composerText,
     connected,
-    currentDoc,
-    docContextAttached,
     isStreaming,
     pendingNewSession,
     quotedSelection,
     rememberWorkingSetFile,
     sending,
-    setDocContextAttached,
     setLastSubmittedDraft,
     setComposerText,
     supportsVision,
@@ -601,6 +634,16 @@ function InputAreaInner() {
           </div>
         </div>
       )}
+      {!recoveryMessage && taskRecoveryMessage && (
+        <div className={styles['connection-recovery-bar']}>
+          <span>{taskRecoveryMessage}</span>
+          <div className={styles['recovery-actions']}>
+            <button className={styles['recovery-action']} onClick={() => setActivePanel('activity')}>
+              {t('activity.openRecoveredTasks')}
+            </button>
+          </div>
+        </div>
+      )}
       {inlineError && !recoverableDraft && (
         <div className={styles['slash-error-bar']}>
           <span className={styles['slash-error-dot']} />
@@ -609,27 +652,6 @@ function InputAreaInner() {
       )}
       {!slashBusy && !compacting && !inlineError && slashResult && (
         <div className={styles['slash-busy-bar']}><span>{slashResult.text}</span></div>
-      )}
-      <WorkingSetBar
-        files={visibleWorkingSetFiles}
-        currentDocPath={currentDoc?.path}
-        docContextPath={docContextAttached ? currentDoc?.path ?? null : null}
-        attachedPaths={attachedFiles.map(file => file.path)}
-        onAttachFile={handleAttachWorkingSetFile}
-        onAttachCurrentDoc={handleAttachCurrentDoc}
-      />
-      {contextCardVisible && (
-        <ContextOverviewCard
-          mode={contextOverview.mode}
-          modelLabel={modelLabel}
-          textLength={contextOverview.textLength}
-          quotedSummary={contextOverview.quotedSummary}
-          docName={contextOverview.docName}
-          attachmentNames={contextOverview.attachmentNames}
-          imageNames={contextOverview.imageNames}
-          gitSummary={contextOverview.gitSummary}
-          heldBackLabels={heldBackLabels}
-        />
       )}
       {(quotedSelection || sessionTodos.length > 0) && (
         <div className={styles['input-context-row']}>
@@ -655,7 +677,7 @@ function InputAreaInner() {
       {attachedFiles.length > 0 && (
         <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
       )}
-      <div className={styles['input-wrapper']}>
+      <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
           rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
@@ -663,8 +685,11 @@ function InputAreaInner() {
           onCompositionEnd={() => { isComposing.current = false; }} />
         <div className={styles['input-bottom-bar']}>
           <div className={styles['input-actions']}>
+            <button type="button" className={styles['attach-btn']} onClick={handleAttachClick} title={t('input.attachFile') || '添加附件'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
+            <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileInputChange} />
             <SecurityModeSelector />
-            <DocContextButton active={docContextAttached} disabled={!hasDoc} onToggle={handleToggleDocContext} />
             <ContextRing />
           </div>
           <div className={styles['input-controls']}>
@@ -672,6 +697,17 @@ function InputAreaInner() {
               <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
             )}
             <ModelSelector models={selectorModels} disabled={isStreaming} />
+            {isStreaming && (
+              <button
+                type="button"
+                className={`${styles['secondary-action-btn']}${canSteer ? ` ${styles['secondary-action-btn-active']}` : ''}`}
+                onClick={handleSteer}
+                disabled={!canSteer}
+                title={t('chat.steer')}
+              >
+                {t('chat.steer')}
+              </button>
+            )}
             {(noModelsAtAll || models.length <= 1) && (
               <button
                 type="button"
@@ -686,8 +722,7 @@ function InputAreaInner() {
                 </span>
               </button>
             )}
-            <SendButton isStreaming={isStreaming} hasInput={!!composerText.trim()}
-              disabled={isStreaming ? false : !canSend} onSend={handleSend} onSteer={handleSteer} onStop={handleStop} />
+            <SendButton isStreaming={isStreaming} disabled={isStreaming ? false : !canSend} onSend={handleSend} onStop={handleStop} />
           </div>
         </div>
       </div>

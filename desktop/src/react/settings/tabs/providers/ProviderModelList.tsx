@@ -3,6 +3,12 @@ import { useSettingsStore, type ProviderSummary } from '../../store';
 import { hanaFetch } from '../../api';
 import { t, formatContext, lookupModelMeta } from '../../helpers';
 import { ModelEditPanel } from './ModelEditPanel';
+import {
+  BRAIN_PROVIDER_ID,
+  getBrainComplianceNote,
+  getBrainDisplayMetaLabel,
+  getBrainDisplayName,
+} from '../../../../../../shared/brain-provider.js';
 import styles from '../../Settings.module.css';
 
 const platform = window.platform;
@@ -20,11 +26,16 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
   onRefresh: () => Promise<void>;
 }) {
   const { showToast } = useSettingsStore();
+  const isBrainProvider = providerId === BRAIN_PROVIDER_ID;
   const [search, setSearch] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [discoveredModels, setDiscoveredModels] = useState<DiscoveredModel[]>([]);
 
   const loadDiscoveredModels = async () => {
+    if (isBrainProvider) {
+      setDiscoveredModels([]);
+      return;
+    }
     try {
       const res = await hanaFetch(`/api/providers/${encodeURIComponent(providerId)}/discovered-models`);
       const data = await res.json();
@@ -34,7 +45,7 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
     }
   };
 
-  useEffect(() => { loadDiscoveredModels(); }, [providerId]);
+  useEffect(() => { void loadDiscoveredModels(); }, [isBrainProvider, providerId]);
 
   const currentModels = summary.models || [];
   // Merge: discovered model IDs + custom_models, deduplicated, with currentModels included for display
@@ -167,6 +178,23 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
   }, [dropdownOpen]);
 
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+
+  if (isBrainProvider) {
+    return (
+      <div className={styles['pv-models']}>
+        <div className={styles['pv-default-model-card']}>
+          <div className={styles['pv-default-model-title']}>{getBrainDisplayName()}</div>
+          <div className={styles['pv-default-model-desc']}>{getBrainDisplayMetaLabel()}</div>
+          <div className={styles['pv-default-model-hint']}>
+            {t('settings.providers.defaultModelHint') || 'Lynn 会在后台统一调度默认模型，无需手动添加、删除或挑选具体型号。'}
+          </div>
+          <div className={styles['pv-default-model-hint']}>
+            {getBrainComplianceNote()}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles['pv-models']}>

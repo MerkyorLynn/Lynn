@@ -57,6 +57,22 @@ function reviewerAvatar(kind: ReviewerKind): string {
   return resolveBundledAvatar(kind === 'butter' ? 'Butter.png' : 'Hanako.png');
 }
 
+function toModelRef(raw: unknown): { id: string; provider?: string } | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') return raw.trim() ? { id: raw.trim() } : null;
+  if (typeof raw === 'object' && raw !== null) {
+    const id = typeof (raw as { id?: unknown }).id === 'string'
+      ? (raw as { id: string }).id.trim()
+      : '';
+    if (!id) return null;
+    const provider = typeof (raw as { provider?: unknown }).provider === 'string'
+      ? (raw as { provider: string }).provider.trim()
+      : '';
+    return provider ? { id, provider } : { id };
+  }
+  return null;
+}
+
 export function WorkTab() {
   const { settingsConfig, showToast, activeTab, pendingReviewerKind } = useSettingsStore();
   const [homeFolder, setHomeFolder] = useState('');
@@ -90,7 +106,8 @@ export function WorkTab() {
         : [];
 
       setHomeFolder(cfgHome);
-      setTrustedRoots(uniqueRoots(cfgRoots));
+      const roots = uniqueRoots(cfgRoots);
+      setTrustedRoots(roots);
       setHbEnabled(settingsConfig.desk?.heartbeat_enabled !== false);
       setHbInterval(settingsConfig.desk?.heartbeat_interval ?? 17);
       setCronAutoApprove(settingsConfig.desk?.cron_auto_approve !== false);
@@ -99,6 +116,14 @@ export function WorkTab() {
 
   useEffect(() => {
     loadReviewConfig().catch(() => {});
+  }, [loadReviewConfig]);
+
+  useEffect(() => {
+    const handleReviewConfigChanged = () => {
+      void loadReviewConfig();
+    };
+    window.addEventListener('review-config-changed', handleReviewConfigChanged);
+    return () => window.removeEventListener('review-config-changed', handleReviewConfigChanged);
   }, [loadReviewConfig]);
 
   useEffect(() => {
@@ -193,6 +218,22 @@ export function WorkTab() {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      const inheritedModel = toModelRef(settingsConfig?.models?.chat);
+      const inheritedProvider = inheritedModel?.provider
+        || (typeof settingsConfig?.api?.provider === 'string' ? settingsConfig.api.provider : '');
+      if (data.id && inheritedModel?.id) {
+        await hanaFetch(`/api/agents/${data.id}/config`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent: { yuan: kind, tier: 'reviewer' },
+            api: inheritedProvider ? { provider: inheritedProvider } : undefined,
+            models: {
+              chat: inheritedProvider ? { id: inheritedModel.id, provider: inheritedProvider } : inheritedModel.id,
+            },
+          }),
+        });
+      }
       showToast(t('settings.work.review.createSuccess', { name: data.name || name }), 'success');
       await loadReviewConfig();
       await updateReviewConfig(kind === 'butter'
@@ -224,26 +265,24 @@ export function WorkTab() {
     ];
 
     return (
-      <div className={styles['tool-caps-item']} data-reviewer-section={kind} tabIndex={-1}>
-        <div className={styles['tool-caps-label']}>
-          <div className={styles['work-review-persona']}>
-            <img className={styles['work-review-avatar']} src={reviewerAvatar(kind)} alt={reviewerLabel(kind)} draggable={false} />
-            <div className={styles['work-review-persona-copy']}>
-              <span className={styles['tool-caps-name']}>{t(`settings.work.review.${kind}Title`)}</span>
-              <span className={styles['tool-caps-desc']}>{t(`settings.work.review.${kind}Desc`)}</span>
-            </div>
+      <div className={styles['work-reviewer-card']} data-reviewer-section={kind} tabIndex={-1}>
+        <div className={styles['work-review-persona']}>
+          <img className={styles['work-review-avatar']} src={reviewerAvatar(kind)} alt={reviewerLabel(kind)} draggable={false} />
+          <div className={styles['work-review-persona-copy']}>
+            <span className={styles['tool-caps-name']}>{t(`settings.work.review.${kind}Title`)}</span>
+            <span className={styles['tool-caps-desc']}>{t(`settings.work.review.${kind}Desc`)}</span>
           </div>
-          {resolved ? (
-            <span className={styles['tool-caps-desc']}>
-              {t('settings.work.review.boundModel', {
-                provider: resolved.modelProvider || 'default',
-                model: resolved.modelId || 'default',
-              })}
-            </span>
-          ) : (
-            <span className={styles['work-review-unbound']}>{t('settings.work.review.unboundHint')}</span>
-          )}
         </div>
+        {resolved ? (
+          <span className={styles['tool-caps-desc']}>
+            {t('settings.work.review.boundModel', {
+              provider: resolved.modelProvider || 'default',
+              model: resolved.modelId || 'default',
+            })}
+          </span>
+        ) : (
+          <span className={styles['work-review-unbound']}>{t('settings.work.review.unboundHint')}</span>
+        )}
         <div className={styles['work-review-actions']}>
           <SelectWidget
             options={options}
@@ -402,6 +441,12 @@ export function WorkTab() {
                 value={hbInterval}
                 disabled={!hbEnabled}
                 onChange={(e) => setHbInterval(parseInt(e.target.value) || 15)}
+                onBlur={() => { void saveWork(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
               />
               <span className={styles['settings-input-unit']}>{t('settings.work.heartbeatUnit')}</span>
             </div>
@@ -419,11 +464,6 @@ export function WorkTab() {
         </div>
       </section>
 
-      <div className={styles['settings-section-footer']}>
-        <button className={styles['settings-save-btn-sm']} onClick={saveWork}>
-          {t('settings.save')}
-        </button>
-      </div>
     </div>
   );
 }

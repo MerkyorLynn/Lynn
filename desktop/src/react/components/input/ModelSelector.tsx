@@ -4,6 +4,13 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
 import { loadModels } from '../../utils/ui-helpers';
 import { lookupKnownModel } from '../../utils/known-models';
+import {
+  collapseBrainModelChoices,
+  isDisplayDefaultModel,
+  normalizeDisplayProviderLabel,
+  normalizeDisplayModelName,
+} from '../../utils/brain-models';
+import { showSidebarToast } from '../../stores/session-actions';
 import styles from './InputArea.module.css';
 
 interface SelectorModel {
@@ -29,6 +36,7 @@ function formatProviderLabel(provider?: string): string {
 function modelMetaLine(model?: SelectorModel): string {
   if (!model) return '';
   if (model.metaLabel) return model.metaLabel;
+  if (isDisplayDefaultModel(model.id, model.provider)) return '开箱即用 · 已备案';
   const meta = lookupKnownModel(model.provider || '', model.id);
   const parts: string[] = [];
   const providerLabel = formatProviderLabel(model.provider);
@@ -44,9 +52,10 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const visibleModels = useMemo(() => collapseBrainModelChoices(models), [models]);
 
-  const current = models.find(m => m.isCurrent);
-  const hasSwitchableModels = models.some(m => !m.locked);
+  const current = visibleModels.find(m => m.isCurrent);
+  const hasSwitchableModels = visibleModels.filter(m => !m.locked).length > 1;
 
   useEffect(() => {
     if (!open) return;
@@ -65,33 +74,28 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
         body: JSON.stringify({ modelId, provider }),
       });
 
-      const { currentSessionPath, pendingNewSession } = useStore.getState();
-      if (currentSessionPath && !pendingNewSession) {
-        const { createNewSession } = await import('../../stores/session-actions');
-        await createNewSession();
-      }
-
       await loadModels();
     } catch (err) {
       console.error('[model] switch failed:', err);
+      showSidebarToast(t('model.switchFailed') || '切换模型失败', 5000, 'error');
     }
     setOpen(false);
-  }, []);
+  }, [t]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, SelectorModel[]> = {};
-    for (const m of models) {
+    for (const m of visibleModels) {
       const key = m.provider || '';
       if (!groups[key]) groups[key] = [];
       groups[key].push(m);
     }
-    if (current && !models.find(m => m.id === current.id && m.provider === current.provider)) {
+    if (current && !visibleModels.find(m => m.id === current.id && m.provider === current.provider)) {
       const key = current.provider || '';
       if (!groups[key]) groups[key] = [];
       groups[key].unshift(current);
     }
     return groups;
-  }, [models, current]);
+  }, [visibleModels, current]);
 
   const groupKeys = Object.keys(grouped);
   const hasMultipleProviders = groupKeys.length > 1 || (groupKeys.length === 1 && groupKeys[0] !== '');
@@ -107,7 +111,7 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
         }}
         title={currentMeta || current?.id || ''}
       >
-        <span className={styles['model-pill-name']}>{current?.name || t('model.unknown') || '...'}</span>
+        <span className={styles['model-pill-name']}>{normalizeDisplayModelName(current) || t('model.unknown') || '...'}</span>
         {currentMeta && <span className={styles['model-pill-meta']}>{currentMeta}</span>}
         {hasSwitchableModels && <span className={styles['model-arrow']}>▾</span>}
       </button>
@@ -118,7 +122,7 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
             return (
               <div key={provider || '__none'}>
                 {hasMultipleProviders && (
-                  <div className={styles['model-group-header']}>{provider || '—'}</div>
+                  <div className={styles['model-group-header']}>{normalizeDisplayProviderLabel(provider) || '—'}</div>
                 )}
                 {items.map(m => {
                   const meta = modelMetaLine(m);
@@ -132,7 +136,7 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
                       title={m.id}
                       disabled={m.locked}
                     >
-                      <span className={styles['model-option-name']}>{m.name}</span>
+                      <span className={styles['model-option-name']}>{normalizeDisplayModelName(m)}</span>
                       <span className={styles['model-option-meta']}>{meta || m.id}</span>
                     </button>
                   );

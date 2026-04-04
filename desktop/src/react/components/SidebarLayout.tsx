@@ -67,7 +67,7 @@ export function updateLayout(): void {
       if (w - leftW2 - previewW - neededForRight >= CHAT_MIN_WIDTH) {
         const tab2 = s2.currentTab || 'chat';
         const savedRight = localStorage.getItem(`hana-jian-${tab2}`);
-        if (savedRight !== 'closed') {
+        if (savedRight === 'open') {
           useStore.setState({ jianOpen: true, jianAutoCollapsed: false });
         }
       }
@@ -128,10 +128,14 @@ export function SidebarLayout() {
     const onKeydown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
 
-      // Cmd+K → 聚焦输入框
+      // Cmd+K → 侧边栏可见时搜索 session，否则聚焦输入框
       if (mod && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        useStore.getState().requestInputFocus();
+        if (useStore.getState().sidebarOpen) {
+          window.dispatchEvent(new CustomEvent('hana-sidebar-search'));
+        } else {
+          useStore.getState().requestInputFocus();
+        }
         return;
       }
 
@@ -202,4 +206,3 @@ export function SidebarLayout() {
   // 不渲染任何 DOM，只提供行为
   return null;
 }
-

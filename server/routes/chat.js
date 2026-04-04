@@ -549,6 +549,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         identifier: event.identifier,
         trustedRoot: event.trustedRoot || null,
       });
+    } else if (event.type === "skill_activated") {
+      if (!ss) return;
+      emitStreamEvent(sessionPath, ss, {
+        type: "skill_activated",
+        skillName: event.skillName,
+        skillFilePath: event.skillFilePath,
+      });
     } else if (event.type === "confirmation_resolved") {
       broadcast({
         type: "confirmation_resolved",
@@ -692,6 +699,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         contextWindow: usage?.contextWindow ?? null,
         percent: usage?.percent ?? null,
       });
+    } else if (event.type === "session_relay") {
+      broadcast({
+        type: "session_relay",
+        oldSessionPath: event.oldSessionPath || sessionPath,
+        newSessionPath: event.newSessionPath || null,
+        summary: event.summary || "",
+        summaryTokens: event.summaryTokens ?? null,
+        compactionCount: event.compactionCount ?? null,
+        reason: event.reason || "auto_compaction_limit",
+      });
     }
   });
 
@@ -821,6 +838,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   wsSend(ws, { type: "error", message: t("error.compactFailed", { msg: errMsg }) });
                 }
               }
+              return;
+            }
+
+            if (msg.type === "toggle_plan_mode") {
+              const current = engine.planMode;
+              engine.setPlanMode(!current);
+              broadcast({ type: "plan_mode", enabled: !current });
+              broadcast({ type: "security_mode", mode: !current ? "plan" : "authorized" });
               return;
             }
 

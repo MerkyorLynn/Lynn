@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildAttachmentMeta,
-  buildComposerContextOverview,
   formatGitContextPrompt,
   prepareComposerTask,
   summarizeGitContext,
@@ -38,57 +37,6 @@ describe('prompt-task', () => {
       { path: '/repo/spec.md', name: 'spec.md', source: 'recent', isDirectory: false },
       { path: '/repo/docs', name: 'docs', source: 'desk', isDirectory: true },
     ]);
-  });
-
-  it('buildComposerContextOverview 在 steer 模式标记被暂缓的富上下文', () => {
-    const overview = buildComposerContextOverview({
-      mode: 'steer',
-      composerText: '继续往下做',
-      attachedFiles: [
-        { path: '/repo/spec.md', name: 'spec.md' },
-        { path: '/repo/screen.png', name: 'screen.png' },
-      ],
-      docContextAttached: true,
-      currentDoc: { path: '/repo/current.md', name: 'current.md' },
-      quotedSelection: { text: 'foo', sourceTitle: 'current.md', charCount: 3 },
-      supportsVision: true,
-      gitContext,
-    });
-
-    expect(overview.textLength).toBe(5);
-    expect(overview.attachmentNames).toEqual([]);
-    expect(overview.imageNames).toEqual([]);
-    expect(overview.heldBack).toEqual(['quote', 'doc', 'files', 'images', 'git']);
-  });
-
-  it('buildComposerContextOverview 在 prompt 模式展示引用文档和图片区分', () => {
-    const overview = buildComposerContextOverview({
-      mode: 'prompt',
-      composerText: '整理这段代码',
-      attachedFiles: [
-        { path: '/repo/spec.md', name: 'spec.md' },
-        { path: '/repo/screen.png', name: 'screen.png' },
-      ],
-      docContextAttached: true,
-      currentDoc: { path: '/repo/current.md', name: 'current.md' },
-      quotedSelection: {
-        text: 'const x = 1',
-        sourceTitle: 'current.ts',
-        sourceFilePath: '/repo/current.ts',
-        lineStart: 4,
-        lineEnd: 6,
-        charCount: 11,
-      },
-      supportsVision: true,
-      gitContext,
-    });
-
-    expect(overview.quotedSummary).toBe('/repo/current.ts · L4-6 · 11 chars');
-    expect(overview.docName).toBe('current.md');
-    expect(overview.attachmentNames).toEqual(['spec.md']);
-    expect(overview.imageNames).toEqual(['screen.png']);
-    expect(overview.gitSummary).toBe('openhanako · main · 4 changed · ↑1');
-    expect(overview.heldBack).toEqual([]);
   });
 
   it('formatGitContextPrompt 和 summarizeGitContext 生成稳定摘要', () => {

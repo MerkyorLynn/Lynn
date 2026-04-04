@@ -7,7 +7,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 function resolveTheme() {
-  const saved = localStorage.getItem("hana-theme") || "auto";
+  const saved = localStorage.getItem("hana-theme") || "warm-paper";
   const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   return saved === "auto" ? (isDark ? "midnight" : "warm-paper") : saved;
 }
@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("hana", {
   },
   appReady: () => ipcRenderer.invoke("app-ready"),
   selectFolder: () => ipcRenderer.invoke("select-folder"),
+  getOnboardingDefaults: () => ipcRenderer.invoke("get-onboarding-defaults"),
   selectSkill: () => ipcRenderer.invoke("select-skill"),
   openFolder: (path) => ipcRenderer.invoke("open-folder", path),
   openFile: (path) => ipcRenderer.invoke("open-file", path),
@@ -63,7 +64,11 @@ contextBridge.exposeInMainWorld("hana", {
   openSettings: (target) => ipcRenderer.invoke("open-settings", target ?? null, resolveTheme()),
   getInitialSettingsNavigationTarget: () => ipcRenderer.invoke("get-initial-settings-navigation-target"),
   settingsChanged: (type, data) => ipcRenderer.send("settings-changed", type, data),
-  onSettingsChanged: (cb) => ipcRenderer.on("settings-changed", (_, type, data) => cb(type, data)),
+  onSettingsChanged: (cb) => {
+    const handler = (_event, type, data) => cb(type, data);
+    ipcRenderer.on("settings-changed", handler);
+    return () => ipcRenderer.removeListener("settings-changed", handler);
+  },
   notifyMainWindow: (event, payload) => ipcRenderer.send("settings-changed", event, payload),
   onSwitchTab: (cb) => {
     const handler = (_event, target) => cb(target);

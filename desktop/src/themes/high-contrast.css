@@ -37,9 +37,9 @@
 
     /* 聊天专用 */
     --hana-text:    #1A2A3A;
-    --mood-bg:      rgba(125, 28, 74, 0.05);
-    --mood-text:    #6A1540;
-    --mood-border:  rgba(125, 28, 74, 0.22);
+    --mood-bg:      rgba(170, 110, 55, 0.06);
+    --mood-text:    #8C6430;
+    --mood-border:  rgba(170, 110, 55, 0.28);
     --tool-bg:      rgba(58, 107, 133, 0.06);
     --tool-text:    #4A4E52;
     --user-bg:      rgba(58, 107, 133, 0.08);

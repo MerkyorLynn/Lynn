@@ -60,7 +60,7 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
         </div>
       )}
       <div className={`${styles.message} ${styles.messageUser}`}>
-        {message.textHtml && <MarkdownContent html={message.textHtml} />}
+        {message.textHtml && <MarkdownContent html={message.textHtml} stateKey={message.id} />}
       </div>
     </div>
   );
@@ -68,39 +68,61 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
 
 // ── 附件区 ──
 
+const VISIBLE_THRESHOLD = 2;
+
 const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, deskContext, gitContext }: {
   attachments: UserAttachment[];
   deskContext?: DeskContext | null;
   gitContext?: GitContext | null;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const isImage = useCallback((att: UserAttachment) => {
     return /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(att.name);
   }, []);
 
   const t = window.t ?? ((p: string) => p);
 
+  const images = attachments.filter((att) => isImage(att) && att.base64Data);
+  const files = attachments.filter((att) => !(isImage(att) && att.base64Data));
+  const visibleFiles = expanded ? files : files.slice(0, VISIBLE_THRESHOLD);
+  const hiddenCount = files.length - VISIBLE_THRESHOLD;
+
   return (
     <div className={styles.userAttachments}>
-      {attachments.map((att, i) => {
-        if (isImage(att) && att.base64Data) {
-          return (
-            <img
-              key={att.name || `att-${i}`}
-              className={styles.attachImage}
-              src={`data:${att.mimeType || 'image/png'};base64,${att.base64Data}`}
-              alt={att.name}
-              loading="lazy"
-            />
-          );
-        }
-        return (
-          <AttachmentChip
-            key={att.name || `att-${i}`}
-            icon={att.isDir ? <FolderIcon /> : <FileIcon />}
-            name={att.name}
-          />
-        );
-      })}
+      {images.map((att, i) => (
+        <img
+          key={att.name || `img-${i}`}
+          className={styles.attachImage}
+          src={`data:${att.mimeType || 'image/png'};base64,${att.base64Data}`}
+          alt={att.name}
+          loading="lazy"
+        />
+      ))}
+      {visibleFiles.map((att, i) => (
+        <AttachmentChip
+          key={att.name || `att-${i}`}
+          icon={att.isDir ? <FolderIcon /> : <FileIcon />}
+          name={att.name}
+        />
+      ))}
+      {!expanded && hiddenCount > 0 && (
+        <button
+          type="button"
+          className={styles.attachMoreBtn}
+          onClick={() => setExpanded(true)}
+        >
+          +{hiddenCount}
+        </button>
+      )}
+      {expanded && hiddenCount > 0 && (
+        <button
+          type="button"
+          className={styles.attachMoreBtn}
+          onClick={() => setExpanded(false)}
+        >
+          ▲
+        </button>
+      )}
       {deskContext && (
         <AttachmentChip
           icon={<FolderIcon />}

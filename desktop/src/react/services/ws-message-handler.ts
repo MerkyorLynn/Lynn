@@ -8,11 +8,12 @@
 
 import { streamBufferManager } from '../hooks/use-stream-buffer';
 import { useStore } from '../stores';
-import { loadSessions as loadSessionsAction } from '../stores/session-actions';
+import { loadSessions as loadSessionsAction, switchSession as switchSessionAction } from '../stores/session-actions';
 import { handleArtifact } from '../stores/artifact-actions';
 import { loadDeskFiles } from '../stores/desk-actions';
 import { loadChannels as loadChannelsAction, openChannel as openChannelAction } from '../stores/channel-actions';
 import { showError } from '../utils/ui-helpers';
+import { renderMarkdown } from '../utils/markdown';
 import { getWebSocket } from './websocket';
 import {
   replayStreamResume,
@@ -252,6 +253,45 @@ export function handleServerMessage(msg: any): void {
         useStore.setState({ activities: [msg.activity, ...state.activities.slice(0, 499)] });
       }
       break;
+
+    case 'session_relay': {
+      const oldSessionPath = msg.oldSessionPath || null;
+      const newSessionPath = msg.newSessionPath || null;
+      const summary = String(msg.summary || '').trim();
+      const isCurrent = !!oldSessionPath && oldSessionPath === state.currentSessionPath;
+
+      loadSessionsAction().catch(err => console.warn('[ws] loadSessions after relay failed:', err));
+
+      if (isCurrent && newSessionPath) {
+        void (async () => {
+          await switchSessionAction(newSessionPath);
+          const nextState = useStore.getState();
+          const relayText = summary
+            ? `**对话已自动接力。**\n\n${summary}`
+            : '**对话已自动接力。**';
+          const relayItem = {
+            type: 'message' as const,
+            data: {
+              id: `relay-${Date.now()}`,
+              role: 'assistant' as const,
+              blocks: [{ type: 'text' as const, html: renderMarkdown(relayText) }],
+            },
+          };
+          const existing = nextState.chatSessions[newSessionPath];
+          if (!existing || existing.items.length === 0) {
+            nextState.initSession(newSessionPath, [relayItem], false);
+          } else {
+            nextState.appendItem(newSessionPath, relayItem);
+          }
+          nextState.addToast?.('上下文已自动接力到新会话', 'info', 4000, {
+            dedupeKey: `relay-${newSessionPath}`,
+          });
+        })().catch((err) => {
+          console.warn('[ws] session relay switch failed:', err);
+        });
+      }
+      break;
+    }
 
     case 'notification':
       if (window.hana?.showNotification) {

@@ -31,6 +31,18 @@ function getNotificationStatusTone(status: NotificationPermissionStatus, loading
   return 'neutral';
 }
 
+function uniquePaths(paths: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of paths) {
+    const trimmed = String(entry || '').trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 export function PermissionsStep({
   preview,
   onboardingFetch,
@@ -39,6 +51,7 @@ export function PermissionsStep({
   track,
 }: PermissionsStepProps) {
   const [workspacePath, setWorkspacePath] = useState('');
+  const [trustedRoots, setTrustedRoots] = useState<string[]>([]);
   const [notificationStatus, setNotificationStatus] = useState<NotificationPermissionStatus>('unsupported');
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,14 +61,30 @@ export function PermissionsStep({
 
     (async () => {
       try {
-        const [configRes, currentNotificationStatus] = await Promise.all([
+        const [configRes, currentNotificationStatus, defaults] = await Promise.all([
           onboardingFetch('/api/config'),
           window.platform?.getNotificationPermissionStatus?.(),
+          window.platform?.getOnboardingDefaults?.(),
         ]);
         const config = await configRes.json();
+        const configuredHome = String(config?.desk?.home_folder || '').trim();
+        const configuredRoots = uniquePaths(
+          Array.isArray(config?.desk?.trusted_roots) ? config.desk.trusted_roots : [],
+        );
+        const suggestedWorkspace = String(defaults?.workspacePath || '').trim();
+        const installRoot = String(defaults?.installRoot || '').trim();
+        const preferredWorkspace = !configuredHome || configuredHome === installRoot
+          ? (suggestedWorkspace || configuredHome)
+          : configuredHome;
+        const nextRoots = uniquePaths([
+          ...configuredRoots,
+          ...(Array.isArray(defaults?.trustedRoots) ? defaults.trustedRoots : []),
+          preferredWorkspace,
+        ]);
 
         if (cancelled) return;
-        setWorkspacePath(config?.desk?.home_folder || '');
+        setWorkspacePath(preferredWorkspace);
+        setTrustedRoots(nextRoots);
         setNotificationStatus(currentNotificationStatus || 'unsupported');
       } catch (err) {
         console.error('[onboarding] load permissions context failed:', err);
@@ -84,12 +113,19 @@ export function PermissionsStep({
 
     setSaving(true);
     try {
+      let nextWorkspacePath = workspacePath;
       if (!workspacePath) {
         const folder = await window.platform?.selectFolder?.();
         if (folder) {
-          await saveHomeFolder(onboardingFetch, folder);
-          setWorkspacePath(folder);
+          nextWorkspacePath = folder;
         }
+      }
+
+      const nextTrustedRoots = uniquePaths([...trustedRoots, nextWorkspacePath]);
+      if (nextWorkspacePath) {
+        await saveHomeFolder(onboardingFetch, nextWorkspacePath, nextTrustedRoots);
+        setWorkspacePath(nextWorkspacePath);
+        setTrustedRoots(nextTrustedRoots);
       }
 
       if (notificationStatus === 'not-determined') {
@@ -129,6 +165,16 @@ export function PermissionsStep({
           <div className="permission-card-value" title={workspacePath || undefined}>
             {workspacePath || t('onboarding.permissions.workspace.placeholder')}
           </div>
+          {trustedRoots.length > 0 && (
+            <div className="permission-card-meta">
+              <span className="permission-card-meta-title">{t('onboarding.permissions.workspace.safeRoots')}</span>
+              <div className="permission-card-meta-list">
+                {trustedRoots.map((root) => (
+                  <span key={root} className="permission-card-root-chip">{root}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="permission-card">

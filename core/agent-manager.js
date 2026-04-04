@@ -207,7 +207,7 @@ export class AgentManager {
       const results = await Promise.allSettled(others.map(id => initOne(id)));
       for (let i = 0; i < results.length; i++) {
         if (results[i].status === "rejected") {
-          log.error(`agent "${others[i]}" init 失败: ${results[i].reason?.message}`);
+          console.error(`[agent-manager] agent "${others[i]}" init 失败: ${results[i].reason?.message}`);
         }
       }
     }
@@ -528,6 +528,35 @@ export class AgentManager {
       throw new Error(t("error.agentNotExists", { id: agentId }));
     }
     this._d.getPrefs().savePrimaryAgent(agentId);
+  }
+
+  async ensureAgentLoaded(agentId, logFn = () => {}) {
+    if (!agentId) return null;
+    const existing = this._agents.get(agentId);
+    if (existing) return existing;
+
+    const agentDir = path.join(this._d.agentsDir, agentId);
+    if (!fs.existsSync(path.join(agentDir, "config.yaml"))) {
+      return null;
+    }
+
+    const getOwnerIds = () => this._d.getPrefs().getPreferences()?.bridge?.owner || {};
+    const ag = this._createAgentInstance(agentDir, getOwnerIds);
+    const resolveModel = (bareId) =>
+      this._d.getModels().resolveModelWithCredentials(bareId);
+
+    await ag.init(logFn, this._d.getSharedModels(), resolveModel);
+    this._agents.set(agentId, ag);
+    this._d.getSkills()?.syncAgentSkills?.(ag);
+
+    const hub = this._d.getHub();
+    hub?.scheduler?.startAgentCron(agentId);
+    if (hub?.dmRouter) {
+      ag._dmSentHandler = (fromId, toId) => hub.dmRouter.handleNewDm(fromId, toId);
+    }
+
+    this.invalidateAgentListCache();
+    return ag;
   }
 
   agentIdFromSessionPath(sessionPath) {

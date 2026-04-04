@@ -3,6 +3,14 @@ import type { AttachedFile, DocContextFile, QuotedSelection, WorkingSetFile, Com
 
 export const PENDING_COMPOSER_KEY = '__pending__';
 
+const LEGACY_DOC_CONTEXT_TITLES = new Set([
+  '看着文档说',
+  '看著文件說',
+  'With document',
+  'ドキュメント付き',
+  '문서 포함',
+]);
+
 export function getComposerSessionKey(sessionPath: string | null, pendingNewSession = false): string {
   if (pendingNewSession || !sessionPath) return PENDING_COMPOSER_KEY;
   return sessionPath;
@@ -41,26 +49,46 @@ export function cloneQuotedSelection(selection: QuotedSelection | null | undefin
   return { ...selection };
 }
 
+export function sanitizeQuotedSelection(selection: QuotedSelection | null | undefined): QuotedSelection | null {
+  const next = cloneQuotedSelection(selection);
+  if (!next) return null;
+
+  const title = typeof next.sourceTitle === 'string' ? next.sourceTitle.trim() : '';
+  if (!next.sourceFilePath && LEGACY_DOC_CONTEXT_TITLES.has(title)) {
+    return null;
+  }
+
+  const text = typeof next.text === 'string' ? next.text : '';
+  return {
+    ...next,
+    text,
+    sourceTitle: title || 'Quoted selection',
+    charCount: Number.isFinite(next.charCount) && next.charCount > 0
+      ? next.charCount
+      : text.length,
+  };
+}
+
 export function buildRetryDraftFromMessage(message: ChatMessage): ComposerDraft {
   const retryDraft = message.retryDraft;
   if (retryDraft) {
     return {
       text: retryDraft.text || '',
       attachedFiles: (retryDraft.attachedFiles || []).map((file) => ({ ...file })),
-      quotedSelection: cloneQuotedSelection(retryDraft.quotedSelection),
-      docContextFile: retryDraft.docContextFile ? { ...retryDraft.docContextFile } : null,
+      quotedSelection: sanitizeQuotedSelection(retryDraft.quotedSelection),
+      docContextFile: null,
       workingSet: (retryDraft.workingSet || []).map((file) => ({ ...file })),
     };
   }
 
   const fallbackQuoted = message.quotedSelection
-    ? cloneQuotedSelection(message.quotedSelection)
+    ? sanitizeQuotedSelection(message.quotedSelection)
     : message.quotedText
-      ? {
+      ? sanitizeQuotedSelection({
           text: message.quotedText,
           sourceTitle: message.text?.slice(0, 24) || 'Quoted selection',
           charCount: message.quotedText.length,
-        }
+        })
       : null;
 
   const attachedFiles = (message.attachments || []).map(attachmentToDraftFile);

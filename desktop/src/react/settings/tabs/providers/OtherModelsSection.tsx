@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../../store';
 import { hanaFetch } from '../../api';
+import { BRAIN_PROVIDER_ID, isBrainModelId } from '../../../../../../shared/brain-provider.js';
 import {
   t, lookupModelMeta, formatContext, autoSaveGlobalModels,
 } from '../../helpers';
@@ -108,6 +109,9 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
 
   // 根据 model ID 反查所属 provider
   const resolveProvider = (modelId: string): string | null => {
+    if (isBrainModelId(modelId) && (providers[BRAIN_PROVIDER_ID]?.models || []).includes(modelId)) {
+      return BRAIN_PROVIDER_ID;
+    }
     for (const [name, p] of Object.entries(providers)) {
       if ((p.models || []).includes(modelId)) return name;
     }
@@ -116,6 +120,12 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
 
   const utilityVal = toModelId(globalModelsConfig?.models?.utility);
   const utilityLargeVal = toModelId(globalModelsConfig?.models?.utility_large);
+  const utilityProvider = typeof globalModelsConfig?.models?.utility === 'object' && globalModelsConfig?.models?.utility
+    ? (globalModelsConfig.models.utility as any).provider || null
+    : null;
+  const utilityLargeProvider = typeof globalModelsConfig?.models?.utility_large === 'object' && globalModelsConfig?.models?.utility_large
+    ? (globalModelsConfig.models.utility_large as any).provider || null
+    : null;
 
   return (
     <>
@@ -126,6 +136,7 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
             <ModelWidget
               providers={providers}
               value={utilityVal}
+              valueProvider={utilityProvider}
               onSelect={(mid) => {
                 const provider = resolveProvider(mid);
                 autoSaveGlobalModels({ models: { utility: provider ? { id: mid, provider } : mid } });
@@ -143,6 +154,7 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
             <ModelWidget
               providers={providers}
               value={utilityLargeVal}
+              valueProvider={utilityLargeProvider}
               onSelect={(mid) => {
                 const provider = resolveProvider(mid);
                 autoSaveGlobalModels({ models: { utility_large: provider ? { id: mid, provider } : mid } });
@@ -162,8 +174,8 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
             options={[
               { value: '', label: 'Not configured' },
               { value: 'tavily', label: 'Tavily' },
-              { value: 'serper', label: 'Serper (Google)' },
               { value: 'brave', label: 'Brave Search' },
+              { value: 'serper', label: 'Serper (Google)' },
             ]}
             value={searchProvider}
             onChange={(val) => autoSaveGlobalModels({ search: { provider: val } })}

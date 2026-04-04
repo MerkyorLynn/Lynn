@@ -72,6 +72,10 @@
       "creating": "Creating...",
       "expertPresets": "Expert Presets (Uses Your API Key)",
       "channelTemplates": "Channel Templates (Uses Existing Agents)",
+      "roundtableTitle": "Roundtable",
+      "roundtablePlaceholder": "For example: discuss the next step for this project",
+      "roundtableHint": "Lynn will create multiple experts first, then start a shared discussion channel for them.",
+      "roundtableCreate": "Start roundtable",
       "spawnSuccess": "Expert created",
       "spawnFailed": "Failed to create expert",
       "modelGuide": "💡 Experts run on your configured model. Recommended models are shown on cards — configure the corresponding API Key in Settings → Models for best results.",
@@ -113,7 +117,16 @@
     "jian": "Desk",
     "bridge": "Social Platforms",
     "toggle": "Sidebar",
-    "bridgeShort": "Bridge"
+    "bridgeShort": "Bridge",
+    "capability": {
+      "web": "web search",
+      "files": "file edits",
+      "shell": "terminal runs",
+      "instructions": "project instructions loaded",
+      "mcp": "MCP ready",
+      "skills": "Skills",
+      "projectRules": "Rules"
+    }
   },
   "session": {
     "untitled": "New Chat",
@@ -121,7 +134,9 @@
     "switchFailed": "Failed to switch session",
     "createFailed": "Failed to create session",
     "archiveFailed": "Failed to archive session",
-    "rename": "Rename"
+    "rename": "Rename",
+    "editLabels": "Edit labels",
+    "labelsPlaceholder": "Labels, comma separated"
   },
   "common": {
     "on": "On",
@@ -156,6 +171,21 @@
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
     "retry": "Retry"
   },
+  "markdown": {
+    "runConfirm": {
+      "title": "Run code block command",
+      "message": "Lynn will run this command for you.",
+      "cwd": "Working directory",
+      "cwdUnknown": "Not set",
+      "risk": "Risk",
+      "confirm": "Run"
+    },
+    "runRisk": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    }
+  },
   "review": {
     "button": "Review",
     "cardTitle": "Review",
@@ -177,7 +207,8 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "thisWeek": "This Week",
-    "earlier": "Earlier"
+    "earlier": "Earlier",
+    "pinned": "Pinned"
   },
   "status": {
     "connecting": "Connecting...",
@@ -196,13 +227,14 @@
     "planMode": "Allow terminal & writes (off = read-only)",
     "deskContext": "With desk context",
     "pastedImage": "Pasted image",
+    "attachFile": "Attach file",
     "docContext": "With document",
     "docContextOpenRecent": "Click to open a recent document",
     "embeddedModel": {
       "name": "Default model",
       "meta": "Ready to chat",
-      "upgrade": "Boost quality",
-      "hint": "Add your own model",
+      "upgrade": "Connect model",
+      "hint": "Add a provider or API key",
       "upgradeTitle": "Open provider settings"
     },
     "thinkingLevel": {
@@ -241,7 +273,15 @@
     "diaryFailed": "Failed to write diary",
     "xing": "Reflect on this conversation",
     "compact": "Compact context",
-    "compactBusy": "Compacting..."
+    "compactBusy": "Compacting...",
+    "clear": "Clear current chat",
+    "clearDone": "Chat cleared",
+    "clearFailed": "Failed to clear",
+    "plan": "Toggle plan mode",
+    "model": "Switch model",
+    "save": "Save checkpoint",
+    "saveDone": "Checkpoint saved",
+    "saveFailed": "Checkpoint save failed"
   },
   "welcome": {
     "messages": [
@@ -517,7 +557,8 @@
   "model": {
     "unknown": "Unknown model",
     "offline": "Offline",
-    "switchFailed": "Failed to switch model"
+    "switchFailed": "Failed to switch model",
+    "switchAfterNewSession": "Please create a new session before switching models"
   },
   "splash": {
     "lines": [
@@ -551,6 +592,7 @@
       "work": "Work",
       "skills": "Skills",
       "bridge": "Social",
+      "mcp": "MCP",
       "plugins": "Add-ons",
       "about": "About"
     },
@@ -626,7 +668,7 @@
     },
     "about": {
       "title": "About Them",
-      "tagline": "An assistant that lives in your computer, with a good memory.",
+      "tagline": "An assistant that lives in your computer, with a heartbeat and a good memory.",
       "license": "License",
       "copyright": "Copyright",
       "copyrightOriginal": " (Original)",
@@ -706,6 +748,34 @@
       "deleteConfirm": "Delete provider {name}? Associated models will be removed.",
       "apiResponses": "OpenAI Responses",
       "apiCodex": "ChatGPT Codex (Plus/Pro)"
+    },
+    "mcp": {
+      "title": "MCP Servers",
+      "hint": "Manage local stdio and remote SSE MCP servers. Connected tools become available inside Lynn.",
+      "presets": "Presets",
+      "newServer": "New",
+      "serverList": "Servers",
+      "detail": "Details",
+      "name": "Name",
+      "nameRequired": "Please enter an MCP name",
+      "transport": "Transport",
+      "command": "Command",
+      "args": "Arguments",
+      "cwd": "Working Directory",
+      "url": "SSE URL",
+      "messageUrl": "Message URL (optional)",
+      "headers": "Headers",
+      "enabled": "Enable this server",
+      "test": "Test Connection",
+      "testSuccess": "Connection succeeded",
+      "reload": "Reload",
+      "reloaded": "MCP reloaded",
+      "empty": "No MCP servers yet",
+      "tools": "Tools",
+      "resources": "Resources",
+      "source": "Source",
+      "local": "Local config",
+      "discovered": "Discovered"
     },
     "oauth": {
       "title": "Quick Login",
@@ -917,9 +987,9 @@
       "noUser": "No custom skills",
       "copyToSkills": "Copy to your skills",
       "copied": "Copied ✓",
-      "copyFailed": "Copy failed",
-      "dropzone": "Drop a skill folder to install, or click to browse",
-      "learnHint": "Try asking your assistant: find me some safe and useful skills from GitHub",
+    "copyFailed": "Copy failed",
+    "dropzone": "Drop a skill folder to install, or click to browse",
+    "learnHint": "Try asking your assistant: find me some safe and useful skills from GitHub",
       "reloaded": "Skills reloaded",
       "reload": "Reload skills",
       "compatTitle": "Compatible Skills",
@@ -1090,10 +1160,11 @@
     },
     "permissions": {
       "title": "Set Permissions In One Pass",
-      "subtitle": "Pick a workspace first, then enable notifications.\nThat keeps Lynn from triggering a stack of macOS permission prompts during startup.",
+      "subtitle": "Quick Start prepares a default workspace first: ~/Desktop/Lynn.\nIt also adds Desktop and the current install directory to the safe roots, then handles notifications in one pass.",
       "workspace": {
         "title": "Workspace",
-        "desc": "Choose a folder you actually work in. Patrols, scheduled tasks, and file actions will stay inside places you explicitly approved.",
+        "desc": "By default Lynn creates a Lynn folder on your Desktop as the main workspace.\nPatrols, scheduled tasks, and file actions stay inside that workspace and other roots you explicitly approve.",
+        "safeRoots": "Default safe roots",
         "selected": "Selected",
         "pending": "Needs setup",
         "placeholder": "Not chosen yet. We'll open the folder picker when you continue."
@@ -1110,7 +1181,7 @@
           "unsupported": "No prompt needed"
         }
       },
-      "note": "When you continue, Lynn will guide you through choosing a workspace and request notification access only if macOS still needs it.",
+      "note": "When you continue, Lynn will save the default workspace and safe roots, then request notification access only if macOS still needs it.",
       "back": "Back",
       "continue": "Authorize and Continue",
       "working": "Working..."
@@ -1118,11 +1189,11 @@
     "tutorial": {
       "title": "All Set ✿",
       "quickTitle": "Quick Start is ready ✿",
-      "quickBannerTitle": "You're good to start chatting now",
-      "quickBannerDesc": "Provider, model, and theme can wait.\nYou can finish them later in Settings after you’ve already started using Lynn.",
+      "quickBannerTitle": "One core idea: jian is today's work file",
+      "quickBannerDesc": "Write today's direction into jian.md inside the workspace.\nPatrol keeps rereading it, memory keeps the stable background, and the activity panel shows how far Lynn has already moved the work.",
       "memory": {
         "title": "Memory",
-        "desc": "I remember key points from your conversations. Older, less-referenced memories fade naturally, just like ours."
+        "desc": "Memory is not a second todo list. It is the long-term background Lynn carries while working.\nYour jian note, repeated facts, and stable constraints gradually become the context it can continue from later."
       },
       "skills": {
         "title": "Skills",
@@ -1130,11 +1201,19 @@
       },
       "workspace": {
         "title": "Workspace",
-        "desc": "Set a folder as your workspace and I can help manage your projects and files."
+        "desc": "The default workspace lives at ~/Desktop/Lynn.\nIt is where you keep project files, references, and jian.md, and the first place Lynn checks during patrol."
       },
       "jian": {
         "title": "Jian",
-        "desc": "Drop a jian.md in any folder with your instructions.\nI'll pick it up during patrol and execute automatically."
+        "desc": "jian.md is the main theme file for today's work.\nWrite what matters, what is blocked, and what should happen next there. Patrols and agents will read it first before deciding what to do."
+      },
+      "patrol": {
+        "title": "Heartbeat / Patrol",
+        "desc": "Heartbeat is Lynn coming back on a rhythm to re-check the workspace.\nIt rereads jian, notices project changes, and decides whether there is something it should continue on its own."
+      },
+      "activity": {
+        "title": "Activity panel",
+        "desc": "The activity panel shows what heartbeat saw, what background work ran, and what review follow-ups were triggered.\nSo when you come back later, you can resume immediately instead of asking what happened again."
       },
       "finish": "Let's Go",
       "quickFinish": "Enter Lynn now"
@@ -1144,11 +1223,14 @@
     "title": "Activity",
     "empty": "No activity yet. Patrol runs and scheduled tasks will appear here.",
     "back": "Back",
+    "openRecoveredTasks": "Open background tasks",
     "heartbeat": "Routine patrol",
+    "plan": "Planning task",
     "delegate": "Delegated task",
     "reviewFollowUp": "Review follow-up",
     "cron": "Scheduled task",
     "patrolDone": "Patrol completed",
+    "planDone": "Planning completed",
     "cronDone": "Scheduled task completed",
     "error": "Execution error",
     "viewSession": "View session →",
@@ -1822,17 +1904,28 @@
       "fullAccessDesc": "Disable sandbox isolation and allow unrestricted execution"
     },
     "auth": {
-      "title": "Confirmation Required",
-      "commandLabel": "About to execute:",
+      "title": "This action needs your approval",
+      "summary": "Lynn wants to perform a {scope} action in {project}. Choose how much to allow.",
+      "reasonLabel": "Why this is needed",
+      "commandLabel": "Command to run",
       "allow": "Allow",
-      "allowOnce": "Allow once",
-      "allowSession": "Allow this session",
-      "allowAlwaysHere": "Always allow here",
-      "reject": "Deny",
+      "allowOnce": "Allow just this step",
+      "allowSession": "Allow for this task",
+      "allowAlwaysHere": "Always allow in this project",
+      "reject": "No, do not run it",
       "allowed": "Execution allowed",
       "rejected": "Rejected",
       "alwaysAllow": "Always allow this type of operation",
-      "trustedRoot": "Trusted root"
+      "trustedRoot": "Trusted root",
+      "scope": "Terminal",
+      "fileWrite": "File write",
+      "fileRead": "File read",
+      "fileOp": "File access",
+      "terminal": "Terminal action",
+      "currentProject": "current project",
+      "allowOnceHint": "Only allow this single action.",
+      "allowSessionHint": "Allow similar actions for the rest of this task or session.",
+      "allowAlwaysHereHint": "Always allow similar actions inside {project}."
     }
   },
   "error.llmTimeout": "Model request timed out",
@@ -1859,6 +1952,9 @@
   "status.reconnecting": "Reconnecting...",
   "status.disconnected": "Connection lost",
   "status.reconnect": "Reconnect",
+  "status.tasksRecovered": "Recovered {count} background task(s)",
+  "status.tasksRecoveredRunning": "{count} background task(s) are still running",
+  "status.tasksRecoveredWaiting": "{count} background task(s) are still running, with {waiting} waiting for approval",
   "action.retry": "Retry",
   "agentDiscovery.title": "AI Tools Detected",
   "agentDiscovery.body": "Found installed AI tools on your device:",

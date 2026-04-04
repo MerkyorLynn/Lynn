@@ -11,10 +11,11 @@ interface ContextMenu {
   agentId: string;
 }
 
-export function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, onAvatarClick, onSetActive, onDelete, onAdd }: {
+export function AgentCardStack({ agents, selectedId, currentAgentId, previewSelectedAgent, onSelect, onAvatarClick, onSetActive, onDelete, onAdd }: {
   agents: Agent[];
   selectedId: string | null;
   currentAgentId: string | null;
+  previewSelectedAgent?: { name?: string; yuan?: string } | null;
   onSelect: (id: string) => void;
   onAvatarClick: () => void;
   onSetActive: (id: string) => void;
@@ -167,6 +168,12 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, o
           const txSpread = spreadOffset + i * spreadStep;
           const z = n - i;
           const isSelected = agent.id === selectedId;
+          const displayName = isSelected && previewSelectedAgent?.name
+            ? previewSelectedAgent.name
+            : agent.name;
+          const displayYuan = isSelected && previewSelectedAgent?.yuan
+            ? previewSelectedAgent.yuan
+            : agent.yuan;
 
           return (
             <div
@@ -192,13 +199,13 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, o
                 <img
                   className={styles['agent-card-avatar']}
                   draggable={false}
-                  src={agent.hasAvatar
+                  src={agent.hasAvatar && !(isSelected && previewSelectedAgent?.yuan && previewSelectedAgent.yuan !== agent.yuan)
                     ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${ts}`)
-                    : yuanFallbackAvatar(agent.yuan)}
+                    : yuanFallbackAvatar(displayYuan)}
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
                     img.onerror = null;
-                    img.src = yuanFallbackAvatar(agent.yuan);
+                    img.src = yuanFallbackAvatar(displayYuan);
                   }}
                 />
                 {isSelected && (
@@ -208,7 +215,7 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, onSelect, o
                 )}
               </div>
               {agent.id === currentAgentId && <div className={styles['agent-card-badge']} />}
-              <span className={styles['agent-card-name']}>{agent.name}</span>
+              <span className={styles['agent-card-name']}>{displayName}</span>
             </div>
           );
         })}

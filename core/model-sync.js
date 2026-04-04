@@ -132,6 +132,7 @@ export function syncModels(providers, opts = {}) {
     if (!p.models || p.models.length === 0) continue;
 
     let apiKey = decryptStoredApiKey(p.api_key || "");
+    const authType = p.auth_type || "api-key";
 
     // 无 api_key 时尝试 OAuth 查找
     if (!apiKey) {
@@ -141,8 +142,11 @@ export function syncModels(providers, opts = {}) {
 
     // 无凭证且非 localhost，跳过
     const isLocal = isLocalBaseUrl(p.base_url);
-    if (!apiKey && !isLocal) continue;
+    const allowMissingApiKey = authType === "none";
+    if (!apiKey && !isLocal && !allowMissingApiKey) continue;
 
+    // Pi SDK 目前要求 provider entry 带一个非空 apiKey；对无 Key 的内置远端 provider，
+    // 用占位值保活 models.json，真实请求侧会依赖 Lynn 签名头鉴权。
     const effectiveApiKey = apiKey || "local";
 
     newProviders[name] = {

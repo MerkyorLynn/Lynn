@@ -72,17 +72,43 @@
 }
 
 .description {
-  margin: 0.64rem 0 0;
-  font-size: 0.76rem;
-  line-height: 1.45;
-  color: #d7ddf1;
+  margin: 0 0 0.38rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #eef2ff;
+}
+
+.summary {
+  margin: 0 0 0.48rem;
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: #cfdcf9;
 }
 
 .reason {
-  margin: 0.36rem 0 0;
+  margin: 0 0 0.6rem;
   font-size: 0.72rem;
   line-height: 1.35;
   color: #a5b0ce;
+}
+
+.reasonLabel {
+  display: inline-block;
+  margin-right: 0.36rem;
+  color: #d7e4ff;
+  font-weight: 600;
+}
+
+.commandWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.commandLabel {
+  font-size: 0.7rem;
+  color: #aab7d6;
+  letter-spacing: 0.02em;
 }
 
 .rootHint {
@@ -97,6 +123,18 @@
   flex-wrap: wrap;
   gap: 0.42rem;
   justify-content: flex-end;
+}
+
+.decisionGuide {
+  margin-top: 0.56rem;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.decisionItem {
+  font-size: 0.69rem;
+  line-height: 1.35;
+  color: #9fb0d3;
 }
 
 .btn {

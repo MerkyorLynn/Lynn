@@ -83,7 +83,16 @@
     "jian": "書桌",
     "bridge": "接入社群平台",
     "toggle": "側邊欄",
-    "bridgeShort": "接入"
+    "bridgeShort": "接入",
+    "capability": {
+      "web": "會搜網頁",
+      "files": "改檔案",
+      "shell": "跑命令",
+      "instructions": "已讀專案指令",
+      "mcp": "能用 MCP",
+      "skills": "技能",
+      "projectRules": "指令"
+    }
   },
   "session": {
     "untitled": "新對話",
@@ -91,7 +100,9 @@
     "switchFailed": "切換 session 失敗",
     "createFailed": "新建 session 失敗",
     "archiveFailed": "歸檔 session 失敗",
-    "rename": "重新命名"
+    "rename": "重新命名",
+    "editLabels": "編輯標籤",
+    "labelsPlaceholder": "標籤，以逗號分隔"
   },
   "common": {
     "on": "開",
@@ -126,6 +137,21 @@
     "needWsConnection": "與助手連線已中斷，請等待重新連線或點選狀態列「重新連線」",
     "retry": "Retry"
   },
+  "markdown": {
+    "runConfirm": {
+      "title": "執行程式碼區塊命令",
+      "message": "將把這段命令交給 Lynn 執行。",
+      "cwd": "工作目錄",
+      "cwdUnknown": "未指定",
+      "risk": "風險等級",
+      "confirm": "繼續執行"
+    },
+    "runRisk": {
+      "low": "低風險",
+      "medium": "中風險",
+      "high": "高風險"
+    }
+  },
   "time": {
     "justNow": "剛剛",
     "minutesAgo": "{n} 分鐘前",
@@ -154,6 +180,7 @@
     "planMode": "允許讀寫與終端（關閉為唯讀）",
     "deskContext": "看著書桌說",
     "pastedImage": "貼上圖片",
+    "attachFile": "新增附件",
     "docContext": "看著文件說",
     "thinkingLevel": {
       "off": "關閉",
@@ -467,7 +494,8 @@
   "model": {
     "unknown": "未知模型",
     "offline": "離線",
-    "switchFailed": "切換模型失敗"
+    "switchFailed": "切換模型失敗",
+    "switchAfterNewSession": "請先新建會話後再切換模型"
   },
   "splash": {
     "lines": [
@@ -501,6 +529,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社群平台",
+      "mcp": "MCP",
       "plugins": "附加功能",
       "about": "關於"
     },
@@ -648,6 +677,9 @@
       "verifyConnection": "驗證連線",
       "verifySuccess": "驗證通過",
       "verifyFailed": "驗證失敗",
+      "ready": "已就緒",
+      "authLabel": "授權",
+      "baseUrlLabel": "位址",
       "setupHint": "輸入 API Key 以啟用此供應商",
       "selectHint": "選擇一個供應商查看詳情",
       "addCustom": "新增自訂供應商",
@@ -656,6 +688,34 @@
       "deleteConfirm": "確定刪除供應商 {name}？相關模型將一併清除。",
       "apiResponses": "OpenAI Responses",
       "apiCodex": "ChatGPT Codex（Plus/Pro）"
+    },
+    "mcp": {
+      "title": "MCP 服務",
+      "hint": "管理本地 stdio 與遠端 SSE MCP 服務，連上後工具會直接進入 Lynn。",
+      "presets": "預設模板",
+      "newServer": "新建",
+      "serverList": "伺服器列表",
+      "detail": "服務詳情",
+      "name": "名稱",
+      "nameRequired": "請輸入 MCP 名稱",
+      "transport": "傳輸",
+      "command": "命令",
+      "args": "參數",
+      "cwd": "工作目錄",
+      "url": "SSE URL",
+      "messageUrl": "訊息 URL（可選）",
+      "headers": "請求頭",
+      "enabled": "啟用此伺服器",
+      "test": "測試連線",
+      "testSuccess": "連線成功",
+      "reload": "重新載入",
+      "reloaded": "已重新載入 MCP",
+      "empty": "還沒有 MCP 伺服器",
+      "tools": "工具",
+      "resources": "資源",
+      "source": "來源",
+      "local": "本地設定",
+      "discovered": "自動發現"
     },
     "oauth": {
       "title": "快速登入",
@@ -1025,10 +1085,11 @@
     },
     "permissions": {
       "title": "一次把權限準備好",
-      "subtitle": "先選一個工作空間，再把系統通知開好。\n這樣 Lynn 啟動時就不會再被動觸發一串 macOS 權限彈窗。",
+      "subtitle": "Quick Start 會先把預設工作台準備好：桌面上的 ~/Desktop/Lynn。\n同時把桌面和目前安裝目錄加入安全白名單，再把系統通知一次開好。",
       "workspace": {
         "title": "工作空間",
-        "desc": "選一個你平常使用的專案資料夾。巡檢、定時任務和檔案操作都只會在你明確授權的範圍內進行。",
+        "desc": "預設會在桌面建立一個 Lynn 資料夾，作為你的工作台。\nLynn 之後只會在這個工作台，以及你明確加入白名單的目錄裡進行巡檢、定時任務和檔案操作。",
+        "safeRoots": "預設安全區域",
         "selected": "已選擇",
         "pending": "待設定",
         "placeholder": "還沒選，繼續時會開啟資料夾選擇器"
@@ -1045,7 +1106,7 @@
           "unsupported": "無需授權"
         }
       },
-      "note": "點擊繼續後，Lynn 會依序引導你選擇工作空間，並在需要時請求通知權限。",
+      "note": "點擊繼續後，Lynn 會把預設工作台和安全白名單寫好，並在需要時請求通知權限。",
       "back": "上一步",
       "continue": "授權並繼續",
       "working": "處理中..."
@@ -1053,11 +1114,11 @@
     "tutorial": {
       "title": "準備就緒 ✿",
       "quickTitle": "Quick Start 已完成 ✿",
-      "quickBannerTitle": "你現在已經可以直接開始聊了",
-      "quickBannerDesc": "Provider、模型和主題都可以先放著。\n先進去用起來，之後再到設定裡慢慢補齊。",
+      "quickBannerTitle": "先記住這條主線：箋就是今天要做的工作",
+      "quickBannerDesc": "把今天要推進的事寫進工作台裡的 jian.md。\n巡檢會反覆看它，記憶會把穩定背景留下來，活動面板會告訴你它已經做到哪一步。",
       "memory": {
         "title": "記憶",
-        "desc": "有多少記憶能被記住由你決定。\n記憶的留存不需要絕對一致。允許褶皺和縫隙存在，大語言模型能在具體的對話中辨認出哪些是符合現實情況的。"
+        "desc": "記憶不是另一套待辦，而是給巡檢和對話用的長期背景。\n工作台裡的箋、你反覆確認的事實、對話裡穩定的約束，會慢慢沉成之後繼續做事時的上下文。"
       },
       "skills": {
         "title": "技能",
@@ -1065,11 +1126,19 @@
       },
       "workspace": {
         "title": "工作空間",
-        "desc": "指定一個資料夾作為工作空間，我就可以幫你管理專案和檔案。"
+        "desc": "工作台預設在 ~/Desktop/Lynn。\n這裡是你放專案、資料和 jian.md 的地方，也是 Lynn 日常巡檢最先看的目錄。"
       },
       "jian": {
         "title": "箋",
-        "desc": "在任意資料夾放一個 jian.md，寫上你的指令。\n我會在巡檢時看到它並自動執行。"
+        "desc": "jian.md 就是今天的主旋律檔案。\n你把今天要做什麼、做到哪一步、接下來怎麼看，寫在這裡；巡檢和智慧體都會先讀它，再決定下一步。"
+      },
+      "patrol": {
+        "title": "心跳 / 自動巡檢",
+        "desc": "心跳就是 Lynn 按節奏回來看看工作台。\n它會重新讀箋、檢查專案是否有變化、判斷有沒有該繼續推進的事，然後在合適的時候自己動起來。"
+      },
+      "activity": {
+        "title": "活動面板",
+        "desc": "活動面板會留下心跳、背景執行和複查後續的過程。\n所以你離開一陣再回來，也能立刻知道 Lynn 看了什麼、做了什麼、下一步準備做什麼。"
       },
       "finish": "開始使用",
       "quickFinish": "直接進入 Lynn"
@@ -1079,11 +1148,14 @@
     "title": "助手活動",
     "empty": "暫時沒有活動記錄，日常巡檢或定時任務執行後會出現在這裡",
     "back": "返回",
+    "openRecoveredTasks": "查看背景任務",
     "heartbeat": "日常巡檢",
+    "plan": "任務規劃",
     "delegate": "委派任務",
     "reviewFollowUp": "複查後續執行",
     "cron": "定時任務",
     "patrolDone": "日常巡檢完畢",
+    "planDone": "任務規劃完成",
     "cronDone": "定時任務執行完畢",
     "error": "執行異常",
     "viewSession": "查看對話 →",
@@ -1747,17 +1819,28 @@
       "fullAccessDesc": "關閉沙盒隔離與命令限制"
     },
     "auth": {
-      "title": "需要確認",
-      "commandLabel": "即將執行：",
+      "title": "這次操作需要你的授權",
+      "summary": "Lynn 想在 {project} 裡進行一項{scope}操作。你可以只放行這一步，也可以擴大授權範圍。",
+      "reasonLabel": "為什麼需要",
+      "commandLabel": "將要執行的命令",
       "allow": "允許執行",
+      "allowOnce": "只放行這一步",
+      "allowSession": "本次任務都放行",
+      "allowAlwaysHere": "這個專案長期放行",
       "reject": "拒絕",
       "allowed": "已允許執行",
       "rejected": "已拒絕",
       "alwaysAllow": "以後都允許此類操作",
-      "allowOnce": "僅本次允許",
-      "allowSession": "本會話允許",
-      "allowAlwaysHere": "始終允許此處",
-      "trustedRoot": "受信任根目錄"
+      "trustedRoot": "受信任根目錄",
+      "scope": "終端",
+      "fileWrite": "檔案寫入",
+      "fileRead": "檔案讀取",
+      "fileOp": "檔案存取",
+      "terminal": "終端執行",
+      "currentProject": "目前專案",
+      "allowOnceHint": "只放行這一步，後面類似操作還會再問你。",
+      "allowSessionHint": "本次任務剩下的類似操作都直接放行，任務結束後恢復確認。",
+      "allowAlwaysHereHint": "以後在 {project} 裡的類似操作都直接放行。"
     }
   },
   "error.llmTimeout": "模型请求超时",
@@ -1780,10 +1863,13 @@
   "error.dbError": "数据库错误",
   "error.serverAuthFailed": "认证失败",
   "error.unknown": "发生了未知错误",
-  "error.regionUnavailable": "此区域暂时无法显示",
-  "status.reconnecting": "正在重连...",
-  "status.disconnected": "连接已断开",
-  "status.reconnect": "重新连接",
+  "error.regionUnavailable": "此區域暫時無法顯示",
+  "status.reconnecting": "正在重連...",
+  "status.disconnected": "連線已中斷",
+  "status.reconnect": "重新連線",
+  "status.tasksRecovered": "已恢復 {count} 個背景任務",
+  "status.tasksRecoveredRunning": "背景還有 {count} 個任務正在繼續",
+  "status.tasksRecoveredWaiting": "背景還有 {count} 個任務正在繼續，其中 {waiting} 個在等你確認",
   "action.retry": "重试",
   "agentDiscovery.title": "發現已有技能",
   "agentDiscovery.body": "偵測到以下工具的技能庫，啟用後可直接複用：",

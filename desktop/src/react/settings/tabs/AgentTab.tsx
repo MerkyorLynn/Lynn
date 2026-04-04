@@ -7,6 +7,13 @@ import { browseAgent, switchToAgent, loadSettingsConfig, loadAgents } from '../a
 import { AgentCardStack } from './agent/AgentCardStack';
 import { YuanSelector } from './agent/YuanSelector';
 import { MemorySection } from './agent/AgentMemory';
+import {
+  collapseBrainModelChoices,
+  normalizeDisplayModelId,
+  normalizeDisplayModelName,
+  normalizeDisplayProviderLabel,
+} from '../../utils/brain-models';
+import { getDisplayYuanEntries, normalizeYuanKey } from '../../utils/agent-helpers';
 import styles from '../Settings.module.css';
 import {
   type ExpCategory, parseExperience,
@@ -18,7 +25,7 @@ const platform = window.platform;
 export function AgentTab() {
   const store = useSettingsStore();
   const {
-    agents, currentAgentId, settingsConfig, currentPins,
+    agents, currentAgentId, settingsConfig, settingsConfigAgentId, currentPins,
     showToast,
     globalModelsConfig,
   } = store;
@@ -30,21 +37,79 @@ export function AgentTab() {
   const [identity, setIdentity] = useState('');
   const [ishiki, setIshiki] = useState('');
   const [expCategories, setExpCategories] = useState<ExpCategory[]>([]);
+  const [pendingYuan, setPendingYuan] = useState('hanako');
+  const [nameTouched, setNameTouched] = useState(false);
+  const modelFieldRef = React.useRef<HTMLDivElement | null>(null);
+  const lastReviewerFocusRef = React.useRef<string | null>(null);
+  const builtInAgentIds = React.useMemo(() => new Set(['lynn', 'hanako', 'butter']), []);
+
+  const selectedAgent = useMemo(
+    () => agents.find((agent) => agent.id === settingsAgentId) || null,
+    [agents, settingsAgentId],
+  );
+  const configReady = !!settingsConfig && settingsConfigAgentId === settingsAgentId;
 
   useEffect(() => {
-    if (settingsConfig) {
+    if (configReady && settingsConfig) {
       setAgentName(settingsConfig.agent?.name || '');
       setIdentity(settingsConfig._identity || '');
       setIshiki(settingsConfig._ishiki || '');
       setExpCategories(parseExperience(settingsConfig._experience || ''));
+      setPendingYuan(settingsConfig.agent?.yuan || 'hanako');
+      setNameTouched(false);
+      return;
     }
-  }, [settingsConfig]);
+    setAgentName(selectedAgent?.name || '');
+    setIdentity('');
+    setIshiki('');
+    setExpCategories([]);
+    setPendingYuan(selectedAgent?.yuan || 'hanako');
+    setNameTouched(false);
+  }, [configReady, selectedAgent, settingsConfig]);
+
+  const builtInYuanEntries = useMemo(() => {
+    const raw = (t('yuan.types') || {}) as Record<string, { name?: string }>;
+    return Object.fromEntries(getDisplayYuanEntries(raw));
+  }, []);
+
+  const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
+
+  useEffect(() => {
+    if (!selectedAgent) return;
+    if (nameTouched) return;
+    const previousYuanKey = normalizeYuanKey(settingsConfig?.agent?.yuan || selectedAgent.yuan || 'hanako');
+    const nextYuanKey = normalizeYuanKey(pendingYuan);
+    if (previousYuanKey === nextYuanKey) return;
+
+    const previousBuiltInName = builtInYuanEntries[previousYuanKey]?.name || '';
+    const nextBuiltInName = builtInYuanEntries[nextYuanKey]?.name || '';
+    if (!nextBuiltInName) return;
+
+    const trimmedAgentName = String(agentName || '').trim();
+    const selectedAgentName = String(selectedAgent.name || '').trim();
+    if (!trimmedAgentName || trimmedAgentName === previousBuiltInName || trimmedAgentName === selectedAgentName) {
+      setAgentName(nextBuiltInName);
+    }
+  }, [agentName, builtInYuanEntries, nameTouched, pendingYuan, selectedAgent, settingsConfig]);
+
+  useEffect(() => {
+    if (!configReady || !settingsConfig || settingsConfigAgentId !== settingsAgentId) return;
+    if (settingsConfig.agent?.tier !== 'reviewer' || !settingsAgentId) return;
+    if (lastReviewerFocusRef.current === settingsAgentId) return;
+    lastReviewerFocusRef.current = settingsAgentId;
+    requestAnimationFrame(() => {
+      modelFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const target = modelFieldRef.current?.querySelector('button, [role="combobox"]') as HTMLElement | null;
+      target?.focus?.();
+    });
+  }, [configReady, settingsAgentId, settingsConfig, settingsConfigAgentId]);
 
   const isViewingOther = settingsAgentId !== currentAgentId;
-  const currentYuan = settingsConfig?.agent?.yuan || 'hanako';
+  const currentYuan = settingsConfig?.agent?.yuan || selectedAgent?.yuan || 'hanako';
 
   const chatRaw = settingsConfig?.models?.chat;
   const currentModel = typeof chatRaw === 'object' && chatRaw?.id ? chatRaw.id : (chatRaw || '');
+  const currentProvider = typeof chatRaw === 'object' && chatRaw?.provider ? chatRaw.provider : (settingsConfig?.api?.provider || '');
 
   // 从唯一信源 /api/models 获取模型列表（和聊天页一致）
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; provider: string }>>([]);
@@ -55,12 +120,20 @@ export function AgentTab() {
   }, [settingsConfig]); // settingsConfig 变化时刷新
 
   const modelOptions = useMemo(() => {
-    const opts = availableModels.map(m => ({ value: m.id, label: m.name || m.id, group: m.provider }));
-    if (currentModel && !availableModels.some(m => m.id === currentModel)) {
-      opts.unshift({ value: currentModel, label: currentModel, group: '' });
+    const visibleModels = collapseBrainModelChoices(availableModels);
+    const opts = visibleModels.map(m => ({
+      value: normalizeDisplayModelId(m.id, m.provider),
+      label: normalizeDisplayModelName(m),
+      group: normalizeDisplayProviderLabel(m.provider),
+    }));
+    const normalizedCurrent = normalizeDisplayModelId(currentModel, currentProvider);
+    if (normalizedCurrent && !opts.some(m => m.value === normalizedCurrent)) {
+      opts.unshift({ value: normalizedCurrent, label: normalizedCurrent, group: '' });
     }
     return opts;
-  }, [availableModels, currentModel]);
+  }, [availableModels, currentModel, currentProvider]);
+
+  const visibleCurrentModel = normalizeDisplayModelId(currentModel, currentProvider);
 
   const memoryEnabled = settingsConfig?.memory?.enabled !== false;
 
@@ -73,6 +146,12 @@ export function AgentTab() {
       const configPartial: Record<string, unknown> = {};
       if (agentName && agentName !== (settingsConfig?.agent?.name || '')) {
         configPartial.agent = { name: agentName };
+      }
+      if (pendingYuan !== (settingsConfig?.agent?.yuan || 'hanako')) {
+        configPartial.agent = {
+          ...((configPartial.agent as Record<string, unknown>) || {}),
+          yuan: pendingYuan,
+        };
       }
 
       const identityChanged = identity !== (settingsConfig?._identity || '');
@@ -120,7 +199,15 @@ export function AgentTab() {
           agentId,
         });
       }
+      if (isActive && (configPartial as { agent?: { yuan?: string } })?.agent?.yuan) {
+        store.set({ agentYuan: pendingYuan });
+        platform?.settingsChanged?.('agent-updated', {
+          agentId,
+          yuan: pendingYuan,
+        });
+      }
       await loadSettingsConfig();
+      await loadAgents();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast(t('settings.saveFailed') + ': ' + msg, 'error');
@@ -134,8 +221,9 @@ export function AgentTab() {
         <h2 className={styles['settings-section-title']}>{t('settings.agent.title')}</h2>
         <AgentCardStack
           agents={agents}
-          selectedId={settingsAgentId}
+          selectedId={settingsAgentId || currentAgentId}
           currentAgentId={currentAgentId}
+          previewSelectedAgent={{ name: agentName, yuan: pendingYuan || currentYuan }}
           onSelect={(id) => browseAgent(id)}
           onAvatarClick={() => {
             // eslint-disable-next-line no-restricted-syntax -- ephemeral file picker, not part of React tree
@@ -162,15 +250,19 @@ export function AgentTab() {
             type="text"
             value={agentName}
             placeholder={t('settings.agent.agentNameHint')}
-            onChange={(e) => setAgentName(e.target.value)}
+            onChange={(e) => {
+              setNameTouched(true);
+              setAgentName(e.target.value);
+            }}
           />
         </div>
-        <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
+        <div className={`${styles['settings-field']} ${styles['settings-field-center']}`} ref={modelFieldRef}>
           <div className={styles['model-capsule']}>
             <span className={styles['model-capsule-label']}>{t('settings.agent.chatModel')}</span>
             <SelectWidget
               options={modelOptions}
-              value={currentModel}
+              value={visibleCurrentModel}
+              disabled={modelOptions.length <= 1}
               onChange={async (modelId) => {
                 const partial: Record<string, unknown> = { models: { chat: modelId } };
                 const match = availableModels.find(m => m.id === modelId);
@@ -192,22 +284,13 @@ export function AgentTab() {
         <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
           <span className={styles['settings-field-hint']}>{t('settings.agent.yuanHint')}</span>
           <YuanSelector
-            currentYuan={currentYuan}
-            onChange={async (key) => {
-              const agentId = store.getSettingsAgentId()!;
-              try {
-                await hanaFetch(`/api/agents/${agentId}/config`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ agent: { yuan: key } }),
-                });
-                if (agentId === currentAgentId) store.set({ agentYuan: key });
-                platform?.settingsChanged?.('agent-updated', { agentId, yuan: key });
-                await loadSettingsConfig();
-                await loadAgents();
-              } catch (err) {
-                console.error('[yuan] switch failed:', err);
+            currentYuan={pendingYuan || currentYuan}
+            onChange={(key) => {
+              if (isBuiltInAgentView && builtInAgentIds.has(key)) {
+                void browseAgent(key);
+                return;
               }
+              setPendingYuan(key);
             }}
           />
         </div>

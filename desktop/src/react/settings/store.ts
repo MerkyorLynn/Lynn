@@ -27,7 +27,7 @@ export interface SkillInfo {
 }
 
 export interface ProviderSummary {
-  type: 'api-key' | 'oauth';
+  type: 'api-key' | 'oauth' | 'none';
   display_name: string;
   base_url: string;
   api: string;
@@ -58,6 +58,7 @@ export interface SettingsState {
 
   // config
   settingsConfig: Record<string, any> | null;
+  settingsConfigAgentId: string | null;
   globalModelsConfig: Record<string, any> | null;
   homeFolder: string | null;
   trustedRoots: string[];
@@ -73,6 +74,7 @@ export interface SettingsState {
   // providers (unified)
   providersSummary: Record<string, ProviderSummary>;
   selectedProviderId: string | null;
+  preferredProviderId: string | null;
 
   // skills
   skillsList: SkillInfo[];
@@ -110,6 +112,7 @@ export const useSettingsStore = create<SettingsStore>()((set, get) => ({
 
   // config
   settingsConfig: null,
+  settingsConfigAgentId: null,
   globalModelsConfig: null,
   homeFolder: null,
   trustedRoots: [],
@@ -125,6 +128,7 @@ export const useSettingsStore = create<SettingsStore>()((set, get) => ({
   // providers (unified)
   providersSummary: {},
   selectedProviderId: null,
+  preferredProviderId: null,
 
   // skills
   skillsList: [],

@@ -7,7 +7,9 @@
  */
 import fs from "fs";
 import fsp from "fs/promises";
+import os from "os";
 import path from "path";
+import { spawnSync } from "child_process";
 import {
   createAgentSession,
   SessionManager,
@@ -30,6 +32,7 @@ import {
   readSignedClientAgentHeaders,
 } from "./client-agent-identity.js";
 import { resolveCompactionSettings } from "./compaction-settings.js";
+import { formatProjectInstructions } from "../lib/project-instructions.js";
 
 const log = createModuleLogger("session");
 
@@ -47,9 +50,51 @@ function getSteerPrefix() {
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
 }
 const MAX_CACHED_SESSIONS = 20;
+const SESSION_RELAY_SUMMARY_MAX_CHARS = 4000;
+const DEFAULT_SESSION_RELAY = {
+  enabled: true,
+  compactionThreshold: 3,
+  summaryMaxTokens: 800,
+};
+const DRY_RUN_COPY_IGNORES = new Set([
+  ".git",
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+  ".turbo",
+  ".cache",
+  ".venv",
+  "venv",
+  "__pycache__",
+]);
 
 function getBuiltinToolNames(tools) {
   return tools.map((tool) => tool.name);
+}
+
+function buildSkillHintContext(suggestions) {
+  if (!Array.isArray(suggestions) || suggestions.length === 0) return "";
+  const isZh = getLocale().startsWith("zh");
+  if (isZh) {
+    return [
+      "【技能候选提示】当前请求很可能匹配以下已启用技能：",
+      ...suggestions.map((skill) => {
+        const matches = skill.matchedTokens?.length ? `（命中：${skill.matchedTokens.join("、")}）` : "";
+        return `- ${skill.name}${skill.description ? `：${skill.description}` : ""}${matches}`;
+      }),
+      "请先用 read 工具打开最相关技能的 SKILL.md，再按里面的步骤执行。",
+    ].join("\n");
+  }
+
+  return [
+    "[Skill Hint] This request likely matches these enabled skills:",
+    ...suggestions.map((skill) => {
+      const matches = skill.matchedTokens?.length ? ` (matched: ${skill.matchedTokens.join(", ")})` : "";
+      return `- ${skill.name}${skill.description ? `: ${skill.description}` : ""}${matches}`;
+    }),
+    "Read the most relevant skill's SKILL.md first, then follow its workflow.",
+  ].join("\n");
 }
 
 export class SessionCoordinator {
@@ -136,6 +181,12 @@ export class SessionCoordinator {
           if (sessionEntry._lastRecallContext) {
             extras.push(sessionEntry._lastRecallContext);
           }
+          if (sessionEntry._lastSkillHintContext) {
+            extras.push(sessionEntry._lastSkillHintContext);
+          }
+          if (sessionEntry._relaySummaryContext) {
+            extras.push(sessionEntry._relaySummaryContext);
+          }
 
           const secMode = sessionEntry.securityMode || DEFAULT_SECURITY_MODE;
           const isZh = String(this._d.getAgent().config?.locale || "").startsWith("zh");
@@ -152,6 +203,26 @@ export class SessionCoordinator {
             extras.push(safeModePrompt);
           }
           // authorized mode: no special system prompt needed
+
+          // 项目级指令注入（AGENTS.md / CLAUDE.md 等）
+          const sessionCwd = sessionEntry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || "";
+          if (sessionCwd) {
+            try {
+              const projectCtx = formatProjectInstructions(sessionCwd, isZh);
+              if (projectCtx) extras.push(projectCtx);
+            } catch { /* non-fatal */ }
+          }
+
+          try {
+            const mcpCtx = this._d.getMcpPromptContext?.();
+            if (mcpCtx) extras.push(mcpCtx);
+          } catch { /* non-fatal */ }
+
+          // Context importance: guide compaction to preserve critical information
+          const importancePrompt = isZh
+            ? "【上下文保留策略】当对话很长时，系统会自动压缩旧消息。为确保关键信息不丢失：在输出重要决策、计划步骤、验证结论或用户明确要求记住的内容时，请用简洁的要点重申核心结论，这样即使旧消息被压缩，关键信息也会在最近的消息中保留。"
+            : "[Context Retention] When conversations are long, the system auto-compacts old messages. To ensure critical info survives: when outputting important decisions, plan steps, verification conclusions, or things the user explicitly asked to remember, briefly restate the core conclusions so they remain in recent messages even after compaction.";
+          extras.push(importancePrompt);
 
           return extras;
         },
@@ -192,6 +263,31 @@ export class SessionCoordinator {
     const sessionPath = session.sessionManager?.getSessionFile?.();
     sessionPathRef = sessionPath || null;
     const unsub = session.subscribe((event) => {
+      const entryForEvent = this._sessions.get(mapKey);
+      if (event?.type === "skill_activated" && sessionPath) {
+        try {
+          const eventAgent = entryForEvent ? this._d.getAgentById(entryForEvent.agentId) : this._d.getAgent();
+          eventAgent?._skillDistiller?.recordSkillActivation({
+            skillName: event.skillName,
+            skillFilePath: event.skillFilePath,
+            sessionPath,
+          });
+        } catch {
+          // non-fatal: skill activation telemetry must not break the session
+        }
+      }
+      if (event?.type === "auto_compaction_end" && entryForEvent) {
+        entryForEvent.compactionCount = (entryForEvent.compactionCount || 0) + 1;
+        const relayCfg = this._resolveSessionRelayConfig();
+        if (
+          relayCfg.enabled
+          && entryForEvent.compactionCount >= relayCfg.compactionThreshold
+          && !entryForEvent.relayInProgress
+          && mapKey === this.currentSessionPath
+        ) {
+          void this._relaySession(mapKey, entryForEvent.compactionCount);
+        }
+      }
       this._d.emitEvent(event, sessionPath);
     });
 
@@ -217,6 +313,10 @@ export class SessionCoordinator {
       lastTouchedAt: Date.now(),
       unsub,
       _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
+      _lastSkillHintContext: "",
+      _relaySummaryContext: "",
+      compactionCount: 0,
+      relayInProgress: false,
     });
     this._sessions.set(mapKey, sessionEntry);
     this._applySessionToolRuntime(mapKey, initialSecurityMode);
@@ -321,6 +421,8 @@ export class SessionCoordinator {
       if (entry) entry.lastTouchedAt = Date.now();
     }
 
+    this._applyContentFilter(text, sp);
+
     // Phase 1: 主动记忆召回 — 在发给 LLM 前提取关键词并搜索相关记忆
     const agent = this._d.getAgent();
     if (sp) {
@@ -333,17 +435,31 @@ export class SessionCoordinator {
         } catch {
           entry._lastRecallContext = "";
         }
+        try {
+          const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
+          entry._lastSkillHintContext = buildSkillHintContext(suggestions);
+        } catch {
+          entry._lastSkillHintContext = "";
+        }
       }
     }
 
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
-    await this._session.prompt(text, promptOpts);
-    if (sp) {
-      const entry = this._sessions.get(sp);
-      const agentForTicker = entry ? this._d.getAgentById(entry.agentId) : agent;
-      agentForTicker?._memoryTicker?.notifyTurn(sp);
-      // 清除一次性召回上下文
-      if (entry) entry._lastRecallContext = "";
+    try {
+      await this._session.prompt(text, promptOpts);
+      if (sp) {
+        const entry = this._sessions.get(sp);
+        const agentForTicker = entry ? this._d.getAgentById(entry.agentId) : agent;
+        agentForTicker?._memoryTicker?.notifyTurn(sp);
+      }
+    } finally {
+      if (sp) {
+        const entry = this._sessions.get(sp);
+        if (entry) {
+          entry._lastRecallContext = "";
+          entry._lastSkillHintContext = "";
+        }
+      }
     }
   }
 
@@ -360,6 +476,12 @@ export class SessionCoordinator {
       const entry = this._sessions.get(sp);
       if (entry) entry.lastTouchedAt = Date.now();
     }
+    try {
+      const check = this._applyContentFilter(text, sp);
+      if (check?.blocked) return false;
+    } catch {
+      return false;
+    }
     this._session.steer(getSteerPrefix() + text);
     return true;
   }
@@ -371,6 +493,8 @@ export class SessionCoordinator {
     if (!entry) throw new Error(t("error.sessionNotInCache", { path: sessionPath }));
     entry.lastTouchedAt = Date.now();
 
+    this._applyContentFilter(text, sessionPath);
+
     // Phase 1: 主动记忆召回
     const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
     try {
@@ -380,12 +504,47 @@ export class SessionCoordinator {
     } catch {
       entry._lastRecallContext = "";
     }
+    try {
+      const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
+      entry._lastSkillHintContext = buildSkillHintContext(suggestions);
+    } catch {
+      entry._lastSkillHintContext = "";
+    }
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
-    await entry.session.prompt(text, promptOpts);
-    agent?._memoryTicker?.notifyTurn(sessionPath);
-    entry._lastRecallContext = ""; // 一次性消费
+    try {
+      await entry.session.prompt(text, promptOpts);
+      agent?._memoryTicker?.notifyTurn(sessionPath);
+    } finally {
+      entry._lastRecallContext = "";
+      entry._lastSkillHintContext = "";
+    }
+  }
+
+  _applyContentFilter(text, sessionPath) {
+    if (!this._contentFilter || !text) return null;
+    const check = this._contentFilter.check(text);
+    if (!check || !check.matches?.length || check.level === "pass") return check;
+
+    const categories = [...new Set(check.matches.map((m) => m.category).filter(Boolean))];
+    log.log(`[content-filter] ${check.level} input (${categories.join(", ")})`);
+    this._d.emitEvent({
+      type: "content_filtered",
+      direction: "input",
+      blocked: !!check.blocked,
+      level: check.level,
+      matches: check.matches.map((m) => ({ category: m.category, level: m.level })),
+    }, sessionPath || null);
+    this._d.emitDevLog?.(
+      `内容过滤 ${check.level}: ${categories.join(", ") || "matched"}`,
+      check.level === "warn" ? "warn" : "info",
+    );
+
+    if (check.blocked) {
+      throw new Error(t("error.contentFiltered") || "消息包含不安全内容，已被拦截。");
+    }
+    return check;
   }
 
   steerSession(sessionPath, text) {
@@ -518,6 +677,31 @@ export class SessionCoordinator {
     return entry.modelId ? { id: entry.modelId, provider: "" } : null;
   }
 
+  async switchCurrentSessionModel(model) {
+    this._pendingModel = model || null;
+    if (!model) return { appliedToSession: false, pendingOnly: false };
+
+    const sp = this.currentSessionPath;
+    const session = this._session;
+    if (!sp || !session || typeof session.setModel !== "function") {
+      return { appliedToSession: false, pendingOnly: true };
+    }
+
+    const switched = await session.setModel(model);
+    if (switched === false) {
+      throw new Error(t("error.modelNotFound", { id: model.id || "unknown" }));
+    }
+
+    const entry = this._sessions.get(sp);
+    if (entry) {
+      entry.modelId = model.id || null;
+      entry.modelProvider = model.provider || null;
+      entry.lastTouchedAt = Date.now();
+    }
+
+    return { appliedToSession: true, pendingOnly: false };
+  }
+
   /** 中断所有正在 streaming 的 session */
   async abortAllStreaming() {
     const tasks = [];
@@ -595,10 +779,15 @@ export class SessionCoordinator {
       try {
         const sessions = await SessionManager.list(process.cwd(), sessionDir);
         const titles = await this._loadSessionTitlesFor(sessionDir);
-        // 读取 session-meta.json 获取 modelId
+        // 读取 session-meta.json 获取 modelId + pinned
         let meta = {};
         try {
           meta = JSON.parse(fs.readFileSync(path.join(sessionDir, "..", "session-meta.json"), "utf-8"));
+        } catch {}
+        // 也读取 sessions/ 级 session-meta.json（saveSessionMeta 写入位置）
+        let sessionMeta = {};
+        try {
+          sessionMeta = JSON.parse(fs.readFileSync(path.join(sessionDir, "session-meta.json"), "utf-8"));
         } catch {}
         for (const s of sessions) {
           if (titles[s.path]) s.title = titles[s.path];
@@ -614,6 +803,10 @@ export class SessionCoordinator {
             s.modelId = metaEntry?.modelId || null;
             s.modelProvider = null;
           }
+          // pinned 从 session-level meta 读取
+          const pinMeta = sessionMeta[s.path] || {};
+          s.pinned = !!pinMeta.pinned;
+          s.labels = Array.isArray(pinMeta.labels) ? pinMeta.labels.filter(Boolean) : [];
           allSessions.push(s);
         }
       } catch {}
@@ -652,6 +845,18 @@ export class SessionCoordinator {
     await fsp.writeFile(titlePath, JSON.stringify(titles, null, 2), "utf-8");
     // 更新缓存
     this._titlesCache.set(sessionDir, { titles: { ...titles }, ts: Date.now() });
+  }
+
+  async saveSessionMeta(sessionPath, meta) {
+    const agentId = this._d.agentIdFromSessionPath(sessionPath);
+    const sessionDir = agentId
+      ? path.join(this._d.agentsDir, agentId, "sessions")
+      : this._d.getAgent().sessionDir;
+    const metaPath = path.join(sessionDir, "session-meta.json");
+    let allMeta = {};
+    try { allMeta = JSON.parse(await fsp.readFile(metaPath, "utf-8")); } catch {}
+    allMeta[sessionPath] = { ...(allMeta[sessionPath] || {}), ...meta };
+    await fsp.writeFile(metaPath, JSON.stringify(allMeta, null, 2), "utf-8");
   }
 
   async _loadSessionTitlesFor(sessionDir) {
@@ -747,6 +952,7 @@ export class SessionCoordinator {
     this._headlessRefCount++;
     if (this._headlessRefCount === 1) bm.setHeadless(true);
     let tempSessionMgr;
+    let dryRunWorkspace = null;
     const cleanupTempSession = () => {
       const sp = tempSessionMgr?.getSessionFile?.();
       if (sp) {
@@ -757,7 +963,11 @@ export class SessionCoordinator {
       const sessionDir = opts.persist || targetAgent.sessionDir;
       fs.mkdirSync(sessionDir, { recursive: true });
 
-      const execCwd = opts.cwd || this._d.getHomeCwd() || process.cwd();
+      const baseExecCwd = opts.cwd || this._d.getHomeCwd() || process.cwd();
+      if (opts.dryRun) {
+        dryRunWorkspace = await this._prepareDryRunWorkspace(baseExecCwd);
+      }
+      const execCwd = dryRunWorkspace || baseExecCwd;
       const models = this._d.getModels();
       const agentPreferredRef = targetAgent.config?.models?.chat;
       const modelId = opts.model ? null
@@ -865,13 +1075,26 @@ export class SessionCoordinator {
       }
 
       const sessionPath = session.sessionManager?.getSessionFile?.() || null;
+      const dryRunValidation = opts.dryRun
+        ? this._runDryRunValidation(execCwd, opts.validateCommand)
+        : null;
 
       if (!opts.persist && sessionPath) {
         try { fs.unlinkSync(sessionPath); } catch {}
-        return { sessionPath: null, replyText, error: null };
+        return {
+          sessionPath: null,
+          replyText,
+          error: null,
+          ...(dryRunWorkspace ? { dryRun: { workspacePath: dryRunWorkspace, validation: dryRunValidation } } : {}),
+        };
       }
 
-      return { sessionPath, replyText, error: null };
+      return {
+        sessionPath,
+        replyText,
+        error: null,
+        ...(dryRunWorkspace ? { dryRun: { workspacePath: dryRunWorkspace, validation: dryRunValidation } } : {}),
+      };
     } catch (err) {
       log.error(`isolated execution failed: ${err.message}`);
       // 清理失败的临时 session 文件
@@ -894,5 +1117,118 @@ export class SessionCoordinator {
     return SettingsManager.inMemory({
       compaction: resolveCompactionSettings(model),
     });
+  }
+
+  _resolveSessionRelayConfig() {
+    const raw = this._d.getPrefs?.().getSessionRelay?.() || {};
+    return {
+      enabled: raw.enabled !== false,
+      compactionThreshold: Number(raw.compaction_threshold) > 0 ? Number(raw.compaction_threshold) : DEFAULT_SESSION_RELAY.compactionThreshold,
+      summaryMaxTokens: Number(raw.summary_max_tokens) > 0 ? Number(raw.summary_max_tokens) : DEFAULT_SESSION_RELAY.summaryMaxTokens,
+    };
+  }
+
+  _formatRelaySummaryContext(summaryText) {
+    const summary = String(summaryText || "").trim().slice(0, SESSION_RELAY_SUMMARY_MAX_CHARS);
+    if (!summary) return "";
+    const isZh = getLocale().startsWith("zh");
+    return isZh
+      ? `【上一个会话的自动接力摘要】\n以下是上一段长会话在压缩多次后的交接摘要。请把它当作继续工作的背景，不要逐字复述给用户，除非用户明确询问：\n${summary}`
+      : `[Automatic Session Relay Summary]\nThe following is a handoff summary from the previous long-running session after repeated compactions. Use it as continuation context and do not quote it back unless the user asks for it:\n${summary}`;
+  }
+
+  async _relaySession(sessionPath, compactionCount) {
+    const entry = this._sessions.get(sessionPath);
+    if (!entry || entry.relayInProgress) return false;
+
+    const relayCfg = this._resolveSessionRelayConfig();
+    if (!relayCfg.enabled || sessionPath !== this.currentSessionPath) return false;
+
+    const prevPendingPlanMode = this._pendingPlanMode;
+    const prevPendingSecurityMode = this._pendingSecurityMode;
+    entry.relayInProgress = true;
+    try {
+      const summary = await this._d.summarizeSessionRelay?.(sessionPath, {
+        maxTokens: relayCfg.summaryMaxTokens,
+      });
+      if (!summary) return false;
+
+      const models = this._d.getModels();
+      const model = entry.modelId
+        ? findModel(models.availableModels, entry.modelId, entry.modelProvider || undefined)
+        : (this._session?.model || models.currentModel);
+      const cwd = entry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || process.cwd();
+
+      this._pendingPlanMode = !!entry.planMode;
+      this._pendingSecurityMode = entry.securityMode || DEFAULT_SECURITY_MODE;
+
+      const nextSession = await this.createSession(null, cwd, entry.memoryEnabled !== false, model);
+      const newSessionPath = nextSession?.sessionManager?.getSessionFile?.() || this.currentSessionPath;
+      const newEntry = newSessionPath ? this._sessions.get(newSessionPath) : null;
+      if (!newEntry || !newSessionPath) return false;
+
+      newEntry._relaySummaryContext = this._formatRelaySummaryContext(summary);
+      newEntry.compactionCount = 0;
+      newEntry.securityMode = entry.securityMode || DEFAULT_SECURITY_MODE;
+      newEntry.planMode = !!entry.planMode;
+      newEntry.memoryEnabled = entry.memoryEnabled !== false;
+      this._applySessionToolRuntime(newSessionPath, newEntry.securityMode);
+
+      this._d.emitEvent({
+        type: "session_relay",
+        oldSessionPath: sessionPath,
+        newSessionPath,
+        summary,
+        summaryTokens: summary.length,
+        compactionCount,
+        reason: "auto_compaction_limit",
+      }, newSessionPath);
+      return true;
+    } catch (err) {
+      log.warn(`session relay failed: ${err.message}`);
+      return false;
+    } finally {
+      this._pendingPlanMode = prevPendingPlanMode;
+      this._pendingSecurityMode = prevPendingSecurityMode;
+      const current = this._sessions.get(sessionPath);
+      if (current) {
+        current.relayInProgress = false;
+        current.compactionCount = 0;
+      }
+    }
+  }
+
+  async _prepareDryRunWorkspace(sourceDir) {
+    const src = path.resolve(sourceDir || process.cwd());
+    const tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), "lynn-shadow-"));
+    await fsp.cp(src, tempDir, {
+      recursive: true,
+      dereference: false,
+      filter: (itemPath) => {
+        const base = path.basename(itemPath);
+        if (itemPath === src) return true;
+        return !DRY_RUN_COPY_IGNORES.has(base);
+      },
+    });
+    return tempDir;
+  }
+
+  _runDryRunValidation(cwd, validateCommand) {
+    if (!Array.isArray(validateCommand) || validateCommand.length === 0) return null;
+    const [command, ...args] = validateCommand.map((item) => String(item));
+    if (!command) return null;
+    const result = spawnSync(command, args, {
+      cwd,
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024,
+    });
+    return {
+      command,
+      args,
+      exitCode: result.status ?? 0,
+      signal: result.signal || null,
+      stdout: (result.stdout || "").trim().slice(0, 4000),
+      stderr: (result.stderr || "").trim().slice(0, 4000),
+    };
   }
 }

@@ -493,6 +493,37 @@ export async function createChannelWithExpert(
   );
 }
 
+export async function createRoundtableWithExperts(
+  expertSlugs: string[],
+  opts: { channelName?: string; topic?: string } = {},
+): Promise<string | null> {
+  const uniqueSlugs = Array.from(new Set(expertSlugs.filter(Boolean)));
+  if (uniqueSlugs.length === 0) {
+    throw new Error(window.t?.('channel.createNeedAdvisor') || 'Select at least one advisor');
+  }
+
+  const res = await hanaFetchAllowError('/api/roundtable', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      expertSlugs: uniqueSlugs,
+      topic: opts.topic || undefined,
+      name: opts.channelName || undefined,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+
+  await loadAgents();
+  await loadChannels();
+  if (data.channelId) {
+    await openChannel(data.channelId);
+  }
+  return data.channelId || null;
+}
+
 export async function addMembersToChannel(channelId: string, memberIds: string[]): Promise<string[]> {
   const res = await hanaFetch(`/api/channels/${encodeURIComponent(channelId)}/members`, {
     method: 'PATCH',

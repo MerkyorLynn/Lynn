@@ -5,7 +5,7 @@ export const DEFAULT_COMPACTION_KEEP_RECENT_TOKENS = 20_000;
 export const MIN_COMPACTION_KEEP_RECENT_TOKENS = 8_192;
 export const MAX_COMPACTION_KEEP_RECENT_TOKENS = 65_536;
 
-const KEEP_RECENT_RATIO = 0.15;
+const KEEP_RECENT_RATIO = 0.20;
 const KEEP_RECENT_GAP_TOKENS = 4_096;
 
 function normalizePositiveInteger(value) {

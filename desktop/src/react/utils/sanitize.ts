@@ -40,8 +40,11 @@ export function sanitizeHtml(dirty: string): string {
       // KaTeX
       'mathvariant', 'encoding',
     ],
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'textarea', 'select', 'button'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+    // Allow task-list checkbox inputs (disabled by default from markdown-it-task-lists)
+    ADD_TAGS: ['input'],
+    ADD_ATTR: ['type', 'checked', 'disabled'],
   });
 }
 

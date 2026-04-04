@@ -20,6 +20,7 @@ import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
 import { openPreview } from '../../stores/artifact-actions';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { buildRetryDraftFromMessage } from '../../utils/composer-state';
+import { formatCompactModelLabel } from '../../utils/brain-models';
 import { resendPromptRequest } from '../../stores/prompt-actions';
 import styles from './Chat.module.css';
 
@@ -169,6 +170,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
     ? defaultReviewerName
     : (isLastAssistant ? (t('review.loading') || 'Loading') : (t('review.auto') || 'Auto select'));
   const reviewButtonLabel = `${t('review.button') || 'Review'} ${reviewConfigLoaded ? defaultReviewerName : (t('review.auto') || 'Auto select')}`;
+  const showActionRail = !showStreamingMeta && (showReviewActions || !!plainText || isLastAssistant);
 
   const openReviewSettings = useCallback((reviewerKind?: 'hanako' | 'butter', reviewerAgentId?: string | null) => {
     if (reviewerAgentId) {
@@ -295,9 +297,9 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
             <span className={`${styles.avatar} ${styles.userAvatar}`}>🌸</span>
           )}
           <span className={styles.avatarName}>{displayName}</span>
-          {currentModel?.id && (
+          {formatCompactModelLabel(currentModel) && (
             <span className={styles.avatarMeta}>
-              {currentModel.provider ? currentModel.provider + ' / ' : ''}{currentModel.id}
+              {formatCompactModelLabel(currentModel)}
             </span>
           )}
           {showStreamingMeta && (
@@ -313,75 +315,85 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
             key={`block-${i}`}
             block={block}
             agentName={displayName}
+            stateKey={message.id}
             onReviewTaskCreated={handleReviewTaskCreated}
           />
         ))}
+        {showActionRail && (
+          <div className={styles.messageActionRail}>
+            <div className={styles.messageActionRailMain}>
+              {showReviewActions && (
+                <div className={styles.reviewActionGroup} data-last-assistant={isLastAssistant ? 'true' : 'false'}>
+                  {canRequestReview && (
+                    <button
+                      className={styles.reviewBtn}
+                      onClick={handleReview}
+                      disabled={reviewBusy}
+                      title={reviewButtonLabel}
+                      aria-label={reviewButtonLabel}
+                    >
+                      <span className={styles.reviewBtnPrefix}>{t('review.button') || 'Review'}</span>
+                      <span className={styles.reviewBtnTarget}>{reviewTargetLabel}</span>
+                    </button>
+                  )}
+                  {showFollowUpAction && (
+                    <button
+                      className={`${styles.reviewBtn} ${styles.reviewFollowUpBtn}`}
+                      onClick={handleReviewFollowUp}
+                      title={t('review.followUp') || 'Handle review findings'}
+                      aria-label={t('review.followUp') || 'Handle review findings'}
+                    >
+                      <span className={styles.reviewBtnPrefix}>{t('review.followUp') || 'Handle findings'}</span>
+                    </button>
+                  )}
+                  {isLastAssistant && (
+                    <button
+                      className={styles.reviewConfigBtn}
+                      onClick={() => openReviewSettings(defaultReviewerKind, reviewConfig?.resolvedReviewer?.id || null)}
+                      title={t('review.configure') || 'Configure reviewer'}
+                      aria-label={t('review.configure') || 'Configure reviewer'}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3a2.5 2.5 0 0 1 2.45 2h1.13a2 2 0 0 1 1.73 1l.57.99 1-.58a2 2 0 0 1 2.73.73l1 1.73a2 2 0 0 1-.73 2.73l-.98.57.57.99a2 2 0 0 1 0 2l-.57.99.98.57a2 2 0 0 1 .73 2.73l-1 1.73a2 2 0 0 1-2.73.73l-1-.58-.57.99a2 2 0 0 1-1.73 1h-1.13a2.5 2.5 0 0 1-4.9 0H8.55a2 2 0 0 1-1.73-1l-.57-.99-1 .58a2 2 0 0 1-2.73-.73l-1-1.73a2 2 0 0 1 .73-2.73l.98-.57-.57-.99a2 2 0 0 1 0-2l.57-.99-.98-.57a2 2 0 0 1-.73-2.73l1-1.73a2 2 0 0 1 2.73-.73l1 .58.57-.99a2 2 0 0 1 1.73-1h1.13A2.5 2.5 0 0 1 12 3Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className={styles.messageActionRailIcons}>
+              <button className={`${styles.msgCopyBtn}${copied ? ` ${styles.msgCopyBtnCopied}` : ''}`} onClick={handleCopy} title={t('common.copyText')} aria-label={t('common.copyText')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  {copied
+                    ? <polyline points="20 6 9 17 4 12" />
+                    : <>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </>
+                  }
+                </svg>
+              </button>
+              {isLastAssistant && (
+                <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      <button className={`${styles.msgCopyBtn}${copied ? ` ${styles.msgCopyBtnCopied}` : ''}`} onClick={handleCopy} title={t('common.copyText')} aria-label={t('common.copyText')}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          {copied
-            ? <polyline points="20 6 9 17 4 12" />
-            : <>
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </>
-          }
-        </svg>
-      </button>
-      {showReviewActions && (
-        <div className={styles.reviewActionGroup} data-last-assistant={isLastAssistant ? 'true' : 'false'}>
-          {canRequestReview && (
-            <button
-              className={styles.reviewBtn}
-              onClick={handleReview}
-              disabled={reviewBusy}
-              title={reviewButtonLabel}
-              aria-label={reviewButtonLabel}
-            >
-              <span className={styles.reviewBtnPrefix}>{t('review.button') || 'Review'}</span>
-              <span className={styles.reviewBtnTarget}>{reviewTargetLabel}</span>
-            </button>
-          )}
-          {showFollowUpAction && (
-            <button
-              className={`${styles.reviewBtn} ${styles.reviewFollowUpBtn}`}
-              onClick={handleReviewFollowUp}
-              title={t('review.followUp') || 'Handle review findings'}
-              aria-label={t('review.followUp') || 'Handle review findings'}
-            >
-              <span className={styles.reviewBtnPrefix}>{t('review.followUp') || 'Handle findings'}</span>
-            </button>
-          )}
-          {isLastAssistant && (
-            <button
-              className={styles.reviewConfigBtn}
-              onClick={() => openReviewSettings(defaultReviewerKind, reviewConfig?.resolvedReviewer?.id || null)}
-              title={t('review.configure') || 'Configure reviewer'}
-              aria-label={t('review.configure') || 'Configure reviewer'}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3a2.5 2.5 0 0 1 2.45 2h1.13a2 2 0 0 1 1.73 1l.57.99 1-.58a2 2 0 0 1 2.73.73l1 1.73a2 2 0 0 1-.73 2.73l-.98.57.57.99a2 2 0 0 1 0 2l-.57.99.98.57a2 2 0 0 1 .73 2.73l-1 1.73a2 2 0 0 1-2.73.73l-1-.58-.57.99a2 2 0 0 1-1.73 1h-1.13a2.5 2.5 0 0 1-4.9 0H8.55a2 2 0 0 1-1.73-1l-.57-.99-1 .58a2 2 0 0 1-2.73-.73l-1-1.73a2 2 0 0 1 .73-2.73l.98-.57-.57-.99a2 2 0 0 1 0-2l.57-.99-.98-.57a2 2 0 0 1-.73-2.73l1-1.73a2 2 0 0 1 2.73-.73l1 .58.57-.99a2 2 0 0 1 1.73-1h1.13A2.5 2.5 0 0 1 12 3Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
-      {isLastAssistant && (
-        <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="1 4 1 10 7 10" />
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-          </svg>
-        </button>
-      )}
     </div>
   );
 });
 
-const ContentBlockView = memo(function ContentBlockView({ block, agentName, onReviewTaskCreated }: {
+const ContentBlockView = memo(function ContentBlockView({ block, agentName, stateKey, onReviewTaskCreated }: {
   block: ContentBlock;
   agentName: string;
+  stateKey?: string;
   onReviewTaskCreated?: () => void;
 }) {
   switch (block.type) {
@@ -392,7 +404,7 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, onRe
     case 'tool_group':
       return <ToolGroupBlock tools={block.tools} collapsed={block.collapsed} />;
     case 'text':
-      return <MarkdownContent html={block.html} />;
+      return <MarkdownContent html={block.html} stateKey={stateKey} />;
     case 'xing':
       return <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />;
     case 'file_output':

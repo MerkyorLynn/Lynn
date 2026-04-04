@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
-import { createChannel, createChannelWithExpert } from '../../stores/channel-actions';
+import { createChannel, createChannelWithExpert, createRoundtableWithExperts } from '../../stores/channel-actions';
 import { ExpertCard } from './ExpertCard';
 import type { Agent, ExpertPreset, Model } from '../../types';
 import styles from './Channels.module.css';
@@ -78,14 +78,17 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
   const [creating, setCreating] = useState(false);
   const [experts, setExperts] = useState<ExpertPreset[]>([]);
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
-  const [selectedExpertSlug, setSelectedExpertSlug] = useState<string | null>(null);
+  const [selectedExpertSlugs, setSelectedExpertSlugs] = useState<string[]>([]);
   const [selectedModelValue, setSelectedModelValue] = useState('');
+  const [roundtableTopic, setRoundtableTopic] = useState('');
 
   const hasEnoughAgents = agents.length >= 1;
-  const selectedExpert = useMemo(
-    () => experts.find((expert) => expert.slug === selectedExpertSlug) || null,
-    [experts, selectedExpertSlug],
+  const selectedExperts = useMemo(
+    () => experts.filter((expert) => selectedExpertSlugs.includes(expert.slug)),
+    [experts, selectedExpertSlugs],
   );
+  const selectedExpert = selectedExperts.length === 1 ? selectedExperts[0] : null;
+  const hasRoundtableSelection = selectedExperts.length >= 2;
 
   useEffect(() => {
     let cancelled = false;
@@ -130,16 +133,21 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
   }, [creating, hasEnoughAgents, agents, t]);
 
   const handleSelectExpert = useCallback((slug: string) => {
-    setSelectedExpertSlug((prev) => prev === slug ? null : slug);
+    setSelectedExpertSlugs((prev) => (
+      prev.includes(slug)
+        ? prev.filter((item) => item !== slug)
+        : [...prev, slug]
+    ));
     setSelectedModelValue('');
+    setRoundtableTopic('');
   }, []);
 
   const handleCreateWithExpert = useCallback(async () => {
-    if (!selectedExpertSlug || creating) return;
+    if (!selectedExpert || creating) return;
     setCreating(true);
     try {
       const selectedModel = decodeModelValue(selectedModelValue);
-      await createChannelWithExpert(selectedExpertSlug, {
+      await createChannelWithExpert(selectedExpert.slug, {
         modelId: selectedModel.id,
         provider: selectedModel.provider,
       });
@@ -148,7 +156,22 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
     } finally {
       setCreating(false);
     }
-  }, [creating, selectedExpertSlug, selectedModelValue]);
+  }, [creating, selectedExpert, selectedModelValue]);
+
+  const handleCreateRoundtable = useCallback(async () => {
+    if (!hasRoundtableSelection || creating) return;
+    setCreating(true);
+    try {
+      await createRoundtableWithExperts(selectedExpertSlugs, {
+        topic: roundtableTopic.trim() || undefined,
+        channelName: roundtableTopic.trim() || undefined,
+      });
+    } catch (err) {
+      console.error('[ExpertTeamGuide] create roundtable failed:', err);
+    } finally {
+      setCreating(false);
+    }
+  }, [creating, hasRoundtableSelection, roundtableTopic, selectedExpertSlugs]);
 
   return (
     <div className={styles.expertGuide}>
@@ -178,8 +201,10 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
                 expert={expert}
                 onSelect={handleSelectExpert}
                 disabled={creating}
-                selected={expert.slug === selectedExpertSlug}
-                actionLabel={expert.slug === selectedExpertSlug ? (t('channel.expertSelected') || '已选中') : undefined}
+                selected={selectedExpertSlugs.includes(expert.slug)}
+                actionLabel={selectedExpertSlugs.includes(expert.slug)
+                  ? (hasRoundtableSelection ? (t('channel.expertSelected') || '已选中') : (t('channel.expertSelected') || '已选中'))
+                  : undefined}
               />
             ))}
           </div>
@@ -215,6 +240,37 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
                   {creating
                     ? (t('channel.expertCreating') || '创建中...')
                     : (t('channel.expertCreateChannel') || '创建与 Ta 的频道')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hasRoundtableSelection && (
+            <div className={styles.expertConfigPanel}>
+              <div className={styles.expertConfigTitle}>{t('channel.expertTeam.roundtableTitle') || '圆桌会议'}</div>
+              <div className={styles.expertConfigName}>
+                {selectedExperts.map((expert) => expertName(expert)).join('、')}
+              </div>
+              <label className={styles.channelOverlayLabel}>{t('channel.createIntro') || '频道介绍'}</label>
+              <input
+                className={styles.channelOverlayInput}
+                type="text"
+                value={roundtableTopic}
+                placeholder={t('channel.expertTeam.roundtablePlaceholder') || '比如：一起讨论当前项目的下一步'}
+                onChange={(e) => setRoundtableTopic(e.target.value)}
+              />
+              <p className={styles.expertConfigHint}>
+                {t('channel.expertTeam.roundtableHint') || '会先创建多个专家，再自动拉起一个多专家讨论频道。'}
+              </p>
+              <div className={styles.channelOverlayActions}>
+                <button
+                  className={styles.channelOverlayConfirm}
+                  onClick={handleCreateRoundtable}
+                  disabled={creating}
+                >
+                  {creating
+                    ? (t('channel.expertCreating') || '创建中...')
+                    : (t('channel.expertTeam.roundtableCreate') || '启动圆桌会议')}
                 </button>
               </div>
             </div>

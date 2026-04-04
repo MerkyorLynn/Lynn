@@ -18,6 +18,7 @@ import { initJian } from './stores/desk-actions';
 import { initEditorEvents } from './stores/artifact-actions';
 import { updateLayout } from './components/SidebarLayout';
 import { initErrorBusBridge } from './errors/error-bus-bridge';
+import type { TaskRuntimeSnapshot } from './types';
 // @ts-expect-error — shared JS module
 import { errorBus as _errorBus } from '../../../shared/error-bus.js';
 // @ts-expect-error — shared JS module
@@ -53,6 +54,62 @@ window.addEventListener('unhandledrejection', (e) => {
   _errorBus.report(_AppError.wrap(e.reason));
 });
 
+function maybeAnnounceRecoveredTasks(snapshot: TaskRuntimeSnapshot | null | undefined): void {
+  const activeCount = Number(snapshot?.activeCount || 0);
+  if (!activeCount) return;
+
+  const ids = Array.isArray(snapshot?.recent)
+    ? snapshot.recent.map((task) => task.id).filter(Boolean).join(',')
+    : '';
+  const toastKey = `runtime-recovered:${activeCount}:${ids}`;
+
+  try {
+    if (window.sessionStorage?.getItem(toastKey)) return;
+    window.sessionStorage?.setItem(toastKey, '1');
+  } catch {
+    // ignore sessionStorage failures
+  }
+
+  useStore.getState().addToast(
+    t('status.tasksRecovered', { count: activeCount }),
+    'info',
+    5000,
+    { dedupeKey: toastKey },
+  );
+}
+
+async function syncRuntimeSnapshot(opts: { announceRecovery?: boolean } = {}): Promise<void> {
+  try {
+    const res = await hanaFetch('/api/app-state');
+    const data = await res.json();
+    const patch: Record<string, unknown> = {};
+    if (data?.agent?.currentAgentId) patch.currentAgentId = data.agent.currentAgentId;
+    if (data?.agent?.name) patch.agentName = data.agent.name;
+    if (data?.agent?.yuan) patch.agentYuan = data.agent.yuan;
+    if (data?.desk?.homeFolder !== undefined) {
+      patch.homeFolder = data.desk.homeFolder || null;
+      patch.selectedFolder = data.desk.homeFolder || null;
+    }
+    if (Array.isArray(data?.desk?.trustedRoots)) patch.trustedRoots = data.desk.trustedRoots;
+    if (data?.model?.current?.id) {
+      patch.currentModel = {
+        id: data.model.current.id,
+        provider: data.model.current.provider || '',
+      };
+    }
+    if (data?.tasks !== undefined) patch.taskSnapshot = data.tasks || null;
+    if (Object.keys(patch).length > 0) useStore.setState(patch);
+    if (opts.announceRecovery) maybeAnnounceRecoveredTasks(data?.tasks || null);
+    if (data?.security?.mode) {
+      useStore.getState().setSecurityMode(data.security.mode);
+      window.dispatchEvent(new CustomEvent('hana-security-mode', { detail: { mode: data.security.mode } }));
+      window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: !!data.security.planMode } }));
+    }
+  } catch (err) {
+    console.warn('[init] runtime snapshot sync failed:', err);
+  }
+}
+
 // ── 主初始化流程 ──
 
 export async function initApp(): Promise<void> {
@@ -71,12 +128,14 @@ export async function initApp(): Promise<void> {
 
   // 2. 并行获取 health + config
   try {
-    const [healthRes, configRes] = await Promise.all([
+    const [healthRes, configRes, appStateRes] = await Promise.all([
       hanaFetch('/api/health'),
       hanaFetch('/api/config'),
+      hanaFetch('/api/app-state'),
     ]);
     const healthData = await healthRes.json();
     const configData = await configRes.json();
+    const appStateData = await appStateRes.json();
 
     // 3. 加载 i18n
     await i18n.load(configData.locale || 'zh-CN');
@@ -84,20 +143,29 @@ export async function initApp(): Promise<void> {
 
     // 4. 应用 agent 身份
     await applyAgentIdentity({
-      agentName: healthData.agent || 'Lynn',
+      agentName: appStateData?.agent?.name || healthData.agent || 'Lynn',
+      agentId: appStateData?.agent?.currentAgentId || undefined,
       userName: healthData.user || t('common.user'),
+      yuan: appStateData?.agent?.yuan || undefined,
       ui: { avatars: false, agents: false, welcome: true },
     });
 
     // 5. 设置 desk 相关状态
     useStore.setState({
-      homeFolder: configData.desk?.home_folder || null,
-      trustedRoots: Array.isArray(configData.desk?.trusted_roots) ? configData.desk.trusted_roots : [],
-      selectedFolder: configData.desk?.home_folder || null,
+      homeFolder: appStateData?.desk?.homeFolder || configData.desk?.home_folder || null,
+      trustedRoots: Array.isArray(appStateData?.desk?.trustedRoots)
+        ? appStateData.desk.trustedRoots
+        : (Array.isArray(configData.desk?.trusted_roots) ? configData.desk.trusted_roots : []),
+      selectedFolder: appStateData?.desk?.homeFolder || configData.desk?.home_folder || null,
+      currentModel: appStateData?.model?.current?.id
+        ? { id: appStateData.model.current.id, provider: appStateData.model.current.provider || '' }
+        : null,
+      taskSnapshot: appStateData?.tasks || null,
     });
     if (Array.isArray(configData.cwd_history)) {
       useStore.setState({ cwdHistory: configData.cwd_history });
     }
+    maybeAnnounceRecoveredTasks(appStateData?.tasks || null);
 
     // 6. 加载头像
     loadAvatars(healthData.avatars);
@@ -174,6 +242,7 @@ export async function initApp(): Promise<void> {
   platform.onServerRestarted?.((data: { port: number; token: string }) => {
     useStore.setState({ serverPort: String(data.port), serverToken: data.token });
     connectWebSocket(String(data.port), data.token);
+    void syncRuntimeSnapshot({ announceRecovery: true });
     hanaFetch('/api/health')
       .then((res) => res.json())
       .then((healthData) => loadAvatars(healthData?.avatars))
@@ -205,12 +274,17 @@ export async function initApp(): Promise<void> {
           agentName: data.agentName,
           agentId: data.agentId,
         });
+        void syncRuntimeSnapshot({ announceRecovery: false });
         loadSessions();
         loadChannels();
         window.__loadDeskSkills?.();
         break;
       case 'skills-changed':
         window.__loadDeskSkills?.();
+        window.dispatchEvent(new CustomEvent('skills-changed'));
+        break;
+      case 'desk-config-changed':
+        void syncRuntimeSnapshot({ announceRecovery: false });
         break;
       case 'locale-changed':
         i18n.load(data.locale).then(() => {
@@ -219,6 +293,7 @@ export async function initApp(): Promise<void> {
         });
         break;
       case 'models-changed':
+        void syncRuntimeSnapshot({ announceRecovery: false });
         loadModels();
         break;
       case 'agent-created':
@@ -227,13 +302,16 @@ export async function initApp(): Promise<void> {
         loadChannels();
         break;
       case 'agent-updated':
-        applyAgentIdentity({
-          agentName: data.agentName,
-          agentId: data.agentId,
-          ui: { settings: false },
-        });
+        if (!data?.agentId || data.agentId === useStore.getState().currentAgentId) {
+          applyAgentIdentity({
+            agentName: data.agentName,
+            agentId: data.agentId,
+            ui: { settings: false },
+          });
+        }
         break;
       case 'review-config-changed':
+        void syncRuntimeSnapshot({ announceRecovery: false });
         window.dispatchEvent(new CustomEvent('review-config-changed', { detail: data || null }));
         break;
       case 'theme-changed':

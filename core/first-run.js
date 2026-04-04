@@ -8,9 +8,25 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import YAML from "js-yaml";
 import { safeCopyDir } from '../shared/safe-fs.js';
 import { AppError } from '../shared/errors.js';
 import { errorBus } from '../shared/error-bus.js';
+import { uniqueTrustedRoots } from '../shared/trusted-roots.js';
+
+const RECOMMENDED_DEFAULT_SKILLS = [
+  "quiet-musing",
+  "find-skills",
+  "summarize",
+  "baidu-search",
+  "brave-search",
+  "tavily",
+  "github",
+  "notion",
+  "frontend-design",
+  "weather",
+  "Agent Browser",
+];
 
 /**
  * 确保 ~/.lynn/ 数据目录就绪
@@ -24,6 +40,12 @@ export function ensureFirstRun(lynnHome, productDir) {
   // 1. 确保目录结构存在
   fs.mkdirSync(path.join(lynnHome, "agents"), { recursive: true });
   fs.mkdirSync(path.join(lynnHome, "user"), { recursive: true });
+
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
+
+  // 1b. 老版本主助手迁移：旧安装里主助手目录仍叫 hanako，
+  // 但显示名已经是 Lynn，会导致新逻辑和运行时状态长期错位。
+  migrateLegacyPrimaryAgent({ agentsDir: path.join(lynnHome, "agents"), prefsPath, productDir });
 
   // 2. 如果 agents/ 没有任何 agent → 播种默认 agent
   const agentsDir = path.join(lynnHome, "agents");
@@ -42,6 +64,7 @@ export function ensureFirstRun(lynnHome, productDir) {
   fs.mkdirSync(skillsDst, { recursive: true });
   if (fs.existsSync(skillsSrc)) {
     syncSkills(skillsSrc, skillsDst);
+    seedRecommendedSkills(agentsDir, skillsDst);
   }
 
   // 4. 确保可选文件存在（老用户升级 + 新 agent 都覆盖）
@@ -54,7 +77,6 @@ export function ensureFirstRun(lynnHome, productDir) {
   }
 
   // 5. 确保 user/preferences.json 存在
-  const prefsPath = path.join(lynnHome, "user", "preferences.json");
   if (!fs.existsSync(prefsPath)) {
     fs.writeFileSync(
       prefsPath,
@@ -64,6 +86,8 @@ export function ensureFirstRun(lynnHome, productDir) {
       "utf-8",
     );
   }
+
+  ensureDefaultWorkspacePrefs(prefsPath, productDir);
 }
 
 /**
@@ -84,6 +108,110 @@ function migrateFromHanako(lynnHome) {
   } catch (err) {
     console.error(`[first-run] 数据目录迁移失败 (${err.message})，将使用新目录`);
   }
+}
+
+function migrateLegacyPrimaryAgent({ agentsDir, prefsPath, productDir }) {
+  const legacyAgentId = "hanako";
+  const nextAgentId = "lynn";
+  const legacyDir = path.join(agentsDir, legacyAgentId);
+  const nextDir = path.join(agentsDir, nextAgentId);
+
+  if (!fs.existsSync(legacyDir) || fs.existsSync(nextDir)) return;
+
+  const prefs = readJsonFile(prefsPath);
+  const primaryAgent = typeof prefs.primaryAgent === "string" ? prefs.primaryAgent.trim() : "";
+  if (primaryAgent && primaryAgent !== legacyAgentId) return;
+
+  const configPath = path.join(legacyDir, "config.yaml");
+  if (!fs.existsSync(configPath)) return;
+
+  let config;
+  try {
+    config = YAML.load(fs.readFileSync(configPath, "utf-8")) || {};
+  } catch {
+    return;
+  }
+
+  const agentName = String(config?.agent?.name || "").trim().toLowerCase();
+  const yuanType = String(config?.agent?.yuan || "").trim().toLowerCase();
+  const looksLikeLegacyMainAgent = agentName === "lynn" && (!yuanType || yuanType === "hanako");
+  if (!looksLikeLegacyMainAgent) return;
+
+  fs.renameSync(legacyDir, nextDir);
+  normalizeMigratedLynnAgent(nextDir, productDir);
+
+  const nextPrefs = { ...prefs, primaryAgent: nextAgentId };
+  if (Array.isArray(nextPrefs.agentOrder)) {
+    nextPrefs.agentOrder = nextPrefs.agentOrder.map((id) => id === legacyAgentId ? nextAgentId : id);
+  }
+  if (nextPrefs.review && typeof nextPrefs.review === "object") {
+    if (nextPrefs.review.hanakoReviewerId === legacyAgentId) nextPrefs.review.hanakoReviewerId = null;
+    if (nextPrefs.review.butterReviewerId === legacyAgentId) nextPrefs.review.butterReviewerId = null;
+  }
+  writeJsonFile(prefsPath, nextPrefs);
+
+  console.log(`[first-run] 已将旧主助手 "${legacyAgentId}" 迁移为 "${nextAgentId}"`);
+}
+
+function normalizeMigratedLynnAgent(agentDir, productDir) {
+  const configPath = path.join(agentDir, "config.yaml");
+  try {
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const cfg = YAML.load(raw) || {};
+    cfg.agent = cfg.agent || {};
+    if (!String(cfg.agent.name || "").trim()) cfg.agent.name = "Lynn";
+    if (!String(cfg.agent.yuan || "").trim() || String(cfg.agent.yuan).trim().toLowerCase() === "hanako") {
+      cfg.agent.yuan = "lynn";
+    }
+    fs.writeFileSync(configPath, YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+  } catch {}
+
+  const lynnPublicIshiki = path.join(productDir, "public-ishiki-templates", "lynn.md");
+  const publicIshikiPath = path.join(agentDir, "public-ishiki.md");
+  if (!fs.existsSync(publicIshikiPath) && fs.existsSync(lynnPublicIshiki)) {
+    fs.copyFileSync(lynnPublicIshiki, publicIshikiPath);
+  }
+}
+
+function readJsonFile(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeJsonFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + "\n", "utf-8");
+}
+
+function ensureDefaultWorkspacePrefs(prefsPath, productDir) {
+  const prefs = readJsonFile(prefsPath);
+  const desktopRoot = path.join(os.homedir(), 'Desktop');
+  const workspacePath = path.join(desktopRoot, 'Lynn');
+  const installRoot = path.resolve(productDir, '..');
+
+  try { fs.mkdirSync(workspacePath, { recursive: true }); } catch {}
+
+  const nextHomeFolder = String(prefs.home_folder || '').trim() || workspacePath;
+  const nextTrustedRoots = uniqueTrustedRoots([
+    ...(Array.isArray(prefs.trusted_roots) ? prefs.trusted_roots : []),
+    installRoot,
+    desktopRoot,
+    workspacePath,
+  ]);
+
+  const changed = nextHomeFolder !== prefs.home_folder
+    || JSON.stringify(nextTrustedRoots) !== JSON.stringify(Array.isArray(prefs.trusted_roots) ? prefs.trusted_roots : []);
+
+  if (!changed) return;
+
+  writeJsonFile(prefsPath, {
+    ...prefs,
+    home_folder: nextHomeFolder,
+    trusted_roots: nextTrustedRoots,
+  });
 }
 
 /**
@@ -161,5 +289,63 @@ function syncSkills(srcDir, dstDir) {
       }));
       // Continue with other skills, don't abort
     }
+  }
+}
+
+function parseSkillName(skillMdPath, fallbackName) {
+  try {
+    const content = fs.readFileSync(skillMdPath, "utf-8");
+    const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    const nameMatch = fmMatch?.[1]?.match(/^name:\s*(.+)$/m);
+    const parsed = nameMatch?.[1]?.trim().replace(/^["']|["']$/g, "");
+    return parsed || fallbackName;
+  } catch {
+    return fallbackName;
+  }
+}
+
+function collectBundledSkillNames(skillsDir) {
+  const names = new Set();
+  try {
+    const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      const skillMdPath = path.join(skillsDir, entry.name, "SKILL.md");
+      if (!fs.existsSync(skillMdPath)) continue;
+      names.add(parseSkillName(skillMdPath, entry.name));
+    }
+  } catch {}
+  return names;
+}
+
+function seedRecommendedSkills(agentsDir, skillsDir) {
+  const availableSkillNames = collectBundledSkillNames(skillsDir);
+  const recommended = RECOMMENDED_DEFAULT_SKILLS.filter((name) => availableSkillNames.has(name));
+  if (recommended.length === 0) return;
+
+  const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const configPath = path.join(agentsDir, entry.name, "config.yaml");
+    if (!fs.existsSync(configPath)) continue;
+
+    try {
+      const cfg = YAML.load(fs.readFileSync(configPath, "utf-8")) || {};
+      cfg.skills = cfg.skills || {};
+      if (cfg.skills._recommended_seeded === true) continue;
+
+      const currentEnabled = Array.isArray(cfg.skills.enabled) ? cfg.skills.enabled.filter(Boolean) : [];
+      const looksUnseeded = currentEnabled.length === 0
+        || (currentEnabled.length === 1 && currentEnabled[0] === "quiet-musing");
+      if (!looksUnseeded) {
+        cfg.skills._recommended_seeded = true;
+        fs.writeFileSync(configPath, YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+        continue;
+      }
+
+      cfg.skills.enabled = [...new Set([...currentEnabled, ...recommended])];
+      cfg.skills._recommended_seeded = true;
+      fs.writeFileSync(configPath, YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+    } catch {}
   }
 }

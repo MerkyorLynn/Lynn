@@ -69,6 +69,22 @@ describe("TaskRuntime", () => {
     );
   });
 
+  it("creates and completes a plan task", async () => {
+    const task = runtime.createPlanTask({
+      title: "Plan rollout",
+      prompt: "Break the release into stages",
+      autoRun: false,
+    });
+
+    await runtime.runTask(task.id);
+
+    const stored = runtime.getTask(task.id);
+    expect(stored?.type).toBe("plan");
+    expect(stored?.status).toBe(TASK_STATUS.COMPLETED);
+    expect(stored?.artifacts?.some((artifact) => artifact.label === "规划结果" || artifact.label === "Planning output")).toBe(true);
+    expect(runAgentSession).toHaveBeenCalled();
+  });
+
   it("tracks approval-linked confirm cards and flips task status back to running on approval", async () => {
     const task = runtime.createTask({
       type: "delegate",
@@ -187,6 +203,48 @@ describe("TaskRuntime", () => {
       status: "done",
       source: "review_follow_up",
     }));
+  });
+
+  it("records completed plan tasks into activity stream", async () => {
+    const activityEntries = [];
+    runtime = new TaskRuntime({
+      hub,
+      engine: {
+        ...makeEngine(tmpDir),
+        getActivityStore: () => ({ add: (entry) => activityEntries.push(entry) }),
+      },
+      lynnHome: tmpDir,
+    });
+
+    const task = runtime.createPlanTask({
+      title: "Plan a refactor",
+      prompt: "Draft the work plan",
+      autoRun: false,
+      metadata: { autoRun: true },
+    });
+
+    await runtime.runTask(task.id);
+
+    expect(activityEntries).toHaveLength(1);
+    expect(activityEntries[0]).toEqual(expect.objectContaining({
+      type: "plan",
+      taskId: task.id,
+      status: "done",
+    }));
+  });
+
+  it("retries review tasks without corrupting metadata", () => {
+    const task = runtime.createReviewTask({
+      title: "Review task",
+      context: "Check the patch",
+      metadata: { sourceTag: "seed" },
+    });
+
+    const retried = runtime.retryTask(task.id);
+
+    expect(retried?.runner?.kind).toBe("review");
+    expect(retried?.metadata?.retryOf).toBe(task.id);
+    expect(retried?.metadata?.sourceTag).toBe("seed");
   });
 
 });

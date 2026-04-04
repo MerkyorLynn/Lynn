@@ -33,6 +33,21 @@ function writeModelsCache(engine, cache) {
 export function createProvidersRoute(engine) {
   const route = new Hono();
 
+  function normalizeBaseUrl(value) {
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+
+  function resolveAllowMissingApiKey(name, baseUrl) {
+    if (name) {
+      return engine.providerRegistry?.get?.(name)?.authType === "none";
+    }
+    const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+    if (!normalizedBaseUrl) return false;
+    return [...(engine.providerRegistry?.getAll?.()?.values?.() || [])].some((entry) => {
+      return entry?.authType === "none" && normalizeBaseUrl(entry.baseUrl) === normalizedBaseUrl;
+    });
+  }
+
   // ── Cache helper: persist discovered models per-provider ──
   function saveToCache(providerName, models) {
     if (!providerName || !models?.length) return;
@@ -59,6 +74,7 @@ export function createProvidersRoute(engine) {
         base_url: p.base_url || entry?.baseUrl || "",
         api_key: p.api_key || "",
         api: p.api || entry?.api || "",
+        auth_type: p.auth_type || entry?.authType || "api-key",
         models: p.models || [],
       };
     }
@@ -102,18 +118,21 @@ export function createProvidersRoute(engine) {
       const isOAuth = provRegistry.isOAuth(name);
       const oauthInfo = getOAuthLoginInfo(name);
       const sdkIds = sdkByProvider.get(name) || [];
-      const allModels = [...new Set([...(p.models || []), ...sdkIds])];
+      const defaultModels = provRegistry.getDefaultModels(name) || [];
+      const allModels = [...new Set([...(p.models || []), ...defaultModels, ...sdkIds])];
       const customModels = oauthCustom[name] || [];
 
       result[name] = {
-        type: isOAuth ? "oauth" : "api-key",
+        type: isOAuth ? "oauth" : ((p.auth_type || provRegistry.get(name)?.authType) === "none" ? "none" : "api-key"),
         display_name: oauthInfo?.name || name,
         base_url: p.base_url || "",
         api: p.api || "",
         api_key: p.api_key || "",
         models: allModels,
         custom_models: customModels,
-        has_credentials: !!(p.api_key || (isOAuth && oauthInfo?.loggedIn)),
+        has_credentials: ((p.auth_type || provRegistry.get(name)?.authType) === "none")
+          ? !!(p.base_url || provRegistry.get(name)?.baseUrl)
+          : !!(p.api_key || (isOAuth && oauthInfo?.loggedIn)),
         logged_in: isOAuth ? !!oauthInfo?.loggedIn : undefined,
         supports_oauth: isOAuth,
         is_coding_plan: name.endsWith("-coding"),
@@ -153,15 +172,16 @@ export function createProvidersRoute(engine) {
         if (result[id]) continue;
         if (entry.authType === "oauth") continue; // OAuth provider 走上面的白名单逻辑
         const sdkIds = sdkByProvider.get(id) || [];
+        const defaultModels = provRegistry.getDefaultModels(id) || [];
         result[id] = {
-          type: "api-key",
+          type: entry.authType === "none" ? "none" : "api-key",
           display_name: entry.displayName || id,
           base_url: entry.baseUrl || "",
           api: entry.api || "",
           api_key: "",
-          models: sdkIds,
+          models: [...new Set([...defaultModels, ...sdkIds])],
           custom_models: [],
-          has_credentials: false,
+          has_credentials: entry.authType === "none" ? !!entry.baseUrl : false,
           logged_in: undefined,
           supports_oauth: false,
           is_coding_plan: id.endsWith("-coding"),
@@ -203,6 +223,7 @@ export function createProvidersRoute(engine) {
     const savedKey = savedProvider.api_key || "";
     const effectiveBaseUrl = base_url || savedProvider.base_url || "";
     const effectiveApi = explicitApi || savedProvider.api || "";
+    const allowMissingApiKey = resolveAllowMissingApiKey(name, effectiveBaseUrl);
     const hasExplicitRemoteConfig = !!(effectiveBaseUrl && effectiveApi && (api_key || savedKey));
 
     const isOAuthProvider = !!name && engine.providerRegistry.isOAuth(name);
@@ -271,11 +292,15 @@ export function createProvidersRoute(engine) {
     try {
       const url = base_url.replace(/\/+$/, "") + "/models";
       let headers = { "Content-Type": "application/json" };
-      if (key) {
+      if (key || allowMissingApiKey) {
         if (!api) {
-          return c.json({ error: "api is required when api_key is present", models: [] });
+          return c.json({ error: "api is required", models: [] });
         }
-        headers = buildProviderAuthHeaders(api, key);
+        headers = buildProviderAuthHeaders(api, key, {
+          allowMissingApiKey,
+          method: "GET",
+          pathname: "/models",
+        });
       }
       const res = await fetch(url, {
         headers,
@@ -321,7 +346,7 @@ export function createProvidersRoute(engine) {
    */
   route.post("/providers/test", async (c) => {
     const body = await safeJson(c);
-    const { base_url, api } = body;
+    const { name, base_url, api } = body;
     // 清洗 API key：去除非 ASCII 字符（防止粘贴时输入法带入中文）
     const api_key = (body.api_key || "").replace(/[^\x20-\x7E]/g, "").trim();
     if (!base_url) {
@@ -330,9 +355,21 @@ export function createProvidersRoute(engine) {
 
     try {
       const probe = buildProbeUrl(base_url, api);
+      const allowMissingApiKey = resolveAllowMissingApiKey(name, base_url);
+      const pathname = (() => {
+        try {
+          return new URL(probe.url).pathname || "/models";
+        } catch {
+          return probe.method === "POST" ? "/v1/messages" : "/models";
+        }
+      })();
 
       if (api === "anthropic-messages") {
-        const headers = buildProviderAuthHeaders(api, api_key);
+        const headers = buildProviderAuthHeaders(api, api_key, {
+          allowMissingApiKey,
+          method: probe.method,
+          pathname,
+        });
         const res = await fetch(probe.url, {
           method: probe.method,
           headers,
@@ -345,11 +382,15 @@ export function createProvidersRoute(engine) {
       }
 
       let headers = {};
-      if (api_key) {
+      if (api_key || allowMissingApiKey) {
         if (!api) {
           return c.json({ error: "api is required when api_key is present" }, 400);
         }
-        headers = buildProviderAuthHeaders(api, api_key);
+        headers = buildProviderAuthHeaders(api, api_key, {
+          allowMissingApiKey,
+          method: probe.method,
+          pathname,
+        });
       }
       const res = await fetch(probe.url, {
         headers,

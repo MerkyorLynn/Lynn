@@ -62,7 +62,10 @@ describe('composer-state', () => {
 
     const draft = buildRetryDraftFromMessage(message);
 
-    expect(draft).toEqual(message.retryDraft);
+    expect(draft).toEqual({
+      ...message.retryDraft,
+      docContextFile: null,
+    });
     message.retryDraft!.attachedFiles[0].name = 'changed.txt';
     expect(draft.attachedFiles[0].name).toBe('a.txt');
   });

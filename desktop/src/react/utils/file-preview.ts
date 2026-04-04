@@ -27,6 +27,40 @@ export const PREVIEWABLE_EXTS: Record<string, string> = {
 
 export const BINARY_PREVIEW_TYPES = new Set(['image', 'pdf']);
 
+export function resolvePreviewTarget(rawHref: string | null | undefined): { filePath: string; ext: string } | null {
+  const value = rawHref?.trim();
+  if (!value) return null;
+
+  let normalized = value;
+  if (normalized.startsWith('file://')) {
+    try {
+      normalized = new URL(normalized).pathname;
+    } catch {
+      normalized = normalized.replace(/^file:\/\//, '');
+    }
+  }
+
+  if (/^[a-z]+:\/\//i.test(normalized) && !normalized.startsWith('/')) {
+    return null;
+  }
+
+  if (!normalized.startsWith('/')) return null;
+
+  normalized = normalized.split('?')[0] || normalized;
+  normalized = normalized.split('#')[0] || normalized;
+  normalized = normalized.replace(/:\d+(?::\d+)?$/, '');
+
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    // keep original path if decode fails
+  }
+
+  const fileName = normalized.split('/').pop() || '';
+  const ext = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : '';
+  return { filePath: normalized, ext };
+}
+
 export async function readFileForPreview(filePath: string, ext: string): Promise<string | null> {
   const previewType = PREVIEWABLE_EXTS[ext];
   if (!previewType) return null;

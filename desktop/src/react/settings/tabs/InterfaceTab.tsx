@@ -10,7 +10,7 @@ const i18n = window.i18n;
 
 export function InterfaceTab() {
   const { settingsConfig } = useSettingsStore();
-  const currentTheme = localStorage.getItem('hana-theme') || 'auto';
+  const currentTheme = localStorage.getItem('hana-theme') || 'warm-paper';
   const serifEnabled = localStorage.getItem('hana-font-serif') !== '0';
 
   const locale = settingsConfig?.locale || 'zh-CN';

@@ -154,6 +154,7 @@
     "planMode": "터미널·쓰기 허용 (끄면 읽기 전용)",
     "deskContext": "책상 컨텍스트 포함",
     "pastedImage": "붙여넣은 이미지",
+    "attachFile": "파일 첨부",
     "docContext": "문서 포함",
     "thinkingLevel": {
       "off": "끔",
@@ -1053,8 +1054,8 @@
     "tutorial": {
       "title": "준비 완료 ✿",
       "quickTitle": "Quick Start 준비 완료 ✿",
-      "quickBannerTitle": "이제 바로 대화를 시작할 수 있어요",
-      "quickBannerDesc": "Provider, 모델, 테마는 아직 나중이어도 괜찮아요.\n먼저 Lynn을 써보고 필요할 때 설정에서 마저 맞추세요.",
+      "quickBannerTitle": "이제 작업 공간은 바로 굴리기 시작할 수 있어요",
+      "quickBannerDesc": "먼저 작업 공간, Jian, 순찰부터 써보세요.\nProvider와 모델은 나중에 설정에서 연결할 수 있고, 활동 패널이 백그라운드 진행 상황을 계속 보여줘요.",
       "memory": {
         "title": "기억",
         "desc": "대화에서 중요한 내용을 기억해요. 오래되고 덜 참조된 기억은 자연스럽게 흐려져요. 우리의 기억처럼."
@@ -1071,6 +1072,14 @@
         "title": "Jian",
         "desc": "아무 폴더에 jian.md를 넣어두면\n순찰할 때 확인하고 자동으로 실행해요."
       },
+      "patrol": {
+        "title": "자동 순찰",
+        "desc": "순찰을 켜두면 작업 공간의 변화와 새로운 Jian을 계속 확인하면서 긴 작업도 끊기지 않게 이어가요."
+      },
+      "activity": {
+        "title": "활동 패널",
+        "desc": "백그라운드 실행, 리뷰 후속 작업, 순찰 결과가 여기에 남아요.\n무슨 일이 있었는지 다시 묻지 않고 바로 이어서 진행할 수 있어요."
+      },
       "finish": "시작할게요",
       "quickFinish": "지금 Lynn으로 들어가기"
     }
@@ -1080,10 +1089,12 @@
     "empty": "아직 활동이 없어요. 순찰과 예약 작업이 여기에 표시돼요.",
     "back": "뒤로",
     "heartbeat": "정기 순찰",
+    "plan": "계획 작업",
     "delegate": "위임 작업",
     "reviewFollowUp": "리뷰 후속 실행",
     "cron": "예약 작업",
     "patrolDone": "순찰 완료",
+    "planDone": "계획 완료",
     "cronDone": "예약 작업 완료",
     "error": "실행 오류",
     "viewSession": "세션 보기 →",

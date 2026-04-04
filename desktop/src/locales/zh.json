@@ -76,6 +76,10 @@
       "creating": "创建中...",
       "expertPresets": "专家预设（使用你的 API Key）",
       "channelTemplates": "频道模板（使用已有 Agent）",
+      "roundtableTitle": "圆桌会议",
+      "roundtablePlaceholder": "比如：一起讨论当前项目的下一步",
+      "roundtableHint": "会先创建多个专家，再自动拉起一个多专家讨论频道。",
+      "roundtableCreate": "启动圆桌会议",
       "spawnSuccess": "专家已创建",
       "spawnFailed": "创建专家失败",
       "modelGuide": "💡 专家使用你配置的模型运行。推荐模型标注在卡片上，可在「设置 → 模型」中配置对应供应商的 API Key 以获得最佳效果。",
@@ -113,7 +117,18 @@
     "jian": "书桌",
     "bridge": "接入社交平台",
     "toggle": "侧边栏",
-    "bridgeShort": "接入社交平台"
+    "bridgeShort": "接入社交平台",
+    "search": "搜索对话...",
+    "noResults": "没有找到匹配的对话",
+    "capability": {
+      "web": "会搜网页",
+      "files": "改文件",
+      "shell": "跑命令",
+      "instructions": "已读项目指令",
+      "mcp": "能用 MCP",
+      "skills": "技能",
+      "projectRules": "指令"
+    }
   },
   "session": {
     "untitled": "新对话",
@@ -121,7 +136,9 @@
     "switchFailed": "切换 session 失败",
     "createFailed": "新建 session 失败",
     "archiveFailed": "归档 session 失败",
-    "rename": "重命名"
+    "rename": "重命名",
+    "editLabels": "编辑标签",
+    "labelsPlaceholder": "标签，用逗号分隔"
   },
   "common": {
     "on": "开",
@@ -156,6 +173,26 @@
     "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
     "retry": "Retry"
   },
+  "markdown": {
+    "runConfirm": {
+      "title": "执行代码块命令",
+      "message": "将把这段命令发给 Lynn 执行。",
+      "cwd": "工作目录",
+      "cwdUnknown": "未指定",
+      "risk": "风险级别",
+      "confirm": "继续执行"
+    },
+    "runRisk": {
+      "low": "低风险",
+      "medium": "中风险",
+      "high": "高风险"
+    }
+  },
+  "hint": {
+    "tableSort": "💡 点击表头可排序",
+    "checkboxTip": "可以勾选待办项",
+    "deskDrop": "拖拽文件到书桌 · ⌘J"
+  },
   "review": {
     "button": "复查",
     "cardTitle": "复查",
@@ -177,7 +214,8 @@
     "today": "今天",
     "yesterday": "昨天",
     "thisWeek": "本周",
-    "earlier": "更早"
+    "earlier": "更早",
+    "pinned": "置顶"
   },
   "status": {
     "connecting": "连接中...",
@@ -190,19 +228,24 @@
   },
   "input": {
     "placeholder": "说点什么...",
+    "hintSlash": "输入 / 查看快捷命令",
+    "hintDrag": "拖拽文件到此处附加上下文",
+    "hintCmdK": "⌘K 搜索历史对话",
+    "hintDesk": "⌘J 打开右侧书桌",
     "selectFolder": "选择工作文件夹",
     "workspace": "工作空间：",
     "selectWorkspace": "选择工作空间",
     "planMode": "允许读写与终端（关闭为只读）",
     "deskContext": "看着书桌说",
     "pastedImage": "粘贴图片",
+    "attachFile": "添加附件",
     "docContext": "看着文档说",
     "docContextOpenRecent": "点击打开最近的文档",
     "embeddedModel": {
       "name": "默认模型",
       "meta": "开箱可聊",
-      "upgrade": "提升质量",
-      "hint": "添加自己的模型",
+      "upgrade": "配置模型",
+      "hint": "连接供应商或添加 API Key",
       "upgradeTitle": "打开供应商设置"
     },
     "thinkingLevel": {
@@ -219,6 +262,8 @@
     },
     "contextWindow": "上下文 {windowK}k",
     "tokensUsed": "已用 {tokensK}k ({pct}%)",
+    "contextWarning": "上下文快满了",
+    "contextCritical": "自动压缩中...",
     "contextOverview": "这次会带上的上下文",
     "contextOverviewSubtitle": "发送前先确认一次，避免上下文带多或带少。",
     "contextMode": "模式",
@@ -241,7 +286,15 @@
     "diaryFailed": "日记写入失败",
     "xing": "反省当前对话",
     "compact": "压缩上下文",
-    "compactBusy": "正在压缩..."
+    "compactBusy": "正在压缩...",
+    "clear": "清空当前对话",
+    "clearDone": "对话已清空",
+    "clearFailed": "清空失败",
+    "plan": "切换规划模式",
+    "model": "切换模型",
+    "save": "保存检查点",
+    "saveDone": "检查点已保存",
+    "saveFailed": "检查点保存失败"
   },
   "welcome": {
     "messages": [
@@ -517,7 +570,8 @@
   "model": {
     "unknown": "未知模型",
     "offline": "离线",
-    "switchFailed": "切换模型失败"
+    "switchFailed": "切换模型失败",
+    "switchAfterNewSession": "请先新建会话后再切换模型"
   },
   "splash": {
     "lines": [
@@ -551,6 +605,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社交平台",
+      "mcp": "MCP",
       "plugins": "附加功能",
       "about": "关于"
     },
@@ -626,7 +681,7 @@
     },
     "about": {
       "title": "关于 Ta",
-      "tagline": "一个住在你电脑里的助手，记性很好。",
+      "tagline": "一个住在你电脑里的助手，有心跳，记性很好。",
       "license": "许可证",
       "copyright": "版权",
       "copyrightOriginal": "（原始版权）",
@@ -698,6 +753,10 @@
       "verifyConnection": "验证连接",
       "verifySuccess": "验证通过",
       "verifyFailed": "验证失败",
+      "ready": "已就绪",
+      "authLabel": "授权",
+      "baseUrlLabel": "地址",
+      "defaultModelReadyHint": "默认模型链路已经内置好，日常直接使用即可。只有在你主动换成其他供应商时，才需要额外配置。",
       "setupHint": "输入 API Key 以启用此供应商",
       "selectHint": "选择一个供应商查看详情",
       "addCustom": "添加自定义供应商",
@@ -706,6 +765,34 @@
       "deleteConfirm": "确定删除供应商 {name}？相关模型将一并清除。",
       "apiResponses": "OpenAI Responses",
       "apiCodex": "ChatGPT Codex（Plus/Pro）"
+    },
+    "mcp": {
+      "title": "MCP 服务",
+      "hint": "管理本地 stdio 和远程 SSE MCP 服务，连上后工具会直接进入 Lynn。",
+      "presets": "预设模板",
+      "newServer": "新建",
+      "serverList": "服务器列表",
+      "detail": "服务详情",
+      "name": "名称",
+      "nameRequired": "请输入 MCP 名称",
+      "transport": "传输",
+      "command": "命令",
+      "args": "参数",
+      "cwd": "工作目录",
+      "url": "SSE URL",
+      "messageUrl": "消息 URL（可选）",
+      "headers": "请求头",
+      "enabled": "启用此服务器",
+      "test": "测试连接",
+      "testSuccess": "连接成功",
+      "reload": "重新加载",
+      "reloaded": "已重新加载 MCP",
+      "empty": "还没有 MCP 服务器",
+      "tools": "工具",
+      "resources": "资源",
+      "source": "来源",
+      "local": "本地配置",
+      "discovered": "自动发现"
     },
     "oauth": {
       "title": "快速登录",
@@ -917,9 +1004,9 @@
       "noUser": "暂无自定义技能",
       "copyToSkills": "复制到我的技能",
       "copied": "已复制 ✓",
-      "copyFailed": "复制失败",
-      "dropzone": "拖入技能文件夹安装，或点击选择",
-      "learnHint": "试着对助手说：帮我从 GitHub 上找一些安全并且有用的技能",
+    "copyFailed": "复制失败",
+    "dropzone": "拖入技能文件夹安装，或点击选择",
+    "learnHint": "试着对助手说：帮我从 GitHub 上找一些安全并且有用的技能",
       "reloaded": "技能已刷新",
       "reload": "刷新技能",
       "compatTitle": "兼容技能",
@@ -994,6 +1081,8 @@
       "test": "测试连接",
       "testOk": "连接成功",
       "testFail": "测试失败",
+      "testOkInline": "联通通过",
+      "testFailInline": "无法联通",
       "noToken": "请先输入 Bot Token",
       "noCredentials": "请先填写 App ID 和 App Secret",
       "readOnly": "只读模式",
@@ -1090,10 +1179,11 @@
     },
     "permissions": {
       "title": "把权限一次准备好",
-      "subtitle": "先选一个工作空间，再把系统通知开好。\n这样 Lynn 启动时就不会再被动触发一串权限弹窗。",
+      "subtitle": "Quick Start 会先把默认工作台准备好：桌面上的 ~/Desktop/Lynn。\n同时把桌面和当前安装目录加入安全白名单，再把系统通知一次开好。",
       "workspace": {
         "title": "工作空间",
-        "desc": "选择一个你常用的项目目录。Lynn 之后只会在你明确授权的文件夹里进行巡检、定时任务和文件操作。",
+        "desc": "默认会在桌面创建一个 Lynn 文件夹，作为你的工作台。\nLynn 之后只会在这个工作台，以及你明确加入白名单的目录里进行巡检、定时任务和文件操作。",
+        "safeRoots": "默认安全区域",
         "selected": "已选择",
         "pending": "待选择",
         "placeholder": "还没选，继续时会弹出文件夹选择器"
@@ -1110,7 +1200,7 @@
           "unsupported": "无需授权"
         }
       },
-      "note": "点击继续后，Lynn 会按顺序引导你选择工作空间，并在需要时请求通知权限。",
+      "note": "点击继续后，Lynn 会把默认工作台和安全白名单写好，并在需要时请求通知权限。",
       "back": "上一步",
       "continue": "授权并继续",
       "working": "处理中..."
@@ -1118,11 +1208,11 @@
     "tutorial": {
       "title": "准备就绪 ✿",
       "quickTitle": "Quick Start 已完成 ✿",
-      "quickBannerTitle": "你已经可以先开始聊了",
-      "quickBannerDesc": "Provider、模型和主题还没关系，之后都可以在设置里补。\n先进去用起来，再慢慢收拾你的工作台。",
+      "quickBannerTitle": "先记住这一条主线：笺就是今天要做的工作",
+      "quickBannerDesc": "把今天要推进的事写进工作台里的 jian.md。\n巡检会反复看它，记忆会把稳定背景留下来，活动面板会告诉你它已经做到了哪一步。",
       "memory": {
         "title": "记忆",
-        "desc": "有多少记忆能被记住由你决定。\n记忆的留存不需要绝对一致。允许褶皱和缝隙存在，大语言模型能在具体的对话中辨认出哪些是符合现实情况的。"
+        "desc": "记忆不是另一套待办，而是给巡检和对话用的长期背景。\n工作台里的笺、你反复确认的事实、对话里的稳定约束，会慢慢沉成它之后继续做事时的上下文。"
       },
       "skills": {
         "title": "技能",
@@ -1130,11 +1220,19 @@
       },
       "workspace": {
         "title": "工作空间",
-        "desc": "指定一个文件夹作为工作空间，我就可以帮你管理项目和文件。"
+        "desc": "工作台默认在 ~/Desktop/Lynn。\n这里是你放项目、资料和 jian.md 的地方，也是 Lynn 日常巡检最先看的目录。"
       },
       "jian": {
         "title": "笺",
-        "desc": "在任意文件夹放一个 jian.md，写上你的指令。\n我会在巡检时看到它并自动执行。"
+        "desc": "jian.md 就是今天的主旋律文件。\n你把今天要做什么、做到哪一步、接下来怎么看，写在这里；巡检和智能体都会先读它，再决定下一步。"
+      },
+      "patrol": {
+        "title": "心跳 / 自动巡检",
+        "desc": "心跳就是 Lynn 按节奏回来看看工作台。\n它会重新读笺、检查项目有没有变化、判断有没有该继续推进的事，然后在合适的时候自己动起来。"
+      },
+      "activity": {
+        "title": "活动面板",
+        "desc": "活动面板会留下心跳、后台执行和复查后续的过程。\n所以你离开一阵再回来，也能立刻知道 Lynn 看了什么、做了什么、下一步准备做什么。"
       },
       "finish": "开始使用",
       "quickFinish": "直接进入 Lynn"
@@ -1144,11 +1242,14 @@
     "title": "助手活动",
     "empty": "暂时没有活动记录，日常巡检或定时任务执行后会出现在这里",
     "back": "返回",
+    "openRecoveredTasks": "查看后台任务",
     "heartbeat": "日常巡检",
+    "plan": "任务规划",
     "delegate": "委派任务",
     "reviewFollowUp": "复查后续执行",
     "cron": "定时任务",
     "patrolDone": "日常巡检完毕",
+    "planDone": "任务规划完成",
     "cronDone": "定时任务执行完毕",
     "error": "执行异常",
     "viewSession": "查看对话 →",
@@ -1822,17 +1923,28 @@
       "fullAccessDesc": "关闭沙盒隔离与命令限制"
     },
     "auth": {
-      "title": "需要确认",
-      "commandLabel": "即将执行：",
+      "title": "这次操作需要你的授权",
+      "summary": "Lynn 想在 {project} 里进行一项{scope}操作。你可以只放行这一步，也可以扩大授权范围。",
+      "reasonLabel": "为什么需要",
+      "commandLabel": "将要执行的命令",
       "allow": "允许执行",
-      "allowOnce": "仅本次允许",
-      "allowSession": "本会话允许",
-      "allowAlwaysHere": "始终允许此处",
-      "reject": "拒绝",
+      "allowOnce": "只放行这一步",
+      "allowSession": "本次任务都放行",
+      "allowAlwaysHere": "这个项目长期放行",
+      "reject": "否，先不要执行",
       "allowed": "已允许执行",
       "rejected": "已拒绝",
       "alwaysAllow": "以后都允许此类操作",
-      "trustedRoot": "受信任根目录"
+      "trustedRoot": "受信任根目录",
+      "scope": "终端",
+      "fileWrite": "文件写入",
+      "fileRead": "文件读取",
+      "fileOp": "文件访问",
+      "terminal": "终端执行",
+      "currentProject": "当前项目",
+      "allowOnceHint": "只放行当前这一步，后面类似操作还会再问你。",
+      "allowSessionHint": "本次任务剩下的类似操作都直接放行，任务结束后恢复确认。",
+      "allowAlwaysHereHint": "以后在 {project} 里的类似操作都直接放行。"
     }
   },
   "error.llmTimeout": "模型请求超时",
@@ -1859,6 +1971,9 @@
   "status.reconnecting": "正在重连...",
   "status.disconnected": "连接已断开",
   "status.reconnect": "重新连接",
+  "status.tasksRecovered": "已恢复 {count} 个后台任务",
+  "status.tasksRecoveredRunning": "后台还有 {count} 个任务正在继续",
+  "status.tasksRecoveredWaiting": "后台还有 {count} 个任务正在继续，其中 {waiting} 个在等你确认",
   "action.retry": "重试",
   "agentDiscovery.title": "发现已安装的 AI 工具",
   "agentDiscovery.body": "检测到你电脑上已安装以下 AI 工具：",

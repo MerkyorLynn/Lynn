@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSettingsStore } from './store';
 import { hanaFetch } from './api';
 import { t } from './helpers';
-import { loadAgents, loadAvatars, loadSettingsConfig } from './actions';
+import { loadAgents, loadAvatars, loadRuntimeSnapshot, loadSettingsConfig } from './actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { WindowControls } from '../components/WindowControls';
 import { SettingsNav } from './SettingsNav';
@@ -15,6 +15,7 @@ import { WorkTab } from './tabs/WorkTab';
 import { SkillsTab } from './tabs/SkillsTab';
 import { BridgeTab } from './tabs/BridgeTab';
 import { ProvidersTab } from './tabs/ProvidersTab';
+import { McpTab } from './tabs/McpTab';
 import { AboutTab } from './tabs/AboutTab';
 import { PluginsTab } from './tabs/PluginsTab';
 import { CropOverlay } from './overlays/CropOverlay';
@@ -39,36 +40,29 @@ const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   skills: SkillsTab,
   bridge: BridgeTab,
   providers: ProvidersTab,
+  mcp: McpTab,
   // plugins: PluginsTab,  // 暂时隐藏，等社区插件开放后启用
   about: AboutTab,
 };
 
 const SETTINGS_ACTIVE_TAB_KEY = 'hana-settings-active-tab';
-const SETTINGS_PROVIDER_KEY = 'hana-settings-provider';
-
-function readPersistedSettingsUi(): { activeTab?: string; selectedProviderId?: string | null } {
+function readPersistedSettingsUi(): { activeTab?: string } {
   try {
     const activeTab = localStorage.getItem(SETTINGS_ACTIVE_TAB_KEY);
-    const selectedProviderId = localStorage.getItem(SETTINGS_PROVIDER_KEY);
     return {
       activeTab: activeTab && TAB_COMPONENTS[activeTab] ? activeTab : undefined,
-      selectedProviderId: selectedProviderId || null,
     };
   } catch {
     return {};
   }
 }
 
-function persistSettingsUi(activeTab: string, selectedProviderId: string | null) {
+function persistSettingsUi(activeTab: string) {
   try {
     if (TAB_COMPONENTS[activeTab]) {
       localStorage.setItem(SETTINGS_ACTIVE_TAB_KEY, activeTab);
     }
-    if (selectedProviderId) {
-      localStorage.setItem(SETTINGS_PROVIDER_KEY, selectedProviderId);
-    } else {
-      localStorage.removeItem(SETTINGS_PROVIDER_KEY);
-    }
+    localStorage.removeItem('hana-settings-provider');
   } catch {
     // ignore persistence failures
   }
@@ -111,13 +105,33 @@ function applyNavigationTarget(target?: string | SettingsNavigationTarget | null
   return true;
 }
 
+async function refreshSettingsSurface(opts: {
+  runtime?: boolean;
+  agents?: boolean;
+  avatars?: boolean;
+  config?: boolean;
+} = {}) {
+  const {
+    runtime = true,
+    agents = true,
+    avatars = false,
+    config = true,
+  } = opts;
+  const jobs: Promise<unknown>[] = [];
+  if (runtime) jobs.push(loadRuntimeSnapshot());
+  if (agents) jobs.push(loadAgents());
+  if (avatars) jobs.push(loadAvatars());
+  if (config) jobs.push(loadSettingsConfig());
+  await Promise.allSettled(jobs);
+}
+
 export function SettingsApp() {
   const { activeTab, ready, selectedProviderId, settingsAgentId } = useSettingsStore();
   const [uiRestored, setUiRestored] = React.useState(false);
 
   useEffect(() => {
     const restored = readPersistedSettingsUi();
-    if (restored.activeTab || restored.selectedProviderId) {
+    if (restored.activeTab) {
       useSettingsStore.setState(restored);
     }
 
@@ -141,7 +155,7 @@ export function SettingsApp() {
 
   useEffect(() => {
     if (!uiRestored) return;
-    persistSettingsUi(activeTab, selectedProviderId);
+    persistSettingsUi(activeTab);
   }, [activeTab, selectedProviderId, uiRestored]);
 
   useEffect(() => {
@@ -156,9 +170,48 @@ export function SettingsApp() {
       const store = useSettingsStore.getState();
       console.log('[settings] server restarted, new port:', data.port);
       store.set({ serverPort: data.port, serverToken: data.token });
-      loadAgents().catch(() => {});
-      loadSettingsConfig().catch(() => {});
+      void refreshSettingsSurface();
     });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe: (() => void) | void = platform?.onSettingsChanged?.((type: string, data: any) => {
+      switch (type) {
+        case 'agent-switched':
+          useSettingsStore.setState({
+            settingsAgentId: null,
+            currentAgentId: data?.agentId || null,
+          });
+          void refreshSettingsSurface({ avatars: true });
+          break;
+        case 'agent-created':
+        case 'agent-deleted':
+          void refreshSettingsSurface({ config: false });
+          break;
+        case 'agent-updated':
+          void refreshSettingsSurface({ avatars: true });
+          break;
+        case 'models-changed':
+        case 'desk-config-changed':
+          void refreshSettingsSurface({ agents: false });
+          break;
+        case 'skills-changed':
+          window.dispatchEvent(new CustomEvent('settings-skills-changed', { detail: data || null }));
+          break;
+        case 'review-config-changed':
+          void refreshSettingsSurface({ agents: false, config: false });
+          window.dispatchEvent(new CustomEvent('review-config-changed', { detail: data || null }));
+          break;
+        case 'locale-changed':
+          void refreshSettingsSurface({ agents: false, avatars: false, config: false });
+          break;
+        default:
+          break;
+      }
+    });
+    return () => {
+      unsubscribe?.();
+    };
   }, []);
 
   const ActiveTab = TAB_COMPONENTS[activeTab] || AgentTab;
@@ -227,9 +280,7 @@ async function initSettings() {
       try { await i18n.load('zh-CN'); } catch { /* i18n fallback failed, continue */ }
     }
 
-    await loadAgents();
-    await loadAvatars();
-    await loadSettingsConfig();
+    await refreshSettingsSurface({ avatars: true });
 
     store.set({ ready: true });
   } catch (err) {

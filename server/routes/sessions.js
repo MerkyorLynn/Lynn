@@ -127,6 +127,7 @@ export function createSessionsRoute(engine) {
         agentName: s.agentName || null,
         modelId: s.modelId || null,
         modelProvider: s.modelProvider || null,
+        labels: Array.isArray(s.labels) ? s.labels : [],
       })));
     } catch (err) {
       return c.json({ error: err.message }, 500);
@@ -387,6 +388,49 @@ export function createSessionsRoute(engine) {
     }
   });
 
+  // 置顶/取消置顶 session
+  route.post("/sessions/pin", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { path: sessionPath, pinned } = body;
+      if (!sessionPath) {
+        return c.json({ error: t("error.missingParam", { param: "path" }) }, 400);
+      }
+      if (!isValidSessionPath(sessionPath, engine.agentsDir)) {
+        return c.json({ error: "Invalid session path" }, 403);
+      }
+      await engine.saveSessionMeta(sessionPath, { pinned: !!pinned });
+      return c.json({ ok: true, pinned: !!pinned });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 设置 session 标签
+  route.post("/sessions/labels", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { path: sessionPath, labels } = body;
+      if (!sessionPath) {
+        return c.json({ error: t("error.missingParam", { param: "path" }) }, 400);
+      }
+      if (!Array.isArray(labels)) {
+        return c.json({ error: t("error.missingParam", { param: "labels" }) }, 400);
+      }
+      if (!isValidSessionPath(sessionPath, engine.agentsDir)) {
+        return c.json({ error: "Invalid session path" }, 403);
+      }
+      const normalized = [...new Set(labels
+        .map((label) => String(label || "").trim())
+        .filter(Boolean)
+        .slice(0, 6))];
+      await engine.saveSessionMeta(sessionPath, { labels: normalized });
+      return c.json({ ok: true, labels: normalized });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
   // 清理过期归档 session
   route.post("/sessions/cleanup", async (c) => {
     try {
@@ -454,6 +498,52 @@ export function createSessionsRoute(engine) {
       await fs.rename(sessionPath, destPath);
 
       return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 创建新 session（/clear 斜杠命令用）
+  route.post("/session/new", async (c) => {
+    try {
+      await engine.closeSession(engine.currentSessionPath);
+      const session = await engine.createSession(null, engine.homeCwd);
+      return c.json({ ok: true, path: session.sessionManager?.getSessionFile?.() || null });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 保存检查点（/save 斜杠命令用）
+  route.post("/session/checkpoint", async (c) => {
+    try {
+      const currentPath = engine.currentSessionPath;
+      if (!currentPath) {
+        return c.json({ error: "No active session" }, 400);
+      }
+      // 持久化 session meta（模型、记忆状态等）
+      engine.persistSessionMeta();
+
+      // 将当前 session 的关键信息写入检查点文件
+      const sessDir = path.dirname(currentPath);
+      const checkpointDir = path.join(sessDir, "checkpoints");
+      mkdirSync(checkpointDir, { recursive: true });
+
+      const checkpoint = {
+        sessionPath: currentPath,
+        timestamp: new Date().toISOString(),
+        agentId: engine.currentAgentId,
+        modelId: engine.currentModel?.id || null,
+        modelProvider: engine.currentModel?.provider || null,
+        messageCount: engine.messages.length,
+        memoryEnabled: engine.memoryEnabled,
+        cwd: engine.cwd,
+      };
+
+      const cpFile = path.join(checkpointDir, `cp-${Date.now()}.json`);
+      appendFileSync(cpFile, JSON.stringify(checkpoint, null, 2));
+
+      return c.json({ ok: true, checkpoint: cpFile });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }

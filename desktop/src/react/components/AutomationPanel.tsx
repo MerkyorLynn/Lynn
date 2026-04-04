@@ -3,6 +3,11 @@ import { useStore } from '../stores';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { cronToHuman } from '../utils/format';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
+import {
+  collapseBrainModelChoices,
+  normalizeDisplayModelName,
+  normalizeDisplayProviderLabel,
+} from '../utils/brain-models';
 import fp from './FloatingPanels.module.css';
 
 interface CronJob {
@@ -12,6 +17,13 @@ interface CronJob {
   prompt?: string;
   schedule: string | number;
   model?: string;
+}
+
+interface ModelOption {
+  value: string;
+  label: string;
+  rawId: string;
+  rawProvider: string;
 }
 
 /* ── 预设模板 ── */
@@ -68,6 +80,40 @@ function buildCron(hour: string, minute: string, days: number[]): string {
   return `${parseInt(minute, 10)} ${parseInt(hour, 10)} * * ${dowPart}`;
 }
 
+function toModelOptionValue(model: { id: string; provider?: string }): string {
+  return model.provider ? `${model.provider}/${model.id}` : model.id;
+}
+
+function buildAutomationModelOptions(models: Array<{ id: string; name?: string; provider?: string }>): ModelOption[] {
+  const visibleModels = collapseBrainModelChoices(models);
+  const labelCounts = new Map<string, number>();
+  for (const model of visibleModels) {
+    const label = normalizeDisplayModelName(model) || model.name || model.id;
+    labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+  }
+
+  return visibleModels.map((model) => {
+    const baseLabel = normalizeDisplayModelName(model) || model.name || model.id;
+    const needsProvider = (labelCounts.get(baseLabel) || 0) > 1;
+    const providerLabel = normalizeDisplayProviderLabel(model.provider) || model.provider || '';
+    return {
+      value: toModelOptionValue(model),
+      label: needsProvider && providerLabel ? `${baseLabel} · ${providerLabel}` : baseLabel,
+      rawId: model.id,
+      rawProvider: model.provider || '',
+    };
+  });
+}
+
+function resolveJobModelValue(modelRef: string | undefined, options: ModelOption[]): string {
+  const raw = String(modelRef || '').trim();
+  if (!raw) return '';
+  const exact = options.find((option) => option.value === raw);
+  if (exact) return exact.value;
+  const byRawId = options.find((option) => option.rawId === raw);
+  return byRawId?.value || raw;
+}
+
 export function AutomationPanel() {
   const activePanel = useStore(s => s.activePanel);
   const agentAvatarUrl = useStore(s => s.agentAvatarUrl);
@@ -78,7 +124,7 @@ export function AutomationPanel() {
   const addToast = useStore(s => s.addToast);
 
   const [jobs, setJobs] = useState<CronJob[]>([]);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [adding, setAdding] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
 
@@ -89,13 +135,13 @@ export function AutomationPanel() {
         hanaFetch('/api/models'),
       ]);
       const cronData = await cronRes.json();
-      let modelIds: string[] = [];
+      let modelOptions: ModelOption[] = [];
       try {
         const modelsData = await modelsRes.json();
-        modelIds = (modelsData.models || []).map((m: { id: string }) => m.id);
+        modelOptions = buildAutomationModelOptions(modelsData.models || []);
       } catch {}
       setJobs(cronData.jobs || []);
-      setAvailableModels(modelIds);
+      setAvailableModels(modelOptions);
       updateBadge(cronData.jobs || []);
     } catch (err) {
       console.error('[automation] load failed:', err);
@@ -399,7 +445,7 @@ function CustomTaskForm({
   onSubmit,
   onCancel,
 }: {
-  availableModels: string[];
+  availableModels: ModelOption[];
   adding: boolean;
   onSubmit: (job: { label: string; prompt: string; schedule: string; model?: string }) => void;
   onCancel: () => void;
@@ -454,8 +500,8 @@ function CustomTaskForm({
             onChange={e => setModel(e.target.value)}
           >
             <option value="">{t('automation.defaultModel')}</option>
-            {availableModels.map(mid => (
-              <option key={mid} value={mid}>{mid}</option>
+            {availableModels.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </div>
@@ -499,7 +545,7 @@ function AutomationItem({
   onUpdate,
 }: {
   job: CronJob;
-  availableModels: string[];
+  availableModels: ModelOption[];
   agentAvatarUrl: string | null;
   agentName: string;
   agentYuan: string;
@@ -552,10 +598,23 @@ function AutomationItem({
   const jobModelId = typeof job.model === 'object' && job.model !== null
     ? (job.model as unknown as { id: string }).id
     : (job.model || '');
-  const modelOptions: string[] = [];
-  const modelSet = new Set(availableModels);
-  if (jobModelId && !modelSet.has(jobModelId)) modelOptions.push(jobModelId);
-  modelOptions.push(...availableModels);
+  const selectedModelValue = resolveJobModelValue(jobModelId, availableModels);
+  const modelOptions: ModelOption[] = [];
+  const seenModelValues = new Set<string>();
+  if (selectedModelValue && !availableModels.some((option) => option.value === selectedModelValue)) {
+    modelOptions.push({
+      value: selectedModelValue,
+      label: jobModelId,
+      rawId: jobModelId,
+      rawProvider: '',
+    });
+    seenModelValues.add(selectedModelValue);
+  }
+  for (const option of availableModels) {
+    if (seenModelValues.has(option.value)) continue;
+    seenModelValues.add(option.value);
+    modelOptions.push(option);
+  }
 
   return (
     <div className={fp.autoItem}>
@@ -611,12 +670,12 @@ function AutomationItem({
               <select
                 className={fp.autoItemModelSelect}
                 title="Model"
-                value={jobModelId}
+                value={selectedModelValue}
                 onChange={e => onUpdate(job.id, { model: e.target.value })}
               >
                 <option value="">{(window.t ?? ((p: string) => p))('automation.defaultModel')}</option>
-                {modelOptions.map(mid => (
-                  <option key={mid} value={mid}>{mid}</option>
+                {modelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </span>

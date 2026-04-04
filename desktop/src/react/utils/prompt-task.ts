@@ -9,7 +9,6 @@ import {
 } from './composer-state';
 
 export type ComposerTaskMode = 'prompt' | 'steer';
-export type HeldBackContext = 'quote' | 'doc' | 'files' | 'images' | 'git';
 
 export interface GitContextSnapshot {
   available: boolean;
@@ -25,17 +24,6 @@ export interface GitContextSnapshot {
   totalChanged: number;
   changedFiles: readonly string[];
   recentCommits: readonly string[];
-}
-
-export interface ComposerContextOverview {
-  mode: ComposerTaskMode;
-  textLength: number;
-  quotedSummary: string | null;
-  docName: string | null;
-  attachmentNames: string[];
-  imageNames: string[];
-  gitSummary: string | null;
-  heldBack: HeldBackContext[];
 }
 
 export interface PreparedComposerTask {
@@ -117,58 +105,6 @@ export function formatGitContextPrompt(gitContext: GitContextSnapshot | null | u
   }
 
   return lines.join('\n');
-}
-
-export function buildComposerContextOverview({
-  mode,
-  composerText,
-  attachedFiles,
-  docContextAttached,
-  currentDoc,
-  quotedSelection,
-  supportsVision,
-  gitContext,
-}: {
-  mode: ComposerTaskMode;
-  composerText: string;
-  attachedFiles: AttachedFile[];
-  docContextAttached: boolean;
-  currentDoc: { path: string; name: string } | null;
-  quotedSelection: QuotedSelection | null;
-  supportsVision: boolean;
-  gitContext?: GitContextSnapshot | null;
-}): ComposerContextOverview {
-  const richContextEnabled = mode === 'prompt';
-  const imageNames = richContextEnabled
-    ? attachedFiles.filter((file) => !file.isDirectory && isImageFile(file.name) && supportsVision).map((file) => file.name)
-    : [];
-  const attachmentNames = richContextEnabled
-    ? attachedFiles
-      .filter((file) => file.isDirectory || !isImageFile(file.name) || !supportsVision)
-      .map((file) => file.name)
-    : [];
-  const heldBack: HeldBackContext[] = [];
-
-  if (!richContextEnabled) {
-    const hasImageContext = attachedFiles.some((file) => !file.isDirectory && isImageFile(file.name) && supportsVision);
-    const hasFileContext = attachedFiles.some((file) => file.isDirectory || !isImageFile(file.name) || !supportsVision);
-    if (quotedSelection) heldBack.push('quote');
-    if (docContextAttached && currentDoc) heldBack.push('doc');
-    if (hasFileContext) heldBack.push('files');
-    if (hasImageContext) heldBack.push('images');
-    if (gitContext?.available) heldBack.push('git');
-  }
-
-  return {
-    mode,
-    textLength: composerText.trim().length,
-    quotedSummary: richContextEnabled && quotedSelection ? buildQuotedSelectionSummary(quotedSelection) : null,
-    docName: richContextEnabled && docContextAttached && currentDoc ? currentDoc.name : null,
-    attachmentNames,
-    imageNames,
-    gitSummary: richContextEnabled ? summarizeGitContext(gitContext) : null,
-    heldBack,
-  };
 }
 
 export async function prepareComposerTask({

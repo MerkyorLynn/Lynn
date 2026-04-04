@@ -88,7 +88,7 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
-const saved = localStorage.getItem('hana-theme') || 'auto';
+const saved = localStorage.getItem('hana-theme') || 'warm-paper';
 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 const theme = saved === 'auto' ? (isDark ? 'midnight' : 'warm-paper') : saved;
 document.getElementById('themeSheet')!.setAttribute('href', `themes/${theme}.css`);

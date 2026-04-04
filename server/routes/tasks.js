@@ -29,7 +29,11 @@ export function createTasksRoute(taskRuntime, engine) {
 
   route.post("/tasks", async (c) => {
     const body = await safeJson(c);
-    const kind = body.kind === "review" ? "review" : "delegate";
+    const kind = body.kind === "review"
+      ? "review"
+      : body.kind === "plan"
+        ? "plan"
+        : "delegate";
 
     if (kind === "review") {
       if (!body.context || typeof body.context !== "string") {
@@ -48,6 +52,22 @@ export function createTasksRoute(taskRuntime, engine) {
 
     if (!body.prompt || typeof body.prompt !== "string") {
       return c.json({ error: "prompt is required" }, 400);
+    }
+
+    if (kind === "plan") {
+      const task = taskRuntime.createPlanTask({
+        title: body.title,
+        prompt: body.prompt,
+        agentId: body.agentId || engine.currentAgentId,
+        sessionPath: body.sessionPath || engine.currentSessionPath || null,
+        source: body.source || "chat",
+        model: body.model || null,
+        systemAppend: body.systemAppend || null,
+        noMemory: !!body.noMemory,
+        cwdOverride: body.cwdOverride || null,
+        metadata: body.metadata || {},
+      });
+      return c.json({ ok: true, task: taskRuntime.buildTaskChatBlock(task.id) });
     }
 
     const task = taskRuntime.createDelegateTask({

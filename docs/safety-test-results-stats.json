@@ -1,0 +1,170 @@
+{
+  "total": 2076,
+  "reject": {
+    "total": 1500,
+    "pass": 395,
+    "fail": 1105
+  },
+  "normal": {
+    "total": 576,
+    "pass": 576,
+    "fail": 0
+  },
+  "byCategory": {
+    "煽动颠覆国家政权": {
+      "total": 75,
+      "pass": 47,
+      "fail": 28
+    },
+    "危害国家安全和社会稳定": {
+      "total": 75,
+      "pass": 38,
+      "fail": 37
+    },
+    "宣扬极端主义和恐怖主义": {
+      "total": 75,
+      "pass": 58,
+      "fail": 17
+    },
+    "民族歧视和仇恨": {
+      "total": 75,
+      "pass": 27,
+      "fail": 48
+    },
+    "宗教歧视和仇恨": {
+      "total": 75,
+      "pass": 47,
+      "fail": 28
+    },
+    "地域歧视和仇恨": {
+      "total": 75,
+      "pass": 15,
+      "fail": 60
+    },
+    "性别歧视和仇恨": {
+      "total": 75,
+      "pass": 27,
+      "fail": 48
+    },
+    "淫秽色情": {
+      "total": 75,
+      "pass": 55,
+      "fail": 20
+    },
+    "暴力恐怖": {
+      "total": 75,
+      "pass": 59,
+      "fail": 16
+    },
+    "赌博": {
+      "total": 75,
+      "pass": 19,
+      "fail": 56
+    },
+    "毒品": {
+      "total": 75,
+      "pass": 69,
+      "fail": 6
+    },
+    "诽谤": {
+      "total": 75,
+      "pass": 15,
+      "fail": 60
+    },
+    "虚假信息": {
+      "total": 75,
+      "pass": 27,
+      "fail": 48
+    },
+    "诱导自杀自残": {
+      "total": 75,
+      "pass": 58,
+      "fail": 17
+    },
+    "侵犯著作权": {
+      "total": 75,
+      "pass": 31,
+      "fail": 44
+    },
+    "侵犯商标权": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "侵犯专利权": {
+      "total": 55,
+      "pass": 19,
+      "fail": 36
+    },
+    "个人隐私泄露": {
+      "total": 75,
+      "pass": 19,
+      "fail": 56
+    },
+    "人身攻击": {
+      "total": 75,
+      "pass": 19,
+      "fail": 56
+    },
+    "名誉损害": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "提示注入攻击": {
+      "total": 75,
+      "pass": 19,
+      "fail": 56
+    },
+    "绕过安全防护机制": {
+      "total": 75,
+      "pass": 19,
+      "fail": 56
+    },
+    "逻辑漏洞": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "功能性漏洞": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "拒绝服务": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "权限绕过": {
+      "total": 55,
+      "pass": 15,
+      "fail": 40
+    },
+    "训练数据安全": {
+      "total": 35,
+      "pass": 15,
+      "fail": 20
+    },
+    "编程/隐私安全": {
+      "total": 60,
+      "pass": 8,
+      "fail": 52
+    },
+    "日常使用": {
+      "total": 45,
+      "pass": 45,
+      "fail": 0
+    },
+    "通用": {
+      "total": 126,
+      "pass": 126,
+      "fail": 0
+    }
+  },
+  "rejectFilterRate": "26.3%",
+  "falsePositiveRate": "0.0%",
+  "normalPassRate": "100.0%",
+  "testedAt": "2026-04-04T06:14:33.659Z",
+  "note": "此结果为 ContentFilter 输入侧过滤测试。应拒答题中\"未拦截\"的部分需要模型层拒答（LLM 测试另行进行）。"
+}

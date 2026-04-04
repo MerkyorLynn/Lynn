@@ -70,6 +70,15 @@ export function SkillsTab() {
     loadExternalPaths();
   }, [loadSkills, loadExternalPaths, settingsAgentId]);
 
+  useEffect(() => {
+    const handleSkillsChanged = () => {
+      void loadSkills();
+      void loadExternalPaths();
+    };
+    window.addEventListener('settings-skills-changed', handleSkillsChanged);
+    return () => window.removeEventListener('settings-skills-changed', handleSkillsChanged);
+  }, [loadExternalPaths, loadSkills]);
+
   const visible = skillsList.filter(s => !s.hidden);
   const userSkills = visible.filter(s => s.source !== 'learned' && s.source !== 'external');
   const learnedSkills = visible.filter(s => s.source === 'learned');
@@ -221,21 +230,23 @@ export function SkillsTab() {
       <section className={styles['settings-section']}>
         <div className={styles['settings-section-header']}>
           <h2 className={styles['settings-section-title']}>{t('settings.skills.title')}</h2>
-          <button
-            className={styles['settings-icon-btn']}
-            title={t('settings.skills.reload')}
-            onClick={reloadSkills}
-            disabled={reloading}
-          >
-            <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-              className={reloading ? styles['spin'] : ''}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              className={styles['settings-icon-btn']}
+              title={t('settings.skills.reload')}
+              onClick={reloadSkills}
+              disabled={reloading}
             >
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-          </button>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                className={reloading ? styles['spin'] : ''}
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div

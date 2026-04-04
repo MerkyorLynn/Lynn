@@ -258,6 +258,44 @@ function readUserPreferences() {
   return safeReadJSON(path.join(lynnHome, "user", "preferences.json"), {}) || {};
 }
 
+function writeUserPreferences(nextPrefs) {
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
+  fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
+  fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
+}
+
+function deriveBrainApiRootFromProviders() {
+  try {
+    const providersPath = path.join(lynnHome, "added-models.yaml");
+    const raw = fs.readFileSync(providersPath, "utf-8");
+    const data = yaml.load(raw) || {};
+    const baseUrl = String(data?.providers?.brain?.base_url || "").trim().replace(/\/+$/, "");
+    if (!baseUrl) return "";
+    return baseUrl.endsWith("/v1") ? baseUrl.slice(0, -3) : baseUrl;
+  } catch {
+    return "";
+  }
+}
+
+function readBrainRuntimeConfig() {
+  const prefs = readUserPreferences();
+  const normalize = (value) => {
+    const text = String(value || "").trim();
+    return text ? text.replace(/\/+$/, "") : "";
+  };
+  const persistedApiRoot = normalize(prefs.brain_api_root || prefs.default_model_api_root);
+  const derivedApiRoot = persistedApiRoot || deriveBrainApiRootFromProviders();
+  if (!persistedApiRoot && derivedApiRoot) {
+    writeUserPreferences({ ...prefs, brain_api_root: derivedApiRoot });
+  }
+  return {
+    apiRoot: derivedApiRoot,
+    host: normalize(prefs.brain_api_host || prefs.default_model_api_host),
+    legacyApiRoot: normalize(prefs.brain_legacy_api_root),
+    legacyHost: normalize(prefs.brain_legacy_host),
+  };
+}
+
 function normalizeTrustedRoot(rawPath) {
   if (typeof rawPath !== "string") return null;
   const trimmed = rawPath.trim();
@@ -628,6 +666,11 @@ async function startServer() {
   _serverLogs = [];
 
   const serverEnv = { ...process.env, LYNN_HOME: lynnHome };
+  const brainRuntime = readBrainRuntimeConfig();
+  if (brainRuntime.apiRoot) serverEnv.BRAIN_API_ROOT_URL = brainRuntime.apiRoot;
+  if (brainRuntime.host) serverEnv.BRAIN_API_HOST = brainRuntime.host;
+  if (brainRuntime.legacyApiRoot) serverEnv.BRAIN_LEGACY_API_ROOT_URL = brainRuntime.legacyApiRoot;
+  if (brainRuntime.legacyHost) serverEnv.BRAIN_LEGACY_HOST = brainRuntime.legacyHost;
 
   // Windows: 注入 MinGit 路径
   if (process.platform === "win32") {
@@ -745,11 +788,11 @@ function monitorServer() {
 }
 
 /**
- * 显示主窗口（优先 onboardingWindow，其次 mainWindow）
+ * 显示当前最相关窗口
  */
 function showPrimaryWindow() {
   if (process.platform === "darwin") app.dock.show();
-  const win = mainWindow || onboardingWindow;
+  const win = settingsWindow || onboardingWindow || browserViewerWindow || mainWindow;
   if (win && !win.isDestroyed()) { win.show(); win.focus(); }
 }
 
@@ -2001,6 +2044,13 @@ wrapIpcOn("settings-changed", (_event, type, data) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("settings-changed", type, data);
   }
+  if (
+    settingsWindow
+    && !settingsWindow.isDestroyed()
+    && settingsWindow.webContents.id !== _event.sender.id
+  ) {
+    settingsWindow.webContents.send("settings-changed", type, data);
+  }
   if (type === "theme-changed" && data?.theme) {
     const name = data.theme;
     _browserViewerTheme = name === "auto"
@@ -2075,6 +2125,19 @@ wrapIpcHandler("select-folder", async (event) => {
   const selectedPath = result.filePaths[0];
   grantWebContentsAccess(event.sender, selectedPath, "readwrite");
   return selectedPath;
+});
+
+wrapIpcHandler("get-onboarding-defaults", () => {
+  const desktopRoot = path.join(os.homedir(), "Desktop");
+  const workspacePath = path.join(desktopRoot, "Lynn");
+  const installRoot = path.resolve(process.cwd());
+  try { fs.mkdirSync(workspacePath, { recursive: true }); } catch {}
+  return {
+    workspacePath,
+    desktopRoot,
+    installRoot,
+    trustedRoots: Array.from(new Set([installRoot, desktopRoot, workspacePath].filter(Boolean))),
+  };
 });
 
 // 选择技能文件/文件夹（支持 .zip / .skill / 文件夹）
@@ -2653,10 +2716,16 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0 && serverPort) {
-    createMainWindow();
-    // 不在这里 show()，前端 init 完成后会通过 app-ready IPC 触发显示
-  } else if (mainWindow) {
-    mainWindow.show();
+    if (isSetupComplete()) {
+      createMainWindow();
+      // 不在这里 show()，前端 init 完成后会通过 app-ready IPC 触发显示
+    } else if (hasExistingConfig()) {
+      createOnboardingWindow({ skipToTutorial: "1" });
+    } else {
+      createOnboardingWindow();
+    }
+  } else {
+    showPrimaryWindow();
   }
 });
 

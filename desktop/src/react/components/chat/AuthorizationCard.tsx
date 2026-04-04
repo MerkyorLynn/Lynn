@@ -39,6 +39,33 @@ function statusText(status: AuthorizationStatus): string {
   return window.t('security.auth.title');
 }
 
+function deriveScopeLabel(category: string, command: string): string {
+  if (category.startsWith('path_write')) return window.t('security.auth.fileWrite') || 'File Write';
+  if (category.startsWith('path_read')) return window.t('security.auth.fileRead') || 'File Read';
+  if (category.startsWith('path_')) return window.t('security.auth.fileOp') || 'File Access';
+  if (/\b(bash|chmod|chown|rm|mv|cp|git|npm|pnpm|yarn)\b/i.test(command)) {
+    return window.t('security.auth.terminal') || 'Terminal';
+  }
+  return window.t('security.auth.scope') || 'Action';
+}
+
+function decisionHints(trustedRootLabel: string) {
+  const projectLabel = trustedRootLabel || (window.t('security.auth.currentProject') || 'current project');
+  return [
+    window.t('security.auth.allowOnceHint') || 'Only allow this single action.',
+    window.t('security.auth.allowSessionHint') || 'Allow similar actions for the rest of this task/session.',
+    (window.t('security.auth.allowAlwaysHereHint') || 'Always allow similar actions inside {project}.')
+      .replace('{project}', projectLabel),
+  ];
+}
+
+function buildSummary(scopeLabel: string, trustedRootLabel: string): string {
+  const projectLabel = trustedRootLabel || (window.t('security.auth.currentProject') || 'current project');
+  return (window.t('security.auth.summary') || 'Lynn wants to perform a {scope} action in {project}. Choose how much to allow.')
+    .replace('{scope}', scopeLabel)
+    .replace('{project}', projectLabel);
+}
+
 function sendAction(confirmId: string, action: AuthorizationAction) {
   return hanaFetch(`/api/confirm/${confirmId}`, {
     method: 'POST',
@@ -52,6 +79,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
   command,
   reason,
   description,
+  category,
   trustedRoot,
   status: initialStatus,
 }: AuthorizationCardProps) {
@@ -89,6 +117,9 @@ export const AuthorizationCard = memo(function AuthorizationCard({
   const handleReject = useCallback(() => decide('rejected'), [decide]);
 
   const trustedRootLabel = trustedRoot ? shortPath(trustedRoot) : '';
+  const scopeLabel = deriveScopeLabel(category, command);
+  const [onceHint, sessionHint, persistentHint] = decisionHints(trustedRootLabel);
+  const summary = buildSummary(scopeLabel, trustedRootLabel);
 
   if (status !== 'pending') {
     return (
@@ -106,13 +137,22 @@ export const AuthorizationCard = memo(function AuthorizationCard({
     <div className={styles.card}>
       <div className={styles.header}>
         <span className={styles.headerText}>{window.t('security.auth.title')}</span>
-        <span className={styles.scopeTag}>Terminal</span>
+        <span className={styles.scopeTag}>{scopeLabel}</span>
       </div>
 
-      <pre className={styles.commandBlock}><code>{command}</code></pre>
-
+      <p className={styles.summary}>{summary}</p>
       <p className={styles.description}>{description || reason}</p>
-      <p className={styles.reason}>{reason}</p>
+      {reason && description && reason !== description ? (
+        <p className={styles.reason}>
+          <span className={styles.reasonLabel}>{window.t('security.auth.reasonLabel') || 'Reason'}</span>
+          {reason}
+        </p>
+      ) : null}
+
+      <div className={styles.commandWrap}>
+        <div className={styles.commandLabel}>{window.t('security.auth.commandLabel') || 'About to execute:'}</div>
+        <pre className={styles.commandBlock}><code>{command}</code></pre>
+      </div>
 
       {trustedRootLabel && (
         <p className={styles.rootHint} title={trustedRoot || ''}>
@@ -122,17 +162,18 @@ export const AuthorizationCard = memo(function AuthorizationCard({
 
       <div className={styles.actions}>
         <button
-          className={`${styles.btn} ${styles.btnGhost}`}
-          onClick={handleReject}
+          className={`${styles.btn} ${styles.btnPrimary}`}
+          onClick={handleAllowOnce}
           disabled={submitting}
+          title={onceHint}
         >
-          {window.t('security.auth.reject')}
+          {window.t('security.auth.allowOnce')}
         </button>
         <button
           className={`${styles.btn} ${styles.btnSecondary}`}
           onClick={handleAllowSession}
           disabled={submitting}
-          title={window.t('security.auth.allowSession')}
+          title={sessionHint}
         >
           {window.t('security.auth.allowSession')}
         </button>
@@ -140,17 +181,23 @@ export const AuthorizationCard = memo(function AuthorizationCard({
           className={`${styles.btn} ${styles.btnSecondary}`}
           onClick={handleAllowPersistent}
           disabled={submitting}
-          title={window.t('security.auth.allowAlwaysHere')}
+          title={persistentHint}
         >
           {window.t('security.auth.allowAlwaysHere')}
         </button>
         <button
-          className={`${styles.btn} ${styles.btnPrimary}`}
-          onClick={handleAllowOnce}
+          className={`${styles.btn} ${styles.btnGhost}`}
+          onClick={handleReject}
           disabled={submitting}
         >
-          {window.t('security.auth.allowOnce')}
+          {window.t('security.auth.reject')}
         </button>
+      </div>
+
+      <div className={styles.decisionGuide}>
+        <span className={styles.decisionItem}>{onceHint}</span>
+        <span className={styles.decisionItem}>{sessionHint}</span>
+        <span className={styles.decisionItem}>{persistentHint}</span>
       </div>
     </div>
   );

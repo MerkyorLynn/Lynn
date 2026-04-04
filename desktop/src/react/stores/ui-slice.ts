@@ -56,7 +56,7 @@ export const createUiSlice = (
 ): UiSlice => ({
   sidebarOpen: true,
   sidebarAutoCollapsed: false,
-  jianOpen: true,
+  jianOpen: false,
   jianAutoCollapsed: false,
   previewOpen: false,
   welcomeVisible: true,

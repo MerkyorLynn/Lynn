@@ -1,3 +1,5 @@
+import { sanitizeQuotedSelection } from '../utils/composer-state';
+
 export interface AttachedFile {
   path: string;
   name: string;
@@ -105,24 +107,14 @@ export const createInputSlice = (
   setDeskContextAttached: (attached) => set({ deskContextAttached: attached }),
   toggleDeskContext: () =>
     set((s) => ({ deskContextAttached: !s.deskContextAttached })),
-  setDocContextAttached: (attached, file) => set({
-    docContextAttached: attached,
-    docContextFile: attached ? (file ?? get?.().docContextFile ?? null) : null,
-  }),
-  toggleDocContext: (file) =>
-    set((s) => {
-      const nextAttached = !s.docContextAttached;
-      return {
-        docContextAttached: nextAttached,
-        docContextFile: nextAttached ? (file ?? s.docContextFile ?? null) : null,
-      };
-    }),
-  setDocContextFile: (file) => set({ docContextFile: file, docContextAttached: !!file }),
+  setDocContextAttached: () => set({ docContextAttached: false, docContextFile: null }),
+  toggleDocContext: () => set({ docContextAttached: false, docContextFile: null }),
+  setDocContextFile: () => set({ docContextFile: null, docContextAttached: false }),
   requestInputFocus: () =>
     set((s) => ({ inputFocusTrigger: s.inputFocusTrigger + 1 })),
-  setQuotedSelection: (sel) => set({ quotedSelection: sel }),
+  setQuotedSelection: (sel) => set({ quotedSelection: sanitizeQuotedSelection(sel) }),
   updateQuotedSelection: (patch) => set((s) => ({
-    quotedSelection: s.quotedSelection ? { ...s.quotedSelection, ...patch } : s.quotedSelection,
+    quotedSelection: s.quotedSelection ? sanitizeQuotedSelection({ ...s.quotedSelection, ...patch }) : s.quotedSelection,
   })),
   clearQuotedSelection: () => set({ quotedSelection: null }),
   saveComposerDraft: (sessionKey) => set((s) => ({
@@ -131,8 +123,8 @@ export const createInputSlice = (
       [sessionKey]: {
         text: s.composerText,
         attachedFiles: s.attachedFiles.map((file) => ({ ...file })),
-        quotedSelection: s.quotedSelection ? { ...s.quotedSelection } : null,
-        docContextFile: s.docContextFile ? { ...s.docContextFile } : null,
+        quotedSelection: sanitizeQuotedSelection(s.quotedSelection),
+        docContextFile: null,
         workingSet: s.workingSetRecentFiles.map((file) => ({ ...file })),
       },
     },
@@ -142,9 +134,9 @@ export const createInputSlice = (
     return {
       composerText: draft.text,
       attachedFiles: draft.attachedFiles.map((file) => ({ ...file })),
-      quotedSelection: draft.quotedSelection ? { ...draft.quotedSelection } : null,
-      docContextFile: draft.docContextFile ? { ...draft.docContextFile } : null,
-      docContextAttached: !!draft.docContextFile,
+      quotedSelection: sanitizeQuotedSelection(draft.quotedSelection),
+      docContextFile: null,
+      docContextAttached: false,
       workingSetRecentFiles: draft.workingSet.map((file) => ({ ...file })),
     };
   }),
@@ -159,12 +151,10 @@ export const createInputSlice = (
     composerText: draft.text ?? s.composerText,
     attachedFiles: draft.attachedFiles ? draft.attachedFiles.map((file) => ({ ...file })) : s.attachedFiles,
     quotedSelection: draft.quotedSelection === undefined
-      ? s.quotedSelection
-      : (draft.quotedSelection ? { ...draft.quotedSelection } : null),
-    docContextFile: draft.docContextFile === undefined
-      ? s.docContextFile
-      : (draft.docContextFile ? { ...draft.docContextFile } : null),
-    docContextAttached: draft.docContextFile === undefined ? s.docContextAttached : !!draft.docContextFile,
+      ? sanitizeQuotedSelection(s.quotedSelection)
+      : sanitizeQuotedSelection(draft.quotedSelection),
+    docContextFile: null,
+    docContextAttached: false,
     workingSetRecentFiles: draft.workingSet ? draft.workingSet.map((file) => ({ ...file })) : s.workingSetRecentFiles,
   })),
   setLastSubmittedDraft: (sessionKey, draft) => set((s) => ({
@@ -173,8 +163,8 @@ export const createInputSlice = (
       [sessionKey]: {
         text: draft.text,
         attachedFiles: draft.attachedFiles.map((file) => ({ ...file })),
-        quotedSelection: draft.quotedSelection ? { ...draft.quotedSelection } : null,
-        docContextFile: draft.docContextFile ? { ...draft.docContextFile } : null,
+        quotedSelection: sanitizeQuotedSelection(draft.quotedSelection),
+        docContextFile: null,
         workingSet: draft.workingSet.map((file) => ({ ...file })),
       },
     },
@@ -185,9 +175,9 @@ export const createInputSlice = (
     return {
       composerText: draft.text,
       attachedFiles: draft.attachedFiles.map((file) => ({ ...file })),
-      quotedSelection: draft.quotedSelection ? { ...draft.quotedSelection } : null,
-      docContextFile: draft.docContextFile ? { ...draft.docContextFile } : null,
-      docContextAttached: !!draft.docContextFile,
+      quotedSelection: sanitizeQuotedSelection(draft.quotedSelection),
+      docContextFile: null,
+      docContextAttached: false,
       workingSetRecentFiles: draft.workingSet.map((file) => ({ ...file })),
     };
   }),

@@ -14,14 +14,19 @@ export async function loadAgents() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const allAgents = data.agents || [];
-    // 设置页只显示普通助手，不显示频道顾问（tier === 'expert'）
-    const agents = allAgents.filter((a: any) => a.tier !== 'expert');
+    const selectedAgentId = store.getSettingsAgentId();
+    // 设置页默认只显示普通助手；内部 reviewer 仅在被显式导航时保留。
+    const agents = allAgents.filter((a: any) => {
+      if (a.tier === 'expert') return false;
+      if (a.tier === 'reviewer') return a.id === selectedAgentId;
+      return true;
+    });
     let currentAgentId = store.currentAgentId;
     if (!currentAgentId) {
       const primary = agents.find((a: any) => a.isPrimary) || agents[0];
       if (primary) currentAgentId = primary.id;
     }
-    const currentAgent = agents.find((a: any) => a.id === currentAgentId);
+    const currentAgent = allAgents.find((a: any) => a.id === currentAgentId) || agents.find((a: any) => a.id === currentAgentId);
     store.set({
       agents,
       currentAgentId,
@@ -30,6 +35,27 @@ export async function loadAgents() {
     });
   } catch (err) {
     console.error('[agents] load failed:', err);
+  }
+}
+
+export async function loadRuntimeSnapshot() {
+  const store = useSettingsStore.getState();
+  try {
+    const res = await hanaFetch('/api/app-state');
+    const data = await res.json();
+    const preferredProviderId = data?.model?.preferredProviderId || null;
+    const nextSelectedProviderId = store.selectedProviderId || preferredProviderId || null;
+    store.set({
+      currentAgentId: data?.agent?.currentAgentId || store.currentAgentId,
+      agentName: data?.agent?.name || store.agentName,
+      agentYuan: data?.agent?.yuan || store.agentYuan,
+      preferredProviderId,
+      selectedProviderId: nextSelectedProviderId,
+      homeFolder: data?.desk?.homeFolder || store.homeFolder,
+      trustedRoots: Array.isArray(data?.desk?.trustedRoots) ? data.desk.trustedRoots : store.trustedRoots,
+    });
+  } catch (err) {
+    console.warn('[settings] runtime snapshot load failed:', err);
   }
 }
 
@@ -86,6 +112,7 @@ export async function loadSettingsConfig() {
 
     store.set({
       settingsConfig: config,
+      settingsConfigAgentId: agentId,
       globalModelsConfig: globalModels,
       homeFolder: config.desk?.home_folder || null,
       trustedRoots: Array.isArray(config.desk?.trusted_roots) ? config.desk.trusted_roots : [],
@@ -97,7 +124,7 @@ export async function loadSettingsConfig() {
 }
 
 export async function browseAgent(agentId: string) {
-  useSettingsStore.setState({ settingsAgentId: agentId });
+  useSettingsStore.setState({ settingsAgentId: agentId, selectedProviderId: null, settingsConfigAgentId: null });
   await loadSettingsConfig();
   await loadAgents();
 }
@@ -115,6 +142,8 @@ export async function switchToAgent(agentId: string) {
 
     store.set({
       settingsAgentId: null,
+      selectedProviderId: null,
+      settingsConfigAgentId: null,
       currentAgentId: data.agent.id,
       agentName: data.agent.name,
     });

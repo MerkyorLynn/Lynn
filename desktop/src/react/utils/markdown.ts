@@ -6,6 +6,7 @@
 
 import markdownit from 'markdown-it';
 import mk from '@traptitech/markdown-it-katex';
+import taskLists from 'markdown-it-task-lists';
 import 'katex/dist/katex.min.css';
 import { sanitizeHtml } from './sanitize';
 
@@ -23,6 +24,7 @@ export function getMd(): MarkdownIt {
     typographer: true,
   });
   _md.use(mk);
+  _md.use(taskLists, { enabled: true, label: true, labelAfter: true });
   return _md;
 }
 

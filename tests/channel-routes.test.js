@@ -156,4 +156,44 @@ describe("channels route", () => {
       archivedAt: "2026-04-02 08:00:00",
     }, null);
   });
+
+  it("POST /channels/:name/messages 会补齐成员书签并把同名 @ 映射到全部匹配成员", async () => {
+    fs.mkdirSync(path.join(engine.agentsDir, "alpha"), { recursive: true });
+    fs.mkdirSync(path.join(engine.agentsDir, "beta"), { recursive: true });
+    fs.writeFileSync(path.join(engine.agentsDir, "alpha", "channels.md"), "# 频道\n\n", "utf-8");
+
+    writeChannel(path.join(channelsDir, "ch_general.md"), [
+      "---",
+      "id: ch_general",
+      "name: General",
+      "members: [alpha, beta]",
+      "---",
+      "",
+      "### Alpha | 2026-04-01 11:59:00",
+      "",
+      "hello",
+      "",
+      "---",
+      "",
+    ].join("\n"));
+
+    engine.listAgents = vi.fn(() => [
+      { id: "alpha", name: "Hanako" },
+      { id: "beta", name: "Hanako" },
+      { id: "gamma", name: "Other" },
+    ]);
+
+    const res = await app.request("/api/channels/ch_general/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: "@Hanako 都在吗" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(hub.triggerChannelTriage).toHaveBeenCalledWith("ch_general", {
+      mentionedAgents: ["alpha", "beta"],
+    });
+    expect(fs.readFileSync(path.join(engine.agentsDir, "alpha", "channels.md"), "utf-8")).toContain("- ch_general (last: never)");
+    expect(fs.readFileSync(path.join(engine.agentsDir, "beta", "channels.md"), "utf-8")).toContain("- ch_general (last: never)");
+  });
 });

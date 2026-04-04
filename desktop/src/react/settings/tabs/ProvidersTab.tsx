@@ -5,13 +5,43 @@ import { t, PROVIDER_PRESETS } from '../helpers';
 import { loadSettingsConfig } from '../actions';
 import { ProviderDetail } from './providers/ProviderDetail';
 import { AddCustomButton } from './providers/ProviderList';
-import { OtherModelsSection } from './providers/OtherModelsSection';
+import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
 import styles from '../Settings.module.css';
 
+function resolvePreferredProviderId(settingsConfig: Record<string, any> | null): string | null {
+  if (!settingsConfig) return null;
+
+  const chatRaw = settingsConfig.models?.chat;
+  if (chatRaw && typeof chatRaw === 'object' && typeof chatRaw.provider === 'string' && chatRaw.provider.trim()) {
+    return chatRaw.provider.trim();
+  }
+
+  const apiProvider = typeof settingsConfig.api?.provider === 'string'
+    ? settingsConfig.api.provider.trim()
+    : '';
+  if (apiProvider) return apiProvider;
+
+  const chatModelId = typeof chatRaw === 'string'
+    ? chatRaw.trim()
+    : (chatRaw && typeof chatRaw === 'object' && typeof chatRaw.id === 'string' ? chatRaw.id.trim() : '');
+  if (!chatModelId) return null;
+
+  const providers = settingsConfig.providers || {};
+  for (const [providerId, providerConfig] of Object.entries(providers) as [string, any][]) {
+    if ((providerConfig?.models || []).includes(chatModelId)) return providerId;
+  }
+
+  return null;
+}
+
 export function ProvidersTab() {
-  const { providersSummary, selectedProviderId, settingsConfig } = useSettingsStore();
+  const { providersSummary, selectedProviderId, preferredProviderId, settingsConfig } = useSettingsStore();
   const providers = settingsConfig?.providers || {};
   const [addingProvider, setAddingProvider] = useState(false);
+  const hana = window.hana as {
+    debugOpenOnboarding?: () => Promise<void>;
+    openExternal?: (url: string) => Promise<void> | void;
+  } | undefined;
 
   const loadSummary = useCallback(async () => {
     try {
@@ -24,14 +54,23 @@ export function ProvidersTab() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   const providerIds = Object.keys(providersSummary);
+  const resolvedPreferredProviderId = resolvePreferredProviderId(settingsConfig) || preferredProviderId;
 
   useEffect(() => {
-    if (selectedProviderId) return;
-    const fallback = providerIds[0] || PROVIDER_PRESETS[0]?.value || null;
-    if (fallback) {
+    const hasSelected = !!selectedProviderId && providerIds.includes(selectedProviderId);
+    if (hasSelected) return;
+
+    const preferred = resolvedPreferredProviderId && (
+      providerIds.includes(resolvedPreferredProviderId) ||
+      PROVIDER_PRESETS.some((preset) => preset.value === resolvedPreferredProviderId)
+    )
+      ? resolvedPreferredProviderId
+      : null;
+    const fallback = preferred || providerIds[0] || PROVIDER_PRESETS[0]?.value || null;
+    if (fallback && fallback !== selectedProviderId) {
       useSettingsStore.setState({ selectedProviderId: fallback });
     }
-  }, [providerIds, selectedProviderId]);
+  }, [resolvedPreferredProviderId, providerIds, selectedProviderId]);
   const selected = selectedProviderId;
 
   // 分组：OAuth / Coding Plan / API Key
@@ -46,14 +85,22 @@ export function ProvidersTab() {
   const presetValues = new Set(PROVIDER_PRESETS.map(p => p.value));
   const customProviders = registeredApiKey.filter(id => !presetValues.has(id));
   const presetProviders = registeredApiKey.filter(id => presetValues.has(id));
+  const brainSummary = providersSummary.brain;
+  const brainNeedsSetup = !brainSummary?.has_credentials
+    || (brainSummary?.models || []).length === 0;
 
   const selectProvider = (id: string) => {
     useSettingsStore.setState({ selectedProviderId: id });
   };
 
+  const getProviderLabel = (id: string, p?: ProviderSummary) => {
+    if (id === BRAIN_PROVIDER_ID) return BRAIN_PROVIDER_LABEL;
+    const preset = PROVIDER_PRESETS.find(pr => pr.value === id);
+    return preset?.label || p?.display_name || id;
+  };
+
   const renderRegistered = (id: string) => {
     const p = providersSummary[id];
-    const preset = PROVIDER_PRESETS.find(pr => pr.value === id);
     const modelCount = (p.models || []).length;
     return (
       <button
@@ -62,7 +109,7 @@ export function ProvidersTab() {
         onClick={() => selectProvider(id)}
       >
         <span className={`${styles['pv-status-dot']}${p.has_credentials  ? ' ' + styles['on'] : ''}`} />
-        <span className={styles['pv-list-item-name']}>{preset?.label || p.display_name || id}</span>
+        <span className={styles['pv-list-item-name']}>{getProviderLabel(id, p)}</span>
         <span className={styles['pv-list-item-count']}>{modelCount}</span>
       </button>
     );
@@ -81,6 +128,31 @@ export function ProvidersTab() {
 
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="providers">
+      {brainNeedsSetup && (
+        <section className={styles['settings-section']}>
+          <h2 className={styles['settings-section-title']}>默认模型 Quick Start</h2>
+          <p className={styles['settings-desc']}>
+            Lynn 默认可以直接使用内置的免费模型链路。
+            如果这条链路还没完成初始化，可以重新打开新手引导补一次默认模型闭环。
+          </p>
+          <p className={styles['settings-desc']}>
+            {getBrainComplianceNote()}
+          </p>
+          <p className={styles['settings-desc']} style={{ opacity: 0.78 }}>
+            {getBrainUserNotice()}
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              className={styles['settings-save-btn-sm']}
+              type="button"
+              style={{ width: 'auto' }}
+              onClick={() => { void hana?.debugOpenOnboarding?.(); }}
+            >
+              打开新手引导
+            </button>
+          </div>
+        </section>
+      )}
       <div className={styles['pv-layout']}>
         {/* ── 左栏 ── */}
         <div className={styles['pv-list']}>
@@ -117,8 +189,8 @@ export function ProvidersTab() {
             const existing = providersSummary[selected];
             const preset = PROVIDER_PRESETS.find(p => p.value === selected);
             const summary: ProviderSummary = existing || {
-              type: 'api-key' as const,
-              display_name: preset?.label || selected,
+              type: (preset?.noKey || preset?.local) ? 'none' as const : 'api-key' as const,
+              display_name: getProviderLabel(selected),
               base_url: preset?.url || '',
               api: preset?.api || '',
               api_key: '',
@@ -145,12 +217,6 @@ export function ProvidersTab() {
           )}
         </div>
       </div>
-
-      {/* ── 底部：全局模型分配 ── */}
-      <section className={`${styles['settings-section']} ${styles['pv-other-section']}`}>
-        <h2 className={styles['settings-section-title']}>{t('settings.api.otherModelSection')}</h2>
-        <OtherModelsSection providers={providers} />
-      </section>
     </div>
   );
 }

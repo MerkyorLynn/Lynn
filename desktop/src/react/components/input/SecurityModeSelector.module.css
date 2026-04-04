@@ -39,11 +39,11 @@
     border-color: var(--mood-border, rgba(var(--accent-rgb), 0.18));
 }
 
-/* 规划模式 — 柔和提示 */
+/* 规划模式 — 蓝色（与输入框蓝色边框一致） */
 .pill-plan {
-    color: var(--text-muted);
-    background: var(--bg-card);
-    border-color: rgba(var(--accent-rgb), 0.18);
+    color: #4a8bc4;
+    background: rgba(91, 155, 213, 0.06);
+    border-color: rgba(91, 155, 213, 0.25);
 }
 
 /* 安全模式 — 绿色安全感 */

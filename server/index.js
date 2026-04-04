@@ -48,8 +48,10 @@ import { createDiaryRoute } from "./routes/diary.js";
 import { createConfirmRoute } from "./routes/confirm.js";
 import { createPluginsRoute } from "./routes/plugins.js";
 import { createExpertsRoute } from "./routes/experts.js";
+import { createMcpRoute } from "./routes/mcp.js";
 import { createReviewRoute } from "./routes/review.js";
 import { createTasksRoute } from "./routes/tasks.js";
+import { createAppStateRoute } from "./routes/app-state.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
@@ -178,6 +180,8 @@ app.onError((err, c) => {
 // ── 阻塞式确认存储 ──
 const confirmStore = new ConfirmStore();
 engine.setConfirmStore(confirmStore);
+taskRuntime.bindConfirmStore(confirmStore);
+taskRuntime.resumePendingTasks();
 
 // ── 外部平台接入管理器 ──
 const bridgeManager = new BridgeManager({ engine, hub });
@@ -194,6 +198,7 @@ app.route("/api", chatRestRoute);
 app.route("", chatWsRoute);
 app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast, taskRuntime }));
 app.route("/api", createTasksRoute(taskRuntime, engine));
+app.route("/api", createAppStateRoute(engine, { taskRuntime }));
 app.route("/api", createSessionsRoute(engine));
 app.route("/api", createModelsRoute(engine));
 app.route("/api", createConfigRoute(engine));
@@ -203,6 +208,7 @@ app.route("/api", createAvatarRoute(engine));
 app.route("/api", createAgentsRoute(engine));
 app.route("/api", createDeskRoute(engine, hub));
 app.route("/api", createSkillsRoute(engine));
+app.route("/api", createMcpRoute(engine));
 app.route("/api", createChannelsRoute(engine, hub));
 app.route("/api", createDmRoute(engine));
 app.route("/api", createFsRoute(engine));

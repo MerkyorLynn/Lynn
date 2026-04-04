@@ -7,6 +7,7 @@
  */
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { createModuleLogger } from "../lib/debug-log.js";
 import { saveConfig } from "../lib/memory/config-loader.js";
 import { findModel } from "../shared/model-ref.js";
@@ -62,13 +63,17 @@ export class ConfigCoordinator {
     const trustedRoot = getEffectiveTrustedRoots(prefs).find((root) => fs.existsSync(root));
     if (trustedRoot) return trustedRoot;
 
-    return null;
+    // 默认 fallback：~/Desktop/Lynn
+    const defaultHome = path.join(os.homedir(), "Desktop", "Lynn");
+    try { fs.mkdirSync(defaultHome, { recursive: true }); } catch {}
+    return defaultHome;
   }
 
   setHomeFolder(folder) {
     const prefs = this._prefs();
     const normalized = normalizeTrustedRoot(folder);
     if (normalized) {
+      try { fs.mkdirSync(normalized, { recursive: true }); } catch {}
       prefs.home_folder = normalized;
       prefs.trusted_roots = uniqueTrustedRoots([
         ...getEffectiveTrustedRoots(prefs),
@@ -220,15 +225,44 @@ export class ConfigCoordinator {
   }
 
   /**
-   * 暂存用户选择的模型，用于下次 createSession。
-   * 不修改当前活跃 session 的模型，不持久化到 config.yaml。
+   * 切换当前聊天模型。
+   * 规则：
+   * 1. 立即切换当前活跃 session（如果存在）
+   * 2. 同步写回当前 agent 的默认 chat 模型，避免 UI / 会话 / config.yaml 漂移
+   * 3. 持久化 session meta，确保冷启动恢复时也沿用正确模型
    */
-  setPendingModel(modelId, provider) {
+  async setPendingModel(modelId, provider) {
     const models = this._d.getModels();
     const model = findModel(models.availableModels, modelId, provider);
     if (!model) throw new Error(t("error.modelNotFound", { id: modelId }));
     const sessionCoord = this._d.getSessionCoordinator();
-    sessionCoord?.setPendingModel(model);
+    await sessionCoord?.switchCurrentSessionModel(model);
+    models.setDefaultModel(model.id, model.provider || undefined);
+    const agent = this._d.getAgent();
+    const configPatch = {
+      models: { chat: model.provider ? { id: model.id, provider: model.provider } : model.id },
+      ...(model.provider ? { api: { provider: model.provider } } : {}),
+    };
+    if (agent?.configPath) {
+      if (typeof agent.updateConfig === "function") {
+        agent.updateConfig(configPatch);
+      } else {
+        saveConfig(agent.configPath, configPatch);
+        if (agent.config && typeof agent.config === "object") {
+          agent.config.models = {
+            ...(agent.config.models || {}),
+            chat: configPatch.models.chat,
+          };
+          if (model.provider) {
+            agent.config.api = {
+              ...(agent.config.api || {}),
+              provider: model.provider,
+            };
+          }
+        }
+      }
+    }
+    this.persistSessionMeta();
     return model;
   }
 

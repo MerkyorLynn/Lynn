@@ -217,18 +217,28 @@ export function createChannelsRoute(engine, hub) {
       } else {
         // 提取 @ 提及
         const atMatches = body.match(/@(\S+)/g) || [];
+        const channelMembers = Array.isArray(channelMeta.members) ? channelMeta.members : [];
+
+        for (const memberId of channelMembers) {
+          addBookmarkEntry(path.join(engine.agentsDir, memberId, "channels.md"), name);
+        }
+
         const mentionedAgents = [];
         if (atMatches.length > 0) {
-          const meta = getChannelMeta(filePath);
-          const channelMembers = Array.isArray(meta.members) ? meta.members : [];
           const allAgents = engine.listAgents?.() || [];
+          const seen = new Set();
           for (const at of atMatches) {
-            const atName = at.slice(1);
-            const matched = allAgents.find((a) =>
-              a.name === atName || a.id === atName
-            );
-            if (matched && channelMembers.includes(matched.id)) {
-              mentionedAgents.push(matched.id);
+            const atName = at
+              .slice(1)
+              .trim()
+              .replace(/[，。！？：；,.:;!?、)\]）】》〉>]+$/u, "");
+            if (!atName) continue;
+            for (const agent of allAgents) {
+              if (!channelMembers.includes(agent.id)) continue;
+              if (agent.name !== atName && agent.id !== atName) continue;
+              if (seen.has(agent.id)) continue;
+              seen.add(agent.id);
+              mentionedAgents.push(agent.id);
             }
           }
         }

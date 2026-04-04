@@ -18,6 +18,10 @@ import path from "path";
 import { migrateConfigScope } from "../shared/migrate-config-scope.js";
 import { migrateToProvidersYaml } from "./migrate-providers.js";
 import { findModel } from "../shared/model-ref.js";
+import {
+  registerClientIdentityWithBrainApi,
+  readSignedClientAgentHeaders,
+} from "./client-agent-identity.js";
 import { PluginManager } from "./plugin-manager.js";
 import {
   DefaultResourceLoader,
@@ -36,6 +40,9 @@ const WELL_KNOWN_SKILL_PATHS = [
   { suffix: ".agents/skills",     label: "Agents" },
   { suffix: ".codebuddy/skills",  label: "CodeBuddy" },
   { suffix: ".workbuddy/skills-marketplace/skills", label: "WorkBuddy" },
+  { suffix: ".skillhub/skills",   label: "Tencent SkillHub" },
+  { suffix: "Downloads/SkillHub", label: "Tencent SkillHub" },
+  { suffix: "Downloads/skillhub", label: "Tencent SkillHub" },
 ];
 
 const allBuiltInTools = [...codingTools, grepTool, findTool, lsTool];
@@ -54,6 +61,7 @@ import {
   translateSkillNames as _translateSkillNames,
   summarizeActivity as _summarizeActivity,
   summarizeActivityQuick as _summarizeActivityQuick,
+  summarizeSessionRelay as _summarizeSessionRelay,
 } from "./llm-utils.js";
 import { debugLog } from "../lib/debug-log.js";
 import { createSandboxedTools } from "../lib/sandbox/index.js";
@@ -64,6 +72,13 @@ import {
   normalizeSecurityMode,
   DEFAULT_SECURITY_MODE,
 } from "../shared/security-mode.js";
+import {
+  BRAIN_PROVIDER_ID,
+  BRAIN_API_ROOT,
+  BRAIN_LEGACY_PROVIDER_BASE_URL,
+  buildBrainProviderConfig,
+} from "../shared/brain-provider.js";
+import { prewarmHttpConnection } from "../shared/http-pool.js";
 
 export class HanaEngine {
   /**
@@ -132,6 +147,7 @@ export class HanaEngine {
       getActiveAgentId: () => this.currentAgentId,
       getModels: () => this._models,
       getResourceLoader: () => this._resourceLoader,
+      getMcpPromptContext: () => this._mcpManager?.getPromptContext?.() || "",
       getSkills: () => this._skills,
       buildTools: (cwd, ct, opts) => this.buildTools(cwd, ct, opts),
       emitEvent: (e, sp) => this._emitEvent(e, sp),
@@ -146,6 +162,7 @@ export class HanaEngine {
       getAgentById: (id) => this._agentMgr.getAgent(id),
       listAgents: () => this.listAgents(),
       getConfirmStore: () => this._confirmStore,
+      summarizeSessionRelay: (sessionPath, opts) => this.summarizeSessionRelay(sessionPath, opts),
     });
 
     // Initialize security mode from saved preference
@@ -234,6 +251,7 @@ export class HanaEngine {
   listAgents() { return this._agentMgr.listAgents(); }
   invalidateAgentListCache() { this._agentMgr.invalidateAgentListCache(); }
   async createAgent(opts) { return this._agentMgr.createAgent(opts); }
+  async ensureAgentLoaded(agentId, log = () => {}) { return this._agentMgr.ensureAgentLoaded(agentId, log); }
   async switchAgent(agentId) { return this._agentMgr.switchAgent(agentId); }
   async deleteAgent(agentId) { return this._agentMgr.deleteAgent(agentId); }
   setPrimaryAgent(agentId) { return this._agentMgr.setPrimaryAgent(agentId); }
@@ -287,6 +305,7 @@ export class HanaEngine {
   async abortSessionByPath(p) { return this._sessionCoord.abortSessionByPath(p); }
   async listSessions() { return this._sessionCoord.listSessions(); }
   async saveSessionTitle(p, t) { return this._sessionCoord.saveSessionTitle(p, t); }
+  async saveSessionMeta(p, meta) { return this._sessionCoord.saveSessionMeta(p, meta); }
   createSessionContext() { return this._sessionCoord.createSessionContext(); }
   promoteActivitySession(f) { return this._sessionCoord.promoteActivitySession(f); }
   async executeIsolated(prompt, opts) { return this._sessionCoord.executeIsolated(prompt, opts); }
@@ -298,8 +317,8 @@ export class HanaEngine {
   get config() { return this.agent.config; }
   get factStore() { return this.agent.factStore; }
   get currentModel() {
-    return this._sessionCoord.pendingModel
-      ?? this._sessionCoord.session?.model
+    return this._sessionCoord.session?.model
+      ?? this._sessionCoord.pendingModel
       ?? this._models.currentModel;
   }
   get availableModels() { return this._models.availableModels; }
@@ -522,6 +541,50 @@ export class HanaEngine {
     // 0b. Provider 迁移（旧数据 → added-models.yaml，只跑一次）
     migrateToProvidersYaml(this.lynnHome, this.agentsDir, log);
 
+    // 0c. 默认 Brain provider：新老用户都保证存在一条免 Key 的免费模型链路
+    try {
+      const current = this._models.providerRegistry.getAllProvidersRaw()[BRAIN_PROVIDER_ID] || {};
+      const seeded = buildBrainProviderConfig();
+      const currentBaseUrl = current.base_url === BRAIN_LEGACY_PROVIDER_BASE_URL
+        ? seeded.base_url
+        : current.base_url;
+      const next = {
+        ...current,
+        display_name: current.display_name || seeded.display_name,
+        base_url: currentBaseUrl || seeded.base_url,
+        api: current.api || seeded.api,
+        auth_type: current.auth_type || seeded.auth_type,
+        models: Array.isArray(current.models) && current.models.length > 0 ? current.models : seeded.models,
+      };
+      const changed =
+        current.display_name !== next.display_name
+        || current.base_url !== next.base_url
+        || current.api !== next.api
+        || current.auth_type !== next.auth_type
+        || JSON.stringify(current.models || []) !== JSON.stringify(next.models || []);
+      if (changed) {
+        this._models.providerRegistry.saveProvider(BRAIN_PROVIDER_ID, next);
+        log("[init] seeded built-in Brain provider");
+      }
+      this._models.providerRegistry.reload();
+    } catch (err) {
+      log(`[init] seed Brain provider failed: ${err.message}`);
+    }
+
+    // 0d. 将本机 Lynn 身份注册到 Brain 服务，后续请求走签名头鉴权
+    try {
+      const { key, secret } = this._prefs.ensureClientIdentity();
+      await registerClientIdentityWithBrainApi({
+        baseUrl: BRAIN_API_ROOT,
+        agentKey: key,
+        secret,
+        timeoutMs: 5000,
+      });
+      log("[init] Brain device registration ok");
+    } catch (err) {
+      log(`[init] Brain device registration skipped: ${err.message}`);
+    }
+
     // 1. Pi SDK + 模型基础设施（必须在 agent init 之前，agent 需要解析记忆模型）
     log(`[init] 1/5 Pi SDK 初始化...`);
     this._models.init();
@@ -598,7 +661,7 @@ export class HanaEngine {
     });
     await this._resourceLoader.reload();
 
-    const HIDDEN_SKILLS = new Set(["canvas-design", "skill-creator", "skills-translate-temp"]);
+    const HIDDEN_SKILLS = new Set(["skills-translate-temp"]);
     this._skills.init(this._resourceLoader, this._agentMgr.agents, HIDDEN_SKILLS);
     const extCount = this._skills.allSkills.filter(s => s.source === "external").length;
     log(`[init] 3/5 ResourceLoader 完成 (${Date.now() - t_rl}ms, ${this._skills.allSkills.length} skills${extCount ? `, ${extCount} external` : ""})`);
@@ -647,6 +710,54 @@ export class HanaEngine {
     // 7. Bridge 孤儿清理
     try { this._bridge.reconcile(); } catch {}
 
+    // 7a. MCP 服务器连接
+    try {
+      const { McpManager } = await import("../lib/mcp-client.js");
+      this._mcpManager = new McpManager(this.lynnHome);
+      await this._mcpManager.init();
+      if (this._mcpManager.toolCount > 0) {
+        log(`✿ MCP: ${this._mcpManager.serverCount} server(s), ${this._mcpManager.toolCount} tool(s)`);
+      }
+    } catch (err) {
+      log(`[init] MCP init failed (non-fatal): ${err.message}`);
+      this._mcpManager = null;
+    }
+
+    // 7a-1. Brain Provider 连接预热（降低首 Token 延迟）
+    try {
+      const brainBaseUrl = this.providerRegistry?.get(BRAIN_PROVIDER_ID)?.baseUrl;
+      if (brainBaseUrl) {
+        const prewarmUrl = `${String(brainBaseUrl).replace(/\/+$/, "")}/models`;
+        const pathname = (() => {
+          try { return new URL(prewarmUrl).pathname || "/models"; } catch { return "/models"; }
+        })();
+        const headers = readSignedClientAgentHeaders({
+          method: "GET",
+          pathname,
+        });
+        void prewarmHttpConnection(prewarmUrl, {
+          method: "GET",
+          headers,
+          timeoutMs: 3000,
+        });
+      }
+    } catch (err) {
+      log(`[init] Brain prewarm skipped: ${err.message}`);
+    }
+
+    // 7b. 内容安全过滤器
+    try {
+      const { ContentFilter } = await import("../lib/content-filter.js");
+      this._contentFilter = new ContentFilter();
+      await this._contentFilter.init();
+      // 注入到 SessionCoordinator
+      this._sessionCoord._contentFilter = this._contentFilter;
+      log(`✿ 内容过滤器已加载 (${this._contentFilter.stats.totalWords} 词)`);
+    } catch (err) {
+      log(`[init] content filter init failed (non-fatal): ${err.message}`);
+      this._contentFilter = null;
+    }
+
     // 8. 沙盒日志
     const sandboxEnabled = this._readPreferences().sandbox !== false;
     log(`✿ 沙盒${sandboxEnabled ? "已启用" : "已关闭"}`);
@@ -657,6 +768,7 @@ export class HanaEngine {
 
   async dispose() {
     this._skills?.unwatch();
+    await this._mcpManager?.dispose?.();
     await this._agentMgr.disposeAll(this._sessionCoord);
     await this._sessionCoord.cleanupSession();
   }
@@ -692,6 +804,7 @@ export class HanaEngine {
   }
 
   get pluginManager() { return this._pluginManager; }
+  get mcpManager() { return this._mcpManager; }
 
   // ════════════════════════════
   //  工具构建
@@ -699,9 +812,10 @@ export class HanaEngine {
 
   buildTools(cwd, customTools, opts = {}) {
     const ct = customTools || this.agent.tools;
-    // Append plugin tools
+    // Append plugin tools + MCP tools
     const pluginTools = this._pluginManager?.getAllTools() || [];
-    const allTools = [...ct, ...pluginTools];
+    const mcpTools = this._mcpManager?.getTools() || [];
+    const allTools = [...ct, ...pluginTools, ...mcpTools];
 
     const effectiveAgentDir = opts.agentDir || this.agent.agentDir;
     const effectiveWorkspace = opts.workspace !== undefined ? opts.workspace : this.homeCwd;
@@ -826,6 +940,10 @@ export class HanaEngine {
     if (!entry?.sessionFile) return null;
     const sessionPath = path.join(this.agentsDir, foundAgentId, "activity", entry.sessionFile);
     return _summarizeActivityQuick(this.resolveUtilityConfig(), sessionPath);
+  }
+
+  async summarizeSessionRelay(sessionPath, opts = {}) {
+    return _summarizeSessionRelay(this.resolveUtilityConfig(), sessionPath, opts);
   }
 
   // ════════════════════════════

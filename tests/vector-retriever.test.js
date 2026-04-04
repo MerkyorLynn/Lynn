@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { SqliteVectorRetriever } from "../lib/memory/vector-interface.js";
+import {
+  TfIdfVectorRetriever,
+  createVectorRetriever,
+} from "../lib/memory/vector-interface.js";
 import { HybridRetriever } from "../lib/memory/retriever.js";
 
 const tmpRoots = [];
@@ -68,18 +71,36 @@ function createStubFactStore() {
 }
 
 describe("vector retriever integration", () => {
-  it("returns semantically similar rows from the sidecar vector index", async () => {
+  it("returns semantically similar rows from the TF-IDF sidecar vector index", async () => {
     const root = makeTempRoot();
-    const vector = new SqliteVectorRetriever(path.join(root, "vectors.db"));
+    const vector = new TfIdfVectorRetriever(path.join(root, "vectors.db"));
 
-    await vector.index(1, "Next.js routing with dynamic segments", ["nextjs", "routing"]);
-    await vector.index(2, "Grocery list and dinner prep", ["personal"]);
+    await vector.rebuildIndex([
+      { id: 1, text: "Next.js routing with dynamic segments", tags: ["nextjs", "routing"] },
+      { id: 2, text: "Grocery list and dinner prep", tags: ["personal"] },
+    ]);
 
     const results = await vector.search("next routing", 5);
     expect(results[0].id).toBe(1);
     expect(results[0].score).toBeGreaterThan(0);
 
     vector.close();
+  });
+
+  it("creates the TF-IDF retriever from factory config", async () => {
+    const root = makeTempRoot();
+    const vector = createVectorRetriever({
+      type: "tfidf-local",
+      dbPath: path.join(root, "vectors.db"),
+    });
+
+    await vector.rebuildIndex([
+      { id: 1, text: "Brain router signed device token flow", tags: ["brain", "auth"] },
+      { id: 2, text: "Weekly dinner groceries", tags: ["personal"] },
+    ]);
+
+    const results = await vector.search("brain token", 5);
+    expect(results[0].id).toBe(1);
   });
 
   it("rebuilds and searches through HybridRetriever, then increments access stats", async () => {
@@ -101,9 +122,9 @@ describe("vector retriever integration", () => {
     const retriever = new HybridRetriever({
       factStore,
       vectorConfig: {
-        type: "sqlite-local",
+        type: "tfidf-local",
         dbPath: path.join(root, "vectors.db"),
-        dimensions: 64,
+        dimensions: 256,
       },
     });
 

@@ -10,6 +10,8 @@ import { t } from "../i18n.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { getRawConfig, clearConfigCache } from "../../lib/memory/config-loader.js";
 import { FactStore } from "../../lib/memory/fact-store.js";
+import { InferredProfile } from "../../lib/memory/inferred-profile.js";
+import { MemoryExclusions } from "../../lib/memory/memory-exclusions.js";
 import { splitByScope, injectGlobalFields } from '../../shared/config-scope.js';
 
 export function createConfigRoute(engine) {
@@ -318,6 +320,58 @@ export function createConfigRoute(engine) {
     }
   }
 
+  function getInferredProfileForAgent(agentId) {
+    const activeId = path.basename(engine.agent.agentDir);
+    if (!agentId || agentId === activeId) {
+      return engine.inferredProfile?.getRawProfile?.() || null;
+    }
+    if (/[\/\\.]/.test(agentId)) {
+      throw new Error("Invalid agent ID");
+    }
+    const profilePath = path.join(engine.agentsDir, agentId, "memory", "user-inferred.json");
+    const profile = new InferredProfile({ profilePath });
+    return profile.getRawProfile();
+  }
+
+  function getMemoryExclusionsForAgent(agentId) {
+    const activeId = path.basename(engine.agent.agentDir);
+    const baseDir = (!agentId || agentId === activeId)
+      ? path.join(engine.agent.agentDir, "memory")
+      : path.join(engine.agentsDir, agentId, "memory");
+    return new MemoryExclusions({
+      filePath: path.join(baseDir, "exclusions.json"),
+    });
+  }
+
+  function groupMemoriesByDate(memories, days = 30) {
+    const normalizedDays = Number.isFinite(Number(days)) ? Math.max(1, Number(days)) : 30;
+    const cutoff = Date.now() - normalizedDays * 24 * 60 * 60 * 1000;
+    const rows = [...(memories || [])]
+      .filter((item) => {
+        const at = item.time || item.created_at;
+        if (!at) return true;
+        const ts = new Date(at).getTime();
+        return Number.isFinite(ts) ? ts >= cutoff : true;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.time || a.created_at || 0).getTime();
+        const bTime = new Date(b.time || b.created_at || 0).getTime();
+        return bTime - aTime;
+      });
+
+    const groups = new Map();
+    for (const item of rows) {
+      const key = String(item.time || item.created_at || "").slice(0, 10) || "unknown";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({
+        ...item,
+        sourceType: item.source || "conversation",
+      });
+    }
+
+    return Array.from(groups.entries()).map(([date, items]) => ({ date, items }));
+  }
+
   // 获取所有元事实
   route.get("/memories", async (c) => {
     let tempStore = null;
@@ -325,6 +379,30 @@ export function createConfigRoute(engine) {
       const { store, isTemp } = getStoreForAgent(c.req.query("agentId"));
       if (isTemp) tempStore = store;
       return c.json({ memories: store.exportAll() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.get("/memories/timeline", async (c) => {
+    let tempStore = null;
+    try {
+      const agentId = c.req.query("agentId");
+      const days = c.req.query("days") || "30";
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const memories = store.exportAll();
+      const timeline = groupMemoriesByDate(memories, days);
+      const inferredProfile = getInferredProfileForAgent(agentId);
+      const exclusions = getMemoryExclusionsForAgent(agentId).list();
+      return c.json({
+        days: Number(days) || 30,
+        timeline,
+        inferredProfile,
+        exclusions,
+      });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     } finally {
@@ -389,6 +467,85 @@ export function createConfigRoute(engine) {
       return c.json({ error: err.message }, 500);
     } finally {
       tempStore?.close();
+    }
+  });
+
+  route.delete("/memories/:id", async (c) => {
+    let tempStore = null;
+    try {
+      const agentId = c.req.query("agentId");
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const deleted = store.delete(Number(c.req.param("id")));
+      if (!deleted) return c.json({ error: "memory not found" }, 404);
+      debugLog()?.log("api", `DELETE /api/memories/${c.req.param("id")} agent=${agentId || path.basename(engine.agent.agentDir)}`);
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.patch("/memories/:id", async (c) => {
+    let tempStore = null;
+    try {
+      const body = await safeJson(c);
+      const updates = {};
+      if (Object.prototype.hasOwnProperty.call(body, "category")) updates.category = body.category;
+      if (Object.prototype.hasOwnProperty.call(body, "confidence")) updates.confidence = body.confidence;
+      if (Object.prototype.hasOwnProperty.call(body, "evidence")) updates.evidence = body.evidence;
+      if (Object.keys(updates).length === 0) {
+        return c.json({ error: "no supported fields provided" }, 400);
+      }
+
+      const agentId = c.req.query("agentId");
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const updated = store.updateFact(Number(c.req.param("id")), updates);
+      if (!updated) return c.json({ error: "memory not found" }, 404);
+      debugLog()?.log("api", `PATCH /api/memories/${c.req.param("id")} agent=${agentId || path.basename(engine.agent.agentDir)}`);
+      return c.json({ ok: true, memory: updated });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.get("/memories/exclusions", async (c) => {
+    try {
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId")).list();
+      return c.json(exclusions);
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  route.post("/memories/exclusions", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const phrase = typeof body.phrase === "string" ? body.phrase.trim() : "";
+      if (!phrase) return c.json({ error: "phrase is required" }, 400);
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId"));
+      exclusions.addPhrase(phrase);
+      return c.json({ ok: true, exclusions: exclusions.list() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  route.delete("/memories/exclusions", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const phrase = typeof body.phrase === "string" ? body.phrase.trim() : "";
+      if (!phrase) return c.json({ error: "phrase is required" }, 400);
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId"));
+      const removed = exclusions.removePhrase(phrase);
+      if (!removed) return c.json({ error: "phrase not found" }, 404);
+      return c.json({ ok: true, exclusions: exclusions.list() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
     }
   });
 

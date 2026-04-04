@@ -25,6 +25,7 @@ const REVIEW_PROGRESS_STAGES = ["packing_context", "reviewing", "structuring", "
 const MAX_CONTEXT_PREVIEW_CHARS = 2200;
 const MAX_SESSION_LINES = 120;
 const MAX_TOOL_ITEMS = 10;
+const REVIEW_EXEC_TIMEOUT_MS = 45_000;
 
 function isZh() {
   return getLocale().startsWith("zh");
@@ -78,6 +79,30 @@ function reviewerDisplayName(yuan) {
   return yuan === "butter" ? "Butter" : "Hanako";
 }
 
+function ensureReviewerAgentShape(engine, kind, reviewerId) {
+  const agentId = normalizeReviewerId(reviewerId);
+  if (!agentId || typeof engine.getAgent !== "function") return false;
+
+  const agent = engine.getAgent(agentId);
+  if (!agent || typeof agent.updateConfig !== "function") return false;
+
+  const currentYuan = String(agent?.config?.agent?.yuan || agent?.yuan || "").trim().toLowerCase();
+  const currentTier = String(agent?.config?.agent?.tier || agent?.tier || "").trim().toLowerCase();
+  const nextAgent = {};
+
+  if (currentYuan !== kind) nextAgent.yuan = kind;
+  if (currentTier !== "reviewer") nextAgent.tier = "reviewer";
+  if (Object.keys(nextAgent).length === 0) return false;
+
+  try {
+    agent.updateConfig({ agent: nextAgent });
+    engine.invalidateAgentListCache?.();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function normalizeReviewConfig(prefs = {}) {
   const raw = prefs.review && typeof prefs.review === "object" ? prefs.review : {};
   return {
@@ -100,6 +125,19 @@ function getAgentModel(agent) {
     modelId: raw || null,
     modelProvider: agent?.config?.api?.provider || null,
   };
+}
+
+async function runReviewerSessionWithFallback(engine, reviewerId, rounds, opts) {
+  try {
+    return await runAgentSession(reviewerId, rounds, opts);
+  } catch (err) {
+    const fallbackModel = engine.currentModel;
+    if (!fallbackModel?.id) throw err;
+    return runAgentSession(reviewerId, rounds, {
+      ...opts,
+      modelOverride: fallbackModel,
+    });
+  }
 }
 
 function listReviewCandidates(engine) {
@@ -142,7 +180,7 @@ function resolveReviewer(groupedCandidates, kind, config, currentAgentId) {
   return candidates[0] || null;
 }
 
-function buildReviewConfig(engine) {
+export function buildReviewConfig(engine) {
   const prefs = engine.getPreferences?.() || {};
   const config = normalizeReviewConfig(prefs);
   const candidates = groupCandidatesByYuan(listReviewCandidates(engine));
@@ -153,6 +191,43 @@ function buildReviewConfig(engine) {
     candidates,
     resolvedReviewer: resolved ? { ...resolved, reviewerName: reviewerDisplayName(resolved.yuan) } : null,
   };
+}
+
+async function ensureDefaultReviewerAgents(engine) {
+  if (typeof engine.createAgent !== "function") return buildReviewConfig(engine);
+
+  const prefs = engine.getPreferences?.() || {};
+  const normalizedConfig = normalizeReviewConfig(prefs);
+  let repaired = false;
+  repaired = ensureReviewerAgentShape(engine, "hanako", normalizedConfig.hanakoReviewerId || "hanako") || repaired;
+  repaired = ensureReviewerAgentShape(engine, "butter", normalizedConfig.butterReviewerId || "butter") || repaired;
+
+  let config = repaired ? buildReviewConfig(engine) : buildReviewConfig(engine);
+  const missingKinds = ["hanako", "butter"].filter((kind) => {
+    return !resolveReviewer(config.candidates, kind, config, engine.currentAgentId);
+  });
+
+  if (missingKinds.length === 0) return config;
+
+  const nextBindings = {};
+  for (const kind of missingKinds) {
+    try {
+      const created = await engine.createAgent({
+        name: kind === "butter" ? "Butter Reviewer" : "Hanako Reviewer",
+        yuan: kind,
+      });
+      if (created?.id) {
+        ensureReviewerAgentShape(engine, kind, created.id);
+        nextBindings[kind === "butter" ? "butterReviewerId" : "hanakoReviewerId"] = created.id;
+      }
+    } catch {}
+  }
+
+  config = Object.keys(nextBindings).length > 0
+    ? saveReviewConfig(engine, nextBindings)
+    : buildReviewConfig(engine);
+
+  return config;
 }
 
 function saveReviewConfig(engine, partial = {}) {
@@ -413,11 +488,13 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
     return c.json({ ok: true, task });
   });
 
-  route.get("/review/config", (c) => {
-    return c.json(buildReviewConfig(engine));
+  route.get("/review/config", async (c) => {
+    const config = await ensureDefaultReviewerAgents(engine);
+    return c.json(config);
   });
 
   route.put("/review/config", async (c) => {
+    await ensureDefaultReviewerAgents(engine);
     const body = await c.req.json().catch(() => ({}));
     const candidates = listReviewCandidates(engine);
     const defaultReviewer = body.defaultReviewer === undefined
@@ -455,7 +532,7 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
       return c.json({ error: "missing context" }, 400);
     }
 
-    const reviewConfig = buildReviewConfig(engine);
+    const reviewConfig = await ensureDefaultReviewerAgents(engine);
     const reviewerKind = body.reviewerKind === "butter" ? "butter" : reviewConfig.defaultReviewer;
     const reviewer = resolveReviewer(reviewConfig.candidates, reviewerKind, reviewConfig, engine.currentAgentId);
 
@@ -466,6 +543,27 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
         reviewerKind,
         config: reviewConfig,
       }, 400);
+    }
+
+    try {
+      const loadedReviewer = typeof engine.ensureAgentLoaded === "function"
+        ? await engine.ensureAgentLoaded(reviewer.id)
+        : engine.getAgent?.(reviewer.id);
+      if (!loadedReviewer) {
+        return c.json({
+          error: isZh()
+            ? `复查人 agent "${reviewer.id}" 不存在或未初始化`
+            : `Reviewer agent "${reviewer.id}" does not exist or is not initialized`,
+          reviewerKind,
+          code: "reviewer_agent_missing",
+        }, 500);
+      }
+    } catch (err) {
+      return c.json({
+        error: err?.message || (isZh() ? "复查人初始化失败" : "Reviewer initialization failed"),
+        reviewerKind,
+        code: "reviewer_agent_init_failed",
+      }, 500);
     }
 
     const reviewerName = reviewerDisplayName(reviewer.yuan);
@@ -492,11 +590,13 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
         const prompt = formatContextPack(contextPack);
 
         emitProgress("reviewing");
-        const result = await runAgentSession(
+        const result = await runReviewerSessionWithFallback(
+          engine,
           reviewer.id,
           [{ text: prompt, capture: true }],
           {
             engine,
+            signal: AbortSignal.timeout(REVIEW_EXEC_TIMEOUT_MS),
             sessionSuffix: "review",
             systemAppend: buildReviewSystemAppend(),
             readOnly: true,
@@ -556,8 +656,8 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
     });
   });
 
-  route.get("/review/agents", (c) => {
-    const config = buildReviewConfig(engine);
+  route.get("/review/agents", async (c) => {
+    const config = await ensureDefaultReviewerAgents(engine);
     const reviewers = [...config.candidates.hanako, ...config.candidates.butter];
     return c.json({ reviewers, config });
   });

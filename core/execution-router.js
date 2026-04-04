@@ -85,7 +85,9 @@ export class ExecutionRouter {
     if (!cred.api) {
       throw new Error(t("error.providerMissingApi", { provider: model.provider }));
     }
-    if (!cred.baseUrl || (!cred.apiKey && !isLocalBaseUrl(cred.baseUrl))) {
+    const providerEntry = this._providerRegistry.get?.(model.provider);
+    const allowMissingApiKey = providerEntry?.authType === "none";
+    if (!cred.baseUrl || (!cred.apiKey && !isLocalBaseUrl(cred.baseUrl) && !allowMissingApiKey)) {
       throw new Error(t("error.providerMissingCreds", { provider: model.provider }));
     }
 
@@ -109,67 +111,129 @@ export class ExecutionRouter {
    */
   resolveUtilityConfig(agentConfig, sharedModels, utilApiOverride) {
     const cfg = agentConfig || {};
-    const utilityModelRef = sharedModels?.utility || cfg.models?.utility;
-    const largeModelRef = sharedModels?.utility_large || cfg.models?.utility_large;
+    const chatModelRef = cfg.models?.chat || null;
+    const utilityModelRef = sharedModels?.utility || cfg.models?.utility || chatModelRef;
+    const largeModelRef = sharedModels?.utility_large || cfg.models?.utility_large || utilityModelRef || chatModelRef;
+    const summarizerModelRef = sharedModels?.summarizer || cfg.models?.summarizer || chatModelRef;
+    const compilerModelRef = sharedModels?.compiler || cfg.models?.compiler || chatModelRef;
 
-    if (!utilityModelRef) throw new Error(t("error.noUtilityModel"));
-    if (!largeModelRef) throw new Error(t("error.noUtilityLargeModel"));
+    const utilityCandidates = this._buildCandidateConfigs([
+      utilityModelRef,
+      largeModelRef,
+      summarizerModelRef,
+      compilerModelRef,
+      chatModelRef,
+    ], utilApiOverride);
+    if (!utilityCandidates.length) throw new Error(t("error.noUtilityModel"));
 
-    const utilModel = this._resolveModel(utilityModelRef);
-    if (!utilModel) throw new Error(t("error.modelNotFound", { id: utilityModelRef }));
+    const largeCandidates = this._buildCandidateConfigs([
+      largeModelRef,
+      utilityModelRef,
+      summarizerModelRef,
+      compilerModelRef,
+      chatModelRef,
+    ], utilApiOverride);
+    if (!largeCandidates.length) throw new Error(t("error.noUtilityLargeModel"));
 
-    const largeModel = this._resolveModel(largeModelRef);
-    if (!largeModel) throw new Error(t("error.modelNotFound", { id: largeModelRef }));
+    const primaryUtility = utilityCandidates[0];
+    const primaryLarge = largeCandidates[0];
 
-    // utility 凭证
-    let apiKey, baseUrl, api;
-    if (utilApiOverride?.provider || utilApiOverride?.api_key || utilApiOverride?.base_url) {
-      // 校验 provider 一致性（与原 ModelManager.resolveUtilityConfig 行为一致）
-      if (utilApiOverride.provider && utilApiOverride.provider !== utilModel.provider) {
-        throw new Error(t("error.utilityApiProviderMismatch", { model: utilityModelRef }));
+    return {
+      utility: primaryUtility.model,
+      utility_provider: primaryUtility.provider,
+      utility_allow_missing_api_key: primaryUtility.allow_missing_api_key === true,
+      utility_large: primaryLarge.model,
+      utility_large_provider: primaryLarge.provider,
+      utility_large_allow_missing_api_key: primaryLarge.allow_missing_api_key === true,
+      api_key: primaryUtility.api_key,
+      base_url: primaryUtility.base_url,
+      api: primaryUtility.api,
+      large_api_key: primaryLarge.api_key,
+      large_base_url: primaryLarge.base_url,
+      large_api: primaryLarge.api,
+      utility_fallbacks: utilityCandidates.slice(1),
+      utility_large_fallbacks: largeCandidates.slice(1),
+    };
+  }
+
+  _buildCandidateConfigs(refs, utilApiOverride) {
+    const seen = new Set();
+    const candidates = [];
+    for (const ref of refs) {
+      const resolved = this._resolveCandidateConfig(ref, utilApiOverride);
+      if (!resolved) continue;
+      const key = `${resolved.provider}/${resolved.model}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push(resolved);
+    }
+    return candidates;
+  }
+
+  _resolveCandidateConfig(modelRef, utilApiOverride) {
+    if (!modelRef) return null;
+    try {
+      return this._resolveModelConfig(modelRef, utilApiOverride);
+    } catch (err) {
+      if (err?.code === "UTILITY_API_PROVIDER_MISMATCH") throw err;
+      try {
+        return this._resolveModelConfig(modelRef, null);
+      } catch {
+        return null;
       }
-      // utility API 覆盖（用户指定了独立的 utility api endpoint）
-      const provCred = this._providerRegistry.getCredentials(utilModel.provider);
-      api = provCred?.api || utilModel.api;
-      apiKey = utilApiOverride.api_key || "";
-      baseUrl = utilApiOverride.base_url || "";
-      if (!api) throw new Error(t("error.providerMissingApi", { provider: utilModel.provider }));
-      if (!baseUrl || (!apiKey && !isLocalBaseUrl(baseUrl))) {
-        throw new Error(t("error.utilityApiMissingCreds", { provider: utilModel.provider }));
-      }
-    } else {
-      const cred = this._providerRegistry.getCredentials(utilModel.provider);
-      if (!cred?.api) throw new Error(t("error.providerMissingApi", { provider: utilModel.provider }));
-      if (!cred.baseUrl || (!cred.apiKey && !isLocalBaseUrl(cred.baseUrl))) {
-        throw new Error(t("error.providerMissingCreds", { provider: utilModel.provider }));
-      }
-      apiKey = cred.apiKey;
-      baseUrl = cred.baseUrl;
-      api = cred.api;
+    }
+  }
+
+  _resolveModelConfig(modelRef, utilApiOverride) {
+    const model = this._resolveModel(modelRef);
+    if (!model) {
+      throw new Error(t("error.modelNotFound", { id: modelRef }));
     }
 
-    // utility_large 凭证（provider 相同则复用）
-    let large_api_key = apiKey, large_base_url = baseUrl, large_api = api;
-    if (largeModel.provider !== utilModel.provider) {
-      const largeCred = this._providerRegistry.getCredentials(largeModel.provider);
-      if (!largeCred?.api) throw new Error(t("error.providerMissingApi", { provider: largeModel.provider }));
-      if (!largeCred.baseUrl || (!largeCred.apiKey && !isLocalBaseUrl(largeCred.baseUrl))) {
-        throw new Error(t("error.providerMissingCreds", { provider: largeModel.provider }));
+    if (utilApiOverride?.provider && utilApiOverride.provider !== model.provider) {
+      const err = new Error(t("error.utilityApiProviderMismatch", { model: modelRef }));
+      err.code = "UTILITY_API_PROVIDER_MISMATCH";
+      throw err;
+    }
+
+    const canUseOverride = !!(utilApiOverride?.provider || utilApiOverride?.api_key || utilApiOverride?.base_url)
+      && (!utilApiOverride.provider || utilApiOverride.provider === model.provider);
+    if (canUseOverride) {
+      const provCred = this._providerRegistry.getCredentials(model.provider);
+      const api = provCred?.api || model.api;
+      const apiKey = utilApiOverride.api_key || "";
+      const baseUrl = utilApiOverride.base_url || "";
+      const providerEntry = this._providerRegistry.get?.(model.provider);
+      const allowMissingApiKey = providerEntry?.authType === "none";
+      if (!api) throw new Error(t("error.providerMissingApi", { provider: model.provider }));
+      if (!baseUrl || (!apiKey && !isLocalBaseUrl(baseUrl) && !allowMissingApiKey)) {
+        throw new Error(t("error.utilityApiMissingCreds", { provider: model.provider }));
       }
-      large_api_key = largeCred.apiKey;
-      large_base_url = largeCred.baseUrl;
-      large_api = largeCred.api;
+      return {
+        model: model.id,
+        provider: model.provider,
+        api,
+        api_key: apiKey,
+        base_url: baseUrl,
+        allow_missing_api_key: allowMissingApiKey,
+      };
+    }
+
+    const cred = this._providerRegistry.getCredentials(model.provider);
+    const providerEntry = this._providerRegistry.get?.(model.provider);
+    const allowMissingApiKey = providerEntry?.authType === "none";
+    if (!cred?.api) throw new Error(t("error.providerMissingApi", { provider: model.provider }));
+    if (!cred.baseUrl || (!cred.apiKey && !isLocalBaseUrl(cred.baseUrl) && !allowMissingApiKey)) {
+      throw new Error(t("error.providerMissingCreds", { provider: model.provider }));
     }
 
     return {
-      utility: utilModel.id,
-      utility_large: largeModel.id,
-      api_key: apiKey,
-      base_url: baseUrl,
-      api,
-      large_api_key,
-      large_base_url,
-      large_api,
+      model: model.id,
+      provider: model.provider,
+      api: cred.api,
+      api_key: cred.apiKey,
+      base_url: cred.baseUrl,
+      allow_missing_api_key: allowMissingApiKey,
     };
   }
 

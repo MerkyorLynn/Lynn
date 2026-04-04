@@ -30,6 +30,9 @@ import { createExperienceTools } from "../lib/tools/experience.js";
 import { ProactiveRecall } from "../lib/memory/proactive-recall.js";
 import { ProjectMemory } from "../lib/memory/project-memory.js";
 import { UserProfile } from "../lib/memory/user-profile.js";
+import { InferredProfile } from "../lib/memory/inferred-profile.js";
+import { MemoryExclusions } from "../lib/memory/memory-exclusions.js";
+import { SkillDistiller } from "../lib/memory/skill-distiller.js";
 import { HybridRetriever } from "../lib/memory/retriever.js";
 import { createInstallSkillTool } from "../lib/tools/install-skill.js";
 import { createNotifyTool } from "../lib/tools/notify-tool.js";
@@ -94,6 +97,9 @@ export class Agent {
     this._proactiveRecall = null;
     this._projectMemory = null;
     this._userProfile = null;
+    this._inferredProfile = null;
+    this._memoryExclusions = null;
+    this._skillDistiller = null;
 
     // Desk 系统（与 memory 完全独立）
     this._deskManager = null;
@@ -187,6 +193,7 @@ export class Agent {
     // utility 模型（允许为空，首次安装时用户尚未配置）
     this._utilityModel = sharedModels.utility || null;
     this._memoryModel = sharedModels.utility_large || null;
+    this._resolvedUtilityModel = null;
 
     // 预解析记忆模型凭证（统一解析层）
     this._resolvedMemoryModel = null;
@@ -205,6 +212,14 @@ export class Agent {
       this._engine?.emitDevLog?.("记忆系统未启动：大工具模型（utility_large）未配置", "warn");
     }
 
+    if (this._utilityModel && resolveModel) {
+      try {
+        this._resolvedUtilityModel = resolveModel(this._utilityModel, this._config);
+      } catch (err) {
+        console.warn(`[memory] 用户画像推断未启动：工具模型（utility）解析失败 — ${err.message}`);
+      }
+    }
+
     if (this._resolvedMemoryModel) {
       log(`  [agent] 4. memoryTicker...`);
       this._memoryTicker = createMemoryTicker({
@@ -216,6 +231,10 @@ export class Agent {
         isSessionMemoryEnabled: (sessionPath) => this.isSessionMemoryEnabledFor(sessionPath),
         getProjectMemory: () => this._projectMemory,
         getUserProfile: () => this._userProfile,
+        getInferredProfile: () => this._inferredProfile,
+        getMemoryExclusions: () => this._memoryExclusions,
+        getResolvedUtilityModel: () => this._resolvedUtilityModel || this._resolvedMemoryModel,
+        getSkillDistiller: () => this._skillDistiller,
         getCwd: () => this._engine?.cwd || "",
         onCompiled: () => {
           this._systemPrompt = this.buildSystemPrompt();
@@ -250,9 +269,9 @@ export class Agent {
     const retriever = new HybridRetriever({
       factStore: this._factStore,
       vectorConfig: {
-        type: 'local-file',
+        type: 'tfidf-local',
         dbPath: path.join(this.agentDir, 'memory', 'vectors.db'),
-        dimensions: this._config?.models?.embedding_dimensions || 128,
+        dimensions: this._config?.models?.embedding_dimensions || 256,
       },
     });
     this._retriever = retriever;
@@ -286,6 +305,30 @@ export class Agent {
     // Phase 3: 用户行为画像
     this._userProfile = new UserProfile({
       profilePath: path.join(this.agentDir, "memory", "user-profile.json"),
+    });
+    this._inferredProfile = new InferredProfile({
+      profilePath: path.join(this.agentDir, "memory", "user-inferred.json"),
+    });
+    this._memoryExclusions = new MemoryExclusions({
+      filePath: path.join(this.agentDir, "memory", "exclusions.json"),
+    });
+    this._skillDistiller = new SkillDistiller({
+      agentDir: this.agentDir,
+      factStore: this._factStore,
+      listExistingSkills: () => this._engine?.getAllSkills(path.basename(this.agentDir)) || [],
+      resolveDistillModel: () => this._resolvedMemoryModel || this._resolvedUtilityModel,
+      resolveSafetyModel: () => this._resolvedUtilityModel || this._resolvedMemoryModel,
+      onInstalled: async (skillName) => {
+        const enabled = new Set(this._config?.skills?.enabled || []);
+        enabled.add(skillName);
+        this.updateConfig({ skills: { enabled: [...enabled] } });
+        await this._engine?.reloadSkills?.();
+        this._engine?.emitEvent?.({ type: "skills-changed" }, null);
+      },
+      onUpdated: async () => {
+        await this._engine?.reloadSkills?.();
+        this._engine?.emitEvent?.({ type: "skills-changed" }, null);
+      },
     });
 
     // 8. Desk 系统（与 memory 完全独立）
@@ -545,6 +588,7 @@ export class Agent {
   get proactiveRecall() { return this._proactiveRecall; }
   get projectMemory() { return this._projectMemory; }
   get userProfile() { return this._userProfile; }
+  get inferredProfile() { return this._inferredProfile; }
 
   // ════════════════════════════
   //  配置更新
@@ -691,6 +735,22 @@ export class Agent {
     ];
 
     if (skillsText) parts.push(skillsText);
+    if (skillsText) {
+      parts.push(isZh
+        ? "\n## 已启用技能匹配规则\n\n"
+          + "已启用的 skill 不是装饰。遇到和某个 skill 描述明显匹配的任务时：\n"
+          + "1. 先用 read 工具打开对应 skill 的 `SKILL.md`\n"
+          + "2. 按 skill 里的步骤执行，而不是只凭技能名或简短描述猜\n"
+          + "3. 如果多个已启用 skill 都相关，先加载最贴近主任务的那个，再按需要补第二个\n"
+          + "4. 不要在已经有匹配 skill 的情况下重新上网搜替代技能"
+        : "\n## Enabled Skill Matching Rules\n\n"
+          + "Enabled skills are not decorative. When the request clearly matches a skill description:\n"
+          + "1. Read that skill's `SKILL.md` first\n"
+          + "2. Follow the workflow in the skill instead of guessing from the name or short description\n"
+          + "3. If multiple enabled skills are relevant, load the one most central to the task first, then add others as needed\n"
+          + "4. Do not search for replacement skills when an enabled skill already matches"
+      );
+    }
 
     // 网页工具选择优先级
     parts.push(isZh
@@ -828,6 +888,13 @@ export class Agent {
       try {
         const profileCtx = this._userProfile.formatForPrompt(isZh);
         if (profileCtx) parts.push(profileCtx);
+      } catch {}
+    }
+
+    if (this._inferredProfile && this.memoryEnabled) {
+      try {
+        const inferredCtx = this._inferredProfile.formatForPrompt(isZh);
+        if (inferredCtx) parts.push(inferredCtx);
       } catch {}
     }
 

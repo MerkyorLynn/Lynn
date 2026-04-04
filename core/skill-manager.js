@@ -9,6 +9,50 @@ import path from "path";
 import chokidar from "chokidar";
 import { parseSkillMetadata } from "../lib/skills/skill-metadata.js";
 
+function normalizeSkillAlias(value) {
+  return String(value || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+const SKILL_MATCH_STOPWORDS = new Set([
+  "skill", "skills", "tool", "tools", "agent", "lynn", "hanako", "butter",
+  "请", "帮我", "需要", "使用", "一下", "这个", "那个", "功能", "处理",
+  "the", "and", "for", "with", "from", "that", "this", "into", "use", "using",
+]);
+
+function tokenizeSkillText(value) {
+  const matches = String(value || "").match(/[\p{Script=Han}]{2,}|[a-zA-Z][a-zA-Z0-9_.-]{1,}/gu) || [];
+  const tokens = [];
+  const seen = new Set();
+  for (const raw of matches) {
+    const token = normalizeSkillAlias(raw).replace(/\.+/g, "-");
+    if (!token || SKILL_MATCH_STOPWORDS.has(token) || seen.has(token)) continue;
+    seen.add(token);
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+const QUERY_TOKEN_SYNONYMS = [
+  { pattern: /搜索|查找|检索|搜一下/u, expansions: ["search", "find", "lookup"] },
+  { pattern: /总结|概括|摘要|整理/u, expansions: ["summarize", "summary"] },
+  { pattern: /新闻|资讯|动态/u, expansions: ["news"] },
+  { pattern: /天气|气温|预报/u, expansions: ["weather", "forecast"] },
+  { pattern: /文档|文件|pdf/u, expansions: ["document", "file", "pdf"] },
+  { pattern: /github|仓库|代码/u, expansions: ["github", "repo", "code"] },
+];
+
+function expandQueryTokens(text, tokens) {
+  const expanded = new Set(tokens);
+  const rawText = String(text || "");
+  for (const entry of QUERY_TOKEN_SYNONYMS) {
+    if (!entry.pattern.test(rawText)) continue;
+    for (const token of entry.expansions) {
+      expanded.add(token);
+    }
+  }
+  return [...expanded];
+}
+
 export class SkillManager {
   /**
    * @param {object} opts
@@ -52,13 +96,15 @@ export class SkillManager {
   /** 将 agent 启用的 skill 同步到 agent 的 system prompt */
   syncAgentSkills(agent) {
     const enabled = agent?.config?.skills?.enabled || [];
-    const skills = this._allSkills.filter(s => enabled.includes(s.name));
+    const enabledAliases = new Set(enabled.map(normalizeSkillAlias).filter(Boolean));
+    const skills = this._allSkills.filter((s) => this._isSkillEnabled(s, enabledAliases));
     agent.setEnabledSkills(skills);
   }
 
   /** 返回全量 skill 列表（供 API 使用），附带指定 agent 的 enabled 状态 */
   getAllSkills(agent) {
     const enabled = agent?.config?.skills?.enabled || [];
+    const enabledAliases = new Set(enabled.map(normalizeSkillAlias).filter(Boolean));
     return this._allSkills.map(s => ({
       name: s.name,
       description: s.description,
@@ -66,7 +112,7 @@ export class SkillManager {
       baseDir: s.baseDir,
       source: s.source,
       hidden: !!s._hidden,
-      enabled: enabled.includes(s.name),
+      enabled: this._isSkillEnabled(s, enabledAliases),
       externalLabel: s._externalLabel || null,
       externalPath: s._externalPath || null,
       readonly: !!s._readonly,
@@ -80,13 +126,57 @@ export class SkillManager {
       return { skills: [], diagnostics: [] };
     }
     const agentId = targetAgent ? path.basename(targetAgent.agentDir) : null;
+    const enabledAliases = new Set(enabled.map(normalizeSkillAlias).filter(Boolean));
     return {
       skills: this._allSkills.filter(s =>
-        enabled.includes(s.name)
+        this._isSkillEnabled(s, enabledAliases)
         && (!s._agentId || s._agentId === agentId)
       ),
       diagnostics: [],
     };
+  }
+
+  suggestSkillsForText(targetAgent, text, limit = 3) {
+    const query = String(text || "").trim();
+    if (!query) return [];
+    const { skills } = this.getSkillsForAgent(targetAgent);
+    if (!skills.length) return [];
+
+    const queryText = normalizeSkillAlias(query);
+    const queryTokens = expandQueryTokens(query, tokenizeSkillText(query));
+    if (!queryTokens.length) return [];
+
+    return skills
+      .map((skill) => {
+        const skillTokens = tokenizeSkillText(`${skill.name} ${skill.description || ""}`);
+        let score = 0;
+        const matchedTokens = [];
+
+        const alias = normalizeSkillAlias(skill.name);
+        if (alias && queryText.includes(alias)) {
+          score += 8;
+          matchedTokens.push(skill.name);
+        }
+
+        for (const token of skillTokens) {
+          if (!queryTokens.includes(token)) continue;
+          matchedTokens.push(token);
+          score += token.length >= 4 ? 3 : 2;
+        }
+
+        return score > 0
+          ? {
+              name: skill.name,
+              description: skill.description,
+              filePath: skill.filePath,
+              score,
+              matchedTokens: [...new Set(matchedTokens)].slice(0, 4),
+            }
+          : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(1, limit));
   }
 
   /**
@@ -252,6 +342,22 @@ export class SkillManager {
     } else {
       this._cwdSkillCache.clear();
     }
+  }
+
+  _collectSkillAliases(skill) {
+    const aliases = new Set();
+    if (skill?.name) aliases.add(normalizeSkillAlias(skill.name));
+    if (skill?.baseDir) aliases.add(normalizeSkillAlias(path.basename(skill.baseDir)));
+    if (skill?.filePath) aliases.add(normalizeSkillAlias(path.basename(path.dirname(skill.filePath))));
+    return aliases;
+  }
+
+  _isSkillEnabled(skill, enabledAliases) {
+    if (!(enabledAliases instanceof Set) || enabledAliases.size === 0) return false;
+    for (const alias of this._collectSkillAliases(skill)) {
+      if (enabledAliases.has(alias)) return true;
+    }
+    return false;
   }
 
   // ── 外部技能扫描 ──

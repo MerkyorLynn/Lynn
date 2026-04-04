@@ -25,7 +25,7 @@ export function SessionList() {
 
 // ── 日期分组 ──
 
-type DateGroup = 'today' | 'yesterday' | 'thisWeek' | 'earlier';
+type DateGroup = 'pinned' | 'today' | 'yesterday' | 'thisWeek' | 'earlier';
 
 function getSessionDateGroup(isoStr: string | null): DateGroup {
   if (!isoStr) return 'earlier';
@@ -42,21 +42,47 @@ function getSessionDateGroup(isoStr: string | null): DateGroup {
 }
 
 interface GroupedSessions {
-  key: DateGroup;
+  key: string;
+  kind: 'date' | 'label';
+  title: string;
   items: Session[];
 }
 
-function groupSessionsByDate(sessions: Session[]): GroupedSessions[] {
+function groupSessions(sessions: Session[], t: (key: string) => string): GroupedSessions[] {
   const groups: Record<DateGroup, Session[]> = {
-    today: [], yesterday: [], thisWeek: [], earlier: [],
+    pinned: [], today: [], yesterday: [], thisWeek: [], earlier: [],
   };
+  const labelGroups = new Map<string, Session[]>();
+
   for (const s of sessions) {
-    groups[getSessionDateGroup(s.modified)].push(s);
+    if (s.pinned) {
+      groups.pinned.push(s);
+      continue;
+    }
+    const primaryLabel = Array.isArray(s.labels) && s.labels.length > 0 ? s.labels[0] : null;
+    if (primaryLabel) {
+      const list = labelGroups.get(primaryLabel) || [];
+      list.push(s);
+      labelGroups.set(primaryLabel, list);
+    } else {
+      groups[getSessionDateGroup(s.modified)].push(s);
+    }
   }
-  const order: DateGroup[] = ['today', 'yesterday', 'thisWeek', 'earlier'];
-  return order
-    .filter(key => groups[key].length > 0)
-    .map(key => ({ key, items: groups[key] }));
+
+  const result: GroupedSessions[] = [];
+  const order: DateGroup[] = ['pinned', 'today', 'yesterday', 'thisWeek', 'earlier'];
+  if (groups.pinned.length > 0) {
+    result.push({ key: 'pinned', kind: 'date', title: t('time.pinned'), items: groups.pinned });
+  }
+  for (const label of [...labelGroups.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))) {
+    result.push({ key: `label:${label}`, kind: 'label', title: `# ${label}`, items: labelGroups.get(label) || [] });
+  }
+  for (const key of order.filter((groupKey) => groupKey !== 'pinned')) {
+    if (groups[key].length > 0) {
+      result.push({ key, kind: 'date', title: t(`time.${key}`), items: groups[key] });
+    }
+  }
+  return result;
 }
 
 // ── 内部组件 ──
@@ -71,6 +97,26 @@ function SessionListInner() {
   const browserRunning = useStore(s => s.browserRunning);
 
   const [browserSessions, setBrowserSessions] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Cmd+K event from SidebarLayout
+  useEffect(() => {
+    const handler = () => { setSearchOpen(true); setTimeout(() => searchRef.current?.focus(), 50); };
+    window.addEventListener('hana-sidebar-search', handler);
+    return () => window.removeEventListener('hana-sidebar-search', handler);
+  }, []);
+
+  // Escape closes search
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [searchOpen]);
 
   // Fetch browser sessions (re-fetch when browser starts/stops)
   useEffect(() => {
@@ -85,13 +131,42 @@ function SessionListInner() {
     return <div className={styles.sessionEmpty}>{t('sidebar.empty')}</div>;
   }
 
-  const grouped = groupSessionsByDate(sessions);
+  // Filter sessions by search query
+  const filtered = searchQuery.trim()
+    ? sessions.filter(s => {
+        const q = searchQuery.toLowerCase();
+        const labels = Array.isArray(s.labels) ? s.labels.join(' ') : '';
+        return (s.title || '').toLowerCase().includes(q)
+          || (s.firstMessage || '').toLowerCase().includes(q)
+          || labels.toLowerCase().includes(q);
+      })
+    : sessions;
+
+  const grouped = groupSessions(filtered, (key) => t(key) || key);
 
   return (
     <>
-      {grouped.map(({ key, items }) => (
+      {searchOpen && (
+        <div className={styles.sessionSearchBar}>
+          <input
+            ref={searchRef}
+            className={styles.sessionSearchInput}
+            type="text"
+            placeholder={t('sidebar.search') || 'Search...'}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className={styles.sessionSearchClear} onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}>×</button>
+          )}
+        </div>
+      )}
+      {searchQuery && filtered.length === 0 && (
+        <div className={styles.sessionEmpty}>{t('sidebar.noResults') || 'No results'}</div>
+      )}
+      {grouped.map(({ key, items, title }) => (
         <Fragment key={key}>
-          <div className={styles.sessionDateLabel}>{t(`time.${key}`)}</div>
+          <div className={styles.sessionDateLabel}>{title}</div>
           {items.map(s => (
             <SessionItem
               key={s.path}
@@ -129,7 +204,10 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [labelEditing, setLabelEditing] = useState(false);
+  const [labelValue, setLabelValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = useCallback(() => {
     if (editing) return;
@@ -140,6 +218,54 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
     e.stopPropagation();
     archiveSession(s.path);
   }, [s.path]);
+
+  const startEditLabels = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLabelValue(Array.isArray(s.labels) ? s.labels.join(', ') : '');
+    setLabelEditing(true);
+  }, [s.labels]);
+
+  const commitLabels = useCallback(async () => {
+    const parsed = [...new Set(
+      labelValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 6),
+    )];
+    setLabelEditing(false);
+    if (parsed.join('|') === (Array.isArray(s.labels) ? s.labels.join('|') : '')) return;
+    try {
+      await hanaFetch('/api/sessions/labels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: s.path, labels: parsed }),
+      });
+      const sessions = useStore.getState().sessions.map(sess =>
+        sess.path === s.path ? { ...sess, labels: parsed } : sess,
+      );
+      useStore.setState({ sessions });
+    } catch (err) {
+      console.warn('[sessions] save labels failed:', err);
+    }
+  }, [labelValue, s.labels, s.path]);
+
+  const handlePin = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await hanaFetch('/api/sessions/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: s.path, pinned: !s.pinned }),
+      });
+      const sessions = useStore.getState().sessions.map(sess =>
+        sess.path === s.path ? { ...sess, pinned: !s.pinned } : sess,
+      );
+      useStore.setState({ sessions });
+    } catch (err) {
+      console.warn('[sessions] toggle pin failed:', err);
+    }
+  }, [s.path, s.pinned]);
 
   const startRename = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -172,6 +298,13 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
       inputRef.current.select();
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (labelEditing && labelInputRef.current) {
+      labelInputRef.current.focus();
+      labelInputRef.current.select();
+    }
+  }, [labelEditing]);
 
   const modelLabel = useMemo(() => {
     if (!s.modelId) return '';
@@ -226,6 +359,12 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
         </div>
       )}
 
+      <div className={`${styles.sessionPinBtn}${s.pinned ? ` ${styles.sessionPinActive}` : ''}`} title={s.pinned ? 'Unpin' : 'Pin'} onClick={handlePin}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2L12 12" /><path d="M18 6L12 12L6 6" /><line x1="5" y1="21" x2="19" y2="21" />
+        </svg>
+      </div>
+
       <div className={styles.sessionArchiveBtn} title="Archive" onClick={handleArchive}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="21 8 21 21 3 21 3 8" />
@@ -238,9 +377,45 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
         {parts.join(' · ')}
       </div>
 
+      {labelEditing ? (
+        <input
+          ref={labelInputRef}
+          className={styles.sessionLabelInput}
+          value={labelValue}
+          onChange={e => setLabelValue(e.target.value)}
+          onBlur={() => void commitLabels()}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void commitLabels();
+            }
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setLabelEditing(false);
+            }
+          }}
+          placeholder={t('session.labelsPlaceholder') || '标签，用逗号分隔'}
+        />
+      ) : Array.isArray(s.labels) && s.labels.length > 0 ? (
+        <div className={styles.sessionLabels}>
+          {s.labels.slice(0, 3).map((label) => (
+            <span key={`${s.path}:${label}`} className={styles.sessionLabelChip}>
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {modelLabel && (
         <div className={styles.sessionItemModel}>
           {modelLabel}
+        </div>
+      )}
+
+      {!editing && !labelEditing && (
+        <div className={styles.sessionLabelBtn} title={t('session.editLabels') || '编辑标签'} onClick={startEditLabels}>
+          #
         </div>
       )}
 

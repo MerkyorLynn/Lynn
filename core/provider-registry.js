@@ -67,6 +67,7 @@ const _defaultModels = JSON.parse(
 // ── 内置插件 ────────────────────────────────────────────────────────────────
 
 import { dashscopePlugin } from "../lib/providers/dashscope.js";
+import { brainPlugin } from "../lib/providers/brain.js";
 import { openaiPlugin } from "../lib/providers/openai.js";
 import { anthropicPlugin } from "../lib/providers/anthropic.js";
 import { deepseekPlugin } from "../lib/providers/deepseek.js";
@@ -101,6 +102,7 @@ import { kimiCodingPlugin } from "../lib/providers/kimi-coding.js";
 import { volcegineCodingPlugin } from "../lib/providers/volcengine-coding.js";
 
 const BUILTIN_PLUGINS = [
+  brainPlugin,
   dashscopePlugin,
   openaiPlugin,
   anthropicPlugin,

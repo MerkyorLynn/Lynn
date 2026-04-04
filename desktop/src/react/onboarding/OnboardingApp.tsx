@@ -152,6 +152,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
           goToStep={goToStep}
           showError={showError}
           onProviderReady={onProviderReady}
+          track={track ?? 'advanced'}
         />
       )}
       {step === 3 && (

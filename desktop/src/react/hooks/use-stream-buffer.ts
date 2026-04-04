@@ -8,15 +8,15 @@
  * app-ws-shim 直接调用 streamBufferManager.handle(msg)。
  */
 
-import type { ChatMessage, ContentBlock, ChatListItem } from '../stores/chat-types';
+import type { ChatMessage, ContentBlock } from '../stores/chat-types';
 import { useStore } from '../stores';
 import { renderMarkdown } from '../utils/markdown';
 import { cleanMoodText } from '../utils/message-parser';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 流式消息 handle(msg) 接收动态 JSON */
 
-/** 主文本流式刷新间隔。200ms 约 5fps 偏钝；50ms 约 20fps，更接近 Cursor 类编辑器的顺滑感 */
-const FLUSH_INTERVAL = 50;
+/** 主文本流式刷新间隔。配合轻量预览渲染，提高流式顺滑度并减少明显卡段。 */
+const FLUSH_INTERVAL = 32;
 
 interface Buffer {
   sessionPath: string;
@@ -33,6 +33,9 @@ interface Buffer {
   flushTimer: ReturnType<typeof setTimeout> | null;
   /** 当前 turn 是否已追加了空 assistant message */
   messageAppended: boolean;
+  lastRenderedText: string;
+  lastRenderedHtml: string;
+  lastRenderedFinalized: boolean;
 }
 
 function createBuffer(sessionPath: string): Buffer {
@@ -50,7 +53,25 @@ function createBuffer(sessionPath: string): Buffer {
     lastFlushTime: 0,
     flushTimer: null,
     messageAppended: false,
+    lastRenderedText: '',
+    lastRenderedHtml: '',
+    lastRenderedFinalized: false,
   };
+}
+
+function renderStreamingTextHtml(src: string): string {
+  if (!src) return '';
+  const escaped = src
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  return escaped
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>') || '&nbsp;'}</p>`)
+    .join('');
 }
 
 class StreamBufferManager {
@@ -94,7 +115,7 @@ class StreamBufferManager {
   }
 
   /** 把 buffer 中累积的内容一次性 flush 到 Zustand */
-  private flush(buf: Buffer): void {
+  private flush(buf: Buffer, finalizeText = false): void {
     buf.lastFlushTime = Date.now();
     if (buf.flushTimer) {
       clearTimeout(buf.flushTimer);
@@ -136,12 +157,18 @@ class StreamBufferManager {
       // ── Text ──
       if (buf.textAcc) {
         const displayText = buf.textAcc.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, '');
-        const html = renderMarkdown(displayText);
+        if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
+          buf.lastRenderedText = displayText;
+          buf.lastRenderedFinalized = finalizeText;
+          buf.lastRenderedHtml = finalizeText
+            ? renderMarkdown(displayText)
+            : renderStreamingTextHtml(displayText);
+        }
         const idx = blocks.findIndex(b => b.type === 'text');
         if (idx >= 0) {
-          blocks[idx] = { type: 'text', html };
+          blocks[idx] = { type: 'text', html: buf.lastRenderedHtml };
         } else {
-          blocks.push({ type: 'text', html });
+          blocks.push({ type: 'text', html: buf.lastRenderedHtml });
         }
       }
 
@@ -395,7 +422,7 @@ class StreamBufferManager {
         break;
 
       case 'turn_end':
-        this.flush(buf);
+        this.flush(buf, true);
         // 清理 buffer
         buf.textAcc = '';
         buf.thinkingAcc = '';
@@ -405,6 +432,9 @@ class StreamBufferManager {
         buf.inMood = false;
         buf.inXing = false;
         buf.messageAppended = false;
+        buf.lastRenderedText = '';
+        buf.lastRenderedHtml = '';
+        buf.lastRenderedFinalized = false;
         break;
     }
   }

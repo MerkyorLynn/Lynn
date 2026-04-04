@@ -28,6 +28,9 @@ import { runAgentSession } from "./agent-executor.js";
 import { debugLog } from "../lib/debug-log.js";
 import { getLocale } from "../server/i18n.js";
 
+const CHANNEL_REPLY_TIMEOUT_MS = 45_000;
+const CHANNEL_SUMMARY_TIMEOUT_MS = 30_000;
+
 export class ChannelRouter {
   /**
    * @param {object} opts
@@ -128,6 +131,20 @@ export class ChannelRouter {
     }
   }
 
+  async _runChannelAgentSession(agentId, rounds, opts = {}) {
+    try {
+      return await runAgentSession(agentId, rounds, opts);
+    } catch (err) {
+      const fallbackModel = this._engine.currentModel;
+      if (!fallbackModel?.id) throw err;
+      debugLog()?.log("channel", `fallback model retry for ${agentId}: ${err.message}`);
+      return runAgentSession(agentId, rounds, {
+        ...opts,
+        modelOverride: fallbackModel,
+      });
+    }
+  }
+
   // ──────────── Triage + Reply ────────────
 
   /**
@@ -222,8 +239,14 @@ export class ChannelRouter {
     if (!shouldReply) {
       try {
         const utilCfg = engine.resolveUtilityConfig() || {};
-        const { utility_large: model, large_api_key: api_key, large_base_url: base_url, large_api: api } = utilCfg;
-        if (api_key && base_url && api) {
+        const {
+          utility_large: model,
+          large_api_key: api_key,
+          large_base_url: base_url,
+          large_api: api,
+          utility_large_allow_missing_api_key = false,
+        } = utilCfg;
+        if ((api_key || utility_large_allow_missing_api_key) && base_url && api) {
           const triageSystem = agentContext + memoryContext + userContext
             + "\n\n---\n\n"
             + (isZh
@@ -303,11 +326,11 @@ export class ChannelRouter {
    */
   async _executeReply(agentId, channelName, msgText, { signal } = {}) {
     const isZh = getLocale().startsWith("zh");
-    const replyTimeout = AbortSignal.timeout(45_000);
+    const replyTimeout = AbortSignal.timeout(CHANNEL_REPLY_TIMEOUT_MS);
     const replySignal = signal
       ? AbortSignal.any([signal, replyTimeout])
       : replyTimeout;
-    const text = await runAgentSession(
+    const text = await this._runChannelAgentSession(
       agentId,
       [
         {
@@ -386,7 +409,11 @@ export class ChannelRouter {
     }
 
     const msgText = formatMessagesForLLM(recentMessages, { tokenBudget: 6000, maxCharsPerMsg: 1200 });
-    const reportText = await runAgentSession(
+    const conclusionTimeout = AbortSignal.timeout(CHANNEL_SUMMARY_TIMEOUT_MS);
+    const conclusionSignal = signal
+      ? AbortSignal.any([signal, conclusionTimeout])
+      : conclusionTimeout;
+    const reportText = await this._runChannelAgentSession(
       hostId,
       [{
         text: isZh
@@ -422,7 +449,7 @@ export class ChannelRouter {
               : `- This is an on-demand conclusion report, so emphasize actionable next steps`),
         capture: true,
       }],
-      { engine, signal, sessionSuffix: `conclusion-${channelName}`, keepSession: true, noTools: true },
+      { engine, signal: conclusionSignal, sessionSuffix: `conclusion-${channelName}`, keepSession: true, noTools: true },
     );
 
     if (!reportText || reportText.includes("[NO_REPLY]")) {
@@ -506,8 +533,14 @@ export class ChannelRouter {
     const engine = this._engine;
     try {
       const utilCfg = engine.resolveUtilityConfig() || {};
-      const { utility: model, api_key, base_url, api } = utilCfg;
-      if (!api_key || !base_url || !api) {
+      const {
+        utility: model,
+        api_key,
+        base_url,
+        api,
+        utility_allow_missing_api_key = false,
+      } = utilCfg;
+      if ((!api_key && !utility_allow_missing_api_key) || !base_url || !api) {
         console.log(`\x1b[90m[channel] ${agentId} 无 API 配置，跳过记忆摘要\x1b[0m`);
         return;
       }
@@ -587,7 +620,11 @@ export class ChannelRouter {
     const hostName = hostAgent?.config?.agent?.name || hostId;
 
     try {
-      const summaryText = await runAgentSession(
+      const summaryTimeout = AbortSignal.timeout(CHANNEL_SUMMARY_TIMEOUT_MS);
+      const summarySignal = signal
+        ? AbortSignal.any([signal, summaryTimeout])
+        : summaryTimeout;
+      const summaryText = await this._runChannelAgentSession(
         hostId,
         [{
           text: isZh
@@ -617,7 +654,7 @@ export class ChannelRouter {
               + `Rules: output directly, no prefix/MOOD, reply [NO_REPLY] if no summary needed`,
           capture: true,
         }],
-        { engine, signal, sessionSuffix: `host-${channelName}`, keepSession: true, noTools: true },
+        { engine, signal: summarySignal, sessionSuffix: `host-${channelName}`, keepSession: true, noTools: true },
       );
 
       if (!summaryText || summaryText.includes("[NO_REPLY]")) return;

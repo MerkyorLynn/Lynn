@@ -86,6 +86,7 @@ export function ActivityPanel() {
       const { activity, messages } = data;
       const typeText = activity.type === 'heartbeat' ? t('activity.heartbeat')
         : activity.type === 'delegate' ? t('activity.delegate')
+        : activity.type === 'plan' ? t('activity.plan')
         : activity.type === 'review_follow_up' ? t('activity.reviewFollowUp')
         : (activity.label || t('activity.cron'));
       const timeStr = activity.startedAt
@@ -196,6 +197,7 @@ function ActivityCard({
   const t = window.t ?? ((p: string) => p);
   const typeText = a.type === 'heartbeat' ? t('activity.heartbeat')
     : a.type === 'delegate' ? t('activity.delegate')
+    : a.type === 'plan' ? t('activity.plan')
     : a.type === 'review_follow_up' ? t('activity.reviewFollowUp')
     : (a.label || t('activity.cron'));
 
@@ -228,7 +230,13 @@ function ActivityCard({
         </span>
       </div>
       <div className={fp.actCardSummary}>
-        {a.summary || (a.type === 'heartbeat' ? t('activity.patrolDone') : t('activity.cronDone'))}
+        {a.summary || (
+          a.type === 'heartbeat'
+            ? t('activity.patrolDone')
+            : a.type === 'plan'
+              ? t('activity.planDone')
+              : t('activity.cronDone')
+        )}
       </div>
       <div className={fp.actCardMeta}>
         {durationText && <span className={fp.actCardDuration}>{durationText}</span>}

@@ -1046,6 +1046,15 @@
     gap: 0.7rem;
 }
 
+.work-reviewer-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem var(--space-md);
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+}
+
 .work-review-avatar {
     width: 28px;
     height: 28px;
@@ -1066,7 +1075,13 @@
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    min-width: min(320px, 48%);
+    flex-wrap: wrap;
+}
+
+.work-review-actions .sdw {
+    min-width: 160px;
+    max-width: 280px;
+    flex: 1;
 }
 
 .work-review-actions :global(button) {
@@ -2570,7 +2585,7 @@ a.about-link:hover {
 .pv-layout {
     display: flex;
     gap: 0;
-    height: 420px;
+    height: 520px;
     background: var(--bg-card, var(--bg));
     border: 1px solid var(--overlay-light);
     border-radius: var(--radius-md);
@@ -2578,7 +2593,7 @@ a.about-link:hover {
 }
 
 .pv-list {
-    width: 33.33%;
+    width: 210px;
     flex-shrink: 0;
     border-right: 1px solid var(--overlay-light);
     display: flex;
@@ -2773,7 +2788,10 @@ a.about-link:hover {
     background: transparent;
 }
 
-.pv-detail-inner { max-width: 560px; }
+.pv-detail-inner {
+    max-width: none;
+    width: 100%;
+}
 
 .pv-detail-header {
     display: flex;
@@ -2810,7 +2828,7 @@ a.about-link:hover {
 
 .pv-cred-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-sm);
     min-height: 28px;
 }
@@ -2886,6 +2904,25 @@ a.about-link:hover {
 .pv-cred-conn-icon.fail { color: var(--danger, #c55); border-color: var(--danger, #c55); }
 .pv-cred-conn-icon.testing { opacity: 0.5; }
 .pv-cred-conn-icon.spinning svg { animation: pv-spin 0.8s linear infinite; }
+
+.pv-cred-inline-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    background: var(--overlay-light);
+    white-space: nowrap;
+}
+
+.pv-cred-inline-status.ok {
+    color: var(--success, #5a9);
+    border-color: rgba(90, 170, 153, 0.28);
+    background: rgba(90, 170, 153, 0.08);
+}
 
 @keyframes pv-spin {
     from { transform: rotate(0deg); }
@@ -3090,6 +3127,33 @@ a.about-link:hover {
 /* ── 模型列表区（折叠式） ── */
 .pv-models {
     margin-bottom: var(--space-md);
+}
+
+.pv-default-model-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(var(--accent-rgb), 0.14);
+    background: rgba(var(--accent-rgb), 0.04);
+}
+
+.pv-default-model-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.pv-default-model-desc {
+    font-size: 0.76rem;
+    color: var(--accent);
+}
+
+.pv-default-model-hint {
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
 }
 
 /* ── 添加模型行 ── */
@@ -4092,6 +4156,258 @@ a.about-link:hover {
     border-radius: 3px;
     background: var(--overlay-subtle);
     color: var(--text-muted);
+}
+
+.memory-timeline-viewer {
+    max-width: 860px;
+    max-height: 78vh;
+}
+
+.memory-timeline-subtitle {
+    margin-top: 4px;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+.memory-timeline-refresh {
+    font-size: 0.72rem;
+    color: var(--accent, var(--text));
+    background: var(--overlay-subtle);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.memory-timeline-refresh:hover {
+    background: var(--overlay-light);
+}
+
+.memory-timeline-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.memory-inferred-section {
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: var(--overlay-subtle);
+    padding: 12px;
+}
+
+.memory-inferred-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+}
+
+.memory-inferred-block + .memory-inferred-block {
+    margin-top: 10px;
+}
+
+.memory-inferred-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.memory-inferred-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.memory-inferred-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--overlay-light);
+    color: var(--text);
+    font-size: 0.75rem;
+}
+
+.memory-inferred-confidence {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+}
+
+.memory-timeline-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.memory-timeline-date {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 4px 0 6px;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--overlay-light);
+    background: linear-gradient(to bottom, var(--bg-card, var(--bg)) 75%, transparent);
+}
+
+.memory-timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.memory-timeline-item {
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: var(--bg-card, var(--bg));
+    padding: 12px;
+    box-shadow: 0 1px 8px var(--shadow);
+}
+
+.memory-timeline-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.memory-category-badge,
+.memory-source-badge,
+.memory-confidence-badge,
+.memory-timeline-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.67rem;
+    line-height: 1.6;
+}
+
+.memory-category-badge {
+    border: 1px solid transparent;
+}
+
+.memory-category-person {
+    background: rgba(86, 156, 214, 0.14);
+    color: #4c8cc4;
+    border-color: rgba(86, 156, 214, 0.2);
+}
+
+.memory-category-project {
+    background: rgba(90, 170, 120, 0.14);
+    color: #4f9b67;
+    border-color: rgba(90, 170, 120, 0.2);
+}
+
+.memory-category-preference {
+    background: rgba(210, 150, 90, 0.16);
+    color: #b97434;
+    border-color: rgba(210, 150, 90, 0.2);
+}
+
+.memory-category-tech {
+    background: rgba(140, 115, 190, 0.16);
+    color: #7a66b2;
+    border-color: rgba(140, 115, 190, 0.2);
+}
+
+.memory-category-event {
+    background: rgba(210, 120, 120, 0.14);
+    color: #b26a6a;
+    border-color: rgba(210, 120, 120, 0.2);
+}
+
+.memory-category-other {
+    background: var(--overlay-subtle);
+    color: var(--text-muted);
+    border-color: var(--overlay-light);
+}
+
+.memory-source-badge,
+.memory-confidence-badge,
+.memory-timeline-tag {
+    background: var(--overlay-subtle);
+    color: var(--text-muted);
+}
+
+.memory-timeline-fact {
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.memory-timeline-evidence {
+    margin-top: 8px;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+.memory-timeline-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.memory-timeline-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.memory-timeline-select {
+    min-width: 96px;
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    padding: 6px 8px;
+    font-size: 0.75rem;
+}
+
+.memory-timeline-delete {
+    border: 1px solid rgba(190, 120, 120, 0.22);
+    border-radius: var(--radius-sm);
+    background: rgba(190, 120, 120, 0.08);
+    color: #b26a6a;
+    padding: 6px 10px;
+    font-size: 0.74rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.memory-timeline-secondary {
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    background: var(--overlay-subtle);
+    color: var(--text-muted);
+    padding: 6px 10px;
+    font-size: 0.74rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.memory-timeline-secondary:hover:not(:disabled) {
+    background: var(--overlay-light);
+    color: var(--text);
+}
+
+.memory-timeline-delete:hover:not(:disabled) {
+    background: rgba(190, 120, 120, 0.12);
+}
+
+.memory-timeline-delete:disabled,
+.memory-timeline-secondary:disabled,
+.memory-timeline-select:disabled,
+.memory-timeline-refresh:disabled {
+    opacity: 0.55;
+    cursor: default;
 }
 
 

@@ -48,9 +48,11 @@ describe("delegate-tool", () => {
       tool.execute("call_1", { task: "任务 1" }),
       tool.execute("call_2", { task: "任务 2" }),
       tool.execute("call_3", { task: "任务 3" }),
+      tool.execute("call_4", { task: "任务 4" }),
+      tool.execute("call_5", { task: "任务 5" }),
     ];
 
-    const blocked = await tool.execute("call_4", { task: "任务 4" });
+    const blocked = await tool.execute("call_6", { task: "任务 6" });
 
     expect(blocked).toEqual({
       content: [{ type: "text", text: "error.delegateMaxConcurrent" }],
@@ -60,6 +62,6 @@ describe("delegate-tool", () => {
       release({ replyText: "ok", error: null });
     }
     await Promise.all(running);
-    expect(executeIsolated).toHaveBeenCalledTimes(3);
+    expect(executeIsolated).toHaveBeenCalledTimes(5);
   });
 });

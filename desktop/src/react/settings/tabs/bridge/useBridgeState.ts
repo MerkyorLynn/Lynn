@@ -33,11 +33,17 @@ export interface BridgeStatus {
 
 export type BridgePlatform = 'telegram' | 'feishu' | 'whatsapp' | 'qq' | 'wechat';
 
+export interface BridgeTestResult {
+  tone: 'success' | 'error';
+  message: string;
+}
+
 export function useBridgeState() {
   const store = useSettingsStore();
   const { showToast } = store;
   const [status, setStatus] = useState<BridgeStatus | null>(null);
   const [testingPlatform, setTestingPlatform] = useState<BridgePlatform | null>(null);
+  const [testResults, setTestResults] = useState<Partial<Record<BridgePlatform, BridgeTestResult>>>({});
 
   // Public Ishiki
   const [publicIshiki, setPublicIshiki] = useState('');
@@ -114,6 +120,7 @@ export function useBridgeState() {
 
   const testPlatform = async (plat: BridgePlatform, credentials: Record<string, string>) => {
     setTestingPlatform(plat);
+    setTestResults((prev) => ({ ...prev, [plat]: undefined }));
     try {
       const res = await hanaFetch('/api/bridge/test', {
         method: 'POST',
@@ -123,11 +130,17 @@ export function useBridgeState() {
       const data = await res.json();
       if (data.ok) {
         const info = plat === 'telegram' ? ` @${data.info?.username || ''}` : '';
+        const message = (t('settings.bridge.testOkInline') || t('settings.bridge.testOk')) + info;
+        setTestResults((prev) => ({ ...prev, [plat]: { tone: 'success', message } }));
         showToast(t('settings.bridge.testOk') + info, 'success');
       } else {
+        const message = `${t('settings.bridge.testFailInline') || t('settings.bridge.testFail')}${data.error ? `：${data.error}` : ''}`;
+        setTestResults((prev) => ({ ...prev, [plat]: { tone: 'error', message } }));
         showToast(t('settings.bridge.testFail') + ': ' + (data.error || ''), 'error');
       }
     } catch (err: unknown) {
+      const message = `${t('settings.bridge.testFailInline') || t('settings.bridge.testFail')}：${err instanceof Error ? err.message : String(err)}`;
+      setTestResults((prev) => ({ ...prev, [plat]: { tone: 'error', message } }));
       showToast(t('settings.bridge.testFail') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
     } finally {
       setTestingPlatform(null);
@@ -148,7 +161,7 @@ export function useBridgeState() {
   };
 
   return {
-    status, testingPlatform, showToast, loadStatus,
+    status, testingPlatform, testResults, showToast, loadStatus,
     publicIshiki, setPublicIshiki, savePublicIshiki,
     tgToken, setTgToken,
     fsAppId, setFsAppId, fsAppSecret, setFsAppSecret,

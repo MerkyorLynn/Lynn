@@ -31,7 +31,7 @@ export function switchTab(tab: TabType) {
   if (s.sidebarOpen !== wantLeftOpen) toggleSidebar(wantLeftOpen);
 
   const savedRight = localStorage.getItem(`hana-jian-${tab}`);
-  const wantRightOpen = savedRight !== 'closed';
+  const wantRightOpen = savedRight === 'open';
   if (s.jianOpen !== wantRightOpen) toggleJianSidebar(wantRightOpen);
 }
 

@@ -6,6 +6,7 @@ import { loadSettingsConfig } from '../actions';
 import iconUrl from '../../../assets/Lynn.png';
 import styles from '../Settings.module.css';
 import type { AutoUpdateState } from '../../types';
+import { getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
 
 const hana = window.hana;
 const REPO_URL = 'https://github.com/MerkyorLynn/Lynn';
@@ -179,6 +180,16 @@ export function AboutTab() {
           <span className={styles['about-label']}>{t('settings.about.betaUpdates')}</span>
           <Toggle on={isBeta} onChange={handleBetaToggle} />
         </div>
+      </section>
+
+      <section className={styles['settings-section']}>
+        <h2 className={styles['settings-section-title']}>模型服务声明</h2>
+        <p className={styles['settings-desc']}>
+          {getBrainComplianceNote()}
+        </p>
+        <p className={styles['settings-desc']}>
+          {getBrainUserNotice()}
+        </p>
       </section>
 
       <button

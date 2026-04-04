@@ -1,6 +1,13 @@
 /**
  * Settings 共享工具函数
  */
+import {
+  BRAIN_PROVIDER_ID,
+  BRAIN_PROVIDER_LABEL,
+  BRAIN_PROVIDER_BASE_URL,
+  BRAIN_PROVIDER_API,
+  BRAIN_DEFAULT_MODEL_ID,
+} from '../../../../shared/brain-provider.js';
 import { useSettingsStore } from './store';
 import { hanaFetch } from './api';
 import knownModels from '../../../../lib/known-models.json';
@@ -93,7 +100,16 @@ export async function autoSaveConfig(
       if (k in prev && !(k in newConfig)) newConfig[k] = (prev as any)[k];
     }
     useSettingsStore.setState({ settingsConfig: newConfig });
-    if (opts.refreshModels) platform?.settingsChanged?.('models-changed');
+    const nextAgentId = store.getSettingsAgentId();
+    if (partial.models || partial.api || partial.providers || opts.refreshModels) {
+      platform?.settingsChanged?.('models-changed', { agentId: nextAgentId });
+    }
+    if (partial.desk) {
+      platform?.settingsChanged?.('desk-config-changed', {
+        homeFolder: newConfig?.desk?.home_folder || null,
+        trustedRoots: Array.isArray(newConfig?.desk?.trusted_roots) ? newConfig.desk.trusted_roots : [],
+      });
+    }
   } catch (err: any) {
     store.showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
   }
@@ -117,6 +133,7 @@ export async function autoSaveGlobalModels(
     const refreshRes = await hanaFetch('/api/preferences/models');
     const newGlobal = await refreshRes.json();
     useSettingsStore.setState({ globalModelsConfig: newGlobal });
+    platform?.settingsChanged?.('models-changed', { scope: 'global-model-preferences' });
   } catch (err: any) {
     store.showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
   }
@@ -144,6 +161,7 @@ export function savePins() {
 }
 
 export const PROVIDER_PRESETS = [
+  { value: BRAIN_PROVIDER_ID, label: BRAIN_PROVIDER_LABEL, url: BRAIN_PROVIDER_BASE_URL, api: BRAIN_PROVIDER_API, noKey: true, defaultModelId: BRAIN_DEFAULT_MODEL_ID },
   { value: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1', api: 'openai-completions', local: true },
   { value: 'dashscope', label: 'DashScope (Qwen)', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api: 'openai-completions' },
   { value: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1', api: 'openai-completions' },

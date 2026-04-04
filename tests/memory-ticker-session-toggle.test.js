@@ -45,7 +45,16 @@ function writeSession(sessionPath) {
 function makeTicker(tmpDir, isSessionMemoryEnabled) {
   const summaryManager = {
     rollingSummary: vi.fn().mockResolvedValue("summary"),
-    getSummary: vi.fn().mockReturnValue(null),
+    getSummary: vi.fn().mockReturnValue({
+      summary: "用户反复强调希望回答简洁直接，并讨论 Lynn 产品方向和 React / TypeScript 技术栈。".repeat(3),
+    }),
+  };
+  const inferredProfile = {
+    inferFromSession: vi.fn().mockResolvedValue(null),
+  };
+  const skillDistiller = {
+    finalizeSession: vi.fn().mockResolvedValue(null),
+    distillFromSession: vi.fn().mockResolvedValue({ status: "skipped", reason: "test" }),
   };
 
   const ticker = createMemoryTicker({
@@ -62,9 +71,12 @@ function makeTicker(tmpDir, isSessionMemoryEnabled) {
     weekMdPath: path.join(tmpDir, "week.md"),
     longtermMdPath: path.join(tmpDir, "longterm.md"),
     factsMdPath: path.join(tmpDir, "facts.md"),
+    getInferredProfile: () => inferredProfile,
+    getResolvedUtilityModel: () => ({ model: "utility-model", provider: "brain", api: "openai-completions", api_key: "", base_url: "http://localhost:1234" }),
+    getSkillDistiller: () => skillDistiller,
   });
 
-  return { ticker, summaryManager };
+  return { ticker, summaryManager, inferredProfile, skillDistiller };
 }
 
 describe("memory ticker respects session-level memory toggle", () => {
@@ -84,7 +96,7 @@ describe("memory ticker respects session-level memory toggle", () => {
   });
 
   it("skips summary + compile when the session memory is disabled", async () => {
-    const { ticker, summaryManager } = makeTicker(tmpDir, () => false);
+    const { ticker, summaryManager, inferredProfile, skillDistiller } = makeTicker(tmpDir, () => false);
 
     ticker.notifyTurn(sessionPath);
     await ticker.notifySessionEnd(sessionPath);
@@ -92,10 +104,13 @@ describe("memory ticker respects session-level memory toggle", () => {
     expect(summaryManager.rollingSummary).not.toHaveBeenCalled();
     expect(compileToday).not.toHaveBeenCalled();
     expect(assemble).not.toHaveBeenCalled();
+    expect(inferredProfile.inferFromSession).not.toHaveBeenCalled();
+    expect(skillDistiller.finalizeSession).not.toHaveBeenCalled();
+    expect(skillDistiller.distillFromSession).not.toHaveBeenCalled();
   });
 
   it("still summarizes the session when the session memory is enabled", async () => {
-    const { ticker, summaryManager } = makeTicker(tmpDir, () => true);
+    const { ticker, summaryManager, inferredProfile, skillDistiller } = makeTicker(tmpDir, () => true);
 
     ticker.notifyTurn(sessionPath);
     await ticker.notifySessionEnd(sessionPath);
@@ -103,5 +118,8 @@ describe("memory ticker respects session-level memory toggle", () => {
     expect(summaryManager.rollingSummary).toHaveBeenCalledOnce();
     expect(compileToday).toHaveBeenCalled();
     expect(assemble).toHaveBeenCalled();
+    expect(inferredProfile.inferFromSession).toHaveBeenCalledOnce();
+    expect(skillDistiller.finalizeSession).toHaveBeenCalledOnce();
+    expect(skillDistiller.distillFromSession).toHaveBeenCalledOnce();
   });
 });

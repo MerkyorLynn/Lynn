@@ -248,8 +248,7 @@ export function toggleJianSidebar(forceOpen?: boolean): void {
 export function initJian(): void {
   const legacy = localStorage.getItem('hana-jian');
   if (legacy && !localStorage.getItem('hana-jian-chat')) localStorage.setItem('hana-jian-chat', legacy);
-  const savedJian = localStorage.getItem('hana-jian-chat');
-  if (savedJian !== null) useStore.getState().setJianOpen(savedJian !== 'closed');
+  useStore.getState().setJianOpen(false);
   const s = useStore.getState();
   loadDeskFiles('', s.selectedFolder || s.homeFolder || undefined);
 }

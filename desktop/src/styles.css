@@ -36,6 +36,17 @@ body.font-sans {
 }
 
 /* ========================================
+   全局可交互元素 cursor + 可发现性
+   ======================================== */
+button:not(:disabled), [role="button"], summary, a,
+.sidebar-action-btn, .sidebar-footer-btn,
+.tb-toggle, .sidebar-activity-bar,
+th.sortable,
+li.task-list-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* ========================================
    基础重置
    ======================================== */
 *, *::before, *::after {
@@ -605,6 +616,50 @@ html[data-platform="linux"] .tb-toggle-right {
     display: none;
 }
 
+.sidebar-capability-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: calc(100% - var(--space-sm) * 2);
+    margin: 2px var(--space-sm) 8px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--accent-light) 55%, var(--bg-card));
+    border: 1px solid rgba(var(--accent-rgb), 0.1);
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+}
+
+.sidebar-capability-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.04em;
+}
+
+.sidebar-capability-summary {
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+}
+
+.sidebar-capability-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.sidebar-capability-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+    font-size: 0.62rem;
+    line-height: 1.6;
+}
+
 @keyframes globe-spin {
     0% { transform: rotateY(0deg); }
     100% { transform: rotateY(360deg); }
@@ -612,6 +667,52 @@ html[data-platform="linux"] .tb-toggle-right {
 
 .browser-bg-globe {
     animation: globe-spin 3s linear infinite;
+}
+
+/* ── 侧边栏底部图标栏 ── */
+.sidebar-footer-icons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px var(--space-sm);
+    border-top: 1px solid var(--overlay-light);
+    flex-shrink: 0;
+}
+
+.sidebar.collapsed .sidebar-footer-icons {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-footer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+    font-family: inherit;
+    -webkit-app-region: no-drag;
+}
+
+.sidebar-footer-btn:hover {
+    color: var(--accent);
+    background: var(--accent-light);
+}
+
+.sidebar-footer-btn .sidebar-bridge-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 5px;
+    height: 5px;
 }
 
 /* (旧 sidebar-toggle-wrap / jian-toggle-wrap 已移至 titlebar toggle 按钮) */
@@ -932,6 +1033,46 @@ html[data-platform="linux"] .tb-toggle-right {
     vertical-align: middle;
     position: relative;
     top: -1px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+}
+
+.md-content li.task-list-item input[type="checkbox"]:checked ~ *,
+.md-content li.task-list-item.is-checked > label {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
+/* 表格排序指示器 */
+.md-content th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.2em;
+}
+
+.md-content th.sortable:hover {
+    color: var(--accent);
+}
+
+.md-content th.sortable::after {
+    content: '⇅';
+    position: absolute;
+    right: 0.3em;
+    font-size: 0.7em;
+    opacity: 0.35;
+}
+
+.md-content th.sort-asc::after {
+    content: '↑';
+    opacity: 0.7;
+}
+
+.md-content th.sort-desc::after {
+    content: '↓';
+    opacity: 0.7;
 }
 
 /* 链接 */
@@ -1029,6 +1170,7 @@ html[data-platform="linux"] .tb-toggle-right {
     display: flex;
     align-items: stretch;
     gap: var(--space-sm);
+    flex-wrap: wrap;
 }
 
 .bridge-input-row .settings-key-wrapper {
@@ -1064,6 +1206,23 @@ html[data-platform="linux"] .tb-toggle-right {
 
 .bridge-test-ok  { color: var(--green); border-color: var(--green); }
 .bridge-test-fail { color: var(--coral); border-color: var(--coral); }
+
+.bridge-test-result {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.bridge-test-result-success {
+    color: var(--green);
+}
+
+.bridge-test-result-error {
+    color: var(--coral);
+}
 
 /* Owner 选择区域 */
 .bridge-owner-label {
@@ -1821,6 +1980,29 @@ html[data-platform="linux"] .tb-toggle-right {
     width: 0;
 }
 
+/* 右侧栏收起态：边缘提示条 */
+.jian-sidebar.collapsed::after {
+    content: '📎';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0.25;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 11;
+}
+
+.jian-sidebar.collapsed:hover::after {
+    opacity: 0.6;
+}
+
 .jian-sidebar-inner {
     display: flex;
     flex-direction: column;
@@ -2573,6 +2755,11 @@ html[data-platform="linux"] .onboarding {
     width: 100%;
     max-width: 440px;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 6px;
+    padding-bottom: 8px;
     animation: obFadeIn 0.3s ease-out;
 }
 .onboarding-step.active {
@@ -2614,8 +2801,15 @@ html[data-platform="linux"] .onboarding {
 .onboarding-actions {
     display: flex;
     gap: 12px;
+    width: 100%;
+    justify-content: space-between;
     margin-top: auto;
-    padding-top: 16px;
+    padding-top: 24px;
+    padding-bottom: 4px;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 24px);
 }
 .ob-btn {
     font-family: inherit;
@@ -2850,6 +3044,10 @@ html[data-platform="linux"] .onboarding {
     border-radius: var(--radius-lg, 12px);
     background: var(--bg-card, var(--bg));
     box-shadow: 0 1px 4px var(--shadow, rgba(0,0,0,0.06));
+}
+.tutorial-card:first-child {
+    border: 1px solid rgba(var(--accent-rgb), 0.16);
+    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.03)), var(--bg-card, var(--bg));
 }
 .tutorial-card-header {
     display: flex;
@@ -3099,6 +3297,41 @@ html[data-platform="linux"] .onboarding {
     line-height: 1.55;
     color: var(--text);
     word-break: break-word;
+}
+
+.permission-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.permission-card-meta-title {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+.permission-card-meta-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.permission-card-root-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.24rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    background: rgba(var(--accent-rgb), 0.06);
+    color: var(--text);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+.onboarding-actions-finish {
+    justify-content: flex-end;
 }
 
 /* ── Finish button ── */

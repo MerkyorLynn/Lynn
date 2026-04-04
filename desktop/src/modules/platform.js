@@ -68,6 +68,7 @@
 
     // 系统对话框 → Web 降级
     selectFolder: async () => null,
+    getOnboardingDefaults: async () => ({ workspacePath: '', trustedRoots: [], installRoot: null, desktopRoot: null }),
     selectSkill: async () => null,
 
     // OS 集成 → 静默降级

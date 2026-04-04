@@ -99,6 +99,28 @@ describe("syncModels", () => {
     expect(Object.keys(result.providers)).toHaveLength(0);
   });
 
+  it("keeps no-key remote providers when auth_type is none", async () => {
+    const syncModels = await loadSync();
+
+    const providers = {
+      brain: {
+        base_url: "http://82.156.182.240/api/v1",
+        api: "openai-completions",
+        auth_type: "none",
+        models: ["step-3.5-flash-2603"],
+      },
+    };
+
+    const changed = syncModels(providers, { modelsJsonPath });
+
+    expect(changed).toBe(true);
+    const result = JSON.parse(fs.readFileSync(modelsJsonPath, "utf-8"));
+    expect(result.providers.brain).toBeDefined();
+    expect(result.providers.brain.baseUrl).toBe("http://82.156.182.240/api/v1");
+    expect(result.providers.brain.apiKey).toBe("local");
+    expect(result.providers.brain.models[0].id).toBe("step-3.5-flash-2603");
+  });
+
   it("skips providers without models", async () => {
     const syncModels = await loadSync();
 

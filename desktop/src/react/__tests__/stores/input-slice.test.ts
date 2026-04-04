@@ -51,7 +51,7 @@ describe('input-slice', () => {
     expect(slice.quotedSelection!.sourceTitle).toBe('B');
   });
 
-  it('save/restore composer draft 保留完整草稿和 working set', () => {
+  it('save/restore composer draft 保留草稿与 working set，但不恢复 docContext', () => {
     slice.setComposerText('draft text');
     slice.setAttachedFiles([{ path: '/repo/spec.md', name: 'spec.md' }]);
     slice.setQuotedSelection({ text: 'quoted', sourceTitle: 'spec.md', charCount: 6 });
@@ -69,8 +69,9 @@ describe('input-slice', () => {
     expect(slice.composerText).toBe('draft text');
     expect(slice.attachedFiles).toEqual([{ path: '/repo/spec.md', name: 'spec.md' }]);
     expect(slice.quotedSelection).toEqual({ text: 'quoted', sourceTitle: 'spec.md', charCount: 6 });
-    expect(slice.docContextFile).toEqual({ path: '/repo/doc.md', name: 'doc.md' });
-    expect(slice.docContextAttached).toBe(true);
+    expect(slice.docContextFile).toBeNull();
+    expect(slice.docContextAttached).toBe(false);
+    expect(slice.composerDrafts['session-a'].docContextFile).toBeNull();
     expect(slice.workingSetRecentFiles).toEqual([{ path: '/repo/spec.md', name: 'spec.md', source: 'recent' }]);
   });
 
@@ -94,7 +95,7 @@ describe('input-slice', () => {
     expect(slice.workingSetRecentFiles).toEqual([{ path: '/repo/b.ts', name: 'b.ts', source: 'recent' }]);
   });
 
-  it('last submitted draft 可设置恢复和清理', () => {
+  it('last submitted draft 可设置恢复和清理，但不会恢复 docContext', () => {
     const draft = {
       text: 'last prompt',
       attachedFiles: [{ path: '/repo/a.ts', name: 'a.ts' }],
@@ -107,8 +108,12 @@ describe('input-slice', () => {
     slice.restoreLastSubmittedDraft('session-a');
 
     expect(slice.composerText).toBe('last prompt');
-    expect(slice.docContextAttached).toBe(true);
-    expect(slice.lastSubmittedDrafts['session-a']).toEqual(draft);
+    expect(slice.docContextAttached).toBe(false);
+    expect(slice.docContextFile).toBeNull();
+    expect(slice.lastSubmittedDrafts['session-a']).toEqual({
+      ...draft,
+      docContextFile: null,
+    });
 
     slice.clearLastSubmittedDraft('session-a');
     expect(slice.lastSubmittedDrafts['session-a']).toBeUndefined();
@@ -125,17 +130,17 @@ describe('input-slice', () => {
     expect(slice.workingSetRecentFiles.some((file) => file.path === '/repo/0.ts')).toBe(false);
   });
 
-  it('doc context setters 和 toggle 保持一致', () => {
+  it('doc context setters 和 toggle 会保持停用状态', () => {
     slice.setDocContextAttached(true, { path: '/repo/a.md', name: 'a.md' });
-    expect(slice.docContextAttached).toBe(true);
-    expect(slice.docContextFile).toEqual({ path: '/repo/a.md', name: 'a.md' });
+    expect(slice.docContextAttached).toBe(false);
+    expect(slice.docContextFile).toBeNull();
 
     slice.toggleDocContext();
     expect(slice.docContextAttached).toBe(false);
     expect(slice.docContextFile).toBeNull();
 
     slice.toggleDocContext({ path: '/repo/b.md', name: 'b.md' });
-    expect(slice.docContextAttached).toBe(true);
-    expect(slice.docContextFile).toEqual({ path: '/repo/b.md', name: 'b.md' });
+    expect(slice.docContextAttached).toBe(false);
+    expect(slice.docContextFile).toBeNull();
   });
 });

@@ -4,16 +4,24 @@ import { hanaFetch } from '../../api';
 import { t, API_FORMAT_OPTIONS } from '../../helpers';
 import { SelectWidget } from '../../widgets/SelectWidget';
 import { KeyInput } from '../../widgets/KeyInput';
+import {
+  BRAIN_PROVIDER_ID,
+  BRAIN_PROVIDER_LABEL,
+  getBrainComplianceNote,
+  getBrainDisplayName,
+  getBrainDisplayMetaLabel,
+  getBrainUserNotice,
+} from '../../../../../../shared/brain-provider.js';
 import styles from '../../Settings.module.css';
 
 const platform = window.platform;
 
-export function ApiKeyCredentials({ providerId, summary, providerConfig, isPresetSetup, presetInfo, onRefresh }: {
+export function ApiKeyCredentials({ providerId, summary, providerConfig: _providerConfig, isPresetSetup, presetInfo, onRefresh }: {
   providerId: string;
   summary: ProviderSummary;
   providerConfig?: Record<string, unknown>;
   isPresetSetup?: boolean;
-  presetInfo?: { label: string; value: string; url?: string; api?: string; local?: boolean };
+  presetInfo?: { label: string; value: string; url?: string; api?: string; local?: boolean; noKey?: boolean; defaultModelId?: string };
   onRefresh: () => Promise<void>;
 }) {
   const { showToast } = useSettingsStore();
@@ -23,6 +31,9 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
   const [urlVal, setUrlVal] = useState(derivedBaseUrl);
   const [urlEdited, setUrlEdited] = useState(false);
   const api = summary.api || presetInfo?.api || '';
+  const requiresKey = summary.type === 'api-key' && !presetInfo?.local;
+  const isDefaultModelProvider = providerId === BRAIN_PROVIDER_ID;
+  const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>(isDefaultModelProvider ? 'ok' : 'idle');
 
   // 未编辑时，从 summary 同步已保存的 key 到输入框
   useEffect(() => {
@@ -36,17 +47,21 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
     if (!urlEdited) setUrlVal(derivedBaseUrl);
   }, [derivedBaseUrl, urlEdited]);
 
+  useEffect(() => {
+    if (isDefaultModelProvider) setConnStatus('ok');
+  }, [isDefaultModelProvider]);
+
   const verifyAndSave = async (btn: HTMLButtonElement) => {
-    if (!keyEdited) return;
+    if (requiresKey && !keyEdited) return;
     const key = keyVal.trim();
-    if (!key && !presetInfo?.local) return;
+    if (requiresKey && !key) return;
     btn.classList.add(styles['spinning']);
     try {
       const effectiveUrl = urlVal.trim() || derivedBaseUrl;
       const testRes = await hanaFetch('/api/providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base_url: effectiveUrl, api, api_key: key }),
+        body: JSON.stringify({ name: providerId, base_url: effectiveUrl, api, api_key: key }),
       });
       const testData = await testRes.json();
       if (!testData.ok) {
@@ -54,8 +69,15 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
         return;
       }
       const payload: Record<string, unknown> = isPresetSetup
-        ? { base_url: effectiveUrl, api_key: key, api, models: [] as string[] }
-        : { api_key: key };
+        ? {
+            base_url: effectiveUrl,
+            ...(requiresKey ? { api_key: key } : {}),
+            api,
+            models: summary.models?.length
+              ? [...summary.models]
+              : (presetInfo?.defaultModelId ? [presetInfo.defaultModelId] : []),
+          }
+        : (requiresKey ? { api_key: key } : {});
       // 如果 base_url 也被编辑过，一并保存
       if (urlEdited && !isPresetSetup) payload.base_url = effectiveUrl;
       await hanaFetch('/api/config', {
@@ -77,8 +99,6 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
     }
   };
 
-  const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
-
   const verifyOnly = async (btn: HTMLButtonElement) => {
     setConnStatus('testing');
     btn.classList.add(styles['spinning']);
@@ -86,7 +106,12 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
       const testRes = await hanaFetch('/api/providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base_url: urlVal.trim() || derivedBaseUrl, api, api_key: keyVal.trim() || undefined }),
+        body: JSON.stringify({
+          name: providerId,
+          base_url: urlVal.trim() || derivedBaseUrl,
+          api,
+          api_key: requiresKey ? (keyVal.trim() || undefined) : undefined,
+        }),
       });
       const testData = await testRes.json();
       setConnStatus(testData.ok ? 'ok' : 'fail');
@@ -101,34 +126,79 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
 
   return (
     <div className={styles['pv-credentials']}>
-      <div className={styles['pv-cred-row']}>
-        <span className={styles['pv-cred-label']}>{t('settings.api.apiKey')}</span>
-        <div className={styles['pv-cred-key-row']}>
-          <KeyInput
-            value={keyVal}
-            onChange={(v) => { setKeyVal(v); setKeyEdited(true); setConnStatus('idle'); }}
-            placeholder={isPresetSetup ? t('settings.providers.setupHint') : ''}
-          />
-          <button
-            className={`${styles['pv-cred-conn-icon']} ${styles[connStatus] || ''}`}
-            title={t('settings.providers.verifyConnection')}
-            onClick={(e) => {
-              if (keyEdited && (keyVal.trim() || presetInfo?.local)) {
-                verifyAndSave(e.currentTarget);
-              } else {
-                verifyOnly(e.currentTarget);
-              }
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-          </button>
+      {isDefaultModelProvider && (
+        <div className={styles['pv-default-model-card']} style={{ marginBottom: 10 }}>
+          <div className={styles['pv-default-model-title']}>{getBrainDisplayName()}</div>
+          <div className={styles['pv-default-model-desc']}>{getBrainDisplayMetaLabel()}</div>
+          <div className={styles['pv-default-model-hint']}>
+            {t('settings.providers.defaultModelReadyHint') || '这条链路已经内置好，日常直接使用即可。只有在你主动更换其他供应商时，才需要再做额外配置。'}
+          </div>
+          <div className={styles['pv-default-model-hint']}>
+            {getBrainComplianceNote()}
+          </div>
+          <div className={styles['pv-default-model-hint']} style={{ opacity: 0.78 }}>
+            {getBrainUserNotice()}
+          </div>
         </div>
-      </div>
+      )}
+      {requiresKey ? (
+        <div className={styles['pv-cred-row']}>
+          <span className={styles['pv-cred-label']}>{t('settings.api.apiKey')}</span>
+          <div className={styles['pv-cred-key-row']}>
+            <KeyInput
+              value={keyVal}
+              onChange={(v) => { setKeyVal(v); setKeyEdited(true); setConnStatus('idle'); }}
+              placeholder={isPresetSetup ? t('settings.providers.setupHint') : ''}
+            />
+            <button
+              className={`${styles['pv-cred-conn-icon']} ${styles[connStatus] || ''}`}
+              title={t('settings.providers.verifyConnection')}
+              onClick={(e) => {
+                if (keyEdited && keyVal.trim()) {
+                  verifyAndSave(e.currentTarget);
+                } else {
+                  verifyOnly(e.currentTarget);
+                }
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={styles['pv-cred-row']}>
+          <span className={styles['pv-cred-label']}>{t('settings.providers.authLabel') || '授权'}</span>
+          <div className={styles['pv-cred-key-row']}>
+            <input
+              className={styles['settings-input']}
+              type="text"
+              value={isDefaultModelProvider ? `${BRAIN_PROVIDER_LABEL} 内置设备签名` : 'Lynn signed device token'}
+              readOnly
+            />
+            {isDefaultModelProvider ? (
+              <span className={`${styles['pv-cred-inline-status']} ${styles.ok}`}>
+                {t('settings.providers.ready') || '已就绪'}
+              </span>
+            ) : (
+              <button
+                className={`${styles['pv-cred-conn-icon']} ${styles[connStatus] || ''}`}
+                title={t('settings.providers.verifyConnection')}
+                onClick={(e) => verifyAndSave(e.currentTarget)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className={styles['pv-cred-row']}>
-        <span className={styles['pv-cred-label']}>Base URL</span>
+        <span className={styles['pv-cred-label']}>{t('settings.providers.baseUrlLabel') || 'Base URL'}</span>
         <div className={styles['pv-cred-url-row']}>
           <input
             className={styles['settings-input']}
@@ -152,18 +222,18 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
             }}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             placeholder="https://api.example.com/v1"
-            readOnly={!!isPresetSetup}
+            readOnly={!!isPresetSetup || isDefaultModelProvider}
           />
         </div>
       </div>
       <div className={styles['pv-cred-row']}>
         <span className={styles['pv-cred-label']}>{t('settings.providers.apiType')}</span>
         <div className={styles['pv-cred-select-wrapper']}>
-          <SelectWidget
-            options={API_FORMAT_OPTIONS}
-            value={api || ''}
+            <SelectWidget
+              options={API_FORMAT_OPTIONS}
+              value={api || ''}
             onChange={async (val) => {
-              if (isPresetSetup) return;
+              if (isPresetSetup || isDefaultModelProvider) return;
               try {
                 await hanaFetch('/api/config', {
                   method: 'PUT',
@@ -175,7 +245,7 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig, isPrese
               } catch { /* swallow */ }
             }}
             placeholder="API Format"
-            disabled={!!isPresetSetup}
+            disabled={!!isPresetSetup || isDefaultModelProvider}
           />
         </div>
       </div>

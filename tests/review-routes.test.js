@@ -18,22 +18,45 @@ function makeEngine() {
   ];
 
   return {
+    _agents: agents,
     currentAgentId: 'agent-main',
     currentSessionPath: '/tmp/session.jsonl',
     listAgents: () => agents,
+    invalidateAgentListCache: vi.fn(),
     getAgent: (id) => {
       const agent = agents.find((item) => item.id === id);
       return {
         ...agent,
         config: {
+          agent: {
+            name: agent?.name,
+            yuan: agent?.yuan,
+            tier: agent?.tier,
+          },
           api: { provider: id === 'agent-butter' ? 'anthropic' : 'openai' },
           models: { chat: { id: id === 'agent-butter' ? 'claude-3-7' : 'gpt-4.1', provider: id === 'agent-butter' ? 'anthropic' : 'openai' } },
         },
         agentName: agent?.name,
+        updateConfig: vi.fn((partial) => {
+          if (!agent) return;
+          if (partial?.agent?.yuan) agent.yuan = partial.agent.yuan;
+          if (partial?.agent?.tier) agent.tier = partial.agent.tier;
+          if (partial?.agent?.name) agent.name = partial.agent.name;
+        }),
       };
     },
     getPreferences: () => prefs,
     savePreferences: vi.fn((next) => Object.assign(prefs, next)),
+    createAgent: vi.fn(async ({ name, yuan }) => {
+      const id = `agent-${yuan}-${agents.length + 1}`;
+      const agent = { id, name, yuan, tier: 'local', hasAvatar: false };
+      agents.push(agent);
+      return { id, name };
+    }),
+    ensureAgentLoaded: vi.fn(async (id) => {
+      const agent = agents.find((item) => item.id === id);
+      return agent ? { id: agent.id } : null;
+    }),
   };
 }
 
@@ -98,6 +121,8 @@ describe('review route', () => {
     expect(data.reviewerName).toBe('Hanako');
     expect(data.reviewerAgent).toBe('agent-hanako');
     expect(data.reviewerYuan).toBe('hanako');
+    const reviewOpts = runAgentSession.mock.calls[0][2];
+    expect(reviewOpts.signal).toBeInstanceOf(AbortSignal);
     expect(broadcast).toHaveBeenCalledWith(expect.objectContaining({
       type: 'review_start',
       sessionPath: '/tmp/session.jsonl',
@@ -109,11 +134,11 @@ describe('review route', () => {
     }));
   });
 
-  it('returns reviewer_not_configured when requested reviewer kind has no candidate', async () => {
+  it('bootstraps a missing reviewer agent when the requested reviewer kind has no candidate', async () => {
     engine.currentAgentId = 'agent-butter';
-    engine.listAgents = () => [
+    engine._agents.splice(0, engine._agents.length, ...[
       { id: 'agent-butter', name: 'Butter Review', yuan: 'butter', tier: 'local', hasAvatar: false },
-    ];
+    ]);
 
     const res = await app.request('/api/review', {
       method: 'POST',
@@ -121,10 +146,81 @@ describe('review route', () => {
       body: JSON.stringify({ context: 'Check this change please.', reviewerKind: 'butter' }),
     });
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.code).toBe('reviewer_not_configured');
-    expect(data.reviewerKind).toBe('butter');
+    expect(engine.createAgent).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Butter Reviewer',
+      yuan: 'butter',
+    }));
+    expect(data.reviewerYuan).toBe('butter');
+  });
+
+  it('repairs a bound reviewer agent whose persona drifted away from hanako/butter', async () => {
+    engine._agents.splice(0, engine._agents.length, ...[
+      { id: 'agent-main', name: 'Lynn Main', yuan: 'lynn', tier: 'local', hasAvatar: true },
+      { id: 'hanako', name: 'Hanako', yuan: 'lynn', tier: 'local', hasAvatar: false },
+      { id: 'butter', name: 'Butter', yuan: 'butter', tier: 'local', hasAvatar: false },
+    ]);
+    engine.savePreferences({
+      review: {
+        defaultReviewer: 'hanako',
+        hanakoReviewerId: 'hanako',
+        butterReviewerId: 'butter',
+      },
+    });
+
+    const res = await app.request('/api/review/config');
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(engine._agents.find((item) => item.id === 'hanako')?.yuan).toBe('hanako');
+    expect(engine._agents.find((item) => item.id === 'hanako')?.tier).toBe('reviewer');
+    expect(data.candidates.hanako.map((item) => item.id)).toContain('hanako');
+  });
+
+  it('preloads a configured reviewer before starting review execution', async () => {
+    engine = makeEngine();
+    let runtimeReady = false;
+    engine.getAgent = (id) => {
+      const agent = engine._agents.find((item) => item.id === id);
+      if (!agent) return null;
+      if (id === 'agent-hanako' && !runtimeReady) return null;
+      return {
+        ...agent,
+        config: {
+          agent: {
+            name: agent?.name,
+            yuan: agent?.yuan,
+            tier: agent?.tier,
+          },
+          api: { provider: 'openai' },
+          models: { chat: { id: 'gpt-4.1', provider: 'openai' } },
+        },
+        agentName: agent?.name,
+        updateConfig: vi.fn(),
+      };
+    };
+    engine.ensureAgentLoaded = vi.fn(async (id) => {
+      if (id === 'agent-hanako') runtimeReady = true;
+      return { id };
+    });
+    app = new Hono();
+    app.route('/api', createReviewRoute(engine, { broadcast, taskRuntime }));
+
+    await app.request('/api/review/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ defaultReviewer: 'hanako', hanakoReviewerId: 'agent-hanako' }),
+    });
+
+    const res = await app.request('/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: 'Check this change please.' }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(engine.ensureAgentLoaded).toHaveBeenCalledWith('agent-hanako');
   });
 
   it('emits progress and structured findings payloads', async () => {

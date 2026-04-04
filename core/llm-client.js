@@ -1,8 +1,10 @@
 import { AppError } from '../shared/errors.js';
 import { errorBus } from '../shared/error-bus.js';
+import { withRetry } from '../shared/retry.js';
 import {
   readSignedClientAgentHeaders,
 } from './client-agent-identity.js';
+import { getPooledDispatcher } from '../shared/http-pool.js';
 
 const ZAI_PROVIDER_IDS = new Set(["zhipu", "glm", "glm-5", "zai", "z-ai"]);
 
@@ -97,6 +99,7 @@ export async function callText({
 
   // ── 3. 按协议构造请求 ──
   const base = (baseUrl || "").replace(/\/+$/, "");
+  const dispatcher = getPooledDispatcher(base);
   let endpoint, headers, body;
 
   if (api === "anthropic-messages") {
@@ -144,75 +147,83 @@ export async function callText({
     };
   }
 
-  // ── 4. 发送请求 ──
-  const SLOW_THRESHOLD_MS = 15_000;
-  const slowTimer = setTimeout(() => {
-    errorBus.report(new AppError('LLM_SLOW_RESPONSE', {
-      context: { model, provider, elapsed: SLOW_THRESHOLD_MS },
-    }));
-  }, SLOW_THRESHOLD_MS);
+  // ── 4. 发送请求（带自动重试） ──
+  return withRetry(async () => {
+    const SLOW_THRESHOLD_MS = 15_000;
+    const slowTimer = setTimeout(() => {
+      errorBus.report(new AppError('LLM_SLOW_RESPONSE', {
+        context: { model, provider, elapsed: SLOW_THRESHOLD_MS },
+      }));
+    }, SLOW_THRESHOLD_MS);
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal: combinedSignal,
-  }).catch(err => {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: combinedSignal,
+      dispatcher: dispatcher || undefined,
+    }).catch(err => {
+      clearTimeout(slowTimer);
+      if (err.name === "AbortError" || err.name === "TimeoutError") {
+        throw new AppError('LLM_TIMEOUT', { context: { model }, cause: err });
+      }
+      throw err;
+    });
+
+    // ── 5. 解析响应 ──
+    const rawText = await res.text();
     clearTimeout(slowTimer);
-    if (err.name === "AbortError" || err.name === "TimeoutError") {
-      throw new AppError('LLM_TIMEOUT', { context: { model }, cause: err });
+    let data;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      throw new Error(`LLM returned invalid JSON (status=${res.status})`);
     }
-    throw err;
-  });
 
-  // ── 5. 解析响应 ──
-  const rawText = await res.text();
-  clearTimeout(slowTimer);
-  let data;
-  try {
-    data = rawText ? JSON.parse(rawText) : null;
-  } catch {
-    throw new Error(`LLM returned invalid JSON (status=${res.status})`);
-  }
-
-  if (!res.ok) {
-    const message = data?.error?.message || data?.message || rawText || `HTTP ${res.status}`;
-    if (res.status === 401 || res.status === 403) {
-      throw new AppError('LLM_AUTH_FAILED', { context: { model, status: res.status } });
+    if (!res.ok) {
+      const message = data?.error?.message || data?.message || rawText || `HTTP ${res.status}`;
+      if (res.status === 401 || res.status === 403) {
+        throw new AppError('LLM_AUTH_FAILED', { context: { model, status: res.status } });
+      }
+      if (res.status === 429) {
+        throw new AppError('LLM_RATE_LIMITED', { context: { model } });
+      }
+      throw new AppError('UNKNOWN', { message, context: { model, status: res.status } });
     }
-    if (res.status === 429) {
-      throw new AppError('LLM_RATE_LIMITED', { context: { model } });
-    }
-    throw new AppError('UNKNOWN', { message, context: { model, status: res.status } });
-  }
 
-  // ── 6. 提取文本 ──
-  let text = "";
-  if (api === "anthropic-messages") {
-    text = (data?.content || [])
-      .filter(c => c?.type === "text" && typeof c.text === "string")
-      .map(c => c.text).join("\n").trim();
-  } else if (api === "openai-responses" || api === "openai-codex-responses") {
-    if (typeof data?.output_text === "string") {
-      text = data.output_text.trim();
+    // ── 6. 提取文本 ──
+    let text = "";
+    if (api === "anthropic-messages") {
+      text = (data?.content || [])
+        .filter(c => c?.type === "text" && typeof c.text === "string")
+        .map(c => c.text).join("\n").trim();
+    } else if (api === "openai-responses" || api === "openai-codex-responses") {
+      if (typeof data?.output_text === "string") {
+        text = data.output_text.trim();
+      } else {
+        text = (data?.output || [])
+          .filter(item => item?.type === "message" && item?.role === "assistant")
+          .flatMap(item => (item.content || []).filter(c => typeof c?.text === "string").map(c => c.text.trim()))
+          .join("\n").trim();
+      }
     } else {
-      text = (data?.output || [])
-        .filter(item => item?.type === "message" && item?.role === "assistant")
-        .flatMap(item => (item.content || []).filter(c => typeof c?.text === "string").map(c => c.text.trim()))
-        .join("\n").trim();
+      text = (typeof data?.choices?.[0]?.message?.content === "string")
+        ? data.choices[0].message.content.trim()
+        : "";
     }
-  } else {
-    text = (typeof data?.choices?.[0]?.message?.content === "string")
-      ? data.choices[0].message.content.trim()
-      : "";
-  }
 
-  if (!text) {
-    if (combinedSignal.aborted) {
-      throw new AppError('LLM_TIMEOUT', { context: { model } });
+    if (!text) {
+      if (combinedSignal.aborted) {
+        throw new AppError('LLM_TIMEOUT', { context: { model } });
+      }
+      throw new AppError('LLM_EMPTY_RESPONSE', { context: { model } });
     }
-    throw new AppError('LLM_EMPTY_RESPONSE', { context: { model } });
-  }
 
-  return text;
+    return text;
+  }, {
+    maxAttempts: 3,
+    baseDelayMs: 1000,
+    maxDelayMs: 15000,
+    signal: combinedSignal,
+  });
 }

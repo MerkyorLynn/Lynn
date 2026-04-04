@@ -60,6 +60,7 @@ export function BridgeTab() {
           if (b.tgToken.trim()) await b.saveBridgeConfig('telegram', { token: b.tgToken.trim() }, undefined);
         }}
         testing={b.testingPlatform === 'telegram'}
+        testResult={b.testResults.telegram || null}
         hint={t('settings.bridge.telegramHint')}
         ownerUsers={b.status?.knownUsers?.telegram || []}
         currentOwner={b.status?.owner?.telegram}
@@ -88,6 +89,7 @@ export function BridgeTab() {
             await b.saveBridgeConfig('feishu', { appId: b.fsAppId.trim(), appSecret: b.fsAppSecret.trim() }, undefined);
         }}
         testing={b.testingPlatform === 'feishu'}
+        testResult={b.testResults.feishu || null}
         hint={t('settings.bridge.feishuHint')}
         ownerUsers={b.status?.knownUsers?.feishu || []}
         currentOwner={b.status?.owner?.feishu}
@@ -116,6 +118,7 @@ export function BridgeTab() {
             await b.saveBridgeConfig('qq', { appID: b.qqAppId.trim(), appSecret: b.qqAppSecret.trim() }, undefined);
         }}
         testing={b.testingPlatform === 'qq'}
+        testResult={b.testResults.qq || null}
         hint={t('settings.bridge.qqHint')}
         ownerUsers={b.status?.knownUsers?.qq || []}
         currentOwner={b.status?.owner?.qq}

@@ -4,6 +4,12 @@
  */
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { hanaFetch } from '../api';
+import {
+  collapseBrainModelChoices,
+  normalizeDisplayModelId,
+  normalizeDisplayModelName,
+  normalizeDisplayProviderLabel,
+} from '../../utils/brain-models';
 import styles from '../Settings.module.css';
 
 interface ModelInfo {
@@ -17,6 +23,7 @@ interface ModelWidgetProps {
   /** @deprecated 不再使用，保留兼容签名 */
   providers?: Record<string, { models?: string[]; base_url?: string }>;
   value: string;
+  valueProvider?: string | null;
   onSelect: (modelId: string) => void;
   placeholder?: string;
   lookupModelMeta?: (id: string) => any;
@@ -25,6 +32,7 @@ interface ModelWidgetProps {
 
 export function ModelWidget({
   value, onSelect,
+  valueProvider,
   placeholder, formatContext,
 }: ModelWidgetProps) {
   const t = window.t || ((k: string) => k);
@@ -59,18 +67,24 @@ export function ModelWidget({
   }, [open]);
 
   const query = search.toLowerCase();
+  const visibleModels = useMemo(() => collapseBrainModelChoices(models), [models]);
+  const visibleValue = useMemo(() => {
+    const current = models.find((model) => model.id === value && (!valueProvider || model.provider === valueProvider))
+      || models.find((model) => model.id === value);
+    return normalizeDisplayModelId(value, current?.provider || valueProvider || '');
+  }, [models, value, valueProvider]);
 
   // 按 provider 分组
   const grouped = useMemo(() => {
     const groups: Record<string, ModelInfo[]> = {};
-    for (const m of models) {
+    for (const m of visibleModels) {
       if (query && !m.id.toLowerCase().includes(query) && !m.name.toLowerCase().includes(query)) continue;
-      const g = m.provider || '';
+      const g = normalizeDisplayProviderLabel(m.provider);
       if (!groups[g]) groups[g] = [];
       groups[g].push(m);
     }
     return groups;
-  }, [models, query]);
+  }, [visibleModels, query]);
 
   const handleCustomSubmit = () => {
     const val = customInput.trim();
@@ -87,7 +101,7 @@ export function ModelWidget({
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
       >
-        <span className={styles['mdw-value']}>{value || `— ${placeholder || t('settings.api.selectModel')} —`}</span>
+        <span className={styles['mdw-value']}>{visibleValue ? normalizeDisplayModelName(visibleModels.find((model) => normalizeDisplayModelId(model.id, model.provider) === visibleValue) || { id: visibleValue }) : `— ${placeholder || t('settings.api.selectModel')} —`}</span>
         <span className={styles['mdw-arrow']}>▾</span>
       </button>
       <div className={`${styles['mdw-popup']}${open ? ' ' + styles['open'] : ''}`}>
@@ -107,12 +121,12 @@ export function ModelWidget({
               {provider && <div className={styles['mdw-group-header']}>{provider}</div>}
               {items.map(m => (
                 <button
-                  key={`${m.provider}/${m.id}`}
-                  className={`${styles['mdw-option']}${m.id === value ? ' ' + styles['selected'] : ''}`}
+                  key={`${m.provider}/${normalizeDisplayModelId(m.id, m.provider)}`}
+                  className={`${styles['mdw-option']}${normalizeDisplayModelId(m.id, m.provider) === visibleValue ? ' ' + styles['selected'] : ''}`}
                   type="button"
-                  onClick={() => { onSelect(m.id); setOpen(false); }}
+                  onClick={() => { onSelect(normalizeDisplayModelId(m.id, m.provider)); setOpen(false); }}
                 >
-                  <span className={styles['mdw-option-name']}>{m.name || m.id}</span>
+                  <span className={styles['mdw-option-name']}>{normalizeDisplayModelName(m)}</span>
                   {m.contextWindow && formatContext && (
                     <span className={styles['mdw-option-ctx']}>{formatContext(m.contextWindow)}</span>
                   )}

@@ -121,11 +121,85 @@ export function executeCompact(
   };
 }
 
+export function executeClear(
+  t: (key: string) => string,
+  showResult: (text: string, type: 'success' | 'error') => void,
+  setBusy: (name: string | null) => void,
+  setInput: (text: string) => void,
+  setMenuOpen: (open: boolean) => void,
+): () => Promise<void> {
+  return async () => {
+    setBusy('clear');
+    setInput('');
+    setMenuOpen(false);
+    try {
+      const res = await hanaFetch('/api/session/new', { method: 'POST' });
+      if (!res.ok) {
+        showResult(t('slash.clearFailed'), 'error');
+        return;
+      }
+      showResult(t('slash.clearDone'), 'success');
+    } catch {
+      showResult(t('slash.clearFailed'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+}
+
+export function executePlan(
+  setBusy: (name: string | null) => void,
+  setInput: (text: string) => void,
+  setMenuOpen: (open: boolean) => void,
+): () => Promise<void> {
+  return async () => {
+    setInput('');
+    setMenuOpen(false);
+    try {
+      const ws = getWebSocket();
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'toggle_plan_mode' }));
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+}
+
+export function executeSave(
+  t: (key: string) => string,
+  showResult: (text: string, type: 'success' | 'error') => void,
+  setBusy: (name: string | null) => void,
+  setInput: (text: string) => void,
+  setMenuOpen: (open: boolean) => void,
+): () => Promise<void> {
+  return async () => {
+    setBusy('save');
+    setInput('');
+    setMenuOpen(false);
+    try {
+      const res = await hanaFetch('/api/session/checkpoint', { method: 'POST' });
+      if (!res.ok) {
+        showResult(t('slash.saveFailed'), 'error');
+        return;
+      }
+      showResult(t('slash.saveDone'), 'success');
+    } catch {
+      showResult(t('slash.saveFailed'), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+}
+
 export function buildSlashCommands(
   t: (key: string) => string,
   executeDiaryFn: () => Promise<void>,
   executeXingFn: () => Promise<void>,
   executeCompactFn: () => Promise<void>,
+  executeClearFn: () => Promise<void>,
+  executePlanFn: () => Promise<void>,
+  executeSaveFn: () => Promise<void>,
 ): SlashCommand[] {
   return [
     {
@@ -151,6 +225,30 @@ export function buildSlashCommands(
       busyLabel: t('slash.compactBusy'),
       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
       execute: executeCompactFn,
+    },
+    {
+      name: 'clear',
+      label: '/clear',
+      description: t('slash.clear'),
+      busyLabel: '',
+      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+      execute: executeClearFn,
+    },
+    {
+      name: 'plan',
+      label: '/plan',
+      description: t('slash.plan'),
+      busyLabel: '',
+      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+      execute: executePlanFn,
+    },
+    {
+      name: 'save',
+      label: '/save',
+      description: t('slash.save'),
+      busyLabel: '',
+      icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+      execute: executeSaveFn,
     },
   ];
 }

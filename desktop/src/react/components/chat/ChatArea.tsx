@@ -172,9 +172,11 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
             lastAssistantMessageId={lastAssistantMessageId}
           />
         ))}
-        {isSessionStreaming && (
+        {isSessionStreaming && !items.some(item =>
+          item.type === 'message' && item.data.role === 'assistant' && item.data.id?.startsWith('stream-') && (item.data.blocks?.length ?? 0) > 0
+        ) && (
           <div className={styles.typingIndicator}>
-            <span /><span /><span />
+            <span className={styles.typingBar} />
           </div>
         )}
         <div className={styles.sessionFooter} />

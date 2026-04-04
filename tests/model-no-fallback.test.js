@@ -253,12 +253,18 @@ describe("模型选择无 fallback", () => {
     function setupRouter(mm) {
       mm.executionRouter = new ExecutionRouter(
         (ref) => mm._availableModels.find((m) => m.id === ref),
-        { getCredentials: (provider) => {
-          // 从 _availableModels 的 provider 对应的凭证中查找
-          const model = mm._availableModels.find((m) => m.provider === provider);
-          if (!model?._cred) return null;
-          return model._cred;
-        } },
+        {
+          getCredentials: (provider) => {
+            // 从 _availableModels 的 provider 对应的凭证中查找
+            const model = mm._availableModels.find((m) => m.provider === provider);
+            if (!model?._cred) return null;
+            return model._cred;
+          },
+          get: (provider) => {
+            const model = mm._availableModels.find((m) => m.provider === provider);
+            return model?._providerEntry || null;
+          },
+        },
       );
     }
 
@@ -269,12 +275,17 @@ describe("模型选择无 fallback", () => {
         .toThrow("error.noUtilityModel");
     });
 
-    it("utility_large 未配置时抛错", () => {
+    it("utility_large 未配置时回退到 utility 模型", () => {
       const mm = new ModelManager({ lynnHome: tempDir });
       setupRouter(mm);
-      mm._availableModels = [{ id: "some-model", provider: "x" }];
-      expect(() => mm.resolveUtilityConfig({}, { utility: "some-model" }, {}))
-        .toThrow("error.noUtilityLargeModel");
+      mm._availableModels = [{
+        id: "some-model",
+        provider: "x",
+        _cred: { api: "openai-completions", apiKey: "sk-test", baseUrl: "https://test.example.com/v1" },
+      }];
+      const result = mm.resolveUtilityConfig({}, { utility: "some-model" }, {});
+      expect(result.utility).toBe("some-model");
+      expect(result.utility_large).toBe("some-model");
     });
 
     it("utility 和 utility_large 都配置时正常返回", () => {
@@ -293,6 +304,24 @@ describe("模型选择无 fallback", () => {
       expect(result.utility_large).toBe("large-model");
       expect(result.api_key).toBe("sk-test");
       expect(result.api).toBe("openai-completions");
+    });
+
+    it("authType none 的 utility 模型会显式标记允许无 key", () => {
+      const mm = new ModelManager({ lynnHome: tempDir });
+      mm._availableModels = [
+        {
+          id: "brain-free",
+          provider: "brain",
+          _cred: { api: "openai-completions", apiKey: "", baseUrl: "http://brain.example/v1" },
+          _providerEntry: { authType: "none" },
+        },
+      ];
+      setupRouter(mm);
+      const result = mm.resolveUtilityConfig({}, { utility: "brain-free" }, {});
+      expect(result.utility).toBe("brain-free");
+      expect(result.utility_allow_missing_api_key).toBe(true);
+      expect(result.utility_large_allow_missing_api_key).toBe(true);
+      expect(result.api_key).toBe("");
     });
 
     it("utility_api 与模型 provider 不一致时直接报错", () => {

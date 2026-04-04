@@ -123,6 +123,26 @@
     margin-bottom: 0;
 }
 
+.attachMoreBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.18rem 0.52rem;
+    border: 1px solid rgba(var(--accent-rgb), 0.18);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.06);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.attachMoreBtn:hover {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-color: rgba(var(--accent-rgb), 0.28);
+}
+
 .attachCard {
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -157,6 +177,10 @@
     line-height: 1.75;
     word-break: break-word;
     position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    isolation: isolate;
 }
 
 /* 助手回答正文用宋体 */
@@ -164,23 +188,51 @@
     font-family: var(--font-serif);
 }
 
+.messageActionRail {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+    position: relative;
+    z-index: 6;
+    margin-top: 0.2rem;
+    padding-top: 0.15rem;
+}
+
+.messageActionRailMain {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.messageActionRailIcons {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
 .msgCopyBtn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--hana-bg);
     border: 1px solid var(--hana-border);
-    border-radius: 4px;
+    border-radius: 999px;
     padding: 4px;
+    min-width: 28px;
+    min-height: 28px;
     cursor: pointer;
-    opacity: 0;
+    opacity: 0.88;
     transition: opacity 0.15s;
     color: var(--hana-text-muted);
     line-height: 1;
-    z-index: 4;
+    z-index: 7;
 }
 
-.messageGroupAssistant:hover .msgCopyBtn { opacity: 0.6; }
+.messageGroupAssistant:hover .msgCopyBtn { opacity: 1; }
 .msgCopyBtn:hover { opacity: 1 !important; color: var(--hana-text); }
 .msgCopyBtnCopied { opacity: 1 !important; color: var(--hana-accent, #4a9); }
 
@@ -240,7 +292,7 @@
 /* ── Review Card ── */
 
 .reviewCard {
-    --review-accent: var(--hana-accent, #7D1C4A);
+    --review-accent: var(--hana-accent, #7A97AA);
     margin: var(--space-sm) 0;
     padding: 0.95rem 1rem;
     background: color-mix(in srgb, var(--bg-card, #fff) 88%, rgba(var(--accent-rgb), 0.05));
@@ -526,9 +578,7 @@
 }
 
 .reviewActionGroup {
-    position: absolute;
-    top: 4px;
-    right: 60px;
+    position: static;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
@@ -537,28 +587,28 @@
     max-width: min(100%, 28rem);
     padding: 4px;
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(11, 18, 24, 0.88), rgba(17, 27, 36, 0.82));
+    background: color-mix(in srgb, var(--bg-card, #fff) 82%, rgba(var(--accent-rgb), 0.08));
     border: 1px solid rgba(var(--accent-rgb), 0.12);
-    box-shadow: 0 10px 24px rgba(6, 12, 18, 0.18);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(8px);
     opacity: 0.92;
     transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
     pointer-events: auto;
-    z-index: 5;
+    z-index: 6;
 }
 
 .reviewActionGroup[data-last-assistant="false"] {
-    opacity: 0.82;
+    opacity: 0.72;
 }
 
 .reviewBtn,
 .reviewConfigBtn {
     border: 1px solid rgba(var(--accent-rgb), 0.18);
-    color: #eef6f7;
-    background: linear-gradient(180deg, rgba(25, 38, 47, 0.92), rgba(19, 30, 39, 0.92));
+    color: var(--text);
+    background: color-mix(in srgb, var(--bg-card, #fff) 90%, rgba(var(--accent-rgb), 0.06));
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .reviewBtn {
@@ -570,24 +620,23 @@
     font-size: 0.73rem;
     line-height: 1;
     border-color: rgba(var(--accent-rgb), 0.22);
-    color: #f3fbfc;
 }
 
 .reviewFollowUpBtn {
     border-color: rgba(var(--accent-rgb), 0.34);
-    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-rgb), 0.1)), rgba(19, 30, 39, 0.94);
+    background: color-mix(in srgb, var(--bg-card, #fff) 80%, rgba(var(--accent-rgb), 0.12));
 }
 
 .reviewBtnPrefix {
-    color: rgba(238, 246, 247, 0.72);
+    color: var(--text-muted);
 }
 
 .reviewFollowUpBtn .reviewBtnPrefix {
-    color: rgba(238, 246, 247, 0.9);
+    color: var(--text);
 }
 
 .reviewBtnTarget {
-    color: rgba(var(--accent-rgb), 0.96);
+    color: var(--accent);
     font-weight: 700;
 }
 
@@ -605,14 +654,14 @@
 .reviewActionGroup:focus-within {
     opacity: 1;
     transform: translateY(-1px);
-    box-shadow: 0 14px 28px rgba(6, 12, 18, 0.22);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 .reviewBtn:hover,
 .reviewConfigBtn:hover {
     opacity: 1 !important;
-    color: #f8feff;
+    color: var(--text);
     border-color: rgba(var(--accent-rgb), 0.4);
-    background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-rgb), 0.08)), rgba(19, 30, 39, 0.94);
+    background: color-mix(in srgb, var(--bg-card, #fff) 70%, rgba(var(--accent-rgb), 0.14));
     transform: translateY(-1px);
 }
 .reviewBtn:disabled,
@@ -1467,22 +1516,25 @@
 .typingIndicator {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 0.6rem 0;
+    padding: 0.8rem 0;
     padding-left: calc(var(--space-sm) + 2px);
     animation: msgIn 0.3s var(--ease-out);
 }
 
-.typingIndicator span {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: dotPulse 1.2s infinite;
+.typingBar {
+    display: block;
+    width: 120px;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background-size: 200% 100%;
+    animation: typingShimmer 1.5s ease-in-out infinite;
 }
 
-.typingIndicator span:nth-child(2) { animation-delay: 0.2s; }
-.typingIndicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
 
 /* ── Scroll to bottom FAB ── */
 

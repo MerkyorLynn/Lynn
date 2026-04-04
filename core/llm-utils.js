@@ -24,19 +24,36 @@ export const getToolArgs = (b) => b.input || b.arguments;
  * @param {Array} opts.messages
  * @param {number} [opts.temperature=0.3]
  * @param {number} [opts.max_tokens=100]
+ * @param {Array<{ model: string, api: string, api_key: string, base_url: string }>} [opts.fallbacks=[]]
  * @returns {Promise<string|null>} 回复文本
  */
-async function callLlm({ model, api, api_key, base_url, messages, temperature = 0.3, max_tokens = 100, timeoutMs, signal, quirks }) {
-  return callText({
-    api, model,
-    apiKey: api_key,
-    baseUrl: base_url,
-    messages, temperature,
-    maxTokens: max_tokens,
-    ...(timeoutMs != null && { timeoutMs }),
-    ...(signal != null && { signal }),
-    ...(quirks != null && { quirks }),
-  });
+async function callLlm({ model, api, api_key, base_url, messages, temperature = 0.3, max_tokens = 100, timeoutMs, signal, quirks, fallbacks = [] }) {
+  const attempts = [{ model, api, api_key, base_url }, ...fallbacks]
+    .filter((candidate) => candidate?.model && candidate?.api && candidate?.base_url);
+
+  let lastError = null;
+  for (const candidate of attempts) {
+    try {
+      return await callText({
+        api: candidate.api,
+        model: candidate.model,
+        apiKey: candidate.api_key,
+        baseUrl: candidate.base_url,
+        messages,
+        temperature,
+        maxTokens: max_tokens,
+        ...(timeoutMs != null && { timeoutMs }),
+        ...(signal != null && { signal }),
+        ...(quirks != null && { quirks }),
+      });
+    } catch (err) {
+      lastError = err;
+      if (signal?.aborted) throw err;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return null;
 }
 
 /**
@@ -98,8 +115,7 @@ export function buildLocalSummary(assistantText, toolCalls) {
 export async function summarizeTitle(utilConfig, userText, assistantText, opts = {}) {
   try {
     const isZh = getLocale().startsWith("zh");
-    const { utility: model, api_key, base_url, api } = utilConfig;
-    if (!api_key || !base_url || !api) return null;
+    const { utility: model, api_key, base_url, api, utility_fallbacks = [] } = utilConfig;
 
     const systemContent = isZh
       ? `你是一个对话标题生成器。根据用户和助手的第一轮对话，用一句极短的话概括对话主题。
@@ -121,7 +137,11 @@ Rules:
     const assistantLabel = isZh ? "助手" : "Assistant";
 
     return await callLlm({
-      model, api, api_key, base_url,
+      model,
+      api,
+      api_key,
+      base_url,
+      fallbacks: utility_fallbacks,
       messages: [
         { role: "system", content: systemContent },
         {
@@ -149,11 +169,14 @@ export async function translateSkillNames(utilConfig, names, lang) {
   const LANG_LABEL = { zh: "中文", ja: "日本語", ko: "한국어" };
   const label = LANG_LABEL[lang] || lang;
   try {
-    const { utility: model, api_key, base_url, api } = utilConfig;
-    if (!api_key || !base_url || !api) return {};
+    const { utility: model, api_key, base_url, api, utility_fallbacks = [] } = utilConfig;
     const isZh = getLocale().startsWith("zh");
     const text = await callLlm({
-      model, api, api_key, base_url,
+      model,
+      api,
+      api_key,
+      base_url,
+      fallbacks: utility_fallbacks,
       messages: [
         {
           role: "system",
@@ -196,8 +219,15 @@ export async function summarizeActivity(utilConfig, sessionPath, emitDevLog) {
           ? `\n\n调用的工具：${[...new Set(toolCalls)].join("、")}`
           : `\n\nTools used: ${[...new Set(toolCalls)].join(", ")}`)
       : "";
-    const { utility_large: model, large_api_key: api_key, large_base_url: base_url, large_api: api } = utilConfig;
-    if (!api_key || !base_url || !api) {
+    const {
+      utility_large: model,
+      large_api_key: api_key,
+      large_base_url: base_url,
+      large_api: api,
+      utility_large_allow_missing_api_key = false,
+      utility_large_fallbacks = [],
+    } = utilConfig;
+    if ((!api_key && !utility_large_allow_missing_api_key) || !base_url || !api) {
       log("[summarize] utility_large config incomplete, skipping");
       return null;
     }
@@ -223,10 +253,12 @@ Rules:
     const contextLabel = isZh ? "巡检上下文" : "Patrol context";
     const replyLabel = isZh ? "Agent 回复" : "Agent reply";
 
-    const text = await callText({
-      api, model,
-      apiKey: api_key,
-      baseUrl: base_url,
+    const text = await callLlm({
+      model,
+      api,
+      api_key,
+      base_url,
+      fallbacks: utility_large_fallbacks,
       messages: [
         { role: "system", content: systemContent },
         {
@@ -235,7 +267,7 @@ Rules:
         },
       ],
       temperature: 0.3,
-      maxTokens: 150,
+      max_tokens: 150,
     });
 
     return text;
@@ -260,8 +292,7 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
     });
     if (!userText && !assistantText) return null;
 
-    const { utility: model, api_key, base_url, api } = utilConfig;
-    if (!api_key || !base_url || !api) return null;
+    const { utility: model, api_key, base_url, api, utility_fallbacks = [] } = utilConfig;
 
     const systemContent = isZh
       ? `根据 Agent 的巡检上下文和执行结果，用一两句话概括它做了什么。30 字以内，中文，直接输出。`
@@ -270,10 +301,12 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
     const contextLabel = isZh ? "巡检上下文" : "Patrol context";
     const replyLabel = isZh ? "Agent 回复" : "Agent reply";
 
-    return await callText({
-      api, model,
-      apiKey: api_key,
-      baseUrl: base_url,
+    return await callLlm({
+      model,
+      api,
+      api_key,
+      base_url,
+      fallbacks: utility_fallbacks,
       messages: [
         { role: "system", content: systemContent },
         {
@@ -282,10 +315,73 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
         },
       ],
       temperature: 0.3,
-      maxTokens: 80,
+      max_tokens: 80,
     });
   } catch (err) {
     console.error("[llm-utils] summarizeActivityQuick failed:", err.message);
+    return null;
+  }
+}
+
+/**
+ * 为自动接力生成 session 摘要（更完整，供下一个 session 继承）
+ * @param {object} utilConfig
+ * @param {string} sessionPath
+ * @param {object} [opts]
+ * @param {number} [opts.maxTokens=800]
+ */
+export async function summarizeSessionRelay(utilConfig, sessionPath, opts = {}) {
+  if (!fs.existsSync(sessionPath)) return null;
+  const isZh = getLocale().startsWith("zh");
+  const maxTokens = Number(opts.maxTokens) > 0 ? Number(opts.maxTokens) : 800;
+
+  try {
+    const { userText, assistantText, toolCallsText } = parseSessionContent(sessionPath, {
+      userLimit: 2400,
+      assistantLimit: 3200,
+      includeToolCalls: true,
+    });
+    if (!userText && !assistantText && !toolCallsText) return null;
+
+    const { utility_large, api_key, base_url, api, utility_large_fallbacks = [] } = utilConfig;
+    const systemContent = isZh
+      ? `请把一段已经运行很久的助手对话压缩成可接力的工作摘要，供新会话继续执行。
+
+要求：
+1. 重点保留：用户目标、已完成事项、关键结论、未完成待办、重要文件/路径、失败点与注意事项。
+2. 使用简洁中文要点，不要寒暄，不要复述无关过程。
+3. 如果没有某一类信息，就省略，不要编造。
+4. 控制在 ${maxTokens} token 以内。`
+      : `Compress a long-running assistant conversation into a continuation-ready handoff summary for a new session.
+
+Requirements:
+1. Preserve user goals, completed work, key conclusions, remaining TODOs, important files/paths, failure points, and cautions.
+2. Use concise bullet points.
+3. Omit missing categories instead of inventing them.
+4. Keep it within ${maxTokens} tokens.`;
+
+    return await callLlm({
+      model: utility_large,
+      api,
+      api_key,
+      base_url,
+      fallbacks: utility_large_fallbacks,
+      messages: [
+        { role: "system", content: systemContent },
+        {
+          role: "user",
+          content: [
+            userText ? `${isZh ? "用户消息" : "User messages"}:\n${userText}` : "",
+            assistantText ? `${isZh ? "助手回复" : "Assistant replies"}:\n${assistantText}` : "",
+            toolCallsText ? `${isZh ? "工具轨迹" : "Tool trace"}:\n${toolCallsText}` : "",
+          ].filter(Boolean).join("\n\n"),
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: Math.max(256, Math.min(maxTokens, 1200)),
+    });
+  } catch (err) {
+    console.error("[llm-utils] summarizeSessionRelay failed:", err.message);
     return null;
   }
 }
@@ -299,9 +395,10 @@ export async function summarizeActivityQuick(utilConfig, sessionPath) {
 export async function generateAgentId(utilConfig, name, agentsDir) {
   try {
     const isZh = getLocale().startsWith("zh");
-    const { utility: model, api_key, base_url, api } = utilConfig;
+    const { utility: model, api_key, base_url, api, utility_fallbacks = [] } = utilConfig;
     const text = await callLlm({
       model, api, api_key, base_url,
+      fallbacks: utility_fallbacks,
       messages: [
         {
           role: "system",

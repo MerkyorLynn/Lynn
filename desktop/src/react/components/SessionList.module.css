@@ -2,6 +2,52 @@
    Session 列表 — CSS Module
    ======================================== */
 
+/* 搜索栏 */
+.sessionSearchBar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px var(--space-sm);
+    flex-shrink: 0;
+}
+
+.sessionSearchInput {
+    flex: 1;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--text);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sessionSearchInput:focus {
+    border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+.sessionSearchClear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: var(--overlay-light);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sessionSearchClear:hover {
+    background: var(--overlay-medium);
+    color: var(--text);
+}
+
 .sessionList {
     flex: 1;
     overflow-y: auto;
@@ -57,6 +103,45 @@
     opacity: 0.8;
 }
 
+.sessionLabels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+    margin-right: 72px;
+}
+
+.sessionLabelChip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+    font-size: 0.6rem;
+    line-height: 1.6;
+}
+
+.sessionLabelInput {
+    margin-top: 5px;
+    margin-right: 72px;
+    font-size: 0.68rem;
+    color: var(--text);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 4px 7px;
+    outline: none;
+    width: calc(100% - 72px);
+    min-width: 0;
+    font-family: inherit;
+}
+
+.sessionLabelInput:focus {
+    border-color: rgba(var(--accent-rgb), 0.35);
+}
+
 .sessionItemModel {
     font-size: 0.64rem;
     color: rgba(var(--accent-rgb), 0.88);
@@ -65,14 +150,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: calc(100% - 34px);
+    max-width: calc(100% - 96px);
 }
 
 /* 重命名按钮 */
 .sessionRenameBtn {
     position: absolute;
     bottom: 4px;
-    right: 28px;
+    right: 76px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -117,11 +202,17 @@
     font-family: inherit;
 }
 
-/* 归档按钮 */
+/* Pin 按钮激活态 */
+.sessionPinActive {
+    opacity: 0.7 !important;
+    color: var(--accent);
+}
+
+.sessionPinBtn,
+.sessionLabelBtn,
 .sessionArchiveBtn {
     position: absolute;
     bottom: 4px;
-    right: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,19 +221,46 @@
     background: none;
     border: none;
     border-radius: 3px;
-    color: var(--danger);
     cursor: pointer;
     opacity: 0;
     transition: all 0.15s;
     z-index: 1;
 }
 
+.sessionPinBtn {
+    right: 52px;
+    color: var(--text-muted);
+}
+
+.sessionLabelBtn {
+    right: 28px;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.sessionArchiveBtn {
+    right: 4px;
+    color: var(--danger);
+}
+
+.sessionPinBtn svg,
+.sessionLabelBtn svg,
 .sessionArchiveBtn svg {
     pointer-events: none;
 }
 
+.sessionItem:hover .sessionPinBtn,
+.sessionItem:hover .sessionLabelBtn,
 .sessionItem:hover .sessionArchiveBtn {
     opacity: 0.5;
+}
+
+.sessionPinBtn:hover,
+.sessionLabelBtn:hover {
+    opacity: 1 !important;
+    background: var(--accent-light);
+    color: var(--accent);
 }
 
 .sessionArchiveBtn:hover {
@@ -210,7 +328,7 @@
     gap: 0.35rem;
     min-width: 0;
     overflow: hidden;
-    padding-right: 22px;
+    padding-right: 96px;
 }
 
 /* 日期分组标签 */

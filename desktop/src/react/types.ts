@@ -28,6 +28,8 @@ export interface Session {
   cwd: string | null;
   modelId?: string | null;
   modelProvider?: string | null;
+  pinned?: boolean;
+  labels?: string[];
   _optimistic?: boolean;
 }
 
@@ -135,6 +137,22 @@ export interface Activity {
   [key: string]: unknown;
 }
 
+export interface TaskRuntimeSnapshotItem {
+  id: string;
+  title: string;
+  status: string;
+  currentLabel?: string | null;
+  snapshot?: Record<string, unknown> | null;
+}
+
+export interface TaskRuntimeSnapshot {
+  activeCount: number;
+  waitingApprovalCount: number;
+  runningCount: number;
+  pendingCount: number;
+  recent: TaskRuntimeSnapshotItem[];
+}
+
 export interface Artifact {
   id: string;
   type: string;
@@ -186,6 +204,7 @@ export interface PlatformApi {
   getInitialSettingsNavigationTarget?(): Promise<SettingsNavigationTarget | null>;
   openBrowserViewer(url?: string, theme?: string): void;
   selectFolder(): Promise<string | null>;
+  getOnboardingDefaults?(): Promise<{ workspacePath: string; trustedRoots: string[]; installRoot?: string | null; desktopRoot?: string | null }>;
   selectSkill(): Promise<string | null>;
   readFile(path: string): Promise<string | null>;
   writeFile(filePath: string, content: string): Promise<boolean>;
@@ -206,7 +225,7 @@ export interface PlatformApi {
   browserEmergencyStop?(): void;
   openSkillViewer?(opts: { skillPath?: string; name?: string; baseDir?: string; filePath?: string; installed?: boolean }): void;
   settingsChanged(event: string, payload?: unknown): void;
-  onSettingsChanged(callback: (event: string, payload: unknown) => void): void;
+  onSettingsChanged(callback: (event: string, payload: unknown) => void): (() => void) | void;
   onSwitchTab?(callback: (target: string | SettingsNavigationTarget) => void): (() => void) | void;
   onServerRestarted?(callback: (data: { port: number; token: string }) => void): void;
   getFilePath?(file: File): Promise<string | null>;

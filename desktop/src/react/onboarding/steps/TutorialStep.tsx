@@ -35,6 +35,20 @@ const JianIcon = () => (
   </svg>
 );
 
+const PatrolIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l7 4v5c0 5-3.5 7.7-7 9-3.5-1.3-7-4-7-9V7l7-4z" />
+    <path d="M9.5 12l1.8 1.8L15 10.1" />
+  </svg>
+);
+
+const ActivityIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <path d="M7 15l3-3 2 2 5-5" />
+  </svg>
+);
+
 function TutorialCard({ icon, title, desc }: {
   icon: React.ReactNode;
   title: string;
@@ -87,16 +101,6 @@ export function TutorialStep({ preview, showError, track }: TutorialStepProps) {
 
       <div className="tutorial-cards">
         <TutorialCard
-          icon={<MemoryIcon />}
-          title={t('onboarding.tutorial.memory.title')}
-          desc={t('onboarding.tutorial.memory.desc')}
-        />
-        <TutorialCard
-          icon={<SkillsIcon />}
-          title={t('onboarding.tutorial.skills.title')}
-          desc={t('onboarding.tutorial.skills.desc')}
-        />
-        <TutorialCard
           icon={<WorkspaceIcon />}
           title={t('onboarding.tutorial.workspace.title')}
           desc={t('onboarding.tutorial.workspace.desc')}
@@ -106,11 +110,33 @@ export function TutorialStep({ preview, showError, track }: TutorialStepProps) {
           title={t('onboarding.tutorial.jian.title')}
           desc={t('onboarding.tutorial.jian.desc')}
         />
+        <TutorialCard
+          icon={<PatrolIcon />}
+          title={t('onboarding.tutorial.patrol.title')}
+          desc={t('onboarding.tutorial.patrol.desc')}
+        />
+        <TutorialCard
+          icon={<MemoryIcon />}
+          title={t('onboarding.tutorial.memory.title')}
+          desc={t('onboarding.tutorial.memory.desc')}
+        />
+        <TutorialCard
+          icon={<ActivityIcon />}
+          title={t('onboarding.tutorial.activity.title')}
+          desc={t('onboarding.tutorial.activity.desc')}
+        />
+        <TutorialCard
+          icon={<SkillsIcon />}
+          title={t('onboarding.tutorial.skills.title')}
+          desc={t('onboarding.tutorial.skills.desc')}
+        />
       </div>
 
-      <button className="ob-finish-btn" disabled={finishing} onClick={onFinish}>
-        {t(isQuickTrack ? 'onboarding.tutorial.quickFinish' : 'onboarding.tutorial.finish')}
-      </button>
+      <div className="onboarding-actions onboarding-actions-finish">
+        <button className="ob-finish-btn" disabled={finishing} onClick={onFinish}>
+          {t(isQuickTrack ? 'onboarding.tutorial.quickFinish' : 'onboarding.tutorial.finish')}
+        </button>
+      </div>
     </StepContainer>
   );
 }

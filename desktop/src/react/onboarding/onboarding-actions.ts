@@ -2,14 +2,42 @@
  * onboarding-actions.ts — API call logic for the onboarding wizard
  */
 
-import { AGENT_ID } from './constants';
+import {
+  BRAIN_PROVIDER_ID,
+  BRAIN_DEFAULT_MODEL_ID,
+  BRAIN_DEFAULT_MODEL_IDS,
+  BRAIN_ROLE_MODEL_IDS,
+} from '../../../../shared/brain-provider.js';
 
 export type OnboardingFetch = (path: string, opts?: RequestInit) => Promise<Response>;
+
+function notifyModelsChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.platform?.settingsChanged?.('models-changed');
+}
+
+async function syncRuntimeModel(
+  onboardingFetch: OnboardingFetch,
+  modelId: string | null | undefined,
+  provider: string,
+): Promise<void> {
+  if (!modelId) return;
+  try {
+    await onboardingFetch('/api/models/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modelId, provider }),
+    });
+  } catch {
+    // The persisted config is the source of truth; runtime sync is best-effort.
+  }
+}
 
 // ── Test connection ──
 
 interface TestConnectionParams {
   onboardingFetch: OnboardingFetch;
+  providerName?: string;
   providerUrl: string;
   providerApi: string;
   apiKey: string;
@@ -20,11 +48,39 @@ export interface TestResult {
   text: string;
 }
 
-export async function testConnection({ onboardingFetch, providerUrl, providerApi, apiKey }: TestConnectionParams): Promise<TestResult> {
+export interface RuntimeProviderInfo {
+  providerName: string;
+  providerUrl: string;
+  providerApi: string;
+}
+
+export async function loadRuntimeProviderInfo(
+  onboardingFetch: OnboardingFetch,
+  providerName: string,
+): Promise<RuntimeProviderInfo | null> {
+  try {
+    const res = await onboardingFetch('/api/providers/summary');
+    const data = await res.json();
+    const provider = data?.providers?.[providerName];
+    const baseUrl = String(provider?.base_url || '').trim();
+    const api = String(provider?.api || '').trim();
+    if (!baseUrl || !api) return null;
+    return {
+      providerName,
+      providerUrl: baseUrl,
+      providerApi: api,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function testConnection({ onboardingFetch, providerName, providerUrl, providerApi, apiKey }: TestConnectionParams): Promise<TestResult> {
   const res = await onboardingFetch('/api/providers/test', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      name: providerName,
       base_url: providerUrl,
       api: providerApi,
       api_key: apiKey,
@@ -47,10 +103,35 @@ interface SaveProviderParams {
   providerUrl: string;
   apiKey: string;
   providerApi: string;
+  defaultModelId?: string | null;
 }
 
-export async function saveProvider({ onboardingFetch, providerName, providerUrl, apiKey, providerApi }: SaveProviderParams): Promise<void> {
-  await onboardingFetch(`/api/agents/${AGENT_ID}/config`, {
+export async function saveProvider({
+  onboardingFetch, providerName, providerUrl, apiKey, providerApi, defaultModelId = null,
+}: SaveProviderParams): Promise<void> {
+  const seededModelIds = providerName === BRAIN_PROVIDER_ID
+    ? [...BRAIN_DEFAULT_MODEL_IDS]
+    : (defaultModelId ? [defaultModelId] : []);
+  const modelRef = defaultModelId
+    ? { id: defaultModelId, provider: providerName }
+    : null;
+  const roleModels = providerName === BRAIN_PROVIDER_ID
+    ? {
+        chat: { id: BRAIN_ROLE_MODEL_IDS.chat, provider: BRAIN_PROVIDER_ID },
+        summarizer: { id: BRAIN_ROLE_MODEL_IDS.summarizer, provider: BRAIN_PROVIDER_ID },
+        compiler: { id: BRAIN_ROLE_MODEL_IDS.compiler, provider: BRAIN_PROVIDER_ID },
+        utility: { id: BRAIN_ROLE_MODEL_IDS.utility, provider: BRAIN_PROVIDER_ID },
+        utility_large: { id: BRAIN_ROLE_MODEL_IDS.utility_large, provider: BRAIN_PROVIDER_ID },
+      }
+    : (modelRef ? {
+        chat: modelRef,
+        summarizer: modelRef,
+        compiler: modelRef,
+        utility: modelRef,
+        utility_large: modelRef,
+      } : null);
+
+  await onboardingFetch('/api/config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -60,10 +141,15 @@ export async function saveProvider({ onboardingFetch, providerName, providerUrl,
           base_url: providerUrl,
           api_key: apiKey,
           api: providerApi,
+          ...(seededModelIds.length > 0 ? { models: seededModelIds } : {}),
         },
       },
+      ...(roleModels ? { models: roleModels } : {}),
     }),
   });
+
+  await syncRuntimeModel(onboardingFetch, providerName === BRAIN_PROVIDER_ID ? BRAIN_DEFAULT_MODEL_ID : defaultModelId, providerName);
+  notifyModelsChanged();
 }
 
 // ── Load models ──
@@ -109,34 +195,53 @@ interface SaveModelParams {
 }
 
 export async function saveModel({ onboardingFetch, selectedModel, fetchedModels, providerName }: SaveModelParams): Promise<void> {
-  const models: Record<string, string> = {
-    chat: selectedModel,
-    summarizer: selectedModel,
-    compiler: selectedModel,
-    utility: selectedModel,
-    utility_large: selectedModel,
+  const modelRef = {
+    id: selectedModel,
+    provider: providerName,
   };
 
-  await onboardingFetch(`/api/agents/${AGENT_ID}/config`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ models }),
-  });
-
   const modelIds = fetchedModels.map(m => m.id);
-  await onboardingFetch(`/api/agents/${AGENT_ID}/config`, {
+  await onboardingFetch('/api/config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      api: { provider: providerName },
+      models: {
+        chat: modelRef,
+        summarizer: modelRef,
+        compiler: modelRef,
+        utility: modelRef,
+        utility_large: modelRef,
+      },
       providers: { [providerName]: { models: modelIds } },
     }),
   });
+
+  await syncRuntimeModel(onboardingFetch, selectedModel, providerName);
+  notifyModelsChanged();
+}
+
+async function resolveOnboardingAgentId(onboardingFetch: OnboardingFetch): Promise<string> {
+  try {
+    const res = await onboardingFetch('/api/agents');
+    const data = await res.json();
+    const agents = Array.isArray(data?.agents) ? data.agents : [];
+    const current = agents.find((agent: { isCurrent?: boolean }) => agent?.isCurrent);
+    const primary = agents.find((agent: { isPrimary?: boolean }) => agent?.isPrimary);
+    const fallback = agents[0];
+    const resolved = current?.id || primary?.id || fallback?.id;
+    if (typeof resolved === 'string' && resolved.trim()) return resolved.trim();
+  } catch {
+    // Fall through to legacy default below.
+  }
+  return 'lynn';
 }
 
 // ── Save locale ──
 
 export async function saveLocale(onboardingFetch: OnboardingFetch, locale: string): Promise<void> {
-  await onboardingFetch(`/api/agents/${AGENT_ID}/config`, {
+  const agentId = await resolveOnboardingAgentId(onboardingFetch);
+  await onboardingFetch(`/api/agents/${agentId}/config`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ locale }),
@@ -146,7 +251,8 @@ export async function saveLocale(onboardingFetch: OnboardingFetch, locale: strin
 // ── Save user name ──
 
 export async function saveUserName(onboardingFetch: OnboardingFetch, name: string): Promise<void> {
-  await onboardingFetch(`/api/agents/${AGENT_ID}/config`, {
+  const agentId = await resolveOnboardingAgentId(onboardingFetch);
+  await onboardingFetch(`/api/agents/${agentId}/config`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user: { name } }),
@@ -155,10 +261,15 @@ export async function saveUserName(onboardingFetch: OnboardingFetch, name: strin
 
 // ── Save workspace ──
 
-export async function saveHomeFolder(onboardingFetch: OnboardingFetch, folder: string): Promise<void> {
+export async function saveHomeFolder(onboardingFetch: OnboardingFetch, folder: string, trustedRoots: string[] = []): Promise<void> {
   await onboardingFetch('/api/config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ desk: { home_folder: folder } }),
+    body: JSON.stringify({
+      desk: {
+        home_folder: folder,
+        ...(trustedRoots.length > 0 ? { trusted_roots: trustedRoots } : {}),
+      },
+    }),
   });
 }

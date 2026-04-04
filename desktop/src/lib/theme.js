@@ -45,7 +45,7 @@ function setTheme(name) {
 }
 
 function loadSavedTheme() {
-  const saved = localStorage.getItem("hana-theme") || "auto";
+  const saved = localStorage.getItem("hana-theme") || "warm-paper";
   setTheme(saved);
 }
 

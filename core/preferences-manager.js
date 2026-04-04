@@ -129,6 +129,26 @@ export class PreferencesManager {
     this.savePreferences(prefs);
   }
 
+  /** 读取 session 自动接力配置 */
+  getSessionRelay() {
+    const cfg = this.getPreferences().session_relay || {};
+    return {
+      enabled: cfg.enabled !== false,
+      compaction_threshold: Number(cfg.compaction_threshold) > 0 ? Number(cfg.compaction_threshold) : 3,
+      summary_max_tokens: Number(cfg.summary_max_tokens) > 0 ? Number(cfg.summary_max_tokens) : 800,
+    };
+  }
+
+  /** 保存 session 自动接力配置 */
+  setSessionRelay(partial) {
+    const prefs = this.getPreferences();
+    prefs.session_relay = {
+      ...(prefs.session_relay || {}),
+      ...partial,
+    };
+    this.savePreferences(prefs);
+  }
+
   /** 读取外部技能扫描路径 */
   getExternalSkillPaths() {
     return this.getPreferences().external_skill_paths || [];

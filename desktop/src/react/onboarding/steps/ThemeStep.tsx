@@ -12,7 +12,7 @@ interface ThemeStepProps {
 }
 
 export function ThemeStep({ goToStep }: ThemeStepProps) {
-  const [activeTheme, setActiveTheme] = useState(() => localStorage.getItem('hana-theme') || 'auto');
+  const [activeTheme, setActiveTheme] = useState(() => localStorage.getItem('hana-theme') || 'warm-paper');
 
   return (
     <StepContainer>

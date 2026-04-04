@@ -5,6 +5,7 @@ import { t } from '../../helpers';
 import { OAuthCredentials } from './OAuthCredentials';
 import { ApiKeyCredentials } from './ApiKeyCredentials';
 import { ProviderModelList } from './ProviderModelList';
+import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL } from '../../../../../../shared/brain-provider.js';
 import styles from '../../Settings.module.css';
 
 const platform = window.platform;
@@ -14,13 +15,16 @@ export function ProviderDetail({ providerId, summary, providerConfig, isPresetSe
   summary: ProviderSummary;
   providerConfig?: Record<string, unknown>;
   isPresetSetup?: boolean;
-  presetInfo?: { label: string; value: string; url?: string; api?: string; local?: boolean };
+  presetInfo?: { label: string; value: string; url?: string; api?: string; local?: boolean; noKey?: boolean; defaultModelId?: string };
   onRefresh: () => Promise<void>;
 }) {
+  const title = providerId === BRAIN_PROVIDER_ID
+    ? BRAIN_PROVIDER_LABEL
+    : (summary.display_name || providerId);
   return (
     <div className={styles['pv-detail-inner']}>
       <div className={styles['pv-detail-header']}>
-        <h2 className={styles['pv-detail-title']}>{summary.display_name || providerId}</h2>
+        <h2 className={styles['pv-detail-title']}>{title}</h2>
         {summary.can_delete && !isPresetSetup && (
           <ProviderDeleteButton providerId={providerId} onRefresh={onRefresh} />
         )}

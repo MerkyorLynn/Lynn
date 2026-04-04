@@ -1,12 +1,17 @@
 import { useMemo } from 'react';
 import { useStore } from '../stores';
 import { connectWebSocket } from '../services/websocket';
+import { isDisplayDefaultModel } from '../utils/brain-models';
+import { getBrainComplianceNote } from '../../../../shared/brain-provider.js';
 import styles from './StatusBar.module.css';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
 function formatModelTag(kind: string, model: { id: string; provider: string } | null): string | null {
   if (!model?.id) return null;
+  if (isDisplayDefaultModel(model.id, model.provider)) {
+    return `${kind} 默认模型 · 已备案`;
+  }
   const ref = model.provider ? `${model.provider}/${model.id}` : model.id;
   return `${kind} ${ref}`;
 }
@@ -38,7 +43,13 @@ export function StatusBar() {
       {meta.length > 0 && (
         <div className={styles.metaRow}>
           {meta.map((item) => (
-            <span key={item} className={styles.metaChip}>{item}</span>
+            <span
+              key={item}
+              className={styles.metaChip}
+              title={item.includes('默认模型') ? getBrainComplianceNote() : item}
+            >
+              {item}
+            </span>
           ))}
         </div>
       )}

@@ -19,6 +19,7 @@ import { PreviewPanel } from './components/PreviewPanel';
 import { DeskSection } from './components/DeskSection';
 import { InputArea } from './components/InputArea';
 import { SessionList } from './components/SessionList';
+import { SidebarCapabilityBar } from './components/SidebarCapabilityBar';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatArea } from './components/chat/ChatArea';
 import { ChannelsPanel, ChannelMessages, ChannelMembers, ChannelInput, ChannelReadonly } from './components/ChannelsPanel';
@@ -396,7 +397,6 @@ function App() {
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                   </button>
-                  <SettingsButton />
                   <button className="sidebar-action-btn" id="sidebarCollapseBtn" title={t('sidebar.collapse')} onClick={() => toggleSidebar()}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="15 6 9 12 15 18"></polyline>
@@ -404,20 +404,6 @@ function App() {
                   </button>
                 </div>
               </div>
-              <button className="sidebar-activity-bar sidebar-bridge-card" id="bridgeBar" onClick={() => togglePanel('bridge')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-                <span>{t('sidebar.bridgeShort')}</span>
-                <BridgeDot />
-              </button>
-              <button className="sidebar-activity-bar" id="activityBar" onClick={() => togglePanel('activity')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-                <span>{t('sidebar.activity')}</span>
-              </button>
               <button className="sidebar-activity-bar" id="automationBar" onClick={() => togglePanel('automation')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -434,6 +420,7 @@ function App() {
                 </svg>
                 <span>{t('browser.background')}</span>
               </button>
+              <SidebarCapabilityBar />
               <div className="session-list" id="sessionList">
                 <RegionalErrorBoundary region="sidebar" resetKeys={[currentAgentId]}>
                   <SessionList />
@@ -445,6 +432,22 @@ function App() {
             <div className={`sidebar-channel-content${currentTab === 'channels' ? '' : ' hidden'}`}>
               <ChannelListSidebar />
             </div>
+          </div>
+          {/* 底部图标栏：Bridge + Activity + Settings */}
+          <div className="sidebar-footer-icons">
+            <button className="sidebar-footer-btn" id="bridgeBar" title={t('sidebar.bridgeShort')} onClick={() => togglePanel('bridge')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              <BridgeDot />
+            </button>
+            <button className="sidebar-footer-btn" id="activityBar" title={t('sidebar.activity')} onClick={() => togglePanel('activity')}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </button>
+            <SettingsButton />
           </div>
           <div className="resize-handle resize-handle-right" id="sidebarResizeHandle"></div>
         </aside>

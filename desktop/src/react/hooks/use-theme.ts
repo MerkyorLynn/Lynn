@@ -26,7 +26,7 @@ export function useTheme() {
   return {
     setTheme: window.setTheme,
     loadSavedTheme: window.loadSavedTheme,
-    getSavedTheme: () => localStorage.getItem('hana-theme') || 'auto',
+    getSavedTheme: () => localStorage.getItem('hana-theme') || 'warm-paper',
     themes: THEME_LIST,
   };
 }

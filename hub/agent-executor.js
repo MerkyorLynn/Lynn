@@ -13,6 +13,42 @@ import { createAgentSession, SessionManager, SettingsManager } from "@mariozechn
 import { debugLog } from "../lib/debug-log.js";
 import { t } from "../server/i18n.js";
 
+function toAbortReason(signal) {
+  if (!signal) return new DOMException("Aborted", "AbortError");
+  const reason = signal.reason;
+  if (reason instanceof Error) return reason;
+  if (reason && typeof reason === "object") return reason;
+  return new DOMException("Aborted", "AbortError");
+}
+
+async function promptWithSignal(session, text, signal) {
+  if (!signal) {
+    await session.prompt(text);
+    return;
+  }
+  if (signal.aborted) {
+    try { await session.abort(); } catch {}
+    throw toAbortReason(signal);
+  }
+
+  let onAbort;
+  const promptPromise = Promise.resolve(session.prompt(text));
+  promptPromise.catch(() => {});
+  const abortPromise = new Promise((_, reject) => {
+    onAbort = () => {
+      try { session.abort(); } catch {}
+      reject(toAbortReason(signal));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+
+  try {
+    await Promise.race([promptPromise, abortPromise]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 /**
  * 以指定 agentId 的身份跑一次临时会话。
  *
@@ -30,11 +66,17 @@ import { t } from "../server/i18n.js";
  * @param {(sessionPath: string|null) => void} [opts.onSessionReady] - session 创建后立即回调
  * @param {string|null} [opts.sessionPath=null] - 继续已有 session 文件
  * @param {string|null} [opts.cwdOverride=null] - 覆盖默认 cwd
+ * @param {{id: string, provider?: string, name?: string}|null} [opts.modelOverride=null] - 临时覆盖本次 session 使用的模型
  * @returns {Promise<string>}  capture 轮的输出（已去掉 MOOD 块）
  */
-export async function runAgentSession(agentId, rounds, { engine, signal, sessionSuffix = "temp", systemAppend, keepSession = false, noMemory = false, noTools = false, readOnly = false, onSessionReady, sessionPath = null, cwdOverride = null } = {}) {
+export async function runAgentSession(agentId, rounds, { engine, signal, sessionSuffix = "temp", systemAppend, keepSession = false, noMemory = false, noTools = false, readOnly = false, onSessionReady, sessionPath = null, cwdOverride = null, modelOverride = null } = {}) {
   // 1. 从长驻 Map 获取 Agent 实例
-  const agent = engine.getAgent(agentId);
+  let agent = engine.getAgent(agentId);
+  if (!agent && typeof engine.ensureAgentLoaded === "function") {
+    try {
+      agent = await engine.ensureAgentLoaded(agentId);
+    } catch {}
+  }
   if (!agent) {
     throw new Error(t("error.agentExecNotInit", { id: agentId }));
   }
@@ -80,7 +122,7 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
       customTools = built.customTools;
     }
   }
-  const model = ctx.resolveModel(agent.config);
+  const model = modelOverride || ctx.resolveModel(agent.config);
   const { session } = await createAgentSession({
     cwd,
     sessionManager: tempSessionMgr,
@@ -102,14 +144,7 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
 
   onSessionReady?.(session.sessionManager?.getSessionFile?.() || null);
 
-  // 4. AbortSignal 连接
-  let onAbort;
-  if (signal) {
-    onAbort = () => { try { session.abort(); } catch {} };
-    signal.addEventListener("abort", onAbort, { once: true });
-  }
-
-  // 5. 文本捕获
+  // 4. 文本捕获
   let capturedText = "";
   let isCapturing = false;
   const unsub = session.subscribe((event) => {
@@ -124,13 +159,15 @@ export async function runAgentSession(agentId, rounds, { engine, signal, session
 
   try {
     for (const round of rounds) {
-      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      if (signal?.aborted) {
+        try { await session.abort(); } catch {}
+        throw toAbortReason(signal);
+      }
       isCapturing = !!round.capture;
       if (round.capture) capturedText = "";
-      await session.prompt(round.text);
+      await promptWithSignal(session, round.text, signal);
     }
   } finally {
-    if (signal && onAbort) signal.removeEventListener("abort", onAbort);
     unsub?.();
   }
 

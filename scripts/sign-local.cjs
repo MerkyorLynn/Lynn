@@ -4,7 +4,7 @@
  * 策略：先用 --remove-signature 剥掉 electron-builder 的 Developer ID 签名，
  * 再统一用 ad-hoc 重签，确保所有 Mach-O 的 Team ID 完全一致。
  */
-const { execSync } = require("child_process");
+const { execFileSync, execSync, spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -25,6 +25,42 @@ function sign(target, opts = "") {
   execSync(`codesign --sign "${IDENTITY}" --force ${TIMESTAMP} ${opts} "${target}"`, { stdio: "inherit" });
 }
 
+function walkFiles(root) {
+  const files = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch (err) {
+      if (err && (err.code === "ENOENT" || err.code === "ENOTDIR")) continue;
+      throw err;
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (entry.isFile()) {
+        files.push(full);
+      }
+    }
+  }
+  return files;
+}
+
+function isMachO(target) {
+  try {
+    const output = execFileSync("file", ["-b", target], { encoding: "utf8" });
+    return output.includes("Mach-O");
+  } catch (err) {
+    if (err && err.code === "ENOENT") return false;
+    throw err;
+  }
+}
+
 if (!fs.existsSync(APP)) {
   console.error(`App not found: ${APP}`);
   process.exit(1);
@@ -38,14 +74,12 @@ console.log(`[sign-local] identity=${IDENTITY}`);
 // ============================================================
 const allTargets = [];
 
-// 用 `find` + `file` 命令找到所有 Mach-O 二进制，最可靠
+// 用 Node 递归遍历收集普通文件，再用 `file` 判断 Mach-O，避免 `find` 在 .app 内部偶发 fts_read 失败
 try {
-  const findOutput = execSync(
-    `find "${APP}" -type f -exec sh -c 'file -b "$1" | grep -q "Mach-O" && echo "$1"' _ {} \\;`,
-    { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }
-  );
-  for (const line of findOutput.trim().split("\n")) {
-    if (line) allTargets.push(line);
+  for (const target of walkFiles(APP)) {
+    if (isMachO(target)) {
+      allTargets.push(target);
+    }
   }
 } catch (e) {
   console.error("Failed to find Mach-O files:", e.message);
@@ -167,11 +201,14 @@ execSync(`codesign --verify --deep --strict "${APP}"`, { stdio: "inherit" });
 
 // 额外检查：确保没有残留的旧 Team ID
 try {
-  const checkOutput = execSync(
-    `find "${APP}" -type f -exec sh -c 'file -b "$1" | grep -q "Mach-O" && team=$(codesign -dvvv "$1" 2>&1 | grep TeamIdentifier) && echo "$1 → $team"' _ {} \\;`,
-    { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }
-  );
-  const mismatched = checkOutput.split("\n").filter(l => l.includes("KYB8UN3JP3"));
+  const mismatched = [];
+  for (const target of allTargets) {
+    const result = spawnSync("codesign", ["-dvvv", target], { encoding: "utf8" });
+    const detail = `${result.stdout || ""}\n${result.stderr || ""}`;
+    if (detail.includes("TeamIdentifier=KYB8UN3JP3")) {
+      mismatched.push(`${target} → TeamIdentifier=KYB8UN3JP3`);
+    }
+  }
   if (mismatched.length > 0) {
     console.error("WARNING: Some binaries still have old Team ID:");
     mismatched.forEach(l => console.error("  " + l));

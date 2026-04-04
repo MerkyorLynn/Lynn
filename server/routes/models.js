@@ -85,7 +85,9 @@ export function createModelsRoute(engine) {
       if (!apiKey) {
         try { apiKey = await engine.authStorage.getApiKey(model.provider); } catch {}
       }
-      if (!apiKey) return c.json({ ok: false, error: "no api_key" });
+      const providerEntry = engine.providerRegistry?.get(model.provider);
+      const allowMissingApiKey = providerEntry?.authType === "none";
+      if (!apiKey && !allowMissingApiKey) return c.json({ ok: false, error: "no api_key" });
 
       const { buildProviderAuthHeaders, buildProbeUrl } = await import("../../lib/llm/provider-client.js");
       const api = creds.api || model.api || "openai-completions";
@@ -96,7 +98,18 @@ export function createModelsRoute(engine) {
       }
 
       const probe = buildProbeUrl(baseUrl, api);
-      const headers = buildProviderAuthHeaders(api, apiKey);
+      const pathname = (() => {
+        try {
+          return new URL(probe.url).pathname || "/models";
+        } catch {
+          return probe.method === "POST" ? "/v1/messages" : "/models";
+        }
+      })();
+      const headers = buildProviderAuthHeaders(api, apiKey, {
+        allowMissingApiKey,
+        method: probe.method,
+        pathname,
+      });
 
       if (api === "anthropic-messages") {
         const res = await fetch(probe.url, {
@@ -123,7 +136,7 @@ export function createModelsRoute(engine) {
       if (!modelId) {
         return c.json({ error: t("error.missingParam", { param: "modelId" }) }, 400);
       }
-      engine.setPendingModel(modelId, provider);
+      await engine.setPendingModel(modelId, provider);
       return c.json({ ok: true, model: engine.currentModel?.name, pendingModel: true });
     } catch (err) {
       return c.json({ error: err.message }, 500);

@@ -33,6 +33,7 @@ interface PlatformSectionProps {
   currentOwner?: string;
   onOwnerChange?: (userId: string) => void;
   onCredentialBlur?: () => void;
+  testResult?: { tone: 'success' | 'error'; message: string } | null;
   children?: React.ReactNode;
 }
 
@@ -49,6 +50,7 @@ export function PlatformSection({
   onOwnerChange,
   onCredentialBlur,
   platform,
+  testResult,
   children,
 }: PlatformSectionProps) {
   const lastFieldIndex = credentialFields.length - 1;
@@ -73,13 +75,20 @@ export function PlatformSection({
               onBlur={onCredentialBlur}
             />
             {isLast && (
-              <button
-                className="bridge-test-btn"
-                disabled={testing}
-                onClick={onTest}
-              >
-                {testing ? '...' : t('settings.bridge.test')}
-              </button>
+              <>
+                <button
+                  className="bridge-test-btn"
+                  disabled={testing}
+                  onClick={onTest}
+                >
+                  {testing ? '...' : t('settings.bridge.test')}
+                </button>
+                {testResult?.message && (
+                  <span className={`bridge-test-result bridge-test-result-${testResult.tone}`}>
+                    {testResult.message}
+                  </span>
+                )}
+              </>
             )}
           </div>
         ) : (

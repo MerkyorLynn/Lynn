@@ -26,6 +26,14 @@
     "ernie-4.0-turbo-128k"
   ],
 
+  "brain": [
+    "step-3.5-flash-2603",
+    "glm-z1-9b-0414",
+    "glm-4-9b-0414",
+    "qwen3-8b",
+    "lynn-brain-router"
+  ],
+
   "dashscope": [
     "qwen3.5-plus",
     "qwen3.5-max",
@@ -134,10 +142,9 @@
   ],
 
   "siliconflow": [
-    "deepseek-ai/DeepSeek-V3-0324",
-    "Qwen/Qwen3-8B",
+    "THUDM/GLM-Z1-9B-0414",
     "THUDM/GLM-4-9B-0414",
-    "Pro/deepseek-ai/DeepSeek-R1"
+    "Qwen/Qwen3-8B"
   ],
 
   "stepfun": [

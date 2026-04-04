@@ -380,7 +380,7 @@ export const ReviewCard = memo(function ReviewCard({
               )}
             </>
           ) : (
-            <MarkdownContent html={renderMarkdown(effectiveSummary)} />
+            <MarkdownContent html={renderMarkdown(effectiveSummary)} stateKey={`review:${reviewId}`} />
           )}
         </div>
       )}
