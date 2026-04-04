@@ -214,6 +214,14 @@ function QuickActions({ displayName, selectedFolder }: { displayName: string; se
     }
   }, []);
 
+  const handleTryAt = useCallback(() => {
+    useStore.setState({
+      welcomeVisible: false,
+      composerText: '@',
+    });
+    useStore.getState().requestInputFocus();
+  }, []);
+
   return (
     <div className={styles.quickActions}>
       {actions.map((action) => (

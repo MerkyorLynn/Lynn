@@ -59,6 +59,12 @@
     -webkit-app-region: no-drag;
 }
 
+.quickActionBtnPrimary {
+    border-color: rgba(var(--accent-rgb), 0.28);
+    background: color-mix(in srgb, var(--bg-card) 82%, rgba(var(--accent-rgb), 0.18));
+    color: var(--accent);
+}
+
 .quickActionBtn:hover:not(:disabled) {
     transform: translateY(-1px);
     border-color: var(--accent);

@@ -97,6 +97,31 @@ function buildSkillHintContext(suggestions) {
   ].join("\n");
 }
 
+const FILE_MENTION_PATTERN = /\b([A-Za-z0-9_./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh))\b/gi;
+
+function buildAtInjectionPromptHint(text) {
+  if (!text || /@\S+/.test(text)) return "";
+  if (/\[(附件|目录|参考文档|Git 上下文)\]/.test(text)) return "";
+
+  const files = [...new Set(Array.from(text.matchAll(FILE_MENTION_PATTERN)).map((match) => match[1]).filter(Boolean))].slice(0, 3);
+  if (files.length === 0) return "";
+
+  const isZh = getLocale().startsWith("zh");
+  if (isZh) {
+    return [
+      "【上下文引导】如果用户提到了具体文件，但你还没看到文件内容，请先用一句很短的人话提醒用户把文件给你看，再继续分析。",
+      `优先引导格式：输入 ${files.map((file) => `@${file}`).join("、")}，或直接把文件拖到输入框。`,
+      "只在确实缺文件内容时提示一次，不要重复说教。",
+    ].join("\n");
+  }
+
+  return [
+    "[Context Guidance] If the user mentions a specific file but you have not seen its contents yet, first give one short, natural sentence asking them to share it before you continue.",
+    `Prefer guidance like: type ${files.map((file) => `@${file}`).join(", ")} or drag the file into the composer.`,
+    "Only do this when file contents are genuinely missing, and do not over-explain.",
+  ].join("\n");
+}
+
 export class SessionCoordinator {
   /**
    * @param {object} deps
@@ -183,6 +208,9 @@ export class SessionCoordinator {
           }
           if (sessionEntry._lastSkillHintContext) {
             extras.push(sessionEntry._lastSkillHintContext);
+          }
+          if (sessionEntry._atInjectionHintContext) {
+            extras.push(sessionEntry._atInjectionHintContext);
           }
           if (sessionEntry._relaySummaryContext) {
             extras.push(sessionEntry._relaySummaryContext);
@@ -324,6 +352,7 @@ export class SessionCoordinator {
       unsub,
       _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
       _lastSkillHintContext: "",
+      _atInjectionHintContext: "",
       _relaySummaryContext: "",
       compactionCount: 0,
       relayInProgress: false,
@@ -451,6 +480,7 @@ export class SessionCoordinator {
         } catch {
           entry._lastSkillHintContext = "";
         }
+        entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
       }
     }
 
@@ -468,6 +498,7 @@ export class SessionCoordinator {
         if (entry) {
           entry._lastRecallContext = "";
           entry._lastSkillHintContext = "";
+          entry._atInjectionHintContext = "";
         }
       }
     }
@@ -520,6 +551,7 @@ export class SessionCoordinator {
     } catch {
       entry._lastSkillHintContext = "";
     }
+    entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
@@ -529,6 +561,7 @@ export class SessionCoordinator {
     } finally {
       entry._lastRecallContext = "";
       entry._lastSkillHintContext = "";
+      entry._atInjectionHintContext = "";
     }
   }
 

@@ -93,8 +93,8 @@ export interface ExpertPreset {
   category: string;
   tier: 'expert';
   model_binding: {
-    preferred: string;
-    fallback: string;
+    preferred: string | { id: string; provider?: string };
+    fallback: string | { id: string; provider?: string };
   };
   credit_cost: {
     per_session: number;

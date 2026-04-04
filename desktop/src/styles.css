@@ -436,9 +436,10 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-inner {
     display: flex;
     flex-direction: column;
+    flex: 1;
     width: var(--sidebar-width);
     min-width: var(--sidebar-width);
-    height: 100%;
+    min-height: 0;
     opacity: 1;
     transition: opacity 0.18s var(--ease-out);
 }
@@ -631,10 +632,10 @@ html[data-platform="linux"] .tb-toggle-right {
 }
 
 .sidebar-capability-name {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--text);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
 }
 
 .sidebar-capability-summary {
@@ -652,12 +653,14 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-capability-chip {
     display: inline-flex;
     align-items: center;
-    padding: 2px 7px;
+    padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(var(--accent-rgb), 0.08);
+    background: rgba(var(--accent-rgb), 0.1);
     color: var(--accent);
-    font-size: 0.62rem;
+    font-size: 0.64rem;
+    font-weight: 600;
     line-height: 1.6;
+    letter-spacing: 0.02em;
 }
 
 @keyframes globe-spin {
@@ -2006,9 +2009,10 @@ html[data-platform="linux"] .tb-toggle-right {
 .jian-sidebar-inner {
     display: flex;
     flex-direction: column;
+    flex: 1;
     width: var(--jian-sidebar-width);
     min-width: var(--jian-sidebar-width);
-    height: 100%;
+    min-height: 0;
     overflow: hidden;
     padding: 10px 7px 7px 0;
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);

@@ -66,6 +66,8 @@ function buildRunCommandPrompt(command: string, cwd: string | null): string {
   return `请直接在终端执行下面的命令，并基于真实结果回复。不要只解释命令本身。\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``;
 }
 
+const FILE_CONTEXT_PATTERN = /\b([A-Za-z0-9_./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh))\b/i;
+
 function InputAreaInner() {
   const { t } = useI18n();
 
@@ -120,6 +122,20 @@ function InputAreaInner() {
   const [atSelected, setAtSelected] = useState(0);
   const [atResults, setAtResults] = useState<Array<{ name: string; path: string; rel: string; isDir: boolean }>>([]);
   const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
+  const [showAtDiscovery, setShowAtDiscovery] = useState(() => {
+    try {
+      return !localStorage.getItem('hana-at-discovery-seen');
+    } catch {
+      return true;
+    }
+  });
+  const [atInlineHintSeen, setAtInlineHintSeen] = useState(() => {
+    try {
+      return Number(localStorage.getItem('hana-at-inline-hint-seen') || '0');
+    } catch {
+      return 0;
+    }
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -201,25 +217,55 @@ function InputAreaInner() {
 
   const handleInputChange = useCallback((value: string) => {
     setComposerText(value);
-    if (value.startsWith('/') && value.length <= 20) {
+  }, [setComposerText]);
+
+  const markAtDiscoverySeen = useCallback(() => {
+    setShowAtDiscovery(false);
+    try {
+      localStorage.setItem('hana-at-discovery-seen', '1');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const markAtInlineHintSeen = useCallback(() => {
+    setAtInlineHintSeen((prev) => {
+      const next = Math.min(3, prev + 1);
+      try {
+        localStorage.setItem('hana-at-inline-hint-seen', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (composerText.startsWith('/') && composerText.length <= 20) {
       setSlashMenuOpen(true);
       setSlashSelected(0);
       setAtMenuOpen(false);
-    } else {
-      setSlashMenuOpen(false);
+      return;
     }
 
-    const atMatch = value.match(/@(\S*)$/);
-    if (atMatch && !value.startsWith('/')) {
+    setSlashMenuOpen(false);
+
+    const atMatch = composerText.match(/@(\S*)$/);
+    if (atMatch && !composerText.startsWith('/')) {
       setAtMenuOpen(true);
       setAtQuery(atMatch[1]);
       setAtSelected(0);
-    } else {
-      setAtMenuOpen(false);
-      setAtQuery('');
-      setAtResults([]);
+      return;
     }
-  }, [setComposerText]);
+
+    setAtMenuOpen(false);
+    setAtQuery('');
+    setAtResults([]);
+  }, [composerText]);
+
+  useEffect(() => {
+    if (atMenuOpen) markAtDiscoverySeen();
+  }, [atMenuOpen, markAtDiscoverySeen]);
 
   useEffect(() => {
     setAtSelected((index) => {
@@ -342,6 +388,7 @@ function InputAreaInner() {
       t('input.hintDrag') || '拖拽文件到此处附加上下文',
       t('input.hintCmdK') || 'Cmd+K 搜索历史对话',
       t('input.hintDesk') || 'Cmd+J 打开右侧书桌',
+      t('input.hintAt') || '输入 @ 引用文件或文件夹',
     ];
   }, [agentYuan, t]);
 
@@ -354,9 +401,45 @@ function InputAreaInner() {
 
   const placeholder = placeholderHints[phIndex] || placeholderHints[0];
 
+  const inlineFileSuggestion = useMemo(() => {
+    if (atInlineHintSeen >= 3) return null;
+    if (attachedFiles.length > 0 || quotedSelection) return null;
+    if (!composerText.trim() || composerText.includes('@')) return null;
+    const match = composerText.match(FILE_CONTEXT_PATTERN);
+    return match?.[1] || null;
+  }, [atInlineHintSeen, attachedFiles.length, composerText, quotedSelection]);
+
   const handleAttachClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  const handleTryAtInjection = useCallback(() => {
+    markAtDiscoverySeen();
+    setComposerText('@');
+    requestInputFocus();
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(1, 1);
+    });
+  }, [markAtDiscoverySeen, requestInputFocus, setComposerText]);
+
+  const handleUseInlineAtHint = useCallback(() => {
+    if (!inlineFileSuggestion) return;
+    markAtDiscoverySeen();
+    markAtInlineHintSeen();
+    const stripped = composerText.replace(inlineFileSuggestion, '').replace(/\s{2,}/g, ' ').trim();
+    setComposerText(stripped ? `${stripped} @${inlineFileSuggestion}` : `@${inlineFileSuggestion}`);
+    requestInputFocus();
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    });
+  }, [composerText, inlineFileSuggestion, markAtDiscoverySeen, markAtInlineHintSeen, requestInputFocus, setComposerText]);
 
   const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -676,6 +759,43 @@ function InputAreaInner() {
       )}
       {attachedFiles.length > 0 && (
         <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
+      )}
+      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && (
+        <div className={styles['at-discovery-row']}>
+          <button type="button" className={styles['at-discovery-pill']} onClick={handleTryAtInjection}>
+            <span className={styles['at-discovery-badge']}>@</span>
+            <span className={styles['at-discovery-copy']}>
+              <strong>{t('input.atDiscovery.title') || '试试 @ 引用文件或文件夹'}</strong>
+              <span>{t('input.atDiscovery.subtitle') || '例如：@App.tsx 帮我看这段路由'}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className={styles['at-discovery-dismiss']}
+            onClick={markAtDiscoverySeen}
+            aria-label={t('common.close') || '关闭'}
+            title={t('common.close') || '关闭'}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {inlineFileSuggestion && (
+        <div className={styles['at-inline-hint']}>
+          <button type="button" className={styles['at-inline-hint-main']} onClick={handleUseInlineAtHint}>
+            <span>{t('input.atDiscovery.inlineHint', { name: inlineFileSuggestion }) || `💡 输入 @${inlineFileSuggestion} 可以直接让 Lynn 看这个文件`}</span>
+            <span className={styles['at-inline-hint-action']}>{t('input.atDiscovery.inlineAction') || '改成 @ 引用'}</span>
+          </button>
+          <button
+            type="button"
+            className={styles['at-inline-hint-dismiss']}
+            onClick={markAtInlineHintSeen}
+            aria-label={t('common.close') || '关闭'}
+            title={t('common.close') || '关闭'}
+          >
+            ×
+          </button>
+        </div>
       )}
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}

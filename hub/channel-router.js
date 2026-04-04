@@ -32,6 +32,19 @@ import { getLocale } from "../server/i18n.js";
 const CHANNEL_REPLY_TIMEOUT_MS = 45_000;
 const CHANNEL_SUMMARY_TIMEOUT_MS = 30_000;
 
+function messageText(message) {
+  if (!message || typeof message !== "object") return "";
+  if (typeof message.body === "string" && message.body.trim()) return message.body.trim();
+  if (typeof message.text === "string" && message.text.trim()) return message.text.trim();
+  return "";
+}
+
+function looksLikePresencePrompt(text) {
+  const normalized = String(text || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return /(?:在吗|在线|都在吗|有人吗|谁在|能聊|能说话|可以聊|可以说话|忙吗|hi\b|hello\b|在不在|\?|？)/iu.test(normalized);
+}
+
 export class ChannelRouter {
   /**
    * @param {object} opts
@@ -374,6 +387,8 @@ export class ChannelRouter {
       const triggerTimestamp = triggerMessage?.timestamp || "";
       const triggeredByImmediateTurn = !!triggerTimestamp;
       const triggerIsSelf = triggerSender === agentId || triggerSender === agentName;
+      const latestPromptText = messageText(triggerMessage) || messageText(newMessages[newMessages.length - 1]);
+      const forcePresenceReply = triggeredByImmediateTurn && looksLikePresencePrompt(latestPromptText);
       const alreadyRepliedToTrigger = triggeredByImmediateTurn
         && channelMessages.some((message) =>
           message.timestamp > triggerTimestamp
@@ -389,6 +404,11 @@ export class ChannelRouter {
 
       if (!shouldReply && !lastMsgIsUser && !triggeredByImmediateTurn) {
         return { replied: false };
+      }
+
+      if (!shouldReply && forcePresenceReply) {
+        shouldReply = true;
+        debugLog()?.log("channel", `${agentId}/#${channelName}: forced reply for presence prompt`);
       }
 
       if (!shouldReply) {

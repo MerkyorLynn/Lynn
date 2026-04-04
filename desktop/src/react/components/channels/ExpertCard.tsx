@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
+import { formatUserFacingModelRef } from '../../utils/brain-models';
 import type { ExpertPreset } from '../../types';
 import styles from './Channels.module.css';
 
@@ -41,6 +42,7 @@ export function ExpertCard({ expert, onSelect, disabled, selected = false, actio
   const yuan = expertYuanProfile(expert.category);
   const name = displayText(expert.name, expert.slug);
   const description = displayText(expert.description, '');
+  const preferredModelLabel = formatUserFacingModelRef(expert.model_binding?.preferred);
   const [avatarError, setAvatarError] = useState(false);
   const avatarSrc = useMemo(() => {
     if (!expert.avatarUrl) return null;
@@ -78,9 +80,9 @@ export function ExpertCard({ expert, onSelect, disabled, selected = false, actio
           <span className={styles.expertCardYuan} title={t('expert.yuanStyle') || 'Thinking style'}>
             {yuan.emoji} {yuan.label}
           </span>
-          {expert.model_binding?.preferred && (
+          {preferredModelLabel && (
             <span className={styles.expertCardModel} title={t('expert.recommendedModel') || 'Recommended model'}>
-              ⚡ {expert.model_binding.preferred}
+              ⚡ {preferredModelLabel}
             </span>
           )}
           {actionLabel && <span className={styles.expertCardAction}>{actionLabel}</span>}

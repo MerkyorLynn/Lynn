@@ -43,6 +43,12 @@ import { initApp } from './app-init';
 import { MainContent } from './MainContent';
 import { hanaUrl, hanaFetch } from './hooks/use-hana-fetch';
 import { yuanFallbackAvatar } from './utils/agent-helpers';
+import {
+  buildUserVisibleModelOptions,
+  decodeUserVisibleModelValue,
+  formatUserFacingModelRef,
+} from './utils/brain-models';
+import { parseSharedModelRef } from './utils/model-ref';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
@@ -148,7 +154,7 @@ function ChannelInputArea() {
 /** 频道成员项：显示 agent 头像 + 名字 + 当前使用的模型（可点击切换） */
 function ChannelAgentMember({ agent }: { agent: any }) {
   const [showModels, setShowModels] = useState(false);
-  const [currentModel, setCurrentModel] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState<any>(null);
   const [models, setModels] = useState<any[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -182,20 +188,22 @@ function ChannelAgentMember({ agent }: { agent: any }) {
   const handleSelectModel = useCallback(async (modelId: string) => {
     setShowModels(false);
     try {
+      const parsed = decodeUserVisibleModelValue(modelId);
+      const nextModel = parsed.provider ? { id: parsed.id, provider: parsed.provider } : parsed.id;
       await hanaFetch(`/api/agents/${agent.id}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ models: { chat: modelId } }),
+        body: JSON.stringify({ models: { chat: nextModel } }),
       });
-      setCurrentModel(modelId);
+      setCurrentModel(nextModel);
     } catch (err) {
       console.error('[ChannelAgentMember] set model failed:', err);
     }
   }, [agent.id]);
 
-  const modelDisplay = currentModel
-    ? currentModel.length > 16 ? currentModel.slice(0, 14) + '…' : currentModel
-    : '—';
+  const modelDisplay = formatUserFacingModelRef(currentModel) || '—';
+  const currentRef = parseSharedModelRef(currentModel);
+  const visibleModelOptions = buildUserVisibleModelOptions(models);
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', padding: '4px 0' }}>
@@ -228,21 +236,24 @@ function ChannelAgentMember({ agent }: { agent: any }) {
           background: 'var(--bg-secondary, #2a2a2a)', border: '1px solid var(--border-light, #444)',
           borderRadius: 6, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
         }}>
-          {models.map((m: any) => (
+          {visibleModelOptions.map((option) => {
+            const isSelected = option.rawId === currentRef.id
+              && (!option.rawProvider || option.rawProvider === currentRef.provider);
+            return (
             <div
-              key={m.name || m.id}
-              onClick={() => handleSelectModel(m.name || m.id)}
+              key={option.value}
+              onClick={() => handleSelectModel(option.value)}
               style={{
                 padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer',
-                background: (m.name || m.id) === currentModel ? 'var(--overlay-light)' : 'transparent',
+                background: isSelected ? 'var(--overlay-light)' : 'transparent',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--overlay-light)')}
-              onMouseLeave={e => (e.currentTarget.style.background = (m.name || m.id) === currentModel ? 'var(--overlay-light)' : 'transparent')}
+              onMouseLeave={e => (e.currentTarget.style.background = isSelected ? 'var(--overlay-light)' : 'transparent')}
             >
-              {m.name || m.id}
-              {m.provider ? <span style={{ opacity: 0.5, marginLeft: 4 }}>({m.provider})</span> : null}
+              {option.label}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -256,9 +267,10 @@ function JianChannelInfo() {
   const agents = useStore(s => s.agents);
   const currentAgentId = useStore(s => s.currentAgentId);
   const userName = useStore(s => s.userName);
+  const safeMembers = Array.isArray(channelMembers) ? channelMembers.filter((id): id is string => typeof id === 'string' && id.trim().length > 0) : [];
 
   if (isDM) {
-    const peerId = channelMembers[0] || '';
+    const peerId = safeMembers[0] || '';
     const mainAgent = agents.find(a => a.id === currentAgentId);
     const peerAgent = agents.find(a => a.id === peerId || a.name === peerId);
     const dmAgents = [mainAgent, peerAgent].filter(Boolean);
@@ -287,7 +299,7 @@ function JianChannelInfo() {
   }
 
   // 群聊：只显示用户 + 在 agents 列表中能找到的成员，过滤残留
-  const validMembers = channelMembers.filter(id => {
+  const validMembers = safeMembers.filter(id => {
     if (id === 'user' || id === userName) return false; // 用户单独显示
     return agents.some(a => a.id === id || a.name === id);
   });
@@ -430,7 +442,9 @@ function App() {
 
             {/* 频道 tab 内容 */}
             <div className={`sidebar-channel-content${currentTab === 'channels' ? '' : ' hidden'}`}>
-              <ChannelListSidebar />
+              <RegionalErrorBoundary region="channels-sidebar" resetKeys={[currentTab, currentChannel, currentAgentId]}>
+                <ChannelListSidebar />
+              </RegionalErrorBoundary>
             </div>
           </div>
           {/* 底部图标栏：Bridge + Activity + Settings */}
@@ -469,19 +483,21 @@ function App() {
           </div>
 
           <div className={`channel-view${currentTab === 'channels' ? ' active' : ''}`}>
-            {currentChannel ? (
-              <>
-                <ChannelHeader />
-                <div className="channel-messages">
-                  <ChannelMessages />
+            <RegionalErrorBoundary region="channels-main" resetKeys={[currentTab, currentChannel, currentAgentId]}>
+              {currentChannel ? (
+                <>
+                  <ChannelHeader />
+                  <div className="channel-messages">
+                    <ChannelMessages />
+                  </div>
+                  <ChannelInputArea />
+                </>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {t('channel.selectHint')}
                 </div>
-                <ChannelInputArea />
-              </>
-            ) : (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                {t('channel.selectHint')}
-              </div>
-            )}
+              )}
+            </RegionalErrorBoundary>
           </div>
 
           {/* Floating panels render into main-content */}
@@ -503,7 +519,9 @@ function App() {
             </div>
 
             <div className={`jian-channel-content${currentTab === 'channels' ? '' : ' hidden'}`}>
-              <JianChannelInfo />
+              <RegionalErrorBoundary region="channels-desk" resetKeys={[currentTab, currentChannel, currentAgentId]}>
+                <JianChannelInfo />
+              </RegionalErrorBoundary>
             </div>
           </div>
         </aside>

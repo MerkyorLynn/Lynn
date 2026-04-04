@@ -3,6 +3,18 @@ import styles from './RegionalErrorBoundary.module.css';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
+function tr(key: string, fallback: string): string {
+  try {
+    const translated = window.t?.(key);
+    if (translated && translated !== key) return String(translated);
+  } catch {}
+  try {
+    const translated = t(key);
+    if (translated && translated !== key) return String(translated);
+  } catch {}
+  return fallback;
+}
+
 interface Props {
   region: string;
   resetKeys?: unknown[];
@@ -52,9 +64,9 @@ export class RegionalErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className={styles.fallback}>
-          <p className={styles.message}>{t('error.regionUnavailable')}</p>
+          <p className={styles.message}>{tr('error.regionUnavailable', '这个区域暂时不可用')}</p>
           <button className={styles.retry} onClick={this.handleRetry}>
-            {t('action.retry')}
+            {tr('action.retry', '重试')}
           </button>
         </div>
       );

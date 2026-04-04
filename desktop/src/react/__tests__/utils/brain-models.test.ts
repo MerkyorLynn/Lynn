@@ -5,6 +5,7 @@ import {
   decodeUserVisibleModelValue,
   encodeUserVisibleModelValue,
   formatCompactModelLabel,
+  formatUserFacingModelRef,
   normalizeDisplayModelId,
   normalizeDisplayModelName,
   normalizeDisplayProviderLabel,
@@ -68,5 +69,11 @@ describe('brain-models', () => {
     expect(encodeUserVisibleModelValue({ id: 'glm-5.1', provider: 'glm' })).toBe('glm/glm-5.1');
     expect(decodeUserVisibleModelValue('glm/glm-5.1')).toEqual({ provider: 'glm', id: 'glm-5.1' });
     expect(decodeUserVisibleModelValue('')).toEqual({});
+  });
+
+  it('能把对象模型引用格式化成用户可见标签，避免把对象直接渲染到 JSX', () => {
+    expect(formatUserFacingModelRef({ id: 'glm-5.1', provider: 'glm' })).toBe('glm-5.1');
+    expect(formatUserFacingModelRef({ id: 'step-3.5-flash-2603', provider: 'brain' })).toBe('默认模型');
+    expect(formatUserFacingModelRef('glm-z1-9b-0414')).toBe('glm-z1-9b-0414');
   });
 });

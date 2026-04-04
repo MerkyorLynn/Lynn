@@ -15,6 +15,7 @@ import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import {
   buildUserVisibleModelOptions,
   decodeUserVisibleModelValue,
+  formatUserFacingModelRef,
 } from '../../utils/brain-models';
 import { ExpertCard } from './ExpertCard';
 import type { ExpertPreset, Model } from '../../types';
@@ -82,6 +83,10 @@ export function AddMemberOverlay() {
   const selectedExpert = useMemo(
     () => experts.find((expert) => expert.slug === selectedExpertSlug) || null,
     [experts, selectedExpertSlug],
+  );
+  const selectedExpertPreferredModel = useMemo(
+    () => formatUserFacingModelRef(selectedExpert?.model_binding?.preferred),
+    [selectedExpert],
   );
   const visibleModels = useMemo(
     () => buildUserVisibleModelOptions(availableModels),
@@ -236,8 +241,8 @@ export function AddMemberOverlay() {
               ))}
             </select>
             <p className={styles.expertConfigHint}>
-              {selectedExpert.model_binding?.preferred
-                ? `${t('channel.expertRecommendedModel') || '推荐模型'}：${selectedExpert.model_binding.preferred}`
+              {selectedExpertPreferredModel
+                ? `${t('channel.expertRecommendedModel') || '推荐模型'}：${selectedExpertPreferredModel}`
                 : (t('channel.expertModelFallback') || '未单独指定时，会使用推荐模型或当前可用模型')}
             </p>
           </div>

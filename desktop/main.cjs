@@ -694,17 +694,30 @@ async function startServer() {
 
   // 选择 server 启动方式
   let serverBin, serverArgs;
-  const bundledServer = path.join(process.resourcesPath || "", "server", "lynn-server");
-  if (fs.existsSync(bundledServer) || fs.existsSync(bundledServer + ".exe")) {
-    // 打包模式：使用 extraResources 里的独立 server
-    // macOS/Linux：lynn-server 是 shell wrapper，内部调用 node bundle/index.js，无需额外参数
-    // Windows：lynn-server.exe 是裸 Node 二进制（改名），需要显式传入 bundle/index.js
-    const bin = process.platform === "win32" ? bundledServer + ".exe" : bundledServer;
-    serverBin = bin;
-    serverArgs = process.platform === "win32"
-      ? [path.join(path.dirname(bin), "bundle", "index.js")]
-      : [];
-    serverEnv.HANA_ROOT = path.join(process.resourcesPath, "server");
+  const bundledServerDir = path.join(process.resourcesPath || "", "server");
+  const bundledWrapper = path.join(bundledServerDir, "lynn-server");
+  const bundledExe = path.join(bundledServerDir, "lynn-server.exe");
+  const bundledNode = path.join(bundledServerDir, process.platform === "win32" ? "lynn-server.exe" : "node");
+  const bundledEntry = path.join(bundledServerDir, "bundle", "index.js");
+  const hasBundledWrapper = fs.existsSync(bundledWrapper) || fs.existsSync(bundledExe);
+  const hasBundledNodeRuntime = fs.existsSync(bundledNode) && fs.existsSync(bundledEntry);
+
+  if (hasBundledWrapper || hasBundledNodeRuntime) {
+    // 打包模式：优先使用 extraResources 里的独立 server
+    // 兼容两种产物：
+    // 1. 旧结构：macOS/Linux 使用 lynn-server shell wrapper；Windows 使用 lynn-server.exe
+    // 2. 新结构：直接带 node/lynn-server.exe + bundle/index.js
+    if (process.platform === "win32") {
+      serverBin = fs.existsSync(bundledExe) ? bundledExe : bundledNode;
+      serverArgs = [bundledEntry];
+    } else if (fs.existsSync(bundledWrapper)) {
+      serverBin = bundledWrapper;
+      serverArgs = [];
+    } else {
+      serverBin = bundledNode;
+      serverArgs = [bundledEntry];
+    }
+    serverEnv.HANA_ROOT = bundledServerDir;
   } else {
     // 开发模式：用 Electron 自带的 Node（ELECTRON_RUN_AS_NODE=1）跑源码
     // native addon（better-sqlite3 等）通过 electron-rebuild 编译到对应 ABI，

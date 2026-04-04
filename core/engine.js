@@ -739,6 +739,8 @@ export class HanaEngine {
           method: "GET",
           headers,
           timeoutMs: 3000,
+        }).catch((err) => {
+          log(`[init] Brain prewarm skipped: ${err.message}`);
         });
       }
     } catch (err) {

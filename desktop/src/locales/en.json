@@ -221,6 +221,7 @@
   },
   "input": {
     "placeholder": "Say something...",
+    "hintAt": "Type @ to show Lynn a file",
     "selectFolder": "Select folder",
     "workspace": "Workspace: ",
     "selectWorkspace": "Select workspace",
@@ -258,6 +259,14 @@
     "contextText": "Prompt",
     "contextTextValue": "{count} chars",
     "contextQuote": "Quoted selection",
+    "atDiscovery": {
+      "title": "Try @ to show Lynn a file",
+      "subtitle": "For example: @App.tsx help me inspect this route",
+      "searching": "Searching files...",
+      "menuHint": "Pick a file or folder to bring into this chat",
+      "inlineHint": "💡 Type @{name} to let Lynn see this file directly",
+      "inlineAction": "Use @ reference"
+    },
     "contextDoc": "Reference doc",
     "contextFiles": "Attachments",
     "contextImages": "Images",
@@ -307,6 +316,9 @@
       "planToday": {
         "label": "Make today's plan",
         "prompt": "Based on the current workspace, give me a practical 3-step plan for today in priority order."
+      },
+      "tryAt": {
+        "label": "Try @ file context"
       }
     }
   },

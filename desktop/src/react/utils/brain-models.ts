@@ -5,6 +5,7 @@ import {
   getBrainDisplayName,
   isBrainModelRef,
 } from '../../../../shared/brain-provider.js';
+import { parseSharedModelRef } from './model-ref';
 
 type BrainModelLike = {
   id: string;
@@ -84,6 +85,16 @@ export function formatCompactModelLabel(model: { id?: string | null; provider?: 
   if (!model?.id) return null;
   if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
   return model.provider ? `${model.provider} / ${model.id}` : model.id;
+}
+
+export function formatUserFacingModelRef(ref: unknown): string | null {
+  const parsed = parseSharedModelRef(ref);
+  if (!parsed.id) return null;
+  return normalizeDisplayModelName({
+    id: parsed.id,
+    provider: parsed.provider || undefined,
+    name: parsed.id,
+  }) || parsed.id;
 }
 
 export function encodeUserVisibleModelValue(model: { id: string; provider?: string | null }): string {

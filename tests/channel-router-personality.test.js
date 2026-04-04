@@ -252,6 +252,80 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     expect(result).toEqual({ replied: true, replyContent: "Beta 来补充一下。" });
   });
 
+  it("用户发在线/在吗这类唤醒消息时，即使 triage 返回 NO 也会强制让成员回应", async () => {
+    const { callText } = await import("../core/llm-client.js");
+    const { appendMessage } = await import("../lib/channels/channel-store.js");
+    callText.mockResolvedValue("NO");
+    callText.mockClear();
+    appendMessage.mockClear();
+
+    const agentA = {
+      config: { agent: { name: "Alpha", yuan: "hanako" } },
+      personality: "Alpha personality",
+    };
+
+    const realExistsSync = fs.existsSync;
+    const realReadFileSync = fs.readFileSync;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
+      if (String(filePath).endsWith("/general.md")) return true;
+      return realExistsSync(filePath);
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
+      if (String(filePath).endsWith("/general.md")) {
+        return [
+          "### user | 2026-04-01 10:00:00",
+          "",
+          "大家都在吗？",
+          "",
+          "---",
+          "",
+        ].join("\n");
+      }
+      return realReadFileSync(filePath, ...args);
+    });
+
+    const router = new ChannelRouter({
+      hub: {
+        engine: {
+          currentAgentId: "host",
+          agentsDir: "/fake/agents",
+          channelsDir: "/fake/channels",
+          productDir: "/fake/product",
+          userDir: "/fake/user",
+          agents: new Map([["alpha", agentA]]),
+          resolveUtilityConfig: () => ({
+            utility: "test-model",
+            utility_large: "test-model-large",
+            api_key: "test-key",
+            base_url: "https://test.api",
+            api: "openai-completions",
+            large_api_key: "test-key",
+            large_base_url: "https://test.api",
+            large_api: "openai-completions",
+          }),
+        },
+        eventBus: { emit: vi.fn() },
+      },
+    });
+
+    router._executeReply = vi.fn().mockResolvedValue("我在，可以聊。");
+
+    const result = await router._executeCheck(
+      "alpha",
+      "general",
+      [{ sender: "user", text: "大家都在吗？" }],
+      [],
+      { triggerMessage: { sender: "user", timestamp: "2026-04-01 10:00:00", body: "大家都在吗？" } },
+    );
+
+    readSpy.mockRestore();
+    existsSpy.mockRestore();
+    expect(callText).not.toHaveBeenCalled();
+    expect(router._executeReply).toHaveBeenCalledOnce();
+    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Alpha", "我在，可以聊。");
+    expect(result).toEqual({ replied: true, replyContent: "我在，可以聊。" });
+  });
+
   it("主回复链路失败时，会回退到轻量直连回复继续发言", async () => {
     const { callText } = await import("../core/llm-client.js");
     const { appendMessage } = await import("../lib/channels/channel-store.js");

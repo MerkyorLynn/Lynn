@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { useI18n } from '../../hooks/use-i18n';
 import { useStore } from '../../stores';
 import { buildAtMentionResults, type AtMentionFileResult } from '../../utils/at-mention-search';
 import styles from './InputArea.module.css';
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function AtMentionMenu({ query, selected, onSelect, onHover, onResultsChange }: Props) {
+  const { t } = useI18n();
   const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
   const deskBasePath = useStore(s => s.deskBasePath);
   const [searchResults, setSearchResults] = useState<FileResult[]>([]);
@@ -84,7 +86,12 @@ export function AtMentionMenu({ query, selected, onSelect, onHover, onResultsCha
     <div className={styles['slash-menu']} data-at-menu>
       {loading && results.length === 0 && (
         <div className={styles['slash-menu-item']} style={{ opacity: 0.5, cursor: 'default' }}>
-          <span className={styles['slash-menu-desc']}>Searching...</span>
+          <span className={styles['slash-menu-desc']}>{t('input.atDiscovery.searching') || '正在搜索...'}</span>
+        </div>
+      )}
+      {!query.trim() && results.length > 0 && (
+        <div className={styles['slash-menu-item']} style={{ opacity: 0.7, cursor: 'default' }}>
+          <span className={styles['slash-menu-desc']}>{t('input.atDiscovery.menuHint') || '输入文件名筛选，或直接选择最近文件'}</span>
         </div>
       )}
       {results.map((file, i) => (
