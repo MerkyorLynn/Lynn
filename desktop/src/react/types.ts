@@ -38,6 +38,7 @@ export interface Agent {
   name: string;
   yuan: string;
   tier?: 'local' | 'expert' | 'byok';
+  expertSlug?: string | null;
   isPrimary: boolean;
   hasAvatar?: boolean;
 }

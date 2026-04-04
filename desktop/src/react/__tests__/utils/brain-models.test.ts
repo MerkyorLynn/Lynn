@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildUserVisibleModelOptions,
   collapseBrainModelChoices,
+  decodeUserVisibleModelValue,
+  encodeUserVisibleModelValue,
   formatCompactModelLabel,
   normalizeDisplayModelId,
   normalizeDisplayModelName,
@@ -40,5 +43,30 @@ describe('brain-models', () => {
     expect(normalizeDisplayModelName({ id: 'glm-5.1', name: 'GLM-5.1', provider: 'zhipu' })).toBe('GLM-5.1');
     expect(normalizeDisplayProviderLabel('zhipu')).toBe('zhipu');
     expect(formatCompactModelLabel({ id: 'glm-5.1', provider: 'zhipu' })).toBe('zhipu / glm-5.1');
+  });
+
+  it('把用户可见模型选项里的 brain 内部链路折叠成单个默认模型入口', () => {
+    const options = buildUserVisibleModelOptions([
+      { id: 'step-3.5-flash-2603', name: 'Step 3.5 Flash 2603', provider: 'brain' },
+      { id: 'glm-z1-9b-0414', name: 'Glm Z1.9b 0414', provider: 'brain' },
+      { id: 'glm-5.1', name: 'GLM-5.1', provider: 'glm' },
+    ]);
+
+    expect(options).toEqual([
+      expect.objectContaining({
+        value: 'brain/step-3.5-flash-2603',
+        label: '默认模型',
+      }),
+      expect.objectContaining({
+        value: 'glm/glm-5.1',
+        label: 'GLM-5.1',
+      }),
+    ]);
+  });
+
+  it('可以编码和解码用户可见模型值', () => {
+    expect(encodeUserVisibleModelValue({ id: 'glm-5.1', provider: 'glm' })).toBe('glm/glm-5.1');
+    expect(decodeUserVisibleModelValue('glm/glm-5.1')).toEqual({ provider: 'glm', id: 'glm-5.1' });
+    expect(decodeUserVisibleModelValue('')).toEqual({});
   });
 });

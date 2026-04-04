@@ -15,11 +15,15 @@ import styles from './Channels.module.css';
 let _avatarTs = Date.now();
 export function refreshCreateAvatarTs() { _avatarTs = Date.now(); }
 
-function AgentChipAvatar({ agentId, yuan, hasAvatar }: {
-  agentId: string; yuan?: string; hasAvatar?: boolean;
+function AgentChipAvatar({ agentId, yuan, hasAvatar, expertSlug }: {
+  agentId: string; yuan?: string; hasAvatar?: boolean; expertSlug?: string | null;
 }) {
   const [error, setError] = useState(false);
-  const src = hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`) : null;
+  const src = hasAvatar
+    ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`)
+    : expertSlug
+      ? hanaUrl(`/api/experts/${encodeURIComponent(expertSlug)}/avatar?t=${_avatarTs}`)
+      : null;
 
   return (
     <span className={styles.chipAvatar}>
@@ -157,7 +161,7 @@ export function ChannelCreateOverlay() {
           {baseAgent ? (
             <div className={styles.channelCreateMembers}>
               <div className={`${styles.channelCreateMemberChip} ${styles.channelCreateMemberChipSelected} ${styles.channelCreateMemberChipLocked}`}>
-                <AgentChipAvatar agentId={baseAgent.id} yuan={baseAgent.yuan} hasAvatar={baseAgent.hasAvatar} />
+                <AgentChipAvatar agentId={baseAgent.id} yuan={baseAgent.yuan} hasAvatar={baseAgent.hasAvatar} expertSlug={baseAgent.expertSlug} />
                 <span>{baseAgent.name || baseAgent.id}</span>
               </div>
             </div>
@@ -184,7 +188,7 @@ export function ChannelCreateOverlay() {
                     className={`${styles.channelCreateMemberChip}${isSelected ? ` ${styles.channelCreateMemberChipSelected}` : ''}`}
                     onClick={() => toggleMember(agent.id)}
                   >
-                    <AgentChipAvatar agentId={agent.id} yuan={agent.yuan} hasAvatar={agent.hasAvatar} />
+                    <AgentChipAvatar agentId={agent.id} yuan={agent.yuan} hasAvatar={agent.hasAvatar} expertSlug={agent.expertSlug} />
                     <span>{agent.name || agent.id}</span>
                   </button>
                 );

@@ -95,6 +95,38 @@ describe("channels route", () => {
     ]);
   });
 
+  it("GET /channels 会跳过缺少成员 frontmatter 的坏频道文件", async () => {
+    writeChannel(path.join(channelsDir, "ch_broken.md"), [
+      "### Alpha | 2026-04-01 11:59:00",
+      "",
+      "hello",
+      "",
+      "---",
+      "",
+    ].join("\n"));
+
+    writeChannel(path.join(channelsDir, "ch_ok.md"), [
+      "---",
+      "id: ch_ok",
+      "name: Healthy",
+      "members: [alpha, beta]",
+      "---",
+      "",
+      "### Alpha | 2026-04-01 12:00:00",
+      "",
+      "hi",
+      "",
+      "---",
+      "",
+    ].join("\n"));
+
+    const res = await app.request("/api/channels");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.channels).toHaveLength(1);
+    expect(data.channels[0]).toEqual(expect.objectContaining({ id: "ch_ok" }));
+  });
+
   it("GET /channels/:name 返回 archived 元数据", async () => {
     writeChannel(path.join(channelsDir, "ch_archived.md"), [
       "---",

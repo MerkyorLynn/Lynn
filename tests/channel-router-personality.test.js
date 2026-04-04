@@ -43,6 +43,10 @@ function parseChannel(content) {
 vi.mock("../lib/channels/channel-store.js", () => ({
   formatMessagesForLLM: (msgs) => msgs.map((m) => `${m.sender}: ${m.text ?? m.body ?? ""}`).join("\n"),
   appendMessage: vi.fn(),
+  getChannelMeta: vi.fn((filePath) => {
+    if (String(filePath).endsWith("/broken.md")) return {};
+    return { id: "general", members: ["alpha", "beta", "hanako"] };
+  }),
   parseChannel,
 }));
 
@@ -69,7 +73,12 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     };
 
     const mockAgentsMap = new Map([["lynn", mockAgent]]);
+    const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
+      if (String(filePath).endsWith("/general.md")) return true;
+      return realExistsSync(filePath);
+    });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
       if (String(filePath).endsWith("/general.md")) {
         return "### user | 2026-04-01 10:00\n\n你好\n";
@@ -107,6 +116,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     );
 
     readSpy.mockRestore();
+    existsSpy.mockRestore();
     expect(result.replied).toBe(false);
     expect(callTextSpy).toHaveBeenCalledTimes(1);
     const callArgs = callTextSpy.mock.calls[0][0];
@@ -168,7 +178,12 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
       config: { agent: { name: "Beta", yuan: "hanako" } },
       personality: "Beta personality",
     };
+    const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
+      if (String(filePath).endsWith("/general.md")) return true;
+      return realExistsSync(filePath);
+    });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
       if (String(filePath).endsWith("/general.md")) {
         return [
@@ -230,6 +245,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     );
 
     readSpy.mockRestore();
+    existsSpy.mockRestore();
     expect(callText).toHaveBeenCalled();
     expect(router._executeReply).toHaveBeenCalledOnce();
     expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Beta", "Beta 来补充一下。");
@@ -288,6 +304,11 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     });
 
     router._executeReply = vi.fn().mockRejectedValue(new Error("error.agentExecNotInit"));
+    const realExistsSync = fs.existsSync;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
+      if (String(filePath).endsWith("/general.md")) return true;
+      return realExistsSync(filePath);
+    });
 
     const result = await router._executeCheck(
       "hanako",
@@ -296,8 +317,79 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
       [],
     );
 
+    existsSpy.mockRestore();
     expect(router._executeReply).toHaveBeenCalledOnce();
     expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Hanako", "我来补一句。");
     expect(result).toEqual({ replied: true, replyContent: "我来补一句。" });
+  });
+
+  it("不会向缺少成员 frontmatter 的坏频道文件继续写回复", async () => {
+    const { appendMessage } = await import("../lib/channels/channel-store.js");
+    appendMessage.mockClear();
+
+    const mockAgent = {
+      config: {
+        agent: { name: "Hanako", yuan: "hanako" },
+        api: { provider: "minimax" },
+        models: { chat: "MiniMax-M2.7-highspeed" },
+      },
+      personality: "Hanako personality",
+    };
+
+    const realExistsSync = fs.existsSync;
+    const realReadFileSync = fs.readFileSync;
+    const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
+      if (String(filePath).endsWith("/broken.md")) return true;
+      return realExistsSync(filePath);
+    });
+    const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
+      if (String(filePath).endsWith("/broken.md")) {
+        return [
+          "### user | 2026-04-01 10:00:00",
+          "",
+          "有人吗？",
+          "",
+          "---",
+          "",
+        ].join("\n");
+      }
+      return realReadFileSync(filePath, ...args);
+    });
+
+    const router = new ChannelRouter({
+      hub: {
+        engine: {
+          currentAgentId: "lynn",
+          agentsDir: "/fake/agents",
+          channelsDir: "/fake/channels",
+          productDir: "/fake/product",
+          userDir: "/fake/user",
+          agents: new Map([["hanako", mockAgent]]),
+          resolveUtilityConfig: () => ({
+            utility: "test-model",
+            utility_large: "test-model-large",
+            api_key: "test-key",
+            base_url: "https://test.api",
+            api: "openai-completions",
+            large_api_key: "test-key",
+            large_base_url: "https://test.api",
+            large_api: "openai-completions",
+          }),
+        },
+        eventBus: { emit: vi.fn() },
+      },
+    });
+
+    const result = await router._executeCheck(
+      "hanako",
+      "broken",
+      [{ sender: "user", text: "@Hanako 在吗？" }],
+      [],
+    );
+
+    existsSpy.mockRestore();
+    readSpy.mockRestore();
+    expect(appendMessage).not.toHaveBeenCalled();
+    expect(result).toEqual({ replied: false });
   });
 });

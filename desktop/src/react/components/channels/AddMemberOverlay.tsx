@@ -12,6 +12,10 @@ import { useI18n } from '../../hooks/use-i18n';
 import { hanaFetch, hanaUrl } from '../../hooks/use-hana-fetch';
 import { addExpertToChannel, addMembersToChannel } from '../../stores/channel-actions';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
+import {
+  buildUserVisibleModelOptions,
+  decodeUserVisibleModelValue,
+} from '../../utils/brain-models';
 import { ExpertCard } from './ExpertCard';
 import type { ExpertPreset, Model } from '../../types';
 import styles from './Channels.module.css';
@@ -22,25 +26,15 @@ let _avatarTs = Date.now();
 
 type ExpertView = ExpertPreset;
 
-function encodeModelValue(model: Model): string {
-  return `${model.provider || ''}::${model.id}`;
-}
-
-function decodeModelValue(value: string): { id?: string; provider?: string } {
-  if (!value) return {};
-  const splitIndex = value.indexOf('::');
-  if (splitIndex === -1) return { id: value };
-  return {
-    provider: value.slice(0, splitIndex) || undefined,
-    id: value.slice(splitIndex + 2) || undefined,
-  };
-}
-
-function AgentChipAvatar({ agentId, yuan, hasAvatar }: {
-  agentId: string; yuan?: string; hasAvatar?: boolean;
+function AgentChipAvatar({ agentId, yuan, hasAvatar, expertSlug }: {
+  agentId: string; yuan?: string; hasAvatar?: boolean; expertSlug?: string | null;
 }) {
   const [error, setError] = useState(false);
-  const src = hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`) : null;
+  const src = hasAvatar
+    ? hanaUrl(`/api/agents/${agentId}/avatar?t=${_avatarTs}`)
+    : expertSlug
+      ? hanaUrl(`/api/experts/${encodeURIComponent(expertSlug)}/avatar?t=${_avatarTs}`)
+      : null;
 
   return (
     <span className={styles.chipAvatar}>
@@ -88,6 +82,10 @@ export function AddMemberOverlay() {
   const selectedExpert = useMemo(
     () => experts.find((expert) => expert.slug === selectedExpertSlug) || null,
     [experts, selectedExpertSlug],
+  );
+  const visibleModels = useMemo(
+    () => buildUserVisibleModelOptions(availableModels),
+    [availableModels],
   );
 
   useEffect(() => {
@@ -149,7 +147,7 @@ export function AddMemberOverlay() {
         await addMembersToChannel(targetChannel, selectedMembers);
       }
       if (selectedExpertSlug) {
-        const selectedModel = decodeModelValue(selectedModelValue);
+        const selectedModel = decodeUserVisibleModelValue(selectedModelValue);
         await addExpertToChannel(targetChannel, selectedExpertSlug, {
           modelId: selectedModel.id,
           provider: selectedModel.provider,
@@ -186,7 +184,7 @@ export function AddMemberOverlay() {
                     className={`${styles.channelCreateMemberChip}${isSelected ? ` ${styles.channelCreateMemberChipSelected}` : ''}`}
                     onClick={() => toggleMember(agent.id)}
                   >
-                    <AgentChipAvatar agentId={agent.id} yuan={agent.yuan} hasAvatar={agent.hasAvatar} />
+                    <AgentChipAvatar agentId={agent.id} yuan={agent.yuan} hasAvatar={agent.hasAvatar} expertSlug={agent.expertSlug} />
                     <span>{agent.name || agent.id}</span>
                   </button>
                 );
@@ -231,9 +229,9 @@ export function AddMemberOverlay() {
               onChange={(e) => setSelectedModelValue(e.target.value)}
             >
               <option value="">{t('channel.expertModelAuto') || '默认（优先推荐 / 当前可用模型）'}</option>
-              {availableModels.map((model) => (
-                <option key={`${model.provider}:${model.id}`} value={encodeModelValue(model)}>
-                  {model.name || model.id}{model.provider ? ` · ${model.provider}` : ''}
+              {visibleModels.map((model) => (
+                <option key={model.value} value={model.value}>
+                  {model.label}
                 </option>
               ))}
             </select>

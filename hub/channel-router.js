@@ -19,6 +19,7 @@ import { createChannelTicker } from "../lib/channels/channel-ticker.js";
 import {
   appendMessage,
   formatMessagesForLLM,
+  getChannelMeta,
   getChannelMembers,
   parseChannel,
 } from "../lib/channels/channel-store.js";
@@ -233,6 +234,16 @@ export class ChannelRouter {
 
   _commitChannelReply(channelName, senderId, senderName, replyText) {
     const channelFile = path.join(this._engine.channelsDir, `${channelName}.md`);
+    if (!fs.existsSync(channelFile)) {
+      debugLog()?.warn("channel", `skip reply for missing channel file: #${channelName}`);
+      return { replied: false, replyContent: null };
+    }
+    const meta = getChannelMeta(channelFile);
+    const members = Array.isArray(meta.members) ? meta.members.filter(Boolean) : [];
+    if (members.length === 0) {
+      debugLog()?.warn("channel", `skip reply for malformed channel file: #${channelName}`);
+      return { replied: false, replyContent: null };
+    }
     appendMessage(channelFile, senderName, replyText);
     this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: senderId }, null);
     console.log(`\x1b[90m[channel] ${senderName}(${senderId}) replied #${channelName} (${replyText.length} chars)\x1b[0m`);
@@ -330,6 +341,14 @@ export class ChannelRouter {
       }
 
       const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
+      if (!fs.existsSync(channelFile)) {
+        return { replied: false };
+      }
+      const channelMeta = getChannelMeta(channelFile);
+      if (!Array.isArray(channelMeta.members) || channelMeta.members.length === 0) {
+        debugLog()?.warn("channel", `skip malformed channel during triage: #${channelName}`);
+        return { replied: false };
+      }
       let channelMessages = [];
       let lastMsgIsUser = false;
       try {

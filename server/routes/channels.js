@@ -28,6 +28,12 @@ import {
   getChannelMeta,
 } from "../../lib/channels/channel-store.js";
 
+function hasUsableChannelMeta(meta, fallbackId = "") {
+  const members = Array.isArray(meta?.members) ? meta.members.filter(Boolean) : [];
+  const id = typeof meta?.id === "string" && meta.id.trim() ? meta.id.trim() : fallbackId;
+  return Boolean(id) && members.length > 0;
+}
+
 export function createChannelsRoute(engine, hub) {
   const route = new Hono();
 
@@ -71,6 +77,10 @@ export function createChannelsRoute(engine, hub) {
         const filePath = path.join(channelsDir, f);
         const content = fs.readFileSync(filePath, "utf-8");
         const { meta, messages } = parseChannel(content);
+        if (!hasUsableChannelMeta(meta, channelId)) {
+          debugLog()?.warn?.("api", `skip malformed channel file: ${f}`);
+          continue;
+        }
         const members = Array.isArray(meta.members) ? meta.members : [];
         const { archived, archivedAt } = getArchivedState(meta);
 
@@ -158,6 +168,9 @@ export function createChannelsRoute(engine, hub) {
 
       const content = fs.readFileSync(filePath, "utf-8");
       const { meta, messages } = parseChannel(content);
+      if (!hasUsableChannelMeta(meta, name)) {
+        return c.json({ error: "Channel file is malformed" }, 409);
+      }
       const members = Array.isArray(meta.members) ? meta.members : [];
       const { archived, archivedAt } = getArchivedState(meta);
 
@@ -194,6 +207,9 @@ export function createChannelsRoute(engine, hub) {
       }
 
       const channelMeta = getChannelMeta(filePath);
+      if (!hasUsableChannelMeta(channelMeta, name)) {
+        return c.json({ error: "Channel file is malformed" }, 409);
+      }
       const { archived } = getArchivedState(channelMeta);
       if (archived) {
         return c.json({ error: "Channel is archived" }, 409);

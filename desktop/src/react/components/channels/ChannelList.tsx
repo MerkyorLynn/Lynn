@@ -54,10 +54,15 @@ export function resolveChannelMember(
   }
   const agent = agents.find((a) => a.id === memberId || a.name === memberId);
   if (agent) {
+    const avatarUrl = agent.hasAvatar
+      ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${_avatarTs}`)
+      : agent.expertSlug
+        ? hanaUrl(`/api/experts/${encodeURIComponent(agent.expertSlug)}/avatar?t=${_avatarTs}`)
+        : null;
     return {
       id: memberId,
       displayName: agent.name || agent.id,
-      avatarUrl: agent.hasAvatar ? hanaUrl(`/api/agents/${agent.id}/avatar?t=${_avatarTs}`) : null,
+      avatarUrl,
       fallbackAvatar: yuanFallbackAvatar(agent.yuan),
       yuan: agent.yuan,
       isUser: false,

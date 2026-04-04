@@ -17,6 +17,13 @@ type BrainModelLike = {
   metaLabel?: string;
 };
 
+export interface UserVisibleModelOption {
+  value: string;
+  label: string;
+  rawId: string;
+  rawProvider: string;
+}
+
 function cloneCollapsedBrainModel<T extends BrainModelLike>(model: T, isCurrent: boolean): T {
   return {
     ...model,
@@ -77,4 +84,40 @@ export function formatCompactModelLabel(model: { id?: string | null; provider?: 
   if (!model?.id) return null;
   if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
   return model.provider ? `${model.provider} / ${model.id}` : model.id;
+}
+
+export function encodeUserVisibleModelValue(model: { id: string; provider?: string | null }): string {
+  return model.provider ? `${model.provider}/${model.id}` : model.id;
+}
+
+export function decodeUserVisibleModelValue(value: string): { id?: string; provider?: string } {
+  if (!value) return {};
+  const splitIndex = value.indexOf('/');
+  if (splitIndex === -1) return { id: value };
+  return {
+    provider: value.slice(0, splitIndex) || undefined,
+    id: value.slice(splitIndex + 1) || undefined,
+  };
+}
+
+export function buildUserVisibleModelOptions<T extends BrainModelLike>(models: T[]): UserVisibleModelOption[] {
+  const visibleModels = collapseBrainModelChoices(models);
+  const labelCounts = new Map<string, number>();
+
+  for (const model of visibleModels) {
+    const label = normalizeDisplayModelName(model) || model.name || model.id;
+    labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+  }
+
+  return visibleModels.map((model) => {
+    const baseLabel = normalizeDisplayModelName(model) || model.name || model.id;
+    const providerLabel = normalizeDisplayProviderLabel(model.provider) || model.provider || '';
+    const needsProvider = (labelCounts.get(baseLabel) || 0) > 1;
+    return {
+      value: encodeUserVisibleModelValue(model),
+      label: needsProvider && providerLabel ? `${baseLabel} · ${providerLabel}` : baseLabel,
+      rawId: model.id,
+      rawProvider: model.provider || '',
+    };
+  });
 }

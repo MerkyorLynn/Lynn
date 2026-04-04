@@ -140,7 +140,9 @@ export class AgentManager {
         // ── 2. 修复缺失/错误的专家头像：从预设目录同步 ──
         const slug = cfg?.expert?.slug;
         if (slug && this._d.productDir) {
-          const presetAvatarsDir = path.join(this._d.productDir, "experts", "presets", slug, "avatars");
+          const presetAvatarsDir = fs.existsSync(path.join(this._d.productDir, "lib", "experts", "presets", slug, "avatars"))
+            ? path.join(this._d.productDir, "lib", "experts", "presets", slug, "avatars")
+            : path.join(this._d.productDir, "experts", "presets", slug, "avatars");
           const agentAvatarsDir = path.join(this._d.agentsDir, entry.name, "avatars");
           try {
             if (fs.existsSync(presetAvatarsDir)) {
@@ -271,6 +273,7 @@ export class AgentManager {
           name: cfg.agent?.name || entry.name,
           yuan: cfg.agent?.yuan || "hanako",
           tier: cfg.agent?.tier || "local",
+          expertSlug: cfg.expert?.slug || null,
           identity,
           hasAvatar,
         });

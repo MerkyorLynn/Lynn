@@ -10,6 +10,10 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { createChannel, createChannelWithExpert, createRoundtableWithExperts } from '../../stores/channel-actions';
+import {
+  buildUserVisibleModelOptions,
+  decodeUserVisibleModelValue,
+} from '../../utils/brain-models';
 import { ExpertCard } from './ExpertCard';
 import type { Agent, ExpertPreset, Model } from '../../types';
 import styles from './Channels.module.css';
@@ -54,20 +58,6 @@ interface ExpertTeamGuideProps {
   agents: Agent[];
 }
 
-function encodeModelValue(model: Model): string {
-  return `${model.provider || ''}::${model.id}`;
-}
-
-function decodeModelValue(value: string): { id?: string; provider?: string } {
-  if (!value) return {};
-  const splitIndex = value.indexOf('::');
-  if (splitIndex === -1) return { id: value };
-  return {
-    provider: value.slice(0, splitIndex) || undefined,
-    id: value.slice(splitIndex + 2) || undefined,
-  };
-}
-
 function expertName(expert: ExpertPreset | null): string {
   if (!expert) return '';
   return typeof expert.name === 'string' ? expert.name : (expert.name.zh || expert.name.en || expert.slug);
@@ -86,6 +76,10 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
   const selectedExperts = useMemo(
     () => experts.filter((expert) => selectedExpertSlugs.includes(expert.slug)),
     [experts, selectedExpertSlugs],
+  );
+  const visibleModels = useMemo(
+    () => buildUserVisibleModelOptions(availableModels),
+    [availableModels],
   );
   const selectedExpert = selectedExperts.length === 1 ? selectedExperts[0] : null;
   const hasRoundtableSelection = selectedExperts.length >= 2;
@@ -146,7 +140,7 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
     if (!selectedExpert || creating) return;
     setCreating(true);
     try {
-      const selectedModel = decodeModelValue(selectedModelValue);
+      const selectedModel = decodeUserVisibleModelValue(selectedModelValue);
       await createChannelWithExpert(selectedExpert.slug, {
         modelId: selectedModel.id,
         provider: selectedModel.provider,
@@ -220,9 +214,9 @@ export function ExpertTeamGuide({ agents }: ExpertTeamGuideProps) {
                 onChange={(e) => setSelectedModelValue(e.target.value)}
               >
                 <option value="">{t('channel.expertModelAuto') || '默认（优先推荐 / 当前可用模型）'}</option>
-                {availableModels.map((model) => (
-                  <option key={`${model.provider}:${model.id}`} value={encodeModelValue(model)}>
-                    {model.name || model.id}{model.provider ? ` · ${model.provider}` : ''}
+                {visibleModels.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
                   </option>
                 ))}
               </select>
