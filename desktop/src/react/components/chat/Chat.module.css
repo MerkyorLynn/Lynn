@@ -1511,29 +1511,44 @@
     flex-shrink: 0;
 }
 
-/* ── Typing indicator (streaming 等待) ── */
+/* ── Typing indicator (streaming 骨架屏) ── */
 
 .typingIndicator {
     display: flex;
     align-items: center;
-    padding: 0.8rem 0;
+    gap: 10px;
+    padding: 1rem 0;
     padding-left: calc(var(--space-sm) + 2px);
     animation: msgIn 0.3s var(--ease-out);
 }
 
-.typingBar {
-    display: block;
-    width: 120px;
-    height: 3px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    background-size: 200% 100%;
-    animation: typingShimmer 1.5s ease-in-out infinite;
+.typingDots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
 }
 
-@keyframes typingShimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+.typingDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.4;
+    animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typingDot:nth-child(2) { animation-delay: 0.15s; }
+.typingDot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 0.9; }
+}
+
+.typingLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.7;
 }
 
 /* ── Scroll to bottom FAB ── */

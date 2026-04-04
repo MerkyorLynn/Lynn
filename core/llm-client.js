@@ -186,7 +186,10 @@ export async function callText({
         throw new AppError('LLM_AUTH_FAILED', { context: { model, status: res.status } });
       }
       if (res.status === 429) {
-        throw new AppError('LLM_RATE_LIMITED', { context: { model } });
+        const retryAfterSec = parseInt(res.headers.get('retry-after') || '0', 10);
+        const err = new AppError('LLM_RATE_LIMITED', { context: { model, retryAfterMs: retryAfterSec > 0 ? retryAfterSec * 1000 : undefined } });
+        if (retryAfterSec > 0) err._retryAfterMs = retryAfterSec * 1000;
+        throw err;
       }
       throw new AppError('UNKNOWN', { message, context: { model, status: res.status } });
     }

@@ -224,7 +224,18 @@ export function AgentTab() {
           selectedId={settingsAgentId || currentAgentId}
           currentAgentId={currentAgentId}
           previewSelectedAgent={{ name: agentName, yuan: pendingYuan || currentYuan }}
-          onSelect={(id) => browseAgent(id)}
+          onSelect={(id) => {
+            const targetAgent = agents.find((agent) => agent.id === id);
+            if (targetAgent) {
+              setAgentName(targetAgent.name || '');
+              setPendingYuan(targetAgent.yuan || 'hanako');
+              setIdentity('');
+              setIshiki('');
+              setExpCategories([]);
+              setNameTouched(false);
+            }
+            void browseAgent(id);
+          }}
           onAvatarClick={() => {
             // eslint-disable-next-line no-restricted-syntax -- ephemeral file picker, not part of React tree
             const input = document.createElement('input');
@@ -241,7 +252,6 @@ export function AgentTab() {
           }}
           onSetActive={(id) => switchToAgent(id)}
           onDelete={() => window.dispatchEvent(new Event('hana-show-agent-delete'))}
-          onAdd={() => window.dispatchEvent(new Event('hana-show-agent-create'))}
         />
 
         <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>

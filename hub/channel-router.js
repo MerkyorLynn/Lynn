@@ -131,6 +131,154 @@ export class ChannelRouter {
     }
   }
 
+  async _resolveChannelAgentInfo(agentId) {
+    const engine = this._engine;
+    let agentInstance = engine.agents?.get?.(agentId) || null;
+    if (!agentInstance && typeof engine.ensureAgentLoaded === "function") {
+      try {
+        agentInstance = await engine.ensureAgentLoaded(agentId);
+      } catch {}
+    }
+
+    const agentDir = path.join(engine.agentsDir, agentId);
+    const readFile = (p) => {
+      try { return fs.readFileSync(p, "utf-8"); } catch { return ""; }
+    };
+
+    const cfg = (agentInstance?.config && typeof agentInstance.config === "object")
+      ? agentInstance.config
+      : (loadConfig(path.join(agentDir, "config.yaml")) || {});
+    const agentConfig = (cfg?.agent && typeof cfg.agent === "object") ? cfg.agent : {};
+    const yuanId = typeof agentConfig.yuan === "string" && agentConfig.yuan.trim()
+      ? agentConfig.yuan.trim()
+      : "hanako";
+    const agentName = typeof agentConfig.name === "string" && agentConfig.name.trim()
+      ? agentConfig.name.trim()
+      : agentId;
+    const agentContext = agentInstance?.personality
+      || [
+        readFile(path.join(agentDir, "identity.md")),
+        readFile(path.join(engine.productDir, "yuan", `${yuanId}.md`)),
+        readFile(path.join(agentDir, "ishiki.md")),
+      ].filter(Boolean).join("\n\n");
+
+    return {
+      agentInstance,
+      agentDir,
+      cfg,
+      agentName,
+      agentContext,
+    };
+  }
+
+  _resolveChannelReplyModel(cfg = {}) {
+    const engine = this._engine;
+    const modelManager = engine?._models || null;
+    const providerFromConfig = typeof cfg?.api?.provider === "string" && cfg.api.provider.trim()
+      ? cfg.api.provider.trim()
+      : "";
+    const refs = [cfg?.models?.chat || null, engine.currentModel || null];
+
+    const buildCandidate = (ref) => {
+      if (!ref) return null;
+      if (typeof ref === "object" && ref?.id) {
+        return {
+          id: ref.id,
+          provider: ref.provider || providerFromConfig || engine.currentModel?.provider || "",
+          name: ref.name || ref.id,
+        };
+      }
+      if (typeof ref === "string" && ref.trim()) {
+        const id = ref.trim();
+        return {
+          id,
+          provider: providerFromConfig || engine.currentModel?.provider || "",
+          name: id,
+        };
+      }
+      return null;
+    };
+
+    for (const ref of refs) {
+      try {
+        if (typeof modelManager?.resolveModelWithCredentials === "function") {
+          const resolved = modelManager.resolveModelWithCredentials(ref);
+          if (resolved?.model && resolved?.provider) {
+            return {
+              model: { id: resolved.model, provider: resolved.provider, name: resolved.model },
+              creds: {
+                api: resolved.api,
+                api_key: resolved.api_key,
+                base_url: resolved.base_url,
+              },
+            };
+          }
+        }
+      } catch {}
+
+      try {
+        const candidate = buildCandidate(ref);
+        if (!candidate?.id || !candidate.provider) continue;
+        const creds = engine.resolveProviderCredentials?.(candidate.provider) || {};
+        const providerEntry = engine.providerRegistry?.get?.(candidate.provider);
+        const allowMissingApiKey = providerEntry?.authType === "none";
+        if (!creds.api || !creds.base_url) continue;
+        if (!creds.api_key && !allowMissingApiKey) continue;
+        return { model: candidate, creds };
+      } catch {}
+    }
+
+    return null;
+  }
+
+  _commitChannelReply(channelName, senderId, senderName, replyText) {
+    const channelFile = path.join(this._engine.channelsDir, `${channelName}.md`);
+    appendMessage(channelFile, senderName, replyText);
+    this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: senderId }, null);
+    console.log(`\x1b[90m[channel] ${senderName}(${senderId}) replied #${channelName} (${replyText.length} chars)\x1b[0m`);
+    debugLog()?.log("channel", `${senderName}(${senderId}) replied #${channelName} (${replyText.length} chars)`);
+    return { replied: true, replyContent: replyText };
+  }
+
+  async _executeDirectReply(agentId, channelName, msgText, { signal } = {}) {
+    const isZh = getLocale().startsWith("zh");
+    const { agentContext, agentName, cfg } = await this._resolveChannelAgentInfo(agentId);
+    const resolved = this._resolveChannelReplyModel(cfg);
+    if (!resolved) return { agentName, replyText: null };
+
+    const fallbackTimeout = AbortSignal.timeout(20_000);
+    const fallbackSignal = signal
+      ? AbortSignal.any([signal, fallbackTimeout])
+      : fallbackTimeout;
+
+    const replyText = await callText({
+      api: resolved.creds.api,
+      apiKey: resolved.creds.api_key,
+      baseUrl: resolved.creds.base_url,
+      provider: resolved.model.provider,
+      model: resolved.model.id,
+      systemPrompt: `${agentContext}\n\n${isZh
+        ? "你正在一个多人频道里发言。保持你自己的人格、语气和判断，像群聊里自然接话。"
+        : "You are replying in a multi-person chat channel. Keep your own persona, tone, and judgment, and sound natural."}`,
+      messages: [{
+        role: "user",
+        content: isZh
+          ? `#${channelName} 最近消息：\n${msgText}\n\n请只输出你这一次想发到频道里的回复。\n- 简短自然\n- 要回应具体内容\n- 不要解释自己在做什么\n- 如果你确实没什么需要补充，输出 [NO_REPLY]`
+          : `Recent messages in #${channelName}:\n${msgText}\n\nOutput only the reply you want to post.\n- Keep it natural and concise\n- Respond to specific content\n- Do not explain what you are doing\n- If you truly have nothing to add, output [NO_REPLY]`,
+      }],
+      temperature: 0.5,
+      maxTokens: 180,
+      timeoutMs: 20_000,
+      signal: fallbackSignal,
+    });
+
+    if (!replyText || replyText.includes("[NO_REPLY]")) {
+      return { agentName, replyText: null };
+    }
+
+    return { agentName, replyText };
+  }
+
   async _runChannelAgentSession(agentId, rounds, opts = {}) {
     try {
       return await runAgentSession(agentId, rounds, opts);
@@ -155,168 +303,159 @@ export class ChannelRouter {
     const engine = this._engine;
     const msgText = formatMessagesForLLM(newMessages);
 
-    // ── 主持人跳过 triage：她只在 onAllReplied 阶段作为审查者+主持人发言 ──
-    const isHost = agentId === engine.currentAgentId;
-
-    // ── 读 agent 完整上下文 ──
-    const readFile = (p) => { try { return fs.readFileSync(p, "utf-8"); } catch { return ""; } };
-    const agentDir = path.join(engine.agentsDir, agentId);
-
-    // 复用 Agent 实例的 personality（identity + yuan + ishiki 已在内存中组装）
-    const agentInstance = engine.agents?.get(agentId);
-    const cfg = agentInstance?.config || loadConfig(path.join(agentDir, "config.yaml"));
-    const agentName = cfg.agent?.name || agentId;
-
-    const agentContext = agentInstance?.personality
-      || [readFile(path.join(agentDir, "identity.md")),
-          readFile(path.join(engine.productDir, "yuan", `${cfg.agent?.yuan || "hanako"}.md`)),
-          readFile(path.join(agentDir, "ishiki.md"))].filter(Boolean).join("\n\n");
-
-    // memory.md 和 user.md 内容会变，仍需从磁盘读取
-    const memoryMd = readFile(path.join(agentDir, "memory", "memory.md"));
-    const userMd = readFile(path.join(engine.userDir, "user.md"));
-    const isZh = getLocale().startsWith("zh");
-    const memoryContext = memoryMd?.trim()
-      ? (isZh ? `\n\n你的记忆：\n${memoryMd}` : `\n\nYour memory:\n${memoryMd}`)
-      : "";
-    const userContext = userMd?.trim()
-      ? (isZh ? `\n\n用户档案：\n${userMd}` : `\n\nUser profile:\n${userMd}`)
-      : "";
-
-    // ── 检测 @ ──
-    const isMentioned = msgText.includes(`@${agentName}`) || msgText.includes(`@${agentId}`);
-
-    // 主持人在没有被 @ 时跳过 triage（她只在 onAllReplied 阶段发言，避免说两遍话）
-    if (isHost && !isMentioned) {
-      debugLog()?.log("channel", `${agentId}/#${channelName}: 主持人跳过 triage（未被 @），等待 onAllReplied`);
-      return { replied: false };
-    }
-
-    const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
-    let channelMessages = [];
-    let lastMsgIsUser = false;
     try {
-      const parsed = parseChannel(fs.readFileSync(channelFile, "utf-8"));
-      channelMessages = parsed.messages || [];
-      const lastMessage = channelMessages[channelMessages.length - 1] || null;
-      if (lastMessage) {
-        let senderIsAgent = false;
-        if (engine.agents) {
-          for (const [id, ag] of engine.agents) {
-            const name = ag?.config?.agent?.name || id;
-            if (lastMessage.sender === id || lastMessage.sender === name) {
-              senderIsAgent = true;
-              break;
-            }
-          }
-        }
-        lastMsgIsUser = !senderIsAgent;
-      }
-    } catch {}
+      const { agentDir, agentName, agentContext } = await this._resolveChannelAgentInfo(agentId);
 
-    const triggerSender = typeof triggerMessage?.sender === "string" ? triggerMessage.sender.trim() : "";
-    const triggerTimestamp = triggerMessage?.timestamp || "";
-    const triggeredByImmediateTurn = !!triggerTimestamp;
-    const triggerIsSelf = triggerSender === agentId || triggerSender === agentName;
-    const alreadyRepliedToTrigger = triggeredByImmediateTurn
-      && channelMessages.some((message) =>
-        message.timestamp > triggerTimestamp
-        && (message.sender === agentId || message.sender === agentName)
-      );
+      // ── 主持人跳过 triage：她只在 onAllReplied 阶段作为审查者+主持人发言 ──
+      const isHost = agentId === engine.currentAgentId;
+      const readFile = (p) => { try { return fs.readFileSync(p, "utf-8"); } catch { return ""; } };
+      const isZh = getLocale().startsWith("zh");
 
-    if (triggerIsSelf || alreadyRepliedToTrigger) {
-      return { replied: false };
-    }
+      // memory.md 和 user.md 内容会变，仍需从磁盘读取
+      const memoryMd = readFile(path.join(agentDir, "memory", "memory.md"));
+      const userMd = readFile(path.join(engine.userDir, "user.md"));
+      const memoryContext = memoryMd?.trim()
+        ? (isZh ? `\n\n你的记忆：\n${memoryMd}` : `\n\nYour memory:\n${memoryMd}`)
+        : "";
+      const userContext = userMd?.trim()
+        ? (isZh ? `\n\n用户档案：\n${userMd}` : `\n\nUser profile:\n${userMd}`)
+        : "";
 
-    // ── Step 1: Triage ──
-    let shouldReply = isMentioned;
+      // ── 检测 @ ──
+      const isMentioned = msgText.includes(`@${agentName}`) || msgText.includes(`@${agentId}`);
 
-    // 普通轮询仍要求最后一条是用户消息；立即 triage 则绑定到触发消息，不被前一个 agent 的回复打断
-    if (!shouldReply && !lastMsgIsUser && !triggeredByImmediateTurn) {
-      return { replied: false };
-    }
-
-    if (!shouldReply) {
-      try {
-        const utilCfg = engine.resolveUtilityConfig() || {};
-        const {
-          utility_large: model,
-          large_api_key: api_key,
-          large_base_url: base_url,
-          large_api: api,
-          utility_large_allow_missing_api_key = false,
-        } = utilCfg;
-        if ((api_key || utility_large_allow_missing_api_key) && base_url && api) {
-          const triageSystem = agentContext + memoryContext + userContext
-            + "\n\n---\n\n"
-            + (isZh
-              ? "你在一个群聊频道里。阅读以下最近的消息，判断你是否要回复。\n"
-                + "回答 YES 的情况：有人跟你说话、@你、问了你能回答的问题、或者你有想说的话。\n"
-                + "回答 NO 的情况：别人已经充分回答了问题（你没有新的补充）、话题跟你无关、你插不上话、或者你刚回复过且没人追问你。\n"
-                + "只回答 YES 或 NO。"
-              : "You are in a group chat channel. Read the recent messages below and decide whether you should reply.\n"
-                + "Answer YES if: someone is talking to you, @-mentions you, asks a question you can answer, or you have something to say.\n"
-                + "Answer NO if: the question has already been adequately answered (you have nothing new to add), the topic is irrelevant to you, you can't contribute, or you just replied and no one followed up.\n"
-                + "Answer only YES or NO.");
-
-          const triageTimeout = AbortSignal.timeout(10_000);
-          const triageSignal = signal
-            ? AbortSignal.any([signal, triageTimeout])
-            : triageTimeout;
-          const answer = await callText({
-            api, model,
-            apiKey: api_key,
-            baseUrl: base_url,
-            systemPrompt: triageSystem,
-            messages: [{ role: "user", content: isZh ? `#${channelName} 频道最近消息：\n${msgText}` : `#${channelName} recent messages:\n${msgText}` }],
-            temperature: 0,
-            maxTokens: 10,
-            timeoutMs: 10_000,
-            signal: triageSignal,
-          });
-          shouldReply = answer.trim().toUpperCase().includes("YES");
-        } else {
-          // utility_large 凭证不完整，跳过 triage 直接回复
-          shouldReply = true;
-        }
-      } catch (err) {
-        // utility 模型未配置或 triage 调用失败 → 默认回复（让 agent 自己在 reply 阶段判断要不要说话）
-        console.warn(`[channel] triage 不可用，默认回复 (${agentId}/#${channelName}): ${err.message}`);
-        shouldReply = true;
-      }
-    }
-
-    console.log(`\x1b[90m[channel] triage ${agentId}/#${channelName}: ${shouldReply ? "YES" : "NO"}${isMentioned ? " (@)" : ""}\x1b[0m`);
-    debugLog()?.log("channel", `triage ${agentId}/#${channelName}: ${shouldReply ? "YES" : "NO"}${isMentioned ? " (mentioned)" : ""} (${newMessages.length} msgs)`);
-
-    if (!shouldReply) {
-      return { replied: false };
-    }
-
-    // ── Step 2: 两轮 Agent Session 生成回复 ──
-    try {
-      const replyText = await this._executeReply(agentId, channelName, msgText, { signal });
-
-      if (!replyText) {
-        console.log(`\x1b[90m[channel] ${agentId} 回复为空 (#${channelName})\x1b[0m`);
+      if (isHost && !isMentioned) {
+        debugLog()?.log("channel", `${agentId}/#${channelName}: 主持人跳过 triage（未被 @），等待 onAllReplied`);
         return { replied: false };
       }
 
-      // 写入频道文件（用 agentName 作为 sender，而非 agentId，让消息更可读）
       const channelFile = path.join(engine.channelsDir, `${channelName}.md`);
-      appendMessage(channelFile, agentName, replyText);
+      let channelMessages = [];
+      let lastMsgIsUser = false;
+      try {
+        const parsed = parseChannel(fs.readFileSync(channelFile, "utf-8"));
+        channelMessages = parsed.messages || [];
+        const lastMessage = channelMessages[channelMessages.length - 1] || null;
+        if (lastMessage) {
+          let senderIsAgent = false;
+          if (engine.agents) {
+            for (const [id, ag] of engine.agents) {
+              const name = ag?.config?.agent?.name || id;
+              if (lastMessage.sender === id || lastMessage.sender === name) {
+                senderIsAgent = true;
+                break;
+              }
+            }
+          }
+          lastMsgIsUser = !senderIsAgent;
+        }
+      } catch {}
 
-      console.log(`\x1b[90m[channel] ${agentName}(${agentId}) replied #${channelName} (${replyText.length} chars)\x1b[0m`);
-      debugLog()?.log("channel", `${agentName}(${agentId}) replied #${channelName} (${replyText.length} chars)`);
+      const triggerSender = typeof triggerMessage?.sender === "string" ? triggerMessage.sender.trim() : "";
+      const triggerTimestamp = triggerMessage?.timestamp || "";
+      const triggeredByImmediateTurn = !!triggerTimestamp;
+      const triggerIsSelf = triggerSender === agentId || triggerSender === agentName;
+      const alreadyRepliedToTrigger = triggeredByImmediateTurn
+        && channelMessages.some((message) =>
+          message.timestamp > triggerTimestamp
+          && (message.sender === agentId || message.sender === agentName)
+        );
 
-      // WS 广播
-      this._hub.eventBus.emit({ type: "channel_new_message", channelName, sender: agentId }, null);
+      if (triggerIsSelf || alreadyRepliedToTrigger) {
+        return { replied: false };
+      }
 
-      return { replied: true, replyContent: replyText };
+      // ── Step 1: Triage ──
+      let shouldReply = isMentioned;
+
+      if (!shouldReply && !lastMsgIsUser && !triggeredByImmediateTurn) {
+        return { replied: false };
+      }
+
+      if (!shouldReply) {
+        try {
+          const utilCfg = engine.resolveUtilityConfig() || {};
+          const {
+            utility_large: model,
+            large_api_key: api_key,
+            large_base_url: base_url,
+            large_api: api,
+            utility_large_allow_missing_api_key = false,
+          } = utilCfg;
+          if ((api_key || utility_large_allow_missing_api_key) && base_url && api) {
+            const triageSystem = agentContext + memoryContext + userContext
+              + "\n\n---\n\n"
+              + (isZh
+                ? "你在一个群聊频道里。阅读以下最近的消息，判断你是否要回复。\n"
+                  + "回答 YES 的情况：有人跟你说话、@你、问了你能回答的问题、或者你有想说的话。\n"
+                  + "回答 NO 的情况：别人已经充分回答了问题（你没有新的补充）、话题跟你无关、你插不上话、或者你刚回复过且没人追问你。\n"
+                  + "只回答 YES 或 NO。"
+                : "You are in a group chat channel. Read the recent messages below and decide whether you should reply.\n"
+                  + "Answer YES if: someone is talking to you, @-mentions you, asks a question you can answer, or you have something to say.\n"
+                  + "Answer NO if: the question has already been adequately answered (you have nothing new to add), the topic is irrelevant to you, you can't contribute, or you just replied and no one followed up.\n"
+                  + "Answer only YES or NO.");
+
+            const triageTimeout = AbortSignal.timeout(10_000);
+            const triageSignal = signal
+              ? AbortSignal.any([signal, triageTimeout])
+              : triageTimeout;
+            const answer = await callText({
+              api, model,
+              apiKey: api_key,
+              baseUrl: base_url,
+              systemPrompt: triageSystem,
+              messages: [{ role: "user", content: isZh ? `#${channelName} 频道最近消息：\n${msgText}` : `#${channelName} recent messages:\n${msgText}` }],
+              temperature: 0,
+              maxTokens: 10,
+              timeoutMs: 10_000,
+              signal: triageSignal,
+            });
+            shouldReply = answer.trim().toUpperCase().includes("YES");
+          } else {
+            shouldReply = true;
+          }
+        } catch (err) {
+          console.warn(`[channel] triage 不可用，默认回复 (${agentId}/#${channelName}): ${err.message}`);
+          shouldReply = true;
+        }
+      }
+
+      console.log(`\x1b[90m[channel] triage ${agentId}/#${channelName}: ${shouldReply ? "YES" : "NO"}${isMentioned ? " (@)" : ""}\x1b[0m`);
+      debugLog()?.log("channel", `triage ${agentId}/#${channelName}: ${shouldReply ? "YES" : "NO"}${isMentioned ? " (mentioned)" : ""} (${newMessages.length} msgs)`);
+
+      if (!shouldReply) {
+        return { replied: false };
+      }
+
+      try {
+        const replyText = await this._executeReply(agentId, channelName, msgText, { signal });
+        if (!replyText) {
+          console.log(`\x1b[90m[channel] ${agentId} 回复为空 (#${channelName})\x1b[0m`);
+          return { replied: false };
+        }
+        return this._commitChannelReply(channelName, agentId, agentName, replyText);
+      } catch (err) {
+        console.error(`[channel] 回复失败 (${agentId}/#${channelName}): ${err.message}`);
+        debugLog()?.error("channel", `回复失败 (${agentId}/#${channelName}): ${err.message}`);
+        const fallback = await this._executeDirectReply(agentId, channelName, msgText, { signal });
+        if (fallback.replyText) {
+          debugLog()?.warn("channel", `使用轻量兜底回复 (${agentId}/#${channelName})`);
+          return this._commitChannelReply(channelName, agentId, fallback.agentName, fallback.replyText);
+        }
+        return { replied: false };
+      }
     } catch (err) {
-      console.error(`[channel] 回复失败 (${agentId}/#${channelName}): ${err.message}`);
-      console.error(err.stack || err);
-      debugLog()?.error("channel", `回复失败 (${agentId}/#${channelName}): ${err.message}`);
+      console.error(`[channel] 检查失败 (${agentId}/#${channelName}): ${err.message}`);
+      debugLog()?.error("channel", `检查失败 (${agentId}/#${channelName}): ${err.message}`);
+      try {
+        const fallback = await this._executeDirectReply(agentId, channelName, msgText, { signal });
+        if (fallback.replyText) {
+          debugLog()?.warn("channel", `使用检查阶段兜底回复 (${agentId}/#${channelName})`);
+          return this._commitChannelReply(channelName, agentId, fallback.agentName, fallback.replyText);
+        }
+      } catch (fallbackErr) {
+        debugLog()?.error("channel", `兜底回复失败 (${agentId}/#${channelName}): ${fallbackErr.message}`);
+      }
       return { replied: false };
     }
   }

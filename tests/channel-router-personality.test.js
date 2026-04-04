@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ChannelRouter } from "../hub/channel-router.js";
 
 vi.mock("../lib/debug-log.js", () => ({
-  debugLog: () => ({ log: vi.fn(), error: vi.fn() }),
+  debugLog: () => ({ log: vi.fn(), warn: vi.fn(), error: vi.fn() }),
   createModuleLogger: () => ({
     log: vi.fn(),
     warn: vi.fn(),
@@ -234,5 +234,70 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     expect(router._executeReply).toHaveBeenCalledOnce();
     expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Beta", "Beta 来补充一下。");
     expect(result).toEqual({ replied: true, replyContent: "Beta 来补充一下。" });
+  });
+
+  it("主回复链路失败时，会回退到轻量直连回复继续发言", async () => {
+    const { callText } = await import("../core/llm-client.js");
+    const { appendMessage } = await import("../lib/channels/channel-store.js");
+    callText.mockResolvedValueOnce("我来补一句。");
+    appendMessage.mockClear();
+
+    const mockAgent = {
+      config: {
+        agent: { name: "Hanako", yuan: "hanako" },
+        api: { provider: "minimax" },
+        models: { chat: "MiniMax-M2.7-highspeed" },
+      },
+      personality: "Hanako personality",
+    };
+
+    const router = new ChannelRouter({
+      hub: {
+        engine: {
+          currentAgentId: "lynn",
+          agentsDir: "/fake/agents",
+          channelsDir: "/fake/channels",
+          productDir: "/fake/product",
+          userDir: "/fake/user",
+          currentModel: null,
+          agents: new Map([["hanako", mockAgent]]),
+          providerRegistry: { get: vi.fn(() => ({ authType: "api-key" })) },
+          resolveProviderCredentials: vi.fn(() => ({
+            api_key: "test-key",
+            base_url: "https://test.api",
+            api: "openai-completions",
+          })),
+          resolveUtilityConfig: () => ({
+            utility: "test-model",
+            utility_large: "test-model-large",
+            api_key: "test-key",
+            base_url: "https://test.api",
+            api: "openai-completions",
+            large_api_key: "test-key",
+            large_base_url: "https://test.api",
+            large_api: "openai-completions",
+          }),
+          _models: {
+            resolveModelWithCredentials: vi.fn(() => {
+              throw new Error("no cached model registry");
+            }),
+          },
+        },
+        eventBus: { emit: vi.fn() },
+      },
+    });
+
+    router._executeReply = vi.fn().mockRejectedValue(new Error("error.agentExecNotInit"));
+
+    const result = await router._executeCheck(
+      "hanako",
+      "general",
+      [{ sender: "user", text: "@Hanako 你在吗？" }],
+      [],
+    );
+
+    expect(router._executeReply).toHaveBeenCalledOnce();
+    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Hanako", "我来补一句。");
+    expect(result).toEqual({ replied: true, replyContent: "我来补一句。" });
   });
 });

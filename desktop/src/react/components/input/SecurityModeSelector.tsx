@@ -60,9 +60,18 @@ export function SecurityModeSelector() {
       .catch(() => {});
   }, [setSecurityMode]);
 
+  // mode value → i18n labelKey 映射（处理 full-access 等含连字符的 key）
+  const modeLabelKey = useCallback((mode: string) => {
+    const entry = MODES.find(m => m.value === mode);
+    return entry ? entry.labelKey : `security.mode.${mode}`;
+  }, []);
+
   const handleSelect = useCallback(async (mode: SecurityMode) => {
     setOpen(false);
     if (mode === securityMode) return;
+    // 先移除之前的模式切换 toast，避免重叠
+    const prevToasts = useStore.getState().toasts.filter(t => t.dedupeKey === 'security-mode-switch');
+    prevToasts.forEach(t => useStore.getState().removeToast(t.id));
     try {
       const res = await hanaFetch('/api/security-mode', {
         method: 'POST',
@@ -72,14 +81,14 @@ export function SecurityModeSelector() {
       const data = await res.json();
       if (data.mode) {
         setSecurityMode(data.mode);
-        addToast(t(`security.mode.${data.mode}`), 'success');
+        addToast(t(modeLabelKey(data.mode)), 'success', 3000, { dedupeKey: 'security-mode-switch' });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       addToast(`${t('settings.saveFailed') || 'Operation failed'}: ${msg}`, 'error');
       console.error('[security-mode] switch failed:', err);
     }
-  }, [addToast, securityMode, setSecurityMode, t]);
+  }, [addToast, modeLabelKey, securityMode, setSecurityMode, t]);
 
   const current = MODES.find(m => m.value === securityMode) || MODES[0];
 

@@ -193,6 +193,9 @@
     "checkboxTip": "可以勾选待办项",
     "deskDrop": "拖拽文件到书桌 · ⌘J"
   },
+  "chat": {
+    "thinking": "正在思考..."
+  },
   "review": {
     "button": "复查",
     "cardTitle": "复查",

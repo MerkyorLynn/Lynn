@@ -30,7 +30,11 @@ export async function withRetry(fn, opts = {}) {
 
       if (signal?.aborted) throw appErr;
 
-      const delay = Math.min(maxDelayMs, randomBetween(baseDelayMs, prevDelay * 3));
+      // 优先使用 429 Retry-After 精确等待时间
+      const retryAfterMs = appErr._retryAfterMs || appErr.context?.retryAfterMs;
+      const delay = retryAfterMs > 0
+        ? Math.min(maxDelayMs, retryAfterMs)
+        : Math.min(maxDelayMs, randomBetween(baseDelayMs, prevDelay * 3));
       prevDelay = delay;
       await sleep(delay, signal);
     }

@@ -31,7 +31,7 @@ import {
   readClientAgentKeyFromPreferencesFile,
   readSignedClientAgentHeaders,
 } from "./client-agent-identity.js";
-import { resolveCompactionSettings } from "./compaction-settings.js";
+import { resolveCompactionSettings, resolveModelContextWindow } from "./compaction-settings.js";
 import { formatProjectInstructions } from "../lib/project-instructions.js";
 
 const log = createModuleLogger("session");
@@ -219,10 +219,20 @@ export class SessionCoordinator {
           } catch { /* non-fatal */ }
 
           // Context importance: guide compaction to preserve critical information
-          const importancePrompt = isZh
-            ? "【上下文保留策略】当对话很长时，系统会自动压缩旧消息。为确保关键信息不丢失：在输出重要决策、计划步骤、验证结论或用户明确要求记住的内容时，请用简洁的要点重申核心结论，这样即使旧消息被压缩，关键信息也会在最近的消息中保留。"
-            : "[Context Retention] When conversations are long, the system auto-compacts old messages. To ensure critical info survives: when outputting important decisions, plan steps, verification conclusions, or things the user explicitly asked to remember, briefly restate the core conclusions so they remain in recent messages even after compaction.";
-          extras.push(importancePrompt);
+          // 小模型精简版：只保留核心指令，省略详细说明
+          const modelCw = resolveModelContextWindow(sessionEntry.session?.model);
+          const isSmallModel = modelCw && modelCw < 32_000;
+          if (isSmallModel) {
+            const compactPrompt = isZh
+              ? "【重要】回复末尾用 <!-- KEY: 结论 --> 标注本轮关键结论，压缩时优先保留。回复控制在 500 字以内。"
+              : "[IMPORTANT] End replies with <!-- KEY: conclusion --> to mark key conclusions for retention. Keep replies under 500 words.";
+            extras.push(compactPrompt);
+          } else {
+            const importancePrompt = isZh
+              ? "【上下文保留策略】当对话很长时，系统会自动压缩旧消息。为确保关键信息不丢失：在输出重要决策、计划步骤、验证结论或用户明确要求记住的内容时，请用简洁的要点重申核心结论，这样即使旧消息被压缩，关键信息也会在最近的消息中保留。"
+              : "[Context Retention] When conversations are long, the system auto-compacts old messages. To ensure critical info survives: when outputting important decisions, plan steps, verification conclusions, or things the user explicitly asked to remember, briefly restate the core conclusions so they remain in recent messages even after compaction.";
+            extras.push(importancePrompt);
+          }
 
           return extras;
         },
@@ -1121,9 +1131,17 @@ export class SessionCoordinator {
 
   _resolveSessionRelayConfig() {
     const raw = this._d.getPrefs?.().getSessionRelay?.() || {};
+    // 动态 relay 阈值：小窗口模型更早触发接力
+    let defaultThreshold = DEFAULT_SESSION_RELAY.compactionThreshold;
+    try {
+      const model = this._session?.model;
+      const cw = resolveModelContextWindow(model);
+      if (cw && cw < 16_000) defaultThreshold = 1;
+      else if (cw && cw < 32_000) defaultThreshold = 2;
+    } catch {}
     return {
       enabled: raw.enabled !== false,
-      compactionThreshold: Number(raw.compaction_threshold) > 0 ? Number(raw.compaction_threshold) : DEFAULT_SESSION_RELAY.compactionThreshold,
+      compactionThreshold: Number(raw.compaction_threshold) > 0 ? Number(raw.compaction_threshold) : defaultThreshold,
       summaryMaxTokens: Number(raw.summary_max_tokens) > 0 ? Number(raw.summary_max_tokens) : DEFAULT_SESSION_RELAY.summaryMaxTokens,
     };
   }

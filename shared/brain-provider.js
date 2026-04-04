@@ -1,5 +1,5 @@
 export const BRAIN_PROVIDER_ID = "brain";
-export const BRAIN_PROVIDER_LABEL = "Brain";
+export const BRAIN_PROVIDER_LABEL = "默认模型";
 
 function normalizeApiRoot(rawValue, fallbackValue) {
   const normalized = String(rawValue || "").trim().replace(/\/+$/, "");

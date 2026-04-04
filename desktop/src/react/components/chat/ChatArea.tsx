@@ -176,7 +176,12 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
           item.type === 'message' && item.data.role === 'assistant' && item.data.id?.startsWith('stream-') && (item.data.blocks?.length ?? 0) > 0
         ) && (
           <div className={styles.typingIndicator}>
-            <span className={styles.typingBar} />
+            <span className={styles.typingDots}>
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+              <span className={styles.typingDot} />
+            </span>
+            <span className={styles.typingLabel}>{t('chat.thinking')}</span>
           </div>
         )}
         <div className={styles.sessionFooter} />

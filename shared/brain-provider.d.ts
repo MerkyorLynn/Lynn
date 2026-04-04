@@ -1,5 +1,5 @@
 export const BRAIN_PROVIDER_ID: "brain";
-export const BRAIN_PROVIDER_LABEL: "Brain";
+export const BRAIN_PROVIDER_LABEL: "默认模型";
 export const BRAIN_API_ROOT: string;
 export const BRAIN_LEGACY_API_ROOT: string;
 export const BRAIN_PROVIDER_BASE_URL: string;

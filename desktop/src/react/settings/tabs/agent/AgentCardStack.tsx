@@ -11,7 +11,7 @@ interface ContextMenu {
   agentId: string;
 }
 
-export function AgentCardStack({ agents, selectedId, currentAgentId, previewSelectedAgent, onSelect, onAvatarClick, onSetActive, onDelete, onAdd }: {
+export function AgentCardStack({ agents, selectedId, currentAgentId, previewSelectedAgent, onSelect, onAvatarClick, onSetActive, onDelete }: {
   agents: Agent[];
   selectedId: string | null;
   currentAgentId: string | null;
@@ -20,15 +20,13 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
   onAvatarClick: () => void;
   onSetActive: (id: string) => void;
   onDelete: (id: string) => void;
-  onAdd: () => void;
 }) {
   const cardsRef = useRef<HTMLDivElement>(null);
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
 
-  // 总卡片数 = agents + 1 (add 按钮)
-  const total = agents.length + 1;
+  const total = agents.length;
   const n = total;
   const stepTight = n > 1 ? Math.min(2.5, 10 / (n - 1)) : 0;
   const spreadStep = 72;
@@ -45,7 +43,7 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
     return () => document.removeEventListener('mousedown', handler);
   }, [contextMenu, closeMenu]);
 
-  // 拖拽排序（只对 agent 卡片，排除最后的 add 按钮）
+  // 拖拽排序（只对 agent 卡片）
   useEffect(() => {
     const container = cardsRef.current;
     if (!container) return;
@@ -53,10 +51,7 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
     const handlers: Array<[HTMLElement, (e: PointerEvent) => void]> = [];
 
     const cards = [...container.children] as HTMLElement[];
-    // 只给 agent 卡片（非 add 按钮）绑定拖拽
     cards.forEach((card, dragIdx) => {
-      if (card.dataset.addBtn) return;
-
       const handler = (e: PointerEvent) => {
         if (e.button !== 0) return;
         if (!container.matches(':hover')) return;
@@ -96,7 +91,7 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
           }
 
           allCards.forEach((c, ci) => {
-            if (c === card || c.dataset.addBtn) return;
+            if (c === card) return;
             if (ci >= Math.min(dragIdx, newIdx) && ci <= Math.max(dragIdx, newIdx) && newIdx !== dragIdx) {
               const shift = dragIdx < newIdx ? -spreadStep : spreadStep;
               c.style.transform = `rotate(0deg) translateX(${positions[ci] + shift}px)`;
@@ -219,24 +214,6 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
             </div>
           );
         })}
-        {/* "+" 新建卡片 */}
-        <div
-          data-add-btn="1"
-          className={styles['agent-card']}
-          style={{
-            '--rot-tight': `${agents.length * stepTight}deg`,
-            '--tx-spread': `${spreadOffset + agents.length * spreadStep}px`,
-            '--z': 0,
-            zIndex: 0,
-          } as React.CSSProperties}
-          onClick={onAdd}
-        >
-          <div className={`${styles['agent-card-inner']} ${styles['agent-card-add']}`}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </div>
-        </div>
       </div>
 
       {/* 右键菜单 */}
