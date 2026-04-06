@@ -73,25 +73,44 @@ Linux 版本计划中。
 
 ### 首次运行
 
-首次启动时，引导向导会带你完成配置：选择语言、输入你的名字、连接模型提供商（API key + base URL），并选择三个模型：**对话模型**（主对话）、**小工具模型**（摘要等轻量任务）、**大工具模型**（记忆编译和深度分析）。Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型等）。
-目前也添加了 OpenAI 和 Minimax 的 OAuth 登录，鉴于 Anthropic 会有封号风险，所以暂时不提供。
+首次启动有两条路径：
+
+- **Quick Start**：输入名字 → 设置权限 → 直接进入。内置默认模型开箱即用，无需填写 API Key。
+- **Advanced Setup**：输入名字 → 连接自己的供应商（API Key + Base URL）→ 选择**对话模型**和**工具模型** → 选择主题 → 设置权限 → 进入。
+
+Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型、硅基流动等）。部分供应商（如 MiniMax）也支持 OAuth 登录。所有模型配置后续都可以在设置中调整。
 
 ## 架构
 
 ```
-core/           引擎编排层 + Manager
-lib/            核心库（记忆、工具、沙盒、Bridge 适配器）
-server/         Hono HTTP + WebSocket 服务（独立 Node.js 进程）
-hub/            调度器、频道路由、事件总线
+core/           引擎层（HanaEngine Thin Facade + 8 个 Manager + 2 个 Coordinator）
+lib/            核心库
+  ├── memory/     记忆系统（事实存储、向量检索、深层记忆、技能提炼）
+  ├── tools/      工具集（浏览器、搜索、Cron、委派、技能安装等 17 个工具）
+  ├── sandbox/    双层沙盒（PathGuard + macOS Seatbelt / Linux Bubblewrap）
+  ├── bridge/     社交平台适配器（Telegram、飞书、QQ、微信）
+  ├── desk/       书桌系统（心跳巡检、Cron 调度、笺运行时）
+  └── ...         LLM 客户端、OAuth、频道存储、专家系统等
+shared/         跨层共享（错误总线、配置 schema、安全模式、网络工具）
+server/         Hono HTTP + WebSocket 服务（24 个路由，独立 Node.js 进程）
+hub/            后台调度中枢
+  ├── event-bus.js       统一事件总线
+  ├── scheduler.js       心跳 + Cron 调度
+  ├── channel-router.js  频道 triage + 调度
+  ├── agent-messenger.js Agent 间私聊
+  ├── dm-router.js       私信路由
+  └── task-runtime.js    任务运行时
 desktop/        Electron 应用 + React 前端
-tests/          Vitest 测试
 skills2set/     内置技能定义
 scripts/        构建工具（server 打包、启动器、签名）
+tests/          Vitest 测试
 ```
 
-引擎层协调多个 Manager（Agent、Session、Model、Preferences、Skill、Channel、BridgeSession 等），通过统一的 facade 暴露。Hub 负责后台任务（心跳巡检、定时任务、频道路由、Agent 间通信、DM 路由），独立于当前聊天会话运行。
+**引擎层**：`HanaEngine` 是一个 Thin Facade，持有 AgentManager、SessionCoordinator、ConfigCoordinator、ModelManager、PreferencesManager、SkillManager、ChannelManager、BridgeSessionManager、ExpertManager、PluginManager，对外暴露统一 API。
 
-Server 以独立 Node.js 进程运行（由 Electron spawn 或独立启动），通过 Vite 打包，@vercel/nft 追踪依赖。与 Electron 渲染进程通过 WebSocket 通信。
+**Hub**：独立于当前聊天会话运行，负责心跳巡检、定时任务（per-agent 并发 Cron）、频道路由、Agent 间通信（含防无限循环的硬上限 + 冷却期）、DM 路由。
+
+**Server**：以独立 Node.js 进程运行（由 Electron spawn 或独立启动），通过 Vite 打包，@vercel/nft 追踪依赖，与前端通过 WebSocket 全双工通信。
 
 ## 技术栈
 
@@ -100,7 +119,7 @@ Server 以独立 Node.js 进程运行（由 Electron spawn 或独立启动），
 | 桌面端 | Electron 38 |
 | 前端 | React 19 + Zustand 5 + CSS Modules |
 | 构建 | Vite 7 |
-| 服务端 | Hono + @hono/node-server |
+| 服务端 | Hono + @hono/node-server + @hono/node-ws |
 | Agent 运行时 | [Pi SDK](https://github.com/nicepkg/pi) |
 | 数据库 | better-sqlite3（WAL 模式） |
 | 测试 | Vitest |

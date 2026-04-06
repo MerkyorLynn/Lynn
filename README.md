@@ -68,24 +68,44 @@ Linux builds are planned.
 
 ### First Run
 
-On first launch, an onboarding wizard will guide you through setup: choose a language, enter your name, connect a model provider (API key + base URL), and select three models — a **chat model** (main conversation), a **utility model** (lightweight tasks like summarization), and a **utility large model** (memory compilation and deep analysis). Lynn uses the OpenAI-compatible protocol, so any provider that supports it will work (OpenAI, DeepSeek, Qwen, local models via Ollama, etc.).
+Two paths on first launch:
+
+- **Quick Start**: Enter your name → set permissions → jump right in. A built-in default model works out of the box — no API key required.
+- **Advanced Setup**: Enter your name → connect your own provider (API key + base URL) → choose a **chat model** and a **utility model** → pick a theme → set permissions → enter.
+
+Lynn uses the OpenAI-compatible protocol, so any provider that supports it will work (OpenAI, DeepSeek, Qwen, local models via Ollama, SiliconFlow, etc.). Some providers (e.g. MiniMax) also support OAuth login. All model settings can be adjusted later in Settings.
 
 ## Architecture
 
 ```
-core/           Engine orchestration + Managers
-lib/            Core libraries (memory, tools, sandbox, bridge adapters)
-server/         Hono HTTP + WebSocket server (standalone Node.js process)
-hub/            Scheduler, ChannelRouter, EventBus
+core/           Engine layer (HanaEngine Thin Facade + 8 Managers + 2 Coordinators)
+lib/            Core libraries
+  ├── memory/     Memory system (fact store, vector retrieval, deep memory, skill distillation)
+  ├── tools/      Tool suite (browser, search, cron, delegate, skill install — 17 tools)
+  ├── sandbox/    Two-layer sandbox (PathGuard + macOS Seatbelt / Linux Bubblewrap)
+  ├── bridge/     Social platform adapters (Telegram, Feishu, QQ, WeChat)
+  ├── desk/       Desk system (heartbeat patrol, cron scheduler, jian runtime)
+  └── ...         LLM client, OAuth, channel storage, expert system, etc.
+shared/         Cross-layer shared code (error bus, config schema, security mode, net utils)
+server/         Hono HTTP + WebSocket server (24 routes, standalone Node.js process)
+hub/            Background dispatch center
+  ├── event-bus.js       Unified event bus
+  ├── scheduler.js       Heartbeat + Cron scheduling
+  ├── channel-router.js  Channel triage + dispatch
+  ├── agent-messenger.js Agent-to-agent messaging
+  ├── dm-router.js       DM routing
+  └── task-runtime.js    Task runtime
 desktop/        Electron app + React frontend
-tests/          Vitest test suite
 skills2set/     Built-in skill definitions
 scripts/        Build tools (server bundler, launcher, signing)
+tests/          Vitest test suite
 ```
 
-The engine layer coordinates multiple managers (Agent, Session, Model, Preferences, Skill, Channel, BridgeSession, etc.) and exposes them through a unified facade. The Hub handles background tasks (heartbeat, cron, channel routing, agent messaging, DM routing) independently of the active chat session.
+**Engine layer**: `HanaEngine` is a Thin Facade holding AgentManager, SessionCoordinator, ConfigCoordinator, ModelManager, PreferencesManager, SkillManager, ChannelManager, BridgeSessionManager, ExpertManager, and PluginManager — exposing a unified API.
 
-The server runs as a standalone Node.js process (spawned by Electron or independently), bundled via Vite with @vercel/nft for dependency tracing. It communicates with the Electron renderer through WebSocket.
+**Hub**: Runs independently of the active chat session. Handles heartbeat patrol, scheduled tasks (per-agent concurrent cron), channel routing, agent-to-agent communication (with hard round limits + cooldown to prevent infinite loops), and DM routing.
+
+**Server**: Runs as a standalone Node.js process (spawned by Electron or independently), bundled via Vite with @vercel/nft for dependency tracing. Communicates with the frontend through full-duplex WebSocket.
 
 ## Tech Stack
 
@@ -94,7 +114,7 @@ The server runs as a standalone Node.js process (spawned by Electron or independ
 | Desktop | Electron 38 |
 | Frontend | React 19 + Zustand 5 + CSS Modules |
 | Build | Vite 7 |
-| Server | Hono + @hono/node-server |
+| Server | Hono + @hono/node-server + @hono/node-ws |
 | Agent Runtime | [Pi SDK](https://github.com/nicepkg/pi) |
 | Database | better-sqlite3 (WAL mode) |
 | Testing | Vitest |
