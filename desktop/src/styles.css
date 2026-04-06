@@ -46,6 +46,40 @@ li.task-list-item input[type="checkbox"] {
     cursor: pointer;
 }
 
+/* ── 全局交互反馈：统一 transition + hover 微动效 ── */
+button:not(:disabled),
+[role="button"],
+a {
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease,
+                transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:not(:disabled):active,
+[role="button"]:active {
+    transform: scale(0.97);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
+    border-color: rgba(var(--accent-rgb), 0.42);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* ========================================
    基础重置
    ======================================== */
@@ -121,24 +155,79 @@ body {
     justify-content: center;
     width: 28px;
     height: 28px;
-    border: none;
+    border: 1px solid rgba(var(--accent-rgb), 0.08);
     border-radius: var(--radius-sm);
-    background: transparent;
+    background: rgba(var(--accent-rgb), 0.04);
     color: var(--text-light, #888);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s, opacity 0.2s;
+    transition: background 0.15s, color 0.15s, opacity 0.2s, transform 0.12s ease, border-color 0.15s, box-shadow 0.15s;
     opacity: 0.8;
 }
 
 .tb-toggle:hover {
-    background: var(--overlay-light);
-    color: var(--text, #333);
+    background: var(--accent-light);
+    color: var(--accent);
     opacity: 1;
+    transform: scale(1.1);
+    border-color: rgba(var(--accent-rgb), 0.2);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .tb-toggle.active {
     opacity: 1;
-    color: var(--text, #333);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.18);
+}
+
+/* 笺面板按钮 badge */
+.tb-toggle-badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 4px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    pointer-events: none;
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-rgb), 0.14);
+}
+
+.tb-toggle-badge.has-content::after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--green, #4ecdc4);
+}
+
+.tb-toggle-badge.has-content {
+    color: transparent;
+    min-width: 12px;
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    background: rgba(76, 205, 196, 0.12);
+    border-color: rgba(76, 205, 196, 0.18);
+}
+
+.tb-toggle-badge.has-count {
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.24);
+}
+
+.tb-toggle-right {
+    position: relative;
 }
 
 /* macOS 红绿灯避让：左按钮留出空间 */
@@ -150,16 +239,216 @@ body {
     margin-right: 4px;
 }
 
+.tb-task-chip {
+    pointer-events: auto;
+    -webkit-app-region: no-drag;
+    position: relative;
+    margin: 0;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: min(32vw, 360px);
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--overlay-light);
+    background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s ease;
+}
+
+.tb-task-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* 扁平胶囊：单行紧凑模式 */
+.tb-task-chip-flat {
+    gap: 5px;
+    padding: 3px 11px;
+    max-width: min(24vw, 240px);
+    min-height: 28px;
+}
+
+.tb-task-chip-flat .tb-task-chip-dot {
+    width: 6px;
+    height: 6px;
+}
+
+.tb-task-chip-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tb-chip-row {
+    margin-left: auto;
+    margin-right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+.tb-task-chip.active {
+    border-color: rgba(var(--accent-rgb), 0.22);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+}
+
+.tb-task-chip.running {
+    border-color: rgba(76, 175, 80, 0.18);
+}
+
+.tb-task-chip.waiting {
+    border-color: rgba(226, 157, 47, 0.22);
+}
+
+.tb-task-chip.pending {
+    border-color: rgba(var(--accent-rgb), 0.16);
+}
+
+.tb-task-chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tb-task-chip-dot.running {
+    background: #4caf50;
+    box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.12);
+}
+
+.tb-task-chip-dot.waiting {
+    background: #e29d2f;
+    box-shadow: 0 0 0 4px rgba(226, 157, 47, 0.14);
+}
+
+.tb-task-chip-dot.pending {
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.12);
+}
+
+.tb-task-chip-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-align: left;
+}
+
+.tb-task-chip-summary {
+    font-size: 0.73rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tb-diff-chip-add {
+    color: #2f9f5c;
+    margin-right: 8px;
+}
+
+.tb-diff-chip-remove {
+    color: #d46a5d;
+}
+
+.tb-task-chip-meta {
+    font-size: 0.62rem;
+    line-height: 1.2;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tb-task-chip-tooltip {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-2px);
+    opacity: 0;
+    pointer-events: none;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-card) 96%, black 4%);
+    border: 1px solid var(--overlay-light);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    color: var(--text);
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 180;
+}
+
+.tb-task-chip:hover .tb-task-chip-tooltip,
+.tb-task-chip:focus-visible .tb-task-chip-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 .tb-title {
     pointer-events: none;
     -webkit-app-region: drag;
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.98rem;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(58vw, 640px);
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+    border: 1px solid var(--overlay-light);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     color: var(--text);
     letter-spacing: 0.02em;
+}
+
+.tb-title-primary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.96rem;
+    font-weight: 600;
+}
+
+.tb-working-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green, #7BAE7F);
+    flex-shrink: 0;
+    animation: tbWorkingPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes tbWorkingPulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+.tb-title-secondary {
+    flex-shrink: 0;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding-left: 10px;
+    border-left: 1px solid var(--overlay-light);
 }
 
 /* Windows/Linux：左侧不让位，右侧让位给 window controls */
@@ -170,6 +459,10 @@ html[data-platform="linux"] .tb-toggle-left {
 html[data-platform="win32"] .tb-toggle-right,
 html[data-platform="linux"] .tb-toggle-right {
     margin-right: 140px;
+}
+html[data-platform="win32"] .tb-task-chip,
+html[data-platform="linux"] .tb-task-chip {
+    margin-right: 148px;
 }
 
 /* 次级窗口透明标题栏：仅作为 window-controls 宿主，不遮挡内容 */
@@ -515,26 +808,49 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-action-btn:hover {
     color: var(--accent);
     background: var(--accent-light);
+    transform: scale(1.08);
 }
 
-/* Settings button — larger & more prominent */
-.sidebar-action-btn#settingsBtn {
-    width: 32px;
-    height: 32px;
+/* Settings button — Codex 风格：齿轮 + "设置" 文字，左下角贴边 */
+.sidebar-settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+    -webkit-app-region: no-drag;
     position: relative;
 }
 
-.sidebar-action-btn#settingsBtn svg {
-    width: 18px;
-    height: 18px;
+.sidebar-settings-btn:hover {
+    color: var(--accent);
+    background: var(--accent-light);
 }
 
+.sidebar-settings-btn svg {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.sidebar-settings-btn:hover svg {
+    opacity: 1;
+}
+
+
 /* Pulse animation for first-time guidance */
-.sidebar-settings-pulse {
+.sidebar-settings-btn.sidebar-settings-pulse {
     animation: settingsPulseRing 2s ease-out infinite;
 }
 
-.sidebar-settings-pulse::after {
+.sidebar-settings-btn.sidebar-settings-pulse::after {
     content: '';
     position: absolute;
     inset: -3px;
@@ -579,6 +895,7 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-activity-bar:hover {
     background: var(--accent-light);
     color: var(--accent);
+    transform: translateX(2px);
 }
 
 .sidebar-activity-bar svg {
@@ -632,7 +949,7 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-capability-bar {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     width: calc(100% - var(--space-sm) * 2);
     margin: 2px var(--space-sm) 8px;
     padding: 10px 12px;
@@ -648,12 +965,46 @@ html[data-platform="linux"] .tb-toggle-right {
     font-weight: 700;
     color: var(--text);
     letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sidebar-capability-expand-arrow {
+    font-size: 0.6rem;
+    opacity: 0.4;
+    transition: transform 0.2s var(--ease-out);
+    display: inline-block;
+}
+
+.sidebar-capability-expand-arrow.expanded {
+    transform: rotate(180deg);
 }
 
 .sidebar-capability-summary {
     font-size: 0.72rem;
     line-height: 1.55;
     color: var(--text-secondary);
+}
+
+.sidebar-capability-state {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(var(--accent-rgb), 0.06);
+}
+
+.sidebar-capability-state-line {
+    font-size: 0.69rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.sidebar-capability-state-label {
+    color: var(--text-muted);
+    margin-right: 6px;
 }
 
 .sidebar-capability-chips {
@@ -675,6 +1026,62 @@ html[data-platform="linux"] .tb-toggle-right {
     letter-spacing: 0.02em;
 }
 
+.sidebar-capability-chip-button {
+    font-family: inherit;
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+}
+
+.sidebar-capability-chip-button:hover {
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    transform: scale(1.05);
+}
+
+.sidebar-capability-chip-button:focus-visible {
+    outline: 2px solid rgba(var(--accent-rgb), 0.35);
+    outline-offset: 2px;
+}
+
+/* 可点击的 chip（@ 引用文件 / 浏览工作区）— 和普通 chip 同排融合 */
+.sidebar-capability-chip-action {
+    cursor: pointer;
+    border: 1px solid rgba(var(--accent-rgb), 0.15);
+    background: rgba(var(--accent-rgb), 0.06);
+    transition: all 0.15s var(--ease-out);
+}
+
+.sidebar-capability-chip-action:hover {
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    transform: scale(1.05);
+}
+
+.sidebar-capability-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.sidebar-capability-action {
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    background: var(--bg-card);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.sidebar-capability-action:hover {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.2);
+    transform: translateY(-1px);
+}
+
 @keyframes globe-spin {
     0% { transform: rotateY(0deg); }
     100% { transform: rotateY(360deg); }
@@ -688,9 +1095,8 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-footer-icons {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 8px var(--space-sm);
+    justify-content: flex-start;
+    padding: 6px var(--space-sm);
     border-top: 1px solid var(--overlay-light);
     flex-shrink: 0;
 }
@@ -720,6 +1126,7 @@ html[data-platform="linux"] .tb-toggle-right {
 .sidebar-footer-btn:hover {
     color: var(--accent);
     background: var(--accent-light);
+    transform: scale(1.08);
 }
 
 .sidebar-footer-btn .sidebar-bridge-dot {
@@ -1247,8 +1654,8 @@ html[data-platform="linux"] .tb-toggle-right {
 
 .bridge-owner-warning {
     font-size: 0.72rem;
-    color: #a04040;
-    text-align: center;
+    color: var(--text-muted);
+    text-align: left;
     margin: 0 0 var(--space-sm);
     line-height: 1.5;
 }
@@ -2189,12 +2596,14 @@ body.resizing .jian-sidebar-inner {
     font-size: 0.72rem;
     color: var(--text);
     cursor: pointer;
-    transition: background 0.1s;
+    transition: background 0.1s, transform 0.1s ease, padding-left 0.1s ease;
     white-space: nowrap;
 }
 
 .context-menu-item:hover {
-    background: var(--overlay-subtle);
+    background: var(--accent-light);
+    color: var(--accent);
+    padding-left: 14px;
 }
 
 .context-menu-item.danger {
@@ -2349,12 +2758,27 @@ body.resizing .jian-sidebar-inner {
 }
 
 .drop-icon {
-    font-size: 2rem;
+    font-size: 2.5rem;
 }
 
 .drop-text {
-    font-size: 0.88rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.drop-text-main {
+    font-size: 1rem;
+    font-weight: 600;
     letter-spacing: 0.03em;
+    color: var(--accent);
+}
+
+.drop-text-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    opacity: 0.8;
 }
 
 /* (文件标签样式已迁移到 InputArea.module.css) */
@@ -2780,6 +3204,19 @@ html[data-platform="linux"] .onboarding {
 }
 .onboarding-step.active {
     display: flex;
+}
+
+.onboarding-step-tutorial {
+    padding-bottom: 24px;
+}
+
+.onboarding-step-tutorial .onboarding-actions {
+    position: static;
+    margin-top: 8px;
+    padding-top: 8px;
+    padding-bottom: 0;
+    justify-content: center;
+    background: none;
 }
 
 @keyframes obFadeIn {
@@ -3347,7 +3784,9 @@ html[data-platform="linux"] .onboarding {
 }
 
 .onboarding-actions-finish {
-    justify-content: flex-end;
+    justify-content: center;
+    margin-top: 10px;
+    background: none;
 }
 
 /* ── Finish button ── */
@@ -3355,6 +3794,7 @@ html[data-platform="linux"] .onboarding {
     font-family: inherit;
     font-size: 0.92rem;
     padding: 0.6rem 2.5rem;
+    min-width: 220px;
     border-radius: var(--radius-md, 8px);
     border: none;
     background: var(--accent);

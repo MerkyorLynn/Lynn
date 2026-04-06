@@ -9,6 +9,7 @@ import { ModelStep } from './steps/ModelStep';
 import { ThemeStep } from './steps/ThemeStep';
 import { PermissionsStep } from './steps/PermissionsStep';
 import { TutorialStep } from './steps/TutorialStep';
+import { BRAIN_PROVIDER_ID } from '../../../../shared/brain-provider.js';
 
 interface OnboardingAppProps { preview: boolean; skipToTutorial: boolean }
 
@@ -16,6 +17,7 @@ type OnboardingTrack = 'quick' | 'advanced';
 
 const QUICK_START_STEPS = [0, 1, 5, 6] as const;
 const ADVANCED_SETUP_STEPS = [0, 1, 2, 3, 4, 5, 6] as const;
+const ADVANCED_DEFAULT_STEPS = [0, 1, 2, 4, 5, 6] as const;
 
 export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const [serverPort, setServerPort] = useState<string | null>(null);
@@ -101,9 +103,9 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const progressSteps = useMemo(() => {
     if (step === 0 && !track) return [] as number[];
     return track === 'advanced'
-      ? [...ADVANCED_SETUP_STEPS]
+      ? [...(providerName === BRAIN_PROVIDER_ID ? ADVANCED_DEFAULT_STEPS : ADVANCED_SETUP_STEPS)]
       : [...QUICK_START_STEPS];
-  }, [step, track]);
+  }, [providerName, step, track]);
 
   const progressIndex = progressSteps.indexOf(step);
 
@@ -155,7 +157,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
           track={track ?? 'advanced'}
         />
       )}
-      {step === 3 && (
+      {step === 3 && providerName !== BRAIN_PROVIDER_ID && (
         <ModelStep
           key={`step-3-${stepKey}`}
           preview={preview}
@@ -168,7 +170,13 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
           showError={showError}
         />
       )}
-      {step === 4 && <ThemeStep key={`step-4-${stepKey}`} goToStep={goToStep} />}
+      {step === 4 && (
+        <ThemeStep
+          key={`step-4-${stepKey}`}
+          goToStep={goToStep}
+          backStep={providerName === BRAIN_PROVIDER_ID ? 2 : 3}
+        />
+      )}
       {step === 5 && (
         <PermissionsStep
           key={`step-5-${stepKey}`}

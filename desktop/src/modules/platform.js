@@ -108,7 +108,7 @@
     closeSkillViewer: () => {},
 
     // Onboarding
-    onboardingComplete: async () => {},
+    onboardingComplete: async () => true,
     debugOpenOnboarding: async () => {},
     debugOpenOnboardingPreview: async () => {},
 

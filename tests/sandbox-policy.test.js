@@ -46,7 +46,7 @@ describe("sandbox policy", () => {
     expect(policy.writablePaths).toContain(path.join(lynnHome, "skills"));
   });
 
-  it("keeps sensitive lynnHome files blocked even though skills is writable", () => {
+  it("audits sensitive lynnHome files even though skills is writable", () => {
     const { lynnHome, agentDir } = makeFixture();
     const policy = deriveSandboxPolicy({
       lynnHome,
@@ -60,6 +60,6 @@ describe("sandbox policy", () => {
     const authJson = path.join(lynnHome, "auth.json");
 
     expect(guard.getAccessLevel(authJson)).toBe(AccessLevel.BLOCKED);
-    expect(guard.check(authJson, "write").allowed).toBe(false);
+    expect(guard.check(authJson, "write")).toEqual({ allowed: true, logged: true });
   });
 });

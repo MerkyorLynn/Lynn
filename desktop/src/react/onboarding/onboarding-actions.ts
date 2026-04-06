@@ -54,6 +54,18 @@ export interface RuntimeProviderInfo {
   providerApi: string;
 }
 
+function onboardingMessage(key: string, zh: string, en: string): string {
+  try {
+    if (typeof t === 'function') return t(key);
+  } catch {
+    // Fall through to locale-based fallback for tests and non-window contexts.
+  }
+  const locale = typeof window !== 'undefined'
+    ? String(window.i18n?.locale || 'zh')
+    : (typeof i18n !== 'undefined' ? String(i18n.locale || 'zh') : 'zh');
+  return locale.startsWith('zh') ? zh : en;
+}
+
 export async function loadRuntimeProviderInfo(
   onboardingFetch: OnboardingFetch,
   providerName: string,
@@ -76,6 +88,12 @@ export async function loadRuntimeProviderInfo(
 }
 
 export async function testConnection({ onboardingFetch, providerName, providerUrl, providerApi, apiKey }: TestConnectionParams): Promise<TestResult> {
+  if (providerName === BRAIN_PROVIDER_ID) {
+    return {
+      ok: true,
+      text: onboardingMessage('onboarding.provider.testSuccess', '连接成功', 'Connection successful'),
+    };
+  }
   const res = await onboardingFetch('/api/providers/test', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -88,10 +106,13 @@ export async function testConnection({ onboardingFetch, providerName, providerUr
   });
   const data = await res.json();
   if (data.ok) {
-    return { ok: true, text: t('onboarding.provider.testSuccess') };
+    return {
+      ok: true,
+      text: onboardingMessage('onboarding.provider.testSuccess', '连接成功', 'Connection successful'),
+    };
   }
   const detail = data.error || data.message || '';
-  const failText = t('onboarding.provider.testFailed');
+  const failText = onboardingMessage('onboarding.provider.testFailed', '连接失败', 'Connection failed');
   return { ok: false, text: detail ? `${failText}: ${detail}` : failText };
 }
 

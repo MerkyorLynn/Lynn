@@ -10,7 +10,6 @@ export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; o
   const normalizedCurrentYuan = normalizeYuanKey(currentYuan);
 
   const chips = entries.filter(([k]) => k !== 'kong');
-  const kongMeta = entries.find(([k]) => k === 'kong')?.[1];
 
   return (
     <div className="yuan-selector">
@@ -34,17 +33,6 @@ export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; o
           </button>
         ))}
       </div>
-      {kongMeta && (
-        <button
-          className={`yuan-kong-banner${currentYuan === 'kong' ? ' selected' : ''}`}
-          type="button"
-          style={{ backgroundImage: `url(${kongBannerUrl})` }}
-          onClick={() => { if (currentYuan !== 'kong') onChange('kong'); }}
-        >
-          <span className="yuan-kong-name">{'\u7A7A'}</span>
-          <span className="yuan-kong-desc">{kongMeta.label || ''}</span>
-        </button>
-      )}
     </div>
   );
 }

@@ -11,8 +11,6 @@ import { DeskFileList } from './desk/DeskFileList';
 import { JianEditor } from './desk/DeskEditor';
 import { DeskDropZone } from './desk/DeskDropZone';
 import { DeskEmptyOverlay } from './desk/DeskEmptyOverlay';
-import { DeskCwdSkillsButton, DeskCwdSkillsPanel } from './desk/DeskCwdSkills';
-import { DeskSkillsSection } from './desk/DeskSkillsSection';
 import styles from './desk/Desk.module.css';
 
 export function DeskSection() {
@@ -37,14 +35,11 @@ export function DeskSection() {
 
   return (
     <>
-      <DeskDropZone onShowMenu={handleShowMenu}>
+        <DeskDropZone onShowMenu={handleShowMenu}>
         <div className={styles.header}>
           <div className={`jian-section-title ${styles.sectionTitle}`}>{t('desk.title')}</div>
-          {hasWorkspace && <DeskCwdSkillsButton />}
         </div>
         <DeskWorkspaceButton />
-        <DeskCwdSkillsPanel />
-        <DeskSkillsSection />
         {showFileSurface && (
           <>
             <div className={styles.toolbar}>

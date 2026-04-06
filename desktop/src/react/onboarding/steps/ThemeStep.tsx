@@ -9,9 +9,10 @@ import { StepContainer } from '../onboarding-ui';
 
 interface ThemeStepProps {
   goToStep: (index: number) => void;
+  backStep?: number;
 }
 
-export function ThemeStep({ goToStep }: ThemeStepProps) {
+export function ThemeStep({ goToStep, backStep = 3 }: ThemeStepProps) {
   const [activeTheme, setActiveTheme] = useState(() => localStorage.getItem('hana-theme') || 'warm-paper');
 
   return (
@@ -40,7 +41,7 @@ export function ThemeStep({ goToStep }: ThemeStepProps) {
       </div>
 
       <div className="onboarding-actions">
-        <button className="ob-btn ob-btn-secondary" onClick={() => goToStep(3)}>
+        <button className="ob-btn ob-btn-secondary" onClick={() => goToStep(backStep)}>
           {t('onboarding.theme.back')}
         </button>
         <button className="ob-btn ob-btn-primary" onClick={() => goToStep(5)}>

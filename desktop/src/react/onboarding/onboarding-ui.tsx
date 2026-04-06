@@ -2,11 +2,15 @@
  * onboarding-ui.tsx — Shared UI primitives for the onboarding wizard
  */
 
-export interface StepContainerProps { children: React.ReactNode }
+export interface StepContainerProps {
+  children: React.ReactNode;
+  className?: string;
+}
 export interface MultilineProps { className?: string; text: string }
 
-export function StepContainer({ children }: StepContainerProps) {
-  return <div className="onboarding-step active" style={{ animation: 'obFadeIn 0.3s ease-out' }}>{children}</div>;
+export function StepContainer({ children, className = '' }: StepContainerProps) {
+  const mergedClassName = ['onboarding-step', 'active', className].filter(Boolean).join(' ');
+  return <div className={mergedClassName} style={{ animation: 'obFadeIn 0.3s ease-out' }}>{children}</div>;
 }
 
 export function Multiline({ className, text }: MultilineProps) {

@@ -57,6 +57,7 @@ if (lynnHome !== defaultHome) {
 let splashWindow = null;
 let mainWindow = null;
 let onboardingWindow = null;
+let _mainWindowReadyWaiters = [];
 
 let settingsWindow = null;
 let settingsWindowInitialNavigationTarget = null;
@@ -171,6 +172,30 @@ function killPid(pid, force = false) {
   } else {
     try { process.kill(pid, force ? "SIGKILL" : "SIGTERM"); } catch {}
   }
+}
+
+function resolveMainWindowReady(ok = true) {
+  const waiters = _mainWindowReadyWaiters;
+  _mainWindowReadyWaiters = [];
+  for (const finish of waiters) {
+    try { finish(ok); } catch {}
+  }
+}
+
+function waitForMainWindowReady(timeoutMs = 15000) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+    return Promise.resolve(true);
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    _mainWindowReadyWaiters.push(finish);
+    setTimeout(() => finish(false), timeoutMs);
+  });
 }
 
 function shouldAttachLocalAuthHeader(urlString) {
@@ -929,7 +954,6 @@ function createSplashWindow() {
     resizable: false,
     frame: false,
     title: "Lynn",
-    ...titleBarOpts({ x: 12, y: 12 }),
     transparent: true,
     show: false,
     webPreferences: {
@@ -938,6 +962,10 @@ function createSplashWindow() {
       nodeIntegration: false,
     },
   });
+
+  if (process.platform === "darwin" && splashWindow.setWindowButtonVisibility) {
+    splashWindow.setWindowButtonVisibility(false);
+  }
 
   loadWindowURL(splashWindow, "splash");
 
@@ -980,6 +1008,9 @@ function saveWindowState() {
 
 // ── 创建主窗口 ──
 function createMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    return mainWindow;
+  }
   const saved = loadWindowState();
 
   const opts = {
@@ -1054,6 +1085,14 @@ function createMainWindow() {
   mainWindow.on("resize", saveWindowState);
   mainWindow.on("move", saveWindowState);
 
+  // 窗口获焦时清除 Dock badge
+  mainWindow.on("focus", () => {
+    if (process.platform === "darwin") {
+      _pendingNotificationCount = 0;
+      app.dock.setBadge("");
+    }
+  });
+
   // 拦截页面内链接导航：外部 URL 用系统浏览器打开，不要导航 Electron 窗口
   mainWindow.webContents.on("will-navigate", (event, url) => {
     try {
@@ -1097,6 +1136,8 @@ function createMainWindow() {
       editorWindow = null;
     }
   });
+
+  return mainWindow;
 }
 
 
@@ -1881,7 +1922,8 @@ function createOnboardingWindow(query = {}) {
     width: 560,
     height: 780,
     resizable: false,
-    frame: false,
+    fullscreenable: false,
+    maximizable: false,
     title: "Lynn",
     ...titleBarOpts({ x: 16, y: 16 }),
     backgroundColor: "#F4F0E4",
@@ -2149,7 +2191,7 @@ wrapIpcHandler("get-onboarding-defaults", () => {
     workspacePath,
     desktopRoot,
     installRoot,
-    trustedRoots: Array.from(new Set([installRoot, desktopRoot, workspacePath].filter(Boolean))),
+    trustedRoots: Array.from(new Set([desktopRoot, workspacePath].filter(Boolean))),
   };
 });
 
@@ -2545,6 +2587,7 @@ wrapIpcHandler("get-notification-permission-status", () => getNotificationPermis
 wrapIpcHandler("request-notification-permission", () => requestNotificationPermission());
 
 // 系统通知（由 agent 的 notify 工具触发）
+let _pendingNotificationCount = 0;
 wrapIpcHandler("show-notification", (_event, title, body) => {
   if (!Notification.isSupported()) return;
   const notif = new Notification({
@@ -2560,6 +2603,11 @@ wrapIpcHandler("show-notification", (_event, title, body) => {
     }
   });
   notif.show();
+  // Dock badge: 窗口不可见或未聚焦时累加 badge 数字
+  if (process.platform === "darwin" && mainWindow && (!mainWindow.isVisible() || !mainWindow.isFocused())) {
+    _pendingNotificationCount++;
+    app.dock.setBadge(String(_pendingNotificationCount));
+  }
 });
 
 // Debug: 打开 Onboarding 窗口（DevTools 用）
@@ -2581,7 +2629,7 @@ wrapIpcHandler("debug-open-onboarding-preview", () => {
 });
 
 // Onboarding 完成后，写标记 → 创建主窗口
-wrapIpcHandler("onboarding-complete", () => {
+wrapIpcHandler("onboarding-complete", async () => {
   const prefsPath = path.join(lynnHome, "user", "preferences.json");
   try {
     let prefs = {};
@@ -2593,6 +2641,12 @@ wrapIpcHandler("onboarding-complete", () => {
   }
   // 创建主窗口（隐藏），前端 init 完成后通过 app-ready 显示
   createMainWindow();
+  const ready = await waitForMainWindowReady();
+  if (!ready && mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.show(); } catch {}
+    return false;
+  }
+  return true;
 });
 
 // ── 窗口控制 IPC（Windows/Linux 自绘标题栏用）──
@@ -2616,6 +2670,7 @@ wrapIpcHandler("app-ready", () => {
   if (mainWindow) {
     mainWindow.show();
   }
+  resolveMainWindowReady(true);
 
   // 稍微延迟关闭 splash / onboarding，让主窗口先稳定显示
   setTimeout(() => {
@@ -2693,7 +2748,10 @@ app.whenReady().then(async () => {
       createOnboardingWindow();
     }
 
-    // 5. 后台检查更新（不阻塞启动）
+    // 5. 注册全局快捷键 ⌥Space 唤醒 Lynn
+    registerGlobalSummon();
+
+    // 6. 后台检查更新（不阻塞启动）
     // 从 preferences.json 同步更新通道
     try {
       const prefsPath = path.join(lynnHome, "user", "preferences.json");
@@ -2741,6 +2799,30 @@ app.on("activate", () => {
     showPrimaryWindow();
   }
 });
+
+// ── 全局快捷键唤醒 ──
+function registerGlobalSummon() {
+  const SHORTCUT = process.platform === "darwin" ? "Alt+Space" : "Alt+Space";
+  const registered = globalShortcut.register(SHORTCUT, () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isVisible() && mainWindow.isFocused()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+        // 通知前端聚焦输入框
+        mainWindow.webContents.send("global-summon");
+      }
+    } else {
+      showPrimaryWindow();
+    }
+  });
+  if (registered) {
+    console.log(`[desktop] 全局快捷键 ${SHORTCUT} 已注册`);
+  } else {
+    console.warn(`[desktop] 全局快捷键 ${SHORTCUT} 注册失败（可能已被其他应用占用）`);
+  }
+}
 
 // ── 优雅关闭 ──
 app.on("will-quit", () => {

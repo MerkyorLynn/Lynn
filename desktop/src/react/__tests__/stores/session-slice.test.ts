@@ -25,6 +25,7 @@ describe('session-slice', () => {
     expect(slice.currentSessionPath).toBeNull();
     expect(slice.sessionStreams).toEqual({});
     expect(slice.pendingNewSession).toBe(false);
+    expect(slice.sessionCreationPending).toBe(false);
     expect(slice.memoryEnabled).toBe(true);
     expect(slice.sessionTodos).toEqual([]);
   });

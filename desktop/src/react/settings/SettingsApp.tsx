@@ -117,12 +117,14 @@ async function refreshSettingsSurface(opts: {
     avatars = false,
     config = true,
   } = opts;
-  const jobs: Promise<unknown>[] = [];
-  if (runtime) jobs.push(loadRuntimeSnapshot());
-  if (agents) jobs.push(loadAgents());
-  if (avatars) jobs.push(loadAvatars());
-  if (config) jobs.push(loadSettingsConfig());
-  await Promise.allSettled(jobs);
+  // Phase 1: runtime + agents 必须先完成（设置 currentAgentId），config 依赖它
+  const phase1: Promise<unknown>[] = [];
+  if (runtime) phase1.push(loadRuntimeSnapshot());
+  if (agents) phase1.push(loadAgents());
+  if (avatars) phase1.push(loadAvatars());
+  await Promise.allSettled(phase1);
+  // Phase 2: config 依赖 agentId，必须在 phase1 之后
+  if (config) await loadSettingsConfig().catch(() => {});
 }
 
 export function SettingsApp() {

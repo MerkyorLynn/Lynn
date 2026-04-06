@@ -12,6 +12,7 @@ import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { extractZip } from "../../lib/extract-zip.js";
 import { saveConfig } from "../../lib/memory/config-loader.js";
+import { parseSkillMetadata } from "../../lib/skills/skill-metadata.js";
 import { sanitizeSkillName, safetyReview } from "../../lib/tools/install-skill.js";
 import { t } from "../i18n.js";
 import { safeCopyDir } from "../../shared/safe-fs.js";
@@ -56,13 +57,240 @@ function rmDirSync(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+function normalizeSkillToken(value) {
+  return String(value || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+function collectSkillAliases(skill) {
+  const aliases = new Set();
+  if (skill?.name) aliases.add(normalizeSkillToken(skill.name));
+  if (skill?.baseDir) aliases.add(normalizeSkillToken(path.basename(skill.baseDir)));
+  if (skill?.filePath) aliases.add(normalizeSkillToken(path.basename(path.dirname(skill.filePath))));
+  return aliases;
+}
+
+function isSkillEnabled(skill, enabledAliases) {
+  if (!(enabledAliases instanceof Set) || enabledAliases.size === 0) return false;
+  for (const alias of collectSkillAliases(skill)) {
+    if (enabledAliases.has(alias)) return true;
+  }
+  return false;
+}
+
+function toSkillResponse(skill, enabledAliases) {
+  return {
+    name: skill.name,
+    description: skill.description || "",
+    filePath: skill.filePath,
+    baseDir: skill.baseDir,
+    source: skill.source,
+    hidden: !!skill.hidden || !!skill._hidden,
+    enabled: isSkillEnabled(skill, enabledAliases),
+    externalLabel: skill.externalLabel ?? skill._externalLabel ?? null,
+    externalPath: skill.externalPath ?? skill._externalPath ?? null,
+    readonly: !!skill.readonly || !!skill._readonly,
+  };
+}
+
+function scanSkillDir(rootDir, {
+  source = "user",
+  externalLabel = null,
+  externalPath = null,
+  readonly = false,
+  hidden = false,
+  agentId = null,
+} = {}) {
+  if (!rootDir || !fs.existsSync(rootDir)) return [];
+  const results = [];
+  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const baseDir = path.join(rootDir, entry.name);
+    const skillFile = path.join(baseDir, "SKILL.md");
+    if (!fs.existsSync(skillFile)) continue;
+    try {
+      const content = fs.readFileSync(skillFile, "utf-8");
+      const meta = parseSkillMetadata(content, entry.name);
+      results.push({
+        name: meta.name,
+        description: meta.description,
+        filePath: skillFile,
+        baseDir,
+        source,
+        hidden,
+        readonly,
+        _hidden: hidden,
+        _readonly: readonly,
+        _externalLabel: externalLabel,
+        _externalPath: externalPath,
+        _agentId: agentId,
+      });
+    } catch {
+      results.push({
+        name: entry.name,
+        description: "",
+        filePath: skillFile,
+        baseDir,
+        source,
+        hidden,
+        readonly,
+        _hidden: hidden,
+        _readonly: readonly,
+        _externalLabel: externalLabel,
+        _externalPath: externalPath,
+        _agentId: agentId,
+      });
+    }
+  }
+  return results;
+}
+
+function collectFallbackExternalPaths(engine) {
+  const payload = engine.getExternalSkillPaths?.() || {};
+  const discovered = Array.isArray(payload.discovered) ? payload.discovered : [];
+  const configured = Array.isArray(payload.configured) ? payload.configured : [];
+  const merged = [];
+  const seen = new Set();
+
+  for (const item of discovered) {
+    const dirPath = String(item?.dirPath || "").trim();
+    if (!dirPath || !fs.existsSync(dirPath) || seen.has(dirPath)) continue;
+    seen.add(dirPath);
+    merged.push({ dirPath, label: item?.label || path.basename(path.dirname(dirPath)) || "External" });
+  }
+
+  for (const raw of configured) {
+    const dirPath = path.resolve(String(raw || ""));
+    if (!dirPath || !fs.existsSync(dirPath) || seen.has(dirPath)) continue;
+    seen.add(dirPath);
+    merged.push({ dirPath, label: path.basename(path.dirname(dirPath)) || "External" });
+  }
+
+  return merged;
+}
+
+async function listSkillsWithFallback(engine, agentId) {
+  let skills = engine.getAllSkills(agentId || undefined) || [];
+  if (skills.length > 0) return skills;
+
+  try {
+    await engine.reloadSkills();
+    skills = engine.getAllSkills(agentId || undefined) || [];
+    if (skills.length > 0) return skills;
+  } catch {
+    // fall through to filesystem scan
+  }
+
+  const targetAgent = agentId ? engine.getAgent?.(agentId) : engine.agent;
+  const enabledAliases = new Set(
+    (Array.isArray(targetAgent?.config?.skills?.enabled) ? targetAgent.config.skills.enabled : [])
+      .map(normalizeSkillToken)
+      .filter(Boolean),
+  );
+  const deduped = new Map();
+
+  const pushSkills = (entries) => {
+    for (const skill of entries) {
+      const key = normalizeSkillToken(skill.name);
+      if (!key || deduped.has(key)) continue;
+      deduped.set(key, toSkillResponse(skill, enabledAliases));
+    }
+  };
+
+  pushSkills(scanSkillDir(engine.userSkillsDir, { source: "user" }));
+
+  if (targetAgent?.agentDir) {
+    pushSkills(scanSkillDir(path.join(targetAgent.agentDir, "learned-skills"), {
+      source: "learned",
+      agentId: path.basename(targetAgent.agentDir),
+    }));
+  }
+
+  for (const ext of collectFallbackExternalPaths(engine)) {
+    pushSkills(scanSkillDir(ext.dirPath, {
+      source: "external",
+      externalLabel: ext.label,
+      externalPath: ext.dirPath,
+      readonly: true,
+    }));
+  }
+
+  return [...deduped.values()].sort((left, right) => {
+    if (left.enabled !== right.enabled) return left.enabled ? -1 : 1;
+    if (!!left.hidden !== !!right.hidden) return left.hidden ? 1 : -1;
+    return left.name.localeCompare(right.name, "zh-Hans-CN");
+  });
+}
+
+async function finalizeInstalledSkill(engine, skillDir) {
+  const userDir = engine.userSkillsDir;
+  const skillName = parseSkillName(path.join(skillDir, "SKILL.md"));
+  if (!skillName) {
+    throw new Error(t("error.skillMissingName"));
+  }
+
+  const safeName = sanitizeSkillName(skillName);
+  if (!safeName) {
+    throw new Error(t("error.skillNameInvalid", { name: skillName }));
+  }
+
+  const dstDir = path.join(userDir, safeName);
+  safeCopyDir(skillDir, dstDir);
+
+  await engine.reloadSkills();
+
+  const agentId = engine.currentAgentId;
+  if (agentId) {
+    const configPath = path.join(engine.agentsDir, agentId, "config.yaml");
+    if (fs.existsSync(configPath)) {
+      const { loadConfig } = await import("../../lib/memory/config-loader.js");
+      const cfg = loadConfig(configPath);
+      const enabled = new Set(cfg?.skills?.enabled || []);
+      enabled.add(safeName);
+      saveConfig(configPath, { skills: { enabled: [...enabled] } });
+      await engine.updateConfig({ skills: { enabled: [...enabled] } });
+    }
+  }
+
+  const skill = engine.getAllSkills().find((s) => s.name === safeName);
+  return skill || { name: safeName, type: "user" };
+}
+
+function resolveBundledSkillDir(engine, requestedId, aliases = []) {
+  const skillsRoot = path.join(engine.productDir, "..", "skills2set");
+  if (!fs.existsSync(skillsRoot)) return null;
+
+  const candidates = new Set([
+    normalizeSkillToken(requestedId),
+    ...aliases.map((alias) => normalizeSkillToken(alias)),
+  ]);
+
+  const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const baseDir = path.join(skillsRoot, entry.name);
+    const skillMdPath = path.join(baseDir, "SKILL.md");
+    if (!fs.existsSync(skillMdPath)) continue;
+
+    const parsedName = parseSkillName(skillMdPath) || entry.name;
+    const matches = [
+      normalizeSkillToken(entry.name),
+      normalizeSkillToken(parsedName),
+    ];
+    if (matches.some((token) => candidates.has(token))) {
+      return baseDir;
+    }
+  }
+
+  return null;
+}
+
 export function createSkillsRoute(engine) {
   const route = new Hono();
 
   route.get("/skills", async (c) => {
     try {
       const agentId = c.req.query("agentId");
-      return c.json({ skills: engine.getAllSkills(agentId || undefined) });
+      return c.json({ skills: await listSkillsWithFallback(engine, agentId || undefined) });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }
@@ -108,8 +336,8 @@ export function createSkillsRoute(engine) {
         return c.json({ error: t("error.skillPathNotExists") }, 400);
       }
 
-      const userDir = engine.userSkillsDir;
       const stat = fs.statSync(srcPath);
+      const userDir = engine.userSkillsDir;
 
       let skillDir; // 最终包含 SKILL.md 的目录
 
@@ -152,66 +380,34 @@ export function createSkillsRoute(engine) {
         }
       }
 
-      // 解析技能名称
-      const skillName = parseSkillName(path.join(skillDir, "SKILL.md"));
-      if (!skillName) {
-        // 清理临时目录
-        if (skillDir !== srcPath) rmDirSync(path.dirname(skillDir) === userDir ? skillDir : path.join(userDir, ".tmp-install-" + Date.now()));
-        return c.json({ error: t("error.skillMissingName") }, 400);
-      }
-
-      // 安全校验名称
-      const safeName = sanitizeSkillName(skillName);
-      if (!safeName) {
-        return c.json({ error: t("error.skillNameInvalid", { name: skillName }) }, 400);
-      }
-
-      // 手动安装（用户行为）不做安全审查，直接放行
-
-      // 复制到用户技能目录
-      const dstDir = path.join(userDir, safeName);
-      if (skillDir === srcPath) {
-        // 文件夹模式：复制
-        safeCopyDir(skillDir, dstDir);
-      } else {
-        // zip 解压模式：移动（从临时目录）
-        if (fs.existsSync(dstDir)) rmDirSync(dstDir);
-        fs.renameSync(skillDir, dstDir);
-        // 清理临时目录残留
-        const tmpParent = skillDir.includes(".tmp-install-")
-          ? (path.dirname(skillDir).includes(".tmp-install-") ? path.dirname(skillDir) : null)
-          : path.dirname(skillDir);
-        // 简单处理：找到 .tmp-install- 前缀的目录并清理
-        for (const entry of fs.readdirSync(userDir)) {
-          if (entry.startsWith(".tmp-install-")) {
-            rmDirSync(path.join(userDir, entry));
-          }
+      const skill = await finalizeInstalledSkill(engine, skillDir);
+      for (const entry of fs.readdirSync(userDir)) {
+        if (entry.startsWith(".tmp-install-")) {
+          rmDirSync(path.join(userDir, entry));
         }
       }
+      return c.json({ ok: true, skill });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
 
-      // 重新加载 skills 并自动启用
-      await engine.reloadSkills();
-
-      // 将新技能加入当前 agent 的 enabled 列表
-      const agentId = engine.currentAgentId;
-      if (agentId) {
-        const configPath = path.join(engine.agentsDir, agentId, "config.yaml");
-        if (fs.existsSync(configPath)) {
-          const { loadConfig } = await import("../../lib/memory/config-loader.js");
-          const cfg = loadConfig(configPath);
-          const enabled = new Set(cfg?.skills?.enabled || []);
-          enabled.add(safeName);
-          saveConfig(configPath, { skills: { enabled: [...enabled] } });
-          // 同步 engine 内存状态
-          await engine.updateConfig({ skills: { enabled: [...enabled] } });
-        }
+  route.post("/skills/install-builtin", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const requestedId = String(body.id || "").trim();
+      const aliases = Array.isArray(body.aliases) ? body.aliases.map((item) => String(item || "")) : [];
+      if (!requestedId) {
+        return c.json({ error: "id required" }, 400);
       }
 
-      const skill = engine.getAllSkills().find(s => s.name === safeName);
-      return c.json({
-        ok: true,
-        skill: skill || { name: safeName, type: "user" },
-      });
+      const skillDir = resolveBundledSkillDir(engine, requestedId, aliases);
+      if (!skillDir) {
+        return c.json({ error: "builtin skill not found" }, 404);
+      }
+
+      const skill = await finalizeInstalledSkill(engine, skillDir);
+      return c.json({ ok: true, skill });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }
@@ -311,7 +507,8 @@ export function createSkillsRoute(engine) {
   route.post("/skills/reload", async (c) => {
     try {
       await engine.reloadSkills();
-      return c.json({ ok: true, skills: engine.getAllSkills() });
+      const agentId = c.req.query("agentId");
+      return c.json({ ok: true, skills: await listSkillsWithFallback(engine, agentId || undefined) });
     } catch (err) {
       return c.json({ error: err.message }, 500);
     }

@@ -14,6 +14,7 @@ import { loadDeskFiles } from '../stores/desk-actions';
 import { loadChannels as loadChannelsAction, openChannel as openChannelAction } from '../stores/channel-actions';
 import { showError } from '../utils/ui-helpers';
 import { renderMarkdown } from '../utils/markdown';
+import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
 import { getWebSocket } from './websocket';
 import {
   replayStreamResume,
@@ -229,6 +230,8 @@ export function handleServerMessage(msg: any): void {
     }
 
     case 'task_update': {
+      requestRuntimeSnapshotRefresh();
+      window.dispatchEvent(new CustomEvent('hana-task-updated'));
       const task = msg.task;
       if (!task || task.source !== 'review_follow_up') break;
       const taskReviewId = task.metadata?.reviewId;
@@ -251,6 +254,7 @@ export function handleServerMessage(msg: any): void {
     case 'activity_update':
       if (msg.activity) {
         useStore.setState({ activities: [msg.activity, ...state.activities.slice(0, 499)] });
+        window.dispatchEvent(new CustomEvent('hana-activity-updated', { detail: msg.activity }));
       }
       break;
 
@@ -406,6 +410,9 @@ export function handleServerMessage(msg: any): void {
           reviewerAgentName: msg.reviewerAgentName,
           reviewerYuan: msg.reviewerYuan,
           reviewerHasAvatar: !!msg.reviewerHasAvatar,
+          reviewerModelLabel: msg.reviewerModelLabel || null,
+          reviewerModelId: msg.reviewerModelId || null,
+          reviewerModelProvider: msg.reviewerModelProvider || null,
           content: '',
           status: 'loading' as const,
           stage: 'packing_context' as const,
@@ -442,6 +449,9 @@ export function handleServerMessage(msg: any): void {
         reviewerAgentName: msg.reviewerAgentName,
         reviewerYuan: msg.reviewerYuan,
         reviewerHasAvatar: msg.reviewerHasAvatar,
+        reviewerModelLabel: msg.reviewerModelLabel || null,
+        reviewerModelId: msg.reviewerModelId || null,
+        reviewerModelProvider: msg.reviewerModelProvider || null,
       });
       break;
     }
@@ -456,8 +466,12 @@ export function handleServerMessage(msg: any): void {
         reviewerAgentName: msg.reviewerAgentName,
         reviewerYuan: msg.reviewerYuan,
         reviewerHasAvatar: msg.reviewerHasAvatar,
+        reviewerModelLabel: msg.reviewerModelLabel || null,
+        reviewerModelId: msg.reviewerModelId || null,
+        reviewerModelProvider: msg.reviewerModelProvider || null,
         content: msg.content || '',
         error: msg.error,
+        errorCode: msg.errorCode || null,
         status: 'done',
         stage: 'done',
         findingsCount: msg.structured?.findings?.length ?? 0,
@@ -466,6 +480,7 @@ export function handleServerMessage(msg: any): void {
         structured: msg.structured || null,
         contextPack: msg.contextPack || null,
         followUpPrompt: msg.followUpPrompt || null,
+        fallbackNote: msg.fallbackNote || null,
       });
       break;
     }

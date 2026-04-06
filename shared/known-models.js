@@ -16,6 +16,7 @@ const _raw = JSON.parse(readFileSync(fromRoot("lib", "known-models.json"), "utf-
  * @returns {object|null}
  */
 export function lookupKnown(provider, modelId) {
+  if (typeof modelId !== "string" || !modelId.trim()) return null;
   if (provider && _raw[provider]?.[modelId]) return _raw[provider][modelId];
   const bare = modelId.includes("/") ? modelId.split("/").pop() : null;
   if (bare && provider && _raw[provider]?.[bare]) return _raw[provider][bare];
@@ -25,4 +26,15 @@ export function lookupKnown(provider, modelId) {
     if (bare && models[bare]) return models[bare];
   }
   return null;
+}
+
+/**
+ * 查询模型的工具分层等级
+ * @param {string} provider
+ * @param {string} modelId
+ * @returns {"full"|"standard"|"minimal"|null} null = 未知，按 full 处理
+ */
+export function lookupToolTier(provider, modelId) {
+  const known = lookupKnown(provider, modelId);
+  return known?.toolTier || null;
 }

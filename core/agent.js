@@ -909,15 +909,18 @@ export class Agent {
       } catch {}
     }
 
-    // 书桌 = 当前工作目录
+    // 书桌 = 默认工作区优先，其次才是当前 cwd
+    const preferredDeskPath = this._engine?.homeCwd || "";
     const cwdPath = this._engine?.cwd || "";
     parts.push(isZh
       ? `\n## 书桌\n\n` +
-        `用户所说的「书桌」「工作空间」指的是你当前的工作目录（cwd），不是系统桌面（~/Desktop）。` +
-        (cwdPath ? `\n当前工作目录：${cwdPath}` : "")
+        `用户所说的「书桌」「工作空间」，默认优先指 Lynn 当前选定的书桌工作区，而不是代码仓库自己的 cwd。` +
+        (preferredDeskPath ? `\n默认书桌工作区：${preferredDeskPath}` : "") +
+        (cwdPath && cwdPath !== preferredDeskPath ? `\n当前代码工作目录：${cwdPath}` : "")
       : `\n## Desk\n\n` +
-        `When the user says "desk" (书桌) or "workspace", they mean your current working directory (cwd), NOT the system Desktop (~/Desktop).` +
-        (cwdPath ? `\nCurrent working directory: ${cwdPath}` : "")
+        `When the user says "desk" (书桌) or "workspace", prefer Lynn's selected desk workspace first, not the repo cwd by default.` +
+        (preferredDeskPath ? `\nDefault desk workspace: ${preferredDeskPath}` : "") +
+        (cwdPath && cwdPath !== preferredDeskPath ? `\nCurrent code working directory: ${cwdPath}` : "")
     );
 
     // 日期时间

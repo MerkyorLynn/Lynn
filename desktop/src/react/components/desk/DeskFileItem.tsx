@@ -9,6 +9,8 @@ import {
   deskFullPath,
   deskMoveFiles,
   deskRemoveFile,
+  openDeskDocument,
+  shouldOpenDeskInline,
 } from '../../stores/desk-actions';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { toSlash } from '../../utils/format';
@@ -107,6 +109,18 @@ export function DeskFileItem({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const isRenaming = renamingFile === file.name;
 
+  const openDeskFile = useCallback(() => {
+    if (file.isDir) return;
+    if (shouldOpenDeskInline(file.name)) {
+      void openDeskDocument(file.name);
+      return;
+    }
+    const full = deskFullPath(file.name);
+    if (!full) return;
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    void openFilePreview(full, file.name, ext);
+  }, [file]);
+
   // 当进入 rename 模式时自动聚焦并选择文件名
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -120,7 +134,10 @@ export function DeskFileItem({
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(file.name, { multi: e.metaKey || e.ctrlKey, shift: e.shiftKey });
-  }, [file.name, onSelect]);
+    if (!file.isDir && !isRenaming && !(e.metaKey || e.ctrlKey || e.shiftKey)) {
+      openDeskFile();
+    }
+  }, [file.isDir, file.name, isRenaming, onSelect, openDeskFile]);
 
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -148,11 +165,8 @@ export function DeskFileItem({
       return;
     }
 
-    const full = deskFullPath(file.name);
-    if (!full) return;
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    openFilePreview(full, file.name, ext);
-  }, [file]);
+    openDeskFile();
+  }, [file, openDeskFile]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -168,7 +182,13 @@ export function DeskFileItem({
       items.push({ label: tFn('desk.ctx.open'), action: () => loadDeskFiles(sub) });
       items.push({ label: tFn('desk.ctx.openInFinder'), action: () => { const p = deskFullPath(file.name); if (p) window.platform?.showInFinder?.(p); } });
     } else {
-      items.push({ label: tFn('desk.ctx.open'), action: () => { const p = deskFullPath(file.name); if (p) window.platform?.openFile?.(p); } });
+      items.push({
+        label: tFn('desk.ctx.openInLynn') || tFn('desk.ctx.open'),
+        action: () => {
+          openDeskFile();
+        },
+      });
+      items.push({ label: tFn('desk.ctx.openInFinder'), action: () => { const p = deskFullPath(file.name); if (p) window.platform?.showInFinder?.(p); } });
     }
     if (!bulkNames) {
       items.push({ label: tFn('desk.ctx.rename'), action: () => onRenameStart(file.name) });
@@ -208,7 +228,7 @@ export function DeskFileItem({
       });
     } });
     onShowContextMenu({ position: { x: e.clientX, y: e.clientY }, items });
-  }, [addToast, allSelectedFiles, file, onRenameStart, onShowContextMenu, setPendingConfirm]);
+  }, [addToast, allSelectedFiles, file, onRenameStart, onShowContextMenu, openDeskFile, setPendingConfirm]);
 
   // ── 文件夹作为 drop target ──
 
@@ -261,7 +281,7 @@ export function DeskFileItem({
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      draggable
+      draggable={!isRenaming && (file.isDir || selected)}
       onDragStart={handleDragStart}
       onDragOver={file.isDir ? handleFolderDragOver : undefined}
       onDragLeave={file.isDir ? handleFolderDragLeave : undefined}

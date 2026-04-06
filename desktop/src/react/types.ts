@@ -154,6 +154,20 @@ export interface TaskRuntimeSnapshot {
   recent: TaskRuntimeSnapshotItem[];
 }
 
+export interface CapabilitySnapshot {
+  enabledSkills: number;
+  learnedSkills: number;
+  externalSkills: number;
+  mcp: {
+    servers: number;
+    tools: number;
+  };
+  projectInstructions: {
+    layers: number;
+    files: string[];
+  };
+}
+
 export interface Artifact {
   id: string;
   type: string;
@@ -162,6 +176,7 @@ export interface Artifact {
   language?: string | null;
   filePath?: string;
   ext?: string;
+  previewOnly?: boolean;
 }
 
 export interface DeskFile {
@@ -183,7 +198,7 @@ export interface SessionAgent {
 }
 
 // ── 浮动面板类型 ──
-export type ActivePanel = 'activity' | 'automation' | 'bridge' | null;
+export type ActivePanel = 'activity' | 'automation' | 'bridge' | 'changes' | null;
 export type TabType = 'chat' | 'channels';
 
 // ── Platform API 类型声明 ──
@@ -257,7 +272,7 @@ export interface PlatformApi {
   // ── Splash / Onboarding ──
   getAvatarPath?(role: string): Promise<string | null>;
   getSplashInfo?(): Promise<{ agentName?: string; locale?: string; yuan?: string } | null>;
-  onboardingComplete?(): Promise<void>;
+  onboardingComplete?(): Promise<boolean | void>;
 
   // ── Notification / confirm ──
   showNotification?(title: string, body: string): void;
@@ -266,6 +281,7 @@ export interface PlatformApi {
   confirmAction?(opts: { title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string; tone?: 'default' | 'danger' }): Promise<boolean>;
   onConfirmActionRequest?(callback: (payload: { requestId: string; title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string; tone?: 'default' | 'danger' }) => void): (() => void) | void;
   respondConfirmAction?(requestId: string, approved: boolean): void;
+  onGlobalSummon?(callback: () => void): (() => void) | void;
 
   // ── App info ──
   getAppVersion?(): Promise<string>;

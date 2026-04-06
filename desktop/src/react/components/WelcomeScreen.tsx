@@ -28,6 +28,12 @@ const QUICK_PROMPT_KEYS = [
   'welcome.quickActions.planToday',
 ] as const;
 
+const QUICK_ACTION_BEHAVIORS: Record<(typeof QUICK_PROMPT_KEYS)[number], 'prompt' | 'at'> = {
+  'welcome.quickActions.askFolder': 'prompt',
+  'welcome.quickActions.summarizeWork': 'at',
+  'welcome.quickActions.planToday': 'prompt',
+};
+
 export function WelcomeScreen() {
   return <WelcomeInner />;
 }
@@ -54,6 +60,23 @@ function WelcomeInner() {
   const selectedFolder = useStore(s => s.selectedFolder);
   const cwdHistory = useStore(s => s.cwdHistory);
   const pendingNewSession = useStore(s => s.pendingNewSession);
+  const deskJianContent = useStore(s => s.deskJianContent);
+  const automationCount = useStore(s => s.automationCount);
+  const sessions = useStore(s => s.sessions);
+
+  // 当日摘要
+  const daySummary = useMemo(() => {
+    const parts: string[] = [];
+    const text = String(deskJianContent || '');
+    const todos = text.match(/^- \[ \] /gm);
+    const done = text.match(/^- \[[xX]\] /gm);
+    const isZh = String((window as any).i18n?.locale || '').startsWith('zh');
+    if (todos?.length) parts.push(isZh ? `${todos.length} 项待办` : `${todos.length} pending`);
+    if (done?.length) parts.push(isZh ? `${done.length} 项已完成` : `${done.length} done`);
+    if (automationCount > 0) parts.push(isZh ? `${automationCount} 个自动任务` : `${automationCount} automations`);
+    if (sessions.length > 0) parts.push(isZh ? `${sessions.length} 个对话` : `${sessions.length} chats`);
+    return parts.join(' · ');
+  }, [deskJianContent, automationCount, sessions.length]);
 
   const displayAgent = useMemo(() => {
     const sel = selectedAgentId || currentAgentId;
@@ -91,6 +114,7 @@ function WelcomeInner() {
         name={displayName}
       />
       <p className={styles.welcomeText}>{greeting}</p>
+      {daySummary && <p className={styles.welcomeDaySummary}>{daySummary}</p>}
       <QuickActions displayName={displayName} selectedFolder={selectedFolder} />
       <FolderPicker
         selectedFolder={selectedFolder}
@@ -201,6 +225,7 @@ function QuickActions({ displayName, selectedFolder }: { displayName: string; se
 
   const actions = useMemo(() => QUICK_PROMPT_KEYS.map((key) => ({
     key,
+    behavior: QUICK_ACTION_BEHAVIORS[key],
     label: t(`${key}.label`),
     prompt: t(`${key}.prompt`, { name: displayName, folder: selectedFolder || t('input.selectWorkspace') }),
   })), [displayName, selectedFolder, t]);
@@ -228,7 +253,13 @@ function QuickActions({ displayName, selectedFolder }: { displayName: string; se
         <button
           key={action.key}
           className={styles.quickActionBtn}
-          onClick={() => handleClick(action.key, action.prompt)}
+          onClick={() => {
+            if (action.behavior === 'at') {
+              handleTryAt();
+              return;
+            }
+            void handleClick(action.key, action.prompt);
+          }}
           disabled={busy !== null}
         >
           <span className={styles.quickActionLabel}>{action.label}</span>

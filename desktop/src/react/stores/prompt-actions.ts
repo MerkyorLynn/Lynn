@@ -21,6 +21,32 @@ function canSendPayload(text: string, images?: PromptImage[]): boolean {
   return text.trim().length > 0 || !!images?.length;
 }
 
+function syncOptimisticSessionList(displayText: string, sessionPath: string): void {
+  const state = useStore.getState();
+  const firstMessage = displayText.trim().slice(0, 100);
+  const modified = new Date().toISOString();
+  const currentModel = state.currentModel;
+  const sessions = [...state.sessions];
+  const idx = sessions.findIndex((session) => session.path === sessionPath);
+  const nextSession = {
+    path: sessionPath,
+    title: idx >= 0 ? sessions[idx].title || null : null,
+    firstMessage,
+    modified,
+    messageCount: Math.max((idx >= 0 ? sessions[idx].messageCount : 0) || 0, 1),
+    cwd: idx >= 0 ? sessions[idx].cwd ?? state.selectedFolder ?? null : state.selectedFolder ?? null,
+    agentId: idx >= 0 ? sessions[idx].agentId ?? state.currentAgentId ?? null : state.currentAgentId ?? null,
+    agentName: idx >= 0 ? sessions[idx].agentName ?? state.agentName ?? null : state.agentName ?? null,
+    modelId: idx >= 0 ? sessions[idx].modelId ?? currentModel?.id ?? null : currentModel?.id ?? null,
+    modelProvider: idx >= 0 ? sessions[idx].modelProvider ?? currentModel?.provider ?? null : currentModel?.provider ?? null,
+    labels: idx >= 0 ? sessions[idx].labels ?? [] : [],
+  };
+  if (idx >= 0) {
+    sessions.splice(idx, 1);
+  }
+  useStore.setState({ sessions: [nextSession, ...sessions] });
+}
+
 export async function sendPrompt(options: SendPromptOptions): Promise<boolean> {
   return submitPromptTask({ ...options, mode: options.mode ?? 'prompt' });
 }
@@ -76,6 +102,7 @@ export async function submitPromptTask(options: SendPromptOptions): Promise<bool
       retryDraft: options.retryDraft ?? null,
     },
   });
+  syncOptimisticSessionList(displayText || requestText, sessionPath);
   useStore.setState({ welcomeVisible: false });
 
   if (mode === 'steer') {

@@ -11,10 +11,23 @@ import { useState, useRef, useCallback } from 'react';
 import { useStore } from './stores';
 import { hanaFetch } from './hooks/use-hana-fetch';
 import { toSlash, baseName } from './utils/format';
+import { sendPrompt } from './stores/prompt-actions';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- deskFiles item typing */
+
+// 可直接分析的文件扩展名
+const ANALYZABLE_EXTS = new Set([
+  'xlsx', 'xls', 'csv', 'tsv', 'pdf', 'doc', 'docx',
+  'json', 'xml', 'yaml', 'yml', 'txt', 'md', 'log',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg',
+]);
+
+function getExt(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
 
 // ── 拖拽附件 drop handler（从 bridge.ts appInput shim 迁移） ──
 
@@ -56,7 +69,11 @@ async function handleDrop(e: React.DragEvent): Promise<void> {
       });
     }
   }
-  if (srcPaths.length === 0) return;
+  if (srcPaths.length === 0) {
+    // 所有文件都是 desk 路径，检查是否应自动分析
+    tryAutoAnalyze();
+    return;
+  }
 
   try {
     const res = await hanaFetch('/api/upload', {
@@ -83,13 +100,48 @@ async function handleDrop(e: React.DragEvent): Promise<void> {
       });
     }
   }
+
+  tryAutoAnalyze();
+}
+
+/**
+ * 拖拽即分析：如果只拖入了一个可分析的文件且当前无对话，自动发送分析请求
+ */
+function tryAutoAnalyze() {
+  const store = useStore.getState();
+  const attached = store.attachedFiles;
+  // 只有拖入单个文件 + 当前没有进行中对话 + 输入框为空时才自动分析
+  if (attached.length !== 1) return;
+  if (store.composerText.trim()) return;
+  if (!store.welcomeVisible && store.currentSessionPath) return;
+
+  const file = attached[0];
+  const ext = getExt(file.name);
+  if (!ANALYZABLE_EXTS.has(ext) && !file.isDirectory) return;
+
+  const isZh = String((window as any).i18n?.locale || '').startsWith('zh');
+  const prompt = isZh
+    ? `请分析这个文件：${file.name}`
+    : `Please analyze this file: ${file.name}`;
+
+  // 延迟一帧确保附件已渲染
+  requestAnimationFrame(() => {
+    void sendPrompt({ text: prompt, displayText: prompt });
+  });
 }
 
 // ── DropText ──
 
 function DropText() {
   const agentName = useStore(s => s.agentName);
-  return <span className="drop-text">{t('drop.hint', { name: agentName })}</span>;
+  const mainText = t('drop.mainHint') || 'Drop to analyze';
+  const subText = (t('drop.subHint') || '{name} supports Excel, PDF, CSV, images and more').replace('{name}', agentName);
+  return (
+    <span className="drop-text">
+      <span className="drop-text-main">{mainText}</span>
+      <span className="drop-text-sub">{subText}</span>
+    </span>
+  );
 }
 
 // ── MainContent（拖拽区域 + children） ──
@@ -126,7 +178,7 @@ export function MainContent({ children }: { children: React.ReactNode }) {
     >
       <div className={`drop-overlay${dragActive ? ' visible' : ''}`}>
         <div className="drop-overlay-inner">
-          <span className="drop-icon">📎</span>
+          <span className="drop-icon">📂</span>
           <DropText />
         </div>
       </div>

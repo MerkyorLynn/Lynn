@@ -1,5 +1,5 @@
 {
-  "_comment": "每个 provider 的默认模型列表。从各 provider plugin 的 builtinModels 集中整理而来，并用 known-models.json 补充同系列变体。volcengine / ollama / openrouter / openai-codex-oauth / minimax-oauth 无固定内置模型，不在此列。",
+  "_comment": "每个 provider 的默认模型列表。从各 provider plugin 的 builtinModels 集中整理而来，并用 known-models.json 补充同系列变体。volcengine / ollama / openrouter / minimax-oauth 无固定内置模型，不在此列。",
 
   "anthropic": [
     "claude-opus-4-6",
@@ -102,6 +102,12 @@
     "MiniMax-M2"
   ],
 
+  "minimax-coding": [
+    "MiniMax-M2.5",
+    "MiniMax-M2.5-highspeed",
+    "MiniMax-M2.1"
+  ],
+
   "mistral": [
     "mistral-large-latest",
     "mistral-small-latest",
@@ -152,6 +158,18 @@
     "step-1-flash"
   ],
 
+  "stepfun-coding": [
+    "step-3.5-flash-2603",
+    "step-3.5-flash"
+  ],
+
+  "tencent-coding": [
+    "glm-5",
+    "kimi-k2.5",
+    "MiniMax-M2.5",
+    "hunyuan-turbos-latest"
+  ],
+
   "together": [
     "meta-llama/Llama-3.3-70B-Instruct-Turbo",
     "deepseek-ai/DeepSeek-R1"
@@ -173,5 +191,9 @@
     "glm-4-plus",
     "glm-4-flash",
     "glm-4-air"
+  ],
+
+  "zhipu-coding": [
+    "glm-5"
   ]
 }

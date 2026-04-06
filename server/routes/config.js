@@ -137,6 +137,18 @@ export function createConfigRoute(engine) {
     }
   });
 
+  // ── 审计日志 ──
+
+  route.get("/audit-log", async (c) => {
+    try {
+      const { readAuditLog } = await import("../../lib/sandbox/path-guard.js");
+      const limit = Number(c.req.query("limit")) || 100;
+      return c.json({ entries: readAuditLog(limit) });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
   // ── System Prompt（只读，供 DevTools 查看）──
 
   route.get("/system-prompt", async (c) => {

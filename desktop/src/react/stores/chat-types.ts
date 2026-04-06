@@ -122,6 +122,9 @@ export type ContentBlock =
       reviewerAgentName?: string;
       reviewerYuan?: string;
       reviewerHasAvatar?: boolean;
+      reviewerModelLabel?: string | null;
+      reviewerModelId?: string | null;
+      reviewerModelProvider?: string | null;
       content: string;
       error?: string;
       status: 'loading' | 'done';
@@ -133,6 +136,8 @@ export type ContentBlock =
       contextPack?: ReviewContextPack | null;
       followUpPrompt?: string | null;
       followUpTask?: ReviewFollowUpTaskState | null;
+      fallbackNote?: string | null;
+      errorCode?: string | null;
     };
 
 // ── 消息 ──

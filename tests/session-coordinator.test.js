@@ -147,7 +147,7 @@ describe("SessionCoordinator", () => {
     agent.config.locale = "zh-CN";
     coordinator.setSecurityMode('safe');
     expect(resourceLoader.getAppendSystemPrompt()).toContain(
-      "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受限路径的写入将被直接拒绝，无确认机会。如果用户需要执行这些操作，请告知需要在输入框左下角切换到「执行模式」。",
+      "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受保护路径的写入都会被直接拒绝，不会弹出确认。如果用户确实需要执行这些操作，请告知先在输入框左下角切换到「执行模式」。",
     );
   });
 
@@ -241,7 +241,9 @@ describe("SessionCoordinator", () => {
 
     expect(buildTools).toHaveBeenLastCalledWith('/tmp/workspace', null, expect.objectContaining({
       mode: 'standard',
-      workspace: '/tmp/home',
+      workspace: '/tmp/workspace',
+      agentDir: '/tmp/agent',
+      getSessionPath: expect.any(Function),
     }));
     expect(session._buildRuntime).toHaveBeenCalledWith({ activeToolNames: ['read', 'grep', 'find', 'ls', 'todo'] });
     expect(coordinator.getSecurityMode()).toBe('plan');

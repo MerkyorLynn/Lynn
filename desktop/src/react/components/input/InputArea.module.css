@@ -25,6 +25,22 @@
     flex-wrap: nowrap;
 }
 
+.input-hover-reveal {
+    display: inline-flex;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.2s var(--ease-out), max-width 0.25s var(--ease-out);
+    pointer-events: none;
+}
+
+.input-bottom-bar:hover .input-hover-reveal,
+.input-wrapper:focus-within .input-hover-reveal {
+    opacity: 1;
+    max-width: 200px;
+    pointer-events: auto;
+}
+
 .input-actions {
     display: flex;
     align-items: center;
@@ -55,6 +71,7 @@
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.3);
     background: rgba(var(--accent-rgb), 0.06);
+    transform: scale(1.06);
 }
 
 .input-controls {
@@ -86,6 +103,7 @@
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.28);
     background: rgba(var(--accent-rgb), 0.06);
+    transform: scale(1.04);
 }
 
 .secondary-action-btn:disabled {
@@ -97,6 +115,41 @@
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.28);
     background: rgba(var(--accent-rgb), 0.08);
+}
+
+.stream-action-btn {
+    min-height: 34px;
+    min-width: 96px;
+    gap: 0.32rem;
+    padding: 0.35rem 0.7rem;
+    justify-content: center;
+}
+
+.stream-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    line-height: 1;
+    opacity: 0.9;
+}
+
+.stream-action-btn-authorized {
+    color: var(--mood-text, #A0723C);
+    border-color: var(--mood-border, rgba(180, 120, 60, 0.28));
+    background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 92%, var(--mood-bg, rgba(180, 120, 60, 0.1)));
+}
+
+.stream-action-btn-authorized:hover:not(:disabled) {
+    color: var(--mood-text, #A0723C);
+    border-color: color-mix(in srgb, var(--mood-text, #A0723C) 72%, white);
+    background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 84%, var(--mood-bg, rgba(180, 120, 60, 0.2)));
+}
+
+.stream-action-btn-authorized.secondary-action-btn-active {
+    color: var(--mood-text, #A0723C);
+    border-color: var(--mood-border, rgba(180, 120, 60, 0.34));
+    background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 82%, var(--mood-bg, rgba(180, 120, 60, 0.22)));
 }
 
 /* Plan Mode 按钮 */
@@ -299,6 +352,7 @@
 .thinking-pill:hover {
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.25);
+    transform: scale(1.08);
 }
 
 .thinking-pill.active {
@@ -419,6 +473,7 @@
 .model-pill:hover {
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.25);
+    transform: scale(1.03);
 }
 
 .model-pill-disabled {
@@ -961,6 +1016,8 @@
 
 .send-btn:hover:not(:disabled) {
     filter: brightness(1.1);
+    transform: scale(1.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .send-btn:hover:not(:disabled) .send-enter-icon {
@@ -983,6 +1040,66 @@
 .send-btn.is-streaming:hover {
     background: var(--coral);
     color: white;
+}
+
+/* 三态按钮组：[加入对话] + [停止] */
+.send-btn-group {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 0;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--overlay-light);
+}
+
+.send-btn-group .send-btn {
+    border: none;
+    border-radius: 0;
+    min-height: auto;
+    min-width: auto;
+    padding: 0.3rem 0.55rem;
+}
+
+.send-btn-group .send-btn.is-streaming {
+    border-left: 1px solid rgba(var(--coral-rgb, 210, 100, 90), 0.2);
+    min-height: auto;
+    min-width: auto;
+}
+
+.steer-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 0.25rem 0.6rem;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.06);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    -webkit-app-region: no-drag;
+    white-space: nowrap;
+}
+
+.steer-btn:hover {
+    background: rgba(var(--accent-rgb), 0.14);
+}
+
+.steer-btn:active {
+    transform: scale(0.97);
+}
+
+.steer-hint {
+    font-size: 0.52rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    opacity: 0.7;
+    line-height: 1;
 }
 /* 连接/恢复提示 */
 .connection-recovery-bar {

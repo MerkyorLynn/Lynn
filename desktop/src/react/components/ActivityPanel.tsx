@@ -22,6 +22,7 @@ interface ActivityItem {
   sessionFile?: string;
   startedAt?: number;
   finishedAt?: number;
+  workspace?: string;
 }
 
 interface DetailMessage {
@@ -46,6 +47,7 @@ export function ActivityPanel() {
 
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [hbEnabled, setHbEnabled] = useState(true);
+  const [auditLog, setAuditLog] = useState<Array<{ operation: string; path: string; ts: string }> | null>(null);
   const t = window.t ?? ((p: string) => p);
 
   // 打开面板时加载活动 + 巡检状态
@@ -143,6 +145,26 @@ export function ActivityPanel() {
                   onClick={toggleHeartbeat}
                 />
               </div>
+              <button
+                className={fp.floatingPanelBack}
+                title={t('activity.auditLog') || '审计日志'}
+                style={{ marginLeft: 4, fontSize: '0.7rem', opacity: 0.7 }}
+                onClick={async () => {
+                  if (auditLog) { setAuditLog(null); return; }
+                  try {
+                    const res = await hanaFetch('/api/audit-log?limit=50');
+                    const data = await res.json();
+                    setAuditLog(data.entries || []);
+                  } catch { setAuditLog([]); }
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+              </button>
               <button className={fp.floatingPanelClose} onClick={close}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -151,6 +173,20 @@ export function ActivityPanel() {
               </button>
             </div>
             <div className={fp.floatingPanelBody}>
+              {auditLog !== null && (
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--overlay-light, rgba(0,0,0,0.06))', maxHeight: 240, overflowY: 'auto', fontSize: '0.75rem' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('activity.auditLog') || '审计日志'} ({auditLog.length})</div>
+                  {auditLog.length === 0 ? (
+                    <div style={{ opacity: 0.5 }}>{t('activity.auditLogEmpty') || '暂无记录'}</div>
+                  ) : auditLog.map((entry, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, lineHeight: 1.6, opacity: 0.8 }}>
+                      <span style={{ flexShrink: 0, width: 42, color: entry.operation === 'delete' ? 'var(--danger)' : entry.operation === 'write' ? 'var(--warning)' : 'inherit' }}>{entry.operation}</span>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.path}>{entry.path?.split('/').pop()}</span>
+                      <span style={{ flexShrink: 0, opacity: 0.5 }}>{entry.ts?.slice(11, 19)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className={fp.activityCards} id="activityCards">
                 {activities.length === 0 ? (
                   <div className={fp.activityEmpty}>{t('activity.empty')}</div>
@@ -195,6 +231,7 @@ function ActivityCard({
     : yuanFallbackAvatar(ag?.yuan);
 
   const t = window.t ?? ((p: string) => p);
+  const workspaceName = String(a.workspace || '').trim().split('/').filter(Boolean).pop() || '';
   const typeText = a.type === 'heartbeat' ? t('activity.heartbeat')
     : a.type === 'delegate' ? t('activity.delegate')
     : a.type === 'plan' ? t('activity.plan')
@@ -239,6 +276,13 @@ function ActivityCard({
         )}
       </div>
       <div className={fp.actCardMeta}>
+        {workspaceName ? (
+          <span className={fp.actCardBadge} style={{ opacity: 0.9 }}>
+            {t('desk.workspace') && t('desk.workspace') !== 'desk.workspace'
+              ? `${t('desk.workspace')} · ${workspaceName}`
+              : `工作区 · ${workspaceName}`}
+          </span>
+        ) : null}
         {durationText && <span className={fp.actCardDuration}>{durationText}</span>}
         {a.status === 'error' && <span style={{ color: 'var(--danger)' }}>{t('activity.error')}</span>}
         {a.sessionFile && <span className={fp.actCardViewHint}>{t('activity.viewSession')}</span>}

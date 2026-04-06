@@ -148,6 +148,11 @@
   },
   "input": {
     "placeholder": "なにか話しかけてみてください...",
+    "hintAt": "@ を入力してファイルを見せる",
+    "hintSlash": "/ でコマンド一覧を表示",
+    "hintDrag": "ファイルをここにドロップして添付",
+    "hintCmdK": "⌘K で会話履歴を検索",
+    "hintDesk": "⌘J でデスクを開く",
     "selectFolder": "フォルダを選択",
     "workspace": "ワークスペース：",
     "selectWorkspace": "ワークスペースを選択",

@@ -91,7 +91,38 @@
       "instructions": "已讀專案指令",
       "mcp": "能用 MCP",
       "skills": "技能",
-      "projectRules": "指令"
+      "automation": "自動任務",
+      "assistants": "助手",
+      "todo": "待辦",
+      "done": "完成",
+      "skillsCenter": "技能中心",
+      "mcpHub": "MCP 接入",
+      "projectRules": "指令",
+      "state": "現在",
+      "model": "模型",
+      "jian": "箋",
+      "continueBusy": "有任務正在推進",
+      "continueIdle": "可以從目前工作區開始",
+      "tryAt": "用 @ 給我檔案",
+      "startWorkspace": "先讀工作區",
+      "resumeTask": "繼續目前任務",
+      "resumePrompt": "繼續剛才的任務，先告訴我目前進度和下一步。",
+      "workspacePrompt": "先快速讀一下目前工作區，告訴我你會從哪裡開始。"
+    }
+  },
+  "titlebar": {
+    "task": {
+      "openActivity": "查看任務詳情",
+      "meta": "{count} 個任務",
+      "waiting": "{count} 個{label}",
+      "waitingOne": "等待確認",
+      "waitingMany": "等待確認",
+      "running": "{count} 個{label}",
+      "runningOne": "任務進行中",
+      "runningMany": "任務進行中",
+      "pending": "{count} 個{label}",
+      "pendingOne": "待啟動",
+      "pendingMany": "待啟動"
     }
   },
   "session": {
@@ -175,6 +206,10 @@
   "input": {
     "placeholder": "說點什麼...",
     "hintAt": "輸入 @ 讓 Lynn 看檔案",
+    "hintSlash": "輸入 / 查看快捷指令",
+    "hintDrag": "拖曳檔案到此處附加上下文",
+    "hintCmdK": "⌘K 搜尋歷史對話",
+    "hintDesk": "⌘J 開啟右側書桌",
     "selectFolder": "選擇工作資料夾",
     "workspace": "工作空間：",
     "selectWorkspace": "選擇工作空間",
@@ -243,16 +278,16 @@
     "focusHint": "按 Cmd/Ctrl + K 隨時開始輸入",
     "quickActions": {
       "askFolder": {
-        "label": "看看目前專案",
-        "prompt": "請先快速瀏覽目前工作空間，告訴我這是什麼專案、現在最值得先做的事是什麼。"
+        "label": "幫我做個計畫",
+        "prompt": "我想先把今天要推進的事理清楚。請結合目前工作空間，先給我一個簡短的執行計畫和第一步建議。"
       },
       "summarizeWork": {
-        "label": "總結這堆檔案",
-        "prompt": "請先閱讀目前工作空間的關鍵檔案，給我一個簡短總結：專案做什麼、現在進展到哪、接下來建議做什麼。"
+        "label": "分析這個檔案",
+        "prompt": "我想分析一個檔案。先告訴我可以直接拖進來，或用 @ 引用檔案，然後等我把檔案給你。"
       },
       "planToday": {
-        "label": "給我今日計畫",
-        "prompt": "根據目前工作空間，給我一個今天可執行的 3 步計畫，按優先級排好。"
+        "label": "看看今天該做什麼",
+        "prompt": "請先看看目前工作空間和箋，告訴我今天最值得先推進的 3 件事，並直接給出建議的第一步。如果還沒有箋，就先幫我寫一份今天的工作清單。不要先連續反問很多問題。"
       },
       "tryAt": {
         "label": "試試 @ 引用檔案"
@@ -627,10 +662,10 @@
       "licenseToggle": "許可證全文",
       "permissions": "權限",
       "fullAccess": "全權模式",
-      "fullAccessDesc": "關閉沙盒隔離和命令限制，Agent 擁有完整的檔案系統和終端權限（新對話生效）",
+      "fullAccessDesc": "允許更高權限的本地執行與系統操作（新對話生效）",
       "fullAccessWarningTitle": "關於全權模式",
       "fullAccessWarningBody1": "開啟後，Agent 將獲得完整的系統權限，包括：",
-      "fullAccessWarningBody2": "1. 檔案系統不受沙盒保護，可讀寫任意路徑\n2. 終端命令不受限制，可執行 sudo、chmod 等操作\n3. OS 級隔離（macOS Seatbelt / Linux bubblewrap）將被關閉",
+      "fullAccessWarningBody2": "1. 可以存取更廣的本地路徑\n2. 終端命令限制會明顯減少，可執行 sudo、chmod 等操作\n3. 涉及系統級修改時，需要你自行確認風險",
       "fullAccessWarningBody3": "僅建議在完全信任 Agent 行為且需要系統級操作時開啟。",
       "fullAccessCancel": "取消",
       "fullAccessConfirm": "我了解風險，開啟",
@@ -1015,12 +1050,13 @@
         "將 Token 貼到上方輸入框，打開開關即可",
         "在 Telegram 找到你的 Bot，發訊息試試吧"
       ],
-      "ownerSelect": "哪個帳號是你",
-      "ownerWarning": "所選帳號可存取你的檔案和隱私資訊，請確認是你本人。",
+      "ownerSelect": "設為本人帳號",
+      "ownerWarning": "設為本人後，這個帳號發來的訊息會按完整 Lynn 處理；其他帳號仍是一般訪客模式。",
       "ownerNone": "傳送一則訊息後即可選擇",
+      "ownerPending": "先讓這個平台給 Lynn 傳來一則真實訊息，辨識到帳號後這裡才會出現「設為本人帳號」。",
       "ownerSaved": "已儲存",
       "ownerConfirmTitle": "確認設為 Owner？",
-      "ownerConfirmText": "Owner 擁有完整的 Agent 權限，包括記憶、工具呼叫和人格。請確認這是你本人的帳號。",
+      "ownerConfirmText": "設為本人後，這個帳號可以完整呼叫 Lynn 的記憶、工具與人格。請確認這確實是你自己的帳號。",
       "ownerConfirmCancel": "取消",
       "ownerConfirmSave": "確認",
       "tutorialFsSteps": [
@@ -1174,10 +1210,10 @@
     "duration": "耗時 {text}"
   },
   "automation": {
-    "title": "任務計畫",
-    "empty": "暫無任務計畫\n助手會在需要時自動建立",
-    "guideTitle": "讓助手定時為你工作",
-    "guideDesc": "設定定時任務，助手會按計畫自動執行。也可以在對話中讓助手建立。",
+    "title": "自動任務",
+    "empty": "暫無自動任務\n助手會在需要時自動建立",
+    "guideTitle": "讓助手按計畫自動做事",
+    "guideDesc": "設定自動任務後，助手會按計畫自動執行。也可以在對話中讓助手建立。",
     "guideTip": "點擊即可新增，新增後可編輯時間和內容",
     "deleteConfirm": "確定要刪除這個定時任務嗎？",
     "defaultModel": "預設模型",
@@ -1206,6 +1242,21 @@
     "openInFinder": "打開資料夾",
     "jianLabel": "箋",
     "jianPlaceholder": "寫點什麼，告訴助手這個資料夾裡面的檔案該如何處理...",
+    "jianFooter": "Lynn 巡檢時會自動讀取這裡的內容 · 支援 Markdown · ⌘J 切換",
+    "patrolIdle": "打開箋後會自動巡檢一次",
+    "patrolRunning": "Lynn 正在閱讀目前工作區與箋裡的安排",
+    "patrolDone": "剛剛完成一次巡檢",
+    "patrolDoneAt": "上次巡檢完成於 {time}",
+    "patrolError": "這次巡檢沒跑完，稍後會再試一次",
+    "automationIdle": "箋裡的重複待辦會自動變成自動任務",
+    "automationReady": "已設 {count} 個自動任務",
+    "automationNext": "已設 {count} 個自動任務 · 下次 {time}",
+    "automationPausedSummary": "已設 {count} 個自動任務 · {paused} 個暫停中",
+    "automationNextWithPause": "已設 {count} 個自動任務 · 下次 {time} · {paused} 個暫停中",
+    "openDocBack": "返回箋",
+    "openDocFooter": "正在編輯這個文件 · 自動保存到原文件",
+    "openDocReadFailed": "沒能讀到這個文件",
+    "openDocSaveFailed": "保存文件失敗",
     "emptyTitle": "書桌還空空的呢",
     "emptyHint": "書桌是助手日常巡檢的工作空間，也是每次對話的預設目錄\n去設定裡指定一個資料夾吧",
     "noDeskRoot": "書桌根目錄尚未設定，請前往設定「工作」指定資料夾",
@@ -1215,6 +1266,7 @@
     "newFolder": "新建資料夾",
     "ctx": {
       "open": "打開",
+      "openInLynn": "在 Lynn 中打開",
       "openInFinder": "打開資料夾",
       "rename": "重新命名",
       "copyPath": "複製路徑",
@@ -1707,10 +1759,10 @@
       "searchMissingQuery": "search 操作需要提供 query 參數。",
       "applyMissingParams": "apply 操作需要同時提供 key 和 value 參數。",
       "frontendOnly": "僅在客戶端可見",
-      "sandbox": "沙盒安全",
-      "sandboxDesc": "限制檔案系統寫入範圍",
-      "securityMode": "安全模式",
-      "securityModeDesc": "三模式安全策略（執行/規劃/安全）",
+      "sandbox": "舊版執行相容項",
+      "sandboxDesc": "歷史相容設定，通常不需要調整",
+      "securityMode": "執行模式",
+      "securityModeDesc": "三種執行邊界（執行 / 規劃 / 安全）",
       "locale": "語言",
       "timezone": "時區",
       "timezoneDesc": "IANA 時區（如 Asia/Shanghai）",
@@ -1775,7 +1827,7 @@
     "inputHelp": "輸入 /help 查看命令列表"
   },
   "sandbox": {
-    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 的沙盒安全策略阻止。這不是程式錯誤，而是安全保護機制在運作。請告知使用者操作被安全策略阻止，並說明具體原因。使用者可以在設定中調整沙盒策略。",
+    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 目前的執行權限策略阻止。這不是程式錯誤，而是保護機制在運作。請告知使用者操作被攔下，並說明具體原因。使用者可以切換執行模式或擴大授權範圍。",
     "noSudo": "禁止使用 sudo",
     "noSu": "禁止使用 su 切換使用者",
     "noChmod": "禁止修改檔案權限",
@@ -1793,8 +1845,8 @@
     "noBcdedit": "禁止修改開機設定",
     "noWmic": "禁止 WMI 命令",
     "restrictedPath": "命令存取了受限路徑：{path}",
-    "writeRestricted": "[安全策略] 檔案系統寫入被限制在工作空間內。此操作被沙盒安全策略阻止，請告知使用者。",
-    "osRequired": "[sandbox] standard 模式要求 OS 級沙盒，但當前平台不支援（{platform}）。請安裝 sandbox-exec (macOS) 或 bubblewrap (Linux)，或切換到 full-access 模式。",
+    "writeRestricted": "[安全策略] 目前只允許在已授權的工作區內寫入。此操作已被攔下，請告知使用者擴大授權範圍或改到目前工作區執行。",
+    "osRequired": "[受保護執行環境] 當前平台不支援此執行邊界（{platform}）。請切換到執行模式，或在支援的平台上繼續。",
     "opRead": "讀取",
     "opWrite": "寫入",
     "opDelete": "刪除",
@@ -1822,13 +1874,13 @@
   "security": {
     "mode": {
       "authorized": "執行模式",
-      "authorizedDesc": "危險操作需確認後執行，仍受沙盒與受信任路徑限制",
+      "authorizedDesc": "預設推薦；正常執行，遇到危險操作或受保護路徑會先確認",
       "plan": "規劃模式",
       "planDesc": "僅分析規劃，不執行",
       "safe": "安全模式",
-      "safeDesc": "嚴格沙盒，直接拒絕",
+      "safeDesc": "以唯讀查看為主，危險操作直接拒絕",
       "fullAccess": "全權模式",
-      "fullAccessDesc": "關閉沙盒隔離與命令限制"
+      "fullAccessDesc": "不受限制地執行（舊版相容描述）"
     },
     "auth": {
       "title": "這次操作需要你的授權",

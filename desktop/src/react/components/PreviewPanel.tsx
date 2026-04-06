@@ -25,6 +25,7 @@ const EDITABLE_TYPES = new Set(['markdown', 'code', 'csv']);
 
 function isEditable(artifact: Artifact | null): boolean {
   if (!artifact) return false;
+  if (artifact.previewOnly) return false;
   return !!artifact.filePath && EDITABLE_TYPES.has(artifact.type);
 }
 
@@ -51,7 +52,6 @@ export function PreviewPanel() {
   const previewOpen = useStore(s => s.previewOpen);
   const activeTabId = useStore(s => s.activeTabId);
   const artifacts = useStore(s => s.artifacts);
-  const editorDetached = useStore(s => s.editorDetached);
   const setPreviewOpen = useStore(s => s.setPreviewOpen);
   const setEditorDetached = useStore(s => s.setEditorDetached);
 

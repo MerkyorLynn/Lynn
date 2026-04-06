@@ -25,7 +25,7 @@ export function buildReviewFollowUpTaskTitle(structuredReview, { zh = false } = 
   return lead ? `Address review findings: ${lead}` : 'Address review findings';
 }
 
-export function buildReviewFollowUpTaskPrompt({ structuredReview, contextPack, followUpPrompt, reviewerName } = {}, { zh = false } = {}) {
+export function buildReviewFollowUpTaskPrompt({ structuredReview, contextPack, followUpPrompt, reviewerName, sourceResponse, executionResolution } = {}, { zh = false } = {}) {
   const findings = normalizeFindings(structuredReview);
   const lines = [];
 
@@ -41,6 +41,16 @@ export function buildReviewFollowUpTaskPrompt({ structuredReview, contextPack, f
       lines.push('');
       lines.push('[复查人]');
       lines.push(cleanText(reviewerName, 120));
+    }
+    if (executionResolution) {
+      lines.push('');
+      lines.push('[建议执行结论]');
+      lines.push(cleanText(executionResolution, 900));
+    }
+    if (sourceResponse) {
+      lines.push('');
+      lines.push('[Lynn 原回答摘要]');
+      lines.push(cleanText(sourceResponse, 1200));
     }
     if (structuredReview?.summary) {
       lines.push('');
@@ -97,6 +107,16 @@ export function buildReviewFollowUpTaskPrompt({ structuredReview, contextPack, f
       lines.push('');
       lines.push('[Reviewer]');
       lines.push(cleanText(reviewerName, 120));
+    }
+    if (executionResolution) {
+      lines.push('');
+      lines.push('[Suggested execution conclusion]');
+      lines.push(cleanText(executionResolution, 900));
+    }
+    if (sourceResponse) {
+      lines.push('');
+      lines.push("[Lynn's original answer]");
+      lines.push(cleanText(sourceResponse, 1200));
     }
     if (structuredReview?.summary) {
       lines.push('');

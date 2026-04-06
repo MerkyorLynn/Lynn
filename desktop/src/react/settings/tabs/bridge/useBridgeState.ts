@@ -154,6 +154,14 @@ export function useBridgeState() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: plat, userId: userId || null }),
       });
+      setStatus((prev) => prev ? {
+        ...prev,
+        owner: {
+          ...(prev.owner || {}),
+          [plat]: userId || undefined,
+        },
+      } : prev);
+      await loadStatus();
       showToast(t('settings.bridge.ownerSaved'), 'success');
     } catch {
       showToast(t('settings.saveFailed'), 'error');

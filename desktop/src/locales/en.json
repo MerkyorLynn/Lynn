@@ -113,6 +113,14 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand chat list",
     "empty": "No chats yet ✿",
+    "emptyAction": {
+      "organize": "Organize files",
+      "organizePrompt": "Help me organize the files in the current workspace. Categorize them and give suggestions.",
+      "plan": "Write a task list",
+      "planPrompt": "Help me write a task list for today. List the top 3 most important things.",
+      "analyze": "Analyze a file",
+      "analyzePrompt": "I want to analyze a file. Tell me to drag it in or use @ to reference it."
+    },
     "activity": "Activity",
     "jian": "Desk",
     "bridge": "Social Platforms",
@@ -125,7 +133,38 @@
       "instructions": "project instructions loaded",
       "mcp": "MCP ready",
       "skills": "Skills",
-      "projectRules": "Rules"
+      "automation": "Automations",
+      "assistants": "Assistants",
+      "todo": "Todo",
+      "done": "Done",
+      "skillsCenter": "Skills",
+      "mcpHub": "MCP",
+      "projectRules": "Rules",
+      "state": "Now",
+      "model": "Model",
+      "jian": "Jian",
+      "continueBusy": "Tasks are still moving",
+      "continueIdle": "Ready to start from this workspace",
+      "tryAt": "Show a file with @",
+      "startWorkspace": "Read workspace first",
+      "resumeTask": "Resume task",
+      "resumePrompt": "Continue the last task and tell me the current progress plus the next step first.",
+      "workspacePrompt": "Quickly read the current workspace and tell me where you would start."
+    }
+  },
+  "titlebar": {
+    "task": {
+      "openActivity": "Open task details",
+      "meta": "{count} active task(s)",
+      "waiting": "{count} waiting",
+      "waitingOne": "waiting approval",
+      "waitingMany": "waiting approval",
+      "running": "{count} running",
+      "runningOne": "task running",
+      "runningMany": "tasks running",
+      "pending": "{count} queued",
+      "pendingOne": "queued",
+      "pendingMany": "queued"
     }
   },
   "session": {
@@ -222,6 +261,13 @@
   "input": {
     "placeholder": "Say something...",
     "hintAt": "Type @ to show Lynn a file",
+    "hintSlash": "Type / for quick commands",
+    "hintDrag": "Drop files here to add context",
+    "hintAnalyzeExcel": "Help me analyze this Excel file...",
+    "hintScanStock": "Scan today's stock market for unusual moves...",
+    "hintOrganize": "Organize the documents in this folder...",
+    "hintCmdK": "⌘K search chat history",
+    "hintDesk": "⌘J open desk panel",
     "selectFolder": "Select folder",
     "workspace": "Workspace: ",
     "selectWorkspace": "Select workspace",
@@ -306,16 +352,16 @@
     "focusHint": "Press Cmd/Ctrl + K to start typing",
     "quickActions": {
       "askFolder": {
-        "label": "Inspect this project",
-        "prompt": "Quickly inspect the current workspace and tell me what this project is and what is most worth doing first."
+        "label": "Help me plan",
+        "prompt": "I want to get clear on what to move forward today. Use the current workspace and note to give me a short execution plan and the best first step. If there's no note yet, help me create a task list."
       },
       "summarizeWork": {
-        "label": "Summarize these files",
-        "prompt": "Read the key files in the current workspace and give me a short summary: what this project does, where it stands, and what to do next."
+        "label": "Analyze a file",
+        "prompt": "I want to analyze a file. You can help me with Excel spreadsheets, PDF documents, CSV data, and more. Just tell me to drag the file in or use @ to reference it."
       },
       "planToday": {
-        "label": "Make today's plan",
-        "prompt": "Based on the current workspace, give me a practical 3-step plan for today in priority order."
+        "label": "What should I do today?",
+        "prompt": "First look at the current workspace and note, then tell me the top three things worth moving forward today and the best first step. If there is no note yet, help me create a short work list before asking follow-up questions."
       },
       "tryAt": {
         "label": "Try @ file context"
@@ -323,7 +369,9 @@
     }
   },
   "drop": {
-    "hint": "Drop to send files to {name}"
+    "hint": "Drop to send files to {name}",
+    "mainHint": "Drop to analyze",
+    "subHint": "{name} supports Excel, PDF, CSV, images and more"
   },
   "attach": {
     "folder": "Folder",
@@ -690,10 +738,10 @@
       "licenseToggle": "License full text",
       "permissions": "Permissions",
       "fullAccess": "Full Access Mode",
-      "fullAccessDesc": "Disable sandbox isolation and command restrictions. The agent gets full filesystem and terminal access (takes effect on new sessions)",
+      "fullAccessDesc": "Allow higher-privilege local execution and system operations (takes effect on new sessions)",
       "fullAccessWarningTitle": "About Full Access Mode",
       "fullAccessWarningBody1": "Once enabled, the agent will have full system privileges, including:",
-      "fullAccessWarningBody2": "1. Filesystem is not sandboxed — can read/write any path\n2. Terminal commands are unrestricted — can run sudo, chmod, etc.\n3. OS-level isolation (macOS Seatbelt / Linux bubblewrap) will be disabled",
+      "fullAccessWarningBody2": "1. The agent can access a much broader set of local paths\n2. Terminal restrictions are greatly reduced, including sudo or chmod\n3. System-level changes may happen, so you should review the risk yourself",
       "fullAccessWarningBody3": "Only recommended when you fully trust the agent's behavior and need system-level operations.",
       "fullAccessCancel": "Cancel",
       "fullAccessConfirm": "I understand the risks, enable",
@@ -1089,12 +1137,13 @@
         "Paste the Token into the input field above and turn on the switch",
         "Find your Bot in Telegram and send a message to test it"
       ],
-      "ownerSelect": "Which account is you",
-      "ownerWarning": "Warning: The selected account will have access to your computer, memory, and private information. Make sure the account belongs to you.",
+      "ownerSelect": "Set as your account",
+      "ownerWarning": "Messages from this account will be handled as full Lynn access. Other accounts stay in guest mode.",
       "ownerNone": "Send a message first to select",
+      "ownerPending": "Have this platform send Lynn one real message first. The \"Set as your account\" option will appear after Lynn recognizes the account.",
       "ownerSaved": "Saved",
       "ownerConfirmTitle": "Set as Owner?",
-      "ownerConfirmText": "The Owner has full Agent access, including memory, tools, and personality. Make sure this is your own account.",
+      "ownerConfirmText": "After this, messages from the selected account can use Lynn's full memory, tools, and persona. Make sure it is really your own account.",
       "ownerConfirmCancel": "Cancel",
       "ownerConfirmSave": "Confirm",
       "tutorialFsSteps": [
@@ -1290,6 +1339,21 @@
     "openInFinder": "Open Folder",
     "jianLabel": "Jian",
     "jianPlaceholder": "Write something to tell the assistant how to handle files in this folder...",
+    "jianFooter": "Lynn reads this automatically during patrols · Markdown supported · ⌘J to toggle",
+    "patrolIdle": "Opening Jian will trigger a patrol",
+    "patrolRunning": "Lynn is reading this workspace and the plan in Jian",
+    "patrolDone": "A patrol just finished",
+    "patrolDoneAt": "Last patrol finished at {time}",
+    "patrolError": "This patrol did not finish. Lynn will try again later",
+    "automationIdle": "Recurring items in jian will automatically become automations",
+    "automationReady": "{count} automations ready",
+    "automationNext": "{count} automations set · next at {time}",
+    "automationPausedSummary": "{count} automations set · {paused} paused",
+    "automationNextWithPause": "{count} automations set · next at {time} · {paused} paused",
+    "openDocBack": "Back to Jian",
+    "openDocFooter": "Editing this document directly · Auto-saves to the original file",
+    "openDocReadFailed": "Couldn't read this document",
+    "openDocSaveFailed": "Failed to save document",
     "emptyTitle": "Desk is empty",
     "emptyHint": "The desk is the assistant's patrol workspace and the default directory for every chat.\nSet a folder in settings.",
     "noDeskRoot": "Desk root is not set. Open Settings → Work and choose a folder.",
@@ -1299,6 +1363,7 @@
     "newFolder": "New Folder",
     "ctx": {
       "open": "Open",
+      "openInLynn": "Open in Lynn",
       "openInFinder": "Open Folder",
       "rename": "Rename",
       "copyPath": "Copy Path",
@@ -1792,8 +1857,8 @@
       "searchMissingQuery": "The search action requires a query parameter.",
       "applyMissingParams": "The apply action requires both key and value parameters.",
       "frontendOnly": "client-side only",
-      "sandbox": "Sandbox Security",
-      "sandboxDesc": "Restrict file system write scope",
+      "sandbox": "Legacy execution toggle",
+      "sandboxDesc": "Compatibility-only setting; you usually do not need to change this",
       "securityMode": "Security Mode",
       "securityModeDesc": "Three-mode security policy (Execute/Plan/Safe)",
       "locale": "Language",
@@ -1860,7 +1925,7 @@
     "inputHelp": "Type /help to see commands"
   },
   "sandbox": {
-    "blocked": "[Security] {reason}\n\nThis operation was blocked by Lynn's sandbox security policy. This is not a bug, but a security protection mechanism at work. Please inform the user that the operation was blocked and explain the reason. Users can adjust sandbox policy in settings.",
+    "blocked": "[Security] {reason}\n\nThis operation was blocked by Lynn's current execution policy. This is not a bug; it is a protection mechanism at work. Please tell the user the action was blocked and explain why. They can switch execution mode or broaden the approval scope.",
     "noSudo": "sudo is not allowed",
     "noSu": "su user switching is not allowed",
     "noChmod": "Changing file permissions is not allowed",
@@ -1878,8 +1943,8 @@
     "noBcdedit": "Modifying boot configuration is not allowed",
     "noWmic": "WMI commands are not allowed",
     "restrictedPath": "Command accessed a restricted path: {path}",
-    "writeRestricted": "[Security] File system writes are restricted to the workspace. This operation was blocked by sandbox security policy. Please inform the user.",
-    "osRequired": "[sandbox] Standard mode requires OS-level sandbox, but current platform does not support it ({platform}). Please install sandbox-exec (macOS) or bubblewrap (Linux), or switch to full-access mode.",
+    "writeRestricted": "[Security] File system writes are currently limited to approved workspaces. This action was blocked. Ask the user to broaden approval or work inside the current workspace.",
+    "osRequired": "[Protected execution environment] This execution boundary is not supported on the current platform ({platform}). Switch to Execute mode or continue on a supported platform.",
     "opRead": "Read",
     "opWrite": "Write",
     "opDelete": "Delete",
@@ -1907,13 +1972,13 @@
   "security": {
     "mode": {
       "authorized": "Execute",
-      "authorizedDesc": "Prompts for risky operations, still bounded by sandbox and trusted roots",
+      "authorizedDesc": "Recommended default. Normal execution, with prompts for risky operations or protected paths",
       "plan": "Plan",
       "planDesc": "Analyze only, no execution",
       "safe": "Safe",
-      "safeDesc": "Strict sandbox, blocked directly",
+      "safeDesc": "Read-first mode. Risky operations are rejected directly",
       "fullAccess": "Full Access",
-      "fullAccessDesc": "Disable sandbox isolation and allow unrestricted execution"
+      "fullAccessDesc": "Run without restrictions (legacy compatibility wording)"
     },
     "auth": {
       "title": "This action needs your approval",

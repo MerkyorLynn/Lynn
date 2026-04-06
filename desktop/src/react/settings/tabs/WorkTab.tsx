@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
-import { t, autoSaveConfig } from '../helpers';
+import { t } from '../helpers';
 import { Toggle } from '../widgets/Toggle';
 import { SelectWidget } from '../widgets/SelectWidget';
 import { resolveBundledAvatar } from '../../utils/agent-helpers';
@@ -32,6 +32,9 @@ interface ReviewConfigResponse {
   };
   resolvedReviewer?: ReviewCandidate | null;
 }
+
+const LOCAL_DEFAULT_WORKSPACE = '/Users/lynn/Desktop/Lynn';
+const LOCAL_DEFAULT_TRUSTED_ROOTS = [LOCAL_DEFAULT_WORKSPACE, '/Users/lynn/Desktop'];
 
 function uniqueRoots(roots: string[]): string[] {
   const seen = new Set<string>();
@@ -74,15 +77,22 @@ function toModelRef(raw: unknown): { id: string; provider?: string } | null {
 }
 
 export function WorkTab() {
-  const { settingsConfig, showToast, activeTab, pendingReviewerKind } = useSettingsStore();
+  const { settingsConfig, showToast, activeTab, pendingReviewerKind, homeFolder: runtimeHomeFolder, trustedRoots: runtimeTrustedRoots } = useSettingsStore();
   const [homeFolder, setHomeFolder] = useState('');
   const [trustedRoots, setTrustedRoots] = useState<string[]>([]);
+  const [defaultWorkspace, setDefaultWorkspace] = useState<{ workspacePath: string; trustedRoots: string[] } | null>(null);
   const [hbEnabled, setHbEnabled] = useState(true);
   const [hbInterval, setHbInterval] = useState(17);
   const [cronAutoApprove, setCronAutoApprove] = useState(true);
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewLoading, setReviewLoading] = useState(true);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const effectiveHomeFolder = homeFolder || defaultWorkspace?.workspacePath || LOCAL_DEFAULT_WORKSPACE;
+  const effectiveTrustedRoots = trustedRoots.length > 0
+    ? trustedRoots
+    : ((defaultWorkspace?.trustedRoots && defaultWorkspace.trustedRoots.length > 0)
+      ? defaultWorkspace.trustedRoots
+      : LOCAL_DEFAULT_TRUSTED_ROOTS);
 
   const loadReviewConfig = useCallback(async () => {
     setReviewLoading(true);
@@ -99,11 +109,30 @@ export function WorkTab() {
   }, [showToast]);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const defaults = await platform?.getOnboardingDefaults?.();
+        if (cancelled || !defaults?.workspacePath) return;
+        setDefaultWorkspace({
+          workspacePath: defaults.workspacePath,
+          trustedRoots: Array.isArray(defaults.trustedRoots) ? uniqueRoots(defaults.trustedRoots) : [],
+        });
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     if (settingsConfig) {
-      const cfgHome = settingsConfig.desk?.home_folder || '';
+      const cfgHome = settingsConfig.desk?.home_folder || runtimeHomeFolder || defaultWorkspace?.workspacePath || '';
       const cfgRoots = Array.isArray(settingsConfig.desk?.trusted_roots)
         ? settingsConfig.desk.trusted_roots
-        : [];
+        : (Array.isArray(runtimeTrustedRoots) && runtimeTrustedRoots.length > 0
+          ? runtimeTrustedRoots
+          : (defaultWorkspace?.trustedRoots || []));
 
       setHomeFolder(cfgHome);
       const roots = uniqueRoots(cfgRoots);
@@ -112,7 +141,31 @@ export function WorkTab() {
       setHbInterval(settingsConfig.desk?.heartbeat_interval ?? 17);
       setCronAutoApprove(settingsConfig.desk?.cron_auto_approve !== false);
     }
-  }, [settingsConfig]);
+  }, [settingsConfig, runtimeHomeFolder, runtimeTrustedRoots, defaultWorkspace]);
+
+  useEffect(() => {
+    if (!defaultWorkspace?.workspacePath) return;
+    if (!settingsConfig) return;
+    const hasConfiguredHome = Boolean(settingsConfig.desk?.home_folder || runtimeHomeFolder);
+    const hasConfiguredRoots = Array.isArray(settingsConfig.desk?.trusted_roots) && settingsConfig.desk.trusted_roots.length > 0
+      ? true
+      : Array.isArray(runtimeTrustedRoots) && runtimeTrustedRoots.length > 0;
+    if (hasConfiguredHome && hasConfiguredRoots) return;
+    void hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        desk: {
+          home_folder: hasConfiguredHome ? (settingsConfig.desk?.home_folder || runtimeHomeFolder || '') : defaultWorkspace.workspacePath,
+          trusted_roots: hasConfiguredRoots
+            ? (Array.isArray(settingsConfig.desk?.trusted_roots) && settingsConfig.desk.trusted_roots.length > 0
+              ? settingsConfig.desk.trusted_roots
+              : runtimeTrustedRoots)
+            : defaultWorkspace.trustedRoots,
+        },
+      }),
+    });
+  }, [defaultWorkspace, settingsConfig, runtimeHomeFolder, runtimeTrustedRoots]);
 
   useEffect(() => {
     loadReviewConfig().catch(() => {});
@@ -140,7 +193,12 @@ export function WorkTab() {
   const saveTrustedRoots = async (roots: string[]) => {
     const nextRoots = uniqueRoots(roots);
     setTrustedRoots(nextRoots);
-    await autoSaveConfig({ desk: { trusted_roots: nextRoots } });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { trusted_roots: nextRoots } }),
+    });
+    useSettingsStore.setState({ trustedRoots: nextRoots });
   };
 
   const pickHomeFolder = async () => {
@@ -148,7 +206,11 @@ export function WorkTab() {
     if (!folder) return;
     setHomeFolder(folder);
     useSettingsStore.setState({ homeFolder: folder });
-    await autoSaveConfig({ desk: { home_folder: folder } });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { home_folder: folder } }),
+    });
 
     if (!trustedRoots.includes(folder)) {
       await saveTrustedRoots([...trustedRoots, folder]);
@@ -156,9 +218,14 @@ export function WorkTab() {
   };
 
   const clearHomeFolder = async () => {
-    setHomeFolder('');
-    useSettingsStore.setState({ homeFolder: null });
-    await autoSaveConfig({ desk: { home_folder: '' } });
+    const fallback = defaultWorkspace?.workspacePath || LOCAL_DEFAULT_WORKSPACE;
+    setHomeFolder(fallback);
+    useSettingsStore.setState({ homeFolder: fallback || null });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { home_folder: fallback } }),
+    });
   };
 
   const addTrustedRoot = async () => {
@@ -168,22 +235,34 @@ export function WorkTab() {
   };
 
   const removeTrustedRoot = async (root: string) => {
-    await saveTrustedRoots(trustedRoots.filter((item) => item !== root));
+    await saveTrustedRoots(effectiveTrustedRoots.filter((item) => item !== root));
   };
 
   const toggleHeartbeat = async (on: boolean) => {
     setHbEnabled(on);
-    await autoSaveConfig({ desk: { heartbeat_enabled: on } });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { heartbeat_enabled: on } }),
+    });
   };
 
   const toggleCronAutoApprove = async (on: boolean) => {
     setCronAutoApprove(on);
-    await autoSaveConfig({ desk: { cron_auto_approve: on } });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { cron_auto_approve: on } }),
+    });
   };
 
   const saveWork = async () => {
     const interval = Math.max(1, Math.min(120, hbInterval));
-    await autoSaveConfig({ desk: { heartbeat_interval: interval } });
+    await hanaFetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ desk: { heartbeat_interval: interval } }),
+    });
   };
 
   const updateReviewConfig = async (patch: Partial<ReviewConfigResponse>) => {
@@ -321,7 +400,7 @@ export function WorkTab() {
             type="text"
             className={`${styles['settings-input']} ${styles['settings-folder-input']}`}
             readOnly
-            value={homeFolder}
+            value={effectiveHomeFolder}
             placeholder={t('settings.work.homeFolderPlaceholder')}
             onClick={pickHomeFolder}
           />
@@ -330,7 +409,7 @@ export function WorkTab() {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
           </button>
-          {homeFolder && (
+          {effectiveHomeFolder && (
             <button
               className={styles['settings-folder-clear']}
               onClick={clearHomeFolder}
@@ -351,14 +430,14 @@ export function WorkTab() {
           {t('settings.work.trustedRootsDesc')}
         </p>
 
-        {trustedRoots.length === 0 && (
+        {effectiveTrustedRoots.length === 0 && (
           <p className={styles['settings-desc']}>
             {t('settings.work.trustedRootsHint')}
           </p>
         )}
 
         <div className={styles['tool-caps-group']}>
-          {trustedRoots.map((root) => (
+          {effectiveTrustedRoots.map((root) => (
             <div key={root} className={styles['tool-caps-item']}>
               <div className={styles['tool-caps-label']}>
                 <span className={styles['tool-caps-name']} title={root}>{root}</span>

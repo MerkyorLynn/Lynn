@@ -82,6 +82,7 @@ contextBridge.exposeInMainWorld("hana", {
   },
   respondConfirmAction: (requestId, approved) => ipcRenderer.send(`confirm-action-response:${requestId}`, { approved: !!approved }),
   onServerRestarted: (cb) => ipcRenderer.on("server-restarted", (_, data) => cb(data)),
+  onGlobalSummon: (cb) => ipcRenderer.on("global-summon", () => cb()),
   // 浏览器查看器窗口
   openBrowserViewer: () => ipcRenderer.invoke("open-browser-viewer", resolveTheme()),
   onBrowserUpdate: (cb) => ipcRenderer.on("browser-update", (_, data) => cb(data)),

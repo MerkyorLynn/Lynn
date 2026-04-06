@@ -30,6 +30,7 @@
 .pill:hover {
     color: var(--accent);
     border-color: rgba(var(--accent-rgb), 0.25);
+    transform: scale(1.04);
 }
 
 /* 授权模式 — 默认，略带温暖 */

@@ -36,16 +36,17 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       const { errorType } = this.state;
       const region = this.props.region;
+      const isZh = String(document?.documentElement?.lang || '').startsWith('zh');
 
       const title = errorType === 'network'
-        ? 'Connection issue'
-        : 'Something went wrong';
+        ? (isZh ? '连接出了点问题' : 'Connection issue')
+        : (isZh ? '这里暂时出了点问题' : 'Something went wrong');
 
       const hint = errorType === 'network'
-        ? 'Check your connection and try again.'
+        ? (isZh ? '检查一下连接后再试一次。' : 'Check your connection and try again.')
         : region
-          ? `An error occurred in ${region}.`
-          : 'An unexpected error occurred.';
+          ? (isZh ? `${region} 区域发生了异常。` : `An error occurred in ${region}.`)
+          : (isZh ? '出现了一个意外错误。' : 'An unexpected error occurred.');
 
       return (
         <div style={{
@@ -68,7 +69,7 @@ export class ErrorBoundary extends Component<Props, State> {
               fontSize: '12px',
             }}
           >
-            Retry
+            {isZh ? '重试' : 'Retry'}
           </button>
         </div>
       );

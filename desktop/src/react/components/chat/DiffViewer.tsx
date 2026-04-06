@@ -15,6 +15,7 @@ interface Props {
   linesAdded: number;
   linesRemoved: number;
   rollbackId?: string;
+  maximized?: boolean;
 }
 
 interface DiffLine {
@@ -59,7 +60,9 @@ function getFileName(filePath: string): string {
   return filePath.split('/').pop() || filePath;
 }
 
-export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded, linesRemoved, rollbackId }: Props) {
+export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded, linesRemoved, rollbackId, maximized }: Props) {
+  const t = window.t ?? ((key: string, fallback?: string) => fallback || key);
+  const isZh = String(document?.documentElement?.lang || '').startsWith('zh');
   const [expanded, setExpanded] = useState(true);
   const [status, setStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending');
   const [isRejecting, setIsRejecting] = useState(false);
@@ -86,7 +89,9 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
       });
       setStatus('rejected');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rollback failed');
+      const raw = err instanceof Error ? err.message : '';
+      const cleaned = raw.replace(/^hanaFetch\s+\S+:\s*/, '').trim();
+      setError(cleaned || (isZh ? '回滚失败' : 'Rollback failed'));
     } finally {
       setIsRejecting(false);
     }
@@ -113,7 +118,7 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
         </div>
       </div>
       {expanded && (
-        <div className={styles.diffBody}>
+        <div className={`${styles.diffBody}${maximized ? ` ${styles.diffBodyMax}` : ''}`}>
           <div className={styles.diffLines}>
             {parsedLines.map((line, i) => (
               <div
@@ -137,22 +142,28 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
       )}
       {status === 'pending' && (
         <div className={styles.diffActions}>
-          <button className={styles.diffAcceptBtn} onClick={handleAccept} title="Accept changes">
-            ✓ Accept
+          <button className={styles.diffAcceptBtn} onClick={handleAccept} title={isZh ? '接受这次改动' : 'Accept changes'}>
+            {isZh ? '✓ 接受改动' : '✓ Accept'}
           </button>
           <button
             className={styles.diffRejectBtn}
             onClick={handleReject}
-            title={rollbackId ? 'Reject changes and restore original file' : 'Rollback unavailable'}
+            title={rollbackId
+              ? (isZh ? '放弃这次改动并恢复原文件' : 'Reject changes and restore original file')
+              : (isZh ? '当前无法回滚' : 'Rollback unavailable')}
             disabled={rejectDisabled}
           >
-            {isRejecting ? '… Reverting' : '✗ Reject'}
+            {isRejecting
+              ? (isZh ? '… 正在回滚' : '… Reverting')
+              : (isZh ? '✗ 放弃改动' : '✗ Reject')}
           </button>
         </div>
       )}
       {status !== 'pending' && (
         <div className={`${styles.diffStatusBar} ${status === 'accepted' ? styles.diffStatusAccepted : styles.diffStatusRejected}`}>
-          {status === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
+          {status === 'accepted'
+            ? (isZh ? '✓ 已接受改动' : '✓ Accepted')
+            : (isZh ? '✗ 已放弃改动' : '✗ Rejected')}
         </div>
       )}
       {error && <div className={styles.diffError}>{error}</div>}

@@ -23,65 +23,78 @@ export function SessionList() {
   return <SessionListInner />;
 }
 
-// ── 日期分组 ──
-
-type DateGroup = 'pinned' | 'today' | 'yesterday' | 'thisWeek' | 'earlier';
-
-function getSessionDateGroup(isoStr: string | null): DateGroup {
-  if (!isoStr) return 'earlier';
-  const date = new Date(isoStr);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
-
-  if (date >= today) return 'today';
-  if (date >= yesterday) return 'yesterday';
-  if (date >= weekAgo) return 'thisWeek';
-  return 'earlier';
-}
-
-interface GroupedSessions {
+interface WorkspaceSessionsGroup {
   key: string;
-  kind: 'date' | 'label';
+  kind: 'agent' | 'workspace';
   title: string;
+  path: string | null;
+  latestModified: number;
   items: Session[];
 }
 
-function groupSessions(sessions: Session[], t: (key: string) => string): GroupedSessions[] {
-  const groups: Record<DateGroup, Session[]> = {
-    pinned: [], today: [], yesterday: [], thisWeek: [], earlier: [],
-  };
-  const labelGroups = new Map<string, Session[]>();
+function parseModifiedTime(value: string | null | undefined): number {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
-  for (const s of sessions) {
-    if (s.pinned) {
-      groups.pinned.push(s);
+function normalizeLegacyWorkspacePath(cwd: string | null | undefined): string | null {
+  const raw = String(cwd || '').trim();
+  if (!raw) return null;
+  const oldRoot = '/Users/lynn/openhanako';
+  const newRoot = '/Users/lynn/Lynn';
+  if (raw === oldRoot || raw.startsWith(`${oldRoot}/`)) {
+    return raw.replace(oldRoot, newRoot);
+  }
+  return raw;
+}
+
+function formatWorkspaceTitle(cwd: string | null, fallbackName: string): string {
+  const normalized = normalizeLegacyWorkspacePath(cwd);
+  if (!normalized) return fallbackName;
+  const dirName = normalized.split('/').filter(Boolean).pop();
+  return dirName || fallbackName;
+}
+
+function groupSessionsByWorkspace(sessions: Session[], fallbackName: string): WorkspaceSessionsGroup[] {
+  const groups = new Map<string, WorkspaceSessionsGroup>();
+
+  for (const session of sessions) {
+    const normalizedCwd = normalizeLegacyWorkspacePath(session.cwd);
+    const key = normalizedCwd ? `cwd:${normalizedCwd}` : 'cwd:agent-root';
+    const existing = groups.get(key);
+    const modifiedAt = parseModifiedTime(session.modified);
+    if (existing) {
+      existing.items.push(session);
+      existing.latestModified = Math.max(existing.latestModified, modifiedAt);
       continue;
     }
-    const primaryLabel = Array.isArray(s.labels) && s.labels.length > 0 ? s.labels[0] : null;
-    if (primaryLabel) {
-      const list = labelGroups.get(primaryLabel) || [];
-      list.push(s);
-      labelGroups.set(primaryLabel, list);
-    } else {
-      groups[getSessionDateGroup(s.modified)].push(s);
-    }
+    groups.set(key, {
+      key,
+      kind: normalizedCwd ? 'workspace' : 'agent',
+      title: formatWorkspaceTitle(normalizedCwd, fallbackName),
+      path: normalizedCwd,
+      latestModified: modifiedAt,
+      items: [session],
+    });
   }
 
-  const result: GroupedSessions[] = [];
-  const order: DateGroup[] = ['pinned', 'today', 'yesterday', 'thisWeek', 'earlier'];
-  if (groups.pinned.length > 0) {
-    result.push({ key: 'pinned', kind: 'date', title: t('time.pinned'), items: groups.pinned });
+  const result = [...groups.values()];
+  result.sort((a, b) => {
+    if (a.kind === 'agent' && b.kind !== 'agent') return -1;
+    if (b.kind === 'agent' && a.kind !== 'agent') return 1;
+    if (b.latestModified !== a.latestModified) return b.latestModified - a.latestModified;
+    return a.title.localeCompare(b.title, 'zh-Hans-CN');
+  });
+
+  for (const group of result) {
+    group.items.sort((a, b) => {
+      const pinDelta = Number(!!b.pinned) - Number(!!a.pinned);
+      if (pinDelta !== 0) return pinDelta;
+      return parseModifiedTime(b.modified) - parseModifiedTime(a.modified);
+    });
   }
-  for (const label of [...labelGroups.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))) {
-    result.push({ key: `label:${label}`, kind: 'label', title: `# ${label}`, items: labelGroups.get(label) || [] });
-  }
-  for (const key of order.filter((groupKey) => groupKey !== 'pinned')) {
-    if (groups[key].length > 0) {
-      result.push({ key, kind: 'date', title: t(`time.${key}`), items: groups[key] });
-    }
-  }
+
   return result;
 }
 
@@ -92,14 +105,32 @@ function SessionListInner() {
   const sessions = useStore(s => s.sessions);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const pendingNewSession = useStore(s => s.pendingNewSession);
+  const sessionCreationPending = useStore(s => s.sessionCreationPending);
   const agents = useStore(s => s.agents);
   const streamingSessions = useStore(s => s.streamingSessions);
   const browserRunning = useStore(s => s.browserRunning);
+  const agentName = useStore(s => s.agentName) || 'Lynn';
 
   const [browserSessions, setBrowserSessions] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = window.localStorage.getItem('hana-session-workspace-groups');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('hana-session-workspace-groups', JSON.stringify(collapsedGroups));
+    } catch {}
+  }, [collapsedGroups]);
 
   // Cmd+K event from SidebarLayout
   useEffect(() => {
@@ -128,7 +159,29 @@ function SessionListInner() {
   }, [sessions, browserRunning]);
 
   if (sessions.length === 0) {
-    return <div className={styles.sessionEmpty}>{t('sidebar.empty')}</div>;
+    return (
+      <div className={styles.sessionEmpty}>
+        <p className={styles.sessionEmptyText}>{t('sidebar.empty')}</p>
+        <div className={styles.sessionEmptyActions}>
+          {[
+            { key: 'organize', label: t('sidebar.emptyAction.organize') || 'Organize files', prompt: t('sidebar.emptyAction.organizePrompt') || 'Help me organize the files in the current workspace. Categorize them and give suggestions.' },
+            { key: 'plan', label: t('sidebar.emptyAction.plan') || 'Write a task list', prompt: t('sidebar.emptyAction.planPrompt') || 'Help me write a task list for today. List the top 3 most important things.' },
+            { key: 'analyze', label: t('sidebar.emptyAction.analyze') || 'Analyze a file', prompt: t('sidebar.emptyAction.analyzePrompt') || 'I want to analyze a file. Tell me to drag it in or use @ to reference it.' },
+          ].map((action) => (
+            <button
+              key={action.key}
+              className={styles.sessionEmptyBtn}
+              onClick={() => {
+                useStore.setState({ welcomeVisible: false });
+                import('../stores/prompt-actions').then(m => m.sendPrompt({ text: action.prompt, displayText: action.prompt }));
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   // Filter sessions by search query
@@ -142,7 +195,7 @@ function SessionListInner() {
       })
     : sessions;
 
-  const grouped = groupSessions(filtered, (key) => t(key) || key);
+  const grouped = groupSessionsByWorkspace(filtered, agentName);
 
   return (
     <>
@@ -164,21 +217,55 @@ function SessionListInner() {
       {searchQuery && filtered.length === 0 && (
         <div className={styles.sessionEmpty}>{t('sidebar.noResults') || 'No results'}</div>
       )}
-      {grouped.map(({ key, items, title }) => (
-        <Fragment key={key}>
-          <div className={styles.sessionDateLabel}>{title}</div>
-          {items.map(s => (
-            <SessionItem
-              key={s.path}
-              session={s}
-              isActive={!pendingNewSession && s.path === currentSessionPath}
-              isStreaming={streamingSessions.includes(s.path)}
-              agents={agents}
-              browserUrl={browserSessions[s.path] || null}
-            />
-          ))}
-        </Fragment>
-      ))}
+      {grouped.map((group) => {
+        const isCollapsed = !searchQuery && !!collapsedGroups[group.key];
+        const containsActive = group.items.some((item) => !pendingNewSession && item.path === currentSessionPath);
+        return (
+          <Fragment key={group.key}>
+            <button
+              type="button"
+              className={`${styles.sessionGroupHeader}${containsActive ? ` ${styles.sessionGroupHeaderActive}` : ''}`}
+              onClick={() => {
+                setCollapsedGroups((prev) => ({ ...prev, [group.key]: !prev[group.key] }));
+              }}
+              title={group.path || group.title}
+            >
+              <span className={`${styles.sessionGroupArrow}${isCollapsed ? ` ${styles.collapsed}` : ''}`} aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+              <span className={styles.sessionGroupIcon} aria-hidden="true">
+                {group.kind === 'workspace' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="4.2"></circle>
+                  </svg>
+                )}
+              </span>
+              <span className={styles.sessionGroupMeta}>
+                <span className={styles.sessionGroupTitle}>{group.title}</span>
+                {group.path ? <span className={styles.sessionGroupPath}>{group.path}</span> : null}
+              </span>
+              <span className={styles.sessionGroupCount}>{group.items.length}</span>
+            </button>
+            {!isCollapsed && group.items.map(s => (
+              <SessionItem
+                key={s.path}
+                session={s}
+                isActive={!pendingNewSession && s.path === currentSessionPath}
+                isStreaming={streamingSessions.includes(s.path)}
+                agents={agents}
+                browserUrl={browserSessions[s.path] || null}
+                disabled={sessionCreationPending}
+              />
+            ))}
+          </Fragment>
+        );
+      })}
     </>
   );
 }
@@ -194,12 +281,13 @@ function formatProviderLabel(provider?: string | null): string {
     .join(' ');
 }
 
-function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: {
+function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, disabled = false }: {
   session: Session;
   isActive: boolean;
   isStreaming: boolean;
   agents: Agent[];
   browserUrl: string | null;
+  disabled?: boolean;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
@@ -210,9 +298,9 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
   const labelInputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = useCallback(() => {
-    if (editing) return;
+    if (editing || disabled) return;
     switchSession(s.path);
-  }, [s.path, editing]);
+  }, [s.path, editing, disabled]);
 
   const handleArchive = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -318,7 +406,7 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
   const parts: string[] = [];
   if (s.agentName || s.agentId) parts.push(s.agentName || s.agentId!);
   if (s.cwd) {
-    const dirName = s.cwd.split('/').filter(Boolean).pop();
+    const dirName = normalizeLegacyWorkspacePath(s.cwd)?.split('/').filter(Boolean).pop();
     if (dirName) parts.push(dirName);
   }
   if (s.modified) parts.push(formatSessionDate(s.modified));
@@ -328,6 +416,7 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl }: 
       className={`${styles.sessionItem}${isActive ? ` ${styles.sessionItemActive}` : ''}`}
       data-session-path={s.path}
       onClick={handleClick}
+      disabled={disabled}
     >
       <div className={styles.sessionItemHeader}>
         {s.agentId && (

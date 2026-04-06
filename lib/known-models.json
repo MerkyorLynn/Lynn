@@ -77,7 +77,8 @@
       "name": "Qwen Max",
       "context": 32768,
       "maxOutput": 16384,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "qwen-long": {
       "name": "Qwen Long",
@@ -323,7 +324,8 @@
     "deepseek-v3": {
       "name": "Deepseek V3",
       "context": 65536,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     }
   },
   "openai": {
@@ -445,27 +447,32 @@
     "ft:gpt-3.5-turbo": {
       "name": "Ft:Gpt 3.5 Turbo",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ft:gpt-3.5-turbo-0125": {
       "name": "Ft:Gpt 3.5 Turbo 0125",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ft:gpt-3.5-turbo-0613": {
       "name": "Ft:Gpt 3.5 Turbo 0613",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ft:gpt-3.5-turbo-1106": {
       "name": "Ft:Gpt 3.5 Turbo 1106",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ft:gpt-4-0613": {
       "name": "Ft:Gpt 4.0613",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ft:gpt-4o-2024-08-06": {
       "name": "Ft:Gpt 4o 2024.08.06",
@@ -507,27 +514,32 @@
     "gpt-3.5-turbo": {
       "name": "Gpt 3.5 Turbo",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-3.5-turbo-0125": {
       "name": "Gpt 3.5 Turbo 0125",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-3.5-turbo-1106": {
       "name": "Gpt 3.5 Turbo 1106",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-3.5-turbo-16k": {
       "name": "Gpt 3.5 Turbo 16k",
       "context": 16385,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-4": {
       "name": "Gpt 4",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-4-0125-preview": {
       "name": "Gpt 4.0125 Preview",
@@ -537,12 +549,14 @@
     "gpt-4-0314": {
       "name": "Gpt 4.0314",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-4-0613": {
       "name": "Gpt 4.0613",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gpt-4-1106-preview": {
       "name": "Gpt 4.1106 Preview",
@@ -827,12 +841,14 @@
     "gpt-realtime": {
       "name": "Gpt Realtime",
       "context": 32000,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "gpt-realtime-1.5": {
       "name": "Gpt Realtime 1.5",
       "context": 32000,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "gpt-realtime-mini": {
       "name": "Gpt Realtime Mini",
@@ -842,7 +858,8 @@
     "gpt-realtime-2025-08-28": {
       "name": "Gpt Realtime 2025.08.28",
       "context": 32000,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "o1": {
       "name": "O1",
@@ -1195,13 +1212,15 @@
       "name": "Gemini Gemma 2.27b It",
       "context": 8192,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "gemini-gemma-2-9b-it": {
       "name": "Gemini Gemma 2.9b It",
       "context": 8192,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "gemma-3-27b-it": {
       "name": "Gemma 3.27b It",
@@ -1213,7 +1232,8 @@
       "name": "Learnlm 1.5 Pro Experimental",
       "context": 32767,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "gemini-2.0-flash-lite-001": {
       "name": "Gemini 2.0 Flash Lite 001",
@@ -1281,12 +1301,14 @@
     "moonshot-v1-32k": {
       "name": "Moonshot V1 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "moonshot-v1-8k": {
       "name": "Moonshot V1 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "kimi-k2-0711-preview": {
       "name": "Kimi K2.0711 Preview",
@@ -1319,13 +1341,15 @@
       "name": "Kimi Latest 32k",
       "context": 32768,
       "maxOutput": 32768,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "kimi-latest-8k": {
       "name": "Kimi Latest 8k",
       "context": 8192,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "kimi-thinking-preview": {
       "name": "Kimi Thinking Preview",
@@ -1359,24 +1383,28 @@
     "moonshot-v1-32k-0430": {
       "name": "Moonshot V1.32k 0430",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "moonshot-v1-32k-vision-preview": {
       "name": "Moonshot V1.32k Vision Preview",
       "context": 32768,
       "maxOutput": 32768,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "moonshot-v1-8k-0430": {
       "name": "Moonshot V1.8k 0430",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "moonshot-v1-8k-vision-preview": {
       "name": "Moonshot V1.8k Vision Preview",
       "context": 8192,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "moonshot-v1-auto": {
       "name": "Moonshot V1 Auto",
@@ -1417,12 +1445,14 @@
     "doubao-pro-32k": {
       "name": "Doubao Pro 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "doubao-pro-4k": {
       "name": "Doubao Pro 4K",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "doubao-lite-128k": {
       "name": "Doubao Lite 128K",
@@ -1432,24 +1462,28 @@
     "doubao-lite-32k": {
       "name": "Doubao Lite 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "doubao-lite-4k": {
       "name": "Doubao Lite 4K",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "doubao-vision-pro-32k": {
       "name": "Doubao Vision Pro 32K",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "doubao-vision-lite-32k": {
       "name": "Doubao Vision Lite 32K",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "deepseek-v3-2-251201": {
       "name": "Deepseek V3.2",
@@ -1617,7 +1651,8 @@
     "gemma2": {
       "name": "Gemma 2",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "gemma3": {
       "name": "Gemma 3",
@@ -1628,7 +1663,8 @@
     "mistral": {
       "name": "Mistral",
       "context": 32768,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek-r1": {
       "name": "DeepSeek R1",
@@ -1644,27 +1680,32 @@
     "phi4": {
       "name": "Phi 4",
       "context": 16384,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "codellama": {
       "name": "Code Llama",
       "context": 16384,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "codegeex4": {
       "name": "Codegeex4",
       "context": 32768,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek-coder-v2-instruct": {
       "name": "Deepseek Coder V2 Instruct",
       "context": 32768,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek-coder-v2-lite-instruct": {
       "name": "Deepseek Coder V2 Lite Instruct",
       "context": 32768,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek-v3.1:671b-cloud": {
       "name": "Deepseek V3.1:671b Cloud",
@@ -1684,67 +1725,80 @@
     "internlm2_5-20b-chat": {
       "name": "Internlm2.5 20b Chat",
       "context": 32768,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "llama2": {
       "name": "Llama2",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama2:13b": {
       "name": "Llama2:13b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama2:70b": {
       "name": "Llama2:70b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama2:7b": {
       "name": "Llama2:7b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama3": {
       "name": "Llama3",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama3:70b": {
       "name": "Llama3:70b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama3:8b": {
       "name": "Llama3:8b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "mistral-7B-Instruct-v0.1": {
       "name": "Mistral 7B Instruct V0.1",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "mistral-7B-Instruct-v0.2": {
       "name": "Mistral 7B Instruct V0.2",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-large-instruct-2407": {
       "name": "Mistral Large Instruct 2407",
       "context": 65536,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "mixtral-8x22B-Instruct-v0.1": {
       "name": "Mixtral 8x22B Instruct V0.1",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "mixtral-8x7B-Instruct-v0.1": {
       "name": "Mixtral 8x7B Instruct V0.1",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen3-coder:480b-cloud": {
       "name": "Qwen3 Coder:480b Cloud",
@@ -1766,12 +1820,14 @@
     "gemma-7b-it": {
       "name": "Gemma 7b It",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "meta-llama/llama-guard-4-12b": {
       "name": "Meta Llama/Llama Guard 4.12b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "meta-llama/llama-4-maverick-17b-128e-instruct": {
       "name": "Meta Llama/Llama 4 Maverick 17b 128e Instruct",
@@ -1830,7 +1886,8 @@
     },
     "together-ai-8.1b-21b": {
       "name": "Together Ai 8.1b 21b",
-      "context": 1000
+      "context": 1000,
+      "toolTier": "minimal"
     },
     "together-ai-81.1b-110b": {
       "name": "Together Ai 81.1b 110b",
@@ -1858,7 +1915,8 @@
     },
     "Qwen/Qwen3-235B-A22B-fp8-tput": {
       "name": "Qwen/Qwen3.235B A22B Fp8 Tput",
-      "context": 40000
+      "context": 40000,
+      "toolTier": "standard"
     },
     "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8": {
       "name": "Qwen/Qwen3 Coder 480B A35B Instruct FP8",
@@ -1876,7 +1934,8 @@
     "deepseek-ai/DeepSeek-V3": {
       "name": "Deepseek Ai/DeepSeek V3",
       "context": 65536,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek-ai/DeepSeek-V3.1": {
       "name": "Deepseek Ai/DeepSeek V3.1",
@@ -1987,7 +2046,8 @@
     "deepseek-coder-v2-instruct": {
       "name": "Deepseek Coder V2 Instruct",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "deepseek-r1": {
       "name": "Deepseek R1",
@@ -2035,7 +2095,8 @@
     "firefunction-v2": {
       "name": "Firefunction V2",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "glm-4p5": {
       "name": "Glm 4p5",
@@ -2101,29 +2162,34 @@
     "llama-v3p1-8b-instruct": {
       "name": "Llama V3p1.8b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "llama-v3p2-11b-vision-instruct": {
       "name": "Llama V3p2.11b Vision Instruct",
       "context": 16384,
       "maxOutput": 16384,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "llama-v3p2-1b-instruct": {
       "name": "Llama V3p2.1b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "llama-v3p2-3b-instruct": {
       "name": "Llama V3p2.3b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "llama-v3p2-90b-vision-instruct": {
       "name": "Llama V3p2.90b Vision Instruct",
       "context": 16384,
       "maxOutput": 16384,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "llama4-maverick-instruct-basic": {
       "name": "Llama4 Maverick Instruct Basic",
@@ -2143,22 +2209,26 @@
     "mixtral-8x22b-instruct-hf": {
       "name": "Mixtral 8x22b Instruct Hf",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "qwen2-72b-instruct": {
       "name": "Qwen2.72b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-32b-instruct": {
       "name": "Qwen2p5 Coder 32b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "yi-large": {
       "name": "Yi Large",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen3-coder-480b-a35b-instruct": {
       "name": "Qwen3 Coder 480b A35b Instruct",
@@ -2169,82 +2239,98 @@
     "chronos-hermes-13b-v2": {
       "name": "Chronos Hermes 13b V2",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "code-llama-13b": {
       "name": "Code Llama 13b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-13b-instruct": {
       "name": "Code Llama 13b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-13b-python": {
       "name": "Code Llama 13b Python",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-34b": {
       "name": "Code Llama 34b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-34b-instruct": {
       "name": "Code Llama 34b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-34b-python": {
       "name": "Code Llama 34b Python",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-70b": {
       "name": "Code Llama 70b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "code-llama-70b-instruct": {
       "name": "Code Llama 70b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "code-llama-70b-python": {
       "name": "Code Llama 70b Python",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "code-llama-7b": {
       "name": "Code Llama 7b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-7b-instruct": {
       "name": "Code Llama 7b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-llama-7b-python": {
       "name": "Code Llama 7b Python",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "code-qwen-1p5-7b": {
       "name": "Code Qwen 1p5.7b",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "codegemma-2b": {
       "name": "Codegemma 2b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "codegemma-7b": {
       "name": "Codegemma 7b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "cogito-671b-v2-p1": {
       "name": "Cogito 671b V2 P1",
@@ -2279,32 +2365,38 @@
     "dbrx-instruct": {
       "name": "Dbrx Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "deepseek-coder-1b-base": {
       "name": "Deepseek Coder 1b Base",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "deepseek-coder-33b-instruct": {
       "name": "Deepseek Coder 33b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "deepseek-coder-7b-base": {
       "name": "Deepseek Coder 7b Base",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "deepseek-coder-7b-base-v1p5": {
       "name": "Deepseek Coder 7b Base V1p5",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "deepseek-coder-7b-instruct-v1p5": {
       "name": "Deepseek Coder 7b Instruct V1p5",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "deepseek-coder-v2-lite-base": {
       "name": "Deepseek Coder V2 Lite Base",
@@ -2364,7 +2456,8 @@
     "deepseek-v2p5": {
       "name": "Deepseek V2p5",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "devstral-small-2505": {
       "name": "Devstral Small 2505",
@@ -2389,17 +2482,20 @@
     "dolphin-2p6-mixtral-8x7b": {
       "name": "Dolphin 2p6 Mixtral 8x7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "ernie-4p5-21b-a3b-pt": {
       "name": "Ernie 4p5.21b A3b Pt",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ernie-4p5-300b-a47b-pt": {
       "name": "Ernie 4p5.300b A47b Pt",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "fare-20b": {
       "name": "Fare 20b",
@@ -2409,37 +2505,44 @@
     "firefunction-v1": {
       "name": "Firefunction V1",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "firellava-13b": {
       "name": "Firellava 13b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "firesearch-ocr-v6": {
       "name": "Firesearch Ocr V6",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "flux-1-dev": {
       "name": "Flux 1 Dev",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "flux-1-dev-controlnet-union": {
       "name": "Flux 1 Dev Controlnet Union",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "flux-1-schnell": {
       "name": "Flux 1 Schnell",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "gemma-2b-it": {
       "name": "Gemma 2b It",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "gemma-3-27b-it": {
       "name": "Gemma 3.27b It",
@@ -2449,17 +2552,20 @@
     "gemma-7b": {
       "name": "Gemma 7b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "gemma-7b-it": {
       "name": "Gemma 7b It",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "gemma2-9b-it": {
       "name": "Gemma2.9b It",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "glm-4p5v": {
       "name": "Glm 4p5v",
@@ -2480,22 +2586,26 @@
     "hermes-2-pro-mistral-7b": {
       "name": "Hermes 2 Pro Mistral 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "internvl3-38b": {
       "name": "Internvl3.38b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "internvl3-78b": {
       "name": "Internvl3.78b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "internvl3-8b": {
       "name": "Internvl3.8b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "kat-coder": {
       "name": "Kat Coder",
@@ -2515,7 +2625,8 @@
     "llama-guard-2-8b": {
       "name": "Llama Guard 2.8b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama-guard-3-1b": {
       "name": "Llama Guard 3.1b",
@@ -2530,57 +2641,68 @@
     "llama-v2-13b": {
       "name": "Llama V2.13b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v2-13b-chat": {
       "name": "Llama V2.13b Chat",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v2-70b": {
       "name": "Llama V2.70b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v2-70b-chat": {
       "name": "Llama V2.70b Chat",
       "context": 2048,
-      "maxOutput": 2048
+      "maxOutput": 2048,
+      "toolTier": "minimal"
     },
     "llama-v2-7b": {
       "name": "Llama V2.7b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v2-7b-chat": {
       "name": "Llama V2.7b Chat",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v3-70b-instruct": {
       "name": "Llama V3.70b Instruct",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama-v3-70b-instruct-hf": {
       "name": "Llama V3.70b Instruct Hf",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama-v3-8b": {
       "name": "Llama V3.8b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama-v3-8b-instruct-hf": {
       "name": "Llama V3.8b Instruct Hf",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "llama-v3p1-405b-instruct-long": {
       "name": "Llama V3p1.405b Instruct Long",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v3p1-70b-instruct": {
       "name": "Llama V3p1.70b Instruct",
@@ -2590,7 +2712,8 @@
     "llama-v3p1-70b-instruct-1b": {
       "name": "Llama V3p1.70b Instruct 1b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-v3p1-nemotron-70b-instruct": {
       "name": "Llama V3p1 Nemotron 70b Instruct",
@@ -2615,22 +2738,26 @@
     "llamaguard-7b": {
       "name": "Llamaguard 7b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llava-yi-34b": {
       "name": "Llava Yi 34b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "minimax-m1-80k": {
       "name": "Minimax M1.80k",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "minimax-m2": {
       "name": "Minimax M2",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ministral-3-14b-instruct-2512": {
       "name": "Ministral 3.14b Instruct 2512",
@@ -2650,27 +2777,32 @@
     "mistral-7b": {
       "name": "Mistral 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-7b-instruct-4k": {
       "name": "Mistral 7b Instruct 4k",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-7b-instruct-v0p2": {
       "name": "Mistral 7b Instruct V0p2",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-7b-instruct-v3": {
       "name": "Mistral 7b Instruct V3",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-7b-v0p2": {
       "name": "Mistral 7b V0p2",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mistral-large-3-fp8": {
       "name": "Mistral Large 3 Fp8",
@@ -2690,72 +2822,86 @@
     "mistral-small-24b-instruct-2501": {
       "name": "Mistral Small 24b Instruct 2501",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mixtral-8x22b": {
       "name": "Mixtral 8x22b",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "mixtral-8x22b-instruct": {
       "name": "Mixtral 8x22b Instruct",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "mixtral-8x7b": {
       "name": "Mixtral 8x7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mixtral-8x7b-instruct": {
       "name": "Mixtral 8x7b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mixtral-8x7b-instruct-hf": {
       "name": "Mixtral 8x7b Instruct Hf",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "mythomax-l2-13b": {
       "name": "Mythomax L2.13b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nemotron-nano-v2-12b-vl": {
       "name": "Nemotron Nano V2.12b Vl",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nous-capybara-7b-v1p9": {
       "name": "Nous Capybara 7b V1p9",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "nous-hermes-2-mixtral-8x7b-dpo": {
       "name": "Nous Hermes 2 Mixtral 8x7b Dpo",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "nous-hermes-2-yi-34b": {
       "name": "Nous Hermes 2 Yi 34b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nous-hermes-llama2-13b": {
       "name": "Nous Hermes Llama2.13b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nous-hermes-llama2-70b": {
       "name": "Nous Hermes Llama2.70b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nous-hermes-llama2-7b": {
       "name": "Nous Hermes Llama2.7b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "nvidia-nemotron-nano-12b-v2": {
       "name": "Nvidia Nemotron Nano 12b V2",
@@ -2770,27 +2916,32 @@
     "openchat-3p5-0106-7b": {
       "name": "Openchat 3p5.0106.7b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "openhermes-2-mistral-7b": {
       "name": "Openhermes 2 Mistral 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "openhermes-2p5-mistral-7b": {
       "name": "Openhermes 2p5 Mistral 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "openorca-7b": {
       "name": "Openorca 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "phi-2-3b": {
       "name": "Phi 2.3b",
       "context": 2048,
-      "maxOutput": 2048
+      "maxOutput": 2048,
+      "toolTier": "minimal"
     },
     "phi-3-mini-128k-instruct": {
       "name": "Phi 3 Mini 128k Instruct",
@@ -2800,37 +2951,44 @@
     "phi-3-vision-128k-instruct": {
       "name": "Phi 3 Vision 128k Instruct",
       "context": 32064,
-      "maxOutput": 32064
+      "maxOutput": 32064,
+      "toolTier": "standard"
     },
     "phind-code-llama-34b-python-v1": {
       "name": "Phind Code Llama 34b Python V1",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "phind-code-llama-34b-v1": {
       "name": "Phind Code Llama 34b V1",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "phind-code-llama-34b-v2": {
       "name": "Phind Code Llama 34b V2",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "pythia-12b": {
       "name": "Pythia 12b",
       "context": 2048,
-      "maxOutput": 2048
+      "maxOutput": 2048,
+      "toolTier": "minimal"
     },
     "qwen-qwq-32b-preview": {
       "name": "Qwen Qwq 32b Preview",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen-v2p5-14b-instruct": {
       "name": "Qwen V2p5.14b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen-v2p5-7b": {
       "name": "Qwen V2p5.7b",
@@ -2840,32 +2998,38 @@
     "qwen1p5-72b-chat": {
       "name": "Qwen1p5.72b Chat",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2-7b-instruct": {
       "name": "Qwen2.7b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2-vl-2b-instruct": {
       "name": "Qwen2 Vl 2b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2-vl-72b-instruct": {
       "name": "Qwen2 Vl 72b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2-vl-7b-instruct": {
       "name": "Qwen2 Vl 7b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-0p5b-instruct": {
       "name": "Qwen2p5.0p5b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-14b": {
       "name": "Qwen2p5.14b",
@@ -2875,7 +3039,8 @@
     "qwen2p5-1p5b-instruct": {
       "name": "Qwen2p5.1p5b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-32b": {
       "name": "Qwen2p5.32b",
@@ -2885,7 +3050,8 @@
     "qwen2p5-32b-instruct": {
       "name": "Qwen2p5.32b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-72b": {
       "name": "Qwen2p5.72b",
@@ -2895,47 +3061,56 @@
     "qwen2p5-72b-instruct": {
       "name": "Qwen2p5.72b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-7b-instruct": {
       "name": "Qwen2p5.7b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-0p5b": {
       "name": "Qwen2p5 Coder 0p5b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-0p5b-instruct": {
       "name": "Qwen2p5 Coder 0p5b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-14b": {
       "name": "Qwen2p5 Coder 14b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-14b-instruct": {
       "name": "Qwen2p5 Coder 14b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-1p5b": {
       "name": "Qwen2p5 Coder 1p5b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-1p5b-instruct": {
       "name": "Qwen2p5 Coder 1p5b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-32b": {
       "name": "Qwen2p5 Coder 32b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-32b-instruct-128k": {
       "name": "Qwen2p5 Coder 32b Instruct 128k",
@@ -2945,37 +3120,44 @@
     "qwen2p5-coder-32b-instruct-32k-rope": {
       "name": "Qwen2p5 Coder 32b Instruct 32k Rope",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-32b-instruct-64k": {
       "name": "Qwen2p5 Coder 32b Instruct 64k",
       "context": 65536,
-      "maxOutput": 65536
+      "maxOutput": 65536,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-3b": {
       "name": "Qwen2p5 Coder 3b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-3b-instruct": {
       "name": "Qwen2p5 Coder 3b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-7b": {
       "name": "Qwen2p5 Coder 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-coder-7b-instruct": {
       "name": "Qwen2p5 Coder 7b Instruct",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "qwen2p5-math-72b-instruct": {
       "name": "Qwen2p5 Math 72b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwen2p5-vl-32b-instruct": {
       "name": "Qwen2p5 Vl 32b Instruct",
@@ -3000,12 +3182,14 @@
     "qwen3-0p6b": {
       "name": "Qwen3.0p6b",
       "context": 40960,
-      "maxOutput": 40960
+      "maxOutput": 40960,
+      "toolTier": "standard"
     },
     "qwen3-14b": {
       "name": "Qwen3.14b",
       "context": 40960,
-      "maxOutput": 40960
+      "maxOutput": 40960,
+      "toolTier": "standard"
     },
     "qwen3-1p7b": {
       "name": "Qwen3.1p7b",
@@ -3025,7 +3209,8 @@
     "qwen3-1p7b-fp8-draft-40960": {
       "name": "Qwen3.1p7b Fp8 Draft 40960",
       "context": 40960,
-      "maxOutput": 40960
+      "maxOutput": 40960,
+      "toolTier": "standard"
     },
     "qwen3-235b-a22b": {
       "name": "Qwen3.235b A22b",
@@ -3066,7 +3251,8 @@
     "qwen3-4b": {
       "name": "Qwen3.4b",
       "context": 40960,
-      "maxOutput": 40960
+      "maxOutput": 40960,
+      "toolTier": "standard"
     },
     "qwen3-4b-instruct-2507": {
       "name": "Qwen3.4b Instruct 2507",
@@ -3087,17 +3273,20 @@
     "qwen3-coder-480b-instruct-bf16": {
       "name": "Qwen3 Coder 480b Instruct Bf16",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwen3-next-80b-a3b-instruct": {
       "name": "Qwen3 Next 80b A3b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwen3-next-80b-a3b-thinking": {
       "name": "Qwen3 Next 80b A3b Thinking",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwen3-vl-235b-a22b-instruct": {
       "name": "Qwen3 Vl 235b A22b Instruct",
@@ -3122,12 +3311,14 @@
     "qwen3-vl-32b-instruct": {
       "name": "Qwen3 Vl 32b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwen3-vl-8b-instruct": {
       "name": "Qwen3 Vl 8b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "qwq-32b": {
       "name": "Qwq 32b",
@@ -3142,47 +3333,56 @@
     "snorkel-mistral-7b-pairrm-dpo": {
       "name": "Snorkel Mistral 7b Pairrm Dpo",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "stablecode-3b": {
       "name": "Stablecode 3b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "starcoder-16b": {
       "name": "Starcoder 16b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "starcoder-7b": {
       "name": "Starcoder 7b",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "starcoder2-15b": {
       "name": "Starcoder2.15b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "starcoder2-3b": {
       "name": "Starcoder2.3b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "starcoder2-7b": {
       "name": "Starcoder2.7b",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "toppy-m-7b": {
       "name": "Toppy M 7b",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     },
     "yi-34b": {
       "name": "Yi 34b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "yi-34b-200k-capybara": {
       "name": "Yi 34b 200k Capybara",
@@ -3192,24 +3392,28 @@
     "yi-34b-chat": {
       "name": "Yi 34b Chat",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "yi-6b": {
       "name": "Yi 6b",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "zephyr-7b-beta": {
       "name": "Zephyr 7b Beta",
       "context": 32768,
-      "maxOutput": 32768
+      "maxOutput": 32768,
+      "toolTier": "standard"
     }
   },
   "mistral": {
     "codestral-2405": {
       "name": "Codestral 2405",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "codestral-2508": {
       "name": "Codestral 2508",
@@ -3219,7 +3423,8 @@
     "codestral-latest": {
       "name": "Codestral Latest",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "codestral-mamba-latest": {
       "name": "Codestral Mamba Latest",
@@ -3311,7 +3516,8 @@
     "mistral-large-2402": {
       "name": "Mistral Large 2402",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "mistral-large-2407": {
       "name": "Mistral Large 2407",
@@ -3344,12 +3550,14 @@
     "mistral-medium": {
       "name": "Mistral Medium",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "mistral-medium-2312": {
       "name": "Mistral Medium 2312",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "mistral-medium-2505": {
       "name": "Mistral Medium 2505",
@@ -3371,7 +3579,8 @@
     "mistral-small": {
       "name": "Mistral Small",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "mistral-small-latest": {
       "name": "Mistral Small Latest",
@@ -3406,7 +3615,8 @@
     "mistral-tiny": {
       "name": "Mistral Tiny",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "open-codestral-mamba": {
       "name": "Open Codestral Mamba",
@@ -3416,7 +3626,8 @@
     "open-mistral-7b": {
       "name": "Open Mistral 7b",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "open-mistral-nemo": {
       "name": "Open Mistral Nemo",
@@ -3431,12 +3642,14 @@
     "open-mixtral-8x22b": {
       "name": "Open Mixtral 8x22b",
       "context": 65336,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "open-mixtral-8x7b": {
       "name": "Open Mixtral 8x7b",
       "context": 32000,
-      "maxOutput": 8191
+      "maxOutput": 8191,
+      "toolTier": "standard"
     },
     "pixtral-12b-2409": {
       "name": "Pixtral 12b 2409",
@@ -3461,17 +3674,20 @@
     "codellama-34b-instruct": {
       "name": "Codellama 34b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "codellama-70b-instruct": {
       "name": "Codellama 70b Instruct",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "llama-2-70b-chat": {
       "name": "Llama 2.70b Chat",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "llama-3.1-70b-instruct": {
       "name": "Llama 3.1.70b Instruct",
@@ -3486,32 +3702,38 @@
     "mistral-7b-instruct": {
       "name": "Mistral 7b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "mixtral-8x7b-instruct": {
       "name": "Mixtral 8x7b Instruct",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "pplx-70b-chat": {
       "name": "Pplx 70b Chat",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "pplx-70b-online": {
       "name": "Pplx 70b Online",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "pplx-7b-chat": {
       "name": "Pplx 7b Chat",
       "context": 8192,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "minimal"
     },
     "pplx-7b-online": {
       "name": "Pplx 7b Online",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "sonar": {
       "name": "Sonar",
@@ -3525,12 +3747,14 @@
     "sonar-medium-chat": {
       "name": "Sonar Medium Chat",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "sonar-medium-online": {
       "name": "Sonar Medium Online",
       "context": 12000,
-      "maxOutput": 12000
+      "maxOutput": 12000,
+      "toolTier": "minimal"
     },
     "sonar-pro": {
       "name": "Sonar Pro",
@@ -3550,12 +3774,14 @@
     "sonar-small-chat": {
       "name": "Sonar Small Chat",
       "context": 16384,
-      "maxOutput": 16384
+      "maxOutput": 16384,
+      "toolTier": "minimal"
     },
     "sonar-small-online": {
       "name": "Sonar Small Online",
       "context": 12000,
-      "maxOutput": 12000
+      "maxOutput": 12000,
+      "toolTier": "minimal"
     }
   },
   "xai": {
@@ -3578,19 +3804,22 @@
       "name": "Grok 2 Vision",
       "context": 32768,
       "maxOutput": 32768,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "grok-2-vision-1212": {
       "name": "Grok 2 Vision 1212",
       "context": 32768,
       "maxOutput": 32768,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "grok-2-vision-latest": {
       "name": "Grok 2 Vision Latest",
       "context": 32768,
       "maxOutput": 32768,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "grok-3": {
       "name": "Grok 3",
@@ -3759,7 +3988,8 @@
       "name": "Grok Vision Beta",
       "context": 8192,
       "maxOutput": 8192,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     }
   },
   "openrouter": {
@@ -3845,12 +4075,14 @@
     "deepseek/deepseek-chat": {
       "name": "Deepseek/Deepseek Chat",
       "context": 65536,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek/deepseek-chat-v3-0324": {
       "name": "Deepseek/Deepseek Chat V3.0324",
       "context": 65536,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "toolTier": "standard"
     },
     "deepseek/deepseek-chat-v3.1": {
       "name": "Deepseek/Deepseek Chat V3.1",
@@ -3922,15 +4154,18 @@
     },
     "gryphe/mythomax-l2-13b": {
       "name": "Gryphe/Mythomax L2.13b",
-      "context": 8192
+      "context": 8192,
+      "toolTier": "minimal"
     },
     "mancer/weaver": {
       "name": "Mancer/Weaver",
-      "context": 8000
+      "context": 8000,
+      "toolTier": "minimal"
     },
     "meta-llama/llama-3-70b-instruct": {
       "name": "Meta Llama/Llama 3.70b Instruct",
-      "context": 8192
+      "context": 8192,
+      "toolTier": "minimal"
     },
     "minimax/minimax-m2": {
       "name": "Minimax/Minimax M2",
@@ -3969,23 +4204,28 @@
     },
     "mistralai/mistral-7b-instruct": {
       "name": "Mistralai/Mistral 7b Instruct",
-      "context": 8192
+      "context": 8192,
+      "toolTier": "minimal"
     },
     "mistralai/mistral-large": {
       "name": "Mistralai/Mistral Large",
-      "context": 32000
+      "context": 32000,
+      "toolTier": "standard"
     },
     "mistralai/mistral-small-3.1-24b-instruct": {
       "name": "Mistralai/Mistral Small 3.1.24b Instruct",
-      "context": 32000
+      "context": 32000,
+      "toolTier": "standard"
     },
     "mistralai/mistral-small-3.2-24b-instruct": {
       "name": "Mistralai/Mistral Small 3.2.24b Instruct",
-      "context": 32000
+      "context": 32000,
+      "toolTier": "standard"
     },
     "mistralai/mixtral-8x22b-instruct": {
       "name": "Mistralai/Mixtral 8x22b Instruct",
-      "context": 65536
+      "context": 65536,
+      "toolTier": "standard"
     },
     "moonshotai/kimi-k2.5": {
       "name": "Moonshotai/Kimi K2.5",
@@ -3996,15 +4236,18 @@
     },
     "openai/gpt-3.5-turbo": {
       "name": "Openai/Gpt 3.5 Turbo",
-      "context": 4095
+      "context": 4095,
+      "toolTier": "minimal"
     },
     "openai/gpt-3.5-turbo-16k": {
       "name": "Openai/Gpt 3.5 Turbo 16k",
-      "context": 16383
+      "context": 16383,
+      "toolTier": "minimal"
     },
     "openai/gpt-4": {
       "name": "Openai/Gpt 4",
-      "context": 8192
+      "context": 8192,
+      "toolTier": "minimal"
     },
     "openai/gpt-4.1": {
       "name": "Openai/Gpt 4.1",
@@ -4132,13 +4375,15 @@
     "qwen/qwen-2.5-coder-32b-instruct": {
       "name": "Qwen/Qwen 2.5 Coder 32b Instruct",
       "context": 33792,
-      "maxOutput": 33792
+      "maxOutput": 33792,
+      "toolTier": "standard"
     },
     "qwen/qwen-vl-plus": {
       "name": "Qwen/Qwen Vl Plus",
       "context": 8192,
       "maxOutput": 2048,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "qwen/qwen3-coder": {
       "name": "Qwen/Qwen3 Coder",
@@ -4211,7 +4456,8 @@
     },
     "undi95/remm-slerp-l2-13b": {
       "name": "Undi95/Remm Slerp L2.13b",
-      "context": 6144
+      "context": 6144,
+      "toolTier": "minimal"
     },
     "x-ai/grok-4": {
       "name": "X Ai/Grok 4",
@@ -4481,7 +4727,8 @@
       "name": "Qwen Max",
       "context": 32768,
       "maxOutput": 16384,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "deepseek-chat": {
       "name": "DeepSeek Chat",
@@ -4500,7 +4747,8 @@
       "name": "ERNIE 4.5 8K",
       "context": 8192,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "ernie-4.5-128k": {
       "name": "ERNIE 4.5 128K",
@@ -4512,33 +4760,39 @@
       "name": "ERNIE 4.0 8K",
       "context": 8192,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "ernie-4.0-turbo-8k": {
       "name": "ERNIE 4.0 Turbo 8K",
       "context": 8192,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "ernie-3.5-8k": {
       "name": "ERNIE 3.5 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ernie-speed-8k": {
       "name": "ERNIE Speed 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ernie-lite-8k": {
       "name": "ERNIE Lite 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "ernie-tiny-8k": {
       "name": "ERNIE Tiny 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     }
   },
   "hunyuan": {
@@ -4565,40 +4819,47 @@
       "name": "Hunyuan Pro",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "hunyuan-standard-latest": {
       "name": "Hunyuan Standard",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "hunyuan-lite-latest": {
       "name": "Hunyuan Lite",
       "context": 16384,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "hunyuan-vision-latest": {
       "name": "Hunyuan Vision",
       "context": 8192,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     }
   },
   "baichuan": {
     "Baichuan4-Air": {
       "name": "Baichuan 4 Air",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "Baichuan4-Turbo": {
       "name": "Baichuan 4 Turbo",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "Baichuan3-Turbo": {
       "name": "Baichuan 3 Turbo",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     }
   },
   "infini": {
@@ -4644,34 +4905,40 @@
       "name": "Step 2 16K",
       "context": 16384,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "step-2-mini": {
       "name": "Step 2 Mini",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "step-1-8k": {
       "name": "Step 1 8K",
       "context": 8192,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "step-1-32k": {
       "name": "Step 1 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "step-1v-8k": {
       "name": "Step 1V 8K",
       "context": 8192,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "minimal"
     },
     "step-1v-32k": {
       "name": "Step 1V 32K",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     }
   },
   "minimax-oauth": {
@@ -4778,12 +5045,14 @@
     "doubao-pro-32k": {
       "name": "Doubao Pro 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "doubao-pro-4k": {
       "name": "Doubao Pro 4K",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "doubao-lite-128k": {
       "name": "Doubao Lite 128K",
@@ -4793,24 +5062,28 @@
     "doubao-lite-32k": {
       "name": "Doubao Lite 32K",
       "context": 32768,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "standard"
     },
     "doubao-lite-4k": {
       "name": "Doubao Lite 4K",
       "context": 4096,
-      "maxOutput": 4096
+      "maxOutput": 4096,
+      "toolTier": "minimal"
     },
     "doubao-vision-pro-32k": {
       "name": "Doubao Vision Pro 32K",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "doubao-vision-lite-32k": {
       "name": "Doubao Vision Lite 32K",
       "context": 32768,
       "maxOutput": 4096,
-      "vision": true
+      "vision": true,
+      "toolTier": "standard"
     },
     "deepseek-v3-2-251201": {
       "name": "Deepseek V3.2",

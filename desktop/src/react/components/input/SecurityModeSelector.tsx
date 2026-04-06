@@ -1,7 +1,7 @@
 /**
  * SecurityModeSelector — 安全模式下拉选择器
  *
- * 替代 PlanModeButton，在输入区底部工具栏展示四个模式。
+ * 替代 PlanModeButton，在输入区底部工具栏展示三个执行模式。
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -19,7 +19,6 @@ const MODES: Array<{
   { value: 'authorized',  labelKey: 'security.mode.authorized',  descKey: 'security.mode.authorizedDesc' },
   { value: 'plan',        labelKey: 'security.mode.plan',        descKey: 'security.mode.planDesc' },
   { value: 'safe',        labelKey: 'security.mode.safe',        descKey: 'security.mode.safeDesc' },
-  { value: 'full-access', labelKey: 'security.mode.fullAccess',  descKey: 'security.mode.fullAccessDesc' },
 ];
 
 export function SecurityModeSelector() {
@@ -60,7 +59,7 @@ export function SecurityModeSelector() {
       .catch(() => {});
   }, [setSecurityMode]);
 
-  // mode value → i18n labelKey 映射（处理 full-access 等含连字符的 key）
+  // mode value → i18n labelKey 映射（兼容旧 key）
   const modeLabelKey = useCallback((mode: string) => {
     const entry = MODES.find(m => m.value === mode);
     return entry ? entry.labelKey : `security.mode.${mode}`;

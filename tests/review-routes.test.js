@@ -21,8 +21,22 @@ function makeEngine() {
     _agents: agents,
     currentAgentId: 'agent-main',
     currentSessionPath: '/tmp/session.jsonl',
+    currentModel: { id: 'step-3.5-flash-2603', name: 'Step 3.5 Flash 2603', provider: 'brain' },
+    availableModels: [
+      { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'openai' },
+      { id: 'claude-3-7', name: 'Claude 3.7', provider: 'anthropic' },
+      { id: 'step-3.5-flash-2603', name: 'Step 3.5 Flash 2603', provider: 'brain' },
+    ],
     listAgents: () => agents,
     invalidateAgentListCache: vi.fn(),
+    resolveUtilityConfig: () => ({
+      utility_large: 'step-3.5-flash-2603',
+      utility_large_provider: 'brain',
+      utility_large_fallbacks: [],
+      utility: 'gpt-4.1',
+      utility_provider: 'openai',
+      utility_fallbacks: [],
+    }),
     getAgent: (id) => {
       const agent = agents.find((item) => item.id === id);
       return {
@@ -263,6 +277,49 @@ describe('review route', () => {
     }));
   });
 
+  it('falls back to another model after timeout and tells the user what it switched to', async () => {
+    runAgentSession
+      .mockRejectedValueOnce(new Error('The operation was aborted due to timeout'))
+      .mockResolvedValueOnce('Recovered review.\n```json\n{"summary":"Recovered.","verdict":"pass","findings":[]}\n```');
+
+    const res = await app.request('/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: 'Please review this timeout path.' }),
+    });
+
+    expect(res.status).toBe(200);
+    const resultMsg = broadcast.mock.calls
+      .map(([msg]) => msg)
+      .find((msg) => msg.type === 'review_result' && msg.structured?.summary === 'Recovered.');
+
+    expect(runAgentSession).toHaveBeenCalledTimes(2);
+    expect(resultMsg.errorCode).toBe('review_timeout_recovered');
+    expect(resultMsg.fallbackNote).toContain('GPT-4.1');
+    expect(resultMsg.fallbackNote).toMatch(/自动切换到|finished on/);
+  });
+
+  it('falls back when the first review attempt returns no output', async () => {
+    runAgentSession
+      .mockResolvedValueOnce('   ')
+      .mockResolvedValueOnce('Recovered after empty review.\n```json\n{"summary":"Recovered after empty review.","verdict":"pass","findings":[]}\n```');
+
+    const res = await app.request('/api/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: 'Please review this empty-output path.' }),
+    });
+
+    expect(res.status).toBe(200);
+    const resultMsg = broadcast.mock.calls
+      .map(([msg]) => msg)
+      .find((msg) => msg.type === 'review_result' && msg.structured?.summary === 'Recovered after empty review.');
+
+    expect(runAgentSession).toHaveBeenCalledTimes(2);
+    expect(resultMsg.content).toContain('Recovered after empty review.');
+    expect(resultMsg.fallbackNote).toMatch(/自动切换到|finished on/);
+  });
+
   it('marks high-severity findings as hold and keeps a follow-up prompt', async () => {
     runAgentSession.mockResolvedValueOnce('Blocking issue.\n```json\n{"summary":"Unsafe write path.","verdict":"concerns","findings":[{"severity":"high","title":"Writes outside workspace","detail":"The patch can escape the repo root.","suggestion":"Clamp writes to trusted roots.","filePath":"server/routes/fs.js"}],"nextStep":"Fix guard before shipping."}\n```');
 
@@ -314,6 +371,8 @@ describe('review route', () => {
           workspacePath: '/Users/lynn/openhanako',
         },
         followUpPrompt: 'Review verdict: concerns',
+        sourceResponse: 'Original answer: keep the current patch and add a nil guard.',
+        executionResolution: "Merge Hanako's correction first, then continue with Lynn's overall direction.",
       }),
     });
 
@@ -323,6 +382,8 @@ describe('review route', () => {
     expect(taskRuntime.createReviewFollowUpTask).toHaveBeenCalledWith(expect.objectContaining({
       reviewId: 'review-123',
       reviewerName: 'Hanako',
+      sourceResponse: 'Original answer: keep the current patch and add a nil guard.',
+      executionResolution: "Merge Hanako's correction first, then continue with Lynn's overall direction.",
       structuredReview: expect.objectContaining({
         workflowGate: 'follow_up',
       }),
@@ -331,6 +392,7 @@ describe('review route', () => {
       }),
     }));
     expect(taskRuntime.createReviewFollowUpTask.mock.calls[0][0].prompt).toContain('Missing edge case');
+    expect(taskRuntime.createReviewFollowUpTask.mock.calls[0][0].prompt).toMatch(/Suggested execution conclusion|建议执行结论/);
   });
 
   it('rejects follow-up task creation without findings', async () => {

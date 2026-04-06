@@ -69,6 +69,7 @@ export function ProviderStep({
     () => PROVIDER_PRESETS.find((preset) => preset.value === selectedPreset) || null,
     [selectedPreset],
   );
+  const usesBuiltInDefault = providerName === QUICK_START_PROVIDER.providerName;
 
   const copyText = useCallback((zh: string, en: string) => (isZh ? zh : en), [isZh]);
 
@@ -145,7 +146,7 @@ export function ProviderStep({
   const nextDisabled = preview ? false : !(hasProvider && hasUrl && hasKey && (isQuickTrack || connectionTested));
 
   const runConnectionTest = useCallback(async () => {
-    if (preview) {
+    if (preview || isQuickTrack || providerName === QUICK_START_PROVIDER.providerName) {
       setTestStatus({ type: 'success', text: t('onboarding.provider.testSuccess') });
       setConnectionTested(true);
       return true;
@@ -167,7 +168,7 @@ export function ProviderStep({
       setConnectionTested(false);
       return false;
     }
-  }, [preview, onboardingFetch, providerName, providerUrl, providerApi, apiKey]);
+  }, [preview, isQuickTrack, onboardingFetch, providerName, providerUrl, providerApi, apiKey]);
 
   // ── Test connection ──
   const onTest = useCallback(async () => {
@@ -176,8 +177,9 @@ export function ProviderStep({
 
   // ── Next ──
   const onNext = useCallback(async () => {
-    if (preview) { goToStep(isQuickTrack ? 5 : 3); return; }
-    if (!connectionTested) {
+    const nextStep = isQuickTrack ? 5 : (usesBuiltInDefault ? 4 : 3);
+    if (preview) { goToStep(nextStep); return; }
+    if (!isQuickTrack && !connectionTested) {
       const ok = await runConnectionTest();
       if (!ok) return;
     }
@@ -188,15 +190,17 @@ export function ProviderStep({
         providerUrl,
         apiKey,
         providerApi,
-        defaultModelId: isQuickTrack ? (activePreset?.defaultModelId || QUICK_START_PROVIDER.defaultModelId) : null,
+        defaultModelId: (isQuickTrack || usesBuiltInDefault)
+          ? (activePreset?.defaultModelId || QUICK_START_PROVIDER.defaultModelId)
+          : null,
       });
       onProviderReady(providerName, providerUrl, providerApi, apiKey);
-      goToStep(isQuickTrack ? 5 : 3);
+      goToStep(nextStep);
     } catch (err) {
       console.error('[onboarding] save provider failed:', err);
       showError(t('onboarding.provider.testFailed'));
     }
-  }, [preview, connectionTested, isQuickTrack, runConnectionTest, onboardingFetch, providerName, providerUrl, apiKey, providerApi, goToStep, showError, onProviderReady, activePreset]);
+  }, [preview, connectionTested, isQuickTrack, usesBuiltInDefault, runConnectionTest, onboardingFetch, providerName, providerUrl, apiKey, providerApi, goToStep, showError, onProviderReady, activePreset]);
 
   return (
     <StepContainer>
@@ -309,18 +313,20 @@ export function ProviderStep({
       )}
 
       {/* Test connection */}
-      <div className="ob-test-row">
-        <button
-          className="ob-test-btn"
-          disabled={testBtnDisabled}
-          onClick={onTest}
-        >
-          {t('onboarding.provider.test')}
-        </button>
-        {testStatus.text && (
-          <span className={`ob-status ${testStatus.type}`}>{testStatus.text}</span>
-        )}
-      </div>
+      {!isQuickTrack && (
+        <div className="ob-test-row">
+          <button
+            className="ob-test-btn"
+            disabled={testBtnDisabled}
+            onClick={onTest}
+          >
+            {t('onboarding.provider.test')}
+          </button>
+          {testStatus.text && (
+            <span className={`ob-status ${testStatus.type}`}>{testStatus.text}</span>
+          )}
+        </div>
+      )}
 
       <div className="onboarding-actions">
         <button className="ob-btn ob-btn-secondary" onClick={() => goToStep(1)}>

@@ -8,6 +8,50 @@ import { AddCustomButton } from './providers/ProviderList';
 import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
 import styles from '../Settings.module.css';
 
+const OAUTH_PROVIDER_ORDER = [
+  'minimax-oauth',
+];
+
+const CODING_PROVIDER_ORDER = [
+  'minimax-coding',
+  'zhipu-coding',
+  'stepfun-coding',
+  'tencent-coding',
+  'dashscope-coding',
+  'kimi-coding',
+  'volcengine-coding',
+];
+
+const API_PROVIDER_ORDER = [
+  BRAIN_PROVIDER_ID,
+  'minimax',
+  'zhipu',
+  'stepfun',
+  'hunyuan',
+  'siliconflow',
+  'dashscope',
+  'openai',
+  'deepseek',
+  'volcengine',
+  'moonshot',
+  'groq',
+  'mistral',
+  'openrouter',
+  'mimo',
+  'ollama',
+];
+
+function sortByPriority(ids: string[], order: string[]) {
+  return [...ids].sort((left, right) => {
+    const leftIndex = order.indexOf(left);
+    const rightIndex = order.indexOf(right);
+    const leftRank = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const rightRank = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return left.localeCompare(right, 'zh-Hans-CN');
+  });
+}
+
 function resolvePreferredProviderId(settingsConfig: Record<string, any> | null): string | null {
   if (!settingsConfig) return null;
 
@@ -54,37 +98,57 @@ export function ProvidersTab() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   const providerIds = Object.keys(providersSummary);
+  const visibleOauthProviderIds = sortByPriority(
+    providerIds.filter((id) => providersSummary[id].supports_oauth && OAUTH_PROVIDER_ORDER.includes(id)),
+    OAUTH_PROVIDER_ORDER,
+  );
+  const visibleCodingProviderIds = sortByPriority(
+    providerIds.filter((id) => !providersSummary[id].supports_oauth && providersSummary[id].is_coding_plan),
+    CODING_PROVIDER_ORDER,
+  );
+  const visibleRegisteredApiIds = providerIds.filter((id) => !providersSummary[id].supports_oauth && !providersSummary[id].is_coding_plan);
+  const visibleProviderIds = [
+    ...visibleOauthProviderIds,
+    ...visibleCodingProviderIds,
+    ...visibleRegisteredApiIds,
+  ];
   const resolvedPreferredProviderId = resolvePreferredProviderId(settingsConfig) || preferredProviderId;
 
   useEffect(() => {
-    const hasSelected = !!selectedProviderId && providerIds.includes(selectedProviderId);
+    const hasSelected = !!selectedProviderId && visibleProviderIds.includes(selectedProviderId);
     if (hasSelected) return;
 
     const preferred = resolvedPreferredProviderId && (
-      providerIds.includes(resolvedPreferredProviderId) ||
+      visibleProviderIds.includes(resolvedPreferredProviderId) ||
       PROVIDER_PRESETS.some((preset) => preset.value === resolvedPreferredProviderId)
     )
       ? resolvedPreferredProviderId
       : null;
-    const fallback = preferred || providerIds[0] || PROVIDER_PRESETS[0]?.value || null;
+    const fallback = preferred || visibleProviderIds[0] || PROVIDER_PRESETS[0]?.value || null;
     if (fallback && fallback !== selectedProviderId) {
       useSettingsStore.setState({ selectedProviderId: fallback });
     }
-  }, [resolvedPreferredProviderId, providerIds, selectedProviderId]);
+  }, [resolvedPreferredProviderId, selectedProviderId, visibleProviderIds]);
   const selected = selectedProviderId;
 
   // 分组：OAuth / Coding Plan / API Key
-  const oauthProviders = providerIds.filter(id => providersSummary[id].supports_oauth);
-  const codingPlanProviders = providerIds.filter(id => !providersSummary[id].supports_oauth && providersSummary[id].is_coding_plan);
-  const registeredApiKey = providerIds.filter(id => !providersSummary[id].supports_oauth && !providersSummary[id].is_coding_plan);
+  const oauthProviders = visibleOauthProviderIds;
+  const codingPlanProviders = visibleCodingProviderIds;
+  const registeredApiKey = visibleRegisteredApiIds;
   const registeredSet = new Set(providerIds);
 
   const unregisteredPresets = PROVIDER_PRESETS.filter(p =>
     !registeredSet.has(p.value) && !oauthProviders.includes(p.value)
   );
   const presetValues = new Set(PROVIDER_PRESETS.map(p => p.value));
-  const customProviders = registeredApiKey.filter(id => !presetValues.has(id));
-  const presetProviders = registeredApiKey.filter(id => presetValues.has(id));
+  const customProviders = sortByPriority(
+    registeredApiKey.filter(id => !presetValues.has(id)),
+    API_PROVIDER_ORDER,
+  );
+  const presetProviders = sortByPriority(
+    registeredApiKey.filter(id => presetValues.has(id)),
+    API_PROVIDER_ORDER,
+  );
   const brainSummary = providersSummary.brain;
   const brainNeedsSetup = !brainSummary?.has_credentials
     || (brainSummary?.models || []).length === 0;

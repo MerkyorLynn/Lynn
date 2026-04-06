@@ -80,6 +80,142 @@ import {
 } from "../shared/brain-provider.js";
 import { prewarmHttpConnection } from "../shared/http-pool.js";
 
+// ── P2a: Tool Guard Wrapper ──
+// 给 customTool 的 execute 包一层参数校验：
+// 1. 参数类型强制转换（"true"→true, "123"→123）
+// 2. 必填参数缺失时返回友好的 tool_result 而不是崩溃
+// 3. ClawAegis: 敏感路径检测（审计 + warning）
+
+function coerceParam(value, schema) {
+  if (value === undefined || value === null) return value;
+  const type = schema?.type;
+  if (!type) return value;
+  if (type === "number" || type === "integer") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : value;
+  }
+  if (type === "boolean") {
+    if (value === "true" || value === 1) return true;
+    if (value === "false" || value === 0) return false;
+    return value;
+  }
+  return value;
+}
+
+// ── ClawAegis: 敏感路径/参数异常检测 ──
+
+const SENSITIVE_PATH_PATTERNS = [
+  [/\.ssh[/\\]/i, "SSH 密钥目录"],
+  [/\.gnupg[/\\]/i, "GPG 密钥目录"],
+  [/\.aws[/\\]credentials/i, "AWS 凭证文件"],
+  [/\.env$/i, "环境变量文件"],
+  [/\.env\.\w+$/i, "环境变量文件"],
+  [/\.npmrc$/i, "npm token 文件"],
+  [/\.pypirc$/i, "PyPI token 文件"],
+  [/\bid_rsa\b|\bid_ed25519\b|\bid_ecdsa\b/i, "SSH 私钥文件"],
+  [/\.kube[/\\]config/i, "Kubernetes 配置"],
+  [/\.docker[/\\]config\.json/i, "Docker 凭证"],
+  [/keychain|keystore|\.p12$|\.pfx$/i, "密钥库文件"],
+  [/\.git[/\\]config$/i, "Git 配置（可能含 token）"],
+  [/\/etc\/shadow/i, "系统密码文件"],
+  [/\/etc\/passwd/i, "系统用户文件"],
+];
+
+function detectSensitiveParams(toolName, params) {
+  if (!params) return null;
+  const text = JSON.stringify(params);
+  for (const [pattern, label] of SENSITIVE_PATH_PATTERNS) {
+    if (pattern.test(text)) {
+      return { label, toolName, matched: text.match(pattern)?.[0] };
+    }
+  }
+  return null;
+}
+
+function wrapToolWithGuard(tool) {
+  if (!tool?.execute || tool._guarded) return tool;
+  const originalExecute = tool.execute;
+  const schema = tool.parameters;
+
+  const guardedExecute = async (toolCallId, params, ...rest) => {
+    let fixedParams = params || {};
+
+    // 类型强制转换
+    if (schema?.properties && typeof fixedParams === "object") {
+      const coerced = { ...fixedParams };
+      for (const [key, propSchema] of Object.entries(schema.properties)) {
+        if (key in coerced) {
+          coerced[key] = coerceParam(coerced[key], propSchema);
+        }
+      }
+      fixedParams = coerced;
+    }
+
+    // 必填参数检查
+    const required = schema?.required || [];
+    const missing = required.filter(k => fixedParams[k] === undefined || fixedParams[k] === null);
+    if (missing.length > 0) {
+      return {
+        content: [{ type: "text", text: `参数缺失 / Missing parameters: ${missing.join(", ")}。请补全后重试。` }],
+      };
+    }
+
+    // ClawAegis: 敏感路径检测
+    const sensitive = detectSensitiveParams(tool.name, fixedParams);
+    if (sensitive) {
+      console.warn(`[ClawAegis] 敏感路径检测: tool=${sensitive.toolName} target=${sensitive.label} match=${sensitive.matched}`);
+      // 不阻断，但在结果前追加 warning
+      const result = await originalExecute(toolCallId, fixedParams, ...rest);
+      const warningText = `⚠️ 安全提示：检测到访问${sensitive.label}（${sensitive.matched}）。请确认这是用户明确要求的操作。如非必要，不要读取或传输此类文件内容。`;
+      if (result?.content?.[0]?.type === "text") {
+        result.content[0].text = warningText + "\n\n" + result.content[0].text;
+      }
+      return result;
+    }
+
+    return originalExecute(toolCallId, fixedParams, ...rest);
+  };
+
+  return { ...tool, execute: guardedExecute, _guarded: true };
+}
+
+// ── P2b: Tool Name Aliases ──
+// 弱模型常见的工具名拼写错误 → 正确名映射
+const TOOL_ALIASES = {
+  "web-search": "web_search",
+  "websearch": "web_search",
+  "web-fetch": "web_fetch",
+  "webfetch": "web_fetch",
+  "search-memory": "search_memory",
+  "searchmemory": "search_memory",
+  "pin-memory": "pin_memory",
+  "unpin-memory": "unpin_memory",
+  "recall-experience": "recall_experience",
+  "record-experience": "record_experience",
+  "present-files": "present_files",
+  "presentfiles": "present_files",
+  "create-artifact": "create_artifact",
+  "install-skill": "install_skill",
+  "update-settings": "update_settings",
+  "ask-agent": "ask_agent",
+  "message-agent": "message_agent",
+};
+
+function createToolAliases(customTools) {
+  const nameSet = new Set(customTools.map(t => t.name));
+  const aliases = [];
+  for (const tool of customTools) {
+    // 为每个工具创建别名（如果别名不和已有工具名冲突）
+    for (const [alias, target] of Object.entries(TOOL_ALIASES)) {
+      if (target === tool.name && !nameSet.has(alias)) {
+        aliases.push({ ...tool, name: alias, _aliasOf: tool.name });
+        nameSet.add(alias);
+      }
+    }
+  }
+  return aliases;
+}
+
 export class HanaEngine {
   /**
    * @param {object} dirs
@@ -836,7 +972,7 @@ export class HanaEngine {
       effectiveMode = secConfig ? secConfig.sandboxMode : "standard";
     }
 
-    return createSandboxedTools(cwd, allTools, {
+    const result = createSandboxedTools(cwd, allTools, {
       agentDir: effectiveAgentDir,
       workspace: effectiveWorkspace,
       trustedRoots: this.getTrustedRoots(),
@@ -846,6 +982,13 @@ export class HanaEngine {
       emitEvent: (e, sp) => this._emitEvent(e, sp),
       getSessionPath: opts.getSessionPath,
     });
+
+    // P2a: 给 customTools 包参数校验 Guard
+    result.customTools = (result.customTools || []).map(wrapToolWithGuard);
+    // P2b: 注册工具名别名（弱模型常见拼写错误兜底）
+    const aliases = createToolAliases(result.customTools);
+    if (aliases.length > 0) result.customTools = [...result.customTools, ...aliases];
+    return result;
   }
 
   // ════════════════════════════

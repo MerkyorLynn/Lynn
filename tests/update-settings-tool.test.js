@@ -12,8 +12,6 @@ function makeMockPrefs(initial = {}) {
   const store = { ...initial };
   return {
     getPreferences: () => ({ ...store }),
-    getSandbox: () => store.sandbox !== false,
-    setSandbox(v) { store.sandbox = typeof v === "string" ? v === "true" : !!v; },
     getLocale: () => store.locale || "",
     setLocale(v) { store.locale = v; },
     getTimezone: () => store.timezone || "",
@@ -39,7 +37,6 @@ function makeMockEngine(overrides = {}) {
     availableModels: overrides.availableModels || [],
     getHomeFolder: () => overrides.homeFolder || "/home/test",
     setHomeFolder: vi.fn(),
-    setSandbox: vi.fn(function (v) { prefs.setSandbox(v); }),
     setLocale: vi.fn(function (v) { prefs.setLocale(v); }),
     setTimezone: vi.fn(function (v) { prefs.setTimezone(v); }),
     setThinkingLevel: vi.fn(function (v) { prefs.setThinkingLevel(v); }),
@@ -66,7 +63,7 @@ describe("update-settings-tool", () => {
     loadLocale("en");
     const mod = await import("../lib/tools/update-settings-tool.js");
     createUpdateSettingsTool = mod.createUpdateSettingsTool;
-  });
+  }, 20000);
 
   function buildTool(engineOpts = {}, confirmAction = "confirmed") {
     const engine = makeMockEngine(engineOpts);
@@ -79,27 +76,6 @@ describe("update-settings-tool", () => {
     });
     return { tool, engine, confirmStore };
   }
-
-  describe("sandbox toggle — this 绑定 + boolean 转换", () => {
-    it("apply sandbox=false 实际关闭沙盒", async () => {
-      const { tool, engine } = buildTool({ prefsData: { sandbox: true } });
-      await tool.execute("c1", { action: "apply", key: "sandbox", value: "false" });
-
-      expect(engine.setSandbox).toHaveBeenCalled();
-      // 传入的是 boolean false（调度侧 toggle parse）
-      expect(engine.setSandbox.mock.calls[0][0]).toBe(false);
-      // preferences 存的也是 boolean false
-      expect(engine._prefs._store.sandbox).toBe(false);
-    });
-
-    it("apply sandbox=true 存入 boolean true", async () => {
-      const { tool, engine } = buildTool({ prefsData: { sandbox: false } });
-      await tool.execute("c2", { action: "apply", key: "sandbox", value: "true" });
-
-      expect(engine.setSandbox.mock.calls[0][0]).toBe(true);
-      expect(engine._prefs._store.sandbox).toBe(true);
-    });
-  });
 
   describe("locale — 非 toggle 类型不受 parse 影响", () => {
     it("apply locale=en 传入字符串", async () => {

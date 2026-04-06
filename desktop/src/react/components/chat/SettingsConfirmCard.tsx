@@ -48,7 +48,6 @@ const LOCALE_LABELS: Record<string, string> = {
 };
 
 const SETTING_LABEL_KEYS: Record<string, string> = {
-  'sandbox': 'toolDef.updateSettings.sandbox',
   'locale': 'toolDef.updateSettings.locale',
   'timezone': 'toolDef.updateSettings.timezone',
   'thinking_level': 'toolDef.updateSettings.thinkingBudget',

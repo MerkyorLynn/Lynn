@@ -26,6 +26,7 @@ const MAX_CONTEXT_PREVIEW_CHARS = 2200;
 const MAX_SESSION_LINES = 120;
 const MAX_TOOL_ITEMS = 10;
 const REVIEW_EXEC_TIMEOUT_MS = 45_000;
+const REVIEW_FALLBACK_TIMEOUT_MS = 22_000;
 
 function isZh() {
   return getLocale().startsWith("zh");
@@ -127,16 +128,178 @@ function getAgentModel(agent) {
   };
 }
 
-async function runReviewerSessionWithFallback(engine, reviewerId, rounds, opts) {
+function isTimeoutLikeError(err) {
+  const name = String(err?.name || "");
+  const message = String(err?.message || "");
+  return name === "AbortError"
+    || /aborted due to timeout/i.test(message)
+    || /\btimeout\b/i.test(message);
+}
+
+function isRetryableReviewError(err) {
+  if (isTimeoutLikeError(err)) return true;
+  const message = String(err?.message || "");
+  if (/review returned no output|没有产出可显示的复查结果|no review output/i.test(message)) return true;
+  return /\b(429|500|502|503|504)\b/.test(message)
+    || /rate limit/i.test(message)
+    || /overload/i.test(message)
+    || /network/i.test(message)
+    || /fetch failed/i.test(message)
+    || /ECONNRESET|ETIMEDOUT|EAI_AGAIN/i.test(message);
+}
+
+function describeModel(model) {
+  if (!model) return "";
+  return String(model.name || model.id || "").trim();
+}
+
+function hasMeaningfulReviewOutput(content) {
+  return typeof content === "string" && content.trim().length > 0;
+}
+
+function createReviewNoOutputError() {
+  const err = new Error(isZh()
+    ? "这次复查没有产出可显示的复查结果。"
+    : "This review returned no output.");
+  err.code = "review_no_output";
+  return err;
+}
+
+function getAvailableModel(engine, modelId, providerId = null) {
+  if (!modelId) return null;
+  const models = Array.isArray(engine.availableModels) ? engine.availableModels : [];
+  return models.find((model) => model.id === modelId && (!providerId || model.provider === providerId))
+    || models.find((model) => model.id === modelId)
+    || null;
+}
+
+function buildReviewFallbackCandidates(engine, reviewer) {
+  const candidates = [];
+  const seen = new Set();
+  const runtimeAgent = engine.getAgent?.(reviewer.id);
+  const reviewerModel = runtimeAgent ? getAgentModel(runtimeAgent) : null;
+  if (reviewerModel?.modelId) {
+    seen.add(`${reviewerModel.modelProvider || ""}/${reviewerModel.modelId}`);
+  }
+
+  const pushCandidate = (model) => {
+    if (!model?.id || !model?.provider) return;
+    const key = `${model.provider}/${model.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(model);
+  };
+
   try {
-    return await runAgentSession(reviewerId, rounds, opts);
+    const utilityConfig = engine.resolveUtilityConfig?.();
+    pushCandidate(getAvailableModel(engine, utilityConfig?.utility_large, utilityConfig?.utility_large_provider));
+    for (const candidate of utilityConfig?.utility_large_fallbacks || []) {
+      pushCandidate(getAvailableModel(engine, candidate?.model, candidate?.provider));
+    }
+    pushCandidate(getAvailableModel(engine, utilityConfig?.utility, utilityConfig?.utility_provider));
+    for (const candidate of utilityConfig?.utility_fallbacks || []) {
+      pushCandidate(getAvailableModel(engine, candidate?.model, candidate?.provider));
+    }
+  } catch {}
+
+  pushCandidate(engine.currentModel);
+  return candidates;
+}
+
+function formatReviewFailureMessage(err, attemptedModels = []) {
+  const modelHint = attemptedModels.length
+    ? (isZh()
+        ? ` 已自动尝试切换到 ${attemptedModels.slice(0, 3).join(" / ")}`
+        : ` It already retried with ${attemptedModels.slice(0, 3).join(" / ")}.`)
+    : "";
+
+  if (isTimeoutLikeError(err)) {
+    return isZh()
+      ? `这次复查超时了。${modelHint} 但仍然没能在时限内完成。你可以稍后重试，或先继续讨论原回答。`
+      : `This review timed out.${modelHint} You can retry later or continue discussing the original answer for now.`;
+  }
+
+  if (isRetryableReviewError(err)) {
+    return isZh()
+      ? `这次复查暂时没跑完。${modelHint} 但服务仍不稳定。你可以稍后重试，或先继续讨论原回答。`
+      : `This review could not finish right now.${modelHint} The service still looks unstable. Retry later or continue discussing the original answer.`;
+  }
+
+  if (String(err?.code || "") === "review_no_output" || /no review output|没有产出可显示的复查结果/i.test(String(err?.message || ""))) {
+    return isZh()
+      ? `这次复查没有生成可显示的结论。${modelHint} 但仍然没有拿到有效输出。你可以稍后重试，或先继续讨论原回答。`
+      : `This review did not produce a usable result.${modelHint} You can retry later or continue discussing the original answer.`;
+  }
+
+  return String(err?.message || (isZh() ? "复查失败" : "Review failed"));
+}
+
+async function runReviewerSessionWithFallback(engine, reviewer, rounds, opts) {
+  const runtimeAgent = engine.getAgent?.(reviewer.id);
+  const reviewerModel = runtimeAgent ? getAgentModel(runtimeAgent) : null;
+  const originalModel = reviewerModel?.modelId
+    ? getAvailableModel(engine, reviewerModel.modelId, reviewerModel.modelProvider)
+    : null;
+  const originalModelLabel = describeModel(originalModel) || reviewerModel?.modelId || "";
+
+  try {
+    const content = await runAgentSession(reviewer.id, rounds, opts);
+    if (!hasMeaningfulReviewOutput(content)) {
+      throw createReviewNoOutputError();
+    }
+    return {
+      content,
+      fallbackNote: null,
+      errorCode: null,
+      usedModelId: originalModel?.id || reviewerModel?.modelId || null,
+      usedModelProvider: originalModel?.provider || reviewerModel?.modelProvider || null,
+      usedModelLabel: describeModel(originalModel) || reviewerModel?.modelId || null,
+    };
   } catch (err) {
-    const fallbackModel = engine.currentModel;
-    if (!fallbackModel?.id) throw err;
-    return runAgentSession(reviewerId, rounds, {
-      ...opts,
-      modelOverride: fallbackModel,
-    });
+    if (!isRetryableReviewError(err)) throw err;
+
+    const candidates = buildReviewFallbackCandidates(engine, reviewer);
+    const attemptedModels = [];
+    let lastError = err;
+
+    for (const candidate of candidates) {
+      const candidateLabel = describeModel(candidate);
+      if (candidateLabel) attemptedModels.push(candidateLabel);
+      try {
+        const content = await runAgentSession(reviewer.id, rounds, {
+          ...opts,
+          signal: AbortSignal.timeout(REVIEW_FALLBACK_TIMEOUT_MS),
+          modelOverride: candidate,
+        });
+        if (!hasMeaningfulReviewOutput(content)) {
+          throw createReviewNoOutputError();
+        }
+        const timeoutLike = isTimeoutLikeError(err);
+        const originalText = originalModelLabel
+          ? (isZh()
+              ? `原复查模型 ${originalModelLabel}`
+              : `The original review model ${originalModelLabel}`)
+          : (isZh() ? "原复查模型" : "The original review model");
+        const fallbackNote = isZh()
+          ? `${originalText}${timeoutLike ? " 超时" : " 暂时不可用"}，已自动切换到 ${candidateLabel || "默认模型"} 完成这次复查。`
+          : `${originalText} ${timeoutLike ? "timed out" : "became temporarily unavailable"}, so this review finished on ${candidateLabel || "a fallback model"}.`;
+        return {
+          content,
+          fallbackNote,
+          errorCode: isTimeoutLikeError(err) ? "review_timeout_recovered" : "review_fallback_recovered",
+          usedModelId: candidate?.id || null,
+          usedModelProvider: candidate?.provider || null,
+          usedModelLabel: candidateLabel || null,
+        };
+      } catch (retryErr) {
+        lastError = retryErr;
+        if (!isRetryableReviewError(retryErr)) break;
+      }
+    }
+
+    const wrapped = new Error(formatReviewFailureMessage(lastError, attemptedModels));
+    wrapped.code = isTimeoutLikeError(lastError) ? "review_timeout" : "review_retry_failed";
+    throw wrapped;
   }
 }
 
@@ -466,12 +629,16 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
     const followUpPrompt = typeof body.followUpPrompt === "string" ? body.followUpPrompt : null;
     const contextPack = body.contextPack && typeof body.contextPack === "object" ? body.contextPack : null;
     const reviewerName = typeof body.reviewerName === "string" ? body.reviewerName : null;
+    const sourceResponse = typeof body.sourceResponse === "string" ? body.sourceResponse : null;
+    const executionResolution = typeof body.executionResolution === "string" ? body.executionResolution : null;
     const title = buildReviewFollowUpTaskTitle(structuredReview, { zh: isZh() });
     const prompt = buildReviewFollowUpTaskPrompt({
       structuredReview,
       contextPack,
       followUpPrompt,
       reviewerName,
+      sourceResponse,
+      executionResolution,
     }, { zh: isZh() });
 
     const task = taskRuntime.createReviewFollowUpTask({
@@ -482,6 +649,8 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
       contextPack,
       followUpPrompt,
       reviewerName,
+      sourceResponse,
+      executionResolution,
       sessionPath,
     });
 
@@ -566,6 +735,11 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
       }, 500);
     }
 
+    const reviewerRuntime = engine.getAgent?.(reviewer.id);
+    const reviewerConfiguredModel = reviewerRuntime ? getAgentModel(reviewerRuntime) : null;
+    const reviewerConfiguredAvailable = reviewerConfiguredModel?.modelId
+      ? getAvailableModel(engine, reviewerConfiguredModel.modelId, reviewerConfiguredModel.modelProvider)
+      : null;
     const reviewerName = reviewerDisplayName(reviewer.yuan);
     const reviewerAgentName = reviewer.name;
     const sessionPath = engine.currentSessionPath || null;
@@ -581,6 +755,9 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
       reviewerAgentName,
       reviewerYuan: reviewer.yuan,
       reviewerHasAvatar: reviewer.hasAvatar,
+      reviewerModelLabel: describeModel(reviewerConfiguredAvailable) || reviewerConfiguredModel?.modelId || null,
+      reviewerModelId: reviewerConfiguredAvailable?.id || reviewerConfiguredModel?.modelId || null,
+      reviewerModelProvider: reviewerConfiguredAvailable?.provider || reviewerConfiguredModel?.modelProvider || null,
     });
 
     (async () => {
@@ -590,9 +767,9 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
         const prompt = formatContextPack(contextPack);
 
         emitProgress("reviewing");
-        const result = await runReviewerSessionWithFallback(
+        const reviewRun = await runReviewerSessionWithFallback(
           engine,
-          reviewer.id,
+          reviewer,
           [{ text: prompt, capture: true }],
           {
             engine,
@@ -605,7 +782,7 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
         );
 
         emitProgress("structuring");
-        const structured = parseStructuredReview(result || "");
+        const structured = parseStructuredReview(reviewRun.content || "");
         const followUpPrompt = structured ? buildReviewFollowUp(structured) : null;
 
         emitProgress("done", {
@@ -623,13 +800,22 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
           reviewerAgentName,
           reviewerYuan: reviewer.yuan,
           reviewerHasAvatar: reviewer.hasAvatar,
-          content: result || (isZh() ? "（review 无输出）" : "(no review output)"),
+          reviewerModelLabel: reviewRun.usedModelLabel || null,
+          reviewerModelId: reviewRun.usedModelId || null,
+          reviewerModelProvider: reviewRun.usedModelProvider || null,
+          content: reviewRun.content,
           structured,
           contextPack,
           followUpPrompt,
+          fallbackNote: reviewRun.fallbackNote || null,
+          errorCode: reviewRun.errorCode || null,
         });
       } catch (err) {
-        emitProgress("done", { error: err?.message || "Review failed", workflowGate: "follow_up" });
+        emitProgress("done", {
+          error: err?.message || "Review failed",
+          workflowGate: "follow_up",
+          errorCode: err?.code || null,
+        });
         broadcast({
           type: "review_result",
           reviewId,
@@ -639,8 +825,12 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
           reviewerAgentName,
           reviewerYuan: reviewer.yuan,
           reviewerHasAvatar: reviewer.hasAvatar,
+          reviewerModelLabel: null,
+          reviewerModelId: null,
+          reviewerModelProvider: null,
           content: "",
-          error: err?.message || "Review failed",
+          error: formatReviewFailureMessage(err),
+          errorCode: err?.code || null,
         });
       }
     })();

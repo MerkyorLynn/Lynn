@@ -113,6 +113,14 @@
     "collapse": "收起侧边栏",
     "expand": "展开对话列表",
     "empty": "还没有对话哦 ✿",
+    "emptyAction": {
+      "organize": "整理桌面文件",
+      "organizePrompt": "帮我整理一下当前工作区的文件，按类型分类并给出建议。",
+      "plan": "写个工作清单",
+      "planPrompt": "帮我写一个今天的工作清单，列出最重要的 3 件事。",
+      "analyze": "分析一个文件",
+      "analyzePrompt": "我想分析一个文件。告诉我直接把文件拖进来，或者用 @ 引用文件。"
+    },
     "activity": "助手活动",
     "jian": "书桌",
     "bridge": "接入社交平台",
@@ -127,7 +135,38 @@
       "instructions": "已读项目指令",
       "mcp": "能用 MCP",
       "skills": "技能",
-      "projectRules": "指令"
+      "automation": "自动任务",
+      "assistants": "助手",
+      "todo": "待办",
+      "done": "完成",
+      "skillsCenter": "技能中心",
+      "mcpHub": "MCP 接入",
+      "projectRules": "指令",
+      "state": "现在",
+      "model": "模型",
+      "jian": "笺",
+      "continueBusy": "有任务正在推进",
+      "continueIdle": "工作区就绪 · 试试“帮我看看项目”",
+      "tryAt": "@ 引用文件",
+      "startWorkspace": "浏览工作区",
+      "resumeTask": "继续当前任务",
+      "resumePrompt": "继续刚才的任务，先告诉我当前进度和下一步。",
+      "workspacePrompt": "先快速读一下当前工作区，告诉我你会从哪里开始。"
+    }
+  },
+  "titlebar": {
+    "task": {
+      "openActivity": "查看任务详情",
+      "meta": "{count} 个任务",
+      "waiting": "{count} 个{label}",
+      "waitingOne": "等待确认",
+      "waitingMany": "等待确认",
+      "running": "{count} 个{label}",
+      "runningOne": "任务进行中",
+      "runningMany": "任务进行中",
+      "pending": "{count} 个{label}",
+      "pendingOne": "待启动",
+      "pendingMany": "待启动"
     }
   },
   "session": {
@@ -225,13 +264,19 @@
     "serverNotReady": "Server 未就绪",
     "loading": "加载中...",
     "reconnecting": "重连中",
-    "reconnect": "重新连接"
+    "reconnect": "重新连接",
+    "tasksRecovered": "已恢复 {count} 个后台任务",
+    "tasksRecoveredRunning": "后台还有 {count} 个任务正在继续",
+    "tasksRecoveredWaiting": "后台还有 {count} 个任务正在继续，其中 {waiting} 个在等你确认"
   },
   "input": {
     "placeholder": "说点什么...",
     "hintAt": "输入 @ 让 Lynn 看文件",
     "hintSlash": "输入 / 查看快捷命令",
     "hintDrag": "拖拽文件到此处附加上下文",
+    "hintAnalyzeExcel": "帮我分析桌面上的 Excel...",
+    "hintScanStock": "扫描一下今天 A 股有什么异动...",
+    "hintOrganize": "把这个文件夹里的文档整理一下...",
     "hintCmdK": "⌘K 搜索历史对话",
     "hintDesk": "⌘J 打开右侧书桌",
     "selectFolder": "选择工作文件夹",
@@ -320,16 +365,16 @@
     "focusHint": "按 Cmd/Ctrl + K 随时开始输入",
     "quickActions": {
       "askFolder": {
-        "label": "看看当前项目",
-        "prompt": "请先快速浏览当前工作空间，告诉我这是什么项目、当前最值得先做的事是什么。"
+        "label": "帮我做个计划",
+        "prompt": "我想先把今天要推进的事理清楚。请结合当前工作空间和笺，先给我一个简短的执行计划和第一步建议。如果还没有笺，就先帮我写一个今天的工作清单。"
       },
       "summarizeWork": {
-        "label": "总结这堆文件",
-        "prompt": "请先阅读当前工作空间的关键文件，给我一个简短总结：项目做什么、现在进展到哪、接下来建议做什么。"
+        "label": "分析这个文件",
+        "prompt": "我想分析一个文件。你可以帮我分析 Excel 表格、PDF 文档、CSV 数据等。先告诉我直接把文件拖进来就行，或者用 @ 引用文件。"
       },
       "planToday": {
-        "label": "给我今日计划",
-        "prompt": "基于当前工作空间，给我一个今天可执行的 3 步计划，按优先级排好。"
+        "label": "看看今天该做什么",
+        "prompt": "请先看看当前工作空间和笺，告诉我今天最值得先推进的 3 件事，并直接给出建议的第一步。如果还没有笺，就先帮我写一份今天的工作清单。不要先连着反问我很多问题。"
       },
       "tryAt": {
         "label": "试试 @ 引用文件"
@@ -405,7 +450,9 @@
     }
   },
   "drop": {
-    "hint": "松手发送文件路径给 {name}"
+    "hint": "松手发送文件路径给 {name}",
+    "mainHint": "放开即可分析",
+    "subHint": "{name} 支持 Excel、PDF、CSV、图片等文件"
   },
   "attach": {
     "folder": "文件夹",
@@ -704,10 +751,10 @@
       "licenseToggle": "许可证全文",
       "permissions": "权限",
       "fullAccess": "全权模式",
-      "fullAccessDesc": "关闭沙盒隔离和命令限制，Agent 拥有完整的文件系统和终端权限（新会话生效）",
+      "fullAccessDesc": "允许更高权限的本地执行与系统操作（新会话生效）",
       "fullAccessWarningTitle": "关于全权模式",
       "fullAccessWarningBody1": "开启后，Agent 将获得完整的系统权限，包括：",
-      "fullAccessWarningBody2": "1. 文件系统不受沙盒保护，可读写任意路径\n2. 终端命令不受限制，可执行 sudo、chmod 等操作\n3. OS 级隔离（macOS Seatbelt / Linux bubblewrap）将被关闭",
+      "fullAccessWarningBody2": "1. 可以访问更广的本地路径\n2. 终端命令限制会明显减少，可执行 sudo、chmod 等操作\n3. 涉及系统级修改时，需要你自行确认风险",
       "fullAccessWarningBody3": "仅建议在完全信任 Agent 行为且需要系统级操作时开启。",
       "fullAccessCancel": "取消",
       "fullAccessConfirm": "我了解风险，开启",
@@ -1109,12 +1156,13 @@
         "将 Token 粘贴到上方输入框，打开开关即可",
         "在 Telegram 找到你的 Bot，发消息试试吧"
       ],
-      "ownerSelect": "哪个账号是你",
-      "ownerWarning": "所选账号可访问你的文件和隐私信息，请确认是你本人。",
+      "ownerSelect": "设为本人账号",
+      "ownerWarning": "设为本人后，这个账号发来的消息会按完整 Lynn 处理；其他账号仍按普通访客模式。",
       "ownerNone": "发送一条消息后即可选择",
+      "ownerPending": "先让这个平台给 Lynn 发来一条真实消息，识别到账号后这里才会出现“设为本人账号”。",
       "ownerSaved": "已保存",
       "ownerConfirmTitle": "确认设为 Owner？",
-      "ownerConfirmText": "Owner 拥有完整的 Agent 权限，包括记忆、工具调用和人格。请确认这是你本人的账号。",
+      "ownerConfirmText": "设为本人后，这个账号可以完整调用 Lynn 的记忆、工具和人格。请确认这确实是你自己的账号。",
       "ownerConfirmCancel": "取消",
       "ownerConfirmSave": "确认",
       "tutorialFsSteps": [
@@ -1269,10 +1317,10 @@
     "duration": "耗时 {text}"
   },
   "automation": {
-    "title": "定时任务",
-    "empty": "暂无定时任务\n助手会在需要时自动创建",
-    "guideTitle": "让助手定时为你工作",
-    "guideDesc": "设置定时任务，助手会按计划自动执行。也可以在对话中让助手创建。",
+    "title": "自动任务",
+    "empty": "暂无自动任务\n助手会在需要时自动创建",
+    "guideTitle": "让助手按计划自动做事",
+    "guideDesc": "设置自动任务后，助手会按计划自动执行。也可以在对话中让助手创建。",
     "guideTip": "点击即可添加，添加后可编辑时间和内容",
     "deleteConfirm": "确定要删除这个定时任务吗？",
     "defaultModel": "默认模型",
@@ -1310,6 +1358,21 @@
     "openInFinder": "打开文件夹",
     "jianLabel": "笺",
     "jianPlaceholder": "写点什么，告诉助手这个文件夹里面的文件该如何处理...",
+    "jianFooter": "Lynn 巡检时会自动读取这里的内容 · 支持 Markdown · ⌘J 切换",
+    "patrolIdle": "打开笺后会自动巡检一次",
+    "patrolRunning": "Lynn 正在阅读当前工作区与笺里的安排",
+    "patrolDone": "刚刚完成一次巡检",
+    "patrolDoneAt": "上次巡检完成于 {time}",
+    "patrolError": "这次巡检没跑完，稍后会再试一次",
+    "automationIdle": "笺里的重复待办会自动变成自动任务",
+    "automationReady": "已设 {count} 个自动任务",
+    "automationNext": "已设 {count} 个自动任务 · 下次 {time}",
+    "automationPausedSummary": "已设 {count} 个自动任务 · {paused} 个暂停中",
+    "automationNextWithPause": "已设 {count} 个自动任务 · 下次 {time} · {paused} 个暂停中",
+    "openDocBack": "返回笺",
+    "openDocFooter": "正在编辑这个文档 · 自动保存到原文件",
+    "openDocReadFailed": "没能读到这个文档",
+    "openDocSaveFailed": "保存文档失败",
     "emptyTitle": "书桌还空空的呢",
     "emptyHint": "书桌是助手日常巡检的工作空间，也是每次对话的默认目录\n去设置里指定一个文件夹吧",
     "noDeskRoot": "书桌根目录未配置，请前往设置「工作」指定文件夹",
@@ -1319,6 +1382,7 @@
     "newFolder": "新建文件夹",
     "ctx": {
       "open": "打开",
+      "openInLynn": "在 Lynn 中打开",
       "openInFinder": "打开文件夹",
       "rename": "重命名",
       "copyPath": "复制路径",
@@ -1812,10 +1876,10 @@
       "searchMissingQuery": "search 操作需要提供 query 参数。",
       "applyMissingParams": "apply 操作需要同时提供 key 和 value 参数。",
       "frontendOnly": "仅在客户端可见",
-      "sandbox": "沙盒安全",
-      "sandboxDesc": "限制文件系统写入范围",
-      "securityMode": "安全模式",
-      "securityModeDesc": "三模式安全策略（执行/规划/安全）",
+      "sandbox": "旧版执行兼容项",
+      "sandboxDesc": "历史兼容设置，一般无需调整",
+      "securityMode": "执行模式",
+      "securityModeDesc": "三种执行边界（执行 / 规划 / 安全）",
       "locale": "语言",
       "timezone": "时区",
       "timezoneDesc": "IANA 时区（如 Asia/Shanghai）",
@@ -1880,7 +1944,7 @@
     "inputHelp": "输入 /help 查看命令列表"
   },
   "sandbox": {
-    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 的沙盒安全策略阻止。这不是程序错误，而是安全保护机制在工作。请告知用户操作被安全策略阻止，并说明具体原因。用户可以在设置中调整沙盒策略。",
+    "blocked": "[安全策略] {reason}\n\n此操作被 Lynn 当前的执行权限策略阻止。这不是程序错误，而是保护机制在工作。请告知用户操作被拦下，并说明具体原因。用户可以切换执行模式或扩大授权范围。",
     "noSudo": "禁止使用 sudo",
     "noSu": "禁止使用 su 切换用户",
     "noChmod": "禁止修改文件权限",
@@ -1898,8 +1962,8 @@
     "noBcdedit": "禁止修改启动配置",
     "noWmic": "禁止 WMI 命令",
     "restrictedPath": "命令访问了受限路径：{path}",
-    "writeRestricted": "[安全策略] 文件系统写入被限制在工作空间内。此操作被沙盒安全策略阻止，请告知用户。",
-    "osRequired": "[sandbox] standard 模式要求 OS 级沙盒，但当前平台不支持（{platform}）。请安装 sandbox-exec (macOS) 或 bubblewrap (Linux)，或切换到 full-access 模式。",
+    "writeRestricted": "[安全策略] 当前只允许在已授权的工作区内写入。此操作已被拦下，请告知用户扩大授权范围或改到当前工作区执行。",
+    "osRequired": "[受保护执行环境] 当前平台不支持此执行边界（{platform}）。请切换到执行模式，或在支持的平台上继续。",
     "opRead": "读取",
     "opWrite": "写入",
     "opDelete": "删除",
@@ -1927,13 +1991,13 @@
   "security": {
     "mode": {
       "authorized": "执行模式",
-      "authorizedDesc": "危险操作需确认后执行，仍受沙盒与受信任路径限制",
+      "authorizedDesc": "默认推荐；正常执行，遇到危险操作或受保护路径会先确认",
       "plan": "规划模式",
       "planDesc": "仅分析规划，不执行",
       "safe": "安全模式",
-      "safeDesc": "危险行为直接拒绝",
+      "safeDesc": "只读查看为主，危险操作直接拒绝",
       "fullAccess": "全权模式",
-      "fullAccessDesc": "关闭沙盒隔离与命令限制"
+      "fullAccessDesc": "不受限制地执行（旧版兼容描述）"
     },
     "auth": {
       "title": "这次操作需要你的授权",
@@ -1981,12 +2045,6 @@
   "error.serverAuthFailed": "认证失败",
   "error.unknown": "发生了未知错误",
   "error.regionUnavailable": "此区域暂时无法显示",
-  "status.reconnecting": "正在重连...",
-  "status.disconnected": "连接已断开",
-  "status.reconnect": "重新连接",
-  "status.tasksRecovered": "已恢复 {count} 个后台任务",
-  "status.tasksRecoveredRunning": "后台还有 {count} 个任务正在继续",
-  "status.tasksRecoveredWaiting": "后台还有 {count} 个任务正在继续，其中 {waiting} 个在等你确认",
   "action.retry": "重试",
   "agentDiscovery.title": "发现已安装的 AI 工具",
   "agentDiscovery.body": "检测到你电脑上已安装以下 AI 工具：",

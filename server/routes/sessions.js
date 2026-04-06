@@ -2,7 +2,7 @@
  * Session 管理 REST 路由
  */
 import fs from "fs/promises";
-import { appendFileSync, mkdirSync } from "fs";
+import { appendFileSync, existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import path from "path";
 import { Hono } from "hono";
@@ -109,6 +109,22 @@ function isValidSessionPath(sessionPath, baseDir) {
   return resolved.startsWith(base + path.sep) || resolved === base;
 }
 
+function normalizeLegacyWorkspaceCwd(cwd) {
+  const raw = String(cwd || "").trim();
+  if (!raw) return null;
+  const oldRoot = "/Users/lynn/openhanako";
+  const newRoot = "/Users/lynn/Lynn";
+  if (raw === oldRoot || raw.startsWith(`${oldRoot}${path.sep}`)) {
+    const migrated = raw.replace(oldRoot, newRoot);
+    try {
+      if (existsSync(newRoot)) return migrated;
+    } catch {
+      return migrated;
+    }
+  }
+  return raw;
+}
+
 export function createSessionsRoute(engine) {
   const route = new Hono();
 
@@ -122,7 +138,7 @@ export function createSessionsRoute(engine) {
         firstMessage: (s.firstMessage || "").slice(0, 100),
         modified: s.modified?.toISOString() || null,
         messageCount: s.messageCount || 0,
-        cwd: s.cwd || null,
+        cwd: normalizeLegacyWorkspaceCwd(s.cwd),
         agentId: s.agentId || null,
         agentName: s.agentName || null,
         modelId: s.modelId || null,

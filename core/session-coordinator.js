@@ -20,6 +20,8 @@ import { BrowserManager } from "../lib/browser/browser-manager.js";
 import { t, getLocale } from "../server/i18n.js";
 import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { findModel } from "../shared/model-ref.js";
+import { lookupToolTier } from "../shared/known-models.js";
+import { detectPromptInjection, formatInjectionWarning } from "../lib/sandbox/prompt-injection-detector.js";
 import {
   SecurityMode,
   DEFAULT_SECURITY_MODE,
@@ -48,6 +50,44 @@ export const PATROL_TOOLS_DEFAULT = [
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
+}
+
+// ── Tool Tiering（P0：按模型能力裁剪自定义工具集） ──
+
+const MINIMAL_CUSTOM_TOOLS = new Set([
+  "web_search", "web_fetch",
+]);
+
+const STANDARD_CUSTOM_TOOLS = new Set([
+  "web_search", "web_fetch", "todo", "present_files", "notify",
+  "search_memory", "pin_memory", "unpin_memory",
+  "recall_experience", "record_experience",
+]);
+
+/**
+ * 按 toolTier 裁剪自定义工具列表
+ * @param {Array} customTools
+ * @param {"full"|"standard"|"minimal"|null} tier - null/undefined = full
+ * @returns {Array}
+ */
+function filterCustomToolsByTier(customTools, tier) {
+  if (!tier || tier === "full") return customTools;
+  const allowed = tier === "minimal" ? MINIMAL_CUSTOM_TOOLS : STANDARD_CUSTOM_TOOLS;
+  return customTools.filter(t => allowed.has(t.name));
+}
+
+/**
+ * 推断模型的 toolTier
+ * 优先使用 known-models.json 标注，fallback 按 context window 推断
+ */
+function resolveToolTier(model) {
+  if (!model) return null;
+  const tier = lookupToolTier(model.provider, model.id);
+  if (tier) return tier;
+  // fallback: context < 32K → minimal
+  const cw = model.contextWindow;
+  if (cw && cw < 32_000) return "minimal";
+  return null;
 }
 const MAX_CACHED_SESSIONS = 20;
 const SESSION_RELAY_SUMMARY_MAX_CHARS = 4000;
@@ -226,14 +266,25 @@ export class SessionCoordinator {
             extras.push(planModePrompt);
           } else if (secMode === SecurityMode.SAFE) {
             const safeModePrompt = isZh
-              ? "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受限路径的写入将被直接拒绝，无确认机会。如果用户需要执行这些操作，请告知需要在输入框左下角切换到「执行模式」。"
-              : "[System Notice] Currently in SAFE MODE. All dangerous operations (sudo, chmod, etc.) and writes to restricted paths will be directly blocked with no confirmation option. If the user needs these operations, inform them to switch to 'Execute Mode' via the selector at the bottom-left of the input area.";
+              ? "【系统通知】当前处于「安全模式」，所有危险操作（sudo、chmod 等）和受保护路径的写入都会被直接拒绝，不会弹出确认。如果用户确实需要执行这些操作，请告知先在输入框左下角切换到「执行模式」。"
+              : "[System Notice] Currently in SAFE MODE. Dangerous operations (sudo, chmod, etc.) and writes to protected paths are directly rejected with no approval prompt. If the user truly needs them, ask them to switch to 'Execute Mode' via the selector at the bottom-left of the input area.";
             extras.push(safeModePrompt);
           }
           // authorized mode: no special system prompt needed
 
           // 项目级指令注入（AGENTS.md / CLAUDE.md 等）
           const sessionCwd = sessionEntry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || "";
+          const preferredDeskPath = this._d.getHomeCwd() || "";
+          if (preferredDeskPath) {
+            const deskHint = isZh
+              ? (sessionCwd && sessionCwd !== preferredDeskPath
+                  ? `【书桌工作区】用户提到「书桌」「当前工作区」时，默认优先指 ${preferredDeskPath}。只有用户明确说当前代码仓库、当前源码目录或当前 cwd 时，才使用 ${sessionCwd}。`
+                  : `【书桌工作区】用户提到「书桌」「当前工作区」时，默认就是 ${preferredDeskPath}。`)
+              : (sessionCwd && sessionCwd !== preferredDeskPath
+                  ? `[Desk workspace] When the user says "desk" or "current workspace", prefer ${preferredDeskPath} by default. Only switch to ${sessionCwd} when they explicitly mean the current repo/cwd.`
+                  : `[Desk workspace] When the user says "desk" or "current workspace", it refers to ${preferredDeskPath}.`);
+            extras.push(deskHint);
+          }
           if (sessionCwd) {
             try {
               const projectCtx = formatProjectInstructions(sessionCwd, isZh);
@@ -255,11 +306,67 @@ export class SessionCoordinator {
               ? "【重要】回复末尾用 <!-- KEY: 结论 --> 标注本轮关键结论，压缩时优先保留。回复控制在 500 字以内。"
               : "[IMPORTANT] End replies with <!-- KEY: conclusion --> to mark key conclusions for retention. Keep replies under 500 words.";
             extras.push(compactPrompt);
+
+            // P1: 弱模型工具调用规则引导
+            extras.push(isZh
+              ? [
+                  "【工具调用规则】",
+                  "1. 每次只调用一个工具，等结果回来再决定下一步",
+                  "2. 调用工具前先用一句话说清楚你要做什么",
+                  "3. 不要编造不存在的工具名",
+                  "4. 参数中的文件路径必须使用绝对路径",
+                  "5. 如果不确定该用哪个工具，先用 bash 执行简单命令",
+                  "6. 不要在正文中模拟工具调用（如写出 JSON 但不通过工具接口发送）",
+                ].join("\n")
+              : [
+                  "[Tool Call Rules]",
+                  "1. Call only one tool at a time; wait for the result before deciding the next step",
+                  "2. Before calling a tool, briefly state what you intend to do",
+                  "3. Do not invent tool names that do not exist",
+                  "4. Always use absolute paths for file parameters",
+                  "5. When unsure which tool to use, try bash with a simple command first",
+                  "6. Do not simulate tool calls in text (e.g. writing JSON without actually invoking the tool)",
+                ].join("\n")
+            );
+
+            // P1: 工具分组摘要
+            extras.push(isZh
+              ? "可用工具概览：文件操作（read/write/edit/bash）、搜索（grep/find/web_search）。先想清楚要做什么，再选工具。"
+              : "Tool overview: File ops (read/write/edit/bash), Search (grep/find/web_search). Think first, then pick."
+            );
+
+            // P3: 计划模式引导
+            extras.push(isZh
+              ? "如果任务需要 3 步以上的操作，先把计划列出来告诉用户，等用户确认后再逐步执行。不要一口气做完所有步骤。"
+              : "If a task requires more than 3 steps, list the plan for the user first and wait for confirmation before executing step by step. Do not complete all steps at once."
+            );
           } else {
             const importancePrompt = isZh
               ? "【上下文保留策略】当对话很长时，系统会自动压缩旧消息。为确保关键信息不丢失：在输出重要决策、计划步骤、验证结论或用户明确要求记住的内容时，请用简洁的要点重申核心结论，这样即使旧消息被压缩，关键信息也会在最近的消息中保留。"
               : "[Context Retention] When conversations are long, the system auto-compacts old messages. To ensure critical info survives: when outputting important decisions, plan steps, verification conclusions, or things the user explicitly asked to remember, briefly restate the core conclusions so they remain in recent messages even after compaction.";
             extras.push(importancePrompt);
+          }
+
+          // 笺引导：首次 session 的前几轮对话中，提醒用户使用笺
+          const turnCount = sessionEntry.session?.turnCount ?? sessionEntry.session?.sessionManager?.getTurnCount?.() ?? 0;
+          if (turnCount <= 2 && !sessionEntry._jianHintInjected) {
+            sessionEntry._jianHintInjected = true;
+            const jianHint = isZh
+              ? "【一次性提示】如果用户提到了持续要推进的任务或计划，在回复末尾自然地加一句：「如果有持续要推进的事，可以写在右侧的笺里（⌘J 打开），我会定期去看并主动推进。」不要每次都说，只在第一次合适的时机提一次。"
+              : "[One-time hint] If the user mentions ongoing tasks or plans, naturally add at the end of your reply: 'If you have ongoing tasks, you can write them in the Jian panel on the right (⌘J to toggle). I'll check periodically and work on them proactively.' Only mention this once, at an appropriate moment.";
+            extras.push(jianHint);
+          }
+
+          // 当前运行模型注入：让 Agent 知道自己正在使用什么模型
+          const sessionModel = sessionEntry.session?.model;
+          if (sessionModel) {
+            const modelTag = sessionModel.provider
+              ? `${sessionModel.provider} / ${sessionModel.name || sessionModel.id}`
+              : (sessionModel.name || sessionModel.id);
+            const modelHint = isZh
+              ? `当前运行模型：${modelTag}。当用户要求署名、标注生成模型或询问你是什么模型时，使用这个信息。`
+              : `Current model: ${modelTag}. Use this when the user asks you to sign, attribute, or identify which model generated the content.`;
+            extras.push(modelHint);
           }
 
           return extras;
@@ -269,9 +376,17 @@ export class SessionCoordinator {
 
     let sessionPathRef = null;
     const { tools: sessionTools, customTools: sessionCustomTools } = this._d.buildTools(effectiveCwd, null, {
-      workspace: this._d.getHomeCwd(),
+      workspace: effectiveCwd,
       getSessionPath: () => sessionPathRef,
     });
+
+    // P0: 按模型能力裁剪自定义工具集
+    const toolTier = resolveToolTier(effectiveModel);
+    const filteredCustomTools = filterCustomToolsByTier(sessionCustomTools, toolTier);
+    if (toolTier && toolTier !== "full") {
+      log.log(`toolTier=${toolTier}: ${filteredCustomTools.length}/${sessionCustomTools.length} custom tools`);
+    }
+
     const clientAgentKey = readClientAgentKeyFromPreferencesFile();
     const clientAgentHeaders = readSignedClientAgentHeaders({
       method: "POST",
@@ -288,7 +403,7 @@ export class SessionCoordinator {
       thinkingLevel: models.resolveThinkingLevel(this._d.getPrefs().getThinkingLevel()),
       resourceLoader,
       tools: sessionTools,
-      customTools: sessionCustomTools,
+      customTools: filteredCustomTools,
       ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
       ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
     });
@@ -324,6 +439,54 @@ export class SessionCoordinator {
           && mapKey === this.currentSessionPath
         ) {
           void this._relaySession(mapKey, entryForEvent.compactionCount);
+        }
+      }
+      // P3: 工具调用连续失败降级追踪
+      if (event?.type === "tool_execution_end" && entryForEvent) {
+        if (event.isError) {
+          entryForEvent._toolFailCount = (entryForEvent._toolFailCount || 0) + 1;
+          if (entryForEvent._toolFailCount >= 3 && !entryForEvent._toolFailDegraded) {
+            entryForEvent._toolFailDegraded = true;
+            const isZhEvt = getLocale().startsWith("zh");
+            entryForEvent._lastRecallContext = isZhEvt
+              ? "【系统提示】工具调用连续失败 3 次。请停止使用工具，用文字向用户说明情况和遇到的问题。"
+              : "[System] Tool calls failed 3 times in a row. Stop using tools and explain the situation to the user in text.";
+          }
+        } else {
+          entryForEvent._toolFailCount = 0;
+          entryForEvent._toolFailDegraded = false;
+        }
+
+        // ── ClawAegis 输入层：read 工具返回内容 prompt injection 扫描 ──
+        const toolName = event.toolName || event.toolCall?.name || "";
+        if ((toolName === "read" || toolName === "read_file") && !event.isError) {
+          try {
+            const text = event.result?.content?.[0]?.text || "";
+            if (text.length > 50) {
+              const scan = detectPromptInjection(text);
+              if (scan.detected) {
+                const warning = formatInjectionWarning(scan.matches);
+                console.warn(`[ClawAegis] prompt injection 检测: ${scan.matches.length} 个模式命中 (tool=${toolName})`);
+                // 在 tool_result 末尾追加 warning 给 AI
+                if (event.result?.content?.[0]?.type === "text") {
+                  event.result.content[0].text += warning;
+                }
+              }
+            }
+          } catch { /* 检测失败不影响正常流程 */ }
+        }
+
+        // ── ClawAegis 输出层：输出验证（AI 声称 vs 实际结果） ──
+        if (event.isError && entryForEvent) {
+          const errText = event.result?.content?.[0]?.text || "";
+          if (/no such file|not found|ENOENT/i.test(errText) || /permission denied|EACCES/i.test(errText)) {
+            // 记录操作失败详情，下一轮 context 中可供 AI 参考
+            const isZhV = getLocale().startsWith("zh");
+            const failHint = isZhV
+              ? `【注意】上一步 ${toolName} 执行失败：${errText.slice(0, 120)}。请检查路径或权限是否正确。`
+              : `[Note] Previous ${toolName} failed: ${errText.slice(0, 120)}. Please verify path or permissions.`;
+            entryForEvent._lastRecallContext = failHint;
+          }
         }
       }
       this._d.emitEvent(event, sessionPath);
@@ -618,7 +781,7 @@ export class SessionCoordinator {
     const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
     return this._d.buildTools(cwd, null, {
       agentDir: this._d.getAgentById(entry.agentId)?.agentDir || this._d.getAgent().agentDir,
-      workspace: this._d.getHomeCwd(),
+      workspace: cwd,
       mode: SECURITY_MODE_CONFIG[effectiveMode]?.sandboxMode,
       getSessionPath: () => sessionPath,
     });
@@ -1041,7 +1204,7 @@ export class SessionCoordinator {
         targetAgent.tools,
         {
           agentDir: targetAgent.agentDir,
-          workspace: this._d.getHomeCwd(),
+          workspace: execCwd,
           getSessionPath: () => tempSessionMgr?.getSessionFile?.() || null,
         }
       );

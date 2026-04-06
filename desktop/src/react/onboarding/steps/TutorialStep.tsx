@@ -81,7 +81,11 @@ export function TutorialStep({ preview, showError, track }: TutorialStepProps) {
     if (preview) { window.close(); return; }
     setFinishing(true);
     try {
-      await window.hana.onboardingComplete?.();
+      const ok = await window.hana.onboardingComplete?.();
+      if (ok === false) {
+        showError(t('onboarding.error'));
+        setFinishing(false);
+      }
     } catch (err) {
       console.error('[onboarding] complete failed:', err);
       showError(t('onboarding.error'));
@@ -90,7 +94,7 @@ export function TutorialStep({ preview, showError, track }: TutorialStepProps) {
   }, [preview, showError]);
 
   return (
-    <StepContainer>
+    <StepContainer className="onboarding-step-tutorial">
       <h1 className="onboarding-title">{t(isQuickTrack ? 'onboarding.tutorial.quickTitle' : 'onboarding.tutorial.title')}</h1>
       {isQuickTrack && (
         <div className="ob-step-banner">

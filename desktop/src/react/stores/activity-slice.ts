@@ -1,10 +1,12 @@
-import type { Activity, TaskRuntimeSnapshot } from '../types';
+import type { Activity, CapabilitySnapshot, TaskRuntimeSnapshot } from '../types';
 
 export interface ActivitySlice {
   activities: Activity[];
   taskSnapshot: TaskRuntimeSnapshot | null;
+  capabilitySnapshot: CapabilitySnapshot | null;
   setActivities: (activities: Activity[]) => void;
   setTaskSnapshot: (snapshot: TaskRuntimeSnapshot | null) => void;
+  setCapabilitySnapshot: (snapshot: CapabilitySnapshot | null) => void;
 }
 
 export const createActivitySlice = (
@@ -12,8 +14,10 @@ export const createActivitySlice = (
 ): ActivitySlice => ({
   activities: [],
   taskSnapshot: null,
+  capabilitySnapshot: null,
   setActivities: (activities) => set({ activities }),
   setTaskSnapshot: (taskSnapshot) => set({ taskSnapshot }),
+  setCapabilitySnapshot: (capabilitySnapshot) => set({ capabilitySnapshot }),
 });
 
 // ── Selectors ──

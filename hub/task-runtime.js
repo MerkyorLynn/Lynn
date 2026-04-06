@@ -791,6 +791,8 @@ export class TaskRuntime {
     followUpPrompt = null,
     reviewerName = null,
     sessionPath = null,
+    sourceResponse = null,
+    executionResolution = null,
     source = "review_follow_up",
     metadata = {},
   } = {}) {
@@ -816,6 +818,8 @@ export class TaskRuntime {
         structuredReview,
         contextPack,
         followUpPrompt,
+        sourceResponse,
+        executionResolution,
       },
     });
   }

@@ -110,16 +110,22 @@ describe('ensureFirstRun', () => {
 
     for (const [dirName, skillName] of [
       ['quiet-musing', 'quiet-musing'],
+      ['self-improving-agent', 'Self-Improving Agent'],
+      ['tavily-search', 'tavily'],
       ['find-skills', 'find-skills'],
       ['summarize', 'summarize'],
-      ['baidu-search', 'baidu-search'],
-      ['brave-search', 'brave-search'],
-      ['tavily-search', 'tavily'],
-      ['github', 'github'],
-      ['notion', 'notion'],
-      ['frontend-design', 'frontend-design'],
-      ['weather', 'weather'],
       ['agent-browser', 'Agent Browser'],
+      ['github', 'github'],
+      ['proactive-agent', 'Proactive Agent'],
+      ['ontology', 'ontology'],
+      ['weather', 'weather'],
+      ['skill-vetter', 'Skill Vetter'],
+      ['nano-pdf', 'Nano PDF'],
+      ['humanizer', 'Humanizer'],
+      ['ffmpeg-video-editor', 'Ffmpeg Video Editor'],
+      ['docker-essentials', 'Docker Essentials'],
+      ['baidu-search', 'baidu-search'],
+      ['stock-analysis', 'stock-analysis'],
     ]) {
       const skillDir = path.join(skillsRoot, dirName);
       fs.mkdirSync(skillDir, { recursive: true });
@@ -136,16 +142,22 @@ describe('ensureFirstRun', () => {
     const migrated = readYaml(path.join(agentsDir, 'lynn', 'config.yaml'));
     expect(migrated.skills.enabled).toEqual(expect.arrayContaining([
       'quiet-musing',
+      'self-improving-agent',
+      'tavily-search',
       'find-skills',
       'summarize',
-      'baidu-search',
-      'brave-search',
-      'tavily',
+      'agent-browser',
       'github',
-      'notion',
-      'frontend-design',
+      'proactive-agent',
+      'ontology',
       'weather',
-      'Agent Browser',
+      'skill-vetter',
+      'nano-pdf',
+      'humanizer',
+      'ffmpeg-video-editor',
+      'docker-essentials',
+      'baidu-search',
+      'stock-analysis',
     ]));
     expect(migrated.skills._recommended_seeded).toBe(true);
   });

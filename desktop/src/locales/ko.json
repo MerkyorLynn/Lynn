@@ -148,6 +148,11 @@
   },
   "input": {
     "placeholder": "무슨 이야기든 해보세요...",
+    "hintAt": "@ 를 입력하여 파일 보여주기",
+    "hintSlash": "/ 를 입력하여 명령어 보기",
+    "hintDrag": "파일을 여기에 드롭하여 첨부",
+    "hintCmdK": "⌘K 로 대화 검색",
+    "hintDesk": "⌘J 로 데스크 열기",
     "selectFolder": "폴더 선택",
     "workspace": "작업 공간: ",
     "selectWorkspace": "작업 공간 선택",

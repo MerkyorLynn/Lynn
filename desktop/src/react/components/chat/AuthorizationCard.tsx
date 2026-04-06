@@ -1,7 +1,7 @@
 /**
  * AuthorizationCard — 授权确认卡片
  *
- * 在授权模式下，当沙盒拦截到危险操作时显示。
+ * 在执行模式下，当受保护操作需要确认时显示。
  * 提供一次性、会话级、持久化（当前 trusted root）三层授权。
  */
 
@@ -85,6 +85,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
 }: AuthorizationCardProps) {
   const [status, setStatus] = useState<AuthorizationStatus>(initialStatus);
   const [submitting, setSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const addToast = useStore((s) => s.addToast);
 
   useEffect(() => {
@@ -120,7 +121,6 @@ export const AuthorizationCard = memo(function AuthorizationCard({
   const scopeLabel = deriveScopeLabel(category, command);
   const [onceHint, sessionHint, persistentHint] = decisionHints(trustedRootLabel);
   const summary = buildSummary(scopeLabel, trustedRootLabel);
-
   if (status !== 'pending') {
     return (
       <div className={`${styles.card} ${status === 'confirmed' ? styles.cardConfirmed : styles.cardRejected}`}>
@@ -163,27 +163,11 @@ export const AuthorizationCard = memo(function AuthorizationCard({
       <div className={styles.actions}>
         <button
           className={`${styles.btn} ${styles.btnPrimary}`}
-          onClick={handleAllowOnce}
-          disabled={submitting}
-          title={onceHint}
-        >
-          {window.t('security.auth.allowOnce')}
-        </button>
-        <button
-          className={`${styles.btn} ${styles.btnSecondary}`}
           onClick={handleAllowSession}
           disabled={submitting}
           title={sessionHint}
         >
           {window.t('security.auth.allowSession')}
-        </button>
-        <button
-          className={`${styles.btn} ${styles.btnSecondary}`}
-          onClick={handleAllowPersistent}
-          disabled={submitting}
-          title={persistentHint}
-        >
-          {window.t('security.auth.allowAlwaysHere')}
         </button>
         <button
           className={`${styles.btn} ${styles.btnGhost}`}
@@ -192,12 +176,39 @@ export const AuthorizationCard = memo(function AuthorizationCard({
         >
           {window.t('security.auth.reject')}
         </button>
+        <button
+          className={`${styles.btn} ${styles.btnLink}`}
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          type="button"
+          style={{ fontSize: '0.68rem', opacity: 0.6 }}
+        >
+          {showAdvanced ? '▴' : '▾'} {(() => { const v = window.t('security.auth.moreOptions'); return (v && v !== 'security.auth.moreOptions') ? v : 'More options'; })()}
+        </button>
       </div>
 
+      {showAdvanced && (
+        <div className={styles.actions} style={{ marginTop: 4 }}>
+          <button
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            onClick={handleAllowOnce}
+            disabled={submitting}
+            title={onceHint}
+          >
+            {window.t('security.auth.allowOnce')}
+          </button>
+          <button
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            onClick={handleAllowPersistent}
+            disabled={submitting}
+            title={persistentHint}
+          >
+            {window.t('security.auth.allowAlwaysHere')}
+          </button>
+        </div>
+      )}
+
       <div className={styles.decisionGuide}>
-        <span className={styles.decisionItem}>{onceHint}</span>
         <span className={styles.decisionItem}>{sessionHint}</span>
-        <span className={styles.decisionItem}>{persistentHint}</span>
       </div>
     </div>
   );

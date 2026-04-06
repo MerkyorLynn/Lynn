@@ -18,7 +18,7 @@ import { initJian } from './stores/desk-actions';
 import { initEditorEvents } from './stores/artifact-actions';
 import { updateLayout } from './components/SidebarLayout';
 import { initErrorBusBridge } from './errors/error-bus-bridge';
-import type { TaskRuntimeSnapshot } from './types';
+import { syncRuntimeSnapshot } from './utils/runtime-snapshot';
 // @ts-expect-error — shared JS module
 import { errorBus as _errorBus } from '../../../shared/error-bus.js';
 // @ts-expect-error — shared JS module
@@ -54,62 +54,6 @@ window.addEventListener('unhandledrejection', (e) => {
   _errorBus.report(_AppError.wrap(e.reason));
 });
 
-function maybeAnnounceRecoveredTasks(snapshot: TaskRuntimeSnapshot | null | undefined): void {
-  const activeCount = Number(snapshot?.activeCount || 0);
-  if (!activeCount) return;
-
-  const ids = Array.isArray(snapshot?.recent)
-    ? snapshot.recent.map((task) => task.id).filter(Boolean).join(',')
-    : '';
-  const toastKey = `runtime-recovered:${activeCount}:${ids}`;
-
-  try {
-    if (window.sessionStorage?.getItem(toastKey)) return;
-    window.sessionStorage?.setItem(toastKey, '1');
-  } catch {
-    // ignore sessionStorage failures
-  }
-
-  useStore.getState().addToast(
-    t('status.tasksRecovered', { count: activeCount }),
-    'info',
-    5000,
-    { dedupeKey: toastKey },
-  );
-}
-
-async function syncRuntimeSnapshot(opts: { announceRecovery?: boolean } = {}): Promise<void> {
-  try {
-    const res = await hanaFetch('/api/app-state');
-    const data = await res.json();
-    const patch: Record<string, unknown> = {};
-    if (data?.agent?.currentAgentId) patch.currentAgentId = data.agent.currentAgentId;
-    if (data?.agent?.name) patch.agentName = data.agent.name;
-    if (data?.agent?.yuan) patch.agentYuan = data.agent.yuan;
-    if (data?.desk?.homeFolder !== undefined) {
-      patch.homeFolder = data.desk.homeFolder || null;
-      patch.selectedFolder = data.desk.homeFolder || null;
-    }
-    if (Array.isArray(data?.desk?.trustedRoots)) patch.trustedRoots = data.desk.trustedRoots;
-    if (data?.model?.current?.id) {
-      patch.currentModel = {
-        id: data.model.current.id,
-        provider: data.model.current.provider || '',
-      };
-    }
-    if (data?.tasks !== undefined) patch.taskSnapshot = data.tasks || null;
-    if (Object.keys(patch).length > 0) useStore.setState(patch);
-    if (opts.announceRecovery) maybeAnnounceRecoveredTasks(data?.tasks || null);
-    if (data?.security?.mode) {
-      useStore.getState().setSecurityMode(data.security.mode);
-      window.dispatchEvent(new CustomEvent('hana-security-mode', { detail: { mode: data.security.mode } }));
-      window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: !!data.security.planMode } }));
-    }
-  } catch (err) {
-    console.warn('[init] runtime snapshot sync failed:', err);
-  }
-}
-
 // ── 主初始化流程 ──
 
 export async function initApp(): Promise<void> {
@@ -125,6 +69,10 @@ export async function initApp(): Promise<void> {
     platform.appReady();
     return;
   }
+
+  // 先让主窗口壳子显示出来，避免 onboarding 结束后卡在米色空白页等待网络与配置。
+  useStore.setState({ pendingNewSession: true });
+  platform.appReady();
 
   // 2. 并行获取 health + config
   try {
@@ -161,11 +109,14 @@ export async function initApp(): Promise<void> {
         ? { id: appStateData.model.current.id, provider: appStateData.model.current.provider || '' }
         : null,
       taskSnapshot: appStateData?.tasks || null,
+      capabilitySnapshot: appStateData?.capabilities || null,
     });
     if (Array.isArray(configData.cwd_history)) {
       useStore.setState({ cwdHistory: configData.cwd_history });
     }
-    maybeAnnounceRecoveredTasks(appStateData?.tasks || null);
+    if (appStateData?.tasks?.activeCount) {
+      void syncRuntimeSnapshot({ announceRecovery: true });
+    }
 
     // 6. 加载头像
     loadAvatars(healthData.avatars);
@@ -177,22 +128,16 @@ export async function initApp(): Promise<void> {
   connectWebSocket();
   initErrorBusBridge();
 
-  // 9. 先准备基础可交互状态，尽快解除 splash；主数据改为后台补齐。
-  useStore.setState({ pendingNewSession: true });
-
-  // 10. 初始化书桌
+  // 9. 初始化书桌
   initJian();
 
-  // 11. 初始化编辑器事件
+  // 10. 初始化编辑器事件
   initEditorEvents();
 
-  // 12. 主窗口基础内容已可用，先解除 splash。
-  platform.appReady();
-
-  // 13. 初始 layout 计算
+  // 11. 初始 layout 计算
   updateLayout();
 
-  // 14-17. 主数据与次要状态统一转后台补齐，避免阻塞首屏。
+  // 12-17. 主数据与次要状态统一转后台补齐，避免阻塞首屏。
   void Promise.allSettled([
     loadAgents(),
     loadSessions(),
@@ -223,8 +168,8 @@ export async function initApp(): Promise<void> {
         const res = await hanaFetch('/api/skills/external-paths');
         const data = await res.json();
         const found = (data.discovered || []).filter((a: any) => a.exists);
-        if (found.length > 0 && !localStorage.getItem('agent-discovery-seen')) {
-          useStore.setState({ discoveredAgents: found, agentDiscoveryVisible: true });
+        if (found.length > 0) {
+          useStore.setState({ discoveredAgents: found });
         }
       } catch { /* ignore */ }
     })(),
@@ -266,6 +211,12 @@ export async function initApp(): Promise<void> {
     });
   });
 
+  // 19b. 全局快捷键唤醒 → 自动聚焦输入框
+  platform.onGlobalSummon?.(() => {
+    useStore.setState({ welcomeVisible: false });
+    useStore.getState().requestInputFocus();
+  });
+
   // 20. 设置变更监听
   platform.onSettingsChanged((type: string, data: any) => {
     switch (type) {
@@ -295,6 +246,7 @@ export async function initApp(): Promise<void> {
       case 'models-changed':
         void syncRuntimeSnapshot({ announceRecovery: false });
         loadModels();
+        window.dispatchEvent(new CustomEvent('models-changed'));
         break;
       case 'agent-created':
       case 'agent-deleted':

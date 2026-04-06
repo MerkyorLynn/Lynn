@@ -32,6 +32,14 @@
     font-family: var(--font-serif);
 }
 
+.welcomeDaySummary {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    opacity: 0.85;
+    margin-top: -2px;
+}
+
 
 .quickActions {
     display: flex;

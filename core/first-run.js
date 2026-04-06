@@ -15,17 +15,22 @@ import { errorBus } from '../shared/error-bus.js';
 import { uniqueTrustedRoots } from '../shared/trusted-roots.js';
 
 const RECOMMENDED_DEFAULT_SKILLS = [
-  "quiet-musing",
+  "self-improving-agent",
+  "tavily-search",
   "find-skills",
   "summarize",
-  "baidu-search",
-  "brave-search",
-  "tavily",
+  "agent-browser",
   "github",
-  "notion",
-  "frontend-design",
+  "proactive-agent",
+  "ontology",
   "weather",
-  "Agent Browser",
+  "skill-vetter",
+  "nano-pdf",
+  "humanizer",
+  "ffmpeg-video-editor",
+  "docker-essentials",
+  "baidu-search",
+  "stock-analysis",
 ];
 
 /**
@@ -190,14 +195,21 @@ function ensureDefaultWorkspacePrefs(prefsPath, productDir) {
   const prefs = readJsonFile(prefsPath);
   const desktopRoot = path.join(os.homedir(), 'Desktop');
   const workspacePath = path.join(desktopRoot, 'Lynn');
-  const installRoot = path.resolve(productDir, '..');
 
   try { fs.mkdirSync(workspacePath, { recursive: true }); } catch {}
 
+  const existingRoots = Array.isArray(prefs.trusted_roots) ? prefs.trusted_roots : [];
+  const sanitizedRoots = existingRoots.filter((root) => {
+    const normalized = String(root || '').trim().replace(/\\/g, '/');
+    if (!normalized) return false;
+    if (normalized.includes('/Applications/Lynn.app/Contents/Resources/server')) return false;
+    if (normalized.includes('/Applications/Lynn.app/Contents/Resources/app.asar/server')) return false;
+    return true;
+  });
+
   const nextHomeFolder = String(prefs.home_folder || '').trim() || workspacePath;
   const nextTrustedRoots = uniqueTrustedRoots([
-    ...(Array.isArray(prefs.trusted_roots) ? prefs.trusted_roots : []),
-    installRoot,
+    ...sanitizedRoots,
     desktopRoot,
     workspacePath,
   ]);
@@ -312,6 +324,7 @@ function collectBundledSkillNames(skillsDir) {
       if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
       const skillMdPath = path.join(skillsDir, entry.name, "SKILL.md");
       if (!fs.existsSync(skillMdPath)) continue;
+      names.add(entry.name);
       names.add(parseSkillName(skillMdPath, entry.name));
     }
   } catch {}

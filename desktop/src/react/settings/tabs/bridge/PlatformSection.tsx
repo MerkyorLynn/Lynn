@@ -120,13 +120,19 @@ export function PlatformSection({
 
       {children}
 
-      {ownerUsers && onOwnerChange && (
+      {ownerUsers && ownerUsers.length > 0 && onOwnerChange && (
         <OwnerSelect
           platform={platform}
           users={ownerUsers}
           currentOwner={currentOwner}
           onChange={onOwnerChange}
         />
+      )}
+
+      {ownerUsers && ownerUsers.length === 0 && onOwnerChange && (
+        <div className={styles['settings-field']}>
+          <span className={styles['settings-field-hint']}>{t('settings.bridge.ownerPending')}</span>
+        </div>
       )}
     </section>
   );

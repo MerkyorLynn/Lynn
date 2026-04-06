@@ -161,6 +161,8 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
         visibility: active ? 'visible' : 'hidden',
         zIndex: active ? 1 : 0,
         pointerEvents: active ? 'auto' : 'none',
+        opacity: active ? 1 : 0,
+        transition: active ? 'opacity 0.15s ease-out' : 'none',
       }}
     >
       <div ref={contentRef} className={styles.sessionMessages}>

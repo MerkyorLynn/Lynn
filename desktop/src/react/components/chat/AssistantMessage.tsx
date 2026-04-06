@@ -115,7 +115,10 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const latestReviewBlock = useMemo(() => findLatestReviewBlock(blocks), [blocks]);
   const currentModel = useStore(s => s.currentModel);
   const { running: runningTools, total: totalTools } = useMemo(() => summarizeToolState(blocks), [blocks]);
-  const showStreamingMeta = !!message.id?.startsWith('stream-') && (runningTools > 0 || blocks.some(block => block.type === 'thinking' && !block.sealed));
+  const isStreamMsg = !!message.id?.startsWith('stream-');
+  const showStreamingMeta = isStreamMsg && (runningTools > 0 || blocks.some(block => block.type === 'thinking' && !block.sealed));
+  // T2: TTFT 等待提示——streaming 中但还没有任何实际内容
+  const showWaitingHint = isStreamMsg && blocks.length === 0;
 
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -307,17 +310,27 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               {runningTools > 0 ? 'tools ' + runningTools + '/' + totalTools : 'thinking'}
             </span>
           )}
+          {showWaitingHint && !showStreamingMeta && (
+            <span className={styles.avatarMeta}>
+              {t('chat.waiting') || '等待回复'}
+              <span className={styles.thinkingDots}><span /><span /><span /></span>
+            </span>
+          )}
         </div>
       )}
       <div className={`${styles.message} ${styles.messageAssistant}`}>
         {blocks.map((block, i) => (
-          <ContentBlockView
-            key={`block-${i}`}
-            block={block}
-            agentName={displayName}
-            stateKey={message.id}
-            onReviewTaskCreated={handleReviewTaskCreated}
-          />
+        <ContentBlockView
+          key={`block-${i}`}
+          block={block}
+          agentName={displayName}
+          agentYuan={displayYuan}
+          agentAvatarUrl={avatarSrc}
+          agentModelLabel={formatCompactModelLabel(currentModel)}
+          stateKey={message.id}
+          sourceResponse={plainText}
+          onReviewTaskCreated={handleReviewTaskCreated}
+        />
         ))}
         {showActionRail && (
           <div className={styles.messageActionRail}>
@@ -390,10 +403,14 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   );
 });
 
-const ContentBlockView = memo(function ContentBlockView({ block, agentName, stateKey, onReviewTaskCreated }: {
+const ContentBlockView = memo(function ContentBlockView({ block, agentName, agentYuan, agentAvatarUrl, agentModelLabel, stateKey, sourceResponse, onReviewTaskCreated }: {
   block: ContentBlock;
   agentName: string;
+  agentYuan?: string;
+  agentAvatarUrl?: string | null;
+  agentModelLabel?: string | null;
   stateKey?: string;
+  sourceResponse?: string;
   onReviewTaskCreated?: () => void;
 }) {
   switch (block.type) {
@@ -440,8 +457,14 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, stat
         reviewerAgentName={(block as any).reviewerAgentName}
         reviewerYuan={(block as any).reviewerYuan}
         reviewerHasAvatar={(block as any).reviewerHasAvatar}
+        reviewerModelLabel={(block as any).reviewerModelLabel}
+        executorName={agentName}
+        executorYuan={agentYuan}
+        executorAvatarUrl={agentAvatarUrl}
+        executorModelLabel={agentModelLabel}
         content={(block as any).content}
         error={(block as any).error}
+        errorCode={(block as any).errorCode}
         status={(block as any).status}
         stage={(block as any).stage}
         findingsCount={(block as any).findingsCount}
@@ -451,6 +474,8 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, stat
         contextPack={(block as any).contextPack}
         followUpPrompt={(block as any).followUpPrompt}
         followUpTask={(block as any).followUpTask}
+        sourceResponse={sourceResponse}
+        fallbackNote={(block as any).fallbackNote}
         onFollowUpTaskCreated={onReviewTaskCreated}
       />;
     default:
@@ -470,21 +495,64 @@ function extLabel(ext: string): string {
 
 function FileOutputCard({ filePath, label, ext }: { filePath: string; label: string; ext: string }) {
   const [hover, setHover] = useState(false);
+  const [mdHtml, setMdHtml] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const isMd = ext === 'md' || ext === 'markdown';
+
+  useEffect(() => {
+    if (!isMd) return;
+    let cancelled = false;
+    window.platform?.readFile?.(filePath)?.then((content: string | null) => {
+      if (cancelled || !content) return;
+      import('../../utils/markdown').then(({ renderMarkdown }) => {
+        if (!cancelled) setMdHtml(renderMarkdown(content));
+      });
+    });
+    return () => { cancelled = true; };
+  }, [filePath, isMd]);
+
   return (
     <div
       className={styles.fileOutputCard}
+      style={isMd && mdHtml ? { flexDirection: 'column', alignItems: 'stretch', maxWidth: '100%' } : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
       <div className={styles.fileOutputHead}>
         <span className={styles.fileOutputBadge}>{extLabel(ext)}</span>
         <span className={styles.fileOutputLabel}>{label || filePath.split('/').pop() || filePath}</span>
+        {isMd && mdHtml && (
+          <button
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '0 4px' }}
+            onClick={(e) => { e.stopPropagation(); setCollapsed(c => !c); }}
+          >
+            {collapsed ? '▶' : '▼'}
+          </button>
+        )}
       </div>
       <div className={styles.fileOutputPath}>{filePath}</div>
       {hover && (
         <button className={styles.fileOutputOpen} onClick={() => openFilePreview(filePath, label, ext)}>
           {window.t('common.open') || 'Open'}
         </button>
+      )}
+      {isMd && mdHtml && !collapsed && (
+        <div
+          className="md-content"
+          style={{
+            marginTop: '8px',
+            padding: '12px',
+            background: 'var(--bg-card, var(--bg))',
+            borderRadius: '6px',
+            border: '1px solid var(--overlay-light, rgba(0,0,0,0.06))',
+            fontSize: '0.88rem',
+            lineHeight: '1.6',
+            maxHeight: '400px',
+            overflowY: 'auto',
+            wordBreak: 'break-word',
+          }}
+          dangerouslySetInnerHTML={{ __html: mdHtml }}
+        />
       )}
     </div>
   );

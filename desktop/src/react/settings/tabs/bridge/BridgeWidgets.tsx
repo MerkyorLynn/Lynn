@@ -44,6 +44,7 @@ interface OwnerSelectProps {
 export function OwnerSelect({ platform, users, currentOwner, onChange }: OwnerSelectProps) {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const dialogRef = useDialogA11y({ open: pendingUserId !== null, onClose: () => setPendingUserId(null) });
+  const currentOwnerName = users.find((item) => item.userId === currentOwner)?.name || currentOwner || '';
 
   const handleChange = (value: string) => {
     if (!value) {
@@ -66,6 +67,11 @@ export function OwnerSelect({ platform, users, currentOwner, onChange }: OwnerSe
     <div className={`${styles['settings-field']} ${'bridge-owner-field'}`}>
       <label className={`${styles['settings-field-label']} ${'bridge-owner-label'}`}>{t('settings.bridge.ownerSelect')}</label>
       <p className="bridge-owner-warning">{t('settings.bridge.ownerWarning')}</p>
+      {currentOwnerName && (
+        <p className="bridge-owner-warning">
+          {t('settings.bridge.ownerSaved')}: {currentOwnerName}
+        </p>
+      )}
       <select
         className={`${styles['settings-input']} ${'bridge-owner-select'}`}
         value={currentOwner || ''}

@@ -5,18 +5,20 @@
  * 此文件只负责 titlebar + sidebar + 主区域 + overlays 的组装。
  */
 
-import { useEffect, lazy, Suspense, useState, useCallback } from 'react';
+import { useEffect, lazy, Suspense, useState, useCallback, useMemo } from 'react';
 import { useStore } from './stores';
-import type { ActivePanel } from './types';
+import type { ActivePanel, Session } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RegionalErrorBoundary } from './components/RegionalErrorBoundary';
 import { ActivityPanel } from './components/ActivityPanel';
 import { AutomationPanel } from './components/AutomationPanel';
 import { BridgePanel } from './components/BridgePanel';
+import { ChangesPanel } from './components/ChangesPanel';
 
 const SkillViewerOverlay = lazy(() => import('./components/SkillViewerOverlay').then(m => ({ default: m.SkillViewerOverlay })));
 import { PreviewPanel } from './components/PreviewPanel';
 import { DeskSection } from './components/DeskSection';
+import { DeskSkillsSection } from './components/desk/DeskSkillsSection';
 import { InputArea } from './components/InputArea';
 import { SessionList } from './components/SessionList';
 import { SidebarCapabilityBar } from './components/SidebarCapabilityBar';
@@ -72,7 +74,11 @@ function SettingsButton() {
   const handleClick = useCallback(() => {
     if (showPulse) {
       setShowPulse(false);
-      try { localStorage.setItem('hanako-settings-clicked', '1'); } catch {}
+      try {
+        localStorage.setItem('hanako-settings-clicked', '1');
+      } catch {
+        // ignore storage failures
+      }
       window.platform.openSettings('providers');
       return;
     }
@@ -81,15 +87,16 @@ function SettingsButton() {
 
   return (
     <button
-      className={`sidebar-action-btn${showPulse ? ' sidebar-settings-pulse' : ''}`}
+      className={`sidebar-settings-btn${showPulse ? ' sidebar-settings-pulse' : ''}`}
       id="settingsBtn"
       title={t('settings.title')}
       onClick={handleClick}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
+      <span>{t('settings.title')}</span>
     </button>
   );
 }
@@ -111,6 +118,31 @@ function ConnectionStatus() {
   );
 }
 
+function folderLabel(folderPath: string | null): string {
+  if (!folderPath) return '';
+  const parts = folderPath.split('/').filter(Boolean);
+  return parts[parts.length - 1] || folderPath;
+}
+
+function countPendingJianTodos(content: string | null): number {
+  const text = String(content || '');
+  const matches = text.match(/^- \[( |x|X)\] /gm) || [];
+  const done = matches.filter((item) => /\[(x|X)\]/.test(item)).length;
+  return matches.length - done;
+}
+
+function trimTitle(value: string | null | undefined): string {
+  const raw = (value || '').trim();
+  if (!raw) return 'Lynn';
+  if (raw.length <= 40) return raw;
+  return `${raw.slice(0, 39)}...`;
+}
+
+function resolveSessionTitle(session: Session | null, fallback: string): string {
+  if (!session) return fallback;
+  return trimTitle(session.title || session.firstMessage || fallback);
+}
+
 function App() {
   useSidebarResize();
   useStore(s => s.locale);
@@ -120,8 +152,35 @@ function App() {
   const welcomeVisible = useStore(s => s.welcomeVisible);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const currentAgentId = useStore(s => s.currentAgentId);
+  const sessions = useStore(s => s.sessions);
+  const deskBasePath = useStore(s => s.deskBasePath || s.selectedFolder || s.homeFolder || null);
+  const agentName = useStore(s => s.agentName) || 'Lynn';
+  const pendingNewSession = useStore(s => s.pendingNewSession);
+  const sessionCreationPending = useStore(s => s.sessionCreationPending);
   const hasPanels = !welcomeVisible && !!currentSessionPath;
+  const jianContent = useStore(s => s.deskJianContent);
+  const isStreaming = useStore(s => s.isStreaming);
+  const deskPatrolStatus = useStore(s => s.deskPatrolStatus);
+  const isWorking = isStreaming || deskPatrolStatus?.state === 'running';
+  const jianHasContent = !!jianContent && jianContent.trim().length > 0;
+  const jianPendingCount = countPendingJianTodos(jianContent);
   const { floatCard, show: showFloat, scheduleHide: scheduleFloatHide, cancelHide: cancelFloatHide, hide: hideFloat } = useFloatCard();
+
+  const currentSession = useMemo(
+    () => sessions.find((session) => session.path === currentSessionPath) || null,
+    [sessions, currentSessionPath],
+  );
+  const titlePrimary = useMemo(() => {
+    if (welcomeVisible) return '';
+    if (currentSession) return resolveSessionTitle(currentSession, agentName);
+    if (pendingNewSession) return t('sidebar.newChat') || '新对话';
+    return agentName;
+  }, [agentName, currentSession, pendingNewSession, welcomeVisible]);
+  const titleSecondary = useMemo(() => {
+    const workspace = folderLabel(deskBasePath);
+    if (!workspace) return '';
+    return workspace;
+  }, [deskBasePath]);
 
   useEffect(() => {
     initApp().catch((err: unknown) => {
@@ -172,7 +231,11 @@ function App() {
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
         </button>
-        <div className="tb-title">{t('channel.chatTab')}</div>
+        <div className="tb-title">
+          {isWorking && <span className="tb-working-dot" />}
+          <span className="tb-title-primary">{titlePrimary}</span>
+          {titleSecondary ? <span className="tb-title-secondary">{titleSecondary}</span> : null}
+        </div>
         <button
           className={`tb-toggle tb-toggle-right${jianOpen ? ' active' : ''}`}
           id="tbToggleRight"
@@ -185,6 +248,9 @@ function App() {
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="15" y1="3" x2="15" y2="21"></line>
           </svg>
+          <span className={`tb-toggle-badge${jianPendingCount > 0 ? ' has-count' : jianHasContent ? ' has-content' : ''}`}>
+            {jianPendingCount > 0 ? String(Math.min(jianPendingCount, 99)) : jianHasContent ? '•' : '+'}
+          </span>
         </button>
         <WindowControls />
       </div>
@@ -196,7 +262,25 @@ function App() {
               <div className="sidebar-header">
                 <span className="sidebar-title">{t('sidebar.title')}</span>
                 <div className="sidebar-header-actions">
-                  <button className="sidebar-action-btn" id="newSessionBtn" title={t('sidebar.newChat')} onClick={createNewSession}>
+                  <button className="sidebar-footer-btn" id="bridgeBar" title={t('sidebar.bridgeShort')} onClick={() => togglePanel('bridge')}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    <BridgeDot />
+                  </button>
+                  <button className="sidebar-footer-btn" id="activityBar" title={t('sidebar.activity')} onClick={() => togglePanel('activity')}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                  </button>
+                  <button
+                    className="sidebar-action-btn"
+                    id="newSessionBtn"
+                    title={t('sidebar.newChat')}
+                    onClick={createNewSession}
+                    disabled={sessionCreationPending}
+                  >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -234,18 +318,6 @@ function App() {
             </div>
           </div>
           <div className="sidebar-footer-icons">
-            <button className="sidebar-footer-btn" id="bridgeBar" title={t('sidebar.bridgeShort')} onClick={() => togglePanel('bridge')}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-              </svg>
-              <BridgeDot />
-            </button>
-            <button className="sidebar-footer-btn" id="activityBar" title={t('sidebar.activity')} onClick={() => togglePanel('activity')}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-              </svg>
-            </button>
             <SettingsButton />
           </div>
           <div className="resize-handle resize-handle-right" id="sidebarResizeHandle"></div>
@@ -266,6 +338,7 @@ function App() {
           </div>
 
           <ActivityPanel />
+          <ChangesPanel />
           <AutomationPanel />
           <BridgePanel />
         </MainContent>
@@ -285,6 +358,7 @@ function App() {
       </div>
 
       <ConnectionStatus />
+      <DeskSkillsSection />
       <Suspense fallback={null}><SkillViewerOverlay /></Suspense>
       <AgentDiscoveryDialog />
 

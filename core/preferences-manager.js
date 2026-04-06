@@ -63,11 +63,11 @@ export class PreferencesManager {
   /** 读取安全模式偏好（全局默认） */
   getSecurityMode() {
     const prefs = this.getPreferences();
-    // Migration: if securityMode not set but sandbox was explicitly false (old full-access),
-    // default to authorized mode (the new default that allows confirmation)
-    if (prefs.securityMode) return prefs.securityMode;
-    if (prefs.sandbox === false) return "full-access"; // legacy full-access toggle
-    return "authorized"; // default
+    const mode = prefs.securityMode;
+    // 迁移：旧版 full-access 映射到新版 authorized（行为一致）
+    if (mode === "full-access") return "authorized";
+    if (mode === "authorized" || mode === "plan" || mode === "safe") return mode;
+    return "authorized"; // 新默认：无沙盒限制
   }
 
   /** 保存安全模式偏好（全局默认） */

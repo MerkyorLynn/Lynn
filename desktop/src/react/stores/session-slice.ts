@@ -5,6 +5,7 @@ export interface SessionSlice {
   currentSessionPath: string | null;
   sessionStreams: Record<string, SessionStream>;
   pendingNewSession: boolean;
+  sessionCreationPending: boolean;
   memoryEnabled: boolean;
   /** @deprecated 兼容层 — 读取当前 session 的 todos，新代码用 todosBySession */
   sessionTodos: TodoItem[];
@@ -14,6 +15,7 @@ export interface SessionSlice {
   setSessionStream: (sessionPath: string, stream: SessionStream) => void;
   removeSessionStream: (sessionPath: string) => void;
   setPendingNewSession: (pending: boolean) => void;
+  setSessionCreationPending: (pending: boolean) => void;
   setMemoryEnabled: (enabled: boolean) => void;
   setSessionTodos: (todos: TodoItem[]) => void;
   setSessionTodosForPath: (sessionPath: string, todos: TodoItem[]) => void;
@@ -26,6 +28,7 @@ export const createSessionSlice = (
   currentSessionPath: null,
   sessionStreams: {},
   pendingNewSession: false,
+  sessionCreationPending: false,
   memoryEnabled: true,
   sessionTodos: [],
   todosBySession: {},
@@ -41,6 +44,7 @@ export const createSessionSlice = (
       return { sessionStreams: rest };
     }),
   setPendingNewSession: (pending) => set({ pendingNewSession: pending }),
+  setSessionCreationPending: (pending) => set({ sessionCreationPending: pending }),
   setMemoryEnabled: (enabled) => set({ memoryEnabled: enabled }),
   // 兼容：旧调用方仍可用，写入当前 session
   setSessionTodos: (todos) =>

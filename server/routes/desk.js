@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { parseSkillMetadata } from "../../lib/skills/skill-metadata.js";
 import { t } from "../i18n.js";
-import { readGitContext } from "../git-context.js";
+import { readGitContext, readGitDiff } from "../git-context.js";
 
 /** 解析真实路径（跟踪 symlink），失败返回 null */
 function realPath(p) {
@@ -85,9 +85,18 @@ function isSensitivePath(srcPath, lynnHome) {
 
 /** 列出工作空间目录下的文件 */
 function listWorkspaceFiles(dir) {
+  const HOVER_IGNORE_NAMES = new Set([
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+    ".pytest_cache",
+  ]);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true })
-    .filter(e => !e.name.startsWith("."))
+    .filter(e => !e.name.startsWith(".") && !HOVER_IGNORE_NAMES.has(e.name))
     .map(e => {
       const fullPath = path.join(dir, e.name);
       const stat = fs.statSync(fullPath);
@@ -267,7 +276,10 @@ export function createDeskRoute(engine, hub) {
           }
           params.schedule = minutes * 60_000;
         }
-        const job = store.addJob(params);
+        const job = store.addJob({
+          ...params,
+          workspace: String(params.workspace || "").trim(),
+        });
         return c.json({ ok: true, job, jobs: store.listJobs() });
       }
 
@@ -288,6 +300,9 @@ export function createDeskRoute(engine, hub) {
       case "update": {
         if (!params.id) return c.json({ error: "id required" });
         const { id, ...fields } = params;
+        if (fields.workspace !== undefined) {
+          fields.workspace = String(fields.workspace || "").trim();
+        }
         if (fields.schedule !== undefined) {
           const existingJob = store.getJob(id);
           if (existingJob?.type === "every") {
@@ -494,6 +509,14 @@ export function createDeskRoute(engine, hub) {
 
     const gitContext = readGitContext(dir);
     return c.json(gitContext);
+  });
+
+  route.get("/desk/git-diff", async (c) => {
+    const dir = c.req.query("dir") ? decodeURIComponent(c.req.query("dir")) : engine.deskCwd;
+    const filePath = c.req.query("file") ? decodeURIComponent(c.req.query("file")) : "";
+    if (!dir || !filePath) return c.json({ available: false, filePath: filePath || "" });
+    if (c.req.query("dir") && !isApprovedDir(dir, engine)) return c.json({ error: t("error.dirNotAllowed") });
+    return c.json(readGitDiff(dir, filePath));
   });
 
   /** 模糊搜索工作空间文件（@mention 用） */

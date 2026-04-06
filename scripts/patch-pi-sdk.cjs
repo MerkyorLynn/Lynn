@@ -151,7 +151,7 @@ if (fs.existsSync(completionsTarget)) {
   const thinkingReplacement =
     '    /* patched: zai-thinking-format */\n' +
     '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
-    '        params.thinking = { type: "disabled" };\n' +
+    '        params.thinking = { type: options?.reasoningEffort ? "enabled" : "disabled" };\n' +
     '    }\n' +
     '    else if (compat.thinkingFormat === "qwen" && model.reasoning) {\n' +
     '        params.enable_thinking = !!options?.reasoningEffort;\n' +
@@ -164,7 +164,7 @@ if (fs.existsSync(completionsTarget)) {
   } else if (completionsCode.includes(thinkingNeedle)) {
     completionsCode = completionsCode.replace(thinkingNeedle, thinkingReplacement);
     console.log("[patch-pi-sdk] patched openai-completions.js → use zai thinking payload for GLM");
-  } else if (completionsCode.includes('        params.thinking = { type: "disabled" };')) {
+  } else if (completionsCode.includes('params.thinking = { type: options?.reasoningEffort ? "enabled" : "disabled" }')) {
     console.log("[patch-pi-sdk] openai-completions.js zai-thinking patch already applied");
   } else {
     console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot apply zai-thinking patch");

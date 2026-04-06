@@ -30,12 +30,16 @@ describe('review follow-up task builders', () => {
         },
       },
       followUpPrompt: 'Review verdict: concerns',
+      sourceResponse: 'Original answer said to keep the same flow and just add a null guard.',
+      executionResolution: "Keep Lynn's main direction, but merge Hanako's correction before executing.",
     }, { zh: true });
 
     expect(title).toContain('处理复查发现');
     expect(prompt).toContain('Missing edge case');
     expect(prompt).toContain('最近一次用户请求');
     expect(prompt).toContain('/Users/lynn/openhanako');
+    expect(prompt).toContain('建议执行结论');
+    expect(prompt).toContain('Lynn 原回答摘要');
   });
 
   it('falls back to generic english title when findings are empty', () => {

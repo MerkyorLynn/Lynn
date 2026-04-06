@@ -1,8 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
-import { saveHomeFolder, saveLocale, saveModel, saveProvider, saveUserName } from '../../onboarding/onboarding-actions';
+import { saveHomeFolder, saveLocale, saveModel, saveProvider, saveUserName, testConnection } from '../../onboarding/onboarding-actions';
 import { BRAIN_DEFAULT_MODEL_ID, BRAIN_DEFAULT_MODEL_IDS, BRAIN_ROLE_MODEL_IDS } from '../../../../../shared/brain-provider.js';
 
 describe('onboarding-actions', () => {
+  it('treats the built-in default model as ready without probing the network', async () => {
+    const onboardingFetch = vi.fn();
+
+    const result = await testConnection({
+      onboardingFetch,
+      providerName: 'brain',
+      providerUrl: 'http://127.0.0.1:8789/api/v1',
+      providerApi: 'openai-completions',
+      apiKey: '',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(typeof result.text).toBe('string');
+    expect(result.text.length).toBeGreaterThan(0);
+    expect(onboardingFetch).not.toHaveBeenCalled();
+  });
+
   it('saves quick-start provider setup through /api/config with a default model', async () => {
     const onboardingFetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
       status: 200,
@@ -135,7 +152,6 @@ describe('onboarding-actions', () => {
 
     await saveHomeFolder(onboardingFetch, '/Users/me/Desktop/Lynn', [
       '/Users/me/Desktop',
-      '/Users/me/openhanako',
       '/Users/me/Desktop/Lynn',
     ]);
 
@@ -149,7 +165,6 @@ describe('onboarding-actions', () => {
       home_folder: '/Users/me/Desktop/Lynn',
       trusted_roots: [
         '/Users/me/Desktop',
-        '/Users/me/openhanako',
         '/Users/me/Desktop/Lynn',
       ],
     });

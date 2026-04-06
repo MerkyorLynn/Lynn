@@ -159,4 +159,54 @@ describe('prompt-task', () => {
     expect(prepared.docForRender).toBeNull();
     expect(prepared.otherFiles).toEqual([]);
   });
+
+  it('prepareComposerTask 在只提到文件名但未附内容时，附加 @ 文件引导提示', async () => {
+    const prepared = await prepareComposerTask({
+      mode: 'prompt',
+      composerText: 'App.tsx 第 45 行报错了，帮我看看',
+      attachedFiles: [],
+      docContextAttached: false,
+      currentDoc: null,
+      quotedSelection: null,
+      workingSetRecentFiles: [],
+      supportsVision: true,
+    });
+
+    expect(prepared.submission.requestText).toContain('App.tsx 第 45 行报错了，帮我看看');
+    expect(prepared.submission.requestText).toContain('可以输入 @App.tsx 让我直接看这个文件');
+  });
+
+  it('prepareComposerTask 在用户提到当前工作区时，明确绑定到首选书桌工作区', async () => {
+    const prepared = await prepareComposerTask({
+      mode: 'prompt',
+      composerText: '先快速读一下当前工作区，告诉我你会从哪里开始。',
+      preferredWorkspace: '/Users/me/Desktop/Lynn',
+      attachedFiles: [],
+      docContextAttached: false,
+      currentDoc: null,
+      quotedSelection: null,
+      workingSetRecentFiles: [],
+      supportsVision: true,
+    });
+
+    expect(prepared.submission.requestText).toContain('/Users/me/Desktop/Lynn');
+    expect(prepared.submission.requestText).toContain('不要擅自切去源码仓库、安装目录或别的 cwd');
+  });
+
+  it('prepareComposerTask 在用户明确提到源码仓库时，不注入书桌工作区提示', async () => {
+    const prepared = await prepareComposerTask({
+      mode: 'prompt',
+      composerText: '先读一下当前源码仓库，告诉我从哪个目录开始。',
+      preferredWorkspace: '/Users/me/Desktop/Lynn',
+      attachedFiles: [],
+      docContextAttached: false,
+      currentDoc: null,
+      quotedSelection: null,
+      workingSetRecentFiles: [],
+      supportsVision: true,
+    });
+
+    expect(prepared.submission.requestText).not.toContain('/Users/me/Desktop/Lynn');
+    expect(prepared.submission.requestText).not.toContain('不要擅自切去源码仓库、安装目录或别的 cwd');
+  });
 });

@@ -1,22 +1,22 @@
 .card {
   margin: var(--space-sm) 0;
   padding: 0.85rem;
-  background: linear-gradient(180deg, rgba(24, 27, 34, 0.96), rgba(18, 20, 28, 0.96));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(253, 249, 239, 0.98), rgba(247, 241, 228, 0.98));
+  border: 1px solid rgba(152, 131, 102, 0.18);
   border-radius: 0.85rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color: #edf0f7;
+  box-shadow: 0 12px 28px rgba(120, 101, 76, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  color: #3b352c;
   max-width: 560px;
   width: min(560px, 100%);
   animation: authCardIn 160ms ease-out;
 }
 
 .cardConfirmed {
-  border-color: rgba(98, 204, 160, 0.4);
+  border-color: rgba(89, 148, 104, 0.34);
 }
 
 .cardRejected {
-  border-color: rgba(230, 110, 110, 0.4);
+  border-color: rgba(183, 105, 97, 0.34);
 }
 
 .header {
@@ -30,7 +30,7 @@
 .headerText {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #f8f9fd;
+  color: #2f2a24;
 }
 
 .scopeTag {
@@ -40,9 +40,9 @@
   border-radius: 999px;
   font-size: 0.69rem;
   letter-spacing: 0.02em;
-  border: 1px solid rgba(129, 146, 186, 0.5);
-  color: #c8d2ec;
-  background: rgba(87, 99, 129, 0.25);
+  border: 1px solid rgba(103, 128, 150, 0.24);
+  color: #5f7990;
+  background: rgba(110, 140, 168, 0.08);
 }
 
 .statusBadge {
@@ -51,18 +51,18 @@
   padding: 0.15rem 0.48rem;
   border-radius: 999px;
   font-size: 0.69rem;
-  border: 1px solid rgba(148, 161, 191, 0.5);
-  color: #dde4f8;
-  background: rgba(87, 99, 129, 0.25);
+  border: 1px solid rgba(124, 160, 128, 0.26);
+  color: #4e7757;
+  background: rgba(124, 160, 128, 0.1);
 }
 
 .commandBlock {
   margin: 0;
   padding: 0.62rem 0.68rem;
   border-radius: 0.68rem;
-  border: 1px solid rgba(148, 161, 191, 0.35);
-  background: rgba(9, 11, 16, 0.75);
-  color: #e6ebff;
+  border: 1px solid rgba(144, 128, 106, 0.18);
+  background: rgba(255, 251, 243, 0.9);
+  color: #4a4034;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.4;
@@ -75,27 +75,27 @@
   margin: 0 0 0.38rem;
   font-size: 0.82rem;
   line-height: 1.5;
-  color: #eef2ff;
+  color: #3c352d;
 }
 
 .summary {
   margin: 0 0 0.48rem;
   font-size: 0.79rem;
   line-height: 1.5;
-  color: #cfdcf9;
+  color: #677f93;
 }
 
 .reason {
   margin: 0 0 0.6rem;
   font-size: 0.72rem;
   line-height: 1.35;
-  color: #a5b0ce;
+  color: #7d7468;
 }
 
 .reasonLabel {
   display: inline-block;
   margin-right: 0.36rem;
-  color: #d7e4ff;
+  color: #536f84;
   font-weight: 600;
 }
 
@@ -107,14 +107,14 @@
 
 .commandLabel {
   font-size: 0.7rem;
-  color: #aab7d6;
+  color: #857664;
   letter-spacing: 0.02em;
 }
 
 .rootHint {
   margin: 0.46rem 0 0;
   font-size: 0.71rem;
-  color: #8ec7ff;
+  color: #5f7e96;
 }
 
 .actions {
@@ -134,7 +134,7 @@
 .decisionItem {
   font-size: 0.69rem;
   line-height: 1.35;
-  color: #9fb0d3;
+  color: #7d7468;
 }
 
 .btn {
@@ -153,37 +153,38 @@
 }
 
 .btnPrimary {
-  color: #0a1022;
+  color: #1f2d36;
   font-weight: 600;
-  background: linear-gradient(135deg, #79ccff, #89f0d0);
+  background: linear-gradient(135deg, #9cc6e5, #b8dcc6);
+  box-shadow: 0 8px 16px rgba(111, 142, 166, 0.18);
 }
 
 .btnPrimary:hover:not(:disabled) {
-  filter: brightness(1.03);
+  filter: brightness(1.01);
   transform: translateY(-1px);
 }
 
 .btnSecondary {
-  color: #e6ecff;
-  border-color: rgba(140, 153, 186, 0.5);
-  background: rgba(77, 89, 117, 0.35);
+  color: #54697a;
+  border-color: rgba(124, 144, 160, 0.24);
+  background: rgba(255, 252, 246, 0.72);
 }
 
 .btnSecondary:hover:not(:disabled) {
-  border-color: rgba(172, 187, 225, 0.7);
-  background: rgba(95, 108, 140, 0.42);
+  border-color: rgba(124, 144, 160, 0.34);
+  background: rgba(249, 245, 235, 0.98);
 }
 
 .btnGhost {
-  color: #d2d9ef;
-  border-color: rgba(140, 153, 186, 0.36);
-  background: rgba(44, 50, 67, 0.35);
+  color: #7b6a66;
+  border-color: rgba(158, 129, 122, 0.24);
+  background: rgba(255, 249, 243, 0.7);
 }
 
 .btnGhost:hover:not(:disabled) {
-  color: #ffcece;
-  border-color: rgba(229, 123, 123, 0.68);
-  background: rgba(125, 54, 54, 0.25);
+  color: #b06161;
+  border-color: rgba(176, 97, 97, 0.36);
+  background: rgba(255, 239, 235, 0.95);
 }
 
 @keyframes authCardIn {

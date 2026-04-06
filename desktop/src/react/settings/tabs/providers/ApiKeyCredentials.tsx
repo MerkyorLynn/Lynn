@@ -27,6 +27,7 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
   const { showToast } = useSettingsStore();
   const [keyVal, setKeyVal] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
+  const hasSavedKey = !!summary.api_key;
   const derivedBaseUrl = summary.base_url || presetInfo?.url || '';
   const [urlVal, setUrlVal] = useState(derivedBaseUrl);
   const [urlEdited, setUrlEdited] = useState(false);
@@ -34,13 +35,6 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
   const requiresKey = summary.type === 'api-key' && !presetInfo?.local;
   const isDefaultModelProvider = providerId === BRAIN_PROVIDER_ID;
   const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>(isDefaultModelProvider ? 'ok' : 'idle');
-
-  // 未编辑时，从 summary 同步已保存的 key 到输入框
-  useEffect(() => {
-    if (!keyEdited && summary.api_key) {
-      setKeyVal(summary.api_key);
-    }
-  }, [summary.api_key, keyEdited]);
 
   // 未编辑时，从 summary 同步 base_url
   useEffect(() => {
@@ -148,7 +142,11 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
             <KeyInput
               value={keyVal}
               onChange={(v) => { setKeyVal(v); setKeyEdited(true); setConnStatus('idle'); }}
-              placeholder={isPresetSetup ? t('settings.providers.setupHint') : ''}
+              placeholder={
+                hasSavedKey
+                  ? (t('settings.providers.savedKeyPlaceholder') || '已保存，留空则保持不变')
+                  : (isPresetSetup ? t('settings.providers.setupHint') : '')
+              }
             />
             <button
               className={`${styles['pv-cred-conn-icon']} ${styles[connStatus] || ''}`}

@@ -169,6 +169,15 @@ function DeskListCard() {
   const deskFiles = useStore(s => s.deskFiles);
   const deskJianContent = useStore(s => s.deskJianContent);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hiddenNames = new Set(['__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', 'dist', 'build']);
+  const isHiddenFile = useCallback((file: any) => {
+    const rawName = String(file?.name || '').trim().replace(/\/+$/, '');
+    if (!rawName) return true;
+    if (hiddenNames.has(rawName)) return true;
+    if (rawName.startsWith('.DS_Store')) return true;
+    if (rawName.endsWith('.pyc') || rawName.endsWith('.pyo')) return true;
+    return false;
+  }, []);
 
   const handleJianInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -177,13 +186,15 @@ function DeskListCard() {
     saveTimerRef.current = setTimeout(() => saveJianContent(), 800);
   }, []);
 
+  const visibleDeskFiles = deskFiles.filter((file: any) => !isHiddenFile(file)).slice(0, 12);
+
   return (
     <>
-      {deskFiles.length === 0 ? (
+      {visibleDeskFiles.length === 0 ? (
         <div className="float-card-empty">{t('desk.emptyTitle')}</div>
       ) : (
         <div className="float-card-list">
-          {deskFiles.slice(0, 12).map((f: any) => (
+          {visibleDeskFiles.map((f: any) => (
             <div key={f.name} className={`float-card-item${f.isDir ? ' is-dir' : ''}`}>
               {f.isDir ? `${f.name}/` : f.name}
             </div>

@@ -76,7 +76,6 @@ import { openrouterPlugin } from "../lib/providers/openrouter.js";
 import { ollamaPlugin } from "../lib/providers/ollama.js";
 import { minimaxPlugin } from "../lib/providers/minimax.js";
 import { minimaxOAuthPlugin } from "../lib/providers/minimax-oauth.js";
-import { openaiCodexOAuthPlugin } from "../lib/providers/openai-codex-oauth.js";
 // 中国
 import { siliconflowPlugin } from "../lib/providers/siliconflow.js";
 import { zhipuPlugin } from "../lib/providers/zhipu.js";
@@ -99,6 +98,10 @@ import { xaiPlugin } from "../lib/providers/xai.js";
 // Coding Plan
 import { dashscopeCodingPlugin } from "../lib/providers/dashscope-coding.js";
 import { kimiCodingPlugin } from "../lib/providers/kimi-coding.js";
+import { minimaxCodingPlugin } from "../lib/providers/minimax-coding.js";
+import { zhipuCodingPlugin } from "../lib/providers/zhipu-coding.js";
+import { stepfunCodingPlugin } from "../lib/providers/stepfun-coding.js";
+import { tencentCodingPlugin } from "../lib/providers/tencent-coding.js";
 import { volcegineCodingPlugin } from "../lib/providers/volcengine-coding.js";
 
 const BUILTIN_PLUGINS = [
@@ -112,7 +115,6 @@ const BUILTIN_PLUGINS = [
   ollamaPlugin,
   minimaxPlugin,
   minimaxOAuthPlugin,
-  openaiCodexOAuthPlugin,
   // 中国
   siliconflowPlugin,
   zhipuPlugin,
@@ -135,6 +137,10 @@ const BUILTIN_PLUGINS = [
   // Coding Plan
   dashscopeCodingPlugin,
   kimiCodingPlugin,
+  minimaxCodingPlugin,
+  zhipuCodingPlugin,
+  stepfunCodingPlugin,
+  tencentCodingPlugin,
   volcegineCodingPlugin,
 ];
 

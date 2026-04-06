@@ -8,6 +8,11 @@ import {
   mergeWorkingSetFiles,
 } from './composer-state';
 
+const FILE_CONTEXT_PATTERN = /\b([A-Za-z0-9_./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh))\b/;
+const CJK_PATTERN = /[\u3400-\u9fff]/;
+const WORKSPACE_HINT_PATTERN = /(当前工作区|工作区|书桌|workspace|desk)/i;
+const REPO_HINT_PATTERN = /(源码|代码仓库|仓库|repo|repository|cwd|源代码)/i;
+
 export type ComposerTaskMode = 'prompt' | 'steer';
 
 export interface GitContextSnapshot {
@@ -46,6 +51,7 @@ export interface PreparedComposerTask {
 export interface PrepareComposerTaskOptions {
   mode: ComposerTaskMode;
   composerText: string;
+  preferredWorkspace?: string | null;
   attachedFiles: AttachedFile[];
   docContextAttached: boolean;
   currentDoc: { path: string; name: string } | null;
@@ -107,9 +113,31 @@ export function formatGitContextPrompt(gitContext: GitContextSnapshot | null | u
   return lines.join('\n');
 }
 
+function buildFileContextAssistPrompt(text: string): string | null {
+  if (!text || text.includes('@')) return null;
+  const match = text.match(FILE_CONTEXT_PATTERN);
+  if (!match?.[1]) return null;
+  const filename = match[1];
+  const isZh = CJK_PATTERN.test(text);
+  return isZh
+    ? `[助手提示] 用户提到了文件「${filename}」，但还没有提供文件内容。如果你需要查看这个文件，请在回复里自然提示一句：「可以输入 @${filename} 让我直接看这个文件。」不要假装已经看过文件内容，也不要反复提示。`
+    : `[Assistant hint] The user mentioned the file "${filename}" but has not provided its contents yet. If you need to inspect it, naturally suggest: "You can type @${filename} so I can look at that file directly." Do not pretend you have already seen the file, and do not repeat the hint.`;
+}
+
+function buildWorkspaceIntentPrompt(text: string, preferredWorkspace?: string | null): string | null {
+  if (!text || !preferredWorkspace) return null;
+  if (!WORKSPACE_HINT_PATTERN.test(text)) return null;
+  if (REPO_HINT_PATTERN.test(text)) return null;
+  const isZh = CJK_PATTERN.test(text);
+  return isZh
+    ? `[助手提示] 这次用户说的「当前工作区/书桌」，优先指 ${preferredWorkspace}。不要擅自切去源码仓库、安装目录或别的 cwd。只有当用户明确说源码、仓库、repo 或 cwd 时，才读代码目录。`
+    : `[Assistant hint] In this request, "current workspace/desk" should refer to ${preferredWorkspace}. Do not switch to the repo, install directory, or another cwd unless the user explicitly asks for source code, repo, or cwd.`;
+}
+
 export async function prepareComposerTask({
   mode,
   composerText,
+  preferredWorkspace,
   attachedFiles,
   docContextAttached,
   currentDoc,
@@ -149,6 +177,17 @@ export async function prepareComposerTask({
   if (richContextEnabled && quotedSelection) {
     const quotedPrompt = formatQuotedSelectionPrompt(quotedSelection);
     requestText = requestText ? `${requestText}\n\n${quotedPrompt}` : quotedPrompt;
+  }
+
+  if (richContextEnabled && otherFiles.length === 0 && !docForRender && !quotedSelection) {
+    const workspaceIntentPrompt = buildWorkspaceIntentPrompt(text, preferredWorkspace);
+    if (workspaceIntentPrompt) {
+      requestText = requestText ? `${requestText}\n\n${workspaceIntentPrompt}` : workspaceIntentPrompt;
+    }
+    const fileContextAssist = buildFileContextAssistPrompt(text);
+    if (fileContextAssist) {
+      requestText = requestText ? `${requestText}\n\n${fileContextAssist}` : fileContextAssist;
+    }
   }
 
   const workingSet = mergeWorkingSetFiles(

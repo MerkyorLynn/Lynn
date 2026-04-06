@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
 
@@ -92,6 +93,63 @@ function readRecentCommits(cwd, maxCommits) {
   }
 }
 
+function countUnifiedDiffStats(diffText) {
+  let linesAdded = 0;
+  let linesRemoved = 0;
+  for (const line of String(diffText || "").split("\n")) {
+    if (line.startsWith("+++")) continue;
+    if (line.startsWith("---")) continue;
+    if (line.startsWith("+")) linesAdded += 1;
+    if (line.startsWith("-")) linesRemoved += 1;
+  }
+  return { linesAdded, linesRemoved };
+}
+
+function readRepoLineStats(cwd) {
+  try {
+    const output = runGit(["diff", "--numstat", "HEAD"], cwd);
+    if (!output) return { linesAdded: 0, linesRemoved: 0 };
+    let linesAdded = 0;
+    let linesRemoved = 0;
+    for (const line of output.split("\n")) {
+      const [added, removed] = line.split("\t");
+      const addNum = Number.parseInt(added, 10);
+      const removeNum = Number.parseInt(removed, 10);
+      if (!Number.isNaN(addNum)) linesAdded += addNum;
+      if (!Number.isNaN(removeNum)) linesRemoved += removeNum;
+    }
+    return { linesAdded, linesRemoved };
+  } catch {
+    return { linesAdded: 0, linesRemoved: 0 };
+  }
+}
+
+function buildSyntheticUntrackedDiff(filePath, absolutePath) {
+  try {
+    const raw = fs.readFileSync(absolutePath, "utf8");
+    const lines = raw.split(/\r?\n/);
+    const header = `@@ -0,0 +1,${Math.max(lines.length, 1)} @@`;
+    const body = lines.slice(0, 400).map((line) => `+${line}`).join("\n");
+    const diff = [
+      `--- /dev/null`,
+      `+++ b/${filePath}`,
+      header,
+      body,
+    ].filter(Boolean).join("\n");
+    return {
+      available: true,
+      filePath,
+      diff,
+      linesAdded: lines.length,
+      linesRemoved: 0,
+      synthetic: true,
+      untracked: true,
+    };
+  } catch {
+    return { available: false, filePath, diff: "", linesAdded: 0, linesRemoved: 0 };
+  }
+}
+
 export function readGitContext(targetDir, { maxFiles = 8, maxCommits = 3 } = {}) {
   try {
     const root = runGit(["rev-parse", "--show-toplevel"], targetDir);
@@ -101,6 +159,7 @@ export function readGitContext(targetDir, { maxFiles = 8, maxCommits = 3 } = {})
     const statusLines = statusOutput ? statusOutput.split("\n") : [];
     const branchInfo = parseBranchHeader(statusLines[0] || "");
     const fileInfo = parseStatusEntries(statusLines.slice(1), maxFiles);
+    const lineInfo = readRepoLineStats(targetDir);
 
     return {
       available: true,
@@ -114,10 +173,48 @@ export function readGitContext(targetDir, { maxFiles = 8, maxCommits = 3 } = {})
       unstagedCount: fileInfo.unstagedCount,
       untrackedCount: fileInfo.untrackedCount,
       totalChanged: fileInfo.totalChanged,
+      linesAdded: lineInfo.linesAdded,
+      linesRemoved: lineInfo.linesRemoved,
       changedFiles: fileInfo.changedFiles,
       recentCommits: readRecentCommits(targetDir, maxCommits),
     };
   } catch {
     return { available: false };
+  }
+}
+
+export function readGitDiff(targetDir, filePath) {
+  try {
+    const root = runGit(["rev-parse", "--show-toplevel"], targetDir);
+    if (!root) return { available: false, filePath };
+    const normalized = String(filePath || "").trim().replace(/^\/+/, "");
+    if (!normalized) return { available: false, filePath };
+
+    let diff = "";
+    try {
+      diff = runGit(["diff", "--no-ext-diff", "HEAD", "--", normalized], targetDir);
+    } catch {
+      diff = "";
+    }
+
+    if (diff) {
+      return {
+        available: true,
+        filePath: normalized,
+        diff,
+        ...countUnifiedDiffStats(diff),
+        synthetic: false,
+        untracked: false,
+      };
+    }
+
+    const absolutePath = path.join(root, normalized);
+    if (fs.existsSync(absolutePath)) {
+      return buildSyntheticUntrackedDiff(normalized, absolutePath);
+    }
+
+    return { available: false, filePath: normalized, diff: "", linesAdded: 0, linesRemoved: 0 };
+  } catch {
+    return { available: false, filePath, diff: "", linesAdded: 0, linesRemoved: 0 };
   }
 }

@@ -75,6 +75,7 @@ function InputAreaInner() {
   const connected = useStore(s => s.connected);
   const pendingNewSession = useStore(s => s.pendingNewSession);
   const selectedFolder = useStore(s => s.selectedFolder);
+  const homeFolder = useStore(s => s.homeFolder);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const composerSessionKey = getComposerSessionKey(currentSessionPath, pendingNewSession);
   const compacting = useStore(s => currentSessionPath ? s.compactingSessions.includes(currentSessionPath) : false);
@@ -339,9 +340,7 @@ function InputAreaInner() {
         ? (t('security.mode.safe') || '只读')
         : securityMode === 'plan'
           ? (t('security.mode.plan') || '规划')
-          : securityMode === 'full-access'
-            ? (t('security.mode.fullAccess') || '完全访问')
-            : (t('security.mode.authorized') || '执行');
+          : (t('security.mode.authorized') || '执行');
 
       setPendingConfirm({
         title: t('markdown.runConfirm.title') || '执行代码块命令',
@@ -382,13 +381,19 @@ function InputAreaInner() {
   const placeholderHints = useMemo(() => {
     const yuanPh = t(`yuan.placeholder.${agentYuan}`);
     const base = (yuanPh && !yuanPh.startsWith('yuan.')) ? yuanPh : t('input.placeholder');
+    const h = (key: string, fallback: string) => {
+      const v = t(key);
+      return (v && v !== key && !v.startsWith('input.hint')) ? v : fallback;
+    };
     return [
       base,
-      t('input.hintSlash') || '输入 / 查看快捷命令',
-      t('input.hintDrag') || '拖拽文件到此处附加上下文',
-      t('input.hintCmdK') || 'Cmd+K 搜索历史对话',
-      t('input.hintDesk') || 'Cmd+J 打开右侧书桌',
-      t('input.hintAt') || '输入 @ 引用文件或文件夹',
+      h('input.hintAnalyzeExcel', '帮我分析桌面上的 Excel...'),
+      h('input.hintSlash', '输入 / 查看快捷命令'),
+      h('input.hintScanStock', '扫描一下今天 A 股有什么异动...'),
+      h('input.hintDrag', '拖拽文件到此处附加上下文'),
+      h('input.hintOrganize', '把这个文件夹里的文档整理一下...'),
+      h('input.hintAt', '输入 @ 引用文件或文件夹'),
+      h('input.hintDesk', 'Cmd+J 打开任务清单'),
     ];
   }, [agentYuan, t]);
 
@@ -555,6 +560,7 @@ function InputAreaInner() {
       const prepared = await prepareComposerTask({
         mode,
         composerText,
+        preferredWorkspace: selectedFolder || deskBasePath || homeFolder || null,
         attachedFiles,
         docContextAttached: false,
         currentDoc: null,
@@ -616,6 +622,9 @@ function InputAreaInner() {
     t,
     workingSetRecentFiles,
     gitContext,
+    homeFolder,
+    selectedFolder,
+    deskBasePath,
   ]);
 
   const handleSend = useCallback(async () => {
@@ -814,20 +823,11 @@ function InputAreaInner() {
           </div>
           <div className={styles['input-controls']}>
             {activeModelInfo?.reasoning !== false && (
-              <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
+              <span className={styles['input-hover-reveal']}>
+                <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
+              </span>
             )}
             <ModelSelector models={selectorModels} disabled={isStreaming} />
-            {isStreaming && (
-              <button
-                type="button"
-                className={`${styles['secondary-action-btn']}${canSteer ? ` ${styles['secondary-action-btn-active']}` : ''}`}
-                onClick={handleSteer}
-                disabled={!canSteer}
-                title={t('chat.steer')}
-              >
-                {t('chat.steer')}
-              </button>
-            )}
             {(noModelsAtAll || models.length <= 1) && (
               <button
                 type="button"
@@ -842,7 +842,7 @@ function InputAreaInner() {
                 </span>
               </button>
             )}
-            <SendButton isStreaming={isStreaming} disabled={isStreaming ? false : !canSend} onSend={handleSend} onStop={handleStop} />
+            <SendButton isStreaming={isStreaming} canSteer={canSteer} disabled={isStreaming ? false : !canSend} onSend={handleSend} onSteer={handleSteer} onStop={handleStop} />
           </div>
         </div>
       </div>

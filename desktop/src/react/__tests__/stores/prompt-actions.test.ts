@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockState: Record<string, any> = {
   isStreaming: false,
   pendingNewSession: false,
+  sessionCreationPending: false,
   selectedFolder: null,
   homeFolder: '/Users/lynn',
   currentSessionPath: '/sessions/current',
+  currentAgentId: 'lynn',
+  agentName: 'Lynn',
+  currentModel: null,
+  sessions: [],
   welcomeVisible: true,
   appended: [],
   appendItem: vi.fn((sessionPath: string, item: unknown) => {
@@ -48,9 +53,14 @@ describe('prompt-actions', () => {
   beforeEach(() => {
     mockState.isStreaming = false;
     mockState.pendingNewSession = false;
+    mockState.sessionCreationPending = false;
     mockState.selectedFolder = null;
     mockState.homeFolder = '/Users/lynn';
     mockState.currentSessionPath = '/sessions/current';
+    mockState.currentAgentId = 'lynn';
+    mockState.agentName = 'Lynn';
+    mockState.currentModel = null;
+    mockState.sessions = [];
     mockState.welcomeVisible = true;
     mockState.appended = [];
     mockState.appendItem.mockClear();
@@ -170,6 +180,28 @@ describe('prompt-actions', () => {
     expect(appended.attachments).toEqual([{ path: '/repo/a.ts', name: 'a.ts', isDir: false }]);
     expect(renderMarkdown).toHaveBeenCalledWith('显示文本');
     expect(setState).toHaveBeenCalledWith({ welcomeVisible: false });
+  });
+
+  it('首条用户消息会乐观加入侧边栏 session 列表', async () => {
+    mockState.sessions = [];
+    mockState.currentSessionPath = '/sessions/new';
+    const { submitPromptTask } = await import('../../stores/prompt-actions');
+
+    await submitPromptTask({
+      mode: 'prompt',
+      text: '帮我检查 App.tsx',
+    });
+
+    const sessionPatch = setState.mock.calls.find(
+      ([patch]) => Array.isArray((patch as { sessions?: unknown[] }).sessions),
+    )?.[0] as { sessions: Array<Record<string, unknown>> } | undefined;
+    expect(sessionPatch?.sessions?.[0]).toMatchObject({
+      path: '/sessions/new',
+      firstMessage: '帮我检查 App.tsx',
+      agentId: 'lynn',
+      agentName: 'Lynn',
+      messageCount: 1,
+    });
   });
 
   it('resendPromptRequest 在空内容或 streaming 时阻止发送', async () => {

@@ -77,6 +77,16 @@ export async function readFileForPreview(filePath: string, ext: string): Promise
  */
 export async function openFilePreview(filePath: string, label: string, ext: string): Promise<void> {
   const fileName = label || filePath.split('/').pop() || filePath;
+  const previewOnly = ext === 'md' || ext === 'markdown';
+  const placeholderArtifact: Artifact = {
+    id: `file-${filePath}`,
+    type: 'file-info',
+    title: fileName,
+    content: '',
+    filePath,
+    ext,
+    previewOnly,
+  };
 
   if (ext === 'skill') {
     // .skill 文件可能是纯文本也可能是 zip，先尝试读取内容在预览面板展示
@@ -99,6 +109,10 @@ export async function openFilePreview(filePath: string, label: string, ext: stri
     return;
   }
 
+  // 先立即打开一个占位预览，避免读取慢时用户体感为“点了没反应”。
+  upsertArtifact(placeholderArtifact);
+  openPreview(placeholderArtifact);
+
   const canPreview = ext in PREVIEWABLE_EXTS;
   if (canPreview) {
     try {
@@ -113,6 +127,7 @@ export async function openFilePreview(filePath: string, label: string, ext: stri
           filePath,
           ext,
           language: previewType === 'code' ? ext : undefined,
+          previewOnly,
         };
         upsertArtifact(artifact);
         openPreview(artifact);
@@ -125,12 +140,7 @@ export async function openFilePreview(filePath: string, label: string, ext: stri
 
   // 无法预览的文件类型
   const artifact: Artifact = {
-    id: `file-${filePath}`,
-    type: 'file-info',
-    title: fileName,
-    content: '',
-    filePath,
-    ext,
+    ...placeholderArtifact,
   };
   upsertArtifact(artifact);
   openPreview(artifact);

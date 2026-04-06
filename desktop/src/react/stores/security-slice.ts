@@ -2,7 +2,7 @@
  * security-slice.ts — 安全模式 Zustand 状态
  */
 
-export type SecurityMode = 'authorized' | 'plan' | 'safe' | 'full-access';
+export type SecurityMode = 'authorized' | 'plan' | 'safe';
 
 export interface SecuritySlice {
   securityMode: SecurityMode;

@@ -55,14 +55,17 @@ export async function callText({
   model,
   provider = "custom",
   quirks = [],
+  reasoning = false,
   systemPrompt = "",
   messages = [],
   temperature = 0.3,
   maxTokens = 512,
-  timeoutMs = 60_000,
+  timeoutMs,
   signal,
   requestHeaders = null,
 }) {
+  // T3: 推理模型自动延长超时（reasoning 模型 TTFT 通常 20-40 秒）
+  const effectiveTimeoutMs = timeoutMs ?? (reasoning ? 90_000 : 60_000);
   // ── 1. 消息归一化：提取 system 消息合并到 systemPrompt ──
   let mergedSystem = systemPrompt || "";
   const normalizedMessages = [];
@@ -80,7 +83,7 @@ export async function callText({
   }
 
   // ── 2. 超时信号 ──
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const timeoutSignal = AbortSignal.timeout(effectiveTimeoutMs);
   const combinedSignal = signal
     ? AbortSignal.any([signal, timeoutSignal])
     : timeoutSignal;

@@ -83,6 +83,10 @@
     border-top: 1px solid var(--border, rgba(0,0,0,0.06));
 }
 
+.diffBodyMax {
+    max-height: none;
+}
+
 .diffLines {
     display: flex;
     flex-direction: column;

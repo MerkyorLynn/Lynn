@@ -18,6 +18,7 @@ import { getComposerSessionKey, PENDING_COMPOSER_KEY } from '../utils/composer-s
 // ── 防竞争计数器 ──
 
 let _switchVersion = 0;
+let _ensureSessionPromise: Promise<boolean> | null = null;
 
 function tr(key: string, fallback: string, vars?: Record<string, string | number>): string {
   const value = window.t?.(key, vars);
@@ -93,6 +94,15 @@ export async function loadSessions(): Promise<void> {
 export async function switchSession(path: string): Promise<void> {
   const s = useStore.getState();
   if (path === s.currentSessionPath) return;
+  if (s.sessionCreationPending) {
+    showSidebarToast(
+      tr('session.creating', 'Creating the new session, please wait a moment'),
+      3000,
+      'info',
+      'session-creation-pending',
+    );
+    return;
+  }
 
   // 关闭浮动面板
   const activePanel = useStore.getState().activePanel;
@@ -203,6 +213,15 @@ export async function switchSession(path: string): Promise<void> {
 // ══════════════════════════════════════════════════════
 
 export async function createNewSession(): Promise<void> {
+  if (useStore.getState().sessionCreationPending) {
+    showSidebarToast(
+      tr('session.creating', 'Creating the new session, please wait a moment'),
+      3000,
+      'info',
+      'session-creation-pending',
+    );
+    return;
+  }
   // 关闭浮动面板
   if (useStore.getState().activePanel === 'activity') {
     useStore.getState().setActivePanel(null);
@@ -244,6 +263,7 @@ export async function createNewSession(): Promise<void> {
 export async function ensureSession(): Promise<boolean> {
   const s = useStore.getState();
   if (!s.pendingNewSession) return true;
+  if (_ensureSessionPromise) return _ensureSessionPromise;
 
   const body: Record<string, any> = { memoryEnabled: s.memoryEnabled };
   if (s.selectedFolder) {
@@ -253,7 +273,8 @@ export async function ensureSession(): Promise<boolean> {
     body.agentId = s.selectedAgentId;
   }
 
-  try {
+  useStore.getState().setSessionCreationPending(true);
+  _ensureSessionPromise = (async () => {
     // 不用 hanaFetch：5xx 时需读取 JSON 里的 error 文案（如「没有可用的模型」），hanaFetch 会在 res.ok 前抛错
     const { serverPort, serverToken } = useStore.getState();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -313,6 +334,26 @@ export async function ensureSession(): Promise<boolean> {
       patch.currentSessionPath = data.path;
       // 初始化空 session，ChatArea 自动渲染
       useStore.getState().initSession(data.path, [], false);
+      const sessions = useStore.getState().sessions;
+      if (!sessions.some((sess) => sess.path === data.path)) {
+        useStore.setState({
+          sessions: [
+            {
+              path: data.path,
+              title: null,
+              firstMessage: '',
+              modified: new Date().toISOString(),
+              messageCount: 0,
+              cwd: data.cwd || justSelected || null,
+              agentId: data.agentId || s.currentAgentId || null,
+              agentName: data.agentName || s.agentName || null,
+              modelId: data.currentModelId || null,
+              modelProvider: data.currentModelProvider || null,
+            },
+            ...sessions,
+          ],
+        });
+      }
     }
 
     useStore.setState(patch);
@@ -339,11 +380,16 @@ export async function ensureSession(): Promise<boolean> {
     loadDeskFiles('', data.cwd || undefined);
 
     return true;
-  } catch (err) {
+  })().catch((err) => {
     console.error('[session] create failed:', err);
     showSidebarToast(window.t?.('error.fetchServerError') ?? 'Server error', 5000);
     return false;
-  }
+  }).finally(() => {
+    useStore.getState().setSessionCreationPending(false);
+    _ensureSessionPromise = null;
+  });
+
+  return _ensureSessionPromise;
 }
 
 // ══════════════════════════════════════════════════════

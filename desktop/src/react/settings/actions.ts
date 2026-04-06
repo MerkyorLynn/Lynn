@@ -7,6 +7,14 @@ import { t } from './helpers';
 
 const platform = window.platform;
 
+async function getWorkspaceDefaults() {
+  try {
+    return await platform?.getOnboardingDefaults?.();
+  } catch {
+    return null;
+  }
+}
+
 export async function loadAgents() {
   const store = useSettingsStore.getState();
   try {
@@ -43,6 +51,8 @@ export async function loadRuntimeSnapshot() {
   try {
     const res = await hanaFetch('/api/app-state');
     const data = await res.json();
+    const defaults = await getWorkspaceDefaults();
+    const fallbackTrustedRoots = Array.isArray(defaults?.trustedRoots) ? defaults.trustedRoots : [];
     const preferredProviderId = data?.model?.preferredProviderId || null;
     const nextSelectedProviderId = store.selectedProviderId || preferredProviderId || null;
     store.set({
@@ -51,8 +61,10 @@ export async function loadRuntimeSnapshot() {
       agentYuan: data?.agent?.yuan || store.agentYuan,
       preferredProviderId,
       selectedProviderId: nextSelectedProviderId,
-      homeFolder: data?.desk?.homeFolder || store.homeFolder,
-      trustedRoots: Array.isArray(data?.desk?.trustedRoots) ? data.desk.trustedRoots : store.trustedRoots,
+      homeFolder: data?.desk?.homeFolder || store.homeFolder || defaults?.workspacePath || null,
+      trustedRoots: Array.isArray(data?.desk?.trustedRoots) && data.desk.trustedRoots.length > 0
+        ? data.desk.trustedRoots
+        : (Array.isArray(store.trustedRoots) && store.trustedRoots.length > 0 ? store.trustedRoots : fallbackTrustedRoots),
     });
   } catch (err) {
     console.warn('[settings] runtime snapshot load failed:', err);
@@ -83,10 +95,12 @@ export async function loadSettingsConfig() {
   const store = useSettingsStore.getState();
   try {
     const agentId = store.getSettingsAgentId();
+    const defaults = await getWorkspaceDefaults();
     const agentBase = `/api/agents/${agentId}`;
-    const [configRes, identityRes, ishikiRes, publicIshikiRes, userProfileRes, pinnedRes, globalModelsRes, experienceRes] =
+    const [configRes, globalConfigRes, identityRes, ishikiRes, publicIshikiRes, userProfileRes, pinnedRes, globalModelsRes, experienceRes] =
       await Promise.all([
         hanaFetch(`${agentBase}/config`),
+        hanaFetch('/api/config'),
         hanaFetch(`${agentBase}/identity`),
         hanaFetch(`${agentBase}/ishiki`),
         hanaFetch(`${agentBase}/public-ishiki`),
@@ -97,6 +111,7 @@ export async function loadSettingsConfig() {
       ]);
 
     const config = await configRes.json();
+    const globalConfig = await globalConfigRes.json();
     const globalModels = await globalModelsRes.json();
     const identityData = await identityRes.json();
     config._identity = identityData.content || '';
@@ -110,12 +125,27 @@ export async function loadSettingsConfig() {
     const experienceData = await experienceRes.json();
     config._experience = experienceData.content || '';
 
+    const globalDesk = globalConfig?.desk || {};
+    const effectiveHomeFolder = globalDesk.home_folder || config.desk?.home_folder || store.homeFolder || defaults?.workspacePath || null;
+    const effectiveTrustedRoots = Array.isArray(globalDesk.trusted_roots) && globalDesk.trusted_roots.length > 0
+      ? globalDesk.trusted_roots
+      : Array.isArray(config.desk?.trusted_roots) && config.desk.trusted_roots.length > 0
+        ? config.desk.trusted_roots
+      : Array.isArray(store.trustedRoots)
+        ? (store.trustedRoots.length > 0 ? store.trustedRoots : (Array.isArray(defaults?.trustedRoots) ? defaults.trustedRoots : []))
+        : (Array.isArray(defaults?.trustedRoots) ? defaults.trustedRoots : []);
+    config.desk = {
+      ...(config.desk || {}),
+      home_folder: effectiveHomeFolder || '',
+      trusted_roots: effectiveTrustedRoots,
+    };
+
     store.set({
       settingsConfig: config,
       settingsConfigAgentId: agentId,
       globalModelsConfig: globalModels,
-      homeFolder: config.desk?.home_folder || null,
-      trustedRoots: Array.isArray(config.desk?.trusted_roots) ? config.desk.trusted_roots : [],
+      homeFolder: effectiveHomeFolder,
+      trustedRoots: effectiveTrustedRoots,
       currentPins: pinnedData.pins || [],
     });
   } catch (err) {

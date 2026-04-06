@@ -2,7 +2,7 @@
  * ThinkingBlock — 可折叠的思考过程区块
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import styles from './Chat.module.css';
 
 interface Props {
@@ -10,16 +10,39 @@ interface Props {
   sealed: boolean;
 }
 
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m${s % 60}s`;
+}
+
 export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed }: Props) {
   const t = window.t ?? ((p: string) => p);
   const [open, setOpen] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
   const toggle = useCallback(() => setOpen(v => !v), []);
+
+  useEffect(() => {
+    if (sealed) return;
+    startRef.current = Date.now();
+    const timer = setInterval(() => {
+      setElapsed(Date.now() - startRef.current);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [sealed]);
+
+  const elapsedLabel = !sealed && elapsed >= 2000 ? ` (${formatElapsed(elapsed)})` : '';
 
   return (
     <details className={styles.thinkingBlock} open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary className={styles.thinkingBlockSummary} onClick={(e) => { e.preventDefault(); toggle(); }}>
         <span className={`${styles.thinkingBlockArrow}${open ? ` ${styles.thinkingBlockArrowOpen}` : ''}`}>›</span>
-        <span className={styles.thinkingBlockLabel}>{sealed ? t('thinking.done') : t('thinking.active')}</span>
+        <span className={styles.thinkingBlockLabel}>
+          {sealed ? t('thinking.done') : t('thinking.active')}
+          {elapsedLabel}
+        </span>
         {!sealed && <span className={styles.thinkingDots}><span /><span /><span /></span>}
       </summary>
       {open && content && (
