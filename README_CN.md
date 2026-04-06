@@ -54,7 +54,7 @@ Lynn 是一个更加易用的 AI agent，有记忆，有性格，会主动行动
 ## 截图
 
 <p align="center">
-  <img src=".github/assets/screenshot-main.png" width="100%" alt="Lynn 主界面">
+  <img src=".github/assets/screenshot-main-20260407.png" width="100%" alt="Lynn 主界面">
 </p>
 
 ## 快速开始

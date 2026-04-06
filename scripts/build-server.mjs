@@ -121,9 +121,10 @@ if (!isWin) fs.chmodSync(destNode, 0o755);
 console.log("[build-server] Node.js runtime ready");
 
 // helper: 用目标 Node 跑命令
-// 跨平台构建（如 macOS 构建 Windows）时，目标 node.exe 无法执行，
-// 此时用系统 node 代替，并通过环境变量指定目标平台。
-const isCrossBuild = platform !== process.platform;
+// 跨平台或跨架构构建（如 arm64 macOS 构建 x64 macOS / Windows）时，
+// 目标 Node 运行时可能无法在当前机器直接执行。
+// 此时改用宿主 Node 驱动安装流程，并通过环境变量指定目标平台/架构。
+const isCrossBuild = platform !== process.platform || arch !== process.arch;
 const hostNodeBin = isCrossBuild ? process.execPath : cachedNodeBin;
 const hostNodeDir = path.dirname(hostNodeBin);
 // npm run 会注入当前包的 lifecycle/package 元数据；子 npm install 继承后
