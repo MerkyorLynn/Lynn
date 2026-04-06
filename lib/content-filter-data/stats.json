@@ -1,0 +1,77 @@
+{
+  "01-political-subversion": {
+    "name": "煽动颠覆国家政权",
+    "count": 1069
+  },
+  "02-national-security": {
+    "name": "危害国家安全和社会稳定",
+    "count": 6476
+  },
+  "03-extremism-terrorism": {
+    "name": "宣扬极端主义和恐怖主义",
+    "count": 729
+  },
+  "04-ethnic-discrimination": {
+    "name": "民族歧视和仇恨",
+    "count": 208
+  },
+  "05-religious-discrimination": {
+    "name": "宗教歧视和仇恨",
+    "count": 145
+  },
+  "06-regional-discrimination": {
+    "name": "地域歧视",
+    "count": 137
+  },
+  "07-gender-discrimination": {
+    "name": "性别歧视",
+    "count": 145
+  },
+  "08-pornography": {
+    "name": "淫秽色情",
+    "count": 1201
+  },
+  "09-violence-terror": {
+    "name": "暴力恐怖",
+    "count": 207
+  },
+  "10-gambling": {
+    "name": "赌博",
+    "count": 203
+  },
+  "11-drugs": {
+    "name": "毒品",
+    "count": 262
+  },
+  "12-defamation": {
+    "name": "诽谤",
+    "count": 120
+  },
+  "13-misinformation": {
+    "name": "虚假信息",
+    "count": 187
+  },
+  "14-self-harm": {
+    "name": "诱导自杀自残",
+    "count": 136
+  },
+  "15-privacy-leak": {
+    "name": "个人隐私泄露",
+    "count": 172
+  },
+  "16-personal-attack": {
+    "name": "人身攻击",
+    "count": 209
+  },
+  "17-ip-infringement": {
+    "name": "知识产权侵权",
+    "count": 111
+  },
+  "_summary": {
+    "totalClassified": 11717,
+    "unclassified": 40698,
+    "totalUnique": 50835,
+    "generatedAt": "2026-04-04T05:46:01.187Z",
+    "supplementedAt": "2026-04-04T05:50:15.073Z"
+  }
+}

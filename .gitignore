@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════
+# 用户数据（已迁移到 ~/.hanako/）
+# ═══════════════════════════════════════════
+agents/
+user/
+
+# ═══════════════════════════════════════════
+# 文档 / 参考文件
+# ═══════════════════════════════════════════
+.docs/
+CLAUDE.md
+docs/superpowers/
+.superpowers/
+archived/
+devlog/
+handoff-*.md
+
+# ═══════════════════════════════════════════
+# 构建产物
+# ═══════════════════════════════════════════
+dist/
+dist-server/
+dist-server-bundle/
+desktop/main.bundle.cjs
+.cache/
+desktop/dist-renderer/
+vendor/
+inbox/
+
+# 运行时 / 依赖
+# ═══════════════════════════════════════════
+node_modules/
+.pi/
+
+# IDE / 工具
+.claude/
+.vscode/
+*.code-workspace
+.codebuddy_remote_env
+.codebuddy_remote_server.js
+
+# 代理技能副本 / 临时探索产物
+.agents/
+.learnings/
+westock-data/
+EXPLORATION_REPORT.md
+PROJECT_STRUCTURE_INDEX.md
+QUICK_REFERENCE.md
+OpenHanako*.md
+
+# 临时素材
+desktop/src/_icon_square_tmp.png
+desktop/src/assets/_lynn_avatar_tmp.png
+
+# 项目私有文件
+CLAUDE.md
+
+# 个人数据 / Agent 产物
+jian.md
+diary/
+fang-scraper/
+__pycache__/
+
+# 临时文件
+tmp/
+/index.html
+homepage/
+
+# 环境变量 / 凭证
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.crt
+credentials.json
+secrets.yaml
+secrets.json
+auth.json
+
+# 日志
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+*.db
+
+# Codex reviews
+reviews/
+.build-signing.keychain-db
+.fl*

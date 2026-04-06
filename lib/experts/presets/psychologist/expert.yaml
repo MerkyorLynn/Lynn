@@ -1,0 +1,25 @@
+slug: psychologist
+name:
+  zh: 心理咨询师
+  en: Psychologist
+  ja: 心理カウンセラー
+icon: 🧠
+category: wellness
+tier: expert
+
+model_binding:
+  preferred: claude-sonnet-4
+  fallback: claude-sonnet-4
+  note: "推荐模型，需要用户自行配置对应 API Key"
+
+credit_cost:
+  per_session: 20
+  per_extra_round: 5
+
+skills:
+  - counseling
+  - emotion-analysis
+
+description:
+  zh: AI 心理支持助手，运用认知行为疗法等循证方法，提供情绪疏导与心理支持（非真实心理治疗）。
+  en: AI psychological support assistant using evidence-based approaches like CBT. Provides emotional support and guidance (not a substitute for real therapy).

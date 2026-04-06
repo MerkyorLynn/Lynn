@@ -1,0 +1,638 @@
+/**
+ * 配置管理 REST 路由
+ */
+import fs from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
+import { Hono } from "hono";
+import { safeJson } from "../hono-helpers.js";
+import { t } from "../i18n.js";
+import { debugLog } from "../../lib/debug-log.js";
+import { getRawConfig, clearConfigCache } from "../../lib/memory/config-loader.js";
+import { FactStore } from "../../lib/memory/fact-store.js";
+import { InferredProfile } from "../../lib/memory/inferred-profile.js";
+import { MemoryExclusions } from "../../lib/memory/memory-exclusions.js";
+import { splitByScope, injectGlobalFields } from '../../shared/config-scope.js';
+
+export function createConfigRoute(engine) {
+  const route = new Hono();
+
+  // 读取配置（脱敏：隐藏 API key，附带 _raw 原始结构 + providers）
+  route.get("/config", async (c) => {
+    try {
+      const config = { ...engine.config };
+      const raw = getRawConfig(engine.configPath) || {};
+
+      // 本地应用，直接返回完整 key（前端用 type="password" 控制显隐）
+
+      // 附带原始配置结构（未经 fallback 解析，让前端知道用户显式设了什么）
+      config._raw = {
+        api: { provider: raw.api?.provider || "", base_url: raw.api?.base_url || "" },
+        embedding_api: { provider: raw.embedding_api?.provider || "", base_url: raw.embedding_api?.base_url || "" },
+        utility_api: { provider: raw.utility_api?.provider || "", base_url: raw.utility_api?.base_url || "" },
+      };
+
+      // 供应商列表（附带 model_count）
+      const rawProviders = engine.providerRegistry.getAllProvidersRaw();
+      const providerEntries = {};
+      for (const [name, p] of Object.entries(rawProviders)) {
+        const entry = engine.providerRegistry.get(name);
+        providerEntries[name] = {
+          base_url: p.base_url || entry?.baseUrl || "",
+          api: p.api || entry?.api || "",
+          api_key: p.api_key || "",
+          models: p.models || [],
+          model_count: (p.models || []).length,
+        };
+      }
+      config.providers = providerEntries;
+
+      // 自动注入全局字段（schema-driven）
+      injectGlobalFields(config, engine);
+      // cwd_history 过滤（agent-scope，但需要 existsSync 验证）
+      if (Array.isArray(config.cwd_history)) {
+        config.cwd_history = config.cwd_history.filter(p => existsSync(p));
+      }
+
+      return c.json(config);
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 更新配置
+  route.put("/config", async (c) => {
+    try {
+      const partial = await safeJson(c);
+      if (!partial || typeof partial !== "object") {
+        return c.json({ error: t("error.invalidJson") }, 400);
+      }
+      // ── schema-driven 全局字段分流 ──
+      const { global: globalFields, agent: agentPartial } = splitByScope(partial);
+      for (const { setter, value } of globalFields) {
+        engine[setter](value);
+      }
+
+      // providers 块 → 全局 added-models.yaml
+      let providersChanged = false;
+      if (agentPartial.providers) {
+        for (const [name, data] of Object.entries(agentPartial.providers)) {
+          if (data === null) {
+            engine.providerRegistry.removeProvider(name);
+          } else {
+            engine.providerRegistry.saveProvider(name, data);
+          }
+        }
+        delete agentPartial.providers;
+        providersChanged = true;
+      }
+
+      // 内联 API 凭证 → 全局 added-models.yaml 对应条目
+      const rawConfig = getRawConfig(engine.configPath) || {};
+      for (const blockName of ["api", "embedding_api", "utility_api"]) {
+        const block = agentPartial[blockName];
+        if (block?.api_key || block?.base_url) {
+          const provName = typeof block.provider === "string" && block.provider.trim()
+            ? block.provider.trim()
+            : (rawConfig?.[blockName]?.provider || "").trim();
+          if (!provName) {
+            return c.json({ error: `${blockName}.provider is required when saving credentials` }, 400);
+          }
+          const provUpdate = {};
+          if (block.api_key) provUpdate.api_key = block.api_key;
+          if (block.base_url) provUpdate.base_url = block.base_url;
+          engine.providerRegistry.saveProvider(provName, provUpdate);
+          block.api_key = "";
+          block.base_url = "";
+          providersChanged = true;
+        }
+      }
+
+      // providers 变更后确保运行时刷新
+      if (providersChanged) {
+        engine.providerRegistry?.reload();
+        // 立即 sync models，不管后面有没有别的 config 字段
+        try {
+          await engine.syncModelsAndRefresh();
+          debugLog()?.log("api", `syncModelsAndRefresh OK after provider change (${engine.availableModels.length} models)`);
+        } catch (e) {
+          console.error("[config] syncModelsAndRefresh failed:", e.message);
+        }
+      }
+
+      if (providersChanged && Object.keys(agentPartial).length === 0) {
+        clearConfigCache();
+        await engine.updateConfig({});
+        return c.json({ ok: true });
+      }
+
+      if (Object.keys(agentPartial).length === 0) return c.json({ ok: true });
+      debugLog()?.log("api", `PUT /api/config keys=[${Object.keys(agentPartial).join(",")}]`);
+      if (providersChanged) clearConfigCache();
+      await engine.updateConfig(agentPartial);
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.error("api", `PUT /api/config failed: ${err.message}`);
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 审计日志 ──
+
+  route.get("/audit-log", async (c) => {
+    try {
+      const { readAuditLog } = await import("../../lib/sandbox/path-guard.js");
+      const limit = Number(c.req.query("limit")) || 100;
+      return c.json({ entries: readAuditLog(limit) });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── System Prompt（只读，供 DevTools 查看）──
+
+  route.get("/system-prompt", async (c) => {
+    try {
+      return c.json({ content: engine.agent.systemPrompt || "" });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 人格文件（ishiki.md）──
+
+  // 读取 ishiki.md 内容
+  route.get("/ishiki", async (c) => {
+    try {
+      const ishikiPath = path.join(engine.agentDir, "ishiki.md");
+      const content = await fs.readFile(ishikiPath, "utf-8");
+      return c.json({ content });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 保存 ishiki.md 内容，并触发 system prompt 重建
+  route.put("/ishiki", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { content } = body;
+      if (typeof content !== "string") {
+        return c.json({ error: "content must be a string" }, 400);
+      }
+      const ishikiPath = path.join(engine.agentDir, "ishiki.md");
+      await fs.writeFile(ishikiPath, content, "utf-8");
+      debugLog()?.log("api", `PUT /api/ishiki (saved, ${content.length} chars)`);
+      // 触发 system prompt 重建（updateConfig 内部会重新读取 ishiki.md）
+      await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.error("api", `PUT /api/ishiki failed: ${err.message}`);
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 身份简介（identity.md）──
+
+  route.get("/identity", async (c) => {
+    try {
+      const identityPath = path.join(engine.agentDir, "identity.md");
+      const content = await fs.readFile(identityPath, "utf-8");
+      return c.json({ content });
+    } catch (err) {
+      if (err.code === "ENOENT") return c.json({ content: "" });
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  route.put("/identity", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { content } = body;
+      if (typeof content !== "string") {
+        return c.json({ error: "content must be a string" }, 400);
+      }
+      const identityPath = path.join(engine.agentDir, "identity.md");
+      await fs.writeFile(identityPath, content, "utf-8");
+      debugLog()?.log("api", `PUT /api/identity (saved, ${content.length} chars)`);
+      await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.error("api", `PUT /api/identity failed: ${err.message}`);
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 用户档案（user.md）──
+
+  // 读取 user.md 内容
+  route.get("/user-profile", async (c) => {
+    try {
+      const userPath = path.join(engine.userDir, "user.md");
+      const content = await fs.readFile(userPath, "utf-8");
+      return c.json({ content });
+    } catch (err) {
+      // 文件不存在时返回空字符串（user.md 是可选的）
+      if (err.code === "ENOENT") return c.json({ content: "" });
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 保存 user.md 内容，并触发 system prompt 重建
+  route.put("/user-profile", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { content } = body;
+      if (typeof content !== "string") {
+        return c.json({ error: "content must be a string" }, 400);
+      }
+      const userPath = path.join(engine.userDir, "user.md");
+      await fs.writeFile(userPath, content, "utf-8");
+      debugLog()?.log("api", `PUT /api/user-profile (saved, ${content.length} chars)`);
+      await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.error("api", `PUT /api/user-profile failed: ${err.message}`);
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 置顶记忆（pinned.md）──
+
+  // 读取 pinned.md，解析为逐条数组
+  route.get("/pinned", async (c) => {
+    try {
+      const pinnedPath = path.join(engine.agentDir, "pinned.md");
+      let content = "";
+      try {
+        content = await fs.readFile(pinnedPath, "utf-8");
+      } catch (err) {
+        if (err.code === "ENOENT") return c.json({ pins: [] });
+        throw err;
+      }
+      const pins = content
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => line.replace(/^-\s*/, ""));
+      return c.json({ pins });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 保存 pinned.md（覆盖写入），触发 system prompt 重建
+  route.put("/pinned", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const { pins } = body;
+      if (!Array.isArray(pins)) {
+        return c.json({ error: "pins must be an array" }, 400);
+      }
+      const content = pins
+        .map(p => (typeof p === "string" ? p.trim() : ""))
+        .filter(p => p.length > 0)
+        .map(p => `- ${p}`)
+        .join("\n")
+        + "\n";
+      const pinnedPath = path.join(engine.agentDir, "pinned.md");
+      await fs.writeFile(pinnedPath, content, "utf-8");
+      debugLog()?.log("api", `PUT /api/pinned (${pins.length} items)`);
+      // 触发 system prompt 重建（updateConfig 内部会重新读取 pinned.md）
+      await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.error("api", `PUT /api/pinned failed: ${err.message}`);
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // ── 记忆管理 ──
+
+  /**
+   * 获取指定 agent 的 FactStore。
+   * 如果 agentId 就是当前 active agent，直接用 engine.factStore；
+   * 否则临时打开那个 agent 的 facts.db。
+   * 返回 { store, isTemp }，调用方用完 isTemp===true 的 store 需要 close。
+   */
+  function getStoreForAgent(agentId) {
+    const activeId = path.basename(engine.agent.agentDir);
+    if (!agentId || agentId === activeId) {
+      return { store: engine.factStore, isTemp: false };
+    }
+    if (/[\/\\.]/.test(agentId)) {
+      throw new Error("Invalid agent ID");
+    }
+    const dbPath = path.join(engine.agentsDir, agentId, "memory", "facts.db");
+    try {
+      const store = new FactStore(dbPath);
+      return { store, isTemp: true };
+    } catch (err) {
+      throw new Error(`Cannot open fact DB for agent "${agentId}": ${err.message}`);
+    }
+  }
+
+  function getInferredProfileForAgent(agentId) {
+    const activeId = path.basename(engine.agent.agentDir);
+    if (!agentId || agentId === activeId) {
+      return engine.inferredProfile?.getRawProfile?.() || null;
+    }
+    if (/[\/\\.]/.test(agentId)) {
+      throw new Error("Invalid agent ID");
+    }
+    const profilePath = path.join(engine.agentsDir, agentId, "memory", "user-inferred.json");
+    const profile = new InferredProfile({ profilePath });
+    return profile.getRawProfile();
+  }
+
+  function getMemoryExclusionsForAgent(agentId) {
+    const activeId = path.basename(engine.agent.agentDir);
+    const baseDir = (!agentId || agentId === activeId)
+      ? path.join(engine.agent.agentDir, "memory")
+      : path.join(engine.agentsDir, agentId, "memory");
+    return new MemoryExclusions({
+      filePath: path.join(baseDir, "exclusions.json"),
+    });
+  }
+
+  function groupMemoriesByDate(memories, days = 30) {
+    const normalizedDays = Number.isFinite(Number(days)) ? Math.max(1, Number(days)) : 30;
+    const cutoff = Date.now() - normalizedDays * 24 * 60 * 60 * 1000;
+    const rows = [...(memories || [])]
+      .filter((item) => {
+        const at = item.time || item.created_at;
+        if (!at) return true;
+        const ts = new Date(at).getTime();
+        return Number.isFinite(ts) ? ts >= cutoff : true;
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.time || a.created_at || 0).getTime();
+        const bTime = new Date(b.time || b.created_at || 0).getTime();
+        return bTime - aTime;
+      });
+
+    const groups = new Map();
+    for (const item of rows) {
+      const key = String(item.time || item.created_at || "").slice(0, 10) || "unknown";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({
+        ...item,
+        sourceType: item.source || "conversation",
+      });
+    }
+
+    return Array.from(groups.entries()).map(([date, items]) => ({ date, items }));
+  }
+
+  // 获取所有元事实
+  route.get("/memories", async (c) => {
+    let tempStore = null;
+    try {
+      const { store, isTemp } = getStoreForAgent(c.req.query("agentId"));
+      if (isTemp) tempStore = store;
+      return c.json({ memories: store.exportAll() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.get("/memories/timeline", async (c) => {
+    let tempStore = null;
+    try {
+      const agentId = c.req.query("agentId");
+      const days = c.req.query("days") || "30";
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const memories = store.exportAll();
+      const timeline = groupMemoriesByDate(memories, days);
+      const inferredProfile = getInferredProfileForAgent(agentId);
+      const exclusions = getMemoryExclusionsForAgent(agentId).list();
+      return c.json({
+        days: Number(days) || 30,
+        timeline,
+        inferredProfile,
+        exclusions,
+      });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  // 读取编译后的 memory.md
+  route.get("/memories/compiled", async (c) => {
+    try {
+      const agentId = c.req.query("agentId");
+      const activeId = path.basename(engine.agent.agentDir);
+      const mdPath = (!agentId || agentId === activeId)
+        ? engine.memoryMdPath
+        : path.join(engine.agentsDir, agentId, "memory", "memory.md");
+      const content = await fs.readFile(mdPath, "utf-8").catch(() => "");
+      return c.json({ content });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 清除编译产物（today/week/longterm/facts/memory.md + fingerprints）
+  route.delete("/memories/compiled", async (c) => {
+    try {
+      const agentId = c.req.query("agentId");
+      const activeId = path.basename(engine.agent.agentDir);
+      const memDir = (!agentId || agentId === activeId)
+        ? path.dirname(engine.memoryMdPath)
+        : path.join(engine.agentsDir, agentId, "memory");
+      const targets = ["memory.md", "today.md", "week.md", "longterm.md", "facts.md"];
+      for (const f of targets) {
+        const p = path.join(memDir, f);
+        await fs.writeFile(p, "", "utf-8").catch(() => {});
+        await fs.unlink(p + ".fingerprint").catch(() => {});
+      }
+      debugLog()?.log("api", `DELETE /api/memories/compiled agent=${agentId || activeId}`);
+      if (!agentId || agentId === activeId) await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 清除所有记忆（facts.db + memory.md）
+  route.delete("/memories", async (c) => {
+    let tempStore = null;
+    try {
+      const agentId = c.req.query("agentId");
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      store.clearAll();
+      const activeId = path.basename(engine.agent.agentDir);
+      const mdPath = (!agentId || agentId === activeId)
+        ? engine.memoryMdPath
+        : path.join(engine.agentsDir, agentId, "memory", "memory.md");
+      await fs.writeFile(mdPath, "", "utf-8");
+      debugLog()?.log("api", `DELETE /api/memories agent=${agentId || activeId}`);
+      if (!isTemp) await engine.updateConfig({});
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.delete("/memories/:id", async (c) => {
+    let tempStore = null;
+    try {
+      const agentId = c.req.query("agentId");
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const deleted = store.delete(Number(c.req.param("id")));
+      if (!deleted) return c.json({ error: "memory not found" }, 404);
+      debugLog()?.log("api", `DELETE /api/memories/${c.req.param("id")} agent=${agentId || path.basename(engine.agent.agentDir)}`);
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.patch("/memories/:id", async (c) => {
+    let tempStore = null;
+    try {
+      const body = await safeJson(c);
+      const updates = {};
+      if (Object.prototype.hasOwnProperty.call(body, "category")) updates.category = body.category;
+      if (Object.prototype.hasOwnProperty.call(body, "confidence")) updates.confidence = body.confidence;
+      if (Object.prototype.hasOwnProperty.call(body, "evidence")) updates.evidence = body.evidence;
+      if (Object.keys(updates).length === 0) {
+        return c.json({ error: "no supported fields provided" }, 400);
+      }
+
+      const agentId = c.req.query("agentId");
+      const { store, isTemp } = getStoreForAgent(agentId);
+      if (isTemp) tempStore = store;
+      const updated = store.updateFact(Number(c.req.param("id")), updates);
+      if (!updated) return c.json({ error: "memory not found" }, 404);
+      debugLog()?.log("api", `PATCH /api/memories/${c.req.param("id")} agent=${agentId || path.basename(engine.agent.agentDir)}`);
+      return c.json({ ok: true, memory: updated });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  route.get("/memories/exclusions", async (c) => {
+    try {
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId")).list();
+      return c.json(exclusions);
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  route.post("/memories/exclusions", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const phrase = typeof body.phrase === "string" ? body.phrase.trim() : "";
+      if (!phrase) return c.json({ error: "phrase is required" }, 400);
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId"));
+      exclusions.addPhrase(phrase);
+      return c.json({ ok: true, exclusions: exclusions.list() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  route.delete("/memories/exclusions", async (c) => {
+    try {
+      const body = await safeJson(c);
+      const phrase = typeof body.phrase === "string" ? body.phrase.trim() : "";
+      if (!phrase) return c.json({ error: "phrase is required" }, 400);
+      const exclusions = getMemoryExclusionsForAgent(c.req.query("agentId"));
+      const removed = exclusions.removePhrase(phrase);
+      if (!removed) return c.json({ error: "phrase not found" }, 404);
+      return c.json({ ok: true, exclusions: exclusions.list() });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    }
+  });
+
+  // 导出记忆（JSON）
+  route.get("/memories/export", async (c) => {
+    let tempStore = null;
+    try {
+      const { store, isTemp } = getStoreForAgent(c.req.query("agentId"));
+      if (isTemp) tempStore = store;
+      return c.json({
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        facts: store.exportAll(),
+      });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  // 导入记忆（直接写入，无需 embedding）
+  route.post("/memories/import", async (c) => {
+    let tempStore = null;
+    try {
+      const body = await safeJson(c);
+      const { facts, memories } = body;
+      // 兼容 v1 导出格式（memories 字段）和 v2 格式（facts 字段）
+      const entries = facts || memories;
+      if (!Array.isArray(entries) || entries.length === 0) {
+        return c.json({ error: "facts must be a non-empty array" }, 400);
+      }
+
+      const importEntries = entries.map((e) => ({
+        fact: e.fact || e.content || "",
+        tags: e.tags || [],
+        time: e.time || e.date || null,
+        session_id: e.session_id || "imported",
+      }));
+
+      const { store, isTemp } = getStoreForAgent(c.req.query("agentId"));
+      if (isTemp) tempStore = store;
+      store.importAll(importEntries);
+      debugLog()?.log("api", `POST /api/memories/import: ${importEntries.length} entries`);
+      return c.json({ ok: true, imported: importEntries.length });
+    } catch (err) {
+      return c.json({ error: err.message }, 500);
+    } finally {
+      tempStore?.close();
+    }
+  });
+
+  // ── 搜索 API Key 验证 ──
+
+  route.post("/search/verify", async (c) => {
+    const body = await safeJson(c);
+    const { provider, api_key } = body;
+    if (!provider) {
+      return c.json({ ok: false, error: "provider is required" }, 400);
+    }
+    if (!api_key) {
+      return c.json({ ok: false, error: "api_key is required" }, 400);
+    }
+    try {
+      const { verifySearchKey } = await import("../../lib/tools/web-search.js");
+      await verifySearchKey(provider, api_key);
+      engine.setSearchConfig({ provider, api_key });
+      await engine.updateConfig({ search: { provider, api_key } });
+      debugLog()?.log("api", `POST /api/search/verify provider=${provider} (ok)`);
+      return c.json({ ok: true });
+    } catch (err) {
+      debugLog()?.warn("api", `POST /api/search/verify provider=${provider} failed: ${err.message}`);
+      return c.json({ ok: false, error: err.message });
+    }
+  });
+
+  return route;
+}

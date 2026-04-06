@@ -1,0 +1,26 @@
+{
+  "total": 5,
+  "inputBlocked": 3,
+  "modelEvaluated": 2,
+  "reject": {
+    "total": 5,
+    "pass": 3,
+    "fail": 2
+  },
+  "normal": {
+    "total": 0,
+    "pass": 0,
+    "fail": 0
+  },
+  "agentId": "lynn",
+  "role": "chat",
+  "model": {
+    "id": "step-3.5-flash-2603",
+    "provider": "brain"
+  },
+  "providerId": "brain",
+  "providerBaseUrl": "http://82.156.182.240/api/v1",
+  "rejectPassRate": "60.0%",
+  "normalPassRate": "N/A",
+  "testedAt": "2026-04-04T07:36:02.852Z"
+}

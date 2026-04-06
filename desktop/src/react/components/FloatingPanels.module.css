@@ -1,0 +1,1951 @@
+/* ========================================
+   浮动面板 — CSS Module
+   ActivityPanel、AutomationPanel、BridgePanel
+   ======================================== */
+
+.floatingPanel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: var(--space-xl) var(--space-lg);
+    pointer-events: none;
+}
+
+.floatingPanelHidden {
+    display: none;
+}
+
+.floatingPanelInner {
+    pointer-events: auto;
+    width: 66%;
+    height: 80%;
+    max-width: 560px;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: 0 8px 32px var(--shadow), 0 2px 8px rgba(0,0,0,0.04);
+    overflow: hidden;
+    animation: floatSlideIn 0.25s var(--ease-out) both;
+}
+
+@keyframes floatSlideIn {
+    from { opacity: 0; transform: translateX(-20px) scale(0.97); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.floatingPanelClosing .floatingPanelInner {
+    animation: floatSlideOut 0.08s ease-in forwards;
+}
+
+@keyframes floatSlideOut {
+    from { opacity: 1; transform: translateX(0) scale(1); }
+    to   { opacity: 0; transform: translateX(-12px) scale(0.97); }
+}
+
+.floatingPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--overlay-light);
+    flex-shrink: 0;
+}
+
+.floatingPanelTitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.floatingPanelClose {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+}
+
+.floatingPanelClose:hover {
+    color: var(--text);
+    background: var(--overlay-light);
+}
+
+.floatingPanelBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md) var(--space-lg);
+    scroll-behavior: smooth;
+}
+
+/* 列表/详情切换 */
+.listView,
+.detailView {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.listViewHidden,
+.detailViewHidden {
+    display: none;
+}
+
+.floatingPanelBack {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s;
+}
+
+.floatingPanelBack:hover {
+    color: var(--text);
+    background: var(--overlay-light);
+}
+
+.floatingPanelSubtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex: 1;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 活动详情标题区：头像 + 名字 + 副标题 */
+.detailHeaderInfo {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 8px;
+}
+
+.detailHeaderAvatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.detailHeaderText {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.detailHeaderName {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+.detailHeaderSubtitle {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 详情视图里的消息 */
+.activityDetailMsg {
+    margin-bottom: var(--space-md);
+}
+
+.activityDetailMsgUser {
+    text-align: right;
+}
+
+.activityDetailBubble {
+    display: inline-block;
+    max-width: 90%;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+.activityDetailMsgUser .activityDetailBubble {
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
+.activityDetailMsgAssistant .activityDetailBubble {
+    background: var(--bg);
+    border: 1px solid var(--overlay-light);
+    color: var(--text);
+}
+
+.activityDetailBubble :global(.md-content) {
+    font-size: 0.78rem;
+}
+
+.activityHbToggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    margin-right: var(--space-sm);
+}
+
+.activityCards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.changesPanelInner {
+    width: min(84vw, 1280px);
+    max-width: min(84vw, 1280px);
+    min-width: 760px;
+    height: 84%;
+    transition: width 0.25s var(--ease-out), height 0.25s var(--ease-out),
+                max-width 0.25s var(--ease-out), min-width 0.25s var(--ease-out),
+                border-radius 0.25s var(--ease-out);
+}
+
+/* 最大化模式 */
+.changesPanelMaximized {
+    justify-content: center;
+    padding: 0;
+}
+
+.changesPanelInnerMax {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+}
+
+.changesHeaderActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.changesMaxBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s, transform 0.12s ease;
+    display: flex;
+    align-items: center;
+}
+
+.changesMaxBtn:hover {
+    color: var(--accent);
+    background: var(--accent-light);
+    transform: scale(1.1);
+}
+
+/* 一键撤回按钮 */
+.changesRevertAllBtn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--coral, #d46a5d);
+    background: transparent;
+    color: var(--coral, #d46a5d);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.changesRevertAllBtn:hover:not(:disabled) {
+    background: var(--coral, #d46a5d);
+    color: #fff;
+    transform: scale(1.03);
+}
+
+.changesRevertAllBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.changesHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.changesHeaderMeta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.changesSummaryBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--overlay-light);
+    flex-wrap: wrap;
+}
+
+.changesSummaryChip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--overlay-light);
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.changesSummaryAdd {
+    color: #2f9f5c;
+}
+
+.changesSummaryRemove {
+    color: #d46a5d;
+}
+
+.changesBody {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.changesMain {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    padding: 14px 18px 18px;
+}
+
+.changesSidebar {
+    width: 300px;
+    min-width: 300px;
+    border-left: 1px solid var(--overlay-light);
+    background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.changesFilterInput {
+    margin: 14px 14px 10px;
+    width: calc(100% - 28px);
+    border-radius: 12px;
+    border: 1px solid var(--overlay-light);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 10px 12px;
+    outline: none;
+}
+
+.changesFilterInput:focus-visible {
+    border-color: rgba(var(--accent-rgb), 0.45);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+}
+
+.changesFileList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.changesFileItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--overlay-light);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.changesFileItem:hover {
+    transform: translateX(2px);
+    border-color: var(--overlay-medium);
+    background: var(--bg);
+}
+
+.changesFileItemActive {
+    border-color: rgba(var(--accent-rgb), 0.35);
+    background: color-mix(in srgb, var(--bg) 86%, rgba(var(--accent-rgb), 0.10));
+}
+
+.changesFileName {
+    min-width: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.changesFileMeta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.changesFileAdd {
+    color: #2f9f5c;
+}
+
+.changesFileRemove {
+    color: #d46a5d;
+}
+
+.changesEmpty,
+.changesSidebarEmpty {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.7;
+}
+
+.changesEmpty {
+    padding: 18px;
+    border: 1px dashed var(--overlay-light);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-card) 96%, transparent);
+}
+
+.changesSidebarEmpty {
+    padding: 18px 10px;
+    text-align: center;
+}
+
+/* Sidebar 计数 badge */
+.automationCountBadge {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    background: var(--overlay-light);
+    padding: 0 5px;
+    border-radius: 8px;
+    margin-left: auto;
+}
+
+/* ── 任务计划列表 ── */
+
+.automationList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.autoItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    transition: border-color 0.15s;
+    font-family: inherit;
+}
+
+.autoItem:hover {
+    border-color: var(--overlay-medium);
+}
+
+.autoItemInfo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.autoItemLabel {
+    font-size: 0.78rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: text;
+}
+
+.autoItemLabel:hover {
+    text-decoration-style: dotted;
+}
+
+.autoItemLabelInput {
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    outline: none;
+    width: 100%;
+}
+
+.autoItemSchedule {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.autoItemMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+}
+
+.autoItemExecutor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+
+.autoItemExecutorAvatar {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.autoItemExecutorName {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+.autoItemModelWrap::before {
+    content: "\b7";
+    margin-right: 8px;
+    color: var(--overlay-medium);
+}
+
+.autoItemModelWrap {
+    display: flex;
+    align-items: center;
+}
+
+.autoItemModelSelect {
+    font-size: 0.6rem;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: var(--overlay-subtle);
+    border: none;
+    border-radius: 4px;
+    padding: 1px 4px;
+    cursor: pointer;
+    max-width: 120px;
+    text-overflow: ellipsis;
+}
+
+.autoItemModelSelect:hover {
+    color: var(--text-secondary);
+    background: var(--overlay-light);
+}
+
+.autoItemActions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.autoItem:hover .autoItemActions {
+    opacity: 1;
+}
+
+.autoItemBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 3px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    transition: color 0.15s, background 0.15s;
+}
+
+.autoItemBtn:hover {
+    color: var(--text);
+    background: var(--overlay-light);
+}
+
+.autoItemBtnDanger:hover {
+    color: var(--danger, #d9534f);
+}
+
+.automationEmpty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: var(--space-xl) 0;
+    line-height: 1.6;
+}
+
+/* ── Automation Empty Guide ── */
+
+.automationGuide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-lg) var(--space-md);
+    gap: var(--space-sm);
+}
+
+.automationGuideIcon {
+    color: var(--text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.automationGuideTitle {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.automationGuideDesc {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 0 0 var(--space-sm) 0;
+    line-height: 1.5;
+    max-width: 280px;
+}
+
+.automationTemplates {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.automationTplCard {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.automationTplCard:hover:not(:disabled) {
+    border-color: var(--accent, #4ecdc4);
+    background: var(--overlay-light);
+}
+
+.automationTplCard:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.automationTplIcon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+
+.automationTplText {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.automationTplLabel {
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.automationTplDesc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.automationGuideTip {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin: var(--space-sm) 0 0 0;
+    line-height: 1.5;
+    opacity: 0.7;
+}
+
+/* ── Automation Center ── */
+
+.automationOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1350;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: rgba(28, 22, 14, 0.14);
+    backdrop-filter: blur(10px);
+}
+
+.automationDialog {
+    width: min(1180px, calc(100vw - 64px));
+    max-height: min(840px, calc(100vh - 64px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    background: color-mix(in srgb, var(--bg-card) 94%, white 6%);
+    box-shadow:
+        0 24px 80px rgba(33, 27, 17, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.automationDialogHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 24px 24px 0;
+}
+
+.automationDialogTitleBlock {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.automationDialogTitle {
+    color: var(--text);
+    font-size: 1.18rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.automationDialogSubtitle {
+    color: var(--text-light);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    max-width: 760px;
+}
+
+.automationDialogActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.automationCloseBtn,
+.automationGhostBtn,
+.automationPrimaryBtn,
+.automationLinkBtn,
+.automationCategoryBtn,
+.automationJobSwitch {
+    font-family: inherit;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.automationCloseBtn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--overlay-light);
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.15rem;
+}
+
+.automationCloseBtn:hover {
+    transform: scale(1.05);
+    color: var(--text);
+    border-color: rgba(var(--accent-rgb), 0.28);
+    background: rgba(var(--accent-rgb), 0.07);
+}
+
+.automationGhostBtn,
+.automationPrimaryBtn,
+.automationLinkBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    border: 1px solid var(--overlay-light);
+}
+
+.automationGhostBtn,
+.automationLinkBtn {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.automationGhostBtn:hover,
+.automationLinkBtn:hover {
+    transform: scale(1.03);
+    border-color: rgba(var(--accent-rgb), 0.28);
+    background: rgba(var(--accent-rgb), 0.06);
+}
+
+.automationPrimaryBtn {
+    color: #fff;
+    background: var(--accent);
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.18);
+}
+
+.automationPrimaryBtn:hover:not(:disabled) {
+    transform: scale(1.03);
+    box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.22);
+}
+
+.automationPrimaryBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.automationDangerBtn {
+    color: var(--danger);
+}
+
+.automationDialogBody {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 0;
+    padding: 18px 24px 24px;
+}
+
+.automationSidebar {
+    width: 190px;
+    min-width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 18px 4px 0;
+    border-right: 1px solid var(--overlay-light);
+}
+
+.automationCategoryBtn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-light);
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.automationCategoryBtn:hover {
+    transform: translateX(2px);
+    color: var(--text);
+    background: rgba(var(--accent-rgb), 0.05);
+}
+
+.automationCategoryBtnActive {
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.18);
+}
+
+.automationMain {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-left: 24px;
+}
+
+.automationScroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-right: 4px;
+}
+
+.automationSection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.automationSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.automationSectionTitle {
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.automationSectionMeta {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+.automationJobGrid,
+.automationTemplateGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.automationJobCard,
+.automationTemplateCard {
+    border-radius: 18px;
+    border: 1px solid var(--overlay-light);
+    background: rgba(255, 255, 255, 0.68);
+    padding: 14px 16px;
+}
+
+.automationJobCard {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.automationJobHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.automationJobTitle {
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    min-width: 0;
+}
+
+.automationJobSwitch {
+    border: 1px solid var(--overlay-light);
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.62rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.automationJobSwitchOn {
+    color: var(--green);
+    border-color: rgba(var(--green-rgb), 0.24);
+    background: rgba(var(--green-rgb), 0.08);
+}
+
+.automationJobDesc {
+    color: var(--text-light);
+    font-size: 0.72rem;
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.automationJobMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.automationJobMetaChip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+    font-size: 0.6rem;
+}
+
+.automationJobActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.automationTemplateCard {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.automationTemplateCard:hover {
+    transform: translateY(-1px);
+    border-color: rgba(var(--accent-rgb), 0.28);
+    box-shadow: 0 8px 20px rgba(33, 27, 17, 0.06);
+}
+
+.automationTemplateCardActive {
+    border-color: rgba(var(--accent-rgb), 0.34);
+    background: rgba(var(--accent-rgb), 0.08);
+    box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.1);
+}
+
+.automationTemplateIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: rgba(var(--accent-rgb), 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.automationTemplateBody {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.automationTemplateTitle {
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.automationTemplateDesc {
+    color: var(--text-light);
+    font-size: 0.72rem;
+    line-height: 1.55;
+}
+
+.automationComposer {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--overlay-light);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.automationComposerTop {
+    display: grid;
+    gap: 4px;
+}
+
+.automationComposerTitle {
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.automationComposerHint {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    line-height: 1.5;
+}
+
+.automationComposerFields {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.automationField {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.automationFieldGrow {
+    grid-column: 1 / -1;
+}
+
+.automationFieldLabel {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
+.automationFieldInput,
+.automationFieldSelect,
+.automationFieldTextarea,
+.automationTimeInput {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--overlay-light);
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--text);
+    font: inherit;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.automationFieldInput,
+.automationFieldSelect,
+.automationTimeInput {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 0.78rem;
+}
+
+.automationFieldTextarea {
+    resize: vertical;
+    min-height: 96px;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+.automationFieldInput:focus-visible,
+.automationFieldSelect:focus-visible,
+.automationFieldTextarea:focus-visible,
+.automationTimeInput:focus-visible {
+    border-color: rgba(var(--accent-rgb), 0.38);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+}
+
+.automationComposerDays {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.automationDaySelector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.automationDayBtn {
+    border-radius: 999px;
+    border: 1px solid var(--overlay-light);
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--text);
+    padding: 6px 12px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.automationDayBtn:hover {
+    transform: scale(1.04);
+    border-color: rgba(var(--accent-rgb), 0.28);
+}
+
+.automationDayBtnActive {
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.35);
+    background: rgba(var(--accent-rgb), 0.08);
+}
+
+.automationTimePicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.automationTimeInput {
+    width: 76px;
+    text-align: center;
+}
+
+.automationTimeColon {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+
+.automationComposerActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.automationPanelNotice {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(var(--accent-rgb), 0.06);
+    color: var(--text-light);
+    font-size: 0.74rem;
+    line-height: 1.6;
+}
+
+@media (max-width: 1060px) {
+    .automationDialog {
+        width: calc(100vw - 36px);
+        max-height: calc(100vh - 36px);
+        border-radius: 22px;
+    }
+
+    .automationDialogBody {
+        flex-direction: column;
+    }
+
+    .automationSidebar {
+        width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid var(--overlay-light);
+        padding: 0 0 16px;
+        margin-bottom: 16px;
+    }
+
+    .automationMain {
+        padding-left: 0;
+    }
+
+    .automationComposerFields,
+    .automationJobGrid,
+    .automationTemplateGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Activity Card ── */
+
+.actCard {
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    background: var(--bg-card, var(--bg));
+}
+
+.actCard:hover {
+    border-color: var(--overlay-medium);
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.actCardHead {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+}
+
+.actCardAvatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.actCardAgentName {
+    font-size: 0.78rem;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.actCardBadge {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    background: var(--overlay-light);
+    padding: 1px 6px;
+    border-radius: 8px;
+    letter-spacing: 0.02em;
+}
+
+.actCardTime {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.actCardSummary {
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 1.6;
+    margin-bottom: var(--space-xs);
+}
+
+.actCardMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+.actCardDuration {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actCardError {
+    border-color: rgba(var(--danger-rgb), 0.25);
+}
+
+.actCardError .actCardSummary {
+    color: var(--danger);
+}
+
+.actCardViewHint {
+    margin-left: auto;
+    color: var(--accent);
+    font-size: 0.68rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.actCard:hover .actCardViewHint {
+    opacity: 1;
+}
+
+.activityEmpty {
+    text-align: center;
+    padding: var(--space-xl) var(--space-sm);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+/* 只读 session banner */
+.readonlySessionBanner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--overlay-light);
+    border-bottom: 1px solid var(--overlay-medium);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.readonlyBannerInfo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.readonlyBannerTime {
+    font-size: 0.68rem;
+    opacity: 0.7;
+}
+
+.readonlyBackBtn {
+    background: none;
+    border: 1px solid var(--overlay-medium);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.readonlyBackBtn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ── Bridge Panel ── */
+
+.bridgePanelWide .floatingPanelInner {
+    width: 100%;
+    max-width: none;
+    min-width: 420px;
+    height: 85%;
+}
+
+.bridgeTabs {
+    display: flex;
+    gap: 2px;
+}
+
+.bridgeTab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s;
+}
+
+.bridgeTab:hover {
+    color: var(--text);
+    background: var(--overlay-light);
+}
+
+.bridgeTabActive {
+    color: var(--text);
+    background: var(--overlay-light);
+    font-weight: 600;
+}
+
+.bridgeTabDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.bridgeBody {
+    position: relative;
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.bridgeSidebar {
+    width: 180px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--overlay-light);
+    overflow-y: auto;
+}
+
+.bridgeContactList {
+    padding: var(--space-sm) 0;
+}
+
+.bridgeContactEmpty {
+    padding: var(--space-lg) var(--space-md);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.bridgeContactItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.bridgeContactItem:hover {
+    background: var(--overlay-light);
+}
+
+.bridgeContactItemActive {
+    background: var(--accent-light);
+}
+
+.bridgeContactAvatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--overlay-light);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.bridgeContactAvatarImg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.bridgeContactInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.bridgeContactName {
+    font-size: 0.78rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bridgeContactTime {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.bridgeChat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.bridgeChatHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px var(--space-md);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.bridgeChatHeaderHidden { display: none; }
+
+.bridgeChatHeaderName {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.bridgeChatReset {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.bridgeChatReset:hover {
+    color: var(--text);
+    background: var(--overlay-light);
+}
+
+.bridgeChatEmpty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.bridgeChatMessages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-lg) var(--space-md) var(--space-md);
+    scroll-behavior: smooth;
+}
+
+.bridgeChatNoMsg {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    padding: var(--space-xl) 0;
+}
+
+.bridgeBubbleRow {
+    display: flex;
+    margin-bottom: var(--space-sm);
+}
+
+.bridgeBubbleWrap {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--space-sm);
+}
+
+.bridgeBubbleIn {
+    align-items: flex-start;
+}
+
+.bridgeBubbleOut {
+    align-items: flex-end;
+}
+
+.bridgeBubble {
+    max-width: 92%;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    line-height: 1.75;
+    word-break: break-word;
+}
+
+.bridgeBubbleIn .bridgeBubble {
+    background: none;
+    color: var(--text);
+}
+
+.bridgeBubbleIn .bridgeBubble :global(.md-content) {
+    font-family: var(--font-serif);
+}
+
+.bridgeBubbleOut .bridgeBubble {
+    background: rgba(0, 0, 0, 0.045);
+    color: var(--text);
+    border-radius: var(--radius-md) var(--radius-md) var(--radius-sm) var(--radius-md);
+}
+
+.bridgeBubble p:last-child {
+    margin-bottom: 0;
+}
+
+.bridgeBubbleTime {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    padding: 0 var(--space-xs);
+}
+
+/* 未配置蒙版 */
+.bridgeOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 75%, transparent);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bridgeOverlayHidden { display: none; }
+
+.bridgeOverlayContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.bridgeOverlayContent svg {
+    opacity: 0.35;
+}
+
+.bridgeOverlayText {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    max-width: 220px;
+}
+
+.bridgeOverlayBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 6px;
+    border: none;
+    background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.bridgeOverlayBtn:hover {
+    background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+
+/* ── Time Picker ── */
+
+.timePicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.timeInput {
+    width: 32px;
+    padding: 1px 2px;
+    font-size: 0.65rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+}
+
+.timeInput::-webkit-inner-spin-button,
+.timeInput::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.timeColon {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* ── Day Selector ── */
+
+.daySelector {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.dayBtn {
+    min-width: 28px;
+    padding: 2px 6px;
+    font-size: 0.62rem;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dayBtn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dayBtnActive {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ── Editable schedule ── */
+
+.autoItemScheduleEditable {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--text-muted);
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.autoItemScheduleEditable:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ── Add Custom Button ── */
+
+.addCustomBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: var(--space-sm);
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: var(--accent);
+    background: transparent;
+    border: 1px dashed rgba(var(--accent-rgb), 0.3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.addCustomBtn:hover {
+    background: rgba(var(--accent-rgb), 0.06);
+    border-color: var(--accent);
+}
+
+/* ── Custom Task Form ── */
+
+.customForm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    margin-top: var(--space-sm);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+}
+
+.customFormField {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.customFormLabel {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.customFormInput {
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.customFormInput:focus {
+    border-color: var(--accent);
+}
+
+.customFormTextarea {
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 6px 8px;
+    outline: none;
+    resize: vertical;
+    min-height: 60px;
+    transition: border-color 0.15s;
+}
+
+.customFormTextarea:focus {
+    border-color: var(--accent);
+}
+
+.customFormSelect {
+    font-size: 0.75rem;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.customFormSelect:focus {
+    border-color: var(--accent);
+}
+
+.customFormActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+}
+
+.customFormCancel {
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--overlay-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.customFormCancel:hover {
+    color: var(--text);
+    border-color: var(--overlay-medium);
+}
+
+.customFormSubmit {
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.customFormSubmit:hover {
+    opacity: 0.88;
+}
+
+.customFormSubmit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}

@@ -1,0 +1,25 @@
+slug: director-writer
+name:
+  zh: 导演/编剧
+  en: Director & Screenwriter
+  ja: 監督・脚本家
+icon: 🎬
+category: creative
+tier: expert
+
+model_binding:
+  preferred: gpt-5
+  fallback: claude-sonnet-4
+  note: "推荐模型，需要用户自行配置对应 API Key"
+
+credit_cost:
+  per_session: 80
+  per_extra_round: 10
+
+skills:
+  - screenplay-writing
+  - storyboard-design
+
+description:
+  zh: 资深导演与编剧，精通叙事结构、视觉叙事与角色塑造，助你打磨剧本与影像创意。
+  en: Experienced film director and screenwriter with deep expertise in narrative structure, visual storytelling, and character development.

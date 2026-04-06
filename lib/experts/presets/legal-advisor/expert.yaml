@@ -1,0 +1,25 @@
+slug: legal-advisor
+name:
+  zh: 法律顾问
+  en: Legal Advisor
+  ja: 法律アドバイザー
+icon: ⚖️
+category: legal
+tier: expert
+
+model_binding:
+  preferred: claude-sonnet-4
+  fallback: claude-sonnet-4
+  note: "推荐模型，需要用户自行配置对应 API Key"
+
+credit_cost:
+  per_session: 20
+  per_extra_round: 5
+
+skills:
+  - legal-research
+  - contract-analysis
+
+description:
+  zh: 专业法律顾问，擅长合同审查、合规分析与法律研究，提供中英双语法律分析服务。
+  en: Professional legal advisor specializing in contract review, compliance analysis, and legal research. Bilingual in Chinese and English.

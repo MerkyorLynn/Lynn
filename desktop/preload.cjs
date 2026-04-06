@@ -1,0 +1,124 @@
+/**
+ * Lynn Desktop — Preload 桥接
+ *
+ * 业务通信走 HTTP/WS 到 server。
+ * IPC 仅用于：窗口管理、系统对话框、跨窗口消息转发。
+ */
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
+
+function resolveTheme() {
+  const saved = localStorage.getItem("hana-theme") || "warm-paper";
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return saved === "auto" ? (isDark ? "midnight" : "warm-paper") : saved;
+}
+
+contextBridge.exposeInMainWorld("hana", {
+  getServerPort: () => ipcRenderer.invoke("get-server-port"),
+  getServerToken: () => ipcRenderer.invoke("get-server-token"),
+  getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  checkUpdate: () => ipcRenderer.invoke("check-update"),
+  // Auto-update (Windows)
+  autoUpdateCheck: () => ipcRenderer.invoke("auto-update-check"),
+  autoUpdateDownload: () => ipcRenderer.invoke("auto-update-download"),
+  autoUpdateInstall: () => ipcRenderer.invoke("auto-update-install"),
+  autoUpdateState: () => ipcRenderer.invoke("auto-update-state"),
+  autoUpdateSetChannel: (ch) => ipcRenderer.invoke("auto-update-set-channel", ch),
+  onAutoUpdateState: (cb) => {
+    const handler = (_event, state) => cb(state);
+    ipcRenderer.on("auto-update-state", handler);
+    return () => ipcRenderer.removeListener("auto-update-state", handler);
+  },
+  appReady: () => ipcRenderer.invoke("app-ready"),
+  selectFolder: () => ipcRenderer.invoke("select-folder"),
+  getOnboardingDefaults: () => ipcRenderer.invoke("get-onboarding-defaults"),
+  selectSkill: () => ipcRenderer.invoke("select-skill"),
+  openFolder: (path) => ipcRenderer.invoke("open-folder", path),
+  openFile: (path) => ipcRenderer.invoke("open-file", path),
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
+  showInFinder: (path) => ipcRenderer.invoke("show-in-finder", path),
+  saveFileDialog: (opts) => ipcRenderer.invoke("save-file-dialog", opts),
+  readFile: (path) => ipcRenderer.invoke("read-file", path),
+  writeFile: (filePath, content) => ipcRenderer.invoke("write-file", filePath, content),
+  watchFile: (filePath) => ipcRenderer.invoke("watch-file", filePath),
+  unwatchFile: (filePath) => ipcRenderer.invoke("unwatch-file", filePath),
+  onFileChanged: (cb) => ipcRenderer.on("file-changed", (_, filePath) => cb(filePath)),
+  readFileBase64: (path) => ipcRenderer.invoke("read-file-base64", path),
+  readDocxHtml: (path) => ipcRenderer.invoke("read-docx-html", path),
+  readXlsxHtml: (path) => ipcRenderer.invoke("read-xlsx-html", path),
+  getFilePath: async (file) => {
+    const filePath = webUtils.getPathForFile(file);
+    if (!filePath) return null;
+    const granted = await ipcRenderer.invoke("grant-file-access", filePath);
+    return granted ? filePath : null;
+  },
+  getAvatarPath: (role) => ipcRenderer.invoke("get-avatar-path", role),
+  getSplashInfo: () => ipcRenderer.invoke("get-splash-info"),
+  reloadMainWindow: () => ipcRenderer.invoke("reload-main-window"),
+  // Onboarding
+  onboardingComplete: () => ipcRenderer.invoke("onboarding-complete"),
+  debugOpenOnboarding: () => ipcRenderer.invoke("debug-open-onboarding"),
+  debugOpenOnboardingPreview: () => ipcRenderer.invoke("debug-open-onboarding-preview"),
+  // Skill Viewer overlay（主进程 → 渲染进程）
+  onShowSkillViewer: (cb) => ipcRenderer.on("show-skill-viewer", (_, data) => cb(data)),
+  // 设置窗口
+  openSettings: (target) => ipcRenderer.invoke("open-settings", target ?? null, resolveTheme()),
+  getInitialSettingsNavigationTarget: () => ipcRenderer.invoke("get-initial-settings-navigation-target"),
+  settingsChanged: (type, data) => ipcRenderer.send("settings-changed", type, data),
+  onSettingsChanged: (cb) => {
+    const handler = (_event, type, data) => cb(type, data);
+    ipcRenderer.on("settings-changed", handler);
+    return () => ipcRenderer.removeListener("settings-changed", handler);
+  },
+  notifyMainWindow: (event, payload) => ipcRenderer.send("settings-changed", event, payload),
+  onSwitchTab: (cb) => {
+    const handler = (_event, target) => cb(target);
+    ipcRenderer.on("settings-switch-tab", handler);
+    return () => ipcRenderer.removeListener("settings-switch-tab", handler);
+  },
+  onConfirmActionRequest: (cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on("confirm-action-request", handler);
+    return () => ipcRenderer.removeListener("confirm-action-request", handler);
+  },
+  respondConfirmAction: (requestId, approved) => ipcRenderer.send(`confirm-action-response:${requestId}`, { approved: !!approved }),
+  onServerRestarted: (cb) => ipcRenderer.on("server-restarted", (_, data) => cb(data)),
+  onGlobalSummon: (cb) => ipcRenderer.on("global-summon", () => cb()),
+  // 浏览器查看器窗口
+  openBrowserViewer: () => ipcRenderer.invoke("open-browser-viewer", resolveTheme()),
+  onBrowserUpdate: (cb) => ipcRenderer.on("browser-update", (_, data) => cb(data)),
+  browserGoBack: () => ipcRenderer.invoke("browser-go-back"),
+  browserGoForward: () => ipcRenderer.invoke("browser-go-forward"),
+  browserReload: () => ipcRenderer.invoke("browser-reload"),
+  closeBrowserViewer: () => ipcRenderer.invoke("close-browser-viewer"),
+  browserEmergencyStop: () => ipcRenderer.invoke("browser-emergency-stop"),
+  // 编辑器独立窗口
+  openEditorWindow: (data) => ipcRenderer.invoke("open-editor-window", data),
+  onEditorLoad: (cb) => ipcRenderer.on("editor-load", (_, data) => cb(data)),
+  editorDock: () => ipcRenderer.invoke("editor-dock"),
+  editorClose: () => ipcRenderer.invoke("editor-close"),
+  onEditorDockFile: (cb) => ipcRenderer.on("editor-dock-file", (_, data) => cb(data)),
+  onEditorDetached: (cb) => ipcRenderer.on("editor-detached", (_, detached) => cb(detached)),
+  // Skill 预览窗口
+  openSkillViewer: (data) => ipcRenderer.invoke("open-skill-viewer", data),
+  listSkillFiles: (baseDir) => ipcRenderer.invoke("skill-viewer-list-files", baseDir),
+  readSkillFile: (filePath) => ipcRenderer.invoke("skill-viewer-read-file", filePath),
+  onSkillViewerLoad: (cb) => ipcRenderer.on("skill-viewer-load", (_, data) => cb(data)),
+  closeSkillViewer: () => ipcRenderer.invoke("close-skill-viewer"),
+  // 原生拖拽（书桌文件拖到 Finder / 聊天区）
+  startDrag: (filePaths) => ipcRenderer.send("start-drag", filePaths),
+  // 系统通知
+  showNotification: (title, body) => ipcRenderer.invoke("show-notification", title, body),
+  getNotificationPermissionStatus: () => ipcRenderer.invoke("get-notification-permission-status"),
+  requestNotificationPermission: () => ipcRenderer.invoke("request-notification-permission"),
+  confirmAction: (opts) => ipcRenderer.invoke("confirm-action", opts),
+  // 窗口控制（Windows/Linux 自绘标题栏）
+  getPlatform: () => ipcRenderer.invoke("get-platform"),
+  windowMinimize: () => ipcRenderer.invoke("window-minimize"),
+  windowMaximize: () => ipcRenderer.invoke("window-maximize"),
+  windowClose: () => ipcRenderer.invoke("window-close"),
+  windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
+  onMaximizeChange: (cb) => {
+    ipcRenderer.on("window-maximized", () => cb(true));
+    ipcRenderer.on("window-unmaximized", () => cb(false));
+  },
+});

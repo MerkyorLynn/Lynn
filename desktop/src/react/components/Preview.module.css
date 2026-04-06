@@ -1,0 +1,302 @@
+/* ========================================
+   Artifact 预览面板 — CSS Module
+   ======================================== */
+
+.previewPanel {
+    position: relative;
+    width: var(--preview-panel-width);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    border-left: 1px solid var(--overlay-light);
+    padding-top: 48px;
+    overflow: hidden;
+    transition: width 0.28s var(--ease-out),
+                border-color 0.28s var(--ease-out);
+    z-index: 10;
+}
+
+.previewPanelCollapsed {
+    width: 24px;
+    min-width: 24px;
+    border-left-color: var(--overlay-light);
+    cursor: pointer;
+}
+
+.previewPanelCollapsed:hover {
+    background: var(--hana-bg-hover, rgba(0, 0, 0, 0.03));
+}
+
+.collapsedStrip {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    user-select: none;
+    padding: 8px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.previewPanelInner {
+    display: flex;
+    flex-direction: column;
+    width: var(--preview-panel-width);
+    min-width: var(--preview-panel-width);
+    height: 100%;
+    opacity: 1;
+    transition: opacity 0.18s var(--ease-out);
+}
+
+.previewPanelCollapsed .previewPanelInner {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.previewPanelBody {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    margin: 5px 10px 10px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card, var(--bg));
+    border: 1px solid var(--overlay-light);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* iframe 预览（HTML artifact） */
+.previewPanelBody iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+}
+
+/* Markdown 预览 */
+.previewPanelBody :global(.preview-markdown) {
+    padding: var(--space-md) var(--space-lg);
+    line-height: 1.7;
+    font-family: var(--font-serif);
+}
+
+.previewPanelBody :global(.preview-markdown) h1 {
+    text-align: center;
+}
+
+/* 代码预览 */
+.previewPanelBody :global(.preview-code) {
+    padding: var(--space-md);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text);
+    margin: 0;
+}
+
+/* docx 预览 */
+.previewPanelBody :global(.preview-docx) {
+    padding: var(--space-md) var(--space-lg);
+    line-height: 1.8;
+    overflow-y: auto;
+}
+
+.previewPanelBody :global(.preview-docx) table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.8em 0;
+}
+
+.previewPanelBody :global(.preview-docx) th,
+.previewPanelBody :global(.preview-docx) td {
+    border: 1px solid var(--overlay-light);
+    padding: 6px 10px;
+}
+
+/* 图片预览 */
+.previewPanelBody :global(.preview-image) {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    margin: auto;
+}
+
+/* PDF 预览：略微放大让查看器深色背景被圆角裁切掉 */
+.previewPanelBody :global(.preview-pdf) {
+    width: calc(100% + 8px);
+    height: calc(100% + 8px);
+    margin: -4px;
+    border: none;
+    border-radius: inherit;
+    overflow: hidden;
+}
+
+/* CSV 表格预览 */
+.previewPanelBody :global(.preview-csv) {
+    padding: var(--space-sm);
+    overflow: auto;
+    height: 100%;
+}
+
+.previewPanelBody :global(.preview-csv) table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+}
+
+.previewPanelBody :global(.preview-csv) th,
+.previewPanelBody :global(.preview-csv) td {
+    padding: 6px 10px;
+    border: 1px solid var(--overlay-light);
+    text-align: left;
+    white-space: nowrap;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.previewPanelBody :global(.preview-csv) thead th {
+    position: sticky;
+    top: 0;
+    background: var(--tool-bg);
+    font-weight: 600;
+    z-index: 1;
+}
+
+.previewPanelBody :global(.preview-csv) tbody tr:hover {
+    background: var(--overlay-subtle);
+}
+
+/* 文件信息卡 */
+.previewPanelBody :global(.preview-file-info) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--space-md);
+    padding: var(--space-xl);
+    text-align: center;
+}
+
+.previewPanelBody :global(.preview-file-icon) {
+    width: 56px;
+    height: 56px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.previewPanelBody :global(.preview-file-icon) svg {
+    width: 48px;
+    height: 48px;
+}
+
+.previewPanelBody :global(.preview-file-name) {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.previewPanelBody :global(.preview-file-ext) {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.previewPanelBody :global(.preview-file-open-btn) {
+    margin-top: var(--space-sm);
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.previewPanelBody :global(.preview-file-open-btn):hover {
+    opacity: 0.85;
+}
+
+/* ── Artifact 编辑器（CodeMirror 6）── */
+
+:global(.artifact-editor) {
+    height: 100%;
+    overflow: hidden;
+}
+
+:global(.artifact-editor .cm-editor) {
+    height: 100%;
+    background: transparent;
+}
+
+:global(.artifact-editor .cm-editor.cm-focused) {
+    outline: none;
+}
+
+:global(.artifact-editor .cm-scroller) {
+    overflow: auto;
+    padding: var(--space-lg) 0;
+}
+
+:global(.artifact-editor .cm-content) {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 var(--space-md);
+}
+
+:global(.artifact-editor .cm-gutters) {
+    background: transparent;
+    border-right: 1px solid var(--overlay-light);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+:global(.artifact-editor .cm-activeLineGutter) {
+    background: transparent;
+    color: var(--text);
+}
+
+:global(.artifact-editor .cm-activeLine) {
+    background: var(--overlay-subtle);
+}
+
+:global(.artifact-editor .cm-selectionBackground) {
+    background: var(--accent-light, rgba(100, 140, 200, 0.15)) !important;
+}
+
+:global(.artifact-editor .cm-cursor) {
+    border-left-color: var(--text);
+}
+
+/* ── Markdown 模式 ── */
+
+:global(.cm-center-line) {
+    text-align: center;
+}
+
+:global(.cm-hr-widget) {
+    display: inline-block;
+    width: 80%;
+    vertical-align: middle;
+    border-top: 1px solid var(--border);
+}
+
+/* 拖拽中禁 transition */
+:global(body.resizing) .previewPanel,
+:global(body.resizing) .previewPanelInner {
+    transition: none !important;
+}

@@ -1,0 +1,171 @@
+/* ========================================
+   SecurityModeSelector — 安全模式选择器
+   ======================================== */
+
+.selector {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.28rem 0.45rem;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--duration) var(--ease-out);
+    -webkit-app-region: no-drag;
+    flex-shrink: 1;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.pill:hover {
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.25);
+    transform: scale(1.04);
+}
+
+/* 授权模式 — 默认，略带温暖 */
+.pill-authorized {
+    color: var(--mood-text, var(--text));
+    background: var(--mood-bg, var(--bg-card));
+    border-color: var(--mood-border, rgba(var(--accent-rgb), 0.18));
+}
+
+/* 规划模式 — 蓝色（与输入框蓝色边框一致） */
+.pill-plan {
+    color: #4a8bc4;
+    background: rgba(91, 155, 213, 0.06);
+    border-color: rgba(91, 155, 213, 0.25);
+}
+
+/* 安全模式 — 绿色安全感 */
+.pill-safe {
+    color: #5ba88c;
+    background: rgba(91, 168, 140, 0.06);
+    border-color: rgba(91, 168, 140, 0.2);
+}
+
+/* 全权模式 — 高风险提示 */
+.pill-full-access {
+    color: #da6f6f;
+    background: rgba(218, 111, 111, 0.08);
+    border-color: rgba(218, 111, 111, 0.28);
+}
+
+.pillIcon {
+    font-size: 0.68rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.pillLabel {
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pillArrow {
+    font-size: 0.55rem;
+    transition: transform var(--duration);
+    flex-shrink: 0;
+}
+
+.selector.open .pillArrow {
+    transform: rotate(180deg);
+}
+
+.selector.open .pill {
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+/* Dropdown */
+.dropdown {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    min-width: 200px;
+    box-shadow: 0 4px 16px var(--shadow);
+    z-index: 50;
+    animation: security-dropdown-in 0.2s var(--ease-out);
+}
+
+@keyframes security-dropdown-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    font-family: inherit;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+}
+
+.option:hover {
+    background: rgba(var(--accent-rgb), 0.08);
+}
+
+.option.active {
+    background: rgba(var(--accent-rgb), 0.05);
+}
+
+.optionIcon {
+    font-size: 0.85rem;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+
+.optionText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.optionLabel {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.option.active .optionLabel {
+    color: var(--accent);
+}
+
+.optionDesc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.option:hover .optionDesc {
+    color: rgba(var(--accent-rgb), 0.6);
+}
+
+.check {
+    color: var(--accent);
+    font-weight: 600;
+}

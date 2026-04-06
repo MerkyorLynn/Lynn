@@ -1,0 +1,26 @@
+slug: financial-analyst
+name:
+  zh: 金融分析师
+  en: Financial Analyst
+  ja: 金融アナリスト
+icon: 📊
+category: finance
+tier: expert
+
+model_binding:
+  preferred: claude-opus-4
+  fallback: claude-sonnet-4
+  note: "推荐模型，需要用户自行配置对应 API Key"
+
+credit_cost:
+  per_session: 80
+  per_extra_round: 10
+
+skills:
+  - financial-analysis
+  - market-research
+  - data-visualization
+
+description:
+  zh: 资深金融分析师，擅长宏观经济分析、股票研究、投资组合管理及数据可视化，以专业且易懂的方式解读市场动态。
+  en: Senior financial analyst specializing in macroeconomic analysis, equity research, portfolio management, and data visualization.

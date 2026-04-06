@@ -1,0 +1,199 @@
+.card {
+  margin: var(--space-sm) 0;
+  padding: 0.85rem;
+  background: linear-gradient(180deg, rgba(253, 249, 239, 0.98), rgba(247, 241, 228, 0.98));
+  border: 1px solid rgba(152, 131, 102, 0.18);
+  border-radius: 0.85rem;
+  box-shadow: 0 12px 28px rgba(120, 101, 76, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  color: #3b352c;
+  max-width: 560px;
+  width: min(560px, 100%);
+  animation: authCardIn 160ms ease-out;
+}
+
+.cardConfirmed {
+  border-color: rgba(89, 148, 104, 0.34);
+}
+
+.cardRejected {
+  border-color: rgba(183, 105, 97, 0.34);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.headerText {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2f2a24;
+}
+
+.scopeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(103, 128, 150, 0.24);
+  color: #5f7990;
+  background: rgba(110, 140, 168, 0.08);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.69rem;
+  border: 1px solid rgba(124, 160, 128, 0.26);
+  color: #4e7757;
+  background: rgba(124, 160, 128, 0.1);
+}
+
+.commandBlock {
+  margin: 0;
+  padding: 0.62rem 0.68rem;
+  border-radius: 0.68rem;
+  border: 1px solid rgba(144, 128, 106, 0.18);
+  background: rgba(255, 251, 243, 0.9);
+  color: #4a4034;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.description {
+  margin: 0 0 0.38rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #3c352d;
+}
+
+.summary {
+  margin: 0 0 0.48rem;
+  font-size: 0.79rem;
+  line-height: 1.5;
+  color: #677f93;
+}
+
+.reason {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #7d7468;
+}
+
+.reasonLabel {
+  display: inline-block;
+  margin-right: 0.36rem;
+  color: #536f84;
+  font-weight: 600;
+}
+
+.commandWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.commandLabel {
+  font-size: 0.7rem;
+  color: #857664;
+  letter-spacing: 0.02em;
+}
+
+.rootHint {
+  margin: 0.46rem 0 0;
+  font-size: 0.71rem;
+  color: #5f7e96;
+}
+
+.actions {
+  margin-top: 0.74rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  justify-content: flex-end;
+}
+
+.decisionGuide {
+  margin-top: 0.56rem;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.decisionItem {
+  font-size: 0.69rem;
+  line-height: 1.35;
+  color: #7d7468;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 0.58rem;
+  font-size: 0.74rem;
+  line-height: 1;
+  padding: 0.45rem 0.64rem;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.btnPrimary {
+  color: #1f2d36;
+  font-weight: 600;
+  background: linear-gradient(135deg, #9cc6e5, #b8dcc6);
+  box-shadow: 0 8px 16px rgba(111, 142, 166, 0.18);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(1.01);
+  transform: translateY(-1px);
+}
+
+.btnSecondary {
+  color: #54697a;
+  border-color: rgba(124, 144, 160, 0.24);
+  background: rgba(255, 252, 246, 0.72);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: rgba(124, 144, 160, 0.34);
+  background: rgba(249, 245, 235, 0.98);
+}
+
+.btnGhost {
+  color: #7b6a66;
+  border-color: rgba(158, 129, 122, 0.24);
+  background: rgba(255, 249, 243, 0.7);
+}
+
+.btnGhost:hover:not(:disabled) {
+  color: #b06161;
+  border-color: rgba(176, 97, 97, 0.36);
+  background: rgba(255, 239, 235, 0.95);
+}
+
+@keyframes authCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
