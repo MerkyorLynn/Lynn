@@ -120,6 +120,40 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   // T2: TTFT 等待提示——streaming 中但还没有任何实际内容
   const showWaitingHint = isStreamMsg && blocks.length === 0;
 
+  // 超时提示：等待超过 30 秒未收到内容，提示用户可能是网络问题
+  const [waitingTooLong, setWaitingTooLong] = useState(false);
+  useEffect(() => {
+    if (!showWaitingHint) { setWaitingTooLong(false); return; }
+    const timer = setTimeout(() => setWaitingTooLong(true), 15000);
+    return () => clearTimeout(timer);
+  }, [showWaitingHint]);
+
+  // ── 模型表现评估：回复质量不佳时提示用户切换模型 ──
+  const hasToolCalls = useMemo(() => blocks.some(b => b.type === 'tool_use' || b.type === 'tool_result'), [blocks]);
+  const isFinished = !isStreamMsg || (blocks.length > 0 && !showStreamingMeta && !showWaitingHint);
+  const textLen = plainText.length;
+  const modelHintDismissKey = 'lynn-model-hint-dismissed';
+  const [hintDismissed, setHintDismissed] = useState(() => {
+    try {
+      const ts = Number(localStorage.getItem(modelHintDismissKey) || 0);
+      return ts > 0 && Date.now() - ts < 86400000;
+    } catch { return false; }
+  });
+  const showModelHint = useMemo(() => {
+    if (hintDismissed || !isLastAssistant || !isFinished) return false;
+    if (hasToolCalls) return false;
+    if (textLen > 0 && textLen < 15) return true;
+    return false;
+  }, [hintDismissed, isLastAssistant, isFinished, hasToolCalls, textLen]);
+  const dismissModelHint = useCallback(() => {
+    setHintDismissed(true);
+    try { localStorage.setItem(modelHintDismissKey, String(Date.now())); } catch {}
+  }, []);
+  const openProvidersFromHint = useCallback(() => {
+    dismissModelHint();
+    window.platform?.openSettings?.({ tab: 'providers' });
+  }, [dismissModelHint]);
+
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [reviewRequestPending, setReviewRequestPending] = useState(false);
@@ -316,6 +350,11 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               <span className={styles.thinkingDots}><span /><span /><span /></span>
             </span>
           )}
+          {waitingTooLong && showWaitingHint && (
+            <span className={styles.avatarMetaWarn}>
+              {t('chat.waitingTooLong') || '响应超时，当前网络可能受限。可尝试切换网络或在设置中更换模型。'}
+            </span>
+          )}
         </div>
       )}
       <div className={`${styles.message} ${styles.messageAssistant}`}>
@@ -396,6 +435,17 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                 </button>
               )}
             </div>
+          </div>
+        )}
+        {showModelHint && (
+          <div className={styles.modelHintBar}>
+            <span className={styles.modelHintText}>
+              {t('chat.modelHint') || '当前模型回复较简短，切换到更强的模型可能效果更好'}
+            </span>
+            <button className={styles.modelHintBtn} onClick={openProvidersFromHint}>
+              {t('chat.modelHintAction') || '去设置'}
+            </button>
+            <button className={styles.modelHintDismiss} onClick={dismissModelHint}>×</button>
           </div>
         )}
       </div>

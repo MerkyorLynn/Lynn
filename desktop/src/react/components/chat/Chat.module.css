@@ -82,6 +82,84 @@
     background: rgba(var(--accent-rgb), 0.04);
 }
 
+.avatarMetaWarn {
+    display: block;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: var(--coral, #c66);
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(var(--coral-rgb, 236, 143, 141), 0.08);
+    border: 1px solid rgba(var(--coral-rgb, 236, 143, 141), 0.15);
+}
+
+.modelHintBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: rgba(var(--accent-rgb), 0.05);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    font-size: 0.68rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    animation: modelHintIn 0.25s ease-out;
+}
+
+@keyframes modelHintIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.modelHintText {
+    flex: 1;
+    min-width: 0;
+}
+
+.modelHintBtn {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+    font-size: 0.64rem;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+
+.modelHintBtn:hover {
+    background: rgba(var(--accent-rgb), 0.15);
+    transform: translateY(-1px);
+}
+
+.modelHintDismiss {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    border-radius: 50%;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.modelHintDismiss:hover {
+    opacity: 1;
+    background: var(--overlay-light);
+}
+
 /* 单条消息 */
 .message {
     max-width: 92%;

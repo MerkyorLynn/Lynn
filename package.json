@@ -145,7 +145,19 @@
       ]
     },
     "dmg": {
-      "title": "Lynn"
+      "title": "Lynn",
+      "contents": [
+        {
+          "x": 180,
+          "y": 220
+        },
+        {
+          "x": 420,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "publish": [
       {

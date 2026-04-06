@@ -170,6 +170,7 @@ export async function registerClientIdentityWithBrainApi({
   baseUrl,
   agentKey,
   secret,
+  registrationToken = "",
   clientVersion = "unknown",
   clientPlatform = resolveLynnClientPlatform(),
   timeoutMs = 10_000,
@@ -189,6 +190,7 @@ export async function registerClientIdentityWithBrainApi({
       secret: normalizedSecret,
       clientVersion,
       clientPlatform,
+      ...(registrationToken ? { registrationToken } : {}),
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });

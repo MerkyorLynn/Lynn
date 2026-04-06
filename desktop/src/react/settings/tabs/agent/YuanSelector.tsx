@@ -1,6 +1,11 @@
 import React from 'react';
 import { t } from '../../helpers';
-import { getDisplayYuanEntries, normalizeYuanKey, resolveBundledAvatar } from '../../../utils/agent-helpers';
+import {
+  getDisplayYuanEntries,
+  isBundledLynnAvatarSrc,
+  normalizeYuanKey,
+  resolveBundledAvatar,
+} from '../../../utils/agent-helpers';
 
 const kongBannerUrl = 'assets/kong-banner.jpg';
 
@@ -21,11 +26,19 @@ export function YuanSelector({ currentYuan, onChange }: { currentYuan: string; o
             type="button"
             onClick={() => { if (key !== normalizedCurrentYuan) onChange(key); }}
           >
-            <img
-              className="yuan-chip-avatar"
-              src={resolveBundledAvatar(meta.avatar || 'Lynn.png')}
-              draggable={false}
-            />
+            {(() => {
+              const avatarSrc = resolveBundledAvatar(meta.avatar || 'Lynn.png');
+              const isBundledLynnAvatar = isBundledLynnAvatarSrc(avatarSrc);
+              return (
+                <span className="yuan-chip-avatar-shell">
+                  <img
+                    className={`yuan-chip-avatar${isBundledLynnAvatar ? ' yuan-chip-avatar-bundled-lynn' : ''}`}
+                    src={avatarSrc}
+                    draggable={false}
+                  />
+                </span>
+              );
+            })()}
             <div className="yuan-chip-info">
               <span className="yuan-chip-name">{meta.name || key}</span>
               <span className="yuan-chip-desc">{meta.label || ''}</span>

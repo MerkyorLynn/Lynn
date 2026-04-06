@@ -13,6 +13,21 @@ function resolveProcessEnvValue(key) {
   return process.env[key] || "";
 }
 
+// ── 运行时端点解析（混淆） ──
+// 构建时注入或运行时解码；源码不含明文地址。
+function _d(encoded) {
+  try {
+    const r = typeof atob === "function"
+      ? atob(encoded)
+      : Buffer.from(encoded, "base64").toString("utf-8");
+    return r.split("").reverse().join("");
+  } catch { return ""; }
+}
+// 编码过程：原文 → 反转字符串 → base64
+// "http://82.156.182.240" → "042.281.651.28//:ptth" → base64
+const _BRAIN_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
+const _BRAIN_FALLBACK = _d(_BRAIN_HOST_ENCODED);
+
 // 对外入口优先走完整 root URL；只有缺失时才退回 host。
 const _brainApiRootUrl = resolveProcessEnvValue("BRAIN_API_ROOT_URL");
 const _brainHost = resolveProcessEnvValue("BRAIN_API_HOST");
@@ -21,7 +36,7 @@ const _brainLegacyHost = resolveProcessEnvValue("BRAIN_LEGACY_HOST");
 
 export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
-  normalizeApiRoot(_brainHost, "http://82.156.182.240") + "/api",
+  normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api",
 );
 export const BRAIN_LEGACY_API_ROOT = normalizeApiRoot(
   _brainLegacyApiRootUrl,
@@ -95,4 +110,10 @@ export function buildBrainProviderConfig() {
     auth_type: "none",
     models: [...BRAIN_DEFAULT_MODEL_IDS],
   };
+}
+
+// 设备注册令牌（混淆存储，运行时解码）
+const _BRAIN_REG_TOKEN_ENCODED = "MWFhZTdhODhkYzdhOGIzYzk3YmRkMzg3ZjI3NTkwZTgtZ2VyLW5pYXJiLW5ueWw=";
+export function getBrainRegistrationToken() {
+  return _d(_BRAIN_REG_TOKEN_ENCODED);
 }

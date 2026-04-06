@@ -76,6 +76,13 @@ export function lookupModelMeta(modelId: string): any {
   };
 }
 
+function resolveSettingsTargetAgentId(store: ReturnType<typeof useSettingsStore.getState>): string | null {
+  const requestedAgentId = store.getSettingsAgentId();
+  if (requestedAgentId) return requestedAgentId;
+  if (store.currentAgentId) return store.currentAgentId;
+  return store.agents[0]?.id || null;
+}
+
 /** 通用 per-agent 自动保存 */
 export async function autoSaveConfig(
   partial: Record<string, any>,
@@ -83,7 +90,8 @@ export async function autoSaveConfig(
 ) {
   const store = useSettingsStore.getState();
   try {
-    const agentId = store.getSettingsAgentId();
+    const agentId = resolveSettingsTargetAgentId(store);
+    if (!agentId) throw new Error('no valid agent selected');
     const res = await hanaFetch(`/api/agents/${agentId}/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -99,8 +107,8 @@ export async function autoSaveConfig(
     for (const k of ['_identity', '_ishiki', '_userProfile']) {
       if (k in prev && !(k in newConfig)) newConfig[k] = (prev as any)[k];
     }
-    useSettingsStore.setState({ settingsConfig: newConfig });
-    const nextAgentId = store.getSettingsAgentId();
+    useSettingsStore.setState({ settingsConfig: newConfig, settingsConfigAgentId: agentId });
+    const nextAgentId = agentId;
     if (partial.models || partial.api || partial.providers || opts.refreshModels) {
       platform?.settingsChanged?.('models-changed', { agentId: nextAgentId });
     }
@@ -145,7 +153,8 @@ export function savePins() {
   _savePinsTimer = setTimeout(async () => {
     const store = useSettingsStore.getState();
     try {
-      const agentId = store.getSettingsAgentId();
+      const agentId = resolveSettingsTargetAgentId(store);
+      if (!agentId) throw new Error('no valid agent selected');
       const res = await hanaFetch(`/api/agents/${agentId}/pinned`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

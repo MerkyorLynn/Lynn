@@ -96,7 +96,12 @@ if (!fs.existsSync(cachedNodeBin)) {
   execSync(`curl -L -o "${cachedArchive}" "${url}"`, { stdio: "inherit" });
 
   if (isWin) {
-    execSync(`powershell -command "Expand-Archive -Path '${cachedArchive}' -DestinationPath '${cacheDir}' -Force"`, { stdio: "inherit" });
+    // 跨平台兼容：macOS/Linux 上用 unzip，Windows 上用 powershell
+    if (process.platform === "win32") {
+      execSync(`powershell -command "Expand-Archive -Path '${cachedArchive}' -DestinationPath '${cacheDir}' -Force"`, { stdio: "inherit" });
+    } else {
+      execSync(`unzip -o -q "${cachedArchive}" -d "${cacheDir}"`, { stdio: "inherit" });
+    }
   } else {
     execSync(`tar xzf "${cachedArchive}" -C "${cacheDir}"`, { stdio: "inherit" });
   }
@@ -116,9 +121,11 @@ if (!isWin) fs.chmodSync(destNode, 0o755);
 console.log("[build-server] Node.js runtime ready");
 
 // helper: 用目标 Node 跑命令
-// PATH 前置目标 Node 的 bin 目录，确保 lifecycle scripts（如 prebuild-install）
-// 也用目标 Node 而非系统 Node（两者 ABI 可能不同）
-const targetNodeDir = path.dirname(cachedNodeBin);
+// 跨平台构建（如 macOS 构建 Windows）时，目标 node.exe 无法执行，
+// 此时用系统 node 代替，并通过环境变量指定目标平台。
+const isCrossBuild = platform !== process.platform;
+const hostNodeBin = isCrossBuild ? process.execPath : cachedNodeBin;
+const hostNodeDir = path.dirname(hostNodeBin);
 // npm run 会注入当前包的 lifecycle/package 元数据；子 npm install 继承后
 // 可能把根包的 postinstall 错误套用到 dist-server，导致打包链路失败。
 const nestedInstallEnv = { ...process.env };
@@ -139,10 +146,15 @@ for (const key of Object.keys(nestedInstallEnv)) {
 const targetEnv = {
   ...nestedInstallEnv,
   NODE_ENV: "production",
-  PATH: `${targetNodeDir}${path.delimiter}${process.env.PATH}`,
+  PATH: `${hostNodeDir}${path.delimiter}${process.env.PATH}`,
+  // 跨平台构建时，告诉 prebuild-install 下载目标平台的预编译二进制
+  ...(isCrossBuild ? {
+    npm_config_platform: platform,
+    npm_config_arch: arch,
+  } : {}),
 };
 function runWithTargetNode(cmd, opts = {}) {
-  execSync(`"${cachedNodeBin}" ${cmd}`, {
+  execSync(`"${hostNodeBin}" ${cmd}`, {
     cwd: outDir,
     stdio: "inherit",
     env: targetEnv,
@@ -478,11 +490,15 @@ const MB = (n) => (n / 1024 / 1024).toFixed(0);
 console.log(`[build-server] nft: kept ${keptFiles} files, removed ${removedFiles} files (${MB(removedSize)}MB)`);
 } // end if (fileList)
 
-await verifyRuntimeImports([
-  { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/google.js" },
-  { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/openai-completions.js" },
-]);
-console.log("[build-server] runtime import smoke test passed");
+if (isCrossBuild) {
+  console.log("[build-server] cross-build: skipping runtime import verification");
+} else {
+  await verifyRuntimeImports([
+    { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/google.js" },
+    { packageName: "@mariozechner/pi-ai", relativePath: "dist/providers/openai-completions.js" },
+  ]);
+  console.log("[build-server] runtime import smoke test passed");
+}
 
 // ── 8b. 处理 koffi ──
 // koffi 只在 Windows 终端增强里使用，macOS/Linux 路径不会触发 require。

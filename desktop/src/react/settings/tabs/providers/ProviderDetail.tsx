@@ -25,9 +25,6 @@ export function ProviderDetail({ providerId, summary, providerConfig, isPresetSe
     <div className={styles['pv-detail-inner']}>
       <div className={styles['pv-detail-header']}>
         <h2 className={styles['pv-detail-title']}>{title}</h2>
-        {summary.can_delete && !isPresetSetup && providerId !== BRAIN_PROVIDER_ID && (
-          <ProviderDeleteButton providerId={providerId} onRefresh={onRefresh} />
-        )}
       </div>
       {summary.supports_oauth ? (
         <OAuthCredentials providerId={providerId} summary={summary} onRefresh={onRefresh} />
@@ -42,6 +39,11 @@ export function ProviderDetail({ providerId, summary, providerConfig, isPresetSe
         />
       )}
       <ProviderModelList providerId={providerId} summary={summary} onRefresh={onRefresh} />
+      {summary.can_delete && !isPresetSetup && providerId !== BRAIN_PROVIDER_ID && (
+        <div className={styles['pv-detail-footer']}>
+          <ProviderDeleteButton providerId={providerId} onRefresh={onRefresh} />
+        </div>
+      )}
     </div>
   );
 }

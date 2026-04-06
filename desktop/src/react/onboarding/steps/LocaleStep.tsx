@@ -49,9 +49,13 @@ export function LocaleStep({
     }
   }, [onboardingFetch, locale, onSelectTrack, preview, showError, submittingTrack]);
 
+  const isBundledLynnAvatar = avatarSrc.includes('assets/Lynn-512-opt.png') || avatarSrc.includes('assets/Lynn.png');
+
   return (
     <StepContainer>
-      <img className="onboarding-avatar" src={avatarSrc} draggable={false} alt="" />
+      <div className={`onboarding-avatar-shell${isBundledLynnAvatar ? ' onboarding-avatar-shell-bundled-lynn' : ''}`}>
+        <img className="onboarding-avatar" src={avatarSrc} draggable={false} alt="" />
+      </div>
       <h1 className="onboarding-title">{t('onboarding.welcome.title')}</h1>
       <Multiline className="onboarding-subtitle" text={t('onboarding.welcome.subtitle')} />
       <div className="ob-locale-picker">

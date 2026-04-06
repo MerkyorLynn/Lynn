@@ -207,7 +207,8 @@ body {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: var(--green, #4ecdc4);
+    background: var(--accent);
+    opacity: 0.7;
 }
 
 .tb-toggle-badge.has-content {
@@ -216,8 +217,19 @@ body {
     width: 12px;
     height: 12px;
     padding: 0;
-    background: rgba(76, 205, 196, 0.12);
-    border-color: rgba(76, 205, 196, 0.18);
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.14);
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.tb-toggle:hover .tb-toggle-badge.has-content {
+    transform: scale(1.15);
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.22);
+}
+
+.tb-toggle:hover .tb-toggle-badge.has-content::after {
+    opacity: 1;
 }
 
 .tb-toggle-badge.has-count {
@@ -409,7 +421,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    max-width: min(58vw, 640px);
+    max-width: min(52vw, 640px);
     padding: 6px 14px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--bg-card) 88%, transparent);
@@ -417,6 +429,7 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     color: var(--text);
     letter-spacing: 0.02em;
+    overflow: hidden;
 }
 
 .tb-title-primary {
@@ -696,6 +709,15 @@ html[data-platform="linux"] .tb-task-chip {
     );
 }
 
+html[data-platform="darwin"] .titlebar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--overlay-light);
+}
+
+html[data-platform="darwin"] .main-content::before {
+    display: none;
+}
+
 /* ========================================
    App 布局
    ======================================== */
@@ -704,6 +726,7 @@ html[data-platform="linux"] .tb-task-chip {
     flex-direction: row;
     height: 100vh;
     max-width: 100%;
+    background: var(--bg);
 }
 
 .main-content {
@@ -2467,7 +2490,7 @@ html[data-platform="linux"] .tb-task-chip {
     opacity: 0.35;
 }
 
-/* 右 jian sidebar：鼠标跟随渐变线，上下渐变消失避开圆角 */
+/* 右 jian sidebar：默认隐藏竖线，hover 时才微弱显示 */
 .resize-handle-left { left: -4px; }
 .resize-handle-left::after {
     content: "";
@@ -2492,9 +2515,11 @@ html[data-platform="linux"] .tb-task-chip {
         transparent 0%, transparent 15%, black 25%, black 75%, transparent 85%, transparent 100%
     );
 }
-.resize-handle-left:hover::after,
+.resize-handle-left:hover::after {
+    opacity: 0.5;
+}
 .resize-handle-left.active::after {
-    opacity: 1;
+    opacity: 0.8;
 }
 
 /* 拖拽中禁止文字选中 */
@@ -3145,7 +3170,13 @@ body.resizing .jian-sidebar-inner {
     flex-direction: column;
     align-items: center;
     padding: 48px 40px 32px;
-    -webkit-app-region: drag;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: var(--bg);
+    background-image: var(--bg-texture, none);
+    background-repeat: repeat;
+    background-size: 400px;
+    -webkit-app-region: no-drag;
 }
 
 .onboarding button,
@@ -3178,11 +3209,9 @@ body.resizing .jian-sidebar-inner {
     background: var(--green, #6b9);
 }
 
-/* Windows/Linux：无红绿灯，减少顶部 padding；
-   取消 drag，改由 titlebar-minimal 承担拖拽 */
+/* Windows/Linux：无红绿灯，减少顶部 padding */
 html[data-platform="win32"] .onboarding,
 html[data-platform="linux"] .onboarding {
-    -webkit-app-region: no-drag;
     padding-top: 20px;
 }
 
@@ -3201,22 +3230,24 @@ html[data-platform="linux"] .onboarding {
     padding-right: 6px;
     padding-bottom: 8px;
     animation: obFadeIn 0.3s ease-out;
+    -webkit-app-region: no-drag;
 }
 .onboarding-step.active {
     display: flex;
 }
 
 .onboarding-step-tutorial {
-    padding-bottom: 24px;
+    padding-bottom: 8px;
 }
 
 .onboarding-step-tutorial .onboarding-actions {
-    position: static;
-    margin-top: 8px;
-    padding-top: 8px;
-    padding-bottom: 0;
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding-top: 18px;
+    padding-bottom: 8px;
     justify-content: center;
-    background: none;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 28px);
 }
 
 @keyframes obFadeIn {
@@ -3242,12 +3273,25 @@ html[data-platform="linux"] .onboarding {
 }
 
 /* ── Avatar (welcome step) ── */
-.onboarding-avatar {
-    width: 88px; height: 88px;
+.onboarding-avatar-shell {
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
-    object-fit: cover;
+    overflow: hidden;
     box-shadow: 0 2px 12px var(--shadow, rgba(0,0,0,0.08));
     margin-bottom: 4px;
+}
+
+.onboarding-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.onboarding-avatar-shell-bundled-lynn .onboarding-avatar {
+    transform: scale(1.18);
+    transform-origin: center;
 }
 
 /* ── Buttons ── */
@@ -3785,8 +3829,8 @@ html[data-platform="linux"] .onboarding {
 
 .onboarding-actions-finish {
     justify-content: center;
-    margin-top: 10px;
-    background: none;
+    width: 100%;
+    margin-top: auto;
 }
 
 /* ── Finish button ── */
@@ -3800,7 +3844,7 @@ html[data-platform="linux"] .onboarding {
     background: var(--accent);
     color: white;
     cursor: pointer;
-    margin-top: auto;
+    margin-top: 0;
     transition: opacity 0.2s;
 }
 .ob-finish-btn:hover { opacity: 0.9; }
@@ -3855,13 +3899,30 @@ html[data-platform="linux"] .onboarding {
     color: var(--accent);
 }
 
-.yuan-chip-avatar {
+.yuan-chip-avatar-shell {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    flex-shrink: 0;
+}
+
+.yuan-chip-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     object-fit: cover;
     object-position: center center;
+    display: block;
+}
+
+.yuan-chip-avatar-bundled-lynn {
+    transform: scale(1.16);
+    transform-origin: center;
 }
 
 .yuan-chip-info {

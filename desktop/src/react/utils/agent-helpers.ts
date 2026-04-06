@@ -69,6 +69,11 @@ export function resolveBundledAvatar(assetName?: string): string {
   }
 }
 
+export function isBundledLynnAvatarSrc(src?: string | null): boolean {
+  const value = String(src || '');
+  return value.includes('assets/Lynn-512-opt.png') || value.includes('assets/Lynn.png');
+}
+
 export function yuanFallbackAvatar(yuan?: string): string {
   const types = t('yuan.types') || {};
   const key = normalizeYuanKey(yuan);

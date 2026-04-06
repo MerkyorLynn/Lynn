@@ -345,6 +345,11 @@ export function createAgentsRoute(engine) {
       // active agent 需要额外触发模块刷新 + prompt 重建
       if (isActiveAgent(engine, id)) {
         await engine.updateConfig(agentPartial);
+      } else {
+        const loadedAgent = typeof engine.getAgent === "function" ? engine.getAgent(id) : null;
+        if (loadedAgent?.updateConfig) {
+          loadedAgent.updateConfig(agentPartial);
+        }
       }
       // 记忆总开关：无论是否 active agent，都需要刷新运行时状态（因为 ticker 后台在跑）
       if (agentPartial.memory && "enabled" in agentPartial.memory) {

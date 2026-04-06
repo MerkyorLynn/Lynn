@@ -193,6 +193,34 @@ export function createProvidersRoute(engine) {
     return c.json({ providers: result });
   });
 
+  function buildBuiltinFallbackModels(providerName) {
+    if (!providerName) return [];
+    const defaults = engine.providerRegistry?.getDefaultModels?.(providerName) || [];
+    return defaults.map((id) => ({
+      id,
+      name: id,
+      context: null,
+      maxOutput: null,
+    }));
+  }
+
+  function buildFetchFallback(providerName) {
+    const builtinModels = buildBuiltinFallbackModels(providerName);
+    if (builtinModels.length > 0) {
+      saveToCache(providerName, builtinModels);
+      return { source: "builtin", models: builtinModels };
+    }
+
+    if (providerName) {
+      const cachedModels = readModelsCache(engine)?.[providerName]?.models || [];
+      if (cachedModels.length > 0) {
+        return { source: "cache", models: cachedModels };
+      }
+    }
+
+    return null;
+  }
+
   // ── Fetch / Test ──
 
   function normalizeRegistryModels(models) {
@@ -270,7 +298,7 @@ export function createProvidersRoute(engine) {
     }
 
     // Anthropic 格式没有 /models 端点，从 Pi SDK registry 或 default-models.json 返回
-    if (api === "anthropic-messages") {
+    if (effectiveApi === "anthropic-messages") {
       const registryModels = engine.modelRegistry
         ? engine.modelRegistry.getAll().filter((m) => m.provider === name)
         : [];
@@ -290,13 +318,13 @@ export function createProvidersRoute(engine) {
     }
 
     try {
-      const url = base_url.replace(/\/+$/, "") + "/models";
+      const url = effectiveBaseUrl.replace(/\/+$/, "") + "/models";
       let headers = { "Content-Type": "application/json" };
       if (key || allowMissingApiKey) {
-        if (!api) {
+        if (!effectiveApi) {
           return c.json({ error: "api is required", models: [] });
         }
-        headers = buildProviderAuthHeaders(api, key, {
+        headers = buildProviderAuthHeaders(effectiveApi, key, {
           allowMissingApiKey,
           method: "GET",
           pathname: "/models",
@@ -308,6 +336,8 @@ export function createProvidersRoute(engine) {
       });
 
       if (!res.ok) {
+        const fallback = buildFetchFallback(name);
+        if (fallback) return c.json(fallback);
         return c.json({ error: `HTTP ${res.status}: ${res.statusText}`, models: [] });
       }
 
@@ -321,9 +351,16 @@ export function createProvidersRoute(engine) {
         maxOutput: m.max_completion_tokens || m.max_output_tokens || null,
       }));
 
+      if (models.length === 0) {
+        const fallback = buildFetchFallback(name);
+        if (fallback) return c.json(fallback);
+      }
+
       saveToCache(name, models);
       return c.json({ models });
     } catch (err) {
+      const fallback = buildFetchFallback(name);
+      if (fallback) return c.json(fallback);
       return c.json({ error: err.message, models: [] });
     }
   });
@@ -346,16 +383,31 @@ export function createProvidersRoute(engine) {
    */
   route.post("/providers/test", async (c) => {
     const body = await safeJson(c);
-    const { name, base_url, api } = body;
+    const { name } = body;
+    const base_url = String(body.base_url || "").trim();
+    const explicitApi = String(body.api || "").trim();
     // 清洗 API key：去除非 ASCII 字符（防止粘贴时输入法带入中文）
-    const api_key = (body.api_key || "").replace(/[^\x20-\x7E]/g, "").trim();
-    if (!base_url) {
+    const explicitApiKey = (body.api_key || "").replace(/[^\x20-\x7E]/g, "").trim();
+    const savedProvider = name ? (() => {
+      const cred = engine.providerRegistry.getCredentials(name);
+      if (!cred) return {};
+      return { api_key: cred.apiKey, base_url: cred.baseUrl, api: cred.api };
+    })() : {};
+    const effectiveBaseUrl = base_url || savedProvider.base_url || "";
+    const effectiveApi = explicitApi || savedProvider.api || "";
+    let effectiveApiKey = explicitApiKey || savedProvider.api_key || "";
+    if (!effectiveBaseUrl) {
       return c.json({ error: "base_url is required" }, 400);
     }
 
     try {
-      const probe = buildProbeUrl(base_url, api);
-      const allowMissingApiKey = resolveAllowMissingApiKey(name, base_url);
+      const allowMissingApiKey = resolveAllowMissingApiKey(name, effectiveBaseUrl);
+      if (!effectiveApiKey && name) {
+        try {
+          effectiveApiKey = await engine.authStorage.getApiKey(name) || "";
+        } catch {}
+      }
+      const probe = buildProbeUrl(effectiveBaseUrl, effectiveApi);
       const pathname = (() => {
         try {
           return new URL(probe.url).pathname || "/models";
@@ -364,8 +416,8 @@ export function createProvidersRoute(engine) {
         }
       })();
 
-      if (api === "anthropic-messages") {
-        const headers = buildProviderAuthHeaders(api, api_key, {
+      if (effectiveApi === "anthropic-messages") {
+        const headers = buildProviderAuthHeaders(effectiveApi, effectiveApiKey, {
           allowMissingApiKey,
           method: probe.method,
           pathname,
@@ -382,11 +434,11 @@ export function createProvidersRoute(engine) {
       }
 
       let headers = {};
-      if (api_key || allowMissingApiKey) {
-        if (!api) {
+      if (effectiveApiKey || allowMissingApiKey) {
+        if (!effectiveApi) {
           return c.json({ error: "api is required when api_key is present" }, 400);
         }
-        headers = buildProviderAuthHeaders(api, api_key, {
+        headers = buildProviderAuthHeaders(effectiveApi, effectiveApiKey, {
           allowMissingApiKey,
           method: probe.method,
           pathname,
@@ -396,6 +448,35 @@ export function createProvidersRoute(engine) {
         headers,
         signal: AbortSignal.timeout(10000),
       });
+      // /models 返回 401/403 说明 key 无效
+      if (res.status === 401 || res.status === 403) {
+        return c.json({ ok: false, status: res.status });
+      }
+      if (res.ok) {
+        return c.json({ ok: true, status: res.status });
+      }
+      // /models 端点不存在或不可用（404/405/500 等），回退到 chat completions 探测
+      if (effectiveApi === "openai-completions" || effectiveApi === "openai-responses") {
+        try {
+          const chatUrl = `${String(effectiveBaseUrl).replace(/\/+$/, "")}/chat/completions`;
+          const chatHeaders = buildProviderAuthHeaders(effectiveApi, effectiveApiKey, {
+            allowMissingApiKey,
+            method: "POST",
+            pathname: "/chat/completions",
+          });
+          const chatRes = await fetch(chatUrl, {
+            method: "POST",
+            headers: chatHeaders,
+            body: JSON.stringify({ model: "test", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
+            signal: AbortSignal.timeout(10000),
+          });
+          // 401/403 = key 无效，其他状态（400 model not found 等）说明认证通过
+          const authOk = chatRes.status !== 401 && chatRes.status !== 403;
+          return c.json({ ok: authOk, status: chatRes.status });
+        } catch {
+          // 回退探测也失败，返回原始 /models 结果
+        }
+      }
       return c.json({ ok: res.ok, status: res.status });
     } catch (err) {
       return c.json({ ok: false, error: err.message });

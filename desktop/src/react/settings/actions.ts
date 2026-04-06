@@ -6,6 +6,7 @@ import { hanaFetch, hanaUrl } from './api';
 import { t } from './helpers';
 
 const platform = window.platform;
+const BUILT_IN_AGENT_IDS = new Set(['lynn', 'hanako', 'butter']);
 
 async function getWorkspaceDefaults() {
   try {
@@ -22,22 +23,32 @@ export async function loadAgents() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const allAgents = data.agents || [];
-    const selectedAgentId = store.getSettingsAgentId();
+    const requestedSettingsAgentId = store.settingsAgentId;
+    const effectiveSettingsAgentId = requestedSettingsAgentId
+      && allAgents.some((agent: any) => agent.id === requestedSettingsAgentId)
+      ? requestedSettingsAgentId
+      : null;
     // 设置页默认只显示普通助手；内部 reviewer 仅在被显式导航时保留。
     const agents = allAgents.filter((a: any) => {
       if (a.tier === 'expert') return false;
-      if (a.tier === 'reviewer') return a.id === selectedAgentId;
+      if (a.tier === 'reviewer') {
+        if (BUILT_IN_AGENT_IDS.has(a.id)) return true;
+        return a.id === effectiveSettingsAgentId;
+      }
       return true;
     });
     let currentAgentId = store.currentAgentId;
-    if (!currentAgentId) {
+    const hasCurrentAgent = currentAgentId
+      && allAgents.some((agent: any) => agent.id === currentAgentId);
+    if (!hasCurrentAgent) {
       const primary = agents.find((a: any) => a.isPrimary) || agents[0];
-      if (primary) currentAgentId = primary.id;
+      currentAgentId = primary?.id || null;
     }
     const currentAgent = allAgents.find((a: any) => a.id === currentAgentId) || agents.find((a: any) => a.id === currentAgentId);
     store.set({
       agents,
       currentAgentId,
+      settingsAgentId: effectiveSettingsAgentId,
       agentYuan: currentAgent?.yuan || store.agentYuan,
       agentName: currentAgent?.name || store.agentName,
     });
@@ -94,7 +105,12 @@ export async function loadAvatars() {
 export async function loadSettingsConfig() {
   const store = useSettingsStore.getState();
   try {
-    const agentId = store.getSettingsAgentId();
+    const requestedAgentId = store.getSettingsAgentId();
+    const agentId = requestedAgentId || store.currentAgentId || store.agents[0]?.id || null;
+    if (!agentId) return;
+    if (store.settingsAgentId && store.settingsAgentId !== agentId) {
+      store.set({ settingsAgentId: agentId === store.currentAgentId ? null : agentId });
+    }
     const defaults = await getWorkspaceDefaults();
     const agentBase = `/api/agents/${agentId}`;
     const [configRes, globalConfigRes, identityRes, ishikiRes, publicIshikiRes, userProfileRes, pinnedRes, globalModelsRes, experienceRes] =
@@ -154,7 +170,13 @@ export async function loadSettingsConfig() {
 }
 
 export async function browseAgent(agentId: string) {
-  useSettingsStore.setState({ settingsAgentId: agentId, selectedProviderId: null, settingsConfigAgentId: null });
+  await loadAgents();
+  useSettingsStore.setState({
+    settingsAgentId: agentId,
+    selectedProviderId: null,
+    settingsConfig: null,
+    settingsConfigAgentId: null,
+  });
   await loadSettingsConfig();
   await loadAgents();
 }
@@ -173,6 +195,7 @@ export async function switchToAgent(agentId: string) {
     store.set({
       settingsAgentId: null,
       selectedProviderId: null,
+      settingsConfig: null,
       settingsConfigAgentId: null,
       currentAgentId: data.agent.id,
       agentName: data.agent.name,

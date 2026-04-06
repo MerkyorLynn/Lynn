@@ -21,12 +21,19 @@ import { buildReviewFollowUp, parseStructuredReview } from "../review-result.js"
 import { buildReviewFollowUpTaskPrompt, buildReviewFollowUpTaskTitle } from "../review-follow-up.js";
 
 const REVIEWER_YUANS = new Set(["hanako", "butter"]);
+const BUILT_IN_REVIEWER_IDS = new Set(["hanako", "butter"]);
 const REVIEW_PROGRESS_STAGES = ["packing_context", "reviewing", "structuring", "done"];
 const MAX_CONTEXT_PREVIEW_CHARS = 2200;
 const MAX_SESSION_LINES = 120;
 const MAX_TOOL_ITEMS = 10;
 const REVIEW_EXEC_TIMEOUT_MS = 45_000;
 const REVIEW_FALLBACK_TIMEOUT_MS = 22_000;
+
+function stripThinkTags(raw) {
+  return String(raw || "")
+    .replace(/<think>[\s\S]*?<\/think>\n*/gi, "")
+    .trim();
+}
 
 function isZh() {
   return getLocale().startsWith("zh");
@@ -90,9 +97,14 @@ function ensureReviewerAgentShape(engine, kind, reviewerId) {
   const currentYuan = String(agent?.config?.agent?.yuan || agent?.yuan || "").trim().toLowerCase();
   const currentTier = String(agent?.config?.agent?.tier || agent?.tier || "").trim().toLowerCase();
   const nextAgent = {};
+  const isBuiltInReviewer = BUILT_IN_REVIEWER_IDS.has(agentId);
 
   if (currentYuan !== kind) nextAgent.yuan = kind;
-  if (currentTier !== "reviewer") nextAgent.tier = "reviewer";
+  if (isBuiltInReviewer) {
+    if (currentTier === "reviewer") nextAgent.tier = "local";
+  } else if (currentTier !== "reviewer") {
+    nextAgent.tier = "reviewer";
+  }
   if (Object.keys(nextAgent).length === 0) return false;
 
   try {
@@ -782,7 +794,8 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
         );
 
         emitProgress("structuring");
-        const structured = parseStructuredReview(reviewRun.content || "");
+        const cleanedContent = stripThinkTags(reviewRun.content || "");
+        const structured = parseStructuredReview(cleanedContent);
         const followUpPrompt = structured ? buildReviewFollowUp(structured) : null;
 
         emitProgress("done", {
@@ -803,7 +816,7 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
           reviewerModelLabel: reviewRun.usedModelLabel || null,
           reviewerModelId: reviewRun.usedModelId || null,
           reviewerModelProvider: reviewRun.usedModelProvider || null,
-          content: reviewRun.content,
+          content: cleanedContent,
           structured,
           contextPack,
           followUpPrompt,

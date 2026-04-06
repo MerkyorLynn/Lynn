@@ -14,6 +14,7 @@ import { switchSession, archiveSession, renameSession } from '../stores/session-
 import type { Session, Agent } from '../types';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
 import { lookupKnownModel } from '../utils/known-models';
+import { isDisplayDefaultModel } from '../utils/brain-models';
 import styles from './SessionList.module.css';
 
 
@@ -396,6 +397,7 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
 
   const modelLabel = useMemo(() => {
     if (!s.modelId) return '';
+    if (isDisplayDefaultModel(s.modelId, s.modelProvider)) return '';
     const known = lookupKnownModel(s.modelProvider || '', s.modelId);
     const provider = formatProviderLabel(s.modelProvider || known?.provider || '');
     const display = known?.name || s.modelId;

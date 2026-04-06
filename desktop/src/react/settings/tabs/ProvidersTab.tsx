@@ -2,10 +2,9 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useSettingsStore, type ProviderSummary } from '../store';
 import { hanaFetch } from '../api';
 import { t, PROVIDER_PRESETS } from '../helpers';
-import { loadSettingsConfig } from '../actions';
 import { ProviderDetail } from './providers/ProviderDetail';
 import { AddCustomButton } from './providers/ProviderList';
-import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
+import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL } from '../../../../../shared/brain-provider.js';
 import styles from '../Settings.module.css';
 
 const OAUTH_PROVIDER_ORDER = [
@@ -82,10 +81,6 @@ export function ProvidersTab() {
   const { providersSummary, selectedProviderId, preferredProviderId, settingsConfig } = useSettingsStore();
   const providers = settingsConfig?.providers || {};
   const [addingProvider, setAddingProvider] = useState(false);
-  const hana = window.hana as {
-    debugOpenOnboarding?: () => Promise<void>;
-    openExternal?: (url: string) => Promise<void> | void;
-  } | undefined;
 
   const loadSummary = useCallback(async () => {
     try {
@@ -98,6 +93,7 @@ export function ProvidersTab() {
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
   const providerIds = Object.keys(providersSummary);
+  const summaryLoaded = providerIds.length > 0;
   const visibleOauthProviderIds = sortByPriority(
     providerIds.filter((id) => providersSummary[id].supports_oauth && OAUTH_PROVIDER_ORDER.includes(id)),
     OAUTH_PROVIDER_ORDER,
@@ -115,6 +111,7 @@ export function ProvidersTab() {
   const resolvedPreferredProviderId = resolvePreferredProviderId(settingsConfig) || preferredProviderId;
 
   useEffect(() => {
+    if (!summaryLoaded) return;
     const hasSelected = !!selectedProviderId && visibleProviderIds.includes(selectedProviderId);
     if (hasSelected) return;
 
@@ -128,7 +125,7 @@ export function ProvidersTab() {
     if (fallback && fallback !== selectedProviderId) {
       useSettingsStore.setState({ selectedProviderId: fallback });
     }
-  }, [resolvedPreferredProviderId, selectedProviderId, visibleProviderIds]);
+  }, [resolvedPreferredProviderId, selectedProviderId, summaryLoaded, visibleProviderIds]);
   const selected = selectedProviderId;
 
   // 分组：OAuth / Coding Plan / API Key
@@ -149,10 +146,6 @@ export function ProvidersTab() {
     registeredApiKey.filter(id => presetValues.has(id)),
     API_PROVIDER_ORDER,
   );
-  const brainSummary = providersSummary.brain;
-  const brainNeedsSetup = !brainSummary?.has_credentials
-    || (brainSummary?.models || []).length === 0;
-
   const selectProvider = (id: string) => {
     useSettingsStore.setState({ selectedProviderId: id });
   };
@@ -192,31 +185,6 @@ export function ProvidersTab() {
 
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="providers">
-      {brainNeedsSetup && (
-        <section className={styles['settings-section']}>
-          <h2 className={styles['settings-section-title']}>默认模型 Quick Start</h2>
-          <p className={styles['settings-desc']}>
-            Lynn 默认可以直接使用内置的免费模型链路。
-            如果这条链路还没完成初始化，可以重新打开新手引导补一次默认模型闭环。
-          </p>
-          <p className={styles['settings-desc']}>
-            {getBrainComplianceNote()}
-          </p>
-          <p className={styles['settings-desc']} style={{ opacity: 0.78 }}>
-            {getBrainUserNotice()}
-          </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              className={styles['settings-save-btn-sm']}
-              type="button"
-              style={{ width: 'auto' }}
-              onClick={() => { void hana?.debugOpenOnboarding?.(); }}
-            >
-              打开新手引导
-            </button>
-          </div>
-        </section>
-      )}
       <div className={styles['pv-layout']}>
         {/* ── 左栏 ── */}
         <div className={styles['pv-list']}>

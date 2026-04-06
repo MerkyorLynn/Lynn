@@ -24,6 +24,10 @@ const YUAN_COLORS: Record<string, string> = {
   lynn: '#8BA4B4',
 };
 
+function isBundledLynnAvatar(src: string): boolean {
+  return src.includes('assets/Lynn-512-opt.png') || src.includes('assets/Lynn.png');
+}
+
 export function SplashApp() {
   const [avatarSrc, setAvatarSrc] = useState('assets/Lynn-512-opt.png');
   const [text, setText] = useState('');
@@ -105,12 +109,14 @@ export function SplashApp() {
 
   return (
     <div className="splash-container">
-      <img
-        className="splash-avatar"
-        src={avatarSrc}
-        alt=""
-        draggable={false}
-      />
+      <div className={`splash-avatar-shell${isBundledLynnAvatar(avatarSrc) ? ' splash-avatar-shell-bundled-lynn' : ''}`}>
+        <img
+          className="splash-avatar"
+          src={avatarSrc}
+          alt=""
+          draggable={false}
+        />
+      </div>
       <div className="splash-text-row">
         <p className={`splash-text${switching ? ' switching' : ''}`}>{text}</p>
         <span className="splash-sakura" style={{ color: accentColor }}>{symbol}</span>
