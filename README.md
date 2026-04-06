@@ -49,7 +49,7 @@ As a tool, it is powerful: it remembers everything you've said, operates your co
 ## Screenshots
 
 <p align="center">
-  <img src=".github/assets/screenshot-main.png" width="100%" alt="Lynn Main Interface">
+  <img src=".github/assets/screenshot-main-20260407.png" width="100%" alt="Lynn Main Interface">
 </p>
 
 ## Quick Start
