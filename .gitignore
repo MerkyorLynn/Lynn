@@ -55,6 +55,12 @@ desktop/src/assets/_lynn_avatar_tmp.png
 # 项目私有文件
 CLAUDE.md
 
+# 个人数据 / Agent 产物
+jian.md
+diary/
+fang-scraper/
+__pycache__/
+
 # 临时文件
 tmp/
 /index.html

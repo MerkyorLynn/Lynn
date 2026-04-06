@@ -21,7 +21,7 @@ const _brainLegacyHost = resolveProcessEnvValue("BRAIN_LEGACY_HOST");
 
 export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
-  normalizeApiRoot(_brainHost, "http://127.0.0.1:8789") + "/api",
+  normalizeApiRoot(_brainHost, "http://82.156.182.240") + "/api",
 );
 export const BRAIN_LEGACY_API_ROOT = normalizeApiRoot(
   _brainLegacyApiRootUrl,
