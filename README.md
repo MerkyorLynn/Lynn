@@ -153,7 +153,7 @@ npm run typecheck
 
 [Apache License 2.0](LICENSE)
 
-This project is based on the open source work of [liliMozi](https://github.com/nicepkg/pi), modified and extended by Merkyor. See [NOTICE](NOTICE).
+This project is based on the open source work of [liliMozi](https://github.com/liliMozi/openhanako), modified and extended by Merkyor. See [NOTICE](NOTICE).
 
 ## Links
 

@@ -158,7 +158,7 @@ npm run typecheck
 
 [Apache License 2.0](LICENSE)
 
-本项目基于 [liliMozi](https://github.com/nicepkg/pi) 的开源工作，由 Merkyor 修改和扩展。详见 [NOTICE](NOTICE)。
+本项目基于 [liliMozi](https://github.com/liliMozi/openhanako) 的开源工作，由 Merkyor 修改和扩展。详见 [NOTICE](NOTICE)。
 
 ## 链接
 
