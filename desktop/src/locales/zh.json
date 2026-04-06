@@ -211,7 +211,11 @@
     "browserScreenshot": "浏览器截图",
     "compacting": "上下文压缩中",
     "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
-    "retry": "Retry"
+    "retry": "Retry",
+    "waiting": "等待回复",
+    "waitingTooLong": "响应超时，当前网络可能受限。可尝试切换网络或在设置中更换模型。",
+    "modelHint": "当前模型回复较简短，切换到更强的模型可能效果更好",
+    "modelHintAction": "去设置"
   },
   "markdown": {
     "runConfirm": {
@@ -389,10 +393,12 @@
         "name": "Hanako"
       },
       "butter": {
+        "name": "Butter",
         "label": "更富有感情",
         "avatar": "Butter.png"
       },
       "kong": {
+        "name": "Kong",
         "label": "模型原本的样子",
         "avatar": "Kong.png"
       },

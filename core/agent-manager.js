@@ -416,6 +416,12 @@ export class AgentManager {
   async switchAgentOnly(agentId) {
     if (this._switching) throw new Error(t("error.agentSwitching"));
     if (!this._agents.has(agentId)) {
+      const loaded = await this.ensureAgentLoaded(agentId);
+      if (!loaded) {
+        throw new Error(t("error.agentNotFound", { id: agentId }));
+      }
+    }
+    if (!this._agents.has(agentId)) {
       throw new Error(t("error.agentNotFound", { id: agentId }));
     }
     this._switching = true;

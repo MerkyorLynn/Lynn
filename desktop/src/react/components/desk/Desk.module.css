@@ -842,6 +842,40 @@
     animation: deskPatrolPulse 1.8s ease-out infinite;
 }
 
+.editorPatrolFreq {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.editorPatrolFreqBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 2px 7px;
+    border: 1px solid rgba(var(--accent-rgb), 0.16);
+    border-radius: 6px;
+    background: rgba(var(--accent-rgb), 0.06);
+    color: var(--text-secondary);
+    font-size: 0.56rem;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+    flex-shrink: 0;
+}
+
+.editorPatrolFreqBtn:hover {
+    background: rgba(var(--accent-rgb), 0.14);
+    border-color: rgba(var(--accent-rgb), 0.3);
+    color: var(--accent);
+    transform: scale(1.06);
+}
+
 .editorPatrolDone .editorPatrolDot {
     background: var(--green, #5cbf8e);
 }

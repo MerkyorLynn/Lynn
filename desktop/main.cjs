@@ -840,6 +840,10 @@ function showPrimaryWindow() {
  * - 右键菜单：显示 Lynn / 设置 / 退出
  */
 function createTray() {
+  if (process.platform === "darwin") {
+    tray = null;
+    return;
+  }
   const isDev = lynnHome !== path.join(os.homedir(), ".lynn");
   let icon;
   if (process.platform === "win32") {
@@ -989,6 +993,17 @@ function loadWindowState() {
   }
 }
 
+function normalizeMainWindowState(state) {
+  if (!state || process.platform !== "darwin" || state.isMaximized) return state;
+  const next = { ...state };
+  // 兼容旧版本遗留的顶部空隙：窗口会被记在菜单栏下方一小段距离，
+  // 重新启动后就像屏幕顶端多出一条“通栏”。mac 下直接贴顶恢复。
+  if (typeof next.y === "number" && next.y >= 0 && next.y <= TITLEBAR_HEIGHT) {
+    next.y = 0;
+  }
+  return next;
+}
+
 let _saveWindowStateTimer = null;
 function saveWindowState() {
   if (_saveWindowStateTimer) clearTimeout(_saveWindowStateTimer);
@@ -1011,7 +1026,7 @@ function createMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     return mainWindow;
   }
-  const saved = loadWindowState();
+  const saved = normalizeMainWindowState(loadWindowState());
 
   const opts = {
     width: saved?.width || 960,

@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSettingsStore } from '../store';
-import { hanaFetch } from '../api';
+import { hanaFetch, hanaUrl, yuanFallbackAvatar as settingsYuanFallbackAvatar } from '../api';
 import { t, autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
-import { browseAgent, switchToAgent, loadSettingsConfig, loadAgents } from '../actions';
-import { AgentCardStack } from './agent/AgentCardStack';
+import { browseAgent, loadSettingsConfig, loadAgents } from '../actions';
 import { YuanSelector } from './agent/YuanSelector';
 import { MemorySection } from './agent/AgentMemory';
 import {
-  collapseBrainModelChoices,
+  buildUserVisibleModelOptions,
+  decodeUserVisibleModelValue,
+  encodeUserVisibleModelValue,
   normalizeDisplayModelId,
   normalizeDisplayModelName,
   normalizeDisplayProviderLabel,
@@ -21,6 +22,11 @@ import {
 } from './agent/AgentExperience';
 
 const platform = window.platform;
+
+function isBundledLynnAvatarSrc(src: string | null | undefined): boolean {
+  const value = String(src || '');
+  return value.includes('assets/Lynn-512-opt.png') || value.includes('assets/Lynn.png');
+}
 
 export function AgentTab() {
   const store = useSettingsStore();
@@ -41,21 +47,28 @@ export function AgentTab() {
   const [nameTouched, setNameTouched] = useState(false);
   const modelFieldRef = React.useRef<HTMLDivElement | null>(null);
   const lastReviewerFocusRef = React.useRef<string | null>(null);
-  const builtInAgentIds = React.useMemo(() => new Set(['lynn', 'hanako', 'butter']), []);
+  const builtInAgentIds = useMemo(() => new Set(['lynn', 'hanako', 'butter']), []);
 
+  const effectiveAgentId = settingsAgentId || currentAgentId || agents[0]?.id || null;
   const selectedAgent = useMemo(
-    () => agents.find((agent) => agent.id === settingsAgentId) || null,
-    [agents, settingsAgentId],
+    () => agents.find((agent) => agent.id === effectiveAgentId) || null,
+    [agents, effectiveAgentId],
   );
-  const configReady = !!settingsConfig && settingsConfigAgentId === settingsAgentId;
+  const availableBuiltInAgentIds = useMemo(
+    () => new Set(agents.filter((agent) => builtInAgentIds.has(agent.id)).map((agent) => agent.id)),
+    [agents, builtInAgentIds],
+  );
+  const configReady = !!settingsConfig && settingsConfigAgentId === effectiveAgentId;
+  const activeSettingsConfig = configReady ? settingsConfig : null;
+  const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
 
   useEffect(() => {
-    if (configReady && settingsConfig) {
-      setAgentName(settingsConfig.agent?.name || '');
-      setIdentity(settingsConfig._identity || '');
-      setIshiki(settingsConfig._ishiki || '');
-      setExpCategories(parseExperience(settingsConfig._experience || ''));
-      setPendingYuan(settingsConfig.agent?.yuan || 'hanako');
+    if (activeSettingsConfig) {
+      setAgentName(activeSettingsConfig.agent?.name || '');
+      setIdentity(activeSettingsConfig._identity || '');
+      setIshiki(activeSettingsConfig._ishiki || '');
+      setExpCategories(parseExperience(activeSettingsConfig._experience || ''));
+      setPendingYuan(activeSettingsConfig.agent?.yuan || selectedAgent?.yuan || 'hanako');
       setNameTouched(false);
       return;
     }
@@ -65,19 +78,17 @@ export function AgentTab() {
     setExpCategories([]);
     setPendingYuan(selectedAgent?.yuan || 'hanako');
     setNameTouched(false);
-  }, [configReady, selectedAgent, settingsConfig]);
+  }, [activeSettingsConfig, selectedAgent]);
 
   const builtInYuanEntries = useMemo(() => {
     const raw = (t('yuan.types') || {}) as Record<string, { name?: string }>;
     return Object.fromEntries(getDisplayYuanEntries(raw));
   }, []);
 
-  const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
-
   useEffect(() => {
     if (!selectedAgent) return;
     if (nameTouched) return;
-    const previousYuanKey = normalizeYuanKey(settingsConfig?.agent?.yuan || selectedAgent.yuan || 'hanako');
+    const previousYuanKey = normalizeYuanKey(activeSettingsConfig?.agent?.yuan || selectedAgent.yuan || 'hanako');
     const nextYuanKey = normalizeYuanKey(pendingYuan);
     if (previousYuanKey === nextYuanKey) return;
 
@@ -90,26 +101,27 @@ export function AgentTab() {
     if (!trimmedAgentName || trimmedAgentName === previousBuiltInName || trimmedAgentName === selectedAgentName) {
       setAgentName(nextBuiltInName);
     }
-  }, [agentName, builtInYuanEntries, nameTouched, pendingYuan, selectedAgent, settingsConfig]);
+  }, [activeSettingsConfig, agentName, builtInYuanEntries, nameTouched, pendingYuan, selectedAgent]);
 
   useEffect(() => {
-    if (!configReady || !settingsConfig || settingsConfigAgentId !== settingsAgentId) return;
-    if (settingsConfig.agent?.tier !== 'reviewer' || !settingsAgentId) return;
-    if (lastReviewerFocusRef.current === settingsAgentId) return;
-    lastReviewerFocusRef.current = settingsAgentId;
+    if (!activeSettingsConfig || settingsConfigAgentId !== effectiveAgentId) return;
+    if (activeSettingsConfig.agent?.tier !== 'reviewer' || !effectiveAgentId) return;
+    if (lastReviewerFocusRef.current === effectiveAgentId) return;
+    lastReviewerFocusRef.current = effectiveAgentId;
     requestAnimationFrame(() => {
       modelFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const target = modelFieldRef.current?.querySelector('button, [role="combobox"]') as HTMLElement | null;
       target?.focus?.();
     });
-  }, [configReady, settingsAgentId, settingsConfig, settingsConfigAgentId]);
+  }, [activeSettingsConfig, effectiveAgentId, settingsConfigAgentId]);
 
-  const isViewingOther = settingsAgentId !== currentAgentId;
-  const currentYuan = settingsConfig?.agent?.yuan || selectedAgent?.yuan || 'hanako';
+  const isViewingOther = effectiveAgentId !== currentAgentId;
+  const currentYuan = activeSettingsConfig?.agent?.yuan || selectedAgent?.yuan || 'hanako';
 
-  const chatRaw = settingsConfig?.models?.chat;
+  const chatRaw = activeSettingsConfig?.models?.chat;
   const currentModel = typeof chatRaw === 'object' && chatRaw?.id ? chatRaw.id : (chatRaw || '');
-  const currentProvider = typeof chatRaw === 'object' && chatRaw?.provider ? chatRaw.provider : (settingsConfig?.api?.provider || '');
+  const currentProvider = typeof chatRaw === 'object' && chatRaw?.provider ? chatRaw.provider : (activeSettingsConfig?.api?.provider || '');
+  const selectedAgentId = selectedAgent?.id || effectiveAgentId || '';
 
   // 从唯一信源 /api/models 获取模型列表（和聊天页一致）
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; provider: string }>>([]);
@@ -117,45 +129,66 @@ export function AgentTab() {
     hanaFetch('/api/models').then(r => r.json()).then(data => {
       setAvailableModels(data.models || []);
     }).catch(() => {});
-  }, [settingsConfig]); // settingsConfig 变化时刷新
+  }, [activeSettingsConfig]); // settingsConfig 变化时刷新
+
+  const visibleCurrentModel = useMemo(() => {
+    if (!currentModel) return '';
+    return encodeUserVisibleModelValue({
+      id: normalizeDisplayModelId(currentModel, currentProvider),
+      provider: currentProvider || undefined,
+    });
+  }, [currentModel, currentProvider]);
 
   const modelOptions = useMemo(() => {
-    const visibleModels = collapseBrainModelChoices(availableModels);
-    const opts = visibleModels.map(m => ({
-      value: normalizeDisplayModelId(m.id, m.provider),
-      label: normalizeDisplayModelName(m),
-      group: normalizeDisplayProviderLabel(m.provider),
+    const opts = buildUserVisibleModelOptions(availableModels).map((option) => ({
+      value: option.value,
+      label: option.label,
+      group: option.rawProvider && option.rawProvider !== 'brain'
+        ? (normalizeDisplayProviderLabel(option.rawProvider) || option.rawProvider)
+        : '',
     }));
-    const normalizedCurrent = normalizeDisplayModelId(currentModel, currentProvider);
-    if (normalizedCurrent && !opts.some(m => m.value === normalizedCurrent)) {
-      opts.unshift({ value: normalizedCurrent, label: normalizedCurrent, group: '' });
+    if (visibleCurrentModel && !opts.some((model) => model.value === visibleCurrentModel)) {
+      opts.unshift({
+        value: visibleCurrentModel,
+        label: normalizeDisplayModelName({ id: currentModel, name: currentModel, provider: currentProvider || undefined }) || currentModel,
+        group: currentProvider && currentProvider !== 'brain'
+          ? (normalizeDisplayProviderLabel(currentProvider) || currentProvider)
+          : '',
+      });
     }
     return opts;
-  }, [availableModels, currentModel, currentProvider]);
+  }, [availableModels, currentModel, currentProvider, visibleCurrentModel]);
 
-  const visibleCurrentModel = normalizeDisplayModelId(currentModel, currentProvider);
+  const selectedAvatarSrc = useMemo(() => {
+    if (selectedAgent?.hasAvatar && selectedAgentId) {
+      return hanaUrl(`/api/agents/${selectedAgentId}/avatar?t=${selectedAgentId}`);
+    }
+    return settingsYuanFallbackAvatar(pendingYuan || currentYuan);
+  }, [currentYuan, pendingYuan, selectedAgent?.hasAvatar, selectedAgentId]);
 
-  const memoryEnabled = settingsConfig?.memory?.enabled !== false;
+  const isBundledLynnAvatar = isBundledLynnAvatarSrc(selectedAvatarSrc);
+  const memoryEnabled = activeSettingsConfig?.memory?.enabled !== false;
 
   const saveAgent = async () => {
     try {
-      const agentId = store.getSettingsAgentId()!;
+      const agentId = effectiveAgentId || agents[0]?.id;
+      if (!agentId) throw new Error('no valid agent selected');
       const agentBase = `/api/agents/${agentId}`;
       const isActive = agentId === currentAgentId;
 
       const configPartial: Record<string, unknown> = {};
-      if (agentName && agentName !== (settingsConfig?.agent?.name || '')) {
+      if (agentName && agentName !== (activeSettingsConfig?.agent?.name || '')) {
         configPartial.agent = { name: agentName };
       }
-      if (pendingYuan !== (settingsConfig?.agent?.yuan || 'hanako')) {
+      if (pendingYuan !== (activeSettingsConfig?.agent?.yuan || 'hanako')) {
         configPartial.agent = {
           ...((configPartial.agent as Record<string, unknown>) || {}),
           yuan: pendingYuan,
         };
       }
 
-      const identityChanged = identity !== (settingsConfig?._identity || '');
-      const ishikiChanged = ishiki !== (settingsConfig?._ishiki || '');
+      const identityChanged = identity !== (activeSettingsConfig?._identity || '');
+      const ishikiChanged = ishiki !== (activeSettingsConfig?._ishiki || '');
 
       if (!Object.keys(configPartial).length && !identityChanged && !ishikiChanged) {
         showToast(t('settings.noChanges'), 'success');
@@ -214,45 +247,41 @@ export function AgentTab() {
     }
   };
 
+  const handleAvatarClick = () => {
+    // eslint-disable-next-line no-restricted-syntax -- ephemeral file picker, not part of React tree
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/webp';
+    input.addEventListener('change', () => {
+      if (input.files?.[0]) {
+        window.dispatchEvent(new CustomEvent('hana-open-cropper', {
+          detail: { role: 'agent', file: input.files[0] },
+        }));
+      }
+    });
+    input.click();
+  };
+
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="agent">
-      {/* Agent 卡片堆叠 */}
       <section className={styles['settings-section']}>
         <h2 className={styles['settings-section-title']}>{t('settings.agent.title')}</h2>
-        <AgentCardStack
-          agents={agents}
-          selectedId={settingsAgentId || currentAgentId}
-          currentAgentId={currentAgentId}
-          previewSelectedAgent={{ name: agentName, yuan: pendingYuan || currentYuan }}
-          onSelect={(id) => {
-            const targetAgent = agents.find((agent) => agent.id === id);
-            if (targetAgent) {
-              setAgentName(targetAgent.name || '');
-              setPendingYuan(targetAgent.yuan || 'hanako');
-              setIdentity('');
-              setIshiki('');
-              setExpCategories([]);
-              setNameTouched(false);
-            }
-            void browseAgent(id);
-          }}
-          onAvatarClick={() => {
-            // eslint-disable-next-line no-restricted-syntax -- ephemeral file picker, not part of React tree
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/png,image/jpeg,image/webp';
-            input.addEventListener('change', () => {
-              if (input.files?.[0]) {
-                window.dispatchEvent(new CustomEvent('hana-open-cropper', {
-                  detail: { role: 'agent', file: input.files[0] },
-                }));
-              }
-            });
-            input.click();
-          }}
-          onSetActive={(id) => switchToAgent(id)}
-          onDelete={() => window.dispatchEvent(new Event('hana-show-agent-delete'))}
-        />
+        <div className={styles['settings-avatar-center']}>
+          <div className={styles['avatar-upload']} onClick={handleAvatarClick} title="">
+            <img
+              key={selectedAvatarSrc}
+              className={`${styles['avatar-preview']}${isBundledLynnAvatar ? ` ${styles['avatar-preview-bundled-lynn']}` : ''}`}
+              src={selectedAvatarSrc}
+              draggable={false}
+              onError={(e) => {
+                const img = e.currentTarget;
+                img.onerror = null;
+                img.src = settingsYuanFallbackAvatar(pendingYuan || currentYuan);
+              }}
+            />
+            <div className={styles['avatar-upload-overlay']}>{t('settings.agent.changeAvatar')}</div>
+          </div>
+        </div>
 
         <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
           <input
@@ -272,12 +301,24 @@ export function AgentTab() {
             <SelectWidget
               options={modelOptions}
               value={visibleCurrentModel}
-              disabled={modelOptions.length <= 1}
-              onChange={async (modelId) => {
-                const partial: Record<string, unknown> = { models: { chat: modelId } };
-                const match = availableModels.find(m => m.id === modelId);
-                if (match?.provider) {
-                  partial.api = { provider: match.provider };
+              disabled={modelOptions.length === 0}
+              onChange={async (modelValue) => {
+                const parsed = decodeUserVisibleModelValue(modelValue);
+                if (!parsed.id) return;
+                const normalizedId = normalizeDisplayModelId(parsed.id, parsed.provider || currentProvider || '');
+                const match = availableModels.find((model) => (
+                  model.id === normalizedId
+                  && (!parsed.provider || model.provider === parsed.provider)
+                )) || availableModels.find((model) => model.id === normalizedId);
+
+                const provider = parsed.provider || match?.provider || currentProvider || '';
+                const partial: Record<string, unknown> = {
+                  models: {
+                    chat: provider ? { id: normalizedId, provider } : normalizedId,
+                  },
+                };
+                if (provider) {
+                  partial.api = { provider };
                 }
                 await autoSaveConfig(partial, { refreshModels: true });
               }}
@@ -296,11 +337,12 @@ export function AgentTab() {
           <YuanSelector
             currentYuan={pendingYuan || currentYuan}
             onChange={(key) => {
-              if (isBuiltInAgentView && builtInAgentIds.has(key)) {
-                void browseAgent(key);
+              const normalizedKey = normalizeYuanKey(key);
+              if (isBuiltInAgentView && availableBuiltInAgentIds.has(normalizedKey)) {
+                void browseAgent(normalizedKey);
                 return;
               }
-              setPendingYuan(key);
+              setPendingYuan(normalizedKey);
             }}
           />
         </div>

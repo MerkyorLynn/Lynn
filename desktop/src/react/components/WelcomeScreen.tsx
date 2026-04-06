@@ -38,6 +38,11 @@ export function WelcomeScreen() {
   return <WelcomeInner />;
 }
 
+function isBundledLynnAvatarSrc(src: string | null | undefined): boolean {
+  const value = String(src || '');
+  return value.includes('assets/Lynn-512-opt.png') || value.includes('assets/Lynn.png');
+}
+
 function randomWelcome(agentName: string, yuan: string): string {
   const t = window.t ?? ((p: string) => p);
   const yuanMsgs = t(`yuan.welcome.${yuan}`);
@@ -153,14 +158,18 @@ function WelcomeAvatar({ agentId, hasAvatar, agentAvatarUrl, yuan, name }: {
     setSrc(yuanFallbackAvatar(yuan));
   }, [yuan]);
 
+  const isBundledLynnAvatar = isBundledLynnAvatarSrc(src);
+
   return (
-    <img
-      className={styles.welcomeAvatar}
-      src={src}
-      alt={name}
-      draggable={false}
-      onError={handleError}
-    />
+    <span className={styles.welcomeAvatarShell}>
+      <img
+        className={`${styles.welcomeAvatar}${isBundledLynnAvatar ? ` ${styles.welcomeAvatarBundledLynn}` : ''}`}
+        src={src}
+        alt={name}
+        draggable={false}
+        onError={handleError}
+      />
+    </span>
   );
 }
 

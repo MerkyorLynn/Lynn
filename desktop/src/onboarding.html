@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="themes/warm-paper.css" id="themeSheet">
     <style>
+        html, body, #react-root {
+            height: 100%;
+        }
         body {
             background: var(--bg);
             background-image: var(--bg-texture, none);
@@ -20,9 +23,9 @@
     </style>
 </head>
 <body>
-    <!-- Windows/Linux 窗口控制按钮注入点 -->
-    <div class="titlebar titlebar-minimal"></div>
     <div id="react-root"></div>
+    <!-- Windows/Linux 自绘窗口控制按钮注入点：放在 react-root 之后，避免被内容层覆盖 -->
+    <div class="titlebar titlebar-minimal"></div>
 
     <script src="lib/i18n.js"></script>
     <script src="lib/theme.js"></script>

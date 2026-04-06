@@ -356,6 +356,12 @@ function shouldCollapseText(value: string | null | undefined): boolean {
   return (value || '').trim().length > 220;
 }
 
+function stripReviewThinkTags(raw: string | null | undefined): string {
+  return String(raw || '')
+    .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
+    .trim();
+}
+
 function CollapsibleReviewText({
   text,
   expanded,
@@ -446,7 +452,7 @@ export const ReviewCard = memo(function ReviewCard({
   const followUpTaskText = followUpTaskLabel(followUpTask, zh);
   const followUpTaskBusy = isFollowUpTaskActive(followUpTask);
   const followUpTaskDetail = normalizeFollowUpTaskDetail(followUpTask, zh);
-  const effectiveSummary = structured?.summary || content;
+  const effectiveSummary = structured?.summary || stripReviewThinkTags(content);
   const effectiveError = useMemo(() => normalizeReviewErrorMessage(error, errorCode, zh), [error, errorCode, zh]);
   const loadingSteps = useMemo(() => reviewStageSteps(stage, zh), [stage, zh]);
   const loadingHint = useMemo(() => reviewStageHint(stage, zh), [stage, zh]);

@@ -77,6 +77,7 @@ import {
   BRAIN_API_ROOT,
   BRAIN_LEGACY_PROVIDER_BASE_URL,
   buildBrainProviderConfig,
+  getBrainRegistrationToken,
 } from "../shared/brain-provider.js";
 import { prewarmHttpConnection } from "../shared/http-pool.js";
 
@@ -714,6 +715,7 @@ export class HanaEngine {
         baseUrl: BRAIN_API_ROOT,
         agentKey: key,
         secret,
+        registrationToken: getBrainRegistrationToken(),
         timeoutMs: 5000,
       });
       log("[init] Brain device registration ok");

@@ -27,37 +27,25 @@
             align-items: center;
             gap: 1.5rem;
         }
-        .splash-traffic {
-            position: fixed;
-            top: 16px;
-            left: 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .splash-traffic-dot {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-        }
-        .splash-traffic-dot.red {
-            background: #ff5f57;
-        }
-        .splash-traffic-dot.yellow {
-            background: #febc2e;
-        }
+
         .splash-avatar {
-            width: 72px; height: 72px;
-            border-radius: 50%;
+            width: 100%;
+            height: 100%;
+            display: block;
             object-fit: cover;
             object-position: center center;
-            -webkit-clip-path: circle(50% at 50% 50%);
-            clip-path: circle(50% at 50% 50%);
             pointer-events: none;
             user-select: none;
+        }
+        .splash-avatar-shell {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+        .splash-avatar-shell-bundled-lynn .splash-avatar {
+            transform: scale(1.18);
+            transform-origin: center;
         }
         .splash-text-row {
             display: flex;
@@ -87,10 +75,7 @@
     </style>
 </head>
 <body>
-    <div class="splash-traffic" aria-hidden="true">
-        <span class="splash-traffic-dot red"></span>
-        <span class="splash-traffic-dot yellow"></span>
-    </div>
+
     <div id="react-root"></div>
     <script type="module" src="./splash-main.tsx"></script>
 </body>

@@ -39,6 +39,12 @@ const REACT_CHAT_EVENTS = new Set([
   'compaction_start', 'compaction_end',
 ]);
 
+function stripReviewThinkTags(raw: unknown): string {
+  return String(raw || '')
+    .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
+    .trim();
+}
+
 function patchReviewBlock(sessionPath: string, reviewId: string, patch: Record<string, unknown>): void {
   const nextPatch = Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
@@ -469,7 +475,7 @@ export function handleServerMessage(msg: any): void {
         reviewerModelLabel: msg.reviewerModelLabel || null,
         reviewerModelId: msg.reviewerModelId || null,
         reviewerModelProvider: msg.reviewerModelProvider || null,
-        content: msg.content || '',
+        content: stripReviewThinkTags(msg.content),
         error: msg.error,
         errorCode: msg.errorCode || null,
         status: 'done',

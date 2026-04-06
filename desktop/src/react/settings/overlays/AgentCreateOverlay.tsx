@@ -3,7 +3,7 @@ import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { switchToAgent } from '../actions';
-import { getDisplayYuanEntries, resolveBundledAvatar } from '../../utils/agent-helpers';
+import { getDisplayYuanEntries, isBundledLynnAvatarSrc, resolveBundledAvatar } from '../../utils/agent-helpers';
 import { useDialogA11y } from '../../hooks/use-dialog-a11y';
 import styles from '../Settings.module.css';
 
@@ -58,7 +58,7 @@ export function AgentCreateOverlay() {
   if (!visible) return null;
 
   const types = t('yuan.types') || {};
-  const entries = Object.entries(types) as [string, { name?: string; label?: string; avatar?: string }][];
+  const entries = getDisplayYuanEntries(types);
 
   return (
     <div className={`${styles['agent-create-overlay']} ${styles['visible']}`} onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -94,7 +94,19 @@ export function AgentCreateOverlay() {
                   type="button"
                   onClick={() => setYuan(key)}
                 >
-                  <img className="yuan-chip-avatar" src={resolveBundledAvatar(meta.avatar || 'Lynn.png')} draggable={false} />
+                  {(() => {
+                    const avatarSrc = resolveBundledAvatar(meta.avatar || 'Lynn.png');
+                    const isBundledLynnAvatar = isBundledLynnAvatarSrc(avatarSrc);
+                    return (
+                      <span className="yuan-chip-avatar-shell">
+                        <img
+                          className={`yuan-chip-avatar${isBundledLynnAvatar ? ' yuan-chip-avatar-bundled-lynn' : ''}`}
+                          src={avatarSrc}
+                          draggable={false}
+                        />
+                      </span>
+                    );
+                  })()}
                   <div className="yuan-chip-info">
                     <span className="yuan-chip-name">{meta.name || key}</span>
                     <span className="yuan-chip-desc">{meta.label || ''}</span>
@@ -109,7 +121,19 @@ export function AgentCreateOverlay() {
                 type="button"
                 onClick={() => setYuan(key)}
               >
-                <img className="yuan-chip-avatar" src={resolveBundledAvatar(meta.avatar || 'Lynn.png')} draggable={false} />
+                {(() => {
+                  const avatarSrc = resolveBundledAvatar(meta.avatar || 'Lynn.png');
+                  const isBundledLynnAvatar = isBundledLynnAvatarSrc(avatarSrc);
+                  return (
+                    <span className="yuan-chip-avatar-shell">
+                      <img
+                        className={`yuan-chip-avatar${isBundledLynnAvatar ? ' yuan-chip-avatar-bundled-lynn' : ''}`}
+                        src={avatarSrc}
+                        draggable={false}
+                      />
+                    </span>
+                  );
+                })()}
                 <div className="yuan-chip-info">
                   <span className="yuan-chip-name">{meta.name || key}</span>
                   <span className="yuan-chip-desc">{meta.label || ''}</span>

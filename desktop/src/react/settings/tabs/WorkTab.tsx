@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { Toggle } from '../widgets/Toggle';
 import { SelectWidget } from '../widgets/SelectWidget';
 import { resolveBundledAvatar } from '../../utils/agent-helpers';
+import {
+  buildUserVisibleModelOptions,
+  decodeUserVisibleModelValue,
+  encodeUserVisibleModelValue,
+  normalizeDisplayModelId,
+  normalizeDisplayProviderLabel,
+} from '../../utils/brain-models';
 import styles from '../Settings.module.css';
 
 const platform = window.platform;
@@ -87,6 +94,7 @@ export function WorkTab() {
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewLoading, setReviewLoading] = useState(true);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; provider: string }>>([]);
   const effectiveHomeFolder = homeFolder || defaultWorkspace?.workspacePath || LOCAL_DEFAULT_WORKSPACE;
   const effectiveTrustedRoots = trustedRoots.length > 0
     ? trustedRoots
@@ -170,6 +178,13 @@ export function WorkTab() {
   useEffect(() => {
     loadReviewConfig().catch(() => {});
   }, [loadReviewConfig]);
+
+  useEffect(() => {
+    hanaFetch('/api/models')
+      .then((r) => r.json())
+      .then((data) => setAvailableModels(data.models || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleReviewConfigChanged = () => {
@@ -287,6 +302,48 @@ export function WorkTab() {
     }
   };
 
+  const reviewerModelOptions = useMemo(() => {
+    return buildUserVisibleModelOptions(availableModels).map((option) => ({
+      value: option.value,
+      label: option.label,
+      group: option.rawProvider && option.rawProvider !== 'brain'
+        ? (normalizeDisplayProviderLabel(option.rawProvider) || option.rawProvider)
+        : '',
+    }));
+  }, [availableModels]);
+
+  const updateReviewerModel = async (reviewerId: string, modelValue: string) => {
+    const parsed = decodeUserVisibleModelValue(modelValue);
+    if (!reviewerId || !parsed.id) return;
+    const match = availableModels.find((model) => (
+      model.id === normalizeDisplayModelId(parsed.id, parsed.provider || '')
+      && (!parsed.provider || model.provider === parsed.provider)
+    )) || availableModels.find((model) => model.id === normalizeDisplayModelId(parsed.id, parsed.provider || ''));
+    const provider = parsed.provider || match?.provider || '';
+    const normalizedId = normalizeDisplayModelId(parsed.id, provider);
+
+    setReviewSaving(true);
+    try {
+      await hanaFetch(`/api/agents/${reviewerId}/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api: provider ? { provider } : undefined,
+          models: {
+            chat: provider ? { id: normalizedId, provider } : normalizedId,
+          },
+        }),
+      });
+      await loadReviewConfig();
+      showToast(t('settings.autoSaved'), 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg, 'error');
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
   const createReviewer = async (kind: ReviewerKind) => {
     try {
       const name = kind === 'butter' ? 'Butter Reviewer' : 'Hanako Reviewer';
@@ -342,6 +399,12 @@ export function WorkTab() {
       { value: '', label: t('review.auto') || 'Auto select' },
       ...candidates.map((item) => ({ value: item.id, label: item.name, group: item.modelProvider || undefined })),
     ];
+    const reviewerModelValue = resolved?.modelId
+      ? encodeUserVisibleModelValue({
+        id: normalizeDisplayModelId(resolved.modelId, resolved.modelProvider || undefined),
+        provider: resolved.modelProvider || undefined,
+      })
+      : '';
 
     return (
       <div className={styles['work-reviewer-card']} data-reviewer-section={kind} tabIndex={-1}>
@@ -383,6 +446,18 @@ export function WorkTab() {
           >
             {resolved?.id ? t('settings.work.review.configureModel') : t('settings.work.review.createReviewer')}
           </button>
+        </div>
+        <div className={styles['work-review-actions']}>
+          <SelectWidget
+            options={reviewerModelOptions}
+            value={reviewerModelValue}
+            onChange={(value) => {
+              if (!resolved?.id) return;
+              void updateReviewerModel(resolved.id, value);
+            }}
+            placeholder={t('settings.api.selectModel')}
+            disabled={reviewSaving || reviewLoading || !resolved?.id || reviewerModelOptions.length === 0}
+          />
         </div>
       </div>
     );

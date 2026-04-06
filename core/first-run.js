@@ -33,6 +33,19 @@ const RECOMMENDED_DEFAULT_SKILLS = [
   "stock-analysis",
 ];
 
+const BUILT_IN_AGENT_SPECS = [
+  { id: "lynn", name: "Lynn", yuan: "lynn" },
+  { id: "hanako", name: "Hanako", yuan: "hanako" },
+  { id: "butter", name: "Butter", yuan: "butter" },
+];
+
+function firstExistingPath(...paths) {
+  for (const p of paths) {
+    if (p && fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 /**
  * 确保 ~/.lynn/ 数据目录就绪
  * @param {string} lynnHome - ~/.lynn 绝对路径
@@ -55,13 +68,16 @@ export function ensureFirstRun(lynnHome, productDir) {
   // 2. 如果 agents/ 没有任何 agent → 播种默认 agent
   const agentsDir = path.join(lynnHome, "agents");
   const hasAgent = fs.readdirSync(agentsDir, { withFileTypes: true }).some(entry => {
-    return entry.isDirectory() && !entry.name.startsWith('.');
+    return entry.isDirectory()
+      && !entry.name.startsWith('.')
+      && fs.existsSync(path.join(agentsDir, entry.name, "config.yaml"));
   });
 
   if (!hasAgent) {
-    console.log("[first-run] 首次启动，正在创建默认助手...");
-    seedDefaultAgent(agentsDir, productDir);
+    console.log("[first-run] 首次启动，正在创建内置助手...");
   }
+
+  ensureBuiltInAgents({ agentsDir, productDir, prefsPath });
 
   // 3. 同步 skills：从 skills2set/ 复制到 ~/.lynn/skills/
   const skillsSrc = path.join(productDir, "..", "skills2set");
@@ -227,52 +243,190 @@ function ensureDefaultWorkspacePrefs(prefsPath, productDir) {
 }
 
 /**
- * 从模板播种默认 agent（与 engine.createAgent 相同逻辑，但纯同步、无依赖）
+ * 从模板播种内置助手（与 engine.createAgent 相同逻辑，但纯同步、无依赖）
  */
-function seedDefaultAgent(agentsDir, productDir) {
-  const agentId = "lynn";
-  const agentDir = path.join(agentsDir, agentId);
+function ensureBuiltInAgents({ agentsDir, productDir, prefsPath }) {
+  const createdIds = [];
+  for (const spec of BUILT_IN_AGENT_SPECS) {
+    const created = ensureBuiltInAgent({ agentsDir, productDir, spec });
+    if (created) createdIds.push(spec.id);
+  }
 
-  // 创建目录结构
+  ensureBuiltInAgentOrder(prefsPath, agentsDir);
+
+  if (createdIds.length > 0) {
+    console.log(`[first-run] 已补齐内置助手: ${createdIds.join(", ")}`);
+  }
+}
+
+function ensureBuiltInAgent({ agentsDir, productDir, spec }) {
+  const agentDir = path.join(agentsDir, spec.id);
+  const configPath = path.join(agentDir, "config.yaml");
+  const seedContext = getBuiltInSeedContext(agentsDir, productDir);
+
+  ensureAgentScaffold(agentDir);
+
+  let created = false;
+  if (!fs.existsSync(configPath)) {
+    const config = buildBuiltInAgentConfig(productDir, spec, seedContext);
+    fs.writeFileSync(configPath, YAML.dump(config, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+    created = true;
+  } else {
+    try {
+      const config = YAML.load(fs.readFileSync(configPath, "utf-8")) || {};
+      config.agent = config.agent || {};
+      let changed = false;
+      if (String(config.agent.name || "").trim() !== spec.name) {
+        config.agent.name = spec.name;
+        changed = true;
+      }
+      if (String(config.agent.yuan || "").trim().toLowerCase() !== spec.yuan) {
+        config.agent.yuan = spec.yuan;
+        changed = true;
+      }
+      if (String(config.agent.tier || "").trim().toLowerCase() === "reviewer") {
+        config.agent.tier = "local";
+        changed = true;
+      }
+      if (changed) {
+        fs.writeFileSync(configPath, YAML.dump(config, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+      }
+    } catch {}
+  }
+
+  writeTemplateIfMissing({
+    targetPath: path.join(agentDir, "identity.md"),
+    templatePath: firstExistingPath(
+      path.join(productDir, "identity-templates", `${spec.yuan}.md`),
+      path.join(productDir, "identity.example.md"),
+    ),
+    replacements: { agentName: spec.name, userName: seedContext.userName },
+  });
+
+  writeTemplateIfMissing({
+    targetPath: path.join(agentDir, "ishiki.md"),
+    templatePath: firstExistingPath(
+      path.join(productDir, "ishiki-templates", `${spec.yuan}.md`),
+      path.join(productDir, "ishiki.example.md"),
+    ),
+    replacements: { agentName: spec.name, userName: seedContext.userName },
+  });
+
+  writeTemplateIfMissing({
+    targetPath: path.join(agentDir, "public-ishiki.md"),
+    templatePath: firstExistingPath(
+      path.join(productDir, "public-ishiki-templates", `${spec.yuan}.md`),
+      path.join(productDir, "public-ishiki-templates", "hanako.md"),
+    ),
+    replacements: { agentName: spec.name, userName: seedContext.userName },
+  });
+
+  const touchIfMissing = (p) => { if (!fs.existsSync(p)) fs.writeFileSync(p, '', 'utf-8'); };
+  touchIfMissing(path.join(agentDir, 'pinned.md'));
+
+  return created;
+}
+
+function ensureAgentScaffold(agentDir) {
   fs.mkdirSync(agentDir, { recursive: true });
   fs.mkdirSync(path.join(agentDir, "memory"), { recursive: true });
   fs.mkdirSync(path.join(agentDir, "sessions"), { recursive: true });
   fs.mkdirSync(path.join(agentDir, "avatars"), { recursive: true });
   fs.mkdirSync(path.join(agentDir, "desk"), { recursive: true });
+}
 
-  // config.yaml（模板默认值：name=Lynn, yuan=hanako）
-  const configSrc = path.join(productDir, "config.example.yaml");
-  if (fs.existsSync(configSrc)) {
-    fs.copyFileSync(configSrc, path.join(agentDir, "config.yaml"));
+function getBuiltInSeedContext(agentsDir, productDir) {
+  const templateConfigPath = path.join(productDir, "config.example.yaml");
+  const templateConfig = fs.existsSync(templateConfigPath)
+    ? (YAML.load(fs.readFileSync(templateConfigPath, "utf-8")) || {})
+    : {};
+
+  const referenceConfig = readFirstExistingAgentConfig(agentsDir);
+  const userName = String(referenceConfig?.user?.name || templateConfig?.user?.name || "").trim();
+  return {
+    templateConfig,
+    referenceConfig,
+    userName,
+  };
+}
+
+function readFirstExistingAgentConfig(agentsDir) {
+  const preferredOrder = BUILT_IN_AGENT_SPECS.map((spec) => spec.id);
+  const existingIds = fs.readdirSync(agentsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => entry.name);
+  const orderedIds = [...preferredOrder, ...existingIds.filter((id) => !preferredOrder.includes(id))];
+
+  for (const agentId of orderedIds) {
+    const configPath = path.join(agentsDir, agentId, "config.yaml");
+    if (!fs.existsSync(configPath)) continue;
+    try {
+      return YAML.load(fs.readFileSync(configPath, "utf-8")) || {};
+    } catch {}
   }
 
-  // identity.md（填入默认名字）
-  const identitySrc = path.join(productDir, "identity.example.md");
-  if (fs.existsSync(identitySrc)) {
-    const tmpl = fs.readFileSync(identitySrc, "utf-8");
-    const filled = tmpl
-      .replace(/\{\{agentName\}\}/g, "Lynn")
-      .replace(/\{\{userName\}\}/g, "");
-    fs.writeFileSync(path.join(agentDir, "identity.md"), filled, "utf-8");
+  return {};
+}
+
+function buildBuiltInAgentConfig(productDir, spec, seedContext) {
+  const base = deepClone(seedContext.templateConfig || {});
+  const reference = deepClone(seedContext.referenceConfig || {});
+
+  for (const key of ["user", "api", "embedding_api", "models", "memory", "search", "skills", "capabilities", "channels", "desk", "last_cwd", "cwd_history"]) {
+    if (reference[key] !== undefined) {
+      base[key] = deepClone(reference[key]);
+    }
   }
 
-  // yuan 由 buildSystemPrompt 实时从 lib/yuan/ 读取，无需复制
+  base.agent = {
+    ...(base.agent || {}),
+    name: spec.name,
+    yuan: spec.yuan,
+  };
+  base.user = {
+    ...(base.user || {}),
+    name: seedContext.userName,
+  };
 
-  // ishiki.md
-  const ishikiSrc = path.join(productDir, "ishiki.example.md");
-  if (fs.existsSync(ishikiSrc)) {
-    fs.copyFileSync(ishikiSrc, path.join(agentDir, "ishiki.md"));
+  return base;
+}
+
+function deepClone(value) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function writeTemplateIfMissing({ targetPath, templatePath, replacements }) {
+  if (fs.existsSync(targetPath) || !templatePath || !fs.existsSync(templatePath)) return;
+  const raw = fs.readFileSync(templatePath, "utf-8");
+  const filled = raw
+    .replace(/\{\{agentName\}\}/g, replacements.agentName || "")
+    .replace(/\{\{userName\}\}/g, replacements.userName || "");
+  fs.writeFileSync(targetPath, filled, "utf-8");
+}
+
+function ensureBuiltInAgentOrder(prefsPath, agentsDir) {
+  const prefs = readJsonFile(prefsPath);
+  const existingOrder = Array.isArray(prefs.agentOrder) ? prefs.agentOrder.filter(Boolean) : [];
+  const known = new Set(existingOrder);
+  let changed = false;
+
+  for (const spec of BUILT_IN_AGENT_SPECS) {
+    const configPath = path.join(agentsDir, spec.id, "config.yaml");
+    if (!fs.existsSync(configPath) || known.has(spec.id)) continue;
+    existingOrder.push(spec.id);
+    known.add(spec.id);
+    changed = true;
   }
 
-  // public-ishiki.md（对外意识模板，lynn 或 fallback 到 hanako）
-  const publicIshikiSrc = path.join(productDir, "public-ishiki-templates", `${agentId}.md`);
-  const publicIshikiFallback = path.join(productDir, "public-ishiki-templates", "hanako.md");
-  const publicSrc = fs.existsSync(publicIshikiSrc) ? publicIshikiSrc : publicIshikiFallback;
-  if (fs.existsSync(publicSrc)) {
-    fs.copyFileSync(publicSrc, path.join(agentDir, "public-ishiki.md"));
+  if (!prefs.primaryAgent) {
+    prefs.primaryAgent = "lynn";
+    changed = true;
   }
 
-  console.log(`[first-run] 默认助手 "${agentId}" 已创建`);
+  if (!changed) return;
+  prefs.agentOrder = existingOrder;
+  writeJsonFile(prefsPath, prefs);
 }
 
 /**
