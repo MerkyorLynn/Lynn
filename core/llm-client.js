@@ -6,16 +6,6 @@ import {
 } from './client-agent-identity.js';
 import { getPooledDispatcher } from '../shared/http-pool.js';
 
-const ZAI_PROVIDER_IDS = new Set(["zhipu", "glm", "glm-5", "zai", "z-ai"]);
-
-function shouldDisableZaiThinking({ api, provider, baseUrl }) {
-  if (api !== "openai-completions") return false;
-  const normalizedProvider = String(provider || "").toLowerCase();
-  if (ZAI_PROVIDER_IDS.has(normalizedProvider)) return true;
-  const normalizedBaseUrl = String(baseUrl || "").toLowerCase();
-  return normalizedBaseUrl.includes("open.bigmodel.cn") || normalizedBaseUrl.includes("api.z.ai");
-}
-
 /**
  * core/llm-client.js — 统一的非流式 LLM 调用入口
  *
@@ -146,7 +136,6 @@ export async function callText({
       model, temperature, max_tokens: maxTokens,
       messages: allMessages,
       ...(quirks.includes("enable_thinking") && { enable_thinking: false }),
-      ...(shouldDisableZaiThinking({ api, provider, baseUrl: base }) && { thinking: { type: "disabled" } }),
     };
   }
 

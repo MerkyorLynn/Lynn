@@ -148,10 +148,23 @@ if (fs.existsSync(completionsTarget)) {
     '        params.enable_thinking = !!options?.reasoningEffort;\n' +
     '    }\n' +
     '    else if (options?.reasoningEffort && model.reasoning && compat.supportsReasoningEffort) {';
+  // 另一种旧格式：无条件 disabled
+  const legacyThinkingNeedle2 =
+    '    /* patched: zai-thinking-format */\n' +
+    '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
+    '        params.thinking = { type: "disabled" };\n' +
+    '    }\n' +
+    '    else if (compat.thinkingFormat === "qwen" && model.reasoning) {\n' +
+    '        params.enable_thinking = !!options?.reasoningEffort;\n' +
+    '    }\n' +
+    '    else if (options?.reasoningEffort && model.reasoning && compat.supportsReasoningEffort) {';
   const thinkingReplacement =
     '    /* patched: zai-thinking-format */\n' +
     '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
-    '        params.thinking = { type: options?.reasoningEffort ? "enabled" : "disabled" };\n' +
+    '        if (options?.reasoningEffort) {\n' +
+    '            params.thinking = { type: "enabled" };\n' +
+    '        }\n' +
+    '        // reasoningEffort 为空时不发 thinking 参数，避免智谱 API 返回空响应\n' +
     '    }\n' +
     '    else if (compat.thinkingFormat === "qwen" && model.reasoning) {\n' +
     '        params.enable_thinking = !!options?.reasoningEffort;\n' +
@@ -161,10 +174,13 @@ if (fs.existsSync(completionsTarget)) {
   if (completionsCode.includes(legacyThinkingNeedle)) {
     completionsCode = completionsCode.replace(legacyThinkingNeedle, thinkingReplacement);
     console.log("[patch-pi-sdk] upgraded openai-completions.js legacy zai-thinking patch");
+  } else if (completionsCode.includes(legacyThinkingNeedle2)) {
+    completionsCode = completionsCode.replace(legacyThinkingNeedle2, thinkingReplacement);
+    console.log("[patch-pi-sdk] upgraded openai-completions.js legacy2 zai-thinking patch");
   } else if (completionsCode.includes(thinkingNeedle)) {
     completionsCode = completionsCode.replace(thinkingNeedle, thinkingReplacement);
     console.log("[patch-pi-sdk] patched openai-completions.js → use zai thinking payload for GLM");
-  } else if (completionsCode.includes('params.thinking = { type: options?.reasoningEffort ? "enabled" : "disabled" }')) {
+  } else if (completionsCode.includes('if (options?.reasoningEffort) {\n            params.thinking = { type: "enabled" }')) {
     console.log("[patch-pi-sdk] openai-completions.js zai-thinking patch already applied");
   } else {
     console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot apply zai-thinking patch");

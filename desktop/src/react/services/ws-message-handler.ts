@@ -23,8 +23,6 @@ import {
   updateSessionStreamMeta,
 } from './stream-resume';
 
-declare function t(key: string, vars?: Record<string, string>): any;
-
 // ── 聊天事件集合（走 StreamBufferManager） ──
 
 const REACT_CHAT_EVENTS = new Set([
@@ -190,6 +188,20 @@ export function handleServerMessage(msg: any): void {
     // artifact 需要通知 artifacts shim 更新预览
     if (msg.type === 'artifact' && state.currentTab === 'chat') {
       handleArtifact(msg);
+    }
+    return;
+  }
+
+  // ── status / error 消息：更新 streaming 状态 / 显示错误 ──
+  if (msg.type === 'status') {
+    applyStreamingStatus(!!msg.isStreaming);
+    return;
+  }
+  if (msg.type === 'error') {
+    const errMsg = msg.message || msg.error || '';
+    if (errMsg) {
+      useStore.getState().setInlineError(errMsg);
+      showError(errMsg);
     }
     return;
   }
