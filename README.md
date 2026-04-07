@@ -24,27 +24,78 @@ Lynn is a personal AI agent that is easier to use than traditional coding agents
 As an assistant, it is gentle: no complex configuration files, no obscure jargon. Lynn is designed not just for coders, but for everyone who works at a computer.
 As a tool, it is powerful: it remembers everything you've said, operates your computer, browses the web, searches for information, reads and writes files, executes code, manages schedules, and can even learn new skills on its own.
 
-## Features
+## Not a Tool — A Companion
 
-**Memory** — A custom memory system that keeps recent events sharp and lets older ones fade naturally.
+Lynn is not a generic "AI assistant". Each Agent has its own name, personality, and voice, shaped by personality templates (Yuan) — some are warm and gentle, others rational and precise. You can create multiple Agents, each running independently, delegating tasks to each other and collaborating via channel group chats. An Agent is just a folder — easy to back up and migrate.
 
-**Personality** — Not a generic "AI assistant". Each agent has its own voice and behavior through personality templates. Agents are self-contained folders, easy to back up and manage.
+Connect Telegram, Feishu, QQ, or WeChat bots and the same Agent can chat with you across platforms, even operating your computer remotely.
 
-**Tools** — Read/write files, run terminal commands, browse the web, search the internet, take screenshots, draw on a canvas, execute JavaScript. Covers the vast majority of daily work scenarios.
+## Gets Smarter the Longer You Use It
 
-**Skills** — Built-in compatibility with the community Skills ecosystem. Agents can also install skills from GitHub or write their own. Strict safety review enabled by default.
+Lynn's memory is not a static `memory.md`. It's a six-layer system:
 
-**Multi-Agent** — Create multiple agents, each with independent memory, personality, and scheduled tasks. Agents can collaborate via channel group chats or delegate tasks to each other.
+- **Fact Store** — Stable facts confirmed in conversation, automatically extracted and structured
+- **Deep Memory** — Long-term memory compiled across sessions, periodically organized by AI
+- **Proactive Recall** — Automatically retrieves relevant memories based on context, without waiting for you to mention them
+- **User Profile + Inferred Profile** — Your preferences, habits, and frequently used tools, learned naturally over time
+- **Project Memory** — Per-workspace context and conventions
+- **Skill Distiller** — After a complex task succeeds, automatically evaluates whether it's worth distilling into a reusable skill for next time
 
-**Desk** — Each agent has a desk for files and notes (Jian). Supports drag-and-drop, file preview, and serves as an async collaboration space between you and your agent.
+Memory and skill distillation work together: the more you use Lynn, the more accurate its recall, the faster it works — gradually becoming a long-term collaborator that truly understands you.
 
-**Cron & Heartbeat** — Agents can run scheduled tasks and periodically check for file changes on the desk. They work autonomously even when you're away.
+## Install and Go
 
-**Sandbox** — Two-layer isolation: application-level PathGuard with four access tiers + OS-level sandboxing (macOS Seatbelt / Linux Bubblewrap).
+Two paths on first launch. **Quick Start** requires zero API keys — a built-in default model works out of the box. Enter your name, grant permissions, start chatting. Want a stronger model? Connect your own provider anytime in Settings.
 
-**Multi-Platform Bridge** — A single agent can connect to Telegram, Feishu, QQ, and WeChat bots simultaneously. Chat from any platform and remotely operate your computer.
+Lynn uses the OpenAI-compatible protocol, supporting any compatible provider (OpenAI, DeepSeek, Qwen, SiliconFlow, local models via Ollama, etc.). Some providers also support OAuth login. A nine-tier automatic fallback mechanism ensures conversations continue even when a provider is temporarily unavailable.
 
-**i18n** — Interface available in 5 languages: Chinese, English, Japanese, Korean, and Traditional Chinese.
+Interface available in 5 languages: Chinese, English, Japanese, Korean, and Traditional Chinese.
+
+## Works While You're Away
+
+This is the fundamental difference between Lynn and conversational AI tools.
+
+**Desk** is the async collaboration space between you and your Agent. Each Agent has its own desk where you can drop files and write notes (Jian). Tasks written on a Jian are proactively picked up and executed — no need to keep the chat window open.
+
+**Heartbeat** periodically scans for file changes and Jian updates on the desk. When new tasks appear, they're automatically processed and you're notified when done.
+
+**Cron** lets Agents run scheduled work. Each Agent's cron jobs run concurrently and independently — switching Agents doesn't interrupt other Agents' schedules. Recurring tasks written in a Jian automatically become cron jobs.
+
+**Long-task stability** is the foundation of this autonomous work system. Lynn's server runs as a standalone Node.js process (independent of the Electron renderer), communicating via full-duplex WebSocket. Chat interruptions, window closures, and network hiccups won't break running tasks. A review system automatically verifies AI output quality, and the model auto-falls back to alternatives when issues are detected.
+
+## Security
+
+Lynn can read files, run commands, and operate your local environment — so security is not an add-on, it's the foundation. Four layers of defense-in-depth ensure Agent behavior stays within your control:
+
+**Layer 1 · Path Guard**
+
+Four-tier access control: `BLOCKED → READ_ONLY → READ_WRITE → FULL`. Every file operation goes through realpath resolution (resolving symlinks) before matching access zones. Sensitive system files (SSH keys, `.env`, password databases, etc.) are hardcoded as BLOCKED — Agents can never touch them. Paths outside the working directory default to read-only.
+
+**Layer 2 · OS-Level Sandbox**
+
+Terminal commands are not executed directly — they go through operating system isolation:
+- macOS: `sandbox-exec` with dynamically generated Seatbelt SBPL profiles restricting filesystem, network, and IPC access
+- Linux: Bubblewrap (`bwrap`) namespace isolation, mounting only policy-approved directories
+- Windows: PathGuard path extraction + validation as the security layer (no OS sandbox available)
+
+**Layer 3 · Prompt Injection Detection (ClawAegis)**
+
+File contents dragged in by users or read by Agents are scanned by a lightweight injection detector — pure regex, zero latency, no LLM calls. Covers directive overrides (`ignore previous instructions`), role hijacking (`pretend you are`), and sensitive operation inducement (`read /etc/passwd`). Detections append warning context without blocking reads.
+
+**Layer 4 · Behavioral Confirmation & Security Modes**
+
+Three security modes for users to choose from:
+- **Safe mode**: Read-only, no file writes or command execution
+- **Plan mode**: Read/write allowed, dangerous operations pause for confirmation
+- **Authorized mode**: Full autonomy, Agent makes its own decisions
+
+Dangerous operations (`rm -rf`, `sudo`, `git push --force`) always trigger a confirmation dialog regardless of mode. Skill installation undergoes independent AI safety review (detecting prompt injection, overly broad triggers, privilege escalation) — installation is blocked if review fails.
+
+## Tools
+
+Read/write files, run terminal commands, browse the web, search the internet, take screenshots, draw on a canvas, execute JavaScript. Covers the vast majority of daily work scenarios.
+
+**Skills** — Compatible with the community Skills ecosystem. Agents can also install skills from GitHub or write their own. Built-in safety review enabled by default.
 
 ## Screenshots
 
