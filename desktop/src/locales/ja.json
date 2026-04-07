@@ -160,6 +160,7 @@
     "deskContext": "デスクのコンテキスト付き",
     "pastedImage": "貼り付け画像",
     "attachFile": "ファイルを添付",
+    "restoreDraft": "下書きを復元",
     "docContext": "ドキュメント付き",
     "thinkingLevel": {
       "off": "オフ",

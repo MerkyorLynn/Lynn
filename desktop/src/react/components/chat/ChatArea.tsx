@@ -157,6 +157,9 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
     <div
       ref={ref}
       className={styles.sessionPanel}
+      role="log"
+      aria-live={active ? 'polite' : 'off'}
+      aria-hidden={!active}
       style={{
         visibility: active ? 'visible' : 'hidden',
         zIndex: active ? 1 : 0,
@@ -177,7 +180,7 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
         {isSessionStreaming && !items.some(item =>
           item.type === 'message' && item.data.role === 'assistant' && item.data.id?.startsWith('stream-') && (item.data.blocks?.length ?? 0) > 0
         ) && (
-          <div className={styles.typingIndicator}>
+          <div className={styles.typingIndicator} role="status" aria-label={t('chat.thinking')}>
             <span className={styles.typingDots}>
               <span className={styles.typingDot} />
               <span className={styles.typingDot} />

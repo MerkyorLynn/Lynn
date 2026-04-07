@@ -160,6 +160,7 @@
     "deskContext": "책상 컨텍스트 포함",
     "pastedImage": "붙여넣은 이미지",
     "attachFile": "파일 첨부",
+    "restoreDraft": "임시 초안 복원",
     "docContext": "문서 포함",
     "thinkingLevel": {
       "off": "끔",
