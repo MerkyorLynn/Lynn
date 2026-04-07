@@ -93,6 +93,35 @@ Three security modes for users to choose from:
 
 Dangerous operations (`rm -rf`, `sudo`, `git push --force`) always trigger a confirmation dialog regardless of mode. Skill installation undergoes independent AI safety review (detecting prompt injection, overly broad triggers, privilege escalation) — installation is blocked if review fails.
 
+## Harness Architecture
+
+Six harness layers wrap Lynn's core Agent loop. Each layer operates independently without invading the Agent's internals, coordinating through shared data stores (FactStore / SQLite, experience/ directory, memory.md):
+
+```
+User Input
+  │
+  ├─ [1] Content Filter ─── DFA keyword filter, 17 risk categories, input blocking/warning
+  ├─ [2] Proactive Recall ─ Memory recall: keyword extraction → FactStore search → inject invisible context
+  │
+  ▼
+┌──────────────────┐
+│  Core Agent Loop │  LLM conversation + tool calls
+└──────────────────┘
+  │
+  ├─ [3] Tool Wrapper ───── Path validation + command preflight + dangerous operation authorization (3-mode policy)
+  ├─ [4] ClawAegis ──────── Prompt injection scan on read/read_file tool return content
+  │
+  ├─ [5] Memory Ticker ──── Post-observation: rolling summary every 6 turns → daily deep memory → fact extraction → skill distillation
+  ├─ [6] Review System ──── Post-evaluation: a second Agent reviews output → structured findings → auto-fix tasks
+  │
+  ▼
+User Output
+```
+
+**Review and Memory converge**: The Review System (Layer 6) uses a second Agent as a "colleague code reviewer" — findings automatically become fix tasks fed back into the execution pipeline. The Memory Ticker (Layer 5) extracts facts and experiences from conversations, depositing them into FactStore. Proactive Recall (Layer 2) retrieves this knowledge on the next conversation and injects it as context. Together they form a complete feedback loop: **evaluate → deposit → recall → better execution → re-evaluate**.
+
+Each layer is designed around **low latency, non-blocking**: Content Filter uses a DFA Trie (not LLM); ClawAegis uses pure regex (scans the first 10KB without calling an LLM); Proactive Recall uses regex keyword extraction plus FactStore / SQLite retrieval and stays lightweight; Memory Ticker and Review both run asynchronously in the background without blocking the current conversation.
+
 ## Tools
 
 Read/write files, run terminal commands, browse the web, search the internet, take screenshots, draw on a canvas, execute JavaScript. Covers the vast majority of daily work scenarios.

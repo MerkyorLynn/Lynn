@@ -95,6 +95,35 @@ Lynn 能读文件、跑命令、操作本地环境，所以安全不是附加功
 
 危险操作（`rm -rf`、`sudo`、`git push --force`）始终弹出确认对话框，不受模式影响。技能安装经过独立的 AI 安全审查（检测 prompt injection、过宽触发条件、权限提升），审查不通过则阻止安装。
 
+## Harness 架构
+
+Lynn 的核心 Agent 循环外面包裹了六层 harness，每一层独立运作，不侵入 Agent 内部逻辑，但通过共享的数据存储（FactStore / SQLite、experience/ 目录、memory.md）实现协同：
+
+```
+用户输入
+  │
+  ├─ [1] Content Filter ─── DFA 关键词过滤，17 类风险词库，输入拦截/警告
+  ├─ [2] Proactive Recall ─ 主动记忆召回：关键词提取 → FactStore 检索 → 注入隐形上下文
+  │
+  ▼
+┌──────────────────┐
+│  Core Agent Loop │  LLM 对话 + 工具调用
+└──────────────────┘
+  │
+  ├─ [3] Tool Wrapper ───── 路径校验 + 命令 preflight + 危险操作授权（三模式安全策略）
+  ├─ [4] ClawAegis ──────── read/read_file 等工具返回内容的 Prompt Injection 扫描
+  │
+  ├─ [5] Memory Ticker ──── 后置观察：每 6 轮滚动摘要 → 每日深度记忆 → 事实提取 → 技能蒸馏
+  ├─ [6] Review System ──── 后置评估：另一个 Agent 复查输出 → 结构化发现项 → 自动修复任务
+  │
+  ▼
+用户输出
+```
+
+**复查者和记忆殊途同归**：Review System（第 6 层）用第二个 Agent 作为"同事 code review"，发现问题后自动构建修复任务回注到执行链路；Memory Ticker（第 5 层）从对话中提取事实和经验，沉淀到 FactStore；而 Proactive Recall（第 2 层）在下一次对话时把这些知识召回注入上下文。三者形成一条完整的反馈闭环：**评估 → 沉淀 → 召回 → 更好的执行 → 再评估**。
+
+每一层的设计原则是**低延迟、不阻断**：Content Filter 用 DFA Trie 树而非 LLM；ClawAegis 用纯正则（扫描前 10KB，不调 LLM）；Proactive Recall 用正则提取关键词 + FactStore / SQLite 检索，整体保持轻量；Memory Ticker 和 Review 都在后台异步运行，不阻塞当前对话。
+
 ## 工具能力
 
 读写文件、执行终端命令、浏览网页、搜索互联网、截图、画布绘图、JavaScript 执行。能力覆盖日常办公的绝大多数场景。
