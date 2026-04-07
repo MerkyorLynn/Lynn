@@ -275,6 +275,7 @@
     "deskContext": "With desk context",
     "pastedImage": "Pasted image",
     "attachFile": "Attach file",
+    "restoreDraft": "Restore draft",
     "docContext": "With document",
     "docContextOpenRecent": "Click to open a recent document",
     "embeddedModel": {

@@ -715,7 +715,7 @@ function InputAreaInner() {
           <div className={styles['recovery-actions']}>
             {recoverableDraft && (
               <button className={styles['recovery-action']} onClick={handleRestoreLastDraft}>
-                恢复草稿
+                {t('input.restoreDraft') || '恢复草稿'}
               </button>
             )}
             {wsState !== 'connected' && (
@@ -769,7 +769,7 @@ function InputAreaInner() {
       {attachedFiles.length > 0 && (
         <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
       )}
-      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && (
+      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !slashBusy && !compacting && (
         <div className={styles['at-discovery-row']}>
           <button type="button" className={styles['at-discovery-pill']} onClick={handleTryAtInjection}>
             <span className={styles['at-discovery-badge']}>@</span>
@@ -808,6 +808,7 @@ function InputAreaInner() {
       )}
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
+          aria-label={t('input.placeholder') || '输入消息'}
           rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
           onCompositionStart={() => { isComposing.current = true; }}

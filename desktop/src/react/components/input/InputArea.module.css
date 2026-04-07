@@ -932,32 +932,32 @@
 
 /* 规划模式 — 蓝色 */
 .input-wrapper-plan {
-    border-color: #5b9bd5;
+    border-color: var(--mode-plan, #5b9bd5);
     background: linear-gradient(180deg, rgba(91, 155, 213, 0.12), rgba(91, 155, 213, 0.06));
 }
 .input-wrapper-plan:focus-within {
-    border-color: #4a8bc4;
+    border-color: var(--mode-plan-focus, #4a8bc4);
     background: linear-gradient(180deg, rgba(91, 155, 213, 0.16), rgba(91, 155, 213, 0.08));
     box-shadow: 0 14px 34px rgba(91, 155, 213, 0.2);
 }
 
 /* 安全模式 — 绿色 */
 .input-wrapper-safe {
-    border-color: #5ba88c;
+    border-color: var(--mode-safe, #5ba88c);
     background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 94%, rgba(91, 168, 140, 0.15));
 }
 .input-wrapper-safe:focus-within {
-    border-color: #4a9a7c;
+    border-color: var(--mode-safe-focus, #4a9a7c);
     box-shadow: 0 14px 34px rgba(91, 168, 140, 0.2);
 }
 
 /* 全权模式 — 红色 */
 .input-wrapper-full-access {
-    border-color: #da6f6f;
+    border-color: var(--mode-danger, #da6f6f);
     background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 94%, rgba(218, 111, 111, 0.15));
 }
 .input-wrapper-full-access:focus-within {
-    border-color: #c85e5e;
+    border-color: var(--mode-danger-focus, #c85e5e);
     box-shadow: 0 14px 34px rgba(218, 111, 111, 0.2);
 }
 
@@ -1361,11 +1361,12 @@
 
 .input-context-left {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-sm);
+    gap: 0.35rem;
     min-width: 0;
     flex: 1;
+    padding-left: 4px;
 }
 
 .quoted-selection-card {
@@ -1443,17 +1444,6 @@
 .quoted-selection-remove:hover {
     color: var(--text);
     background: rgba(0, 0, 0, 0.04);
-}
-
-/* 左侧附件/引用区域 — 纵向排列 */
-.input-context-left {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-    flex: 1;
-    min-width: 0;
-    padding-left: 4px;
 }
 
 /* 输入框上方附件栏 */

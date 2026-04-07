@@ -253,7 +253,16 @@
 
 .sessionItem:hover .sessionPinBtn,
 .sessionItem:hover .sessionLabelBtn,
-.sessionItem:hover .sessionArchiveBtn {
+.sessionItem:hover .sessionArchiveBtn,
+.sessionItem:active .sessionPinBtn,
+.sessionItem:active .sessionLabelBtn,
+.sessionItem:active .sessionArchiveBtn,
+.sessionItem:focus-within .sessionPinBtn,
+.sessionItem:focus-within .sessionLabelBtn,
+.sessionItem:focus-within .sessionArchiveBtn,
+.sessionItemActive .sessionPinBtn,
+.sessionItemActive .sessionLabelBtn,
+.sessionItemActive .sessionArchiveBtn {
     opacity: 0.5;
 }
 

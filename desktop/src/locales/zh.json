@@ -290,6 +290,7 @@
     "deskContext": "看着书桌说",
     "pastedImage": "粘贴图片",
     "attachFile": "添加附件",
+    "restoreDraft": "恢复草稿",
     "docContext": "看着文档说",
     "docContextOpenRecent": "点击打开最近的文档",
     "embeddedModel": {
