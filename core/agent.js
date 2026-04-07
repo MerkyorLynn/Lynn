@@ -190,9 +190,20 @@ export class Agent {
 
     log(`  [agent] 4. FactStore + SummaryManager 完成`);
 
-    // utility 模型（允许为空，首次安装时用户尚未配置）
-    this._utilityModel = sharedModels.utility || null;
-    this._memoryModel = sharedModels.utility_large || null;
+    // utility / memory 模型：
+    // 共享模型优先；旧用户若还保留在 per-agent config.yaml 中，则按 utility_large -> utility -> chat 回退。
+    const configuredChatModel = this._config?.models?.chat || null;
+    this._utilityModel =
+      sharedModels.utility
+      || this._config?.models?.utility
+      || configuredChatModel
+      || null;
+    this._memoryModel =
+      sharedModels.utility_large
+      || this._config?.models?.utility_large
+      || this._utilityModel
+      || configuredChatModel
+      || null;
     this._resolvedUtilityModel = null;
 
     // 预解析记忆模型凭证（统一解析层）

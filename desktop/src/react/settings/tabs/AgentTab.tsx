@@ -36,7 +36,6 @@ export function AgentTab() {
     globalModelsConfig,
   } = store;
 
-  const hasUtilityModel = !!(globalModelsConfig?.models?.utility && globalModelsConfig?.models?.utility_large);
   const settingsAgentId = store.getSettingsAgentId();
 
   const [agentName, setAgentName] = useState('');
@@ -60,6 +59,17 @@ export function AgentTab() {
   );
   const configReady = !!settingsConfig && settingsConfigAgentId === effectiveAgentId;
   const activeSettingsConfig = configReady ? settingsConfig : null;
+  const hasUtilityModel = useMemo(() => {
+    const sharedModels = globalModelsConfig?.models || {};
+    const agentModels = activeSettingsConfig?.models || {};
+    return !!(
+      sharedModels.utility_large
+      || agentModels.utility_large
+      || sharedModels.utility
+      || agentModels.utility
+      || agentModels.chat
+    );
+  }, [activeSettingsConfig, globalModelsConfig]);
   const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
 
   useEffect(() => {
