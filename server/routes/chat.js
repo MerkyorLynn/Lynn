@@ -902,7 +902,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.titlePreview = "";
                 beginSessionStream(ss);
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                // 流式 15s first-token 超时提示：如果 15s 内没有任何输出，提醒用户
+                const STREAM_SLOW_MS = 15_000;
+                const slowStreamTimer = setTimeout(() => {
+                  if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError) {
+                    broadcast({ type: "error", message: t("error.llmSlowResponse") || "模型响应较慢，请耐心等待", sessionPath: promptSessionPath });
+                  }
+                }, STREAM_SLOW_MS);
+                try {
+                  await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                } finally {
+                  clearTimeout(slowStreamTimer);
+                }
                 broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
               } catch (err) {
                 if (!err.message?.includes("aborted")) {
