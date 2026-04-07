@@ -19,13 +19,12 @@
 
 ## Lynn 是什么
 
-Lynn 是一个更加易用的 AI agent，有记忆，有性格，会主动行动，还能多 Agent 在你的电脑上一同工作。
+Lynn 是一个更易上手的 AI Agent：有记忆，有性格，会主动行动，还能让多个 Agent 在你的电脑上协同工作。
 
-作为助手，Ta 是温柔的：不需要写复杂的配置，不需要理解晦涩的术语。Lynn 不只面向 coder ，而是为每一个坐在电脑前工作的人设计的助手。
-作为工具，Ta 是强大的：记住你说过的每一件事，操作你的电脑，浏览网页，搜索信息，读写文件，执行代码，管理日程，还能自主学习新技能。
+作为助手，Ta 是温柔的：不需要写复杂配置，也不需要理解晦涩术语。Lynn 不只面向 coder，而是为每一个坐在电脑前工作的人设计的助手。
+作为工具，Ta 也是强大的：记住重要事实，操作你的电脑，浏览网页，搜索信息，读写文件，执行代码，管理日程，还能自主学习新技能。
 
-我开这个项目的初衷是：弥合绝大多数人和 AI Agent 之间的缝隙，让强大的 Agent 能力不再只局限于命令行里。于是我做了比传统 Coding Agent 更多一些的优化：一方面是强化 Agent「像人」的属性，是你和他们沟通更自然；另一方面，因为我本职也是一介文员，所以我也针对日常办公场景做了很多工具性和流程性的优化，敬请探索。
-此外，Lynn 有比较完备的图形页面。
+我做这个项目的初衷，是弥合绝大多数人和 AI Agent 之间的缝隙，让强大的 Agent 能力不再只局限于命令行。于是我做了比传统 Coding Agent 更多一些的优化：一方面强化 Agent「像人」的属性，让沟通更自然；另一方面，围绕日常办公场景补了很多工具和流程层的体验。Lynn 也提供了相对完整、友好的图形界面。
 
 如果你用过 claude code、codex、Manus 等 CLI 或是图形化的 Agent，你会在 Lynn 这里找到熟悉又新奇的感觉。
 
@@ -116,9 +115,9 @@ Lynn 能读文件、跑命令、操作本地环境，所以安全不是附加功
 
 应用已通过 Apple Developer ID 签名和公证，macOS 应该可以直接打开。
 
-**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe` 安装包。
+**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.zip` 便携版，解压后运行 `Lynn.exe`。
 
-> **Windows SmartScreen 提示：** 安装包暂未经过代码签名，首次运行时 Windows Defender SmartScreen 可能会拦截，点击**更多信息** → **仍要运行**即可，未签名版本的正常现象。
+> **Windows SmartScreen 提示：** 便携版暂未经过代码签名，首次运行时 Windows Defender SmartScreen 可能会拦截，点击**更多信息** → **仍要运行**即可，这是未签名版本的正常现象。
 
 Linux 版本计划中。
 

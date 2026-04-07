@@ -22,7 +22,9 @@
 Lynn is a personal AI agent that is easier to use than traditional coding agents. It has memory, personality, and can act autonomously. Multiple agents can work together on your machine.
 
 As an assistant, it is gentle: no complex configuration files, no obscure jargon. Lynn is designed not just for coders, but for everyone who works at a computer.
-As a tool, it is powerful: it remembers everything you've said, operates your computer, browses the web, searches for information, reads and writes files, executes code, manages schedules, and can even learn new skills on its own.
+As a tool, it is powerful: it remembers important facts you've shared, operates your computer, browses the web, searches for information, reads and writes files, executes code, manages schedules, and can even learn new skills on its own.
+
+This project started from a simple goal: narrow the gap between most people and AI agents, and bring powerful agent capabilities beyond the command line. That shaped two priorities for Lynn: make Agents feel more human to talk to, and make everyday desktop work easier through better tooling and workflows. Lynn also comes with a more approachable GUI.
 
 ## Not a Tool — A Companion
 
@@ -111,9 +113,9 @@ Read/write files, run terminal commands, browse the web, search the internet, ta
 
 The app is signed and notarized with an Apple Developer ID. macOS should allow it to launch directly.
 
-**Windows:** download the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases).
+**Windows:** download the latest portable `.zip` from [Releases](https://github.com/MerkyorLynn/Lynn/releases), extract it, then run `Lynn.exe`.
 
-> **Windows SmartScreen notice:** The installer is not yet code-signed. Windows Defender SmartScreen may show a warning on first run. Click **More info** → **Run anyway**. This is expected for unsigned builds.
+> **Windows SmartScreen notice:** The portable build is not yet code-signed. Windows Defender SmartScreen may show a warning on first run. Click **More info** → **Run anyway**. This is expected for unsigned builds.
 
 Linux builds are planned.
 
