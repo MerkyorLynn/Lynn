@@ -24,13 +24,12 @@ function _d(encoded) {
   } catch { return ""; }
 }
 // 编码过程：原文 → 反转字符串 → base64
-// "http://82.156.182.240" → "042.281.651.28//:ptth" → base64
-const _BRAIN_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
+// "https://api.merkyorlynn.com" → "moc.nnylorykrem.ipa//:sptth" → base64
+const _BRAIN_HOST_ENCODED = "bW9jLm5ueWxyb3lrcmVtLmlwYS8vOnNwdHRo";
 const _BRAIN_FALLBACK = _d(_BRAIN_HOST_ENCODED);
 
-// ── 容灾备用地址（编码方式同上） ──
-// "http://82.156.182.240" 的第二入口（同 IP 不同端口或备用 IP）
-// 当前和主地址相同，后续添加第二个 IP/域名时只需改这里
+// ── 容灾备用地址（直连 IP，域名不可用时兜底） ──
+// "http://82.156.182.240" → base64
 const _BRAIN_BACKUP_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
 const _BRAIN_BACKUP_FALLBACK = _d(_BRAIN_BACKUP_HOST_ENCODED);
 
