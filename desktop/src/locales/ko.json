@@ -579,7 +579,7 @@
       "setActive": "활성 에이전트로 설정",
       "lastAgent": "에이전트는 최소 한 명 유지해야 해요",
       "yuan": "元",
-      "yuanHint": "「元」은 에이전트의 타고난 사고 방식이에요. 이 기반 위에 당신만의 동반자를 만들어 보세요."
+      "yuanHint": ""
     },
     "about": {
       "title": "소개",
@@ -1782,6 +1782,7 @@
   "error.llmEmptyResponse": "Model returned empty response",
   "error.llmAuthFailed": "Model authentication failed",
   "error.llmSlowResponse": "Model is responding slowly, please wait",
+  "error.brainUnreachable": "기본 모델 서비스에 일시적으로 연결할 수 없습니다. 네트워크를 확인하거나 설정에서 직접 API 키로 전환하세요.",
   "error.fsPermission": "File permission denied",
   "error.fsNotFound": "File not found",
   "error.fsCopyFailed": "File copy failed",

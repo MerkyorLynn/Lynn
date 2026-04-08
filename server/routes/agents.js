@@ -224,6 +224,19 @@ export function createAgentsRoute(engine) {
       const configPath = path.join(agentDir(engine, id), "config.yaml");
       // 直接解析 YAML，不走 loadConfig 全局缓存
       const config = YAML.load(await fs.readFile(configPath, "utf-8")) || {};
+      const loadedAgent = typeof engine.getAgent === "function" ? engine.getAgent(id) : null;
+
+      if (loadedAgent?.config) {
+        const runtimeConfig = loadedAgent.config;
+        config.models = {
+          ...(runtimeConfig.models || {}),
+          ...(config.models || {}),
+        };
+        config.api = {
+          ...(runtimeConfig.api || {}),
+          ...(config.api || {}),
+        };
+      }
 
       // API key 不做掩码（本地应用，前端用 type="password" 控制显隐）
 

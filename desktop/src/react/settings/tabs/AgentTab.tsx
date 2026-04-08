@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSettingsStore } from '../store';
+import { useStore } from '../../stores';
 import { hanaFetch, hanaUrl, yuanFallbackAvatar as settingsYuanFallbackAvatar } from '../api';
 import { t, autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
@@ -57,19 +58,22 @@ export function AgentTab() {
     () => new Set(agents.filter((agent) => builtInAgentIds.has(agent.id)).map((agent) => agent.id)),
     [agents, builtInAgentIds],
   );
+  const currentRuntimeModel = useStore((s: any) => s.currentModel);
   const configReady = !!settingsConfig && settingsConfigAgentId === effectiveAgentId;
   const activeSettingsConfig = configReady ? settingsConfig : null;
   const hasUtilityModel = useMemo(() => {
     const sharedModels = globalModelsConfig?.models || {};
     const agentModels = activeSettingsConfig?.models || {};
+    const runtimeChatFallback = effectiveAgentId === currentAgentId ? currentRuntimeModel?.id : null;
     return !!(
       sharedModels.utility_large
       || agentModels.utility_large
       || sharedModels.utility
       || agentModels.utility
       || agentModels.chat
+      || runtimeChatFallback
     );
-  }, [activeSettingsConfig, globalModelsConfig]);
+  }, [activeSettingsConfig, currentAgentId, currentRuntimeModel?.id, effectiveAgentId, globalModelsConfig]);
   const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
 
   useEffect(() => {
@@ -94,6 +98,7 @@ export function AgentTab() {
     const raw = (t('yuan.types') || {}) as Record<string, { name?: string }>;
     return Object.fromEntries(getDisplayYuanEntries(raw));
   }, []);
+  const yuanHint = String(t('settings.agent.yuanHint') || '').trim();
 
   useEffect(() => {
     if (!selectedAgent) return;
@@ -343,7 +348,7 @@ export function AgentTab() {
       <section className={styles['settings-section']}>
         <h2 className={styles['settings-section-title']}>{t('settings.about.title')}</h2>
         <div className={`${styles['settings-field']} ${styles['settings-field-center']}`}>
-          <span className={styles['settings-field-hint']}>{t('settings.agent.yuanHint')}</span>
+          {yuanHint && <span className={styles['settings-field-hint']}>{yuanHint}</span>}
           <YuanSelector
             currentYuan={pendingYuan || currentYuan}
             onChange={(key) => {

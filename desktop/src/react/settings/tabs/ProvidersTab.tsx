@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useSettingsStore, type ProviderSummary } from '../store';
 import { hanaFetch } from '../api';
 import { t, PROVIDER_PRESETS } from '../helpers';
+import { loadSettingsConfig } from '../actions';
 import { ProviderDetail } from './providers/ProviderDetail';
 import { AddCustomButton } from './providers/ProviderList';
 import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL } from '../../../../../shared/brain-provider.js';

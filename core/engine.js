@@ -75,6 +75,7 @@ import {
 import {
   BRAIN_PROVIDER_ID,
   BRAIN_API_ROOT,
+  BRAIN_API_ROOTS,
   BRAIN_LEGACY_PROVIDER_BASE_URL,
   buildBrainProviderConfig,
   getBrainRegistrationToken,
@@ -709,19 +710,49 @@ export class HanaEngine {
     }
 
     // 0d. 将本机 Lynn 身份注册到 Brain 服务，后续请求走签名头鉴权
-    try {
+    //     放到后台执行，避免弱网场景把启动卡住；失败不阻断启动。
+    this._brainRegistered = false;
+    this._brainRegistrationPending = true;
+    const brainApiRoots = BRAIN_API_ROOTS.length > 0 ? BRAIN_API_ROOTS : [BRAIN_API_ROOT];
+    this._brainRegistrationTask = (async () => {
       const { key, secret } = this._prefs.ensureClientIdentity();
-      await registerClientIdentityWithBrainApi({
-        baseUrl: BRAIN_API_ROOT,
-        agentKey: key,
-        secret,
-        registrationToken: getBrainRegistrationToken(),
-        timeoutMs: 5000,
+      const registrationToken = getBrainRegistrationToken();
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const timeoutMs = attempt === 1 ? 5000 : 8000;
+        for (const baseUrl of brainApiRoots) {
+          try {
+            await registerClientIdentityWithBrainApi({
+              baseUrl,
+              agentKey: key,
+              secret,
+              registrationToken,
+              timeoutMs,
+            });
+            this._brainRegistered = true;
+            log(`[init] Brain device registration ok (${baseUrl})`);
+            return true;
+          } catch (err) {
+            lastError = err;
+            log(`[init] Brain device registration attempt ${attempt} failed via ${baseUrl}: ${err.message}`);
+          }
+        }
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      log(`[init] Brain device registration skipped: ${lastError?.message || "unknown error"}`);
+      return false;
+    })()
+      .catch((err) => {
+        log(`[init] Brain device registration crashed: ${err.message}`);
+        return false;
+      })
+      .finally(() => {
+        this._brainRegistrationPending = false;
       });
-      log("[init] Brain device registration ok");
-    } catch (err) {
-      log(`[init] Brain device registration skipped: ${err.message}`);
-    }
 
     // 1. Pi SDK + 模型基础设施（必须在 agent init 之前，agent 需要解析记忆模型）
     log(`[init] 1/5 Pi SDK 初始化...`);

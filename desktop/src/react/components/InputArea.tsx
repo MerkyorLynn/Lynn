@@ -824,9 +824,7 @@ function InputAreaInner() {
           </div>
           <div className={styles['input-controls']}>
             {activeModelInfo?.reasoning !== false && (
-              <span className={styles['input-hover-reveal']}>
-                <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
-              </span>
+              <ThinkingLevelButton level={thinkingLevel} onChange={setThinkingLevel} modelXhigh={currentModelInfo?.xhigh ?? false} />
             )}
             <ModelSelector models={selectorModels} disabled={isStreaming} />
             {(noModelsAtAll || models.length <= 1) && (

@@ -71,6 +71,70 @@ let _currentBrowserSession = null; // 当前浏览器绑定的 sessionPath
 const _isDev = process.argv.includes("--dev");
 const _distRenderer = path.join(__dirname, "dist-renderer");
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function loadWindowErrorPage(win, pageName, err) {
+  const detail = escapeHtml(err?.message || err || "unknown error");
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(pageName)}</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      background: #f8f5ed;
+      color: #4f5b66;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .card {
+      width: min(560px, 100%);
+      background: rgba(255,255,255,0.88);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(74, 92, 106, 0.12);
+      padding: 24px 28px;
+    }
+    h1 { margin: 0 0 10px; font-size: 20px; color: #3f4a55; }
+    p { margin: 0; line-height: 1.7; }
+    code {
+      display: block;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(79, 91, 102, 0.08);
+      color: #556372;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${escapeHtml(pageName)} 加载失败</h1>
+    <p>这个窗口没有正确加载出来。重新打开一次试试；如果仍然出现，请把下面这段错误信息发给开发者。</p>
+    <code>${detail}</code>
+  </div>
+</body>
+</html>`;
+  return win.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
+}
+
 function loadWindowURL(win, pageName, opts) {
   if (_isDev && process.env.VITE_DEV_URL) {
     let url = `${process.env.VITE_DEV_URL}/${pageName}.html`;
@@ -78,14 +142,21 @@ function loadWindowURL(win, pageName, opts) {
       const qs = new URLSearchParams(opts.query).toString();
       url += `?${qs}`;
     }
-    win.loadURL(url);
+    return win.loadURL(url);
   } else {
     const built = path.join(_distRenderer, `${pageName}.html`);
-    if (!_isDev && fs.existsSync(built)) {
-      win.loadFile(built, opts);
-    } else {
-      win.loadFile(path.join(__dirname, "src", `${pageName}.html`), opts);
+    if (_isDev) {
+      return win.loadFile(path.join(__dirname, "src", `${pageName}.html`), opts);
     }
+    if (!fs.existsSync(built)) {
+      const err = new Error(`renderer entry missing: ${built}`);
+      console.error(`[desktop] ${pageName} 页面入口缺失: ${built}`);
+      return loadWindowErrorPage(win, pageName, err);
+    }
+    return win.loadFile(built, opts).catch((err) => {
+      console.error(`[desktop] ${pageName} 页面加载失败: ${err.message}`);
+      return loadWindowErrorPage(win, pageName, err);
+    });
   }
 }
 
@@ -590,7 +661,27 @@ function hasExistingConfig() {
     if (!agentId) return false;
     const configPath = path.join(lynnHome, "agents", agentId, "config.yaml");
     const configText = fs.readFileSync(configPath, "utf-8");
-    return /api_key:\s*["']?[^"'\s]+/.test(configText);
+
+    // 兼容旧版：api_key 直接写在当前 agent 的 config.yaml
+    if (/api_key:\s*["']?[^"'\s]+/.test(configText)) {
+      return true;
+    }
+
+    const parsedConfig = yaml.load(configText) || {};
+    const currentProvider = String(parsedConfig?.api?.provider || "").trim();
+
+    // 兼容新版：provider 凭证已经迁移到全局 ~/.lynn/added-models.yaml
+    const providersPath = path.join(lynnHome, "added-models.yaml");
+    const providersRaw = fs.readFileSync(providersPath, "utf-8");
+    const providersData = yaml.load(providersRaw) || {};
+    const providers = providersData?.providers || {};
+    const hasProviderKey = (entry) => typeof entry?.api_key === "string" && String(entry.api_key).trim().length > 0;
+
+    if (currentProvider && hasProviderKey(providers[currentProvider])) {
+      return true;
+    }
+
+    return Object.values(providers).some(hasProviderKey);
   } catch {}
   return false;
 }
@@ -1187,6 +1278,10 @@ function createSettingsWindow(target, theme) {
       console.warn("[desktop] settings renderer 已崩溃，重建窗口");
       settingsWindow.destroy();
       settingsWindow = null;
+    } else if ((settingsWindow.webContents.getURL() || "").startsWith("data:text/html")) {
+      console.warn("[desktop] settings window 处于错误页，重建窗口");
+      settingsWindow.destroy();
+      settingsWindow = null;
     } else {
       if (navigationTarget) settingsWindow.webContents.send("settings-switch-tab", navigationTarget);
       settingsWindow.show();
@@ -1218,7 +1313,28 @@ function createSettingsWindow(target, theme) {
     if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.show();
   });
 
-  loadWindowURL(settingsWindow, "settings");
+  settingsWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame) return;
+    console.error(`[desktop] settings did-fail-load: ${errorCode} ${errorDescription} ${validatedURL}`);
+    if (settingsWindow && !settingsWindow.isDestroyed() && !String(validatedURL || "").startsWith("data:text/html")) {
+      void loadWindowErrorPage(settingsWindow, "settings", new Error(`${errorCode} ${errorDescription}`));
+    }
+  });
+
+  settingsWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (level >= 2) {
+      console.warn(`[desktop] settings console(${level}) ${sourceId}:${line} ${message}`);
+    }
+  });
+
+  void Promise.allSettled([
+    settingsWindow.webContents.session.clearCache(),
+    settingsWindow.webContents.session.clearStorageData({ storages: ["cachestorage", "serviceworkers"] }),
+  ]).finally(() => {
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      void loadWindowURL(settingsWindow, "settings");
+    }
+  });
 
   // 拦截设置窗口内的链接导航
   settingsWindow.webContents.on("will-navigate", (event, url) => {

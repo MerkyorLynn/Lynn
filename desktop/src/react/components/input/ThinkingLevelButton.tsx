@@ -48,12 +48,19 @@ export function ThinkingLevelButton({ level, onChange, modelXhigh }: {
   };
 
   const isOff = level === 'off';
+  const levelLabel = tLevel(`input.thinkingLevel.${level}`, level);
+  const buttonTitle = t('settings.agent.thinkingLevelHint') || t('input.thinking') || levelLabel;
 
   return (
     <div className={`${styles['thinking-selector']}${open ? ` ${styles.open}` : ''}`} ref={ref}>
       <button
+        type="button"
         className={`${styles['thinking-pill']}${isOff ? '' : ` ${styles.active}`}`}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        title={buttonTitle}
+        aria-label={buttonTitle}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 18h6" /><path d="M10 22h4" />
@@ -65,6 +72,7 @@ export function ThinkingLevelButton({ level, onChange, modelXhigh }: {
         <div className={styles['thinking-dropdown']}>
           {availableLevels.map(lv => (
             <button
+              type="button"
               key={lv}
               className={`${styles['thinking-option']}${lv === level ? ` ${styles.active}` : ''}`}
               onClick={() => selectLevel(lv)}

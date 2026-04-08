@@ -239,7 +239,50 @@ app.get("/api/health", async (c) => {
     user: engine.userName,
     model: engine.currentModel?.name,
     avatars,
+    brainRegistered: engine._brainRegistered ?? false,
+    brainRegistering: engine._brainRegistrationPending ?? false,
   });
+});
+
+// Brain 连通性诊断（前端 Quick Start 后调用）
+app.get("/api/brain/diagnose", async (c) => {
+  const result = {
+    registered: engine._brainRegistered ?? false,
+    registering: engine._brainRegistrationPending ?? false,
+    reachable: false,
+    latencyMs: 0,
+    error: null,
+    url: null,
+  };
+  try {
+    const { readSignedClientAgentHeaders } = await import("../core/client-agent-identity.js");
+    const { BRAIN_PROVIDER_BASE_URLS } = await import("../shared/brain-provider.js");
+    const headers = readSignedClientAgentHeaders({ method: "GET", pathname: "/models" });
+    let lastError = null;
+    for (const baseUrl of BRAIN_PROVIDER_BASE_URLS) {
+      const start = Date.now();
+      try {
+        const res = await fetch(`${baseUrl}/models`, {
+          headers,
+          signal: AbortSignal.timeout(8000),
+        });
+        result.latencyMs = Date.now() - start;
+        result.url = baseUrl;
+        if (res.ok) {
+          result.reachable = true;
+          result.error = null;
+          return c.json(result);
+        }
+        lastError = `HTTP ${res.status}`;
+      } catch (err) {
+        lastError = err.message;
+      }
+    }
+    result.error = lastError;
+  } catch (err) {
+    result.error = err.message;
+  }
+  return c.json(result);
 });
 
 // 前端日志上报（desktop 端把错误 POST 到 server 写进持久化日志）

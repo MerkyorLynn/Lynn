@@ -578,7 +578,7 @@
       "setActive": "アクティブに設定",
       "lastAgent": "エージェントは最低1つ必要です",
       "yuan": "元",
-      "yuanHint": "「元」はエージェントの生まれ持った思考スタイルです。この土台からあなただけのパートナーを作り上げてください。"
+      "yuanHint": ""
     },
     "about": {
       "title": "このアプリについて",
@@ -1772,6 +1772,7 @@
   "error.llmEmptyResponse": "Model returned empty response",
   "error.llmAuthFailed": "Model authentication failed",
   "error.llmSlowResponse": "Model is responding slowly, please wait",
+  "error.brainUnreachable": "デフォルトモデルサービスに一時的に接続できません。ネットワークを確認するか、設定で自分のAPIキーに切り替えてください。",
   "error.fsPermission": "File permission denied",
   "error.fsNotFound": "File not found",
   "error.fsCopyFailed": "File copy failed",

@@ -129,7 +129,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [showWaitingHint]);
 
   // ── 模型表现评估：回复质量不佳时提示用户切换模型 ──
-  const hasToolCalls = useMemo(() => blocks.some(b => b.type === 'tool_use' || b.type === 'tool_result'), [blocks]);
+  const hasToolCalls = totalTools > 0;
   const isFinished = !isStreamMsg || (blocks.length > 0 && !showStreamingMeta && !showWaitingHint);
   const textLen = plainText.length;
   const modelHintDismissKey = 'lynn-model-hint-dismissed';

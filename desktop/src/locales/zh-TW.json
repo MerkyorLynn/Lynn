@@ -649,7 +649,7 @@
       "setActive": "設為主助手",
       "lastAgent": "至少保留一個助手",
       "yuan": "元",
-      "yuanHint": "「元」是助手的先天思維方式，以此為基礎搭建你獨一無二的夥伴"
+      "yuanHint": ""
     },
     "about": {
       "title": "關於 Ta",
@@ -1913,6 +1913,7 @@
   "error.llmEmptyResponse": "模型返回了空响应",
   "error.llmAuthFailed": "模型认证失败",
   "error.llmSlowResponse": "模型响应较慢，请耐心等待",
+  "error.brainUnreachable": "預設模型服務暫時無法連線，請檢查網路連線或在設定中切換至自己的 API Key",
   "error.fsPermission": "文件权限不足",
   "error.fsNotFound": "文件未找到",
   "error.fsCopyFailed": "文件复制失败",

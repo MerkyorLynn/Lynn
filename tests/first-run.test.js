@@ -67,12 +67,13 @@ describe('ensureFirstRun', () => {
 
     ensureFirstRun(lynnHome, productDir);
 
-    expect(fs.existsSync(path.join(agentsDir, 'hanako'))).toBe(false);
+    expect(fs.existsSync(path.join(agentsDir, 'hanako', 'config.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(agentsDir, 'lynn', 'config.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(agentsDir, 'butter', 'config.yaml'))).toBe(true);
 
     const prefs = JSON.parse(fs.readFileSync(path.join(lynnHome, 'user', 'preferences.json'), 'utf-8'));
     expect(prefs.primaryAgent).toBe('lynn');
-    expect(prefs.agentOrder).toEqual(['lynn', 'agent-reviewer']);
+    expect(prefs.agentOrder).toEqual(['lynn', 'agent-reviewer', 'hanako', 'butter']);
     expect(prefs.review.hanakoReviewerId).toBeNull();
 
     const migrated = readYaml(path.join(agentsDir, 'lynn', 'config.yaml'));
@@ -97,7 +98,8 @@ describe('ensureFirstRun', () => {
     ensureFirstRun(lynnHome, productDir);
 
     expect(fs.existsSync(path.join(agentsDir, 'hanako', 'config.yaml'))).toBe(true);
-    expect(fs.existsSync(path.join(agentsDir, 'lynn', 'config.yaml'))).toBe(false);
+    expect(fs.existsSync(path.join(agentsDir, 'lynn', 'config.yaml'))).toBe(true);
+    expect(fs.existsSync(path.join(agentsDir, 'butter', 'config.yaml'))).toBe(true);
   });
 
   it('seeds recommended skills for near-empty agents after syncing built-in skills', () => {

@@ -53,6 +53,27 @@ Lynn uses the OpenAI-compatible protocol, supporting any compatible provider (Op
 
 Interface available in 5 languages: Chinese, English, Japanese, Korean, and Traditional Chinese.
 
+## Deep Optimization for Chinese Models
+
+Lynn doesn't just slap an OpenAI-compatible wrapper and call it a day. From 9B small models to GLM-5 reasoning models, every tier has purpose-built adaptations:
+
+**Free built-in models (Brain)** — Quick Start ships with a domestic built-in model pool, and the default route includes GLM-Z1-9B (Zhipu reasoning, 9B), GLM-4-9B, Qwen3-8B, and Step-3.5-Flash. No API key needed — device authentication only.
+
+**Three-tier tool layering** — Tools are automatically pruned based on context window:
+- Small models (<32K, e.g. ERNIE 8K, Moonshot 8K, Step 8K): only `web_search` + `web_fetch`, preventing tool descriptions from blowing out the context
+- Medium models (32K, e.g. Doubao 32K, Hunyuan Pro, Baichuan Turbo): standard tool set (search, memory, file preview, notification — 10 tools)
+- Large models (≥64K, e.g. GLM-5, Qwen3-Max, DeepSeek): full tool set, no pruning
+
+**Small-model prompt engineering** — When context < 32K, four optimization directives are auto-injected: 500-word reply limit + key conclusion markers (`<!-- KEY: -->`, prioritized during compaction); sequential single-tool call rules (prevents weak models from calling tools in parallel incorrectly); tool overview summary (reduces token overhead from tool descriptions); plans required before 3+ step tasks.
+
+**Adaptive context compaction** — Small-window models retain more recent context (40% vs 20% for large models), reduce output reservation (4K vs 16K), and trigger automatic session relay after just 1–2 compactions (vs 3 for large models), preventing context quality collapse.
+
+**Reasoning model protocol adaptation** — Zhipu GLM-5 / GLM-5-Turbo use ZAI thinking format (`thinking: { type: "enabled" }`), while the entire Qwen3 family uses the `enable_thinking` quirk — each routed through different Pi SDK patch paths. Non-OpenAI providers uniformly disable `developer role` to prevent API errors.
+
+**Coding Plan one-click setup** — 7 domestic vendors' coding subscriptions are pre-registered as separate providers (just add your API key): DashScope Coding, Zhipu Coding, Kimi Coding, MiniMax Coding, StepFun Coding, Tencent Cloud Coding, Volcengine Coding.
+
+**Tool call fault tolerance** — Small models are prone to malformed tool calls. After 3 consecutive failures, the system auto-degrades: stops tool use and explains the situation in text. Empty `tools: []` arrays are stripped before sending (DashScope / Volcengine APIs return 400 on empty arrays).
+
 ## Works While You're Away
 
 This is the fundamental difference between Lynn and conversational AI tools.

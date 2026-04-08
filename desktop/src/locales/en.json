@@ -725,7 +725,7 @@
       "setActive": "Set as active",
       "lastAgent": "Must keep at least one agent",
       "yuan": "Yuan",
-      "yuanHint": "\"Yuan\" is the agent's innate thinking style. Build your unique companion from this foundation."
+      "yuanHint": ""
     },
     "about": {
       "title": "About Them",
@@ -2011,6 +2011,7 @@
   "error.llmEmptyResponse": "Model returned empty response",
   "error.llmAuthFailed": "Model authentication failed",
   "error.llmSlowResponse": "Model is responding slowly, please wait",
+  "error.brainUnreachable": "Default model service is temporarily unreachable. Check your network or switch to your own API key in Settings.",
   "error.fsPermission": "File permission denied",
   "error.fsNotFound": "File not found",
   "error.fsCopyFailed": "File copy failed",

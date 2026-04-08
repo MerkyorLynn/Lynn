@@ -5,7 +5,7 @@
  * 此文件只负责 titlebar + sidebar + 主区域 + overlays 的组装。
  */
 
-import { useEffect, lazy, Suspense, useState, useCallback, useMemo } from 'react';
+import { useEffect, lazy, Suspense, useState, useCallback, useMemo, useRef } from 'react';
 import { useStore } from './stores';
 import type { ActivePanel, Session } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -28,7 +28,7 @@ import { AgentDiscoveryDialog } from './components/AgentDiscoveryDialog';
 import { SidebarLayout, toggleSidebar } from './components/SidebarLayout';
 import { FloatPreviewCard, useFloatCard } from './components/FloatPreviewCard';
 import { useSidebarResize } from './hooks/use-sidebar-resize';
-import { createNewSession } from './stores/session-actions';
+import { createNewSession, renameSession } from './stores/session-actions';
 import { toggleJianSidebar } from './stores/desk-actions';
 import { WindowControls } from './components/WindowControls';
 import { ToastContainer } from './components/ToastContainer';
@@ -181,6 +181,54 @@ function App() {
     if (!workspace) return '';
     return workspace;
   }, [deskBasePath]);
+  const titleRenameEnabled = !!currentSession && !welcomeVisible;
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setTitleEditing(false);
+    setTitleDraft('');
+  }, [currentSessionPath]);
+
+  useEffect(() => {
+    if (!titleEditing || !titleInputRef.current) return;
+    titleInputRef.current.focus();
+    titleInputRef.current.select();
+  }, [titleEditing]);
+
+  const startTitleRename = useCallback(() => {
+    if (!currentSession) return;
+    setTitleDraft(currentSession.title || currentSession.firstMessage || '');
+    setTitleEditing(true);
+  }, [currentSession]);
+
+  const commitTitleRename = useCallback(async () => {
+    if (!currentSession) {
+      setTitleEditing(false);
+      return;
+    }
+    const trimmed = titleDraft.trim();
+    setTitleEditing(false);
+    if (!trimmed) return;
+    if (trimmed === (currentSession.title || currentSession.firstMessage || '')) return;
+    await renameSession(currentSession.path, trimmed);
+  }, [currentSession, titleDraft]);
+
+  const cancelTitleRename = useCallback(() => {
+    setTitleEditing(false);
+    setTitleDraft('');
+  }, []);
+
+  const handleTitleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void commitTitleRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelTitleRename();
+    }
+  }, [cancelTitleRename, commitTitleRename]);
 
   useEffect(() => {
     initApp().catch((err: unknown) => {
@@ -231,9 +279,30 @@ function App() {
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
         </button>
-        <div className="tb-title">
+        <div className={`tb-title${titleRenameEnabled ? ' is-editable' : ''}`}>
           {isWorking && <span className="tb-working-dot" />}
-          <span className="tb-title-primary">{titlePrimary}</span>
+          {titleEditing && currentSession ? (
+            <input
+              ref={titleInputRef}
+              className="tb-title-input"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={() => { void commitTitleRename(); }}
+              onKeyDown={handleTitleInputKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={t('session.rename')}
+            />
+          ) : (
+            <button
+              type="button"
+              className="tb-title-primary tb-title-primary-button"
+              onClick={startTitleRename}
+              disabled={!titleRenameEnabled}
+              title={titleRenameEnabled ? t('session.rename') : undefined}
+            >
+              {titlePrimary}
+            </button>
+          )}
           {titleSecondary ? <span className="tb-title-secondary">{titleSecondary}</span> : null}
         </div>
         <button

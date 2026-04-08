@@ -188,7 +188,7 @@ describe('review route', () => {
 
     expect(res.status).toBe(200);
     expect(engine._agents.find((item) => item.id === 'hanako')?.yuan).toBe('hanako');
-    expect(engine._agents.find((item) => item.id === 'hanako')?.tier).toBe('reviewer');
+    expect(engine._agents.find((item) => item.id === 'hanako')?.tier).toBe('local');
     expect(data.candidates.hanako.map((item) => item.id)).toContain('hanako');
   });
 

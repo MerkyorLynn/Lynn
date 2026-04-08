@@ -29,7 +29,7 @@ afterEach(() => {
 });
 
 describe("callText", () => {
-  it("disables thinking for GLM openai-compatible requests", async () => {
+  it("omits thinking payload for GLM openai-compatible requests when reasoning is off", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -54,7 +54,7 @@ describe("callText", () => {
     expect(text).toBe("OK");
     const [, requestInit] = fetchMock.mock.calls[0];
     const body = JSON.parse(requestInit.body);
-    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.thinking).toBeUndefined();
   });
 
   it("keeps qwen enable_thinking payload without zai thinking override", async () => {

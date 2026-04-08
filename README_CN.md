@@ -55,6 +55,27 @@ Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、Deep
 
 界面支持中文、英文、日文、韩文、繁体中文 5 种语言。
 
+## 国内模型深度优化
+
+Lynn 不是简单地套一层 OpenAI 兼容协议就完事。从 9B 小模型到 GLM-5 推理模型，每一级都有针对性的适配：
+
+**开箱即用的免费模型（Brain）** — Quick Start 内置了国产模型池，默认链路包含 GLM-Z1-9B（智谱推理小模型）、GLM-4-9B、Qwen3-8B、Step-3.5-Flash。无需 API Key，设备鉴权直接可用。
+
+**三级工具分层（Tool Tiering）** — 按模型上下文窗口自动裁剪工具集：
+- 小模型（<32K，如 ERNIE 8K、Moonshot 8K、Step 8K）：仅保留 `web_search` + `web_fetch` 两个工具，避免工具描述撑爆上下文
+- 中型模型（32K，如豆包 32K、混元 Pro、百川 Turbo）：标准工具集（搜索、记忆、文件预览、通知等 10 个）
+- 大模型（≥64K，如 GLM-5、Qwen3-Max、DeepSeek）：全部工具不裁剪
+
+**小模型专属 Prompt 工程** — context < 32K 时自动注入四段优化指令：回复限 500 字 + 关键结论标注（`<!-- KEY: -->`，压缩时优先保留）；单工具串行调用规则（防止弱模型并行调错）；工具概览摘要（减少工具描述占用的 token）；3 步以上任务强制先列计划等用户确认。
+
+**自适应上下文压缩** — 小窗口模型保留更多近期上下文（40% vs 大模型 20%），减少输出预留（4K vs 16K），压缩 1-2 次即自动 session 接力（大模型是 3 次），防止上下文质量崩溃。
+
+**推理模型协议适配** — 智谱 GLM-5 / GLM-5-Turbo 使用 ZAI thinking format（`thinking: { type: "enabled" }`），Qwen3 全系列使用 `enable_thinking` quirk，两者走不同的 Pi SDK 补丁路径。非 OpenAI provider 统一禁用 `developer role`，避免 API 报错。
+
+**Coding Plan 一键接入** — 7 个国产厂商的编码套餐已预注册为独立 provider，填入 API Key 即用：百炼 Coding、智谱 Coding、Kimi Coding、MiniMax Coding、阶跃 Coding、腾讯云 Coding、火山引擎 Coding。
+
+**工具调用容错** — 小模型容易产生无效的工具调用格式，连续失败 3 次后自动降级：停止工具调用，用文字向用户说明情况。空 `tools: []` 数组在发送前自动清理（dashscope / volcengine 等 API 不接受空数组会返回 400）。
+
 ## 不在的时候也在干活
 
 这是 Lynn 与对话型 AI 工具最本质的区别。

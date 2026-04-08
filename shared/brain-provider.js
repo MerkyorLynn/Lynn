@@ -28,6 +28,12 @@ function _d(encoded) {
 const _BRAIN_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
 const _BRAIN_FALLBACK = _d(_BRAIN_HOST_ENCODED);
 
+// ── 容灾备用地址（编码方式同上） ──
+// "http://82.156.182.240" 的第二入口（同 IP 不同端口或备用 IP）
+// 当前和主地址相同，后续添加第二个 IP/域名时只需改这里
+const _BRAIN_BACKUP_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
+const _BRAIN_BACKUP_FALLBACK = _d(_BRAIN_BACKUP_HOST_ENCODED);
+
 // 对外入口优先走完整 root URL；只有缺失时才退回 host。
 const _brainApiRootUrl = resolveProcessEnvValue("BRAIN_API_ROOT_URL");
 const _brainHost = resolveProcessEnvValue("BRAIN_API_HOST");
@@ -38,12 +44,21 @@ export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
   normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api",
 );
+
+// 容灾 API Root（当主地址不可达时使用）
+export const BRAIN_BACKUP_API_ROOT = normalizeApiRoot(
+  resolveProcessEnvValue("BRAIN_BACKUP_API_ROOT_URL"),
+  normalizeApiRoot(resolveProcessEnvValue("BRAIN_BACKUP_HOST"), _BRAIN_BACKUP_FALLBACK) + "/api",
+);
+export const BRAIN_BACKUP_PROVIDER_BASE_URL = `${BRAIN_BACKUP_API_ROOT}/v1`;
 export const BRAIN_LEGACY_API_ROOT = normalizeApiRoot(
   _brainLegacyApiRootUrl,
   normalizeApiRoot(_brainLegacyHost, "https://127.0.0.1") + "/lobster-farm/api",
 );
 export const BRAIN_PROVIDER_BASE_URL = `${BRAIN_API_ROOT}/v1`;
 export const BRAIN_LEGACY_PROVIDER_BASE_URL = `${BRAIN_LEGACY_API_ROOT}/v1`;
+export const BRAIN_API_ROOTS = [...new Set([BRAIN_API_ROOT, BRAIN_BACKUP_API_ROOT].filter(Boolean))];
+export const BRAIN_PROVIDER_BASE_URLS = [...new Set([BRAIN_PROVIDER_BASE_URL, BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
 export const BRAIN_PROVIDER_API = "openai-completions";
 export const BRAIN_CHAT_MODEL_ID = "step-3.5-flash-2603";
 export const BRAIN_UTILITY_MODEL_ID = "glm-z1-9b-0414";

@@ -58,6 +58,7 @@ window.addEventListener('unhandledrejection', (e) => {
 
 export async function initApp(): Promise<void> {
   const platform = window.platform;
+  let shouldDiagnoseBrain = false;
 
   // 1. 获取 server 连接信息并存入 Zustand
   const serverPort = await platform.getServerPort();
@@ -111,6 +112,7 @@ export async function initApp(): Promise<void> {
       taskSnapshot: appStateData?.tasks || null,
       capabilitySnapshot: appStateData?.capabilities || null,
     });
+    shouldDiagnoseBrain = appStateData?.model?.current?.provider === 'brain';
     if (Array.isArray(configData.cwd_history)) {
       useStore.setState({ cwdHistory: configData.cwd_history });
     }
@@ -174,6 +176,28 @@ export async function initApp(): Promise<void> {
       } catch { /* ignore */ }
     })(),
   ]);
+
+  if (shouldDiagnoseBrain) {
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const diagRes = await hanaFetch('/api/brain/diagnose');
+          const diag = await diagRes.json();
+          if (diag.registering || diag.reachable) return;
+          const currentModel = useStore.getState().currentModel;
+          if (currentModel?.provider !== 'brain') return;
+          console.warn('[init] Brain 连通性诊断失败:', diag.error);
+          useStore.getState().addToast(
+            t('error.brainUnreachable') ||
+            `默认模型服务暂时不可达${diag.error ? ` (${diag.error})` : ''}，请检查网络连接或在设置中切换到自己的 API Key。`,
+            'warning',
+            8000,
+            { dedupeKey: 'brain-unreachable' },
+          );
+        } catch { /* ignore — 非关键路径 */ }
+      })();
+    }, 0);
+  }
 
   // 18. 设置快捷键
   document.addEventListener('keydown', (e) => {
