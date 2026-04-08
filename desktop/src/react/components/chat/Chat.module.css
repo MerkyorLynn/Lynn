@@ -4,6 +4,75 @@
    文件输出卡片、浏览器截图、Xing 反省卡片
    ======================================== */
 
+/* ── ImageBlock Lightbox ── */
+
+.chatImage {
+    max-width: 320px;
+    max-height: 240px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    cursor: zoom-in;
+    transition: filter 0.15s;
+    object-fit: contain;
+}
+
+.chatImage:hover {
+    filter: brightness(0.92);
+}
+
+.lightboxOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    backdrop-filter: blur(4px);
+}
+
+.lightboxImage {
+    max-width: 90vw;
+    max-height: 85vh;
+    object-fit: contain;
+    transition: transform 0.05s linear;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.lightboxToolbar {
+    position: absolute;
+    bottom: 24px;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 8px;
+    z-index: 10000;
+}
+
+.lightboxToolbar button,
+.lightboxToolbar a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.lightboxToolbar button:hover,
+.lightboxToolbar a:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
 /* ── 消息组 ── */
 
 .messageGroup {
@@ -1675,6 +1744,113 @@
     white-space: pre-wrap;
     border-left: 2px solid var(--border);
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ── 执行轨迹折叠块 ── */
+
+.executionTrace {
+    margin: var(--space-xs) 0 var(--space-sm);
+    max-width: 560px;
+}
+
+.executionTraceSummary {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.executionTraceSummary::-webkit-details-marker {
+    display: none;
+}
+
+.executionTraceArrow {
+    display: inline-block;
+    font-style: normal;
+    font-size: 0.78rem;
+    transition: transform 0.15s ease;
+}
+
+.executionTraceArrowOpen {
+    transform: rotate(90deg);
+}
+
+.executionTraceTitle {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.executionTraceMeta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+}
+
+.executionTraceHint {
+    color: var(--text-dim, var(--text-muted));
+    font-size: 0.72rem;
+}
+
+.executionTraceBody {
+    margin-top: var(--space-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 0.42rem;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: var(--space-sm) var(--space-md);
+    border-left: 2px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: color-mix(in srgb, var(--bg-card, var(--bg)) 72%, transparent);
+}
+
+.executionTraceItem {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.executionTraceStatus {
+    flex-shrink: 0;
+    width: 0.95rem;
+    text-align: center;
+    font-size: 0.78rem;
+}
+
+.executionTraceStatusRunning {
+    color: var(--accent);
+}
+
+.executionTraceStatusDone {
+    color: #4c9c69;
+}
+
+.executionTraceStatusFailed {
+    color: #c26b6b;
+}
+
+.executionTraceText {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.executionTraceElapsed {
+    flex-shrink: 0;
+    color: var(--text-dim, var(--text-muted));
+    font-size: 0.72rem;
 }
 
 /* ── 文件输出卡片 ── */

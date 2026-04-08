@@ -2,6 +2,21 @@
    Session 列表 — CSS Module
    ======================================== */
 
+/* Bridge IM channel platform icon */
+.bridgePlatformIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
 /* 搜索栏 */
 .sessionSearchBar {
     display: flex;

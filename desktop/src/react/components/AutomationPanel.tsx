@@ -212,7 +212,7 @@ function resolveJobModelValue(modelRef: string | undefined, options: ModelOption
 
 function folderLabel(folderPath: string | null): string {
   if (!folderPath) return '';
-  const parts = folderPath.split('/').filter(Boolean);
+  const parts = folderPath.split(/[\\/]+/).filter(Boolean);
   return parts[parts.length - 1] || folderPath;
 }
 
@@ -870,7 +870,9 @@ export function AutomationPanel() {
                   >
                     {projectOptions.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label} · {option.meta}
+                        {option.label && option.label !== option.meta
+                          ? `${option.label} · ${option.meta}`
+                          : option.meta}
                       </option>
                     ))}
                   </select>

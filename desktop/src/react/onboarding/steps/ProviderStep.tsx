@@ -44,6 +44,7 @@ export function ProviderStep({
   track,
 }: ProviderStepProps) {
   // ── Provider state ──
+  const [providerGroup, setProviderGroup] = useState<'standard' | 'coding-plan'>('standard');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [providerName, setProviderName] = useState('');
   const [providerUrl, setProviderUrl] = useState('');
@@ -69,12 +70,30 @@ export function ProviderStep({
     () => PROVIDER_PRESETS.find((preset) => preset.value === selectedPreset) || null,
     [selectedPreset],
   );
+  const visiblePresets = useMemo(() => {
+    if (isQuickTrack) return [];
+    return PROVIDER_PRESETS.filter((preset) => (preset.group || 'standard') === providerGroup);
+  }, [isQuickTrack, providerGroup]);
   const usesBuiltInDefault = providerName === QUICK_START_PROVIDER.providerName;
 
   const copyText = useCallback((zh: string, en: string) => (isZh ? zh : en), [isZh]);
 
+  const switchProviderGroup = useCallback((nextGroup: 'standard' | 'coding-plan') => {
+    setProviderGroup(nextGroup);
+    if (activePreset?.group === nextGroup) return;
+    setSelectedPreset(null);
+    setProviderName('');
+    setProviderUrl('');
+    setProviderApi('openai-completions');
+    setApiKey('');
+    setIsLocalProvider(false);
+    setConnectionTested(false);
+    setTestStatus({ type: '', text: '' });
+  }, [activePreset]);
+
   // ── Preset selection ──
   const selectPreset = useCallback((preset: ProviderPreset) => {
+    setProviderGroup(preset.group || 'standard');
     setSelectedPreset(preset.value);
     setConnectionTested(false);
     setTestStatus({ type: '', text: '' });
@@ -97,6 +116,11 @@ export function ProviderStep({
     if (!isQuickTrack || selectedPreset || !siliconflowPreset) return;
     selectPreset(siliconflowPreset);
   }, [isQuickTrack, selectedPreset, siliconflowPreset, selectPreset]);
+
+  useEffect(() => {
+    if (!activePreset?.group || activePreset.group === providerGroup) return;
+    setProviderGroup(activePreset.group);
+  }, [activePreset, providerGroup]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +167,7 @@ export function ProviderStep({
   const hasProvider = !!providerName;
   const hasUrl = !!providerUrl;
   const testBtnDisabled = preview ? false : !(hasProvider && hasUrl && hasKey);
-  const nextDisabled = preview ? false : !(hasProvider && hasUrl && hasKey && (isQuickTrack || connectionTested));
+  const nextDisabled = preview ? false : !(hasProvider && hasUrl && hasKey);
 
   const runConnectionTest = useCallback(async () => {
     if (preview || isQuickTrack || providerName === QUICK_START_PROVIDER.providerName) {
@@ -179,10 +203,6 @@ export function ProviderStep({
   const onNext = useCallback(async () => {
     const nextStep = isQuickTrack ? 5 : (usesBuiltInDefault ? 4 : 3);
     if (preview) { goToStep(nextStep); return; }
-    if (!isQuickTrack && !connectionTested) {
-      const ok = await runConnectionTest();
-      if (!ok) return;
-    }
     try {
       await saveProviderAction({
         onboardingFetch,
@@ -237,20 +257,57 @@ export function ProviderStep({
         </div>
       )}
 
-      <div className="provider-grid">
-        {PROVIDER_PRESETS.map(preset => (
-          <div
-            key={preset.value}
-            className={`provider-card${selectedPreset === preset.value ? ' selected' : ''}`}
-            onClick={() => selectPreset(preset)}
-          >
-            {preset.custom
-              ? t('onboarding.provider.custom')
-              : (isZh && 'labelZh' in preset && preset.labelZh ? preset.labelZh : preset.label)
-            }
+      {!isQuickTrack && (
+        <>
+          <div className="provider-group-switch" role="tablist" aria-label={copyText('供应商类型', 'Provider type')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={providerGroup === 'standard'}
+              className={`provider-group-btn${providerGroup === 'standard' ? ' active' : ''}`}
+              onClick={() => switchProviderGroup('standard')}
+            >
+              {copyText('常规接口', 'Standard API')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={providerGroup === 'coding-plan'}
+              className={`provider-group-btn${providerGroup === 'coding-plan' ? ' active' : ''}`}
+              onClick={() => switchProviderGroup('coding-plan')}
+            >
+              {copyText('Coding Plan', 'Coding Plan')}
+            </button>
           </div>
-        ))}
-      </div>
+
+          <p className="provider-group-note">
+            {providerGroup === 'coding-plan'
+              ? copyText(
+                  '如果你拿到的是 Coding Plan / 编程套餐的 Key，请在这里选择对应入口。',
+                  'If your key is for a Coding Plan package, choose the matching Coding Plan entry here.',
+                )
+              : copyText(
+                  '这里放的是常规 API 接口；普通 MiniMax、智谱、OpenAI 之类都走这一栏。',
+                  'This tab is for regular API access such as MiniMax, Zhipu, or OpenAI.',
+                )}
+          </p>
+
+          <div className="provider-grid">
+            {visiblePresets.map(preset => (
+              <div
+                key={preset.value}
+                className={`provider-card${selectedPreset === preset.value ? ' selected' : ''}`}
+                onClick={() => selectPreset(preset)}
+              >
+                {preset.custom
+                  ? t('onboarding.provider.custom')
+                  : (isZh && 'labelZh' in preset && preset.labelZh ? preset.labelZh : preset.label)
+                }
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Custom provider fields */}
       {selectedPreset === '_custom' && (
@@ -355,8 +412,17 @@ function apiKeyHint(preset: string | null): string {
     case 'moonshot':    return 'sk-...';
     case 'siliconflow': return 'sk-...';
     case 'zhipu':       return '...  (zhipu open platform key)';
+    case 'zhipu-coding': return '...  (zhipu coding plan key)';
     case 'groq':        return 'gsk_...';
     case 'mistral':     return '...';
+    case 'minimax':
+    case 'minimax-coding':
+    case 'tencent-coding':
+    case 'stepfun-coding':
+    case 'volcengine-coding':
+    case 'dashscope-coding':
+    case 'kimi-coding':
+      return '...';
     default:            return '';
   }
 }

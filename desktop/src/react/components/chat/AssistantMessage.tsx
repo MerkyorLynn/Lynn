@@ -4,9 +4,10 @@
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
+import { ImageBlock } from './ImageBlock';
 import { MoodBlock } from './MoodBlock';
 import { ThinkingBlock } from './ThinkingBlock';
-import { ToolGroupBlock } from './ToolGroupBlock';
+import { ExecutionTraceBlock } from './ExecutionTraceBlock';
 import { XingCard } from './XingCard';
 import { SettingsConfirmCard } from './SettingsConfirmCard';
 import { AuthorizationCard } from './AuthorizationCard';
@@ -111,6 +112,18 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [sessionAgent?.avatarUrl, agentAvatarUrl, fallbackAvatar]);
 
   const blocks = useMemo(() => message.blocks || [], [message.blocks]);
+  const toolGroups = useMemo(
+    () => blocks.filter((block): block is Extract<ContentBlock, { type: 'tool_group' }> => block.type === 'tool_group'),
+    [blocks],
+  );
+  const contentBlocks = useMemo(
+    () => blocks.filter((block) => block.type !== 'tool_group'),
+    [blocks],
+  );
+  const executionTools = useMemo(
+    () => toolGroups.flatMap((group) => group.tools),
+    [toolGroups],
+  );
   const plainText = useMemo(() => extractPlainTextFromBlocks(blocks), [blocks]);
   const latestReviewBlock = useMemo(() => findLatestReviewBlock(blocks), [blocks]);
   const currentModel = useStore(s => s.currentModel);
@@ -358,7 +371,10 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
         </div>
       )}
       <div className={`${styles.message} ${styles.messageAssistant}`}>
-        {blocks.map((block, i) => (
+        {executionTools.length > 0 && (
+          <ExecutionTraceBlock tools={executionTools} />
+        )}
+        {contentBlocks.map((block, i) => (
         <ContentBlockView
           key={`block-${i}`}
           block={block}
@@ -468,8 +484,6 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, agen
       return <ThinkingBlock content={block.content} sealed={block.sealed} />;
     case 'mood':
       return <MoodBlock yuan={block.yuan} text={block.text} />;
-    case 'tool_group':
-      return <ToolGroupBlock tools={block.tools} collapsed={block.collapsed} />;
     case 'text':
       return <MarkdownContent html={block.html} stateKey={stateKey} />;
     case 'xing':
@@ -629,7 +643,7 @@ function ArtifactCard({ title, artifactType, artifactId, content, language }: {
 }
 
 function BrowserScreenshot({ base64, mimeType }: { base64: string; mimeType: string }) {
-  return <img className={styles.browserShot} src={`data:${mimeType};base64,${base64}`} alt="Browser Screenshot" />;
+  return <ImageBlock className={styles.browserShot} src={`data:${mimeType};base64,${base64}`} alt="Browser Screenshot" />;
 }
 
 function SkillCard({ skillName, skillFilePath }: { skillName: string; skillFilePath: string }) {

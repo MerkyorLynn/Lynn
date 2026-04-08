@@ -18,7 +18,7 @@
  *   { type: "tool_end", name: "...", success: bool, details?: object }
  *   { type: "turn_end" }
  *   { type: "error", message: "..." }
- *   { type: "status", isStreaming: bool }
+ *   { type: "status", isStreaming: bool, noticeKey?: "...", noticeVars?: object }
  *   { type: "session_title", title: "...", path: "..." }
  *   { type: "jian_update", content: "..." }
  *   { type: "devlog", text: "...", level: "info"|"heartbeat"|"error" }

@@ -81,7 +81,7 @@ function getConventionalAssetName(version) {
     if (process.arch === "x64") return `Lynn-${version}-macOS-Intel.dmg`;
   }
   if (process.platform === "win32") {
-    return `Lynn-${version}-Windows-Portable.zip`;
+    return `Lynn-${version}-Windows-Setup.exe`;
   }
   return null;
 }

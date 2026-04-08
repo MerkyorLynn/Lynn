@@ -15,6 +15,7 @@ import { createMemoryTicker } from "../lib/memory/memory-ticker.js";
 import { createMemorySearchTool } from "../lib/memory/memory-search.js";
 import { initWebSearch, createWebSearchTool } from "../lib/tools/web-search.js";
 import { createTodoTool } from "../lib/tools/todo.js";
+import { createRestoreSnapshotTool } from "../lib/tools/restore-snapshot-tool.js";
 import { createDeskManager } from "../lib/desk/desk-manager.js";
 import { CronStore } from "../lib/desk/cron-store.js";
 import { createCronTool } from "../lib/tools/cron-tool.js";
@@ -296,6 +297,7 @@ export class Agent {
     this._webSearchTool = createWebSearchTool();
     this._webFetchTool = createWebFetchTool();
     this._todoTool = createTodoTool();
+    this._restoreSnapshotTool = createRestoreSnapshotTool(path.basename(this.agentDir));
     this._pinnedMemoryTools = createPinnedMemoryTools(this.agentDir);
     this._experienceTools = createExperienceTools(this.agentDir);
 
@@ -513,6 +515,7 @@ export class Agent {
       this._webSearchTool,
       this._webFetchTool,
       this._todoTool,
+      this._restoreSnapshotTool,
       this._cronTool,
       this._presentFilesTool,
       this._artifactTool,

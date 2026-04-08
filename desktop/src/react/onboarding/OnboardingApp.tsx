@@ -37,6 +37,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const [apiKey, setApiKey] = useState('');
 
   const [toastMsg, setToastMsg] = useState('');
+  const [skipping, setSkipping] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onboardingFetch: OnboardingFetch = useCallback((path, opts = {}) => {
@@ -74,6 +75,22 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
     setTrack(nextTrack);
     goToStep(1);
   }, [goToStep]);
+
+  const skipOnboarding = useCallback(async () => {
+    if (preview || skipping) return;
+    setSkipping(true);
+    try {
+      const ok = await window.hana.onboardingComplete?.();
+      if (ok === false) {
+        showError(t('onboarding.error'));
+        setSkipping(false);
+      }
+    } catch (err) {
+      console.error('[onboarding] skip failed:', err);
+      showError(t('onboarding.error'));
+      setSkipping(false);
+    }
+  }, [preview, showError, skipping]);
 
   useEffect(() => {
     (async () => {
@@ -113,6 +130,16 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
 
   return (
     <div className="onboarding">
+      {!preview && (
+        <button
+          type="button"
+          className="onboarding-skip-btn"
+          disabled={skipping}
+          onClick={() => void skipOnboarding()}
+        >
+          {locale.startsWith('zh') ? '跳过引导' : 'Skip setup'}
+        </button>
+      )}
       {progressSteps.length > 0 && (
         <div className="onboarding-progress">
           {progressSteps.map((stepId, idx) => (

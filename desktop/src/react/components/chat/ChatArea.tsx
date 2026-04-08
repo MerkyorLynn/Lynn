@@ -20,6 +20,8 @@ const MAX_ALIVE = 5;
 
 export function ChatArea() {
   const [applyState, setApplyState] = useState<{ code: string; language?: string; anchorRect?: DOMRect } | null>(null);
+  const activeBridgeKey = useStore(s => s.activeBridgeSessionKey);
+  const welcomeVisible = useStore(s => s.welcomeVisible);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -32,7 +34,7 @@ export function ChatArea() {
 
   return (
     <>
-      <PanelHost />
+      {activeBridgeKey && !welcomeVisible ? <BridgeChatView /> : <PanelHost />}
       {applyState && (
         <ApplyCodeDialog
           code={applyState.code}
@@ -42,6 +44,49 @@ export function ChatArea() {
         />
       )}
     </>
+  );
+}
+
+// ── BridgeChatView: display bridge session messages ──
+
+function BridgeChatView() {
+  const messages = useStore(s => s.activeBridgeMessages);
+  const sessionKey = useStore(s => s.activeBridgeSessionKey);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [messages]);
+
+  if (!sessionKey) return null;
+
+  return (
+    <div ref={ref} className={styles.sessionPanel} style={{ visibility: 'visible', zIndex: 1, pointerEvents: 'auto', opacity: 1 }}>
+      <div className={styles.sessionMessages}>
+        {messages.length === 0 && (
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            No messages yet
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={msg.role === 'user' ? styles.userRow : styles.assistantRow} style={{ padding: '8px 16px' }}>
+            <div style={{
+              fontSize: '0.7rem',
+              color: 'var(--text-muted)',
+              marginBottom: 2,
+              fontWeight: 600,
+            }}>
+              {msg.role === 'user' ? 'User' : 'Agent'}
+              {msg.ts ? ` · ${new Date(msg.ts).toLocaleTimeString()}` : ''}
+            </div>
+            <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        <div className={styles.sessionFooter} />
+      </div>
+    </div>
   );
 }
 

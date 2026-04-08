@@ -33,6 +33,19 @@ export interface Session {
   _optimistic?: boolean;
 }
 
+/** Bridge session (IM fixed channel) shown in sidebar */
+export interface BridgeSession {
+  sessionKey: string;
+  platform: 'telegram' | 'feishu' | 'qq' | 'wechat';
+  chatType: string;
+  chatId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isOwner: boolean;
+  lastActive: number | null;
+  file: string;
+}
+
 export interface Agent {
   id: string;
   name: string;

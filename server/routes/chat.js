@@ -902,17 +902,50 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.titlePreview = "";
                 beginSessionStream(ss);
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                // 流式 15s first-token 超时提示：如果 15s 内没有任何输出，提醒用户
+                // 流式慢响应提示：15s 无可见输出先提示一次，之后持续更新“仍在处理中”
                 const STREAM_SLOW_MS = 15_000;
-                const slowStreamTimer = setTimeout(() => {
-                  if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError) {
-                    broadcast({ type: "error", message: t("error.llmSlowResponse") || "模型响应较慢，请耐心等待", sessionPath: promptSessionPath });
+                const STREAM_STILL_WORKING_MS = 30_000;
+                const slowNoticeStartedAt = Date.now();
+                let slowStreamInterval = null;
+                const shouldShowSlowNotice = () =>
+                  !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError;
+                const broadcastSlowNotice = () => {
+                  if (!shouldShowSlowNotice()) {
+                    if (slowStreamInterval) {
+                      clearInterval(slowStreamInterval);
+                      slowStreamInterval = null;
+                    }
+                    return;
                   }
+                  const elapsedMs = Date.now() - slowNoticeStartedAt;
+                  if (elapsedMs < 60_000) {
+                    broadcast({
+                      type: "status",
+                      isStreaming: true,
+                      sessionPath: promptSessionPath,
+                      noticeKey: "status.llmSlowResponse",
+                    });
+                    return;
+                  }
+                  broadcast({
+                    type: "status",
+                    isStreaming: true,
+                    sessionPath: promptSessionPath,
+                    noticeKey: "status.llmStillWorking",
+                    noticeVars: {
+                      minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
+                    },
+                  });
+                };
+                const slowStreamTimer = setTimeout(() => {
+                  broadcastSlowNotice();
+                  slowStreamInterval = setInterval(broadcastSlowNotice, STREAM_STILL_WORKING_MS);
                 }, STREAM_SLOW_MS);
                 try {
                   await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
                 } finally {
                   clearTimeout(slowStreamTimer);
+                  if (slowStreamInterval) clearInterval(slowStreamInterval);
                 }
                 broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
               } catch (err) {

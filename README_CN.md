@@ -165,7 +165,7 @@ Lynn 的核心 Agent 循环外面包裹了六层 harness，每一层独立运作
 
 应用已通过 Apple Developer ID 签名和公证，macOS 应该可以直接打开。
 
-**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.zip` 便携版，解压后运行 `Lynn.exe`。
+**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe` 安装包，直接运行即可。
 
 > **Windows SmartScreen 提示：** 便携版暂未经过代码签名，首次运行时 Windows Defender SmartScreen 可能会拦截，点击**更多信息** → **仍要运行**即可，这是未签名版本的正常现象。
 

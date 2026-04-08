@@ -1,13 +1,13 @@
 {
   "stable": {
-    "version": "0.75.1",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.1",
-    "notes": "Stream slow-response warnings, GLM/Zhipu thinking fixes, and notarized macOS builds.",
+    "version": "0.75.2",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2",
+    "notes": "Default model identity fix, Tencent Docs MCP built-in on first open, and Windows installer packaging.",
     "assets": {
-      "darwin-arm64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.1/Lynn-0.75.1-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.1/Lynn-0.75.1-macOS-Intel.dmg",
-      "win32-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.1/Lynn-0.75.1-Windows-Portable.zip",
-      "default": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.1"
+      "darwin-arm64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-macOS-Intel.dmg",
+      "win32-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-Windows-Setup.exe",
+      "default": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2"
     }
   }
 }

@@ -35,6 +35,7 @@ import {
 } from "./client-agent-identity.js";
 import { resolveCompactionSettings, resolveModelContextWindow } from "./compaction-settings.js";
 import { formatProjectInstructions } from "../lib/project-instructions.js";
+import { getBrainDisplayName, isBrainModelRef } from "../shared/brain-provider.js";
 
 const log = createModuleLogger("session");
 
@@ -316,7 +317,7 @@ export class SessionCoordinator {
                   "3. 不要编造不存在的工具名",
                   "4. 参数中的文件路径必须使用绝对路径",
                   "5. 如果不确定该用哪个工具，先用 bash 执行简单命令",
-                  "6. 不要在正文中模拟工具调用（如写出 JSON 但不通过工具接口发送）",
+                  "6. 不要在正文中模拟工具调用（如写出 JSON、<tool_call>、<function=...> 这类文本但不通过工具接口发送）",
                 ].join("\n")
               : [
                   "[Tool Call Rules]",
@@ -325,7 +326,7 @@ export class SessionCoordinator {
                   "3. Do not invent tool names that do not exist",
                   "4. Always use absolute paths for file parameters",
                   "5. When unsure which tool to use, try bash with a simple command first",
-                  "6. Do not simulate tool calls in text (e.g. writing JSON without actually invoking the tool)",
+                  "6. Do not simulate tool calls in text (for example JSON, <tool_call>, or <function=...> markup without actually invoking a tool)",
                 ].join("\n")
             );
 
@@ -358,14 +359,37 @@ export class SessionCoordinator {
           }
 
           // 当前运行模型注入：让 Agent 知道自己正在使用什么模型
-          const sessionModel = sessionEntry.session?.model;
-          if (sessionModel) {
-            const modelTag = sessionModel.provider
-              ? `${sessionModel.provider} / ${sessionModel.name || sessionModel.id}`
-              : (sessionModel.name || sessionModel.id);
-            const modelHint = isZh
-              ? `当前运行模型：${modelTag}。当用户要求署名、标注生成模型或询问你是什么模型时，使用这个信息。`
-              : `Current model: ${modelTag}. Use this when the user asks you to sign, attribute, or identify which model generated the content.`;
+          const selectedModelId = sessionEntry.modelId || effectiveModel?.id || null;
+          const selectedModelProvider = sessionEntry.modelProvider || effectiveModel?.provider || null;
+          if (selectedModelId) {
+            const selectedModelTag = selectedModelProvider
+              ? `${selectedModelProvider} / ${selectedModelId}`
+              : selectedModelId;
+            const modelHint = isBrainModelRef(selectedModelId, selectedModelProvider)
+              ? (
+                  isZh
+                    ? [
+                        `当前用户选择的是${getBrainDisplayName()}。`,
+                        `把“${getBrainDisplayName()}”当作你的用户可见身份，不要把任何具体上游厂商或型号当作自我介绍。`,
+                        `当用户问“你现在是什么模型”“你用的是什么模型”“你是哪家模型”时，先回答“我是 Lynn 的${getBrainDisplayName()}服务”或“当前走的是 Lynn 的${getBrainDisplayName()}”。`,
+                        "不要主动说出 GLM、Step、Qwen、MiniMax、zhipu-coding 之类的具体上游名称。",
+                        "即使用户直接追问你当前是什么模型，也不要把具体上游型号当成最终答案；默认只回答“默认模型服务”。",
+                        "只有当用户明确是在排错，并且明确要求底层路由/技术实现细节时，才可以补充后台可能会动态路由到第三方模型。",
+                      ].join(" ")
+                    : [
+                        `The user selected ${getBrainDisplayName()}.`,
+                        `Treat "${getBrainDisplayName()}" as your user-facing identity and do not introduce yourself as a specific upstream vendor or model.`,
+                        `When the user asks which model you are, answer with "${getBrainDisplayName()}" or "Lynn's default model service" first.`,
+                        "Do not proactively reveal upstream names such as GLM, Step, Qwen, MiniMax, or provider IDs.",
+                        "Even when the user directly asks which model you are, do not treat the upstream routed model as the final user-facing answer.",
+                        "Only mention underlying routing details when the user is explicitly debugging and explicitly asks for the backend implementation details.",
+                      ].join(" ")
+                )
+              : (
+                  isZh
+                    ? `当前运行模型：${selectedModelTag}。当用户要求署名、标注生成模型或询问你是什么模型时，使用这个信息。`
+                    : `Current model: ${selectedModelTag}. Use this when the user asks you to sign, attribute, or identify which model generated the content.`
+                );
             extras.push(modelHint);
           }
 

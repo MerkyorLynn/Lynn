@@ -12,6 +12,8 @@ import type { ChatMessage, ContentBlock } from '../stores/chat-types';
 import { useStore } from '../stores';
 import { renderMarkdown } from '../utils/markdown';
 import { cleanMoodText } from '../utils/message-parser';
+// @ts-expect-error - shared JS module
+import { sanitizeBrainIdentityDisclosureText } from '../../../../shared/brain-provider.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 流式消息 handle(msg) 接收动态 JSON */
 
@@ -72,6 +74,14 @@ function renderStreamingTextHtml(src: string): string {
     .split(/\n{2,}/)
     .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>') || '&nbsp;'}</p>`)
     .join('');
+}
+
+function stripPseudoToolCallMarkup(src: string): string {
+  return String(src || '')
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>\s*/gi, '')
+    .replace(/^\s*<\/?(?:function|parameter)(?:=[^>\n]+)?>\s*$/gim, '')
+    .replace(/^\s*<(?:function|parameter)=[^>\n]+>\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n');
 }
 
 class StreamBufferManager {
@@ -156,7 +166,9 @@ class StreamBufferManager {
 
       // ── Text ──
       if (buf.textAcc) {
-        const displayText = buf.textAcc.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, '');
+        const displayText = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
+          buf.textAcc.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, ''),
+        ));
         if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
           buf.lastRenderedText = displayText;
           buf.lastRenderedFinalized = finalizeText;

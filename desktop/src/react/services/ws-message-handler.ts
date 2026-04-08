@@ -37,6 +37,37 @@ const REACT_CHAT_EVENTS = new Set([
   'compaction_start', 'compaction_end',
 ]);
 
+const INLINE_PROGRESS_EVENTS = new Set([
+  'text_delta',
+  'tool_start',
+  'tool_end',
+  'file_output',
+  'artifact',
+  'browser_screenshot',
+  'cron_confirmation',
+  'settings_confirmation',
+  'tool_authorization',
+  'turn_end',
+]);
+
+function looksLikeI18nKey(value: string): boolean {
+  return /^[a-z0-9_]+(?:\.[a-z0-9_]+)+$/i.test(value);
+}
+
+function resolveUiText(raw: unknown, vars?: Record<string, string | number>): string {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  if (window.t && looksLikeI18nKey(text)) {
+    const translated = window.t(text, vars);
+    if (translated && translated !== text) return translated;
+  }
+  return text;
+}
+
+function targetsCurrentSession(msg: any, currentSessionPath: string | null): boolean {
+  return !msg?.sessionPath || !currentSessionPath || msg.sessionPath === currentSessionPath;
+}
+
 function stripReviewThinkTags(raw: unknown): string {
   return String(raw || '')
     .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
@@ -148,6 +179,9 @@ export function handleServerMessage(msg: any): void {
 
   // ── React 聊天渲染路径：聊天相关事件走 StreamBufferManager ──
   if (REACT_CHAT_EVENTS.has(msg.type)) {
+    if (INLINE_PROGRESS_EVENTS.has(msg.type) && targetsCurrentSession(msg, state.currentSessionPath) && state.inlineError) {
+      useStore.getState().setInlineError(null);
+    }
     streamBufferManager.handle(msg);
     // turn_end 后仍需执行部分通用逻辑（loadSessions、context_usage）
     if (msg.type === 'turn_end') {
@@ -195,10 +229,17 @@ export function handleServerMessage(msg: any): void {
   // ── status / error 消息：更新 streaming 状态 / 显示错误 ──
   if (msg.type === 'status') {
     applyStreamingStatus(!!msg.isStreaming);
+    if (targetsCurrentSession(msg, state.currentSessionPath)) {
+      const notice = resolveUiText(msg.noticeKey || msg.notice || msg.message, msg.noticeVars || msg.vars);
+      if (notice) {
+        useStore.getState().setInlineError(notice);
+      }
+    }
     return;
   }
   if (msg.type === 'error') {
-    const errMsg = msg.message || msg.error || '';
+    if (!targetsCurrentSession(msg, state.currentSessionPath)) return;
+    const errMsg = resolveUiText(msg.message || msg.error || '', msg.messageVars || msg.errorVars || msg.vars);
     if (errMsg) {
       useStore.getState().setInlineError(errMsg);
       showError(errMsg);
@@ -328,6 +369,16 @@ export function handleServerMessage(msg: any): void {
     case 'bridge_message':
       if (msg.message) {
         useStore.getState().addBridgeMessage(msg.message);
+        // Auto-refresh if viewing this bridge session
+        const activeBridgeKey = useStore.getState().activeBridgeSessionKey;
+        if (activeBridgeKey && msg.message.sessionKey === activeBridgeKey) {
+          import('../hooks/use-hana-fetch').then(({ hanaFetch }) => {
+            hanaFetch(`/api/bridge/sessions/${encodeURIComponent(activeBridgeKey)}/messages`)
+              .then(r => r.json())
+              .then(data => useStore.getState().setActiveBridgeMessages(data.messages || []))
+              .catch(() => {});
+          });
+        }
       }
       break;
 

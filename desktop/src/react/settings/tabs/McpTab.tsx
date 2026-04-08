@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { useSettingsStore } from '../store';
@@ -6,7 +6,7 @@ import styles from '../Settings.module.css';
 
 type McpServerState = {
   name: string;
-  transport: 'stdio' | 'sse';
+  transport: 'stdio' | 'sse' | 'http';
   disabled?: boolean;
   command?: string;
   args?: string[];
@@ -14,7 +14,7 @@ type McpServerState = {
   url?: string;
   headers?: Record<string, string>;
   messageUrl?: string;
-  source?: 'local' | 'discovered';
+  source?: 'local' | 'discovered' | 'builtin';
   sourcePath?: string | null;
   connected?: boolean;
   lastError?: string | null;
@@ -23,6 +23,75 @@ type McpServerState = {
   tools?: Array<{ name: string; description?: string }>;
   resources?: Array<{ name: string; uri?: string }>;
 };
+
+type McpBuiltinField = {
+  key: string;
+  label: string;
+  placeholder?: string;
+  secret?: boolean;
+  value?: string;
+};
+
+type McpBuiltinState = {
+  name: string;
+  label: string;
+  description?: string;
+  docsUrl?: string;
+  hint?: string;
+  transport: 'stdio' | 'sse' | 'http';
+  configured?: boolean;
+  enabled?: boolean;
+  connected?: boolean;
+  lastError?: string | null;
+  toolCount?: number;
+  resourceCount?: number;
+  tools?: Array<{ name: string; description?: string }>;
+  resources?: Array<{ name: string; uri?: string }>;
+  credentialFields: McpBuiltinField[];
+};
+
+const BUILTIN_FALLBACKS: McpBuiltinState[] = [
+  {
+    name: 'tencent-docs',
+    label: '腾讯文档',
+    description: '填一次 Token，就能把腾讯文档工具直接接进 Lynn。',
+    docsUrl: 'https://docs.qq.com/open/auth/mcp.html',
+    hint: '在腾讯文档开放平台生成 MCP Token 后填入即可。',
+    transport: 'http',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Token',
+        placeholder: 'docs_xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
+];
+
+function mergeBuiltinStates(nextBuiltin: McpBuiltinState[]): McpBuiltinState[] {
+  const byName = new Map<string, McpBuiltinState>();
+  for (const builtin of BUILTIN_FALLBACKS) byName.set(builtin.name, builtin);
+  for (const builtin of nextBuiltin || []) {
+    byName.set(builtin.name, {
+      ...(byName.get(builtin.name) || {}),
+      ...builtin,
+      credentialFields: builtin.credentialFields?.length
+        ? builtin.credentialFields
+        : byName.get(builtin.name)?.credentialFields || [],
+    });
+  }
+  return [...byName.values()];
+}
 
 type DraftState = {
   name: string;
@@ -162,7 +231,7 @@ function draftFromServer(server: McpServerState | null): DraftState {
   if (!server) return emptyDraft();
   return {
     name: server.name || '',
-    transport: server.transport || 'stdio',
+    transport: server.transport === 'sse' ? 'sse' : 'stdio',
     command: server.command || '',
     argsText: (server.args || []).join('\n'),
     cwd: server.cwd || '',
@@ -194,41 +263,137 @@ function buildPayload(draft: DraftState) {
 }
 
 export function McpTab() {
-  const { showToast } = useSettingsStore();
+  const platform = window.platform;
+  const { showToast, ready, serverPort, serverToken } = useSettingsStore();
   const [servers, setServers] = useState<McpServerState[]>([]);
+  const [builtinServers, setBuiltinServers] = useState<McpBuiltinState[]>(BUILTIN_FALLBACKS);
+  const [builtinDrafts, setBuiltinDrafts] = useState<Record<string, Record<string, string>>>({});
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState>(emptyDraft());
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState<'save' | 'test' | 'reload' | 'delete' | null>(null);
   const [testResult, setTestResult] = useState<string>('');
+  const [builtinBusy, setBuiltinBusy] = useState<Record<string, 'save' | 'test' | null>>({});
+  const [builtinTestResults, setBuiltinTestResults] = useState<Record<string, string>>({});
+  const serverRetryCountRef = useRef(0);
+  const builtinRetryCountRef = useRef(0);
+  const serverRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const builtinRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedServer = useMemo(
-    () => servers.find((server) => server.name === selectedName) || null,
+    () => servers.find((server) => server.name === selectedName && server.source !== 'builtin') || null,
     [selectedName, servers],
   );
 
+  const customServers = useMemo(
+    () => servers.filter((server) => server.source !== 'builtin'),
+    [servers],
+  );
+
+  const scheduleServerRetry = () => {
+    if (serverRetryTimerRef.current || serverRetryCountRef.current >= 4) return;
+    serverRetryCountRef.current += 1;
+    const delay = Math.min(1200 * serverRetryCountRef.current, 4000);
+    serverRetryTimerRef.current = setTimeout(() => {
+      serverRetryTimerRef.current = null;
+      void loadServers();
+    }, delay);
+  };
+
+  const scheduleBuiltinRetry = () => {
+    if (builtinRetryTimerRef.current || builtinRetryCountRef.current >= 4) return;
+    builtinRetryCountRef.current += 1;
+    const delay = Math.min(1200 * builtinRetryCountRef.current, 4000);
+    builtinRetryTimerRef.current = setTimeout(() => {
+      builtinRetryTimerRef.current = null;
+      void loadBuiltinServers();
+    }, delay);
+  };
+
   const loadServers = async () => {
+    if (!ready || !serverPort || !serverToken) return;
     setLoading(true);
     try {
       const res = await hanaFetch('/api/mcp/servers');
       const data = await res.json();
+      if (data?.ok === false && /MCP manager unavailable/i.test(String(data?.error || ''))) {
+        scheduleServerRetry();
+        return;
+      }
       const nextServers = data.servers || [];
+      serverRetryCountRef.current = 0;
       setServers(nextServers);
       setSelectedName((prev) => {
-        if (prev && nextServers.some((server: McpServerState) => server.name === prev)) return prev;
-        return nextServers[0]?.name || null;
+        if (prev && nextServers.some((server: McpServerState) => server.name === prev && server.source !== 'builtin')) return prev;
+        return nextServers.find((server: McpServerState) => server.source !== 'builtin')?.name || null;
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (/MCP manager unavailable/i.test(message)) {
+        scheduleServerRetry();
+        return;
+      }
       showToast(message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const loadBuiltinServers = async () => {
+    if (!ready || !serverPort || !serverToken) return;
+    try {
+      const res = await hanaFetch('/api/mcp/builtin');
+      const data = await res.json();
+      const nextBuiltin = mergeBuiltinStates(data.builtin || []);
+      if (data?.ok === false && /MCP manager unavailable/i.test(String(data?.error || ''))) {
+        scheduleBuiltinRetry();
+        return;
+      }
+      const hasConfiguredBuiltin = nextBuiltin.some((server) => server.configured || server.connected || server.toolCount || server.resourceCount);
+      if (!hasConfiguredBuiltin) {
+        scheduleBuiltinRetry();
+      } else {
+        builtinRetryCountRef.current = 0;
+      }
+      setBuiltinServers(nextBuiltin);
+      setBuiltinDrafts(
+        Object.fromEntries(
+          nextBuiltin.map((server: McpBuiltinState) => [
+            server.name,
+            Object.fromEntries(
+              (server.credentialFields || []).map((field) => [field.key, field.value || '']),
+            ),
+          ]),
+        ),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/MCP manager unavailable/i.test(message)) {
+        scheduleBuiltinRetry();
+        return;
+      }
+      showToast(message, 'error');
+    }
+  };
+
   useEffect(() => {
+    if (!ready || !serverPort || !serverToken) return;
     loadServers().catch(() => {});
-  }, []);
+    loadBuiltinServers().catch(() => {});
+    return () => {
+      if (serverRetryTimerRef.current) clearTimeout(serverRetryTimerRef.current);
+      if (builtinRetryTimerRef.current) clearTimeout(builtinRetryTimerRef.current);
+    };
+  }, [ready, serverPort, serverToken]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (builtinServers.length === 0) void loadBuiltinServers();
+      if (servers.length === 0) void loadServers();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [builtinServers.length, servers.length]);
 
   useEffect(() => {
     setDraft(draftFromServer(selectedServer));
@@ -287,6 +452,7 @@ export function McpTab() {
     try {
       await hanaFetch('/api/mcp/reload', { method: 'POST' });
       await loadServers();
+      await loadBuiltinServers();
       showToast(t('settings.mcp.reloaded') || '已重新加载 MCP', 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -312,6 +478,62 @@ export function McpTab() {
     }
   };
 
+  const updateBuiltinField = (name: string, key: string, value: string) => {
+    setBuiltinDrafts((prev) => ({
+      ...prev,
+      [name]: {
+        ...(prev[name] || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveBuiltin = async (name: string, enabled?: boolean) => {
+    setBuiltinBusy((prev) => ({ ...prev, [name]: 'save' }));
+    try {
+      await hanaFetch(`/api/mcp/builtin/${encodeURIComponent(name)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credentials: builtinDrafts[name] || {},
+          ...(enabled !== undefined ? { enabled } : {}),
+        }),
+      });
+      await loadServers();
+      await loadBuiltinServers();
+      showToast(t('settings.saved') || '保存成功', 'success');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      showToast(message, 'error');
+    } finally {
+      setBuiltinBusy((prev) => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const testBuiltin = async (name: string) => {
+    setBuiltinBusy((prev) => ({ ...prev, [name]: 'test' }));
+    setBuiltinTestResults((prev) => ({ ...prev, [name]: '' }));
+    try {
+      const res = await hanaFetch(`/api/mcp/builtin/${encodeURIComponent(name)}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credentials: builtinDrafts[name] || {},
+        }),
+      });
+      const data = await res.json();
+      const summary = `${t('settings.mcp.testSuccess') || '连接成功'} · ${data.toolCount || 0} tools / ${data.resourceCount || 0} resources`;
+      setBuiltinTestResults((prev) => ({ ...prev, [name]: summary }));
+      showToast(summary, 'success');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setBuiltinTestResults((prev) => ({ ...prev, [name]: message }));
+      showToast(message, 'error');
+    } finally {
+      setBuiltinBusy((prev) => ({ ...prev, [name]: null }));
+    }
+  };
+
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="mcp">
       <section className={styles['settings-section']}>
@@ -334,6 +556,107 @@ export function McpTab() {
         <p className={styles['settings-hint']}>
           {t('settings.mcp.hint') || '管理本地 stdio 和远程 SSE MCP 服务，连上后工具会直接进入 Lynn。'}
         </p>
+
+        {builtinServers.length > 0 && (
+          <div className={styles['settings-field']}>
+            <label className={styles['settings-field-label']}>{t('settings.mcp.builtinTitle') || '内置文档服务'}</label>
+            <div className={styles['mcp-builtin-grid']}>
+              {builtinServers.map((server) => {
+                const fields = server.credentialFields || [];
+                const busy = builtinBusy[server.name];
+                const statusText = server.connected
+                  ? (t('settings.providers.ready') || '已就绪')
+                  : server.configured
+                    ? (server.lastError || t('settings.providers.verifyFailed') || '连接失败')
+                    : (t('settings.providers.noKey') || '未配置');
+                return (
+                  <div key={server.name} className={styles['mcp-builtin-card']}>
+                    <div className={styles['mcp-builtin-header']}>
+                      <div>
+                        <div className={styles['mcp-builtin-title']}>{server.label}</div>
+                        <div className={styles['mcp-builtin-copy']}>{server.description || ''}</div>
+                      </div>
+                      <span
+                        className={styles['mcp-builtin-badge']}
+                        style={{
+                          color: server.connected ? 'var(--mint)' : 'var(--text-muted)',
+                          borderColor: server.connected ? 'color-mix(in srgb, var(--mint) 32%, transparent)' : 'var(--border)',
+                        }}
+                      >
+                        {statusText}
+                      </span>
+                    </div>
+
+                    {fields.map((field) => (
+                      <div key={`${server.name}-${field.key}`} className={styles['settings-field']}>
+                        <label className={styles['settings-field-label']}>{field.label}</label>
+                        <input
+                          className={styles['settings-input']}
+                          type={field.secret === false ? 'text' : 'password'}
+                          value={builtinDrafts[server.name]?.[field.key] || ''}
+                          placeholder={field.placeholder || ''}
+                          onChange={(e) => updateBuiltinField(server.name, field.key, e.target.value)}
+                          onBlur={() => {
+                            if ((builtinDrafts[server.name]?.[field.key] || '').trim()) {
+                              void saveBuiltin(server.name);
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+
+                    {server.hint && (
+                      <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: 0 }}>
+                        {server.hint}
+                      </div>
+                    )}
+
+                    <div className={styles['mcp-builtin-actions']}>
+                      <button
+                        className={styles['provider-item-action']}
+                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                        onClick={() => saveBuiltin(server.name)}
+                        disabled={busy === 'save'}
+                      >
+                        {busy === 'save' ? (t('review.loading') || 'Loading') : (t('settings.save') || '保存')}
+                      </button>
+                      <button
+                        className={styles['provider-item-action']}
+                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                        onClick={() => testBuiltin(server.name)}
+                        disabled={busy === 'test'}
+                      >
+                        {busy === 'test' ? (t('review.loading') || 'Loading') : (t('settings.mcp.test') || '测试连接')}
+                      </button>
+                      <button
+                        className={styles['provider-item-action']}
+                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                        onClick={() => saveBuiltin(server.name, !server.enabled)}
+                      >
+                        {server.enabled ? (t('settings.mcp.disableBuiltin') || '停用') : (t('settings.mcp.enableBuiltin') || '启用')}
+                      </button>
+                      {server.docsUrl && (
+                        <button
+                          className={styles['provider-item-action']}
+                          style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                          onClick={() => platform?.openExternal?.(server.docsUrl || '')}
+                        >
+                          {t('settings.mcp.openDocs') || '打开文档'}
+                        </button>
+                      )}
+                    </div>
+
+                    {builtinTestResults[server.name] && (
+                      <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: '8px' }}>
+                        {builtinTestResults[server.name]}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className={styles['settings-field']}>
           <label className={styles['settings-field-label']}>{t('settings.mcp.presets') || '预设模板'}</label>
@@ -373,10 +696,10 @@ export function McpTab() {
           {loading && (
             <div className={styles['provider-empty']}>{t('review.loading') || 'Loading'}</div>
           )}
-          {!loading && servers.length === 0 && (
+          {!loading && customServers.length === 0 && (
             <div className={styles['provider-empty']}>{t('settings.mcp.empty') || '还没有 MCP 服务器'}</div>
           )}
-          {!loading && servers.map((server) => (
+          {!loading && customServers.map((server) => (
             <button
               key={server.name}
               type="button"

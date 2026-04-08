@@ -136,6 +136,7 @@ export async function saveProvider({
   const modelRef = defaultModelId
     ? { id: defaultModelId, provider: providerName }
     : null;
+  const shouldActivateProvider = providerName === BRAIN_PROVIDER_ID || !!modelRef;
   const roleModels = providerName === BRAIN_PROVIDER_ID
     ? {
         chat: { id: BRAIN_ROLE_MODEL_IDS.chat, provider: BRAIN_PROVIDER_ID },
@@ -152,24 +153,33 @@ export async function saveProvider({
         utility_large: modelRef,
       } : null);
 
+  const configBody: Record<string, unknown> = {
+    providers: {
+      [providerName]: {
+        base_url: providerUrl,
+        api_key: apiKey,
+        api: providerApi,
+        ...(seededModelIds.length > 0 ? { models: seededModelIds } : {}),
+      },
+    },
+  };
+
+  if (shouldActivateProvider) {
+    configBody.api = { provider: providerName };
+  }
+  if (roleModels) {
+    configBody.models = roleModels;
+  }
+
   await onboardingFetch('/api/config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      api: { provider: providerName },
-      providers: {
-        [providerName]: {
-          base_url: providerUrl,
-          api_key: apiKey,
-          api: providerApi,
-          ...(seededModelIds.length > 0 ? { models: seededModelIds } : {}),
-        },
-      },
-      ...(roleModels ? { models: roleModels } : {}),
-    }),
+    body: JSON.stringify(configBody),
   });
 
-  await syncRuntimeModel(onboardingFetch, providerName === BRAIN_PROVIDER_ID ? BRAIN_DEFAULT_MODEL_ID : defaultModelId, providerName);
+  if (shouldActivateProvider) {
+    await syncRuntimeModel(onboardingFetch, providerName === BRAIN_PROVIDER_ID ? BRAIN_DEFAULT_MODEL_ID : defaultModelId, providerName);
+  }
   notifyModelsChanged();
 }
 

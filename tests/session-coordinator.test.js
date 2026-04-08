@@ -400,6 +400,47 @@ describe("SessionCoordinator", () => {
     });
   });
 
+  it("guides brain sessions to present themselves as the default model service", async () => {
+    const coordinator = new SessionCoordinator({
+      agentsDir: "/tmp/agents",
+      getAgent: () => ({
+        agentDir: "/tmp/agent",
+        sessionDir: "/tmp/agent-sessions",
+        tools: [],
+        config: { locale: "zh-CN" },
+        setMemoryEnabled: vi.fn(),
+      }),
+      getActiveAgentId: () => "lynn",
+      getModels: () => ({
+        currentModel: { id: "step-3.5-flash-2603", provider: "brain", name: "默认模型" },
+        authStorage: {},
+        modelRegistry: {},
+        resolveThinkingLevel: () => "medium",
+      }),
+      getResourceLoader: () => ({ getAppendSystemPrompt: () => [] }),
+      getSkills: () => null,
+      buildTools: () => ({ tools: [], customTools: [] }),
+      emitEvent: () => {},
+      emitDevLog: () => {},
+      getHomeCwd: () => "/tmp/home",
+      agentIdFromSessionPath: () => null,
+      switchAgentOnly: async () => {},
+      getConfig: () => ({}),
+      getPrefs: () => ({ getThinkingLevel: () => "medium" }),
+      getAgents: () => new Map(),
+      getActivityStore: () => null,
+      getAgentById: () => null,
+      listAgents: () => [],
+    });
+
+    await coordinator.createSession(null, "/tmp/workspace", true);
+    const resourceLoader = createAgentSessionMock.mock.calls.at(-1)[0].resourceLoader;
+    const prompt = resourceLoader.getAppendSystemPrompt().join("\n");
+    expect(prompt).toContain("默认模型服务");
+    expect(prompt).toContain("不要主动说出 GLM、Step、Qwen、MiniMax、zhipu-coding");
+    expect(prompt).toContain("即使用户直接追问你当前是什么模型，也不要把具体上游型号当成最终答案");
+  });
+
   it("cleans up the temporary session file when aborted after session creation", async () => {
     const sessionFile = path.join(tempDir, "isolated.jsonl");
     fs.writeFileSync(sessionFile, "temp");

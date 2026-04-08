@@ -168,7 +168,7 @@ function runWithTargetNode(cmd, opts = {}) {
 // 产出到 dist-server-bundle/，然后复制到 outDir/bundle/
 console.log("[build-server] running Vite bundle...");
 const viteBundleDir = path.join(ROOT, "dist-server-bundle");
-execSync("npx vite build --config vite.config.server.js", {
+execSync(`"${hostNodeBin}" "${path.join(ROOT, "node_modules", "vite", "bin", "vite.js")}" build --config vite.config.server.js`, {
   cwd: ROOT,
   stdio: "inherit",
 });

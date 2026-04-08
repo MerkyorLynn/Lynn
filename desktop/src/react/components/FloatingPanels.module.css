@@ -885,6 +885,7 @@
     display: flex;
     gap: 0;
     padding: 18px 24px 24px;
+    overflow: hidden;
 }
 
 .automationSidebar {
@@ -931,6 +932,7 @@
     display: flex;
     flex-direction: column;
     padding-left: 24px;
+    overflow: hidden;
 }
 
 .automationScroll {
@@ -1106,10 +1108,15 @@
 .automationComposer {
     margin-top: 18px;
     padding-top: 16px;
+    padding-right: 4px;
+    padding-bottom: 6px;
     border-top: 1px solid var(--overlay-light);
     display: flex;
     flex-direction: column;
     gap: 14px;
+    flex-shrink: 0;
+    max-height: min(46vh, 340px);
+    overflow-y: auto;
 }
 
 .automationComposerTop {
@@ -1245,6 +1252,11 @@
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
+    position: sticky;
+    bottom: 0;
+    padding-top: 10px;
+    padding-bottom: 4px;
+    background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--bg-card) 92%, white 8%) 24px);
 }
 
 .automationPanelNotice {

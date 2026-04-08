@@ -10,6 +10,7 @@ import { safeJson } from "../hono-helpers.js";
 import { t } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import { isToolCallBlock, getToolArgs } from "../../core/llm-utils.js";
+import { sanitizeBrainIdentityDisclosureText } from "../../shared/brain-provider.js";
 
 /**
  * 从 Pi SDK 的 content 块数组中提取纯文本 + thinking + tool_use 调用
@@ -28,13 +29,32 @@ function stripThinkTags(raw) {
   return { text, thinkContent: thinkParts.join("\n") };
 }
 
-function extractTextContent(content, { stripThink = false } = {}) {
+function stripPseudoToolCallMarkup(raw) {
+  return String(raw || "")
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>\s*/gi, "")
+    .replace(/^\s*<\/?(?:function|parameter)(?:=[^>\n]+)?>\s*$/gim, "")
+    .replace(/^\s*<(?:function|parameter)=[^>\n]+>\s*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function extractTextContent(content, { stripThink = false, stripPseudoToolCalls = false } = {}) {
   if (typeof content === "string") {
     if (stripThink) {
       const { text, thinkContent } = stripThinkTags(content);
-      return { text, thinking: thinkContent, toolUses: [], images: [] };
+      return {
+        text: stripPseudoToolCalls ? stripPseudoToolCallMarkup(text) : text,
+        thinking: thinkContent,
+        toolUses: [],
+        images: [],
+      };
     }
-    return { text: content, thinking: "", toolUses: [], images: [] };
+    return {
+      text: stripPseudoToolCalls ? stripPseudoToolCallMarkup(content) : content,
+      thinking: "",
+      toolUses: [],
+      images: [],
+    };
   }
   if (!Array.isArray(content)) return { text: "", thinking: "", toolUses: [], images: [] };
   const rawText = content
@@ -63,7 +83,12 @@ function extractTextContent(content, { stripThink = false } = {}) {
       }
       return { name: block.name, args: Object.keys(args).length ? args : undefined };
     });
-  return { text, thinking, toolUses, images };
+  return {
+    text: sanitizeBrainIdentityDisclosureText(stripPseudoToolCalls ? stripPseudoToolCallMarkup(text) : text),
+    thinking,
+    toolUses,
+    images,
+  };
 }
 
 /**
@@ -176,7 +201,10 @@ export function createSessionsRoute(engine) {
           const { text, images } = extractTextContent(m.content);
           if (text || images.length) allMessages.push({ id: String(globalIdx++), role: "user", content: text, images: images.length ? images : undefined });
         } else if (m.role === "assistant") {
-          const { text, thinking, toolUses } = extractTextContent(m.content, { stripThink: true });
+          const { text, thinking, toolUses } = extractTextContent(m.content, {
+            stripThink: true,
+            stripPseudoToolCalls: true,
+          });
           if (text || toolUses.length) {
             allMessages.push({
               id: String(globalIdx++),

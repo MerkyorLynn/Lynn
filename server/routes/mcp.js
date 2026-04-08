@@ -17,6 +17,14 @@ export function createMcpRoute(engine) {
     return c.json({ ok: true, servers: manager.listServerStates() });
   });
 
+  route.get("/mcp/builtin", async (c) => {
+    const manager = getManager(engine);
+    if (!manager) {
+      return c.json({ builtin: [], ok: false, error: "MCP manager unavailable" }, 503);
+    }
+    return c.json({ ok: true, builtin: manager.listBuiltinStates() });
+  });
+
   route.post("/mcp/servers", async (c) => {
     const manager = getManager(engine);
     if (!manager) {
@@ -60,6 +68,36 @@ export function createMcpRoute(engine) {
 
     try {
       const result = await manager.testServerConfig(name, config);
+      return c.json(result);
+    } catch (err) {
+      return c.json({ ok: false, error: err.message }, 400);
+    }
+  });
+
+  route.post("/mcp/builtin/:name", async (c) => {
+    const manager = getManager(engine);
+    if (!manager) {
+      return c.json({ error: "MCP manager unavailable" }, 503);
+    }
+    const name = c.req.param("name");
+    const body = await safeJson(c);
+    try {
+      const builtin = await manager.saveBuiltinCredentials(name, body || {});
+      return c.json({ ok: true, builtin });
+    } catch (err) {
+      return c.json({ error: err.message }, 400);
+    }
+  });
+
+  route.post("/mcp/builtin/:name/test", async (c) => {
+    const manager = getManager(engine);
+    if (!manager) {
+      return c.json({ error: "MCP manager unavailable" }, 503);
+    }
+    const name = c.req.param("name");
+    const body = await safeJson(c);
+    try {
+      const result = await manager.testBuiltinServer(name, body || {});
       return c.json(result);
     } catch (err) {
       return c.json({ ok: false, error: err.message }, 400);

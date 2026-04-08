@@ -61,6 +61,7 @@ let _mainWindowReadyWaiters = [];
 
 let settingsWindow = null;
 let settingsWindowInitialNavigationTarget = null;
+let settingsWindowContentStamp = null;
 
 let browserViewerWindow = null;
 let _browserWebView = null;        // 当前活跃的 WebContentsView
@@ -157,6 +158,18 @@ function loadWindowURL(win, pageName, opts) {
       console.error(`[desktop] ${pageName} 页面加载失败: ${err.message}`);
       return loadWindowErrorPage(win, pageName, err);
     });
+  }
+}
+
+function getWindowEntryStamp(pageName) {
+  try {
+    const entryPath = _isDev
+      ? path.join(__dirname, "src", `${pageName}.html`)
+      : path.join(_distRenderer, `${pageName}.html`);
+    const stat = fs.statSync(entryPath);
+    return `${entryPath}:${stat.size}:${Math.floor(stat.mtimeMs)}`;
+  } catch {
+    return `${pageName}:missing`;
   }
 }
 
@@ -700,13 +713,39 @@ function getCurrentAgentId() {
 
 /**
  * 检查是否已完成首次配置引导
- * 只看 preferences.json 的 setupComplete 标记
+ * 优先看 preferences.json 的 setupComplete 标记；
+ * 兜底检查：如果用户已有 session 文件（说明已正常使用过），自动补写标记并跳过 onboarding
  */
 function isSetupComplete() {
   const prefsPath = path.join(lynnHome, "user", "preferences.json");
   try {
-    return JSON.parse(fs.readFileSync(prefsPath, "utf-8")).setupComplete === true;
+    const prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8"));
+    if (prefs.setupComplete === true) return true;
   } catch {}
+
+  // 兜底：检查是否已有 session 文件（证明用户已正常使用过）
+  try {
+    const agentsDir = path.join(lynnHome, "agents");
+    const agents = fs.readdirSync(agentsDir, { withFileTypes: true });
+    for (const entry of agents) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      const sessDir = path.join(agentsDir, entry.name, "sessions");
+      if (!fs.existsSync(sessDir)) continue;
+      const sessions = fs.readdirSync(sessDir).filter(f => f.endsWith(".jsonl"));
+      if (sessions.length > 0) {
+        // 自动补写 setupComplete 标记，下次启动不再检查
+        try {
+          let prefs = {};
+          try { prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8")); } catch {}
+          prefs.setupComplete = true;
+          fs.writeFileSync(prefsPath, JSON.stringify(prefs, null, 2) + "\n", "utf-8");
+          console.log("[desktop] 检测到已有 session，自动标记 setupComplete");
+        } catch {}
+        return true;
+      }
+    }
+  } catch {}
+
   return false;
 }
 
@@ -1331,6 +1370,7 @@ function normalizeSettingsNavigationTarget(target) {
 // ── 创建设置窗口 ──
 function createSettingsWindow(target, theme) {
   const navigationTarget = normalizeSettingsNavigationTarget(target);
+  const desiredStamp = getWindowEntryStamp("settings");
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     // renderer 已崩溃：销毁旧窗口，走下方重建流程
     if (settingsWindow.webContents.isCrashed()) {
@@ -1339,6 +1379,10 @@ function createSettingsWindow(target, theme) {
       settingsWindow = null;
     } else if ((settingsWindow.webContents.getURL() || "").startsWith("data:text/html")) {
       console.warn("[desktop] settings window 处于错误页，重建窗口");
+      settingsWindow.destroy();
+      settingsWindow = null;
+    } else if (settingsWindowContentStamp && settingsWindowContentStamp !== desiredStamp) {
+      console.warn("[desktop] settings window 资源已更新，重建窗口");
       settingsWindow.destroy();
       settingsWindow = null;
     } else {
@@ -1350,6 +1394,7 @@ function createSettingsWindow(target, theme) {
   }
 
   settingsWindowInitialNavigationTarget = navigationTarget;
+  settingsWindowContentStamp = desiredStamp;
 
   settingsWindow = new BrowserWindow({
     width: 720,
@@ -1417,6 +1462,7 @@ function createSettingsWindow(target, theme) {
 
   settingsWindow.on("closed", () => {
     settingsWindowInitialNavigationTarget = null;
+    settingsWindowContentStamp = null;
     settingsWindow = null;
   });
 }
@@ -2107,6 +2153,31 @@ function setupBrowserCommands() {
 
 // ── 创建 Onboarding 窗口 ──
 // query: 可选的 URL 参数，如 { skipToTutorial: "1" } 或 { preview: "1" }
+async function completeOnboardingAndOpenMain({ markSetupComplete = true } = {}) {
+  const prefsPath = path.join(lynnHome, "user", "preferences.json");
+  if (markSetupComplete) {
+    try {
+      let prefs = {};
+      try { prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8")); } catch {}
+      prefs.setupComplete = true;
+      fs.writeFileSync(prefsPath, JSON.stringify(prefs, null, 2) + "\n", "utf-8");
+    } catch (err) {
+      console.error("[desktop] Failed to write setupComplete:", err);
+    }
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+  }
+
+  const ready = await waitForMainWindowReady();
+  if (!ready && mainWindow && !mainWindow.isDestroyed()) {
+    try { mainWindow.show(); } catch {}
+    return false;
+  }
+  return true;
+}
+
 function createOnboardingWindow(query = {}) {
   onboardingWindow = new BrowserWindow({
     width: 560,
@@ -2136,7 +2207,11 @@ function createOnboardingWindow(query = {}) {
   });
 
   onboardingWindow.on("closed", () => {
+    const shouldSkipIntoApp = query.preview !== "1" && !forceQuitApp && (!mainWindow || mainWindow.isDestroyed());
     onboardingWindow = null;
+    if (shouldSkipIntoApp) {
+      void completeOnboardingAndOpenMain({ markSetupComplete: true });
+    }
   });
 }
 
@@ -2820,23 +2895,7 @@ wrapIpcHandler("debug-open-onboarding-preview", () => {
 
 // Onboarding 完成后，写标记 → 创建主窗口
 wrapIpcHandler("onboarding-complete", async () => {
-  const prefsPath = path.join(lynnHome, "user", "preferences.json");
-  try {
-    let prefs = {};
-    try { prefs = JSON.parse(fs.readFileSync(prefsPath, "utf-8")); } catch {}
-    prefs.setupComplete = true;
-    fs.writeFileSync(prefsPath, JSON.stringify(prefs, null, 2) + "\n", "utf-8");
-  } catch (err) {
-    console.error("[desktop] Failed to write setupComplete:", err);
-  }
-  // 创建主窗口（隐藏），前端 init 完成后通过 app-ready 显示
-  createMainWindow();
-  const ready = await waitForMainWindowReady();
-  if (!ready && mainWindow && !mainWindow.isDestroyed()) {
-    try { mainWindow.show(); } catch {}
-    return false;
-  }
-  return true;
+  return completeOnboardingAndOpenMain({ markSetupComplete: true });
 });
 
 // ── 窗口控制 IPC（Windows/Linux 自绘标题栏用）──

@@ -112,6 +112,37 @@ describe('onboarding-actions', () => {
     });
   });
 
+  it('stores advanced-setup provider credentials without activating the provider before model selection', async () => {
+    const onboardingFetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    await saveProvider({
+      onboardingFetch,
+      providerName: 'minimax-coding',
+      providerUrl: 'https://api.minimaxi.com/v1',
+      apiKey: 'test-key',
+      providerApi: 'openai-completions',
+      defaultModelId: null,
+    });
+
+    expect(onboardingFetch).toHaveBeenCalledTimes(1);
+    expect(onboardingFetch).toHaveBeenNthCalledWith(1, '/api/config', expect.objectContaining({
+      method: 'PUT',
+    }));
+
+    const firstCall = onboardingFetch.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1]?.body || '{}'));
+    expect(body.api).toBeUndefined();
+    expect(body.models).toBeUndefined();
+    expect(body.providers['minimax-coding']).toEqual({
+      base_url: 'https://api.minimaxi.com/v1',
+      api_key: 'test-key',
+      api: 'openai-completions',
+    });
+  });
+
   it('notifies the app to refresh models after onboarding provider/model saves', async () => {
     const settingsChanged = vi.fn();
     vi.stubGlobal('window', { platform: { settingsChanged } });

@@ -11,11 +11,68 @@ import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { formatSessionDate } from '../utils/format';
 import { switchSession, archiveSession, renameSession } from '../stores/session-actions';
-import type { Session, Agent } from '../types';
+import type { Session, Agent, BridgeSession } from '../types';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
 import { lookupKnownModel } from '../utils/known-models';
 import { isDisplayDefaultModel } from '../utils/brain-models';
 import styles from './SessionList.module.css';
+
+// ── Platform icons ──
+
+const PLATFORM_ICONS: Record<string, { label: string; color: string }> = {
+  feishu: { label: '飞书', color: '#3370ff' },
+  telegram: { label: 'Telegram', color: '#26a5e4' },
+  qq: { label: 'QQ', color: '#12b7f5' },
+  wechat: { label: '微信', color: '#07c160' },
+};
+
+function PlatformIcon({ platform }: { platform: string }) {
+  const info = PLATFORM_ICONS[platform] || { label: platform, color: '#999' };
+  return (
+    <span
+      className={styles.bridgePlatformIcon}
+      style={{ background: info.color }}
+      title={info.label}
+    >
+      {info.label.charAt(0)}
+    </span>
+  );
+}
+
+// ── Bridge sessions loading ──
+
+function useBridgeSessions() {
+  const bridgeStatusTrigger = useStore(s => s.bridgeStatusTrigger);
+  const bridgeLatestMessage = useStore(s => s.bridgeLatestMessage);
+  const setBridgeSessions = useStore(s => s.setBridgeSessions);
+  const bridgeSessions = useStore(s => s.bridgeSessions);
+
+  useEffect(() => {
+    hanaFetch('/api/bridge/sessions')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.sessions) setBridgeSessions(data.sessions);
+      })
+      .catch(() => {});
+  }, [bridgeStatusTrigger, bridgeLatestMessage, setBridgeSessions]);
+
+  return bridgeSessions;
+}
+
+async function openBridgeSession(sessionKey: string) {
+  const store = useStore.getState();
+  store.setActiveBridgeSessionKey(sessionKey);
+  // Load messages
+  try {
+    const res = await hanaFetch(`/api/bridge/sessions/${encodeURIComponent(sessionKey)}/messages`);
+    const data = await res.json();
+    store.setActiveBridgeMessages(data.messages || []);
+  } catch {
+    store.setActiveBridgeMessages([]);
+  }
+  // Hide welcome, show chat area
+  useStore.setState({ welcomeVisible: false });
+}
 
 
 // ── 主组件 ──
@@ -111,10 +168,14 @@ function SessionListInner() {
   const streamingSessions = useStore(s => s.streamingSessions);
   const browserRunning = useStore(s => s.browserRunning);
   const agentName = useStore(s => s.agentName) || 'Lynn';
+  const activeBridgeKey = useStore(s => s.activeBridgeSessionKey);
+
+  const bridgeSessions = useBridgeSessions();
 
   const [browserSessions, setBrowserSessions] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [bridgeCollapsed, setBridgeCollapsed] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
     try {
       const raw = window.localStorage.getItem('hana-session-workspace-groups');
@@ -218,6 +279,57 @@ function SessionListInner() {
       {searchQuery && filtered.length === 0 && (
         <div className={styles.sessionEmpty}>{t('sidebar.noResults') || 'No results'}</div>
       )}
+      {/* ── Bridge IM Channels ── */}
+      {!searchQuery && bridgeSessions.length > 0 && (
+        <>
+          <button
+            type="button"
+            className={`${styles.sessionGroupHeader}${activeBridgeKey ? ` ${styles.sessionGroupHeaderActive}` : ''}`}
+            onClick={() => setBridgeCollapsed(prev => !prev)}
+            title="IM Channels"
+          >
+            <span className={`${styles.sessionGroupArrow}${bridgeCollapsed ? ` ${styles.collapsed}` : ''}`} aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </span>
+            <span className={styles.sessionGroupIcon} aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </span>
+            <span className={styles.sessionGroupMeta}>
+              <span className={styles.sessionGroupTitle}>IM Channels</span>
+            </span>
+            <span className={styles.sessionGroupCount}>{bridgeSessions.length}</span>
+          </button>
+          {!bridgeCollapsed && bridgeSessions.map(bs => (
+            <button
+              key={bs.sessionKey}
+              className={`${styles.sessionItem}${activeBridgeKey === bs.sessionKey ? ` ${styles.sessionItemActive}` : ''}`}
+              onClick={() => {
+                useStore.getState().setActiveBridgeSessionKey(
+                  activeBridgeKey === bs.sessionKey ? null : bs.sessionKey,
+                );
+                if (activeBridgeKey !== bs.sessionKey) openBridgeSession(bs.sessionKey);
+                else useStore.getState().setActiveBridgeSessionKey(null);
+              }}
+            >
+              <div className={styles.sessionItemHeader}>
+                <PlatformIcon platform={bs.platform} />
+                <div className={styles.sessionItemTitle}>
+                  {bs.displayName || bs.chatId}
+                </div>
+              </div>
+              <div className={styles.sessionItemMeta}>
+                {PLATFORM_ICONS[bs.platform]?.label || bs.platform}
+                {bs.isOwner ? ' · Owner' : ''}
+                {bs.lastActive ? ` · ${formatSessionDate(new Date(bs.lastActive).toISOString())}` : ''}
+              </div>
+            </button>
+          ))}
+        </>
+      )}
       {grouped.map((group) => {
         const isCollapsed = !searchQuery && !!collapsedGroups[group.key];
         const containsActive = group.items.some((item) => !pendingNewSession && item.path === currentSessionPath);
@@ -300,6 +412,8 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
 
   const handleClick = useCallback(() => {
     if (editing || disabled) return;
+    useStore.getState().setActiveBridgeSessionKey(null);
+    useStore.getState().setActiveBridgeMessages([]);
     switchSession(s.path);
   }, [s.path, editing, disabled]);
 

@@ -163,7 +163,7 @@ Read/write files, run terminal commands, browse the web, search the internet, ta
 
 The app is signed and notarized with an Apple Developer ID. macOS should allow it to launch directly.
 
-**Windows:** download the latest portable `.zip` from [Releases](https://github.com/MerkyorLynn/Lynn/releases), extract it, then run `Lynn.exe`.
+**Windows:** download the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases) and run it directly.
 
 > **Windows SmartScreen notice:** The portable build is not yet code-signed. Windows Defender SmartScreen may show a warning on first run. Click **More info** → **Run anyway**. This is expected for unsigned builds.
 

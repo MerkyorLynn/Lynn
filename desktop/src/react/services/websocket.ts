@@ -25,9 +25,22 @@ let _wsRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let _wsResumeVersion = 0;
 const WS_MAX_RETRIES = 20;
 let _wsRetryCount = 0;
+let _streamResumeWatchdog: ReturnType<typeof setInterval> | null = null;
+const STREAM_RESUME_WATCHDOG_MS = 20000;
 
 // 注入循环依赖的 handlers
 injectHandlers(handleServerMessage, applyStreamingStatus);
+
+function ensureStreamResumeWatchdog(): void {
+  if (_streamResumeWatchdog) return;
+  _streamResumeWatchdog = setInterval(() => {
+    const ws = _ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const state = useStore.getState();
+    if (!state.isStreaming || !state.currentSessionPath) return;
+    requestStreamResume(state.currentSessionPath);
+  }, STREAM_RESUME_WATCHDOG_MS);
+}
 
 /** 获取当前 WebSocket 实例 */
 export function getWebSocket(): WebSocket | null {
@@ -51,6 +64,7 @@ export function connectWebSocket(port?: string, token?: string): void {
   const url = `ws://127.0.0.1:${serverPort}/ws`;
   const protocols = serverToken ? ['hana-v1', `token.${serverToken}`] : ['hana-v1'];
   _ws = new WebSocket(url, protocols);
+  ensureStreamResumeWatchdog();
 
   _ws.onopen = () => {
     _wsRetryDelay = 1000;

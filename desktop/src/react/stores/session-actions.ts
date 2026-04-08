@@ -157,6 +157,8 @@ export async function switchSession(path: string): Promise<void> {
     useStore.setState({
       currentSessionPath: path,
       pendingNewSession: false,
+      activeBridgeSessionKey: null,
+      activeBridgeMessages: [],
       selectedFolder: null,
       selectedAgentId: null,
       memoryEnabled: data.memoryEnabled !== false,
@@ -233,6 +235,8 @@ export async function createNewSession(): Promise<void> {
     isStreaming: false,
     welcomeVisible: true,
     currentSessionPath: null,
+    activeBridgeSessionKey: null,
+    activeBridgeMessages: [],
     selectedFolder: s.homeFolder || null,
     selectedAgentId: null,
     sessionAgent: null,

@@ -190,6 +190,22 @@ export class PreferencesManager {
     this.savePreferences(prefs);
   }
 
+  /** 读取快照配置（文件防丢失） */
+  getSnapshot() {
+    const cfg = this.getPreferences().snapshot || {};
+    return {
+      enabled: cfg.enabled !== false,       // 默认开启
+      maxDays: Number(cfg.maxDays) > 0 ? Number(cfg.maxDays) : 7,
+    };
+  }
+
+  /** 保存快照配置 */
+  setSnapshot(partial) {
+    const prefs = this.getPreferences();
+    prefs.snapshot = { ...(prefs.snapshot || {}), ...partial };
+    this.savePreferences(prefs);
+  }
+
   /** 读取当前客户端的 Agent Key */
   getClientAgentKey() {
     return sanitizeClientAgentKey(this.getPreferences()[CLIENT_AGENT_KEY_PREF_KEY]);

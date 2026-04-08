@@ -4,6 +4,7 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
+import { ImageBlock } from './ImageBlock';
 import { AttachmentChip } from '../shared/AttachmentChip';
 import type { ChatMessage, UserAttachment, DeskContext, GitContext } from '../../stores/chat-types';
 import { useStore } from '../../stores';
@@ -90,12 +91,11 @@ const UserAttachmentsView = memo(function UserAttachmentsView({ attachments, des
   return (
     <div className={styles.userAttachments}>
       {images.map((att, i) => (
-        <img
+        <ImageBlock
           key={att.name || `img-${i}`}
           className={styles.attachImage}
           src={`data:${att.mimeType || 'image/png'};base64,${att.base64Data}`}
           alt={att.name}
-          loading="lazy"
         />
       ))}
       {visibleFiles.map((att, i) => (
