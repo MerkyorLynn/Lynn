@@ -366,7 +366,7 @@ export class AgentManager {
       fs.copyFileSync(ishikiPath, path.join(agentDir, "ishiki.md"));
     }
 
-    // public-ishiki.md（对外意识；kong 等无专用文件时回退 hanako）
+    // public-ishiki.md（对外意识；缺失时回退 hanako）
     const publicIshikiPath = firstExistingPath(
       path.join(pd, "public-ishiki-templates", `${yuanType}.md`),
       path.join(pd, "public-ishiki-templates", "hanako.md"),

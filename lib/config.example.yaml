@@ -6,7 +6,7 @@
 # 身份信息
 agent:
   name: Lynn                             # 你的助手叫什么
-  yuan: lynn                             # 源模板：hanako / butter / lynn
+  yuan: lynn                             # 源模板：hanako / butter / lynn / kong
 user:
   name: ""                               # 你的名字
 
