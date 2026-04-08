@@ -58,6 +58,8 @@ export const BRAIN_PROVIDER_BASE_URL = `${BRAIN_API_ROOT}/v1`;
 export const BRAIN_LEGACY_PROVIDER_BASE_URL = `${BRAIN_LEGACY_API_ROOT}/v1`;
 export const BRAIN_API_ROOTS = [...new Set([BRAIN_API_ROOT, BRAIN_BACKUP_API_ROOT].filter(Boolean))];
 export const BRAIN_PROVIDER_BASE_URLS = [...new Set([BRAIN_PROVIDER_BASE_URL, BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
+export const BRAIN_DEPRECATED_API_ROOTS = [...new Set([BRAIN_BACKUP_API_ROOT].filter(Boolean))];
+export const BRAIN_DEPRECATED_PROVIDER_BASE_URLS = [...new Set([BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
 export const BRAIN_PROVIDER_API = "openai-completions";
 export const BRAIN_CHAT_MODEL_ID = "step-3.5-flash-2603";
 export const BRAIN_UTILITY_MODEL_ID = "glm-z1-9b-0414";
@@ -124,6 +126,20 @@ export function buildBrainProviderConfig() {
     auth_type: "none",
     models: [...BRAIN_DEFAULT_MODEL_IDS],
   };
+}
+
+function normalizeComparableUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+export function isDeprecatedBrainApiRoot(value) {
+  const normalized = normalizeComparableUrl(value);
+  return normalized ? BRAIN_DEPRECATED_API_ROOTS.includes(normalized) : false;
+}
+
+export function isDeprecatedBrainProviderBaseUrl(value) {
+  const normalized = normalizeComparableUrl(value);
+  return normalized ? BRAIN_DEPRECATED_PROVIDER_BASE_URLS.includes(normalized) : false;
 }
 
 // 设备注册令牌（混淆存储，运行时解码）

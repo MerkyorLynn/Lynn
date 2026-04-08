@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { saveHomeFolder, saveLocale, saveModel, saveProvider, saveUserName, testConnection } from '../../onboarding/onboarding-actions';
-import { BRAIN_DEFAULT_MODEL_ID, BRAIN_DEFAULT_MODEL_IDS, BRAIN_ROLE_MODEL_IDS } from '../../../../../shared/brain-provider.js';
+import { BRAIN_DEFAULT_MODEL_ID, BRAIN_DEFAULT_MODEL_IDS, BRAIN_PROVIDER_BASE_URL, BRAIN_ROLE_MODEL_IDS } from '../../../../../shared/brain-provider.js';
 
 describe('onboarding-actions', () => {
   it('treats the built-in default model as ready without probing the network', async () => {
@@ -29,7 +29,7 @@ describe('onboarding-actions', () => {
     await saveProvider({
       onboardingFetch,
       providerName: 'brain',
-      providerUrl: 'http://82.156.182.240/api/v1',
+      providerUrl: BRAIN_PROVIDER_BASE_URL,
       apiKey: '',
       providerApi: 'openai-completions',
       defaultModelId: BRAIN_DEFAULT_MODEL_ID,
@@ -47,7 +47,7 @@ describe('onboarding-actions', () => {
     const body = JSON.parse(String(request?.body || '{}'));
     expect(body.api).toEqual({ provider: 'brain' });
     expect(body.providers.brain).toEqual(expect.objectContaining({
-      base_url: 'http://82.156.182.240/api/v1',
+      base_url: BRAIN_PROVIDER_BASE_URL,
       api_key: '',
       api: 'openai-completions',
       models: BRAIN_DEFAULT_MODEL_IDS,
@@ -124,7 +124,7 @@ describe('onboarding-actions', () => {
     await saveProvider({
       onboardingFetch,
       providerName: 'brain',
-      providerUrl: 'http://82.156.182.240/api/v1',
+      providerUrl: BRAIN_PROVIDER_BASE_URL,
       apiKey: '',
       providerApi: 'openai-completions',
       defaultModelId: BRAIN_DEFAULT_MODEL_ID,

@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { BRAIN_PROVIDER_BASE_URL } from "../shared/brain-provider.js";
 
 // mock known-models 词典查询：provider + model 二级结构
 const KNOWN_MODELS = {
@@ -104,7 +105,7 @@ describe("syncModels", () => {
 
     const providers = {
       brain: {
-        base_url: "http://82.156.182.240/api/v1",
+        base_url: BRAIN_PROVIDER_BASE_URL,
         api: "openai-completions",
         auth_type: "none",
         models: ["step-3.5-flash-2603"],
@@ -116,7 +117,7 @@ describe("syncModels", () => {
     expect(changed).toBe(true);
     const result = JSON.parse(fs.readFileSync(modelsJsonPath, "utf-8"));
     expect(result.providers.brain).toBeDefined();
-    expect(result.providers.brain.baseUrl).toBe("http://82.156.182.240/api/v1");
+    expect(result.providers.brain.baseUrl).toBe(BRAIN_PROVIDER_BASE_URL);
     expect(result.providers.brain.apiKey).toBe("local");
     expect(result.providers.brain.models[0].id).toBe("step-3.5-flash-2603");
   });

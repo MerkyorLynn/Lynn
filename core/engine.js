@@ -76,6 +76,7 @@ import {
   BRAIN_PROVIDER_ID,
   BRAIN_API_ROOT,
   BRAIN_API_ROOTS,
+  isDeprecatedBrainProviderBaseUrl,
   BRAIN_LEGACY_PROVIDER_BASE_URL,
   buildBrainProviderConfig,
   getBrainRegistrationToken,
@@ -683,7 +684,7 @@ export class HanaEngine {
     try {
       const current = this._models.providerRegistry.getAllProvidersRaw()[BRAIN_PROVIDER_ID] || {};
       const seeded = buildBrainProviderConfig();
-      const currentBaseUrl = current.base_url === BRAIN_LEGACY_PROVIDER_BASE_URL
+      const currentBaseUrl = current.base_url === BRAIN_LEGACY_PROVIDER_BASE_URL || isDeprecatedBrainProviderBaseUrl(current.base_url)
         ? seeded.base_url
         : current.base_url;
       const next = {

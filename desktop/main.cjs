@@ -360,6 +360,46 @@ function writeUserPreferences(nextPrefs) {
   fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
 }
 
+const CANONICAL_BRAIN_API_ROOT = "https://api.merkyorlynn.com/api";
+const CANONICAL_BRAIN_PROVIDER_BASE_URL = `${CANONICAL_BRAIN_API_ROOT}/v1`;
+const DEPRECATED_BRAIN_API_ROOTS = new Set([
+  "http://82.156.182.240/api",
+]);
+const DEPRECATED_BRAIN_PROVIDER_BASE_URLS = new Set([
+  "http://82.156.182.240/api/v1",
+]);
+
+function normalizeBrainUrl(value) {
+  const text = String(value || "").trim();
+  return text ? text.replace(/\/+$/, "") : "";
+}
+
+function isDeprecatedBrainApiRoot(value) {
+  const normalized = normalizeBrainUrl(value);
+  return normalized ? DEPRECATED_BRAIN_API_ROOTS.has(normalized) : false;
+}
+
+function isDeprecatedBrainProviderBaseUrl(value) {
+  const normalized = normalizeBrainUrl(value);
+  return normalized ? DEPRECATED_BRAIN_PROVIDER_BASE_URLS.has(normalized) : false;
+}
+
+function migrateBrainProviderStorage() {
+  const providersPath = path.join(lynnHome, "added-models.yaml");
+  try {
+    const raw = fs.readFileSync(providersPath, "utf-8");
+    const data = yaml.load(raw) || {};
+    const brainProvider = data?.providers?.brain;
+    if (!brainProvider || typeof brainProvider !== "object") return false;
+    if (!isDeprecatedBrainProviderBaseUrl(brainProvider.base_url)) return false;
+    brainProvider.base_url = CANONICAL_BRAIN_PROVIDER_BASE_URL;
+    fs.writeFileSync(providersPath, yaml.dump(data, { lineWidth: 120 }), "utf-8");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function deriveBrainApiRootFromProviders() {
   try {
     const providersPath = path.join(lynnHome, "added-models.yaml");
@@ -374,15 +414,34 @@ function deriveBrainApiRootFromProviders() {
 }
 
 function readBrainRuntimeConfig() {
+  const migratedProviderStorage = migrateBrainProviderStorage();
   const prefs = readUserPreferences();
-  const normalize = (value) => {
-    const text = String(value || "").trim();
-    return text ? text.replace(/\/+$/, "") : "";
-  };
-  const persistedApiRoot = normalize(prefs.brain_api_root || prefs.default_model_api_root);
+  let changedPrefs = false;
+
+  const normalize = normalizeBrainUrl;
+  let persistedApiRoot = normalize(prefs.brain_api_root || prefs.default_model_api_root);
+  if (isDeprecatedBrainApiRoot(persistedApiRoot)) {
+    persistedApiRoot = CANONICAL_BRAIN_API_ROOT;
+    prefs.brain_api_root = CANONICAL_BRAIN_API_ROOT;
+    if (isDeprecatedBrainApiRoot(prefs.default_model_api_root)) {
+      prefs.default_model_api_root = CANONICAL_BRAIN_API_ROOT;
+    }
+    changedPrefs = true;
+  }
+
   const derivedApiRoot = persistedApiRoot || deriveBrainApiRootFromProviders();
   if (!persistedApiRoot && derivedApiRoot) {
-    writeUserPreferences({ ...prefs, brain_api_root: derivedApiRoot });
+    prefs.brain_api_root = derivedApiRoot;
+    changedPrefs = true;
+  }
+
+  if (migratedProviderStorage && !prefs.brain_api_root) {
+    prefs.brain_api_root = CANONICAL_BRAIN_API_ROOT;
+    changedPrefs = true;
+  }
+
+  if (changedPrefs) {
+    writeUserPreferences(prefs);
   }
   return {
     apiRoot: derivedApiRoot,
