@@ -81,7 +81,16 @@ import {
   buildBrainProviderConfig,
   getBrainRegistrationToken,
 } from "../shared/brain-provider.js";
+import {
+  resolveRoleDefaultModel,
+  getUserFacingRoleModelLabel,
+} from "../shared/assistant-role-models.js";
 import { prewarmHttpConnection } from "../shared/http-pool.js";
+
+function shouldExposeVerboseModelRouting() {
+  const flag = String(process?.env?.LYNN_DEBUG_MODELS || process?.env?.DEBUG_MODEL_ROUTING || "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || process?.env?.NODE_ENV === "development";
+}
 
 // ── P2a: Tool Guard Wrapper ──
 // 给 customTool 的 execute 包一层参数校验：
@@ -845,11 +854,17 @@ export class HanaEngine {
     await this._models.refreshAvailable();
     this._configCoord.normalizeUtilityApiPreferences(log);
     const availableModels = this._models.availableModels;
-    log(`[init] 4/5 找到 ${availableModels.length} 个模型: ${availableModels.map(m => `${m.provider}/${m.id}`).join(", ")}`);
+    if (shouldExposeVerboseModelRouting()) {
+      log(`[init] 4/5 找到 ${availableModels.length} 个模型: ${availableModels.map(m => `${m.provider}/${m.id}`).join(", ")}`);
+    } else {
+      log(`[init] 4/5 找到 ${availableModels.length} 个可用模型`);
+    }
     if (availableModels.length === 0) {
       console.warn("[engine] ⚠ 未找到可用模型，请在设置中配置 API key");
       this._models.defaultModel = null;
     } else {
+      const activeRole = this.agent?.config?.agent?.yuan || null;
+      const roleLabel = getUserFacingRoleModelLabel(activeRole, "chat") || "角色默认模型";
       const chatRef = this.agent.config.models?.chat;
       const preferredId = typeof chatRef === "object" ? chatRef?.id : chatRef;
       const preferredProvider = typeof chatRef === "object" ? chatRef?.provider : undefined;
@@ -857,16 +872,23 @@ export class HanaEngine {
       if (preferredId) {
         model = findModel(availableModels, preferredId, preferredProvider);
         if (!model) {
-          console.warn(`[engine] ⚠ 配置的模型 "${preferredId}" 不在可用列表中，尝试自动选择第一个可用模型`);
+          if (shouldExposeVerboseModelRouting()) {
+            console.warn(`[engine] ⚠ 配置的模型 "${preferredId}" 不在可用列表中，尝试自动选择角色默认模型`);
+          } else {
+            console.warn(`[engine] ⚠ 已配置聊天模型暂不可用，尝试切换到${roleLabel}`);
+          }
         }
+      }
+      if (!model) {
+        model = resolveRoleDefaultModel(availableModels, activeRole);
       }
       // 自动回退：未配置 models.chat 或配置的模型不可用时，取第一个可用模型
       if (!model) {
         model = availableModels[0];
-        console.log(`[engine] 自动选择默认模型: ${model.name || model.id} (${model.provider})`);
+        console.log(`[engine] 自动选择${roleLabel}`);
       }
       this._models.defaultModel = model;
-      log(`✿ 使用模型: ${model.name} (${model.provider})`);
+      log(`✿ 使用${roleLabel}`);
     }
 
     // 5. Sync skills + watch skillsDir

@@ -208,7 +208,8 @@
     "browserScreenshot": "Browser screenshot",
     "compacting": "Compacting context",
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "waitingTooLong": "This reply is still being processed. Lynn will keep relaying the default model through backup routes and try to finish this turn."
   },
   "markdown": {
     "runConfirm": {
@@ -889,6 +890,7 @@
       "searchProviderField": "Search engine",
       "searchApiKey": "Search API Key",
       "searchApiKeyHint": "Enter the API key for the selected search provider",
+      "searchBaseUrlHint": "When using searXNG, enter your instance URL. No API key is required.",
       "favorites": "Favorites",
       "searchModel": "Search models...",
       "noFavorites": "Click ☆ to favorite models",
@@ -989,7 +991,8 @@
       "verified": "Verified & saved ✿",
       "verifyFailed": "Verification failed",
       "noProvider": "Please select a search engine first",
-      "noKey": "Please enter an API Key first"
+      "noKey": "Please enter an API Key first",
+      "noBaseUrl": "Please enter the searXNG URL first"
     },
     "work": {
       "title": "Patrol",
@@ -1433,7 +1436,10 @@
     "agentModelNotAvailable": "Model \"{model}\" configured for agent \"{id}\" is not available",
     "agentDeleteActive": "Cannot delete the currently active agent",
     "agentNotExists": "Agent \"{id}\" does not exist",
-    "modelNoResponse": "Model returned no content. Please check API configuration and network connection.",
+    "modelNoResponse": "{model} returned no displayable content. This is usually an upstream empty response or compatibility issue, not necessarily a bad API configuration. Please retry or switch models.",
+    "defaultModelNoResponse": "{model}'s primary route did not produce any displayable result this turn. Lynn already relayed the request onto backup routes, but still could not get usable content. Please retry later, or switch to your own model service in Settings.",
+    "invalidToolSimulation": "This round did not execute any real tool calls, so the result was ignored. Please try again.",
+    "defaultModelInvalidToolSimulation": "The default model did not complete any real tool execution in this round, so the result was ignored. Lynn is switching this task onto a steadier backup execution route.",
     "noActiveSession": "No active session",
     "compacting": "Compaction in progress",
     "waitForReply": "Please wait for the response to finish before compacting",
@@ -1445,11 +1451,13 @@
     "modelNoVision": "Current model does not support images. Please switch to a vision-capable model",
     "searchProviderNotConfigured": "Search provider not configured",
     "searchProviderMissingKey": "Search provider \"{provider}\" is missing API Key",
+    "searchProviderMissingBaseUrl": "Search provider \"{provider}\" is missing Base URL",
     "searchProviderUnknown": "Unknown search provider: {provider}",
     "searchFailed": "Search failed: {msg}",
     "searchEmptyQuery": "Please provide a search query.",
     "searchNoResults": "No relevant results found. (via {provider})",
     "searchResults": "Search results (via {provider}):\n\n{results}",
+    "searchFollowupHint": "If you need exact figures, full details, or citations, use web_fetch on the most relevant 1-2 URLs next.",
     "searchError": "Search error: {msg}",
     "fetchEmptyUrl": "Please provide a URL to fetch.",
     "fetchHttpOnly": "Only http/https URLs are supported.",
@@ -2012,7 +2020,7 @@
   },
   "error.llmTimeout": "Model request timed out",
   "error.llmRateLimited": "Model rate limited, please wait",
-  "error.llmEmptyResponse": "Model returned empty response",
+  "error.llmEmptyResponse": "Model returned empty or non-displayable content",
   "error.llmAuthFailed": "Model authentication failed",
   "error.llmSlowResponse": "Model is responding slowly, please wait",
   "error.brainUnreachable": "Default model service is temporarily unreachable. Check your network or switch to your own API key in Settings.",
@@ -2037,6 +2045,10 @@
   "status.reconnect": "Reconnect",
   "status.llmSlowResponse": "The model is still working. Please wait a moment.",
   "status.llmStillWorking": "The model is still working. Waited about {minutes} minute(s).",
+  "status.recoveringToolExecution": "The model just simulated tools in text. Lynn is steering it back to the real execution path.",
+  "status.defaultModelSlowResponse": "The default model's primary route is a bit slow. Lynn is relaying this turn through backup routes in the background.",
+  "status.defaultModelRecoveringToolExecution": "The default model did not complete real tool execution just now. Lynn is moving this turn onto a backup execution route.",
+  "status.defaultModelStillWorking": "The default model is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup routes.",
   "status.tasksRecovered": "Recovered {count} background task(s)",
   "status.tasksRecoveredRunning": "{count} background task(s) are still running",
   "status.tasksRecoveredWaiting": "{count} background task(s) are still running, with {waiting} waiting for approval",

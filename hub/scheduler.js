@@ -61,6 +61,19 @@ export class Scheduler {
   /** 启动某个 agent 的 cron（幂等，已有则跳过） */
   startAgentCron(agentId) { this._startAgentCron(agentId); }
 
+  /** 立即执行一次指定 cron 任务（不改调度，仅手动触发） */
+  triggerCronJob(agentId, jobId) {
+    const agent = this._engine.getAgent(agentId);
+    const job = agent?.cronStore?.getJob?.(jobId);
+    if (!job) throw new Error(`cron job not found: ${jobId}`);
+    if (!job.enabled) throw new Error(`cron job disabled: ${jobId}`);
+    if (this._executingJobs.has(job.id)) throw new Error(`cron job already running: ${jobId}`);
+    void this._executeCronJobForAgent(agentId, job).catch((err) => {
+      console.error(`\x1b[90m[scheduler] 手动执行 cron 失败 ${job.id}: ${err.message}\x1b[0m`);
+    });
+    return job;
+  }
+
   /** 停止并移除某个 agent 的 cron */
   async removeAgentCron(agentId) {
     const sched = this._agentCrons.get(agentId);
@@ -211,6 +224,7 @@ export class Scheduler {
             job.prompt,
           ].join("\n");
       await this._executeActivityForAgent(agentId, prompt, "cron", job.label, {
+        jobId: job.id,
         model: job.model || undefined,
         cwd: job.workspace || undefined,
         signal: ac.signal,
@@ -255,15 +269,38 @@ export class Scheduler {
       } catch {}
     }
 
+    let outputFile = null;
+    const jianDir = typeof restOpts.cwd === "string" && restOpts.cwd.trim()
+      ? restOpts.cwd.trim()
+      : null;
+    if (type === "cron" && jianDir) {
+      try {
+        outputFile = persistCronResultFile({
+          cwd: jianDir,
+          label,
+          locale: getLocale(),
+          startedAt,
+          finishedAt,
+          sessionPath,
+          summary,
+          error,
+        });
+      } catch (err) {
+        engine.emitDevLog(`[${type}] 写入任务结果文件失败: ${err.message}`, "error");
+      }
+    }
+
     const entry = {
       id,
       type,
+      jobId: restOpts.jobId || null,
       label: label || null,
       agentId,
       agentName,
       workspace: jianDir,
       startedAt,
       finishedAt,
+      outputFile,
       summary: (() => {
         const isZhS = getLocale().startsWith("zh");
         const hbLabel = isZhS ? "日常巡检" : "routine patrol";
@@ -289,10 +326,6 @@ export class Scheduler {
       status: failed ? "error" : "done",
       error: error || null,
     };
-
-    const jianDir = typeof restOpts.cwd === "string" && restOpts.cwd.trim()
-      ? restOpts.cwd.trim()
-      : null;
     if (!failed && jianDir) {
       try {
         appendRecentExecutionToJian(jianDir, {
@@ -395,4 +428,84 @@ function compactNotificationBody(text, isZh) {
   if (!raw) return "";
   const max = isZh ? 44 : 72;
   return raw.length > max ? `${raw.slice(0, max)}…` : raw;
+}
+
+function sanitizeResultFilePart(value, fallback = "task-result") {
+  const cleaned = String(value || "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 48);
+  return cleaned || fallback;
+}
+
+function formatResultTimestamp(ts) {
+  const date = new Date(ts || Date.now());
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function extractAssistantResultText(sessionPath) {
+  if (!sessionPath || !fs.existsSync(sessionPath)) return "";
+  try {
+    const raw = fs.readFileSync(sessionPath, "utf-8");
+    let lastAssistantText = "";
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      let parsed = null;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (parsed?.type !== "message" || !parsed.message || parsed.message.role !== "assistant") continue;
+      const msg = parsed.message;
+      const content = Array.isArray(msg.content)
+        ? msg.content.filter((block) => block?.type === "text" && block.text).map((block) => block.text).join("")
+        : (typeof msg.content === "string" ? msg.content : "");
+      const normalized = String(content || "").trim();
+      if (normalized) lastAssistantText = normalized;
+    }
+    return lastAssistantText;
+  } catch {
+    return "";
+  }
+}
+
+function buildCronResultDocument({ isZh, label, startedAt, finishedAt, cwd, body, error }) {
+  const lines = [
+    `# ${isZh ? "自动任务结果" : "Automation Result"}`,
+    "",
+    `- ${isZh ? "任务" : "Task"}: ${label || (isZh ? "未命名任务" : "Untitled task")}`,
+    `- ${isZh ? "开始" : "Started"}: ${new Date(startedAt).toLocaleString(isZh ? "zh-CN" : "en-US")}`,
+    `- ${isZh ? "结束" : "Finished"}: ${new Date(finishedAt).toLocaleString(isZh ? "zh-CN" : "en-US")}`,
+    `- ${isZh ? "工作区" : "Workspace"}: ${cwd}`,
+    `- ${isZh ? "状态" : "Status"}: ${error ? (isZh ? "失败" : "Failed") : (isZh ? "完成" : "Completed")}`,
+    "",
+    body || (error ? String(error) : (isZh ? "这次没有产出可展示文本。" : "This run did not produce displayable text.")),
+    "",
+  ];
+  return `${lines.join("\n")}`.replace(/\n{3,}/g, "\n\n");
+}
+
+function persistCronResultFile({ cwd, label, locale, startedAt, finishedAt, sessionPath, summary, error }) {
+  if (!cwd || !fs.existsSync(cwd)) return null;
+  const isZh = String(locale || "").startsWith("zh");
+  const folderName = isZh ? "Lynn-自动任务结果" : "Lynn-Automation-Results";
+  const resultDir = path.join(cwd, folderName);
+  fs.mkdirSync(resultDir, { recursive: true });
+  const body = extractAssistantResultText(sessionPath) || String(summary || "").trim() || String(error || "").trim();
+  const fileName = `${formatResultTimestamp(finishedAt || startedAt)}-${sanitizeResultFilePart(label, isZh ? "自动任务" : "automation-task")}.md`;
+  const filePath = path.join(resultDir, fileName);
+  const doc = buildCronResultDocument({
+    isZh,
+    label,
+    startedAt,
+    finishedAt,
+    cwd,
+    body,
+    error,
+  });
+  fs.writeFileSync(filePath, doc, "utf-8");
+  return filePath;
 }

@@ -211,7 +211,15 @@ export async function callText({
       if (combinedSignal.aborted) {
         throw new AppError('LLM_TIMEOUT', { context: { model } });
       }
-      throw new AppError('LLM_EMPTY_RESPONSE', { context: { model } });
+      throw new AppError('LLM_EMPTY_RESPONSE', {
+        message: 'Model returned empty or non-displayable content',
+        context: {
+          model,
+          provider: model?.provider || null,
+          modelId: model?.id || null,
+          api: model?.api || null,
+        },
+      });
     }
 
     return text;

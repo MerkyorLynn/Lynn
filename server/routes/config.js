@@ -614,18 +614,21 @@ export function createConfigRoute(engine) {
 
   route.post("/search/verify", async (c) => {
     const body = await safeJson(c);
-    const { provider, api_key } = body;
+    const { provider, api_key, base_url } = body;
     if (!provider) {
       return c.json({ ok: false, error: "provider is required" }, 400);
     }
-    if (!api_key) {
+    if (provider === "searxng" && !base_url) {
+      return c.json({ ok: false, error: "base_url is required" }, 400);
+    }
+    if (provider !== "searxng" && !api_key) {
       return c.json({ ok: false, error: "api_key is required" }, 400);
     }
     try {
       const { verifySearchKey } = await import("../../lib/tools/web-search.js");
-      await verifySearchKey(provider, api_key);
-      engine.setSearchConfig({ provider, api_key });
-      await engine.updateConfig({ search: { provider, api_key } });
+      await verifySearchKey(provider, api_key, { base_url });
+      engine.setSearchConfig({ provider, api_key, base_url });
+      await engine.updateConfig({ search: { provider, api_key, base_url } });
       debugLog()?.log("api", `POST /api/search/verify provider=${provider} (ok)`);
       return c.json({ ok: true });
     } catch (err) {

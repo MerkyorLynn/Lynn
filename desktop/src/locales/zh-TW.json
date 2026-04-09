@@ -166,7 +166,8 @@
     "browserScreenshot": "瀏覽器截圖",
     "compacting": "上下文壓縮中",
     "needWsConnection": "與助手連線已中斷，請等待重新連線或點選狀態列「重新連線」",
-    "retry": "Retry"
+    "retry": "Retry",
+    "waitingTooLong": "這條回覆仍在處理中。Lynn 會持續接力預設模型的備援鏈路，盡量把這一輪任務完成。"
   },
   "markdown": {
     "runConfirm": {
@@ -816,6 +817,7 @@
       "searchProviderField": "搜尋引擎",
       "searchApiKey": "搜尋 API Key",
       "searchApiKeyHint": "啟用搜尋時請填寫所選 provider 的 API Key",
+      "searchBaseUrlHint": "使用 searXNG 時請填入你的實例網址，不需要 API Key",
       "favorites": "收藏",
       "searchModel": "搜尋模型...",
       "noFavorites": "點擊 ☆ 收藏常用模型",
@@ -916,7 +918,8 @@
       "verified": "驗證通過，已儲存 ✿",
       "verifyFailed": "驗證失敗",
       "noProvider": "請先選擇搜尋引擎",
-      "noKey": "請先輸入 API Key"
+      "noKey": "請先輸入 API Key",
+      "noBaseUrl": "請先輸入 searXNG 網址"
     },
     "work": {
       "title": "巡檢",
@@ -1336,7 +1339,10 @@
     "agentModelNotAvailable": "agent \"{id}\" 設定的模型 \"{model}\" 不在可用清單中",
     "agentDeleteActive": "不能刪除目前正在使用的助手",
     "agentNotExists": "助手 \"{id}\" 不存在",
-    "modelNoResponse": "模型未回傳任何內容，請檢查 API 設定和網路連線。",
+    "modelNoResponse": "{model} 這次沒有回傳任何可顯示內容。這通常是上游空回應或介面相容問題，不一定是你的 API 設定錯誤。請重試，或切換其他模型。",
+    "defaultModelNoResponse": "{model} 的主鏈路這一輪沒有產出可顯示結果。Lynn 已自動接力備援鏈路，但這次仍未取得可展示內容。你可以稍後重試，或在設定中切換到自己的模型服務。",
+    "invalidToolSimulation": "模型這一輪沒有真正執行工具呼叫，因此結果已被忽略。請再試一次。",
+    "defaultModelInvalidToolSimulation": "預設模型這一輪沒有真正完成工具執行，因此結果已被忽略。Lynn 正在切到更穩定的備援執行鏈路。",
     "noActiveSession": "沒有活躍的 session",
     "compacting": "正在壓縮中",
     "waitForReply": "請等待回覆結束後再壓縮",
@@ -1348,11 +1354,13 @@
     "modelNoVision": "目前模型不支援圖片，請切換到支援圖片的模型後再試",
     "searchProviderNotConfigured": "未設定搜尋 provider",
     "searchProviderMissingKey": "搜尋 provider \"{provider}\" 缺少 API Key",
+    "searchProviderMissingBaseUrl": "搜尋 provider \"{provider}\" 缺少 Base URL",
     "searchProviderUnknown": "未知搜尋 provider: {provider}",
     "searchFailed": "搜尋失敗: {msg}",
     "searchEmptyQuery": "請提供搜尋關鍵字。",
     "searchNoResults": "沒有找到相關結果。(via {provider})",
     "searchResults": "搜尋結果 (via {provider}):\n\n{results}",
+    "searchFollowupHint": "如果需要精確數字、正文細節或出處，請再對最相關的 1-2 個結果使用 web_fetch。",
     "searchError": "搜尋出錯: {msg}",
     "fetchEmptyUrl": "請提供要抓取的 URL。",
     "fetchHttpOnly": "只支援 http/https 協定的 URL。",
@@ -1914,7 +1922,7 @@
   },
   "error.llmTimeout": "模型请求超时",
   "error.llmRateLimited": "模型限流，请稍候",
-  "error.llmEmptyResponse": "模型返回了空响应",
+  "error.llmEmptyResponse": "模型返回了空回應或不可顯示內容",
   "error.llmAuthFailed": "模型认证失败",
   "error.llmSlowResponse": "模型响应较慢，请耐心等待",
   "error.brainUnreachable": "預設模型服務暫時無法連線，請檢查網路連線或在設定中切換至自己的 API Key",
@@ -1939,6 +1947,10 @@
   "status.reconnect": "重新連線",
   "status.llmSlowResponse": "模型仍在處理中，請稍候片刻",
   "status.llmStillWorking": "模型仍在處理中，已等待約 {minutes} 分鐘",
+  "status.recoveringToolExecution": "模型剛才在正文裡模擬了工具呼叫，Lynn 正在把它拉回真正的執行鏈路。",
+  "status.defaultModelSlowResponse": "預設模型主鏈路稍慢，Lynn 正在背景接力備援鏈路。",
+  "status.defaultModelRecoveringToolExecution": "預設模型剛才沒有真正完成工具執行，Lynn 正在切到備援執行鏈路繼續處理。",
+  "status.defaultModelStillWorking": "預設模型仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援鏈路。",
   "status.tasksRecovered": "已恢復 {count} 個背景任務",
   "status.tasksRecoveredRunning": "背景還有 {count} 個任務正在繼續",
   "status.tasksRecoveredWaiting": "背景還有 {count} 個任務正在繼續，其中 {waiting} 個在等你確認",

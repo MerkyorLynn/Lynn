@@ -21,6 +21,16 @@ import {
 } from "../session-stream-store.js";
 import { AppError } from "../../shared/errors.js";
 import { errorBus } from "../../shared/error-bus.js";
+import {
+  getBrainDisplayName,
+  isBrainModelRef,
+  sanitizeBrainIdentityDisclosureText,
+} from "../../shared/brain-provider.js";
+import {
+  containsPseudoToolSimulation,
+  countPseudoToolMarkers,
+  stripPseudoToolCallMarkup,
+} from "../../shared/pseudo-tool-call.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
@@ -46,6 +56,123 @@ function resolveEditSnapshotPath(session, engine, rawPath) {
   const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
   return path.resolve(cwd, trimmed);
 }
+
+function resolveCurrentModelInfo(engine) {
+  const model = engine.resolveModelOverrides?.(engine.currentModel) || engine.currentModel || null;
+  return {
+    model,
+    provider: model?.provider || null,
+    modelId: model?.id || null,
+    modelName: model?.name || model?.id || null,
+    api: model?.api || null,
+    isBrain: isBrainModelRef(model?.id, model?.provider),
+  };
+}
+
+function shouldExposeModelRouting() {
+  if (typeof process === "undefined" || !process?.env) return false;
+  return process.env.LYNN_DEBUG_MODELS === "1" || process.env.DEBUG_MODEL_ROUTING === "1";
+}
+
+function buildEmptyResponseUserMessage(engine) {
+  const info = resolveCurrentModelInfo(engine);
+  if (info.isBrain) {
+    return t("error.defaultModelNoResponse", { model: getBrainDisplayName() });
+  }
+  return t("error.modelNoResponse", {
+    model: info.modelName || info.modelId || info.provider || t("model.unknown"),
+  });
+}
+
+function reportEmptyResponse(engine, sessionPath) {
+  const info = resolveCurrentModelInfo(engine);
+  const exposeRouting = shouldExposeModelRouting();
+  errorBus.report(new AppError("LLM_EMPTY_RESPONSE", {
+    message: "Model returned no displayable content",
+    context: {
+      sessionPath,
+      isBrain: info.isBrain,
+      ...(exposeRouting ? {
+        provider: info.provider,
+        modelId: info.modelId,
+        modelName: info.modelName,
+        api: info.api,
+      } : {}),
+    },
+  }), {
+    dedupeKey: info.isBrain
+      ? "LLM_EMPTY_RESPONSE:brain"
+      : `LLM_EMPTY_RESPONSE:${info.provider || "unknown"}:${info.modelId || "unknown"}`,
+  });
+}
+
+function buildSlowNoticePayload(engine, sessionPath, elapsedMs) {
+  const info = resolveCurrentModelInfo(engine);
+  if (info.isBrain) {
+    if (elapsedMs < 60_000) {
+      return {
+        type: "status",
+        isStreaming: true,
+        sessionPath,
+        noticeKey: "status.defaultModelSlowResponse",
+      };
+    }
+    return {
+      type: "status",
+      isStreaming: true,
+      sessionPath,
+      noticeKey: "status.defaultModelStillWorking",
+      noticeVars: {
+        minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
+      },
+    };
+  }
+  if (elapsedMs < 60_000) {
+    return {
+      type: "status",
+      isStreaming: true,
+      sessionPath,
+      noticeKey: "status.llmSlowResponse",
+    };
+  }
+  return {
+    type: "status",
+    isStreaming: true,
+    sessionPath,
+    noticeKey: "status.llmStillWorking",
+    noticeVars: {
+      minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
+    },
+  };
+}
+
+function buildPseudoToolRecoveryNotice(engine, sessionPath) {
+  const info = resolveCurrentModelInfo(engine);
+  return {
+    type: "status",
+    isStreaming: true,
+    sessionPath,
+    noticeKey: info.isBrain
+      ? "status.defaultModelRecoveringToolExecution"
+      : "status.recoveringToolExecution",
+  };
+}
+
+function buildPseudoToolRecoverySteerText() {
+  return [
+    "你刚才在正文里输出了伪工具调用标记（如 <tool_call>、<invoke>、XML 标签），这不会真正执行工具。",
+    "立即停止输出任何伪工具调用文本，改为使用真实工具接口继续完成当前任务；只有拿到工具结果后再向用户汇报。",
+    "Do not simulate tool calls in plain text. Stop outputting pseudo tool-call markup and use the real tool interface now. Continue the current task and only reply after real tool results arrive.",
+  ].join("\n");
+}
+
+function buildInvalidToolSimulationUserMessage(engine) {
+  const info = resolveCurrentModelInfo(engine);
+  if (info.isBrain) return t("error.defaultModelInvalidToolSimulation");
+  return t("error.invalidToolSimulation");
+}
+
+const MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL = 3;
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   const restRoute = new Hono();
@@ -121,6 +248,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         hasToolCall: false,
         hasThinking: false,
         hasError: false,
+        rawTextAcc: "",
+        cleanTextAcc: "",
+        pseudoToolSimulationDetected: false,
+        pseudoToolSimulationSteered: false,
+        pseudoToolMarkerCount: 0,
+        pseudoToolAbortRequested: false,
         titleRequested: false,
         titlePreview: "",
         lastActivity: Date.now(),
@@ -220,6 +353,59 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return entry;
   }
 
+  function resetTextTracking(ss) {
+    ss.rawTextAcc = "";
+    ss.cleanTextAcc = "";
+    ss.pseudoToolSimulationDetected = false;
+    ss.pseudoToolSimulationSteered = false;
+    ss.pseudoToolMarkerCount = 0;
+    ss.pseudoToolAbortRequested = false;
+  }
+
+  function emitSanitizedTextDelta(sessionPath, ss, rawDelta) {
+    if (!rawDelta) return;
+
+    ss.rawTextAcc += rawDelta;
+    const cleanText = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(ss.rawTextAcc));
+    const prevCleanText = ss.cleanTextAcc || "";
+    const pseudoDetected = containsPseudoToolSimulation(rawDelta) || containsPseudoToolSimulation(ss.rawTextAcc);
+
+    if (pseudoDetected) {
+      ss.pseudoToolSimulationDetected = true;
+      ss.pseudoToolMarkerCount = Math.max(ss.pseudoToolMarkerCount || 0, countPseudoToolMarkers(ss.rawTextAcc));
+      if (!ss.hasToolCall && !ss.pseudoToolSimulationSteered && engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) {
+        ss.pseudoToolSimulationSteered = true;
+        broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath));
+      }
+      if (!ss.hasToolCall
+        && !ss.pseudoToolAbortRequested
+        && (ss.pseudoToolMarkerCount || 0) >= MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL) {
+        ss.pseudoToolAbortRequested = true;
+        ss.hasError = true;
+        broadcast({ type: "error", message: buildInvalidToolSimulationUserMessage(engine) });
+        queueMicrotask(() => {
+          engine.abortSessionByPath(sessionPath).catch(() => {});
+        });
+      }
+    }
+
+    if (cleanText.trim()) ss.hasOutput = true;
+
+    let delta = "";
+    if (cleanText.startsWith(prevCleanText)) {
+      delta = cleanText.slice(prevCleanText.length);
+    } else if (!prevCleanText.startsWith(cleanText)) {
+      delta = cleanText;
+    }
+    ss.cleanTextAcc = cleanText;
+
+    if (delta) {
+      ss.titlePreview += delta || "";
+      emitStreamEvent(sessionPath, ss, { type: "text_delta", delta });
+      maybeGenerateFirstTurnTitle(sessionPath, ss);
+    }
+  }
+
   function maybeGenerateFirstTurnTitle(sessionPath, ss) {
     if (!sessionPath || !ss || ss.titleRequested) return;
 
@@ -254,7 +440,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const sub = event.assistantMessageEvent?.type;
 
       if (sub === "text_delta") {
-        ss.hasOutput = true;
         if (ss.isThinking) {
           ss.isThinking = false;
           emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -281,9 +466,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     ss.xingParser.feed(evt.data, (xEvt) => {
                       switch (xEvt.type) {
                         case "text":
-                          ss.titlePreview += xEvt.data || "";
-                          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: xEvt.data });
-                          maybeGenerateFirstTurnTitle(sessionPath, ss);
+                          emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
                           break;
                         case "xing_start":
                           emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
@@ -609,7 +792,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
             ss.xingParser.feed(evt.data, (xEvt) => {
               switch (xEvt.type) {
                 case "text":
-                  emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: xEvt.data });
+                  emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
                   break;
                 case "xing_start":
                   emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
@@ -645,7 +828,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           ss.xingParser.feed(evt.data, (xEvt) => {
             switch (xEvt.type) {
               case "text":
-                emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: xEvt.data });
+                emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
                 break;
               case "xing_start":
                 emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
@@ -664,15 +847,22 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
       ss.xingParser.flush((xEvt) => {
         if (xEvt.type === "text") {
-          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: xEvt.data });
+          emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
         } else if (xEvt.type === "xing_text") {
           emitStreamEvent(sessionPath, ss, { type: "xing_text", delta: xEvt.data });
         }
       });
 
-      // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
-      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
-        broadcast({ type: "error", message: t("error.modelNoResponse") });
+      if (ss.pseudoToolSimulationDetected && !ss.hasToolCall && !ss.hasError && isActive) {
+        reportEmptyResponse(engine, sessionPath);
+        broadcast({ type: "error", message: buildInvalidToolSimulationUserMessage(engine) });
+      }
+
+      // 空回复检测：本轮没有文本输出也没有工具调用。
+      // 这更像上游空响应或接口兼容问题，不一定是用户配置错误。
+      if (!ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
+        reportEmptyResponse(engine, sessionPath);
+        broadcast({ type: "error", message: buildEmptyResponseUserMessage(engine) });
       }
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
@@ -681,6 +871,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.hasToolCall = false;
       ss.hasThinking = false;
       ss.hasError = false;
+      resetTextTracking(ss);
       ss.thinkTagParser.reset();
       ss.moodParser.reset();
       ss.xingParser.reset();
@@ -898,6 +1089,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.thinkTagParser.reset();
                 ss.moodParser.reset();
                 ss.xingParser.reset();
+                resetTextTracking(ss);
                 ss.titleRequested = false;
                 ss.titlePreview = "";
                 beginSessionStream(ss);
@@ -918,24 +1110,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     return;
                   }
                   const elapsedMs = Date.now() - slowNoticeStartedAt;
-                  if (elapsedMs < 60_000) {
-                    broadcast({
-                      type: "status",
-                      isStreaming: true,
-                      sessionPath: promptSessionPath,
-                      noticeKey: "status.llmSlowResponse",
-                    });
-                    return;
-                  }
-                  broadcast({
-                    type: "status",
-                    isStreaming: true,
-                    sessionPath: promptSessionPath,
-                    noticeKey: "status.llmStillWorking",
-                    noticeVars: {
-                      minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
-                    },
-                  });
+                  broadcast(buildSlowNoticePayload(engine, promptSessionPath, elapsedMs));
                 };
                 const slowStreamTimer = setTimeout(() => {
                   broadcastSlowNotice();

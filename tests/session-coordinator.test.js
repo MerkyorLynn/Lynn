@@ -436,8 +436,8 @@ describe("SessionCoordinator", () => {
     await coordinator.createSession(null, "/tmp/workspace", true);
     const resourceLoader = createAgentSessionMock.mock.calls.at(-1)[0].resourceLoader;
     const prompt = resourceLoader.getAppendSystemPrompt().join("\n");
-    expect(prompt).toContain("默认模型服务");
-    expect(prompt).toContain("不要主动说出 GLM、Step、Qwen、MiniMax、zhipu-coding");
+    expect(prompt).toContain("当前用户选择的是默认模型");
+    expect(prompt).toContain("不要主动说出具体上游模型名、供应商名或 provider ID");
     expect(prompt).toContain("即使用户直接追问你当前是什么模型，也不要把具体上游型号当成最终答案");
   });
 

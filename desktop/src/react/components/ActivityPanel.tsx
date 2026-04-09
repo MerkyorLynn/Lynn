@@ -5,6 +5,8 @@ import { formatSessionDate, injectCopyButtons, parseMoodFromContent } from '../u
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
 import { getMd } from '../utils/markdown';
 import { sanitizeHtml } from '../utils/sanitize';
+// @ts-expect-error - shared JS module
+import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
 import fp from './FloatingPanels.module.css';
 import chatStyles from './chat/Chat.module.css';
 
@@ -102,6 +104,18 @@ export function ActivityPanel() {
       });
     } catch {}
   }, []);
+
+  useEffect(() => {
+    const onOpenActivity = (event: Event) => {
+      const customEvent = event as CustomEvent<{ activityId?: string }>;
+      const activityId = String(customEvent.detail?.activityId || '').trim();
+      if (!activityId) return;
+      useStore.getState().setActivePanel('activity');
+      void openSession(activityId);
+    };
+    window.addEventListener('hana-open-activity-session', onOpenActivity as EventListener);
+    return () => window.removeEventListener('hana-open-activity-session', onOpenActivity as EventListener);
+  }, [openSession]);
 
   const closeDetail = useCallback(() => setDetail(null), []);
   const close = useCallback(() => {
@@ -340,14 +354,19 @@ function DetailBody({ messages }: { messages: DetailMessage[] }) {
                   </details>
                 )}
                 {text && (
+                  (() => {
+                    const cleanedText = stripPseudoToolCallMarkup(text);
+                    return (
                   <div
                     className="md-content"
                     dangerouslySetInnerHTML={{
                       __html: mdInstance
-                        ? sanitizeHtml(mdInstance.render(text.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, '')))
-                        : text,
+                        ? sanitizeHtml(mdInstance.render(cleanedText))
+                        : cleanedText,
                     }}
                   />
+                    );
+                  })()
                 )}
               </div>
             </div>

@@ -19,6 +19,11 @@ import { runAgentSession } from "../../hub/agent-executor.js";
 import { getLocale } from "../i18n.js";
 import { buildReviewFollowUp, parseStructuredReview } from "../review-result.js";
 import { buildReviewFollowUpTaskPrompt, buildReviewFollowUpTaskTitle } from "../review-follow-up.js";
+import {
+  getRoleDefaultModelRefs,
+  getUserFacingModelAlias,
+  getUserFacingRoleModelLabel,
+} from "../../shared/assistant-role-models.js";
 
 const REVIEWER_YUANS = new Set(["hanako", "butter"]);
 const BUILT_IN_REVIEWER_IDS = new Set(["hanako", "butter"]);
@@ -185,6 +190,19 @@ function getAvailableModel(engine, modelId, providerId = null) {
     || null;
 }
 
+function reviewModelDisplayLabel(reviewer, modelId, providerId, fallbackLabel = null) {
+  const alias = getUserFacingModelAlias({
+    modelId,
+    provider: providerId,
+    role: reviewer?.yuan,
+    purpose: "review",
+  });
+  return alias
+    || getUserFacingRoleModelLabel(reviewer?.yuan, "review")
+    || fallbackLabel
+    || null;
+}
+
 function buildReviewFallbackCandidates(engine, reviewer) {
   const candidates = [];
   const seen = new Set();
@@ -201,6 +219,10 @@ function buildReviewFallbackCandidates(engine, reviewer) {
     seen.add(key);
     candidates.push(model);
   };
+
+  for (const ref of getRoleDefaultModelRefs(reviewer?.yuan || null, "review")) {
+    pushCandidate(getAvailableModel(engine, ref.id, ref.provider || null));
+  }
 
   try {
     const utilityConfig = engine.resolveUtilityConfig?.();
@@ -221,8 +243,8 @@ function buildReviewFallbackCandidates(engine, reviewer) {
 function formatReviewFailureMessage(err, attemptedModels = []) {
   const modelHint = attemptedModels.length
     ? (isZh()
-        ? ` 已自动尝试切换到 ${attemptedModels.slice(0, 3).join(" / ")}`
-        : ` It already retried with ${attemptedModels.slice(0, 3).join(" / ")}.`)
+        ? ` 已自动尝试 ${attemptedModels.length} 个备用复查模型`
+        : ` It already retried with ${attemptedModels.length} fallback review models.`)
     : "";
 
   if (isTimeoutLikeError(err)) {
@@ -252,7 +274,12 @@ async function runReviewerSessionWithFallback(engine, reviewer, rounds, opts) {
   const originalModel = reviewerModel?.modelId
     ? getAvailableModel(engine, reviewerModel.modelId, reviewerModel.modelProvider)
     : null;
-  const originalModelLabel = describeModel(originalModel) || reviewerModel?.modelId || "";
+  const originalModelLabel = reviewModelDisplayLabel(
+    reviewer,
+    originalModel?.id || reviewerModel?.modelId || null,
+    originalModel?.provider || reviewerModel?.modelProvider || null,
+    isZh() ? "默认复查模型" : "default review model",
+  ) || "";
 
   try {
     const content = await runAgentSession(reviewer.id, rounds, opts);
@@ -265,7 +292,7 @@ async function runReviewerSessionWithFallback(engine, reviewer, rounds, opts) {
       errorCode: null,
       usedModelId: originalModel?.id || reviewerModel?.modelId || null,
       usedModelProvider: originalModel?.provider || reviewerModel?.modelProvider || null,
-      usedModelLabel: describeModel(originalModel) || reviewerModel?.modelId || null,
+      usedModelLabel: originalModelLabel || null,
     };
   } catch (err) {
     if (!isRetryableReviewError(err)) throw err;
@@ -275,7 +302,12 @@ async function runReviewerSessionWithFallback(engine, reviewer, rounds, opts) {
     let lastError = err;
 
     for (const candidate of candidates) {
-      const candidateLabel = describeModel(candidate);
+      const candidateLabel = reviewModelDisplayLabel(
+        reviewer,
+        candidate?.id || null,
+        candidate?.provider || null,
+        isZh() ? "备用复查模型" : "fallback review model",
+      );
       if (candidateLabel) attemptedModels.push(candidateLabel);
       try {
         const content = await runAgentSession(reviewer.id, rounds, {
@@ -293,8 +325,8 @@ async function runReviewerSessionWithFallback(engine, reviewer, rounds, opts) {
               : `The original review model ${originalModelLabel}`)
           : (isZh() ? "原复查模型" : "The original review model");
         const fallbackNote = isZh()
-          ? `${originalText}${timeoutLike ? " 超时" : " 暂时不可用"}，已自动切换到 ${candidateLabel || "默认模型"} 完成这次复查。`
-          : `${originalText} ${timeoutLike ? "timed out" : "became temporarily unavailable"}, so this review finished on ${candidateLabel || "a fallback model"}.`;
+          ? `${originalText}${timeoutLike ? " 超时" : " 暂时不可用"}，已自动切换到 ${candidateLabel || "备用复查模型"} 完成这次复查。`
+          : `${originalText} ${timeoutLike ? "timed out" : "became temporarily unavailable"}, so this review finished on ${candidateLabel || "a fallback review model"}.`;
         return {
           content,
           fallbackNote,
@@ -767,7 +799,12 @@ export function createReviewRoute(engine, { broadcast, taskRuntime = null } = {}
       reviewerAgentName,
       reviewerYuan: reviewer.yuan,
       reviewerHasAvatar: reviewer.hasAvatar,
-      reviewerModelLabel: describeModel(reviewerConfiguredAvailable) || reviewerConfiguredModel?.modelId || null,
+      reviewerModelLabel: reviewModelDisplayLabel(
+        reviewer,
+        reviewerConfiguredAvailable?.id || reviewerConfiguredModel?.modelId || null,
+        reviewerConfiguredAvailable?.provider || reviewerConfiguredModel?.modelProvider || null,
+        isZh() ? "默认复查模型" : "default review model",
+      ),
       reviewerModelId: reviewerConfiguredAvailable?.id || reviewerConfiguredModel?.modelId || null,
       reviewerModelProvider: reviewerConfiguredAvailable?.provider || reviewerConfiguredModel?.modelProvider || null,
     });

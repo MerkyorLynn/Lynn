@@ -3,6 +3,8 @@ import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { formatSessionDate, parseMoodFromContent } from '../utils/format';
 import { renderMarkdown } from '../utils/markdown';
+// @ts-expect-error - shared JS module
+import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
 import fp from './FloatingPanels.module.css';
 
 interface BridgeSession {
@@ -342,7 +344,7 @@ function ChatBubble({ message: m }: { message: BridgeMessage }) {
   const time = formatBubbleTime(m.ts);
   if (m.role === 'assistant') {
     const { text } = parseMoodFromContent(m.content);
-    const cleaned = (text || m.content).replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, '');
+    const cleaned = stripPseudoToolCallMarkup(text || m.content);
     return (
       <div className={`${fp.bridgeBubbleWrap} ${fp.bridgeBubbleIn}`}>
         <div className={`${fp.bridgeBubble} md-content`} dangerouslySetInnerHTML={{ __html: renderMarkdown(cleaned) }} />

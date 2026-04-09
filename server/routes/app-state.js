@@ -127,7 +127,12 @@ export function createAppStateRoute(engine, { taskRuntime } = {}) {
         },
         search: {
           provider: search.provider || null,
-          configured: !!(search.provider && search.api_key),
+          configured: !!(
+            search.provider && (
+              (search.provider === "searxng" && search.base_url)
+              || search.api_key
+            )
+          ),
         },
         capabilities: buildCapabilitySnapshot(engine),
         tasks: buildTaskSnapshot(taskRuntime),

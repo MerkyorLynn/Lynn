@@ -773,13 +773,36 @@ export class Agent {
         + "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n"
         + "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n"
         + "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n"
+        + "对于「今日/最新/实时/行情/新闻/调研/官方文档」这类任务：先用 **web_search** 找结果，再对最相关的 1-2 个 URL 用 **web_fetch** 深读，不要只看搜索标题就下结论。\n"
+        + "对于「股价/金价/基金/汇率/指数/体育比分」这类任务：优先交叉核对 2 个来源；如果 web_search 已提示推荐来源（如 AkShare、腾讯自选股、新浪财经、腾讯体育等），优先从这些来源里挑结果继续深读。\n\n"
         + "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。"
       : "\n## Web Tool Priority\n\n"
         + "When fetching web information, choose tools in this order:\n"
         + "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n"
         + "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n"
         + "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n"
+        + "For queries like \"today/latest/live/market/news/research/official docs\", use **web_search** first and then **web_fetch** the most relevant 1-2 URLs before drawing conclusions.\n"
+        + "For stock prices, gold prices, funds, FX, indexes, or sports scores, cross-check at least two sources. If web_search suggests preferred sources (for example AkShare, Tencent quotes, Sina Finance, or sports sites), use those results first for deeper reading.\n\n"
         + "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user."
+    );
+
+    parts.push(isZh
+      ? "\n## 工具执行纪律\n\n"
+        + "遇到工具型、编码型、长任务型请求时：\n"
+        + "1. 先想清楚 2-5 个步骤，再开始调工具\n"
+        + "2. 每一轮尽量只做 1-2 个彼此强相关的工具调用，不要一口气乱并发\n"
+        + "3. 工具返回后先读结果、判断是否足够，再继续下一步\n"
+        + "4. 搜索类任务如果结果不够，优先改写查询词、换来源、再深读，不要反复输出同一段空话\n"
+        + "5. 关键数字、时间、文件路径、命令结果必须以工具返回为准，不要脑补\n"
+        + "6. 工具失败两次后，要换策略（换 query、换来源、缩小范围、改用其他工具），不要机械重试"
+      : "\n## Tool Execution Discipline\n\n"
+        + "For tool-heavy, coding-heavy, or long-running tasks:\n"
+        + "1. Think in 2-5 concrete steps before calling tools\n"
+        + "2. Keep each round to 1-2 tightly related tool calls instead of chaotic fan-out\n"
+        + "3. Read the result and decide whether it is sufficient before moving on\n"
+        + "4. If search results are weak, rewrite the query, change sources, or deepen reading before repeating the same answer\n"
+        + "5. Trust tool outputs for numbers, timestamps, file paths, and command results; do not invent them\n"
+        + "6. After two failed tool attempts, change strategy instead of mechanically retrying"
     );
 
     // 设置工具路由

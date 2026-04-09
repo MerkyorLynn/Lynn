@@ -13,6 +13,7 @@ import { safeCopyDir } from '../shared/safe-fs.js';
 import { AppError } from '../shared/errors.js';
 import { errorBus } from '../shared/error-bus.js';
 import { uniqueTrustedRoots } from '../shared/trusted-roots.js';
+import { getRoleDefaultModelRefs } from "../shared/assistant-role-models.js";
 
 const RECOMMENDED_DEFAULT_SKILLS = [
   "self-improving-agent",
@@ -263,6 +264,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec }) {
   const agentDir = path.join(agentsDir, spec.id);
   const configPath = path.join(agentDir, "config.yaml");
   const seedContext = getBuiltInSeedContext(agentsDir, productDir);
+  const desiredChatModel = getBuiltInAgentChatModelSeed(spec);
 
   ensureAgentScaffold(agentDir);
 
@@ -282,6 +284,14 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec }) {
       }
       if (String(config.agent.yuan || "").trim().toLowerCase() !== spec.yuan) {
         config.agent.yuan = spec.yuan;
+        changed = true;
+      }
+      if (!config.models || typeof config.models !== "object") {
+        config.models = {};
+        changed = true;
+      }
+      if (!config.models.chat && desiredChatModel) {
+        config.models.chat = desiredChatModel;
         changed = true;
       }
       if (String(config.agent.tier || "").trim().toLowerCase() === "reviewer") {
@@ -383,12 +393,29 @@ function buildBuiltInAgentConfig(productDir, spec, seedContext) {
     name: spec.name,
     yuan: spec.yuan,
   };
+  base.models = {
+    ...(base.models || {}),
+  };
+  const desiredChatModel = getBuiltInAgentChatModelSeed(spec);
+  if (desiredChatModel) {
+    base.models.chat = desiredChatModel;
+  }
   base.user = {
     ...(base.user || {}),
     name: seedContext.userName,
   };
 
   return base;
+}
+
+function getBuiltInAgentChatModelSeed(spec) {
+  const role = String(spec?.yuan || "").trim().toLowerCase();
+  const purpose = role === "lynn" ? "chat" : "review";
+  const primaryRef = getRoleDefaultModelRefs(role, purpose)[0] || null;
+  if (!primaryRef?.id) return null;
+  return primaryRef.provider
+    ? { id: primaryRef.id, provider: primaryRef.provider }
+    : primaryRef.id;
 }
 
 function deepClone(value) {
@@ -470,24 +497,59 @@ function parseSkillName(skillMdPath, fallbackName) {
   }
 }
 
-function collectBundledSkillNames(skillsDir) {
-  const names = new Set();
+function skillRequiresUserCredentials(skillMdPath) {
+  try {
+    const content = fs.readFileSync(skillMdPath, "utf-8");
+    const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    const parsed = fmMatch ? (YAML.load(fmMatch[1]) || {}) : {};
+    const metadata = parsed?.metadata && typeof parsed.metadata === "object" ? parsed.metadata : {};
+    const providers = [
+      metadata?.clawdbot,
+      metadata?.openclaw,
+      metadata?.hana,
+      parsed,
+    ];
+    const explicitEnvRequirement = providers.some((entry) => {
+      const env = entry?.requires?.env;
+      return Array.isArray(env) && env.some(Boolean);
+    });
+    if (explicitEnvRequirement) return true;
+
+    const body = fmMatch ? content.slice(fmMatch[0].length) : content;
+    if (/\b[A-Z][A-Z0-9_]*(?:API_KEY|TOKEN)\b/.test(body)) return true;
+    if (/Needs env:/i.test(body)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function collectBundledSkillInfo(skillsDir) {
+  const info = new Map();
   try {
     const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
       const skillMdPath = path.join(skillsDir, entry.name, "SKILL.md");
       if (!fs.existsSync(skillMdPath)) continue;
-      names.add(entry.name);
-      names.add(parseSkillName(skillMdPath, entry.name));
+      const record = {
+        dirName: entry.name,
+        name: parseSkillName(skillMdPath, entry.name),
+        requiresCredentials: skillRequiresUserCredentials(skillMdPath),
+      };
+      info.set(entry.name, record);
+      info.set(record.name, record);
     }
   } catch {}
-  return names;
+  return info;
 }
 
 function seedRecommendedSkills(agentsDir, skillsDir) {
-  const availableSkillNames = collectBundledSkillNames(skillsDir);
-  const recommended = RECOMMENDED_DEFAULT_SKILLS.filter((name) => availableSkillNames.has(name));
+  const availableSkillInfo = collectBundledSkillInfo(skillsDir);
+  const recommended = RECOMMENDED_DEFAULT_SKILLS.filter((name) => {
+    const record = availableSkillInfo.get(name);
+    return record && !record.requiresCredentials;
+  });
   if (recommended.length === 0) return;
 
   const entries = fs.readdirSync(agentsDir, { withFileTypes: true });

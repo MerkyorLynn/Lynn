@@ -10,6 +10,7 @@ import {
   normalizeDisplayProviderLabel,
   normalizeDisplayModelName,
 } from '../../utils/brain-models';
+import { getUserFacingModelAlias } from '../../../../../shared/assistant-role-models.js';
 import { showSidebarToast } from '../../stores/session-actions';
 import styles from './InputArea.module.css';
 
@@ -33,9 +34,16 @@ function formatProviderLabel(provider?: string): string {
     .join(' ');
 }
 
-function modelMetaLine(model?: SelectorModel): string {
+function modelMetaLine(model?: SelectorModel, role?: string | null): string {
   if (!model) return '';
   if (model.metaLabel) return model.metaLabel;
+  const alias = getUserFacingModelAlias({
+    modelId: model.id,
+    provider: model.provider,
+    role,
+    purpose: 'chat',
+  });
+  if (alias && !isDisplayDefaultModel(model.id, model.provider)) return '按角色自动分配 · 已就绪';
   if (isDisplayDefaultModel(model.id, model.provider)) return '开箱即用 · 已备案';
   const meta = lookupKnownModel(model.provider || '', model.id);
   const parts: string[] = [];
@@ -50,6 +58,7 @@ function modelMetaLine(model?: SelectorModel): string {
 
 export function ModelSelector({ models, disabled }: { models: SelectorModel[]; disabled?: boolean }) {
   const { t } = useI18n();
+  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const visibleModels = useMemo(() => collapseBrainModelChoices(models), [models]);
@@ -99,7 +108,7 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
 
   const groupKeys = Object.keys(grouped);
   const hasMultipleProviders = groupKeys.length > 1 || (groupKeys.length === 1 && groupKeys[0] !== '');
-  const currentMeta = modelMetaLine(current);
+  const currentMeta = modelMetaLine(current, agentYuan);
 
   return (
     <div className={`${styles['model-selector']}${open ? ` ${styles.open}` : ''}`} ref={ref}>
@@ -111,7 +120,7 @@ export function ModelSelector({ models, disabled }: { models: SelectorModel[]; d
         }}
         title={currentMeta || current?.id || ''}
       >
-        <span className={styles['model-pill-name']}>{normalizeDisplayModelName(current) || t('model.unknown') || '...'}</span>
+        <span className={styles['model-pill-name']}>{normalizeDisplayModelName(current, { role: agentYuan, purpose: 'chat' }) || t('model.unknown') || '...'}</span>
         {currentMeta && <span className={styles['model-pill-meta']}>{currentMeta}</span>}
         {hasSwitchableModels && <span className={styles['model-arrow']}>▾</span>}
       </button>

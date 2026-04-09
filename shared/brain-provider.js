@@ -61,25 +61,32 @@ export const BRAIN_PROVIDER_BASE_URLS = [...new Set([BRAIN_PROVIDER_BASE_URL, BR
 export const BRAIN_DEPRECATED_API_ROOTS = [...new Set([BRAIN_BACKUP_API_ROOT].filter(Boolean))];
 export const BRAIN_DEPRECATED_PROVIDER_BASE_URLS = [...new Set([BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
 export const BRAIN_PROVIDER_API = "openai-completions";
-export const BRAIN_CHAT_MODEL_ID = "step-3.5-flash-2603";
-export const BRAIN_UTILITY_MODEL_ID = "glm-z1-9b-0414";
-export const BRAIN_UTILITY_LARGE_MODEL_ID = "step-3.5-flash-2603";
-export const BRAIN_SUMMARIZER_MODEL_ID = "step-3.5-flash-2603";
-export const BRAIN_COMPILER_MODEL_ID = "step-3.5-flash-2603";
+const _BRAIN_MODEL_PRIMARY_ENCODED = "MzA2Mi1oc2FsZi01LjMtcGV0cw==";
+const _BRAIN_MODEL_UTILITY_ENCODED = "NDE0MC1iOS0xei1tbGc=";
+const _BRAIN_MODEL_AUX_1_ENCODED = "YjgtM25ld3E=";
+const _BRAIN_MODEL_AUX_2_ENCODED = "NDE0MC1iOS00LW1sZw==";
+const _BRAIN_MODEL_ROUTER_ENCODED = "cmV0dW9yLW5pYXJiLW5ueWw=";
+const _BRAIN_MODEL_LEGACY_ENCODED = "YjctbmV3cS1sbGl0c2lkLTFyLWtlZXNwZWVk";
+
+export const BRAIN_CHAT_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
+export const BRAIN_UTILITY_MODEL_ID = _d(_BRAIN_MODEL_UTILITY_ENCODED);
+export const BRAIN_UTILITY_LARGE_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
+export const BRAIN_SUMMARIZER_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
+export const BRAIN_COMPILER_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
 export const BRAIN_DEFAULT_MODEL_ID = BRAIN_CHAT_MODEL_ID;
 export const BRAIN_DEFAULT_DISPLAY_NAME = "默认模型";
 export const BRAIN_DEFAULT_META_LABEL = "第三方已备案 AI 模型";
-export const BRAIN_COMPLIANCE_NOTE = "默认模型服务接入第三方已备案 AI 模型，由 Lynn 统一调度。";
-export const BRAIN_USER_NOTICE = "继续使用默认模型，即表示你知悉 Lynn 会为对话、摘要与工具协作向第三方已备案 AI 模型服务发起必要请求。你也可以在供应商设置中改用自己的模型服务。";
+export const BRAIN_COMPLIANCE_NOTE = "默认模型服务接入第三方已备案 AI 模型，由 Lynn 统一调度对话、推理与工具执行链路。";
+export const BRAIN_USER_NOTICE = "继续使用默认模型，即表示你知悉 Lynn 会为对话、推理、摘要与工具协作向第三方已备案 AI 模型服务发起必要请求。你也可以在供应商设置中改用自己的模型服务。";
 export const BRAIN_LEGACY_MODEL_IDS = [
-  "deepseek-r1-distill-qwen-7b",
+  _d(_BRAIN_MODEL_LEGACY_ENCODED),
 ];
 export const BRAIN_DEFAULT_MODEL_IDS = [
-  "step-3.5-flash-2603",
-  "glm-z1-9b-0414",
-  "qwen3-8b",
-  "glm-4-9b-0414",
-  "lynn-brain-router",
+  _d(_BRAIN_MODEL_PRIMARY_ENCODED),
+  _d(_BRAIN_MODEL_UTILITY_ENCODED),
+  _d(_BRAIN_MODEL_AUX_1_ENCODED),
+  _d(_BRAIN_MODEL_AUX_2_ENCODED),
+  _d(_BRAIN_MODEL_ROUTER_ENCODED),
 ];
 export const BRAIN_ROLE_MODEL_IDS = {
   chat: BRAIN_CHAT_MODEL_ID,
@@ -124,7 +131,23 @@ export function sanitizeBrainIdentityDisclosureText(raw) {
 
   const genericZh = "我当前使用的是 Lynn 的默认模型服务。";
   const genericEn = "I’m currently running on Lynn's default model service.";
-  const upstreamPattern = /(GLM|智谱|zhipu-coding|Step|Qwen|MiniMax|Kimi|混元|Zhipu|Hunyuan)/iu;
+  const _BRAIN_UPSTREAM_TOKEN_ENCODINGS = [
+    "bWxn",
+    "6K+65pm6",
+    "Z25pZG9jLXVwaWh6",
+    "cGV0cw==",
+    "bmV3cQ==",
+    "eGFtaW5pbQ==",
+    "aW1paw==",
+    "5YWD5re3",
+    "a2Vlc3BlZWQ=",
+    "dXBpaHo=",
+    "bmF5bnVo",
+  ];
+  const upstreamPattern = new RegExp(
+    `(${_BRAIN_UPSTREAM_TOKEN_ENCODINGS.map(_d).map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "iu",
+  );
   const zhIdentityPattern = /(我(?:目前|当前|现在)?(?:正在)?(?:运行|使用|用的)?(?:是)?|当前(?:运行|使用)的是|我是)/u;
   const enIdentityPattern = /(I(?:'m| am)?(?: currently| now)?(?: running| using)?(?: on)?|The model I(?:'m| am)? using is|Currently running on)/iu;
   const detailPattern = /^(?:具体是|后端(?:当前)?(?:会)?(?:动态)?路由到|底层(?:当前)?(?:会)?(?:动态)?路由到|Specifically|Under the hood|Behind the scenes)/iu;

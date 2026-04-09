@@ -17,6 +17,26 @@ interface CronJob {
   schedule: string | number;
   model?: string;
   workspace?: string;
+  nextRunAt?: string | null;
+  lastRunAt?: string | null;
+  latestRun?: {
+    status?: string;
+    startedAt?: string;
+    finishedAt?: string;
+    error?: string;
+    timestamp?: string;
+  } | null;
+  latestActivity?: {
+    id?: string;
+    summary?: string;
+    status?: string;
+    error?: string | null;
+    startedAt?: number | null;
+    finishedAt?: number | null;
+    sessionFile?: string | null;
+    outputFile?: string | null;
+    workspace?: string;
+  } | null;
 }
 
 interface ModelOption {
@@ -216,6 +236,20 @@ function folderLabel(folderPath: string | null): string {
   return parts[parts.length - 1] || folderPath;
 }
 
+function formatAutomationDateTime(ts?: string | number | null): string {
+  if (!ts) return '';
+  try {
+    return new Date(ts).toLocaleString(String(window.i18n?.locale || 'zh-CN'), {
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
 function parseCronTime(schedule: string | number): { hour: string; minute: string } | null {
   if (typeof schedule !== 'string') return null;
   const parts = String(schedule).split(' ');
@@ -367,6 +401,7 @@ function AutomationJobCard({
   onToggle,
   onEdit,
   onRemove,
+  onRunNow,
 }: {
   job: CronJob;
   modelOptions: ModelOption[];
@@ -374,12 +409,38 @@ function AutomationJobCard({
   onToggle: (id: string) => void;
   onEdit: (job: CronJob) => void;
   onRemove: (id: string) => void;
+  onRunNow: (id: string) => void;
 }) {
   const selectedValue = resolveJobModelValue(job.model, modelOptions);
   const modelLabel = selectedValue
     ? modelOptions.find((option) => option.value === selectedValue)?.label || job.model || ''
     : (isZh ? '默认模型' : 'Default model');
   const workspaceLabel = folderLabel(job.workspace || null);
+  const nextRunText = formatAutomationDateTime(job.nextRunAt || null);
+  const lastRunText = formatAutomationDateTime(job.lastRunAt || job.latestRun?.finishedAt || job.latestRun?.timestamp || null);
+  const latestRunStatus = String(job.latestRun?.status || job.latestActivity?.status || '').trim();
+  const latestSummary = String(job.latestActivity?.summary || '').trim();
+  const latestError = String(job.latestRun?.error || job.latestActivity?.error || '').trim();
+  const hasRunRecord = Boolean(job.lastRunAt || job.latestRun || job.latestActivity);
+  const statusLabel = latestRunStatus === 'success'
+    ? (isZh ? '最近一次已完成' : 'Last run completed')
+    : latestRunStatus === 'error'
+      ? (isZh ? '最近一次失败' : 'Last run failed')
+      : latestRunStatus === 'skipped'
+        ? (isZh ? '最近一次跳过' : 'Last run skipped')
+        : '';
+
+  const openLatestResult = () => {
+    const activityId = String(job.latestActivity?.id || '').trim();
+    if (!activityId) return;
+    window.dispatchEvent(new CustomEvent('hana-open-activity-session', { detail: { activityId } }));
+  };
+
+  const openLatestFile = () => {
+    const filePath = String(job.latestActivity?.outputFile || '').trim();
+    if (!filePath) return;
+    window.platform?.openFile?.(filePath);
+  };
 
   return (
     <div className={fp.automationJobCard}>
@@ -398,8 +459,37 @@ function AutomationJobCard({
         <span className={fp.automationJobMetaChip}>{cronToHuman(job.schedule)}</span>
         <span className={fp.automationJobMetaChip}>{modelLabel}</span>
         {workspaceLabel ? <span className={fp.automationJobMetaChip}>{workspaceLabel}</span> : null}
+        {nextRunText ? <span className={fp.automationJobMetaChip}>{isZh ? `下次 ${nextRunText}` : `Next ${nextRunText}`}</span> : null}
+        {lastRunText ? <span className={fp.automationJobMetaChip}>{isZh ? `上次 ${lastRunText}` : `Last ${lastRunText}`}</span> : null}
       </div>
+      {(statusLabel || latestSummary || latestError || !hasRunRecord) && (
+        <div className={fp.automationJobResult}>
+          {statusLabel ? <div className={fp.automationJobResultTitle}>{statusLabel}</div> : null}
+          {latestSummary ? <div className={fp.automationJobResultSummary}>{latestSummary}</div> : null}
+          {!latestSummary && latestError ? <div className={fp.automationJobResultError}>{latestError}</div> : null}
+          {!latestSummary && !latestError && (statusLabel || !hasRunRecord) ? (
+            <div className={fp.automationJobResultHint}>
+              {hasRunRecord
+                ? (isZh ? '结果会出现在活动记录里，并自动写入工作区里的 “Lynn-自动任务结果” 文件夹。' : 'Results appear in Activity and are also written into the workspace result folder.')
+                : (isZh ? '还没有执行记录。到点后结果会出现在活动记录里，并自动写入工作区里的 “Lynn-自动任务结果” 文件夹。' : 'No run yet. When the task fires, the result will appear in Activity and in the workspace result folder.')}
+            </div>
+          ) : null}
+        </div>
+      )}
       <div className={fp.automationJobActions}>
+        <button type="button" className={fp.automationLinkBtn} onClick={() => onRunNow(job.id)}>
+          {isZh ? '立即执行' : 'Run now'}
+        </button>
+        {job.latestActivity?.outputFile ? (
+          <button type="button" className={fp.automationLinkBtn} onClick={openLatestFile}>
+            {isZh ? '打开文件' : 'Open file'}
+          </button>
+        ) : null}
+        {job.latestActivity?.id ? (
+          <button type="button" className={fp.automationLinkBtn} onClick={openLatestResult}>
+            {isZh ? '查看结果' : 'Open result'}
+          </button>
+        ) : null}
         <button type="button" className={fp.automationLinkBtn} onClick={() => onEdit(job)}>
           {isZh ? '编辑' : 'Edit'}
         </button>
@@ -522,6 +612,18 @@ export function AutomationPanel() {
 
   useEffect(() => {
     if (activePanel !== 'automation') return undefined;
+    const onActivityUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ type?: string }>;
+      if (customEvent.detail?.type === 'cron') {
+        void loadData();
+      }
+    };
+    window.addEventListener('hana-activity-updated', onActivityUpdated as EventListener);
+    return () => window.removeEventListener('hana-activity-updated', onActivityUpdated as EventListener);
+  }, [activePanel, loadData]);
+
+  useEffect(() => {
+    if (activePanel !== 'automation') return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         useStore.getState().setActivePanel(null);
@@ -615,6 +717,30 @@ export function AutomationPanel() {
       },
     });
   }, [loadData, setPendingConfirm, tt]);
+
+  const runJobNow = useCallback(async (jobId: string) => {
+    try {
+      const res = await hanaFetch('/api/desk/cron', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run', id: jobId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || (isZh ? '没能启动这条自动任务' : 'Failed to start task'));
+      }
+      addToast(
+        isZh
+          ? '这条自动任务已经开始执行，完成后结果会出现在活动里，并写入工作区结果文件夹。'
+          : 'Task started. When it finishes, the result will appear in Activity and in the workspace result folder.',
+        'success',
+      );
+      await loadData();
+    } catch (error) {
+      console.error('[automation] run-now failed:', error);
+      addToast(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }, [addToast, isZh, loadData]);
 
   const saveDraft = useCallback(async () => {
     if (!draftName.trim() || !draftPrompt.trim()) return;
@@ -717,8 +843,8 @@ export function AutomationPanel() {
               <div className={fp.automationDialogSubtitle}>
                 {tt(
                   'automation.guideDesc',
-                  '先选一个日常工作模板，再在底部设置项目、时间和模型。创建后，Lynn 会按计划自动执行并回写结果。',
-                  'Pick a daily-work template, then set the project, schedule, and model at the bottom.',
+                  '先选一个日常工作模板，再在底部设置项目、时间和模型。创建后，Lynn 会按计划自动执行，并把结果记到活动里；只有提示里明确要求写文件时，才会落到工作区。',
+                  'Pick a daily-work template, then set the project, schedule, and model at the bottom. Results appear in Activity unless the prompt explicitly writes files into the workspace.',
                 )}
               </div>
           </div>
@@ -781,6 +907,7 @@ export function AutomationPanel() {
                         onToggle={toggleJob}
                         onEdit={editJob}
                         onRemove={removeJob}
+                        onRunNow={runJobNow}
                       />
                     ))}
                   </div>
@@ -846,8 +973,8 @@ export function AutomationPanel() {
                 </div>
                 <div className={fp.automationComposerHint}>
                   {isZh
-                    ? '不选模型时会走默认模型。项目会作为这条自动任务的执行工作区保存。'
-                    : 'Leave model empty to use the default model. The selected project becomes the task workspace.'}
+                    ? '不选模型时会走默认模型。项目会作为执行工作区保存，但结果默认显示在“活动”里；只有提示里明确要求写文件时，才会落到工作区。'
+                    : 'Leave model empty to use the default model. The selected project becomes the task workspace, but results appear in Activity unless the prompt explicitly writes files there.'}
                 </div>
               </div>
 

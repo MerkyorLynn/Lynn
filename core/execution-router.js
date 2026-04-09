@@ -20,6 +20,7 @@
 
 import { t } from "../server/i18n.js";
 import { isLocalBaseUrl } from "../shared/net-utils.js";
+import { getAssistantRoleFromConfig, getRoleDefaultModelRefs } from "../shared/assistant-role-models.js";
 
 // 角色名称 -> preferences 字段名（SHARED_MODEL_KEYS 兼容）
 const ROLE_TO_PREF_KEY = {
@@ -111,7 +112,12 @@ export class ExecutionRouter {
    */
   resolveUtilityConfig(agentConfig, sharedModels, utilApiOverride) {
     const cfg = agentConfig || {};
+    const agentRole = getAssistantRoleFromConfig(cfg);
     const chatModelRef = cfg.models?.chat || null;
+    const utilityRoleDefaults = getRoleDefaultModelRefs(agentRole, "utility")
+      .map((ref) => ref.provider ? `${ref.provider}/${ref.id}` : ref.id);
+    const utilityLargeRoleDefaults = getRoleDefaultModelRefs(agentRole, "utility_large")
+      .map((ref) => ref.provider ? `${ref.provider}/${ref.id}` : ref.id);
     const utilityModelRef = sharedModels?.utility || cfg.models?.utility || chatModelRef;
     const largeModelRef = sharedModels?.utility_large || cfg.models?.utility_large || utilityModelRef || chatModelRef;
     const summarizerModelRef = sharedModels?.summarizer || cfg.models?.summarizer || chatModelRef;
@@ -119,6 +125,7 @@ export class ExecutionRouter {
 
     const utilityCandidates = this._buildCandidateConfigs([
       utilityModelRef,
+      ...utilityRoleDefaults,
       largeModelRef,
       summarizerModelRef,
       compilerModelRef,
@@ -128,6 +135,7 @@ export class ExecutionRouter {
 
     const largeCandidates = this._buildCandidateConfigs([
       largeModelRef,
+      ...utilityLargeRoleDefaults,
       utilityModelRef,
       summarizerModelRef,
       compilerModelRef,

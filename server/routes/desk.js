@@ -123,6 +123,43 @@ export function createDeskRoute(engine, hub) {
     return { entry: null, agentId: null };
   }
 
+  function findLatestCronActivity(job) {
+    const store = engine.getActivityStore(engine.currentAgentId);
+    const items = store?.list() || [];
+    const normalizedLabel = String(job?.label || "").trim();
+    const normalizedWorkspace = String(job?.workspace || "").trim();
+    return items.find((item) => {
+      if (!item || item.type !== "cron") return false;
+      if (item.jobId && item.jobId === job.id) return true;
+      return String(item.label || "").trim() === normalizedLabel
+        && String(item.workspace || "").trim() === normalizedWorkspace;
+    }) || null;
+  }
+
+  function decorateCronJob(job, store) {
+    const latestRunHistory = store?.getRunHistory?.(job.id, 1) || [];
+    const latestRun = latestRunHistory[latestRunHistory.length - 1] || null;
+    const latestActivity = findLatestCronActivity(job);
+    return {
+      ...job,
+      latestRun,
+      latestActivity: latestActivity
+        ? {
+            id: latestActivity.id,
+            jobId: latestActivity.jobId || null,
+            summary: latestActivity.summary || "",
+            status: latestActivity.status || "",
+            error: latestActivity.error || null,
+            startedAt: latestActivity.startedAt || null,
+            finishedAt: latestActivity.finishedAt || null,
+            sessionFile: latestActivity.sessionFile || null,
+            outputFile: latestActivity.outputFile || null,
+            workspace: latestActivity.workspace || "",
+          }
+        : null,
+    };
+  }
+
   // ════════════════════════════
   //  助手活动
   // ════════════════════════════
@@ -249,7 +286,8 @@ export function createDeskRoute(engine, hub) {
   route.get("/desk/cron", async (c) => {
     const store = engine.agent.cronStore;
     if (!store) return c.json({ jobs: [] });
-    return c.json({ jobs: store.listJobs() });
+    const jobs = store.listJobs().map((job) => decorateCronJob(job, store));
+    return c.json({ jobs });
   });
 
   /** 操作 cron 任务 */
@@ -315,6 +353,19 @@ export function createDeskRoute(engine, hub) {
         const job = store.updateJob(id, fields);
         if (!job) return c.json({ error: "not found" });
         return c.json({ ok: true, job, jobs: store.listJobs() });
+      }
+
+      case "run": {
+        if (!params.id) return c.json({ error: "id required" }, 400);
+        const job = store.getJob(params.id);
+        if (!job) return c.json({ error: "not found" }, 404);
+        if (job.enabled === false) return c.json({ error: "job disabled" }, 400);
+        try {
+          hub?.scheduler?.triggerCronJob?.(engine.currentAgentId, job.id);
+          return c.json({ ok: true, started: true, job: decorateCronJob(job, store) });
+        } catch (err) {
+          return c.json({ error: err.message || "failed to start job" }, 400);
+        }
       }
 
       default:

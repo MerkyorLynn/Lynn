@@ -35,6 +35,7 @@ type McpBuiltinField = {
 type McpBuiltinState = {
   name: string;
   label: string;
+  group?: 'docs' | 'search' | 'vision' | 'other';
   description?: string;
   docsUrl?: string;
   hint?: string;
@@ -54,6 +55,7 @@ const BUILTIN_FALLBACKS: McpBuiltinState[] = [
   {
     name: 'tencent-docs',
     label: '腾讯文档',
+    group: 'docs',
     description: '填一次 Token，就能把腾讯文档工具直接接进 Lynn。',
     docsUrl: 'https://docs.qq.com/open/auth/mcp.html',
     hint: '在腾讯文档开放平台生成 MCP Token 后填入即可。',
@@ -76,6 +78,136 @@ const BUILTIN_FALLBACKS: McpBuiltinState[] = [
       },
     ],
   },
+  {
+    name: 'minimax-enhanced',
+    label: 'MiniMax 搜索增强',
+    group: 'search',
+    description: '填一次 Token，即可启用 MiniMax 的网页搜索和图片理解增强。',
+    docsUrl: 'https://platform.minimaxi.com/docs/token-plan/mcp-guide',
+    hint: '需先安装 uv / uvx。启用后会同时提供 web_search 和 understand_image 两个增强工具。',
+    transport: 'stdio',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Token',
+        placeholder: 'sk-xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
+  {
+    name: 'zhipu-search',
+    label: '智谱联网搜索增强',
+    group: 'search',
+    description: '填一次 Z_AI_API_KEY，即可启用智谱专属联网搜索 MCP。',
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/mcp/search-mcp-server',
+    hint: 'GLM Coding Plan 用户专享。适合需要更强实时检索、技术资料搜索时启用。',
+    transport: 'http',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Z_AI_API_KEY',
+        placeholder: 'sk-xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
+  {
+    name: 'zhipu-reader',
+    label: '智谱网页读取增强',
+    group: 'search',
+    description: '填一次 Z_AI_API_KEY，即可启用网页正文读取与结构化提取。',
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/mcp/reader-mcp-server',
+    hint: 'GLM Coding Plan 用户专享。适合长网页深读、正文提取、调研资料清洗。',
+    transport: 'http',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Z_AI_API_KEY',
+        placeholder: 'sk-xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
+  {
+    name: 'zhipu-zread',
+    label: '智谱开源仓库增强',
+    group: 'search',
+    description: '填一次 Z_AI_API_KEY，即可启用开源仓库搜索与内容读取。',
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/mcp/zread-mcp-server',
+    hint: 'GLM Coding Plan 用户专享。适合代码库问答、开源项目结构理解和资料检索。',
+    transport: 'http',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Z_AI_API_KEY',
+        placeholder: 'sk-xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
+  {
+    name: 'zhipu-vision',
+    label: '智谱视觉增强',
+    group: 'vision',
+    description: '填一次 Z_AI_API_KEY，即可启用截图诊断、OCR、图表与界面理解增强。',
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/mcp/vision-mcp-server',
+    hint: 'GLM Coding Plan 用户专享。需本机安装 Node.js 18+ 与 npx，适合截图报错、UI 对比、OCR 和图表分析。',
+    transport: 'stdio',
+    configured: false,
+    enabled: false,
+    connected: false,
+    lastError: null,
+    toolCount: 0,
+    resourceCount: 0,
+    tools: [],
+    resources: [],
+    credentialFields: [
+      {
+        key: 'token',
+        label: 'Z_AI_API_KEY',
+        placeholder: 'sk-xxx',
+        secret: true,
+        value: '',
+      },
+    ],
+  },
 ];
 
 function mergeBuiltinStates(nextBuiltin: McpBuiltinState[]): McpBuiltinState[] {
@@ -92,6 +224,33 @@ function mergeBuiltinStates(nextBuiltin: McpBuiltinState[]): McpBuiltinState[] {
   }
   return [...byName.values()];
 }
+
+const BUILTIN_GROUP_META: Array<{
+  id: NonNullable<McpBuiltinState['group']>;
+  title: string;
+  copy: string;
+}> = [
+  {
+    id: 'docs',
+    title: '内置文档服务',
+    copy: '先把日常办公和文档协作工具接进来，普通用户最容易马上用上的能力放在最上面。',
+  },
+  {
+    id: 'search',
+    title: '搜索与深读增强',
+    copy: '这组更适合调研、网页深读和代码资料检索。GLM Coding Plan 用户可填写同一个 Z_AI_API_KEY 按需启用。',
+  },
+  {
+    id: 'vision',
+    title: '图片与视觉增强',
+    copy: '截图报错、OCR、图表和界面理解都放在这里。适合需要更强视觉能力时再开启。',
+  },
+  {
+    id: 'other',
+    title: '其他增强',
+    copy: '这里放补充型能力，不影响 Lynn 默认工作流。',
+  },
+];
 
 type DraftState = {
   name: string;
@@ -289,6 +448,21 @@ export function McpTab() {
     () => servers.filter((server) => server.source !== 'builtin'),
     [servers],
   );
+
+  const builtinSections = useMemo(() => {
+    const grouped = new Map<string, McpBuiltinState[]>();
+    for (const server of builtinServers) {
+      const group = server.group || 'other';
+      if (!grouped.has(group)) grouped.set(group, []);
+      grouped.get(group)!.push(server);
+    }
+    return BUILTIN_GROUP_META
+      .map((meta) => ({
+        ...meta,
+        servers: grouped.get(meta.id) || [],
+      }))
+      .filter((section) => section.servers.length > 0);
+  }, [builtinServers]);
 
   const scheduleServerRetry = () => {
     if (serverRetryTimerRef.current || serverRetryCountRef.current >= 4) return;
@@ -559,102 +733,116 @@ export function McpTab() {
 
         {builtinServers.length > 0 && (
           <div className={styles['settings-field']}>
-            <label className={styles['settings-field-label']}>{t('settings.mcp.builtinTitle') || '内置文档服务'}</label>
-            <div className={styles['mcp-builtin-grid']}>
-              {builtinServers.map((server) => {
-                const fields = server.credentialFields || [];
-                const busy = builtinBusy[server.name];
-                const statusText = server.connected
-                  ? (t('settings.providers.ready') || '已就绪')
-                  : server.configured
-                    ? (server.lastError || t('settings.providers.verifyFailed') || '连接失败')
-                    : (t('settings.providers.noKey') || '未配置');
-                return (
-                  <div key={server.name} className={styles['mcp-builtin-card']}>
-                    <div className={styles['mcp-builtin-header']}>
-                      <div>
-                        <div className={styles['mcp-builtin-title']}>{server.label}</div>
-                        <div className={styles['mcp-builtin-copy']}>{server.description || ''}</div>
-                      </div>
-                      <span
-                        className={styles['mcp-builtin-badge']}
-                        style={{
-                          color: server.connected ? 'var(--mint)' : 'var(--text-muted)',
-                          borderColor: server.connected ? 'color-mix(in srgb, var(--mint) 32%, transparent)' : 'var(--border)',
-                        }}
-                      >
-                        {statusText}
-                      </span>
-                    </div>
-
-                    {fields.map((field) => (
-                      <div key={`${server.name}-${field.key}`} className={styles['settings-field']}>
-                        <label className={styles['settings-field-label']}>{field.label}</label>
-                        <input
-                          className={styles['settings-input']}
-                          type={field.secret === false ? 'text' : 'password'}
-                          value={builtinDrafts[server.name]?.[field.key] || ''}
-                          placeholder={field.placeholder || ''}
-                          onChange={(e) => updateBuiltinField(server.name, field.key, e.target.value)}
-                          onBlur={() => {
-                            if ((builtinDrafts[server.name]?.[field.key] || '').trim()) {
-                              void saveBuiltin(server.name);
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-
-                    {server.hint && (
-                      <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: 0 }}>
-                        {server.hint}
-                      </div>
-                    )}
-
-                    <div className={styles['mcp-builtin-actions']}>
-                      <button
-                        className={styles['provider-item-action']}
-                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
-                        onClick={() => saveBuiltin(server.name)}
-                        disabled={busy === 'save'}
-                      >
-                        {busy === 'save' ? (t('review.loading') || 'Loading') : (t('settings.save') || '保存')}
-                      </button>
-                      <button
-                        className={styles['provider-item-action']}
-                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
-                        onClick={() => testBuiltin(server.name)}
-                        disabled={busy === 'test'}
-                      >
-                        {busy === 'test' ? (t('review.loading') || 'Loading') : (t('settings.mcp.test') || '测试连接')}
-                      </button>
-                      <button
-                        className={styles['provider-item-action']}
-                        style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
-                        onClick={() => saveBuiltin(server.name, !server.enabled)}
-                      >
-                        {server.enabled ? (t('settings.mcp.disableBuiltin') || '停用') : (t('settings.mcp.enableBuiltin') || '启用')}
-                      </button>
-                      {server.docsUrl && (
-                        <button
-                          className={styles['provider-item-action']}
-                          style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
-                          onClick={() => platform?.openExternal?.(server.docsUrl || '')}
-                        >
-                          {t('settings.mcp.openDocs') || '打开文档'}
-                        </button>
-                      )}
-                    </div>
-
-                    {builtinTestResults[server.name] && (
-                      <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: '8px' }}>
-                        {builtinTestResults[server.name]}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <label className={styles['settings-field-label']}>{t('settings.mcp.builtinTitle') || '内置增强服务'}</label>
+            <div className={styles['mcp-builtin-intro']}>
+              <div className={styles['mcp-builtin-intro-title']}>把高价值增强能力接进 Lynn</div>
+              <div className={styles['mcp-builtin-intro-copy']}>
+                腾讯文档适合直接提升日常协作；智谱和 MiniMax 这类增强更适合需要更强搜索、网页深读、截图理解或开源仓库检索时再开启。
+              </div>
             </div>
+            {builtinSections.map((section) => (
+              <div key={section.id} className={styles['mcp-builtin-section']}>
+                <div className={styles['mcp-builtin-section-header']}>
+                  <div className={styles['mcp-builtin-section-title']}>{section.title}</div>
+                  <div className={styles['mcp-builtin-section-copy']}>{section.copy}</div>
+                </div>
+                <div className={styles['mcp-builtin-grid']}>
+                  {section.servers.map((server) => {
+                    const fields = server.credentialFields || [];
+                    const busy = builtinBusy[server.name];
+                    const statusText = server.connected
+                      ? (t('settings.providers.ready') || '已就绪')
+                      : server.configured
+                        ? (server.lastError || t('settings.providers.verifyFailed') || '连接失败')
+                        : (t('settings.providers.noKey') || '未配置');
+                    return (
+                      <div key={server.name} className={styles['mcp-builtin-card']}>
+                        <div className={styles['mcp-builtin-header']}>
+                          <div>
+                            <div className={styles['mcp-builtin-title']}>{server.label}</div>
+                            <div className={styles['mcp-builtin-copy']}>{server.description || ''}</div>
+                          </div>
+                          <span
+                            className={styles['mcp-builtin-badge']}
+                            style={{
+                              color: server.connected ? 'var(--mint)' : 'var(--text-muted)',
+                              borderColor: server.connected ? 'color-mix(in srgb, var(--mint) 32%, transparent)' : 'var(--border)',
+                            }}
+                          >
+                            {statusText}
+                          </span>
+                        </div>
+
+                        {fields.map((field) => (
+                          <div key={`${server.name}-${field.key}`} className={styles['settings-field']}>
+                            <label className={styles['settings-field-label']}>{field.label}</label>
+                            <input
+                              className={styles['settings-input']}
+                              type={field.secret === false ? 'text' : 'password'}
+                              value={builtinDrafts[server.name]?.[field.key] || ''}
+                              placeholder={field.placeholder || ''}
+                              onChange={(e) => updateBuiltinField(server.name, field.key, e.target.value)}
+                              onBlur={() => {
+                                if ((builtinDrafts[server.name]?.[field.key] || '').trim()) {
+                                  void saveBuiltin(server.name);
+                                }
+                              }}
+                            />
+                          </div>
+                        ))}
+
+                        {server.hint && (
+                          <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: 0 }}>
+                            {server.hint}
+                          </div>
+                        )}
+
+                        <div className={styles['mcp-builtin-actions']}>
+                          <button
+                            className={styles['provider-item-action']}
+                            style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                            onClick={() => saveBuiltin(server.name)}
+                            disabled={busy === 'save'}
+                          >
+                            {busy === 'save' ? (t('review.loading') || 'Loading') : (t('settings.save') || '保存')}
+                          </button>
+                          <button
+                            className={styles['provider-item-action']}
+                            style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                            onClick={() => testBuiltin(server.name)}
+                            disabled={busy === 'test'}
+                          >
+                            {busy === 'test' ? (t('review.loading') || 'Loading') : (t('settings.mcp.test') || '测试连接')}
+                          </button>
+                          <button
+                            className={styles['provider-item-action']}
+                            style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                            onClick={() => saveBuiltin(server.name, !server.enabled)}
+                          >
+                            {server.enabled ? (t('settings.mcp.disableBuiltin') || '停用') : (t('settings.mcp.enableBuiltin') || '启用')}
+                          </button>
+                          {server.docsUrl && (
+                            <button
+                              className={styles['provider-item-action']}
+                              style={{ width: 'auto', height: '32px', padding: '0 12px', opacity: 1 }}
+                              onClick={() => platform?.openExternal?.(server.docsUrl || '')}
+                            >
+                              {t('settings.mcp.openDocs') || '打开文档'}
+                            </button>
+                          )}
+                        </div>
+
+                        {builtinTestResults[server.name] && (
+                          <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: '8px' }}>
+                            {builtinTestResults[server.name]}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

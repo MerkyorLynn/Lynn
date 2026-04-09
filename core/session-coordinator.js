@@ -36,8 +36,14 @@ import {
 import { resolveCompactionSettings, resolveModelContextWindow } from "./compaction-settings.js";
 import { formatProjectInstructions } from "../lib/project-instructions.js";
 import { getBrainDisplayName, isBrainModelRef } from "../shared/brain-provider.js";
+import { getUserFacingModelAlias, getUserFacingRoleModelLabel, resolveRoleDefaultModel } from "../shared/assistant-role-models.js";
 
 const log = createModuleLogger("session");
+
+function shouldExposeVerboseModelRouting() {
+  const flag = String(process?.env?.LYNN_DEBUG_MODELS || process?.env?.DEBUG_MODEL_ROUTING || "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || process?.env?.NODE_ENV === "development";
+}
 
 /** 巡检/定时任务默认工具白名单 */
 export const PATROL_TOOLS_DEFAULT = [
@@ -317,7 +323,7 @@ export class SessionCoordinator {
                   "3. 不要编造不存在的工具名",
                   "4. 参数中的文件路径必须使用绝对路径",
                   "5. 如果不确定该用哪个工具，先用 bash 执行简单命令",
-                  "6. 不要在正文中模拟工具调用（如写出 JSON、<tool_call>、<function=...> 这类文本但不通过工具接口发送）",
+                  "6. 不要在正文中模拟工具调用（如写出 JSON、<tool_call>、<tool>、<toolcode>、<function=...> 这类文本但不通过工具接口发送）",
                 ].join("\n")
               : [
                   "[Tool Call Rules]",
@@ -326,7 +332,7 @@ export class SessionCoordinator {
                   "3. Do not invent tool names that do not exist",
                   "4. Always use absolute paths for file parameters",
                   "5. When unsure which tool to use, try bash with a simple command first",
-                  "6. Do not simulate tool calls in text (for example JSON, <tool_call>, or <function=...> markup without actually invoking a tool)",
+                  "6. Do not simulate tool calls in text (for example JSON, <tool_call>, <tool>, <toolcode>, or <function=...> markup without actually invoking a tool)",
                 ].join("\n")
             );
 
@@ -348,6 +354,11 @@ export class SessionCoordinator {
             extras.push(importancePrompt);
           }
 
+          extras.push(isZh
+            ? "【工具调用底线】绝不要在正文中伪造工具调用（例如输出 <tool_call>、<invoke>、<toolcode>、XML/JSON 工具参数等文本）。需要用工具时必须调用真实工具接口，而不是把工具格式打印给用户看。"
+            : "[Tool Call Hard Rule] Never fake tool calls in plain text (for example <tool_call>, <invoke>, <toolcode>, or XML/JSON tool arguments). When a tool is needed, you must invoke the real tool interface instead of printing tool-call markup to the user."
+          );
+
           // 笺引导：首次 session 的前几轮对话中，提醒用户使用笺
           const turnCount = sessionEntry.session?.turnCount ?? sessionEntry.session?.sessionManager?.getTurnCount?.() ?? 0;
           if (turnCount <= 2 && !sessionEntry._jianHintInjected) {
@@ -362,25 +373,32 @@ export class SessionCoordinator {
           const selectedModelId = sessionEntry.modelId || effectiveModel?.id || null;
           const selectedModelProvider = sessionEntry.modelProvider || effectiveModel?.provider || null;
           if (selectedModelId) {
+            const sessionAgentRole = this._d.getAgentById?.(sessionEntry.agentId)?.config?.agent?.yuan || null;
+            const publicModelAlias = getUserFacingModelAlias({
+              modelId: selectedModelId,
+              provider: selectedModelProvider,
+              role: sessionAgentRole,
+              purpose: "chat",
+            });
             const selectedModelTag = selectedModelProvider
               ? `${selectedModelProvider} / ${selectedModelId}`
               : selectedModelId;
-            const modelHint = isBrainModelRef(selectedModelId, selectedModelProvider)
+            const modelHint = (publicModelAlias || isBrainModelRef(selectedModelId, selectedModelProvider))
               ? (
                   isZh
                     ? [
-                        `当前用户选择的是${getBrainDisplayName()}。`,
-                        `把“${getBrainDisplayName()}”当作你的用户可见身份，不要把任何具体上游厂商或型号当作自我介绍。`,
-                        `当用户问“你现在是什么模型”“你用的是什么模型”“你是哪家模型”时，先回答“我是 Lynn 的${getBrainDisplayName()}服务”或“当前走的是 Lynn 的${getBrainDisplayName()}”。`,
-                        "不要主动说出 GLM、Step、Qwen、MiniMax、zhipu-coding 之类的具体上游名称。",
-                        "即使用户直接追问你当前是什么模型，也不要把具体上游型号当成最终答案；默认只回答“默认模型服务”。",
+                        `当前用户选择的是${publicModelAlias || getBrainDisplayName()}。`,
+                        `把“${publicModelAlias || getBrainDisplayName()}”当作你的用户可见身份，不要把任何具体上游厂商或型号当作自我介绍。`,
+                        `当用户问“你现在是什么模型”“你用的是什么模型”“你是哪家模型”时，先回答“我是 Lynn 的${publicModelAlias || getBrainDisplayName()}”或“当前走的是 Lynn 的${publicModelAlias || getBrainDisplayName()}”。`,
+                        "不要主动说出具体上游模型名、供应商名或 provider ID。",
+                        "即使用户直接追问你当前是什么模型，也不要把具体上游型号当成最终答案；默认只回答角色对应的默认模型身份。",
                         "只有当用户明确是在排错，并且明确要求底层路由/技术实现细节时，才可以补充后台可能会动态路由到第三方模型。",
                       ].join(" ")
                     : [
-                        `The user selected ${getBrainDisplayName()}.`,
-                        `Treat "${getBrainDisplayName()}" as your user-facing identity and do not introduce yourself as a specific upstream vendor or model.`,
-                        `When the user asks which model you are, answer with "${getBrainDisplayName()}" or "Lynn's default model service" first.`,
-                        "Do not proactively reveal upstream names such as GLM, Step, Qwen, MiniMax, or provider IDs.",
+                        `The user selected ${publicModelAlias || getBrainDisplayName()}.`,
+                        `Treat "${publicModelAlias || getBrainDisplayName()}" as your user-facing identity and do not introduce yourself as a specific upstream vendor or model.`,
+                        `When the user asks which model you are, answer with "${publicModelAlias || getBrainDisplayName()}" or "Lynn's default model service" first.`,
+                        "Do not proactively reveal concrete upstream model names, provider names, or provider IDs.",
                         "Even when the user directly asks which model you are, do not treat the upstream routed model as the final user-facing answer.",
                         "Only mention underlying routing details when the user is explicitly debugging and explicitly asks for the backend implementation details.",
                       ].join(" ")
@@ -1119,12 +1137,19 @@ export class SessionCoordinator {
       buildTools:     (cwd, customTools, opts) => this._d.buildTools(cwd, customTools, opts),
       resolveModel:   (agentConfig) => {
         const chatRef = agentConfig?.models?.chat;
+        const agentRole = agentConfig?.agent?.yuan || null;
+        const roleLabel = getUserFacingRoleModelLabel(agentRole, "chat") || "角色默认模型";
         const id = typeof chatRef === "object" ? chatRef?.id : chatRef;
         const provider = typeof chatRef === "object" ? chatRef?.provider : undefined;
         // 非 active agent 可能没有配 models.chat（模板默认为空），回退到全局默认模型
         if (!id) {
+          const roleDefaultModel = resolveRoleDefaultModel(models.availableModels, agentRole);
+          if (roleDefaultModel) {
+            log.log(`[resolveModel] agentConfig 未指定 models.chat，按角色回退到 ${roleLabel}`);
+            return roleDefaultModel;
+          }
           if (models.defaultModel) {
-            log.log(`[resolveModel] agentConfig 未指定 models.chat，回退到默认模型 ${models.defaultModel.id}`);
+            log.log(`[resolveModel] agentConfig 未指定 models.chat，回退到默认模型`);
             return models.defaultModel;
           }
           log.error(`[resolveModel] agentConfig 未指定 models.chat，也没有默认模型`);
@@ -1133,15 +1158,24 @@ export class SessionCoordinator {
         const found = findModel(models.availableModels, id, provider);
         if (!found) {
           // 模型 ID 在可用列表中找不到，尝试回退到默认模型
+          const roleDefaultModel = resolveRoleDefaultModel(models.availableModels, agentRole);
+          if (roleDefaultModel) {
+            log.log(`[resolveModel] 已配置聊天模型暂不可用，按角色回退到 ${roleLabel}`);
+            return roleDefaultModel;
+          }
           if (models.defaultModel) {
-            log.log(`[resolveModel] 模型 "${id}" 不在可用列表中，回退到默认模型 ${models.defaultModel.id}`);
+            log.log(`[resolveModel] 已配置聊天模型暂不可用，回退到默认模型`);
             return models.defaultModel;
           }
-          const available = models.availableModels.map(m => `${m.provider}/${m.id}`).join(", ");
-          const hasAuth = models.modelRegistry
-            ? `hasAuth("${models.inferModelProvider?.(id) || "?"}")=unknown`
-            : "no registry";
-          log.error(`[resolveModel] 找不到模型 "${id}"。availableModels=[${available}]。${hasAuth}`);
+          if (shouldExposeVerboseModelRouting()) {
+            const available = models.availableModels.map(m => `${m.provider}/${m.id}`).join(", ");
+            const hasAuth = models.modelRegistry
+              ? `hasAuth("${models.inferModelProvider?.(id) || "?"}")=unknown`
+              : "no registry";
+            log.error(`[resolveModel] 找不到模型 "${id}"。availableModels=[${available}]。${hasAuth}`);
+          } else {
+            log.error(`[resolveModel] 找不到可用聊天模型，且默认回退链不可用`);
+          }
           throw new Error(t("error.resolveModelNotAvailable", { id }));
         }
         return found;
@@ -1206,8 +1240,12 @@ export class SessionCoordinator {
         : (typeof agentPreferredRef === "object" ? agentPreferredRef?.provider : undefined);
       let resolvedModel = opts.model;
       if (!resolvedModel) {
+        const targetRole = targetAgent.config?.agent?.yuan || targetAgent.yuan || null;
         if (modelId) {
           resolvedModel = findModel(models.availableModels, modelId, modelProvider);
+        }
+        if (!resolvedModel) {
+          resolvedModel = resolveRoleDefaultModel(models.availableModels, targetRole);
         }
         if (!resolvedModel) {
           // agent 未配 models.chat 或配置的模型不在可用列表：fallback 到当前默认模型

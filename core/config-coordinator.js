@@ -149,6 +149,7 @@ export class ConfigCoordinator {
     const prefs = this._prefs();
     return {
       provider: prefs.search_provider || null,
+      base_url: prefs.search_base_url || null,
       api_key: prefs.search_api_key || null,
     };
   }
@@ -158,6 +159,10 @@ export class ConfigCoordinator {
     if (partial.provider !== undefined) {
       if (partial.provider) prefs.search_provider = partial.provider;
       else delete prefs.search_provider;
+    }
+    if (partial.base_url !== undefined) {
+      if (partial.base_url) prefs.search_base_url = partial.base_url;
+      else delete prefs.search_base_url;
     }
     if (partial.api_key !== undefined) {
       if (partial.api_key) prefs.search_api_key = partial.api_key;

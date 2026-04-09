@@ -5,6 +5,7 @@ import {
   getBrainDisplayName,
   isBrainModelRef,
 } from '../../../../shared/brain-provider.js';
+import { getUserFacingModelAlias } from '../../../../shared/assistant-role-models.js';
 import { parseSharedModelRef } from './model-ref';
 
 type BrainModelLike = {
@@ -24,6 +25,11 @@ export interface UserVisibleModelOption {
   rawId: string;
   rawProvider: string;
 }
+
+type ModelLabelContext = {
+  role?: string | null;
+  purpose?: 'chat' | 'review' | 'utility' | 'utility_large' | null;
+};
 
 function cloneCollapsedBrainModel<T extends BrainModelLike>(model: T, isCurrent: boolean): T {
   return {
@@ -45,8 +51,15 @@ export function normalizeDisplayModelId(modelId?: string | null, provider?: stri
   return String(modelId || '');
 }
 
-export function normalizeDisplayModelName(model: BrainModelLike | null | undefined): string {
+export function normalizeDisplayModelName(model: BrainModelLike | null | undefined, context?: ModelLabelContext): string {
   if (!model?.id) return '';
+  const alias = getUserFacingModelAlias({
+    modelId: model.id,
+    provider: model.provider,
+    role: context?.role,
+    purpose: context?.purpose,
+  });
+  if (alias) return alias;
   if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
   return model.name || model.id;
 }
@@ -81,8 +94,18 @@ export function collapseBrainModelChoices<T extends BrainModelLike>(models: T[])
   return result;
 }
 
-export function formatCompactModelLabel(model: { id?: string | null; provider?: string | null } | null | undefined): string | null {
+export function formatCompactModelLabel(
+  model: { id?: string | null; provider?: string | null } | null | undefined,
+  context?: ModelLabelContext,
+): string | null {
   if (!model?.id) return null;
+  const alias = getUserFacingModelAlias({
+    modelId: model.id,
+    provider: model.provider || undefined,
+    role: context?.role,
+    purpose: context?.purpose,
+  });
+  if (alias) return alias;
   if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
   return model.provider ? `${model.provider} / ${model.id}` : model.id;
 }

@@ -11,6 +11,7 @@ import { t } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import { isToolCallBlock, getToolArgs } from "../../core/llm-utils.js";
 import { sanitizeBrainIdentityDisclosureText } from "../../shared/brain-provider.js";
+import { stripPseudoToolCallMarkup } from "../../shared/pseudo-tool-call.js";
 
 /**
  * 从 Pi SDK 的 content 块数组中提取纯文本 + thinking + tool_use 调用
@@ -27,15 +28,6 @@ function stripThinkTags(raw) {
     return "";
   });
   return { text, thinkContent: thinkParts.join("\n") };
-}
-
-function stripPseudoToolCallMarkup(raw) {
-  return String(raw || "")
-    .replace(/<tool_call>[\s\S]*?<\/tool_call>\s*/gi, "")
-    .replace(/^\s*<\/?(?:function|parameter)(?:=[^>\n]+)?>\s*$/gim, "")
-    .replace(/^\s*<(?:function|parameter)=[^>\n]+>\s*$/gim, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function extractTextContent(content, { stripThink = false, stripPseudoToolCalls = false } = {}) {

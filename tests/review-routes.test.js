@@ -295,7 +295,7 @@ describe('review route', () => {
 
     expect(runAgentSession).toHaveBeenCalledTimes(2);
     expect(resultMsg.errorCode).toBe('review_timeout_recovered');
-    expect(resultMsg.fallbackNote).toContain('GPT-4.1');
+    expect(resultMsg.fallbackNote).toContain('默认复查模型');
     expect(resultMsg.fallbackNote).toMatch(/自动切换到|finished on/);
   });
 

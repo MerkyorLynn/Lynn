@@ -79,6 +79,7 @@ function InputAreaInner() {
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const composerSessionKey = getComposerSessionKey(currentSessionPath, pendingNewSession);
   const compacting = useStore(s => currentSessionPath ? s.compactingSessions.includes(currentSessionPath) : false);
+  const inlineNotice = useStore(s => s.inlineNotice);
   const inlineError = useStore(s => s.inlineError);
   const wsState = useStore(s => s.wsState);
   const wsReconnectAttempt = useStore(s => s.wsReconnectAttempt);
@@ -98,6 +99,7 @@ function InputAreaInner() {
   const restoreLastSubmittedDraft = useStore(s => s.restoreLastSubmittedDraft);
   const clearComposerState = useStore(s => s.clearComposerState);
   const setLastSubmittedDraft = useStore(s => s.setLastSubmittedDraft);
+  const setInlineNotice = useStore(s => s.setInlineNotice);
   const setInlineError = useStore(s => s.setInlineError);
   const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
   const rememberWorkingSetFile = useStore(s => s.rememberWorkingSetFile);
@@ -279,9 +281,10 @@ function InputAreaInner() {
 
   const handleRestoreLastDraft = useCallback(() => {
     restoreLastSubmittedDraft(composerSessionKey);
+    setInlineNotice(null);
     setInlineError(null);
     requestInputFocus();
-  }, [composerSessionKey, requestInputFocus, restoreLastSubmittedDraft, setInlineError]);
+  }, [composerSessionKey, requestInputFocus, restoreLastSubmittedDraft, setInlineError, setInlineNotice]);
 
   const openProvidersSettings = useCallback(() => {
     const hana = window.hana as { debugOpenOnboarding?: () => Promise<void> } | undefined;
@@ -557,6 +560,8 @@ function InputAreaInner() {
 
     setSending(true);
     try {
+      setInlineNotice(null);
+      setInlineError(null);
       const prepared = await prepareComposerTask({
         mode,
         composerText,
@@ -625,6 +630,8 @@ function InputAreaInner() {
     homeFolder,
     selectedFolder,
     deskBasePath,
+    setInlineError,
+    setInlineNotice,
   ]);
 
   const handleSend = useCallback(async () => {
@@ -736,13 +743,19 @@ function InputAreaInner() {
           </div>
         </div>
       )}
+      {inlineNotice && !recoveryMessage && !taskRecoveryMessage && (
+        <div className={styles['slash-notice-bar']}>
+          <span className={styles['slash-notice-dot']} />
+          <span>{inlineNotice}</span>
+        </div>
+      )}
       {inlineError && !recoverableDraft && (
         <div className={styles['slash-error-bar']}>
           <span className={styles['slash-error-dot']} />
           <span>{inlineError}</span>
         </div>
       )}
-      {!slashBusy && !compacting && !inlineError && slashResult && (
+      {!slashBusy && !compacting && !inlineError && !inlineNotice && slashResult && (
         <div className={styles['slash-busy-bar']}><span>{slashResult.text}</span></div>
       )}
       {(quotedSelection || sessionTodos.length > 0) && (
@@ -769,7 +782,7 @@ function InputAreaInner() {
       {attachedFiles.length > 0 && (
         <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
       )}
-      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !slashBusy && !compacting && (
+      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !inlineNotice && !slashBusy && !compacting && (
         <div className={styles['at-discovery-row']}>
           <button type="button" className={styles['at-discovery-pill']} onClick={handleTryAtInjection}>
             <span className={styles['at-discovery-badge']}>@</span>

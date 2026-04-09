@@ -55,6 +55,7 @@ export function SidebarCapabilityBar() {
   }, [t]);
   const currentAgentId = useStore((s) => s.currentAgentId);
   const agentName = useStore((s) => s.agentName) || 'Lynn';
+  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
   const [expanded, setExpanded] = useState(false);
   const deskJianContent = useStore((s) => s.deskJianContent);
   const automationCount = useStore((s) => s.automationCount);
@@ -70,7 +71,7 @@ export function SidebarCapabilityBar() {
   const changesSummary = useMemo(() => collectSessionDiffs(sessionItems), [sessionItems]);
   const models = useStore((s) => s.models);
   const currentModel = useStore((s) => s.currentModel);
-  const currentModelName = formatCompactModelLabel(currentModel)
+  const currentModelName = formatCompactModelLabel(currentModel, { role: agentYuan, purpose: 'chat' })
     || models.find((model) => model.isCurrent)?.name
     || tt('input.embeddedModel.name', '默认模型');
 

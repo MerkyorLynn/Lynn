@@ -18,6 +18,7 @@ import {
   generateAgentId as _generateAgentId,
 } from "./llm-utils.js";
 import { findModel } from "../shared/model-ref.js";
+import { getUserFacingRoleModelLabel, resolveRoleDefaultModel } from "../shared/assistant-role-models.js";
 
 const log = createModuleLogger("agent-mgr");
 
@@ -435,19 +436,30 @@ export class AgentManager {
       this._activeAgentId = agentId;
 
       const chatRef = this.agent.config.models?.chat;
+      const agentRole = this.agent.config?.agent?.yuan || this.agent.yuan || null;
+      const roleLabel = getUserFacingRoleModelLabel(agentRole, "chat") || "角色默认模型";
       const preferredId = typeof chatRef === "object" ? chatRef?.id : chatRef;
       const preferredProvider = typeof chatRef === "object" ? chatRef?.provider : undefined;
       const models = this._d.getModels();
       if (preferredId) {
         const model = findModel(models.availableModels, preferredId, preferredProvider);
         if (!model) {
-          throw new Error(t("error.agentModelNotAvailable", { id: agentId, model: preferredId }));
+          const roleDefaultModel = resolveRoleDefaultModel(models.availableModels, agentRole);
+          if (!roleDefaultModel) {
+            throw new Error(t("error.agentModelNotAvailable", { id: agentId, model: preferredId }));
+          }
+          models.defaultModel = roleDefaultModel;
+        } else {
+          models.defaultModel = model;
         }
-        models.defaultModel = model;
+      } else {
+        const roleDefaultModel = resolveRoleDefaultModel(models.availableModels, agentRole);
+        if (roleDefaultModel) {
+          models.defaultModel = roleDefaultModel;
+        }
       }
       // 未配 models.chat 的 agent 继承当前 defaultModel
-      const effectiveModel = preferredId || models.defaultModel?.id || "inherited";
-      log.log(`agent switched to ${this.agent.agentName} (${agentId}), model=${effectiveModel}`);
+      log.log(`agent switched to ${this.agent.agentName} (${agentId}), model=${roleLabel}`);
     } catch (err) {
       this._activeAgentId = prevAgentId;
       try { this._d.getHub()?.resumeAfterAgentSwitch(); } catch {}

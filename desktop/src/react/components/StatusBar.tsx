@@ -3,12 +3,27 @@ import { useStore } from '../stores';
 import { connectWebSocket } from '../services/websocket';
 import { isDisplayDefaultModel } from '../utils/brain-models';
 import { getBrainComplianceNote } from '../../../../shared/brain-provider.js';
+import { getUserFacingModelAlias } from '../../../../shared/assistant-role-models.js';
 import styles from './StatusBar.module.css';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
-function formatModelTag(kind: string, model: { id: string; provider: string } | null): string | null {
+function formatModelTag(
+  kind: string,
+  model: { id: string; provider: string } | null,
+  role?: string | null,
+  purpose?: 'chat' | 'utility' | 'utility_large',
+): string | null {
   if (!model?.id) return null;
+  const alias = getUserFacingModelAlias({
+    modelId: model.id,
+    provider: model.provider,
+    role,
+    purpose,
+  });
+  if (alias) {
+    return `${kind} ${alias} · 已就绪`;
+  }
   if (isDisplayDefaultModel(model.id, model.provider)) {
     return `${kind} 默认模型 · 已备案`;
   }
@@ -22,19 +37,20 @@ export function StatusBar() {
   const currentModel = useStore((s) => s.currentModel);
   const utilityModel = useStore((s) => s.utilityModel);
   const utilityLargeModel = useStore((s) => s.utilityLargeModel);
+  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
 
   const meta = useMemo(() => {
     const parts: string[] = [];
-    const chat = formatModelTag('chat', currentModel);
-    const tool = formatModelTag('tool', utilityModel);
-    const large = formatModelTag('large', utilityLargeModel);
+    const chat = formatModelTag('chat', currentModel, agentYuan, 'chat');
+    const tool = formatModelTag('tool', utilityModel, agentYuan, 'utility');
+    const large = formatModelTag('large', utilityLargeModel, agentYuan, 'utility_large');
 
     if (chat) parts.push(chat);
     if (tool) parts.push(tool);
     if (large) parts.push(large);
 
     return parts;
-  }, [currentModel, utilityModel, utilityLargeModel]);
+  }, [agentYuan, currentModel, utilityModel, utilityLargeModel]);
 
   if (wsState === 'connected' && meta.length === 0) return null;
 

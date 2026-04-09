@@ -23,6 +23,7 @@ export function createPreferencesRoute(engine) {
         models,
         search: {
           provider: search.provider || "",
+          base_url: search.base_url || "",
           api_key: search.api_key || "",
         },
         utility_api: {

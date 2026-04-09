@@ -66,26 +66,35 @@ function ToolModelTestBtn({ modelRef }: { modelRef: unknown }) {
 export function OtherModelsSection({ providers }: { providers: Record<string, { models?: string[]; base_url?: string }> }) {
   const { globalModelsConfig, showToast } = useSettingsStore();
   const savedSearchKey = globalModelsConfig?.search?.api_key || '';
+  const savedSearchBaseUrl = globalModelsConfig?.search?.base_url || '';
   const [searchApiKey, setSearchApiKey] = useState('');
+  const [searchBaseUrl, setSearchBaseUrl] = useState('');
   const [searchKeyEdited, setSearchKeyEdited] = useState(false);
+  const [searchBaseUrlEdited, setSearchBaseUrlEdited] = useState(false);
 
   // 从后端同步已保存的 key
   useEffect(() => {
     if (!searchKeyEdited && savedSearchKey) setSearchApiKey(savedSearchKey);
   }, [savedSearchKey, searchKeyEdited]);
+  useEffect(() => {
+    if (!searchBaseUrlEdited && savedSearchBaseUrl) setSearchBaseUrl(savedSearchBaseUrl);
+  }, [savedSearchBaseUrl, searchBaseUrlEdited]);
 
   const searchProvider = globalModelsConfig?.search?.provider || '';
+  const searchNeedsApiKey = searchProvider !== 'searxng';
 
   const verifySearch = async () => {
     const provider = (globalModelsConfig?.search?.provider || '').trim();
     const apiKey = searchApiKey.trim();
+    const baseUrl = searchBaseUrl.trim();
     if (!provider) { showToast(t('settings.search.noProvider'), 'error'); return; }
-    if (!apiKey) { showToast(t('settings.search.noKey'), 'error'); return; }
+    if (provider === 'searxng' && !baseUrl) { showToast(t('settings.search.noBaseUrl'), 'error'); return; }
+    if (provider !== 'searxng' && !apiKey) { showToast(t('settings.search.noKey'), 'error'); return; }
     try {
       const res = await hanaFetch('/api/search/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, api_key: apiKey }),
+        body: JSON.stringify({ provider, api_key: apiKey, base_url: baseUrl }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -173,6 +182,7 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
           <SelectWidget
             options={[
               { value: '', label: 'Not configured' },
+              { value: 'searxng', label: 'searXNG' },
               { value: 'tavily', label: 'Tavily' },
               { value: 'brave', label: 'Brave Search' },
               { value: 'serper', label: 'Serper (Google)' },
@@ -183,16 +193,29 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
           />
         </div>
         <div className={`${styles['settings-field']} ${styles['settings-field-half']}`}>
-          <label className={styles['settings-field-label']}>{t('settings.api.searchApiKey')}</label>
-          <KeyInput
-            value={searchApiKey}
-            onChange={(v) => { setSearchApiKey(v); setSearchKeyEdited(true); }}
-            placeholder={t('settings.api.apiKeyPlaceholder')}
-          />
+          <label className={styles['settings-field-label']}>
+            {searchNeedsApiKey ? t('settings.api.searchApiKey') : t('settings.api.baseUrl')}
+          </label>
+          {searchNeedsApiKey ? (
+            <KeyInput
+              value={searchApiKey}
+              onChange={(v) => { setSearchApiKey(v); setSearchKeyEdited(true); }}
+              placeholder={t('settings.api.apiKeyPlaceholder')}
+            />
+          ) : (
+            <input
+              className={styles['settings-input']}
+              value={searchBaseUrl}
+              onChange={(e) => { setSearchBaseUrl(e.target.value); setSearchBaseUrlEdited(true); }}
+              placeholder="https://search.example.com"
+            />
+          )}
           <button className={styles['search-verify-btn']} onClick={verifySearch}>
             {t('settings.search.verify')}
           </button>
-          <span className={styles['settings-field-hint']}>{t('settings.api.searchApiKeyHint')}</span>
+          <span className={styles['settings-field-hint']}>
+            {searchNeedsApiKey ? t('settings.api.searchApiKeyHint') : t('settings.api.searchBaseUrlHint')}
+          </span>
         </div>
       </div>
     </>

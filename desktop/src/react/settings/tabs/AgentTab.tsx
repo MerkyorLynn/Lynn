@@ -16,6 +16,7 @@ import {
   normalizeDisplayProviderLabel,
 } from '../../utils/brain-models';
 import { getDisplayYuanEntries, normalizeYuanKey } from '../../utils/agent-helpers';
+import { resolveRoleDefaultModel } from '../../../../../shared/assistant-role-models.js';
 import styles from '../Settings.module.css';
 import {
   type ExpCategory, parseExperience,
@@ -146,13 +147,28 @@ export function AgentTab() {
     }).catch(() => {});
   }, [activeSettingsConfig]); // settingsConfig 变化时刷新
 
+  const fallbackVisibleModel = useMemo(() => {
+    if (currentModel) return null;
+    if (effectiveAgentId === currentAgentId && currentRuntimeModel?.id) {
+      return {
+        id: currentRuntimeModel.id,
+        provider: currentRuntimeModel.provider || '',
+      };
+    }
+    const fallback = resolveRoleDefaultModel(availableModels as any, currentYuan);
+    return fallback ? { id: fallback.id, provider: fallback.provider || '' } : null;
+  }, [availableModels, currentAgentId, currentModel, currentRuntimeModel, currentYuan, effectiveAgentId]);
+
+  const effectiveCurrentModelId = currentModel || fallbackVisibleModel?.id || '';
+  const effectiveCurrentProvider = currentProvider || fallbackVisibleModel?.provider || '';
+
   const visibleCurrentModel = useMemo(() => {
-    if (!currentModel) return '';
+    if (!effectiveCurrentModelId) return '';
     return encodeUserVisibleModelValue({
-      id: normalizeDisplayModelId(currentModel, currentProvider),
-      provider: currentProvider || undefined,
+      id: normalizeDisplayModelId(effectiveCurrentModelId, effectiveCurrentProvider),
+      provider: effectiveCurrentProvider || undefined,
     });
-  }, [currentModel, currentProvider]);
+  }, [effectiveCurrentModelId, effectiveCurrentProvider]);
 
   const modelOptions = useMemo(() => {
     const opts = buildUserVisibleModelOptions(availableModels).map((option) => ({
@@ -165,14 +181,17 @@ export function AgentTab() {
     if (visibleCurrentModel && !opts.some((model) => model.value === visibleCurrentModel)) {
       opts.unshift({
         value: visibleCurrentModel,
-        label: normalizeDisplayModelName({ id: currentModel, name: currentModel, provider: currentProvider || undefined }) || currentModel,
-        group: currentProvider && currentProvider !== 'brain'
-          ? (normalizeDisplayProviderLabel(currentProvider) || currentProvider)
+        label: normalizeDisplayModelName(
+          { id: effectiveCurrentModelId, name: effectiveCurrentModelId, provider: effectiveCurrentProvider || undefined },
+          { role: currentYuan, purpose: 'chat' },
+        ) || effectiveCurrentModelId,
+        group: effectiveCurrentProvider && effectiveCurrentProvider !== 'brain'
+          ? (normalizeDisplayProviderLabel(effectiveCurrentProvider) || effectiveCurrentProvider)
           : '',
       });
     }
     return opts;
-  }, [availableModels, currentModel, currentProvider, visibleCurrentModel]);
+  }, [availableModels, currentYuan, effectiveCurrentModelId, effectiveCurrentProvider, visibleCurrentModel]);
 
   const selectedAvatarSrc = useMemo(() => {
     if (selectedAgent?.hasAvatar && selectedAgentId) {

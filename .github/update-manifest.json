@@ -1,13 +1,13 @@
 {
   "stable": {
-    "version": "0.75.2",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2",
-    "notes": "Default model identity fix, Tencent Docs MCP built-in on first open, and Windows installer packaging.",
+    "version": "0.75.3",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.3",
+    "notes": "Clearer default-model fallback messaging, stronger pseudo tool-call blocking, and steadier role-based model defaults.",
     "assets": {
-      "darwin-arm64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-macOS-Intel.dmg",
-      "win32-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.2/Lynn-0.75.2-Windows-Setup.exe",
-      "default": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2"
+      "darwin-arm64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.3/Lynn-0.75.3-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.3/Lynn-0.75.3-macOS-Intel.dmg",
+      "win32-x64": "https://github.com/MerkyorLynn/Lynn/releases/download/v0.75.3/Lynn-0.75.3-Windows-Setup.exe",
+      "default": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.3"
     }
   }
 }

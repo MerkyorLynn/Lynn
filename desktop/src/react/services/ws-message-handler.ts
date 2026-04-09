@@ -179,8 +179,9 @@ export function handleServerMessage(msg: any): void {
 
   // ── React 聊天渲染路径：聊天相关事件走 StreamBufferManager ──
   if (REACT_CHAT_EVENTS.has(msg.type)) {
-    if (INLINE_PROGRESS_EVENTS.has(msg.type) && targetsCurrentSession(msg, state.currentSessionPath) && state.inlineError) {
-      useStore.getState().setInlineError(null);
+    if (INLINE_PROGRESS_EVENTS.has(msg.type) && targetsCurrentSession(msg, state.currentSessionPath)) {
+      if (state.inlineNotice) useStore.getState().setInlineNotice(null);
+      if (state.inlineError) useStore.getState().setInlineError(null);
     }
     streamBufferManager.handle(msg);
     // turn_end 后仍需执行部分通用逻辑（loadSessions、context_usage）
@@ -230,9 +231,13 @@ export function handleServerMessage(msg: any): void {
   if (msg.type === 'status') {
     applyStreamingStatus(!!msg.isStreaming);
     if (targetsCurrentSession(msg, state.currentSessionPath)) {
+      if (!msg.isStreaming) {
+        useStore.getState().setInlineNotice(null);
+        return;
+      }
       const notice = resolveUiText(msg.noticeKey || msg.notice || msg.message, msg.noticeVars || msg.vars);
       if (notice) {
-        useStore.getState().setInlineError(notice);
+        useStore.getState().setInlineNotice(notice);
       }
     }
     return;
@@ -241,6 +246,7 @@ export function handleServerMessage(msg: any): void {
     if (!targetsCurrentSession(msg, state.currentSessionPath)) return;
     const errMsg = resolveUiText(msg.message || msg.error || '', msg.messageVars || msg.errorVars || msg.vars);
     if (errMsg) {
+      useStore.getState().setInlineNotice(null);
       useStore.getState().setInlineError(errMsg);
       showError(errMsg);
     }

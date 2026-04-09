@@ -347,9 +347,9 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
             <span className={`${styles.avatar} ${styles.userAvatar}`}>🌸</span>
           )}
           <span className={styles.avatarName}>{displayName}</span>
-          {formatCompactModelLabel(currentModel) && (
+          {formatCompactModelLabel(currentModel, { role: displayYuan, purpose: 'chat' }) && (
             <span className={styles.avatarMeta}>
-              {formatCompactModelLabel(currentModel)}
+              {formatCompactModelLabel(currentModel, { role: displayYuan, purpose: 'chat' })}
             </span>
           )}
           {showStreamingMeta && (
@@ -381,7 +381,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
           agentName={displayName}
           agentYuan={displayYuan}
           agentAvatarUrl={avatarSrc}
-          agentModelLabel={formatCompactModelLabel(currentModel)}
+          agentModelLabel={formatCompactModelLabel(currentModel, { role: displayYuan, purpose: 'chat' })}
           stateKey={message.id}
           sourceResponse={plainText}
           onReviewTaskCreated={handleReviewTaskCreated}

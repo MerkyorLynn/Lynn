@@ -47,10 +47,13 @@ memory:
   forget_speed: 1.0                # 遗忘倍率（1.0 = 正常，2.0 = 忘得快一倍）
 
 # 网页搜索（可选）
-# 支持 tavily / serper / brave。启用后需要显式填写 provider 与 api_key。
-# 推荐 Tavily（免费 1000 次/月）：https://tavily.com
+# 支持 tavily / serper / brave / searxng。
+# 其中 searxng 走自建实例，不需要 API key；其余 provider 需要显式填写 api_key。
+# 对于股价 / 金价 / 指数 / 体育比分这类高实时性问题，建议额外接入专门数据源；
+# 否则 Lynn 会先走网页搜索并提醒用户结果仅供参考。
 search:
-  provider: ""                           # tavily / serper / brave
+  provider: ""                           # tavily / serper / brave / searxng
+  base_url: ""                           # searxng 实例地址，例如 https://search.example.com
   api_key: ""                            # 对应 provider 的 API key
 
 # Skills（per-agent 技能开关）

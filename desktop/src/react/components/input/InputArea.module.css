@@ -885,6 +885,14 @@
     animation: slash-pulse 1.2s ease-in-out infinite;
 }
 
+.slash-notice-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(var(--accent-rgb), 0.72);
+    animation: slash-pulse 1.2s ease-in-out infinite;
+}
+
 @keyframes slash-pulse {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
@@ -898,6 +906,19 @@
     margin-bottom: 6px;
     font-size: 0.85rem;
     color: #c08080;
+}
+
+.slash-notice-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: var(--text);
+    background: rgba(var(--accent-rgb), 0.05);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    border-radius: var(--radius-md);
 }
 
 /* 输入框容器（双行布局） */

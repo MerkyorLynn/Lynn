@@ -30,13 +30,14 @@ interface RecommendedSkill {
   downloads: number;
   builtin?: boolean;
   defaultSeeded?: boolean;
+  requiresCredentials?: boolean;
 }
 
 const RECOMMENDED_SKILLS: RecommendedSkill[] = [
   { id: 'self-improving-agent', aliases: ['self-improvement', 'self-improving-agent'], category: 'AI 智能', score: 100, downloads: 117, builtin: true, defaultSeeded: true },
-  { id: 'tavily-search', aliases: ['tavily', 'tavily-search'], category: '开发工具', score: 99, downloads: 98, builtin: true, defaultSeeded: true },
+  { id: 'tavily-search', aliases: ['tavily', 'tavily-search'], category: '开发工具', score: 99, downloads: 98, builtin: true, defaultSeeded: false, requiresCredentials: true },
   { id: 'find-skills', aliases: ['find-skills'], category: 'AI 智能', score: 97, downloads: 95, builtin: true, defaultSeeded: true },
-  { id: 'summarize', aliases: ['summarize'], category: '效率提升', score: 96, downloads: 95, builtin: true, defaultSeeded: true },
+  { id: 'summarize', aliases: ['summarize'], category: '效率提升', score: 96, downloads: 95, builtin: true, defaultSeeded: false, requiresCredentials: true },
   { id: 'agent-browser', aliases: ['Agent Browser', 'agent-browser'], category: '开发工具', score: 95, downloads: 91, builtin: true, defaultSeeded: true },
   { id: 'github', aliases: ['github'], category: '开发工具', score: 94, downloads: 88, builtin: true, defaultSeeded: true },
   { id: 'proactive-agent', aliases: ['proactive-agent'], category: 'AI 智能', score: 93, downloads: 69, builtin: true, defaultSeeded: true },
@@ -47,7 +48,7 @@ const RECOMMENDED_SKILLS: RecommendedSkill[] = [
   { id: 'humanizer', aliases: ['humanizer'], category: '内容创作', score: 88, downloads: 69, builtin: true, defaultSeeded: true },
   { id: 'ffmpeg-video-editor', aliases: ['ffmpeg-video-editor'], category: '开发工具', score: 87, downloads: 32, builtin: true, defaultSeeded: true },
   { id: 'docker-essentials', aliases: ['docker-essentials'], category: '开发工具', score: 86, downloads: 29, builtin: true, defaultSeeded: true },
-  { id: 'baidu-search', aliases: ['baidu-search'], category: '数据分析', score: 85, downloads: 79, builtin: true, defaultSeeded: true },
+  { id: 'baidu-search', aliases: ['baidu-search'], category: '数据分析', score: 85, downloads: 79, builtin: true, defaultSeeded: false, requiresCredentials: true },
   { id: 'stock-analysis', aliases: ['stock-analysis'], category: '数据分析', score: 84, downloads: 63, builtin: true, defaultSeeded: true },
 ];
 
@@ -77,12 +78,16 @@ function recommendedSkillHint(entry: {
   skill: DeskSkillRecord | null;
   builtin?: boolean;
   defaultSeeded?: boolean;
+  requiresCredentials?: boolean;
 }) {
   if (entry.skill?.enabled) {
     return '已启用，上方“已安装技能”里可以继续查看和关闭。';
   }
   if (entry.skill) {
     return '已经装在本机里了，点右侧按钮即可启用，不需要再复制路径。';
+  }
+  if (entry.requiresCredentials) {
+    return '这个技能需要你先配置自己的 API Key，适合按需安装，不会再默认给新用户启用。';
   }
   if (entry.defaultSeeded && entry.builtin) {
     return '这是默认预装能力，如果当前没装上，点一下即可直接恢复安装。';
