@@ -66,6 +66,10 @@ function buildRunCommandPrompt(command: string, cwd: string | null): string {
   return `请直接在终端执行下面的命令，并基于真实结果回复。不要只解释命令本身。\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``;
 }
 
+function looksLikeI18nKey(value: string): boolean {
+  return /^[a-z0-9_]+(?:\.[a-z0-9_]+)+$/i.test(String(value || '').trim());
+}
+
 const FILE_CONTEXT_PATTERN = /\b([A-Za-z0-9_./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh))\b/i;
 
 function InputAreaInner() {
@@ -114,6 +118,10 @@ function InputAreaInner() {
   const selectorModels = models;
   const noModelsAtAll = models.length === 0;
   const supportsVision = activeModelInfo?.vision !== false && activeModelInfo !== null;
+  const translatedInlineNotice = useMemo(() => {
+    if (!inlineNotice) return null;
+    return looksLikeI18nKey(inlineNotice) ? t(inlineNotice) : inlineNotice;
+  }, [inlineNotice, t]);
 
   const [sending, setSending] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
@@ -743,10 +751,10 @@ function InputAreaInner() {
           </div>
         </div>
       )}
-      {inlineNotice && !recoveryMessage && !taskRecoveryMessage && (
+      {translatedInlineNotice && !recoveryMessage && !taskRecoveryMessage && (
         <div className={styles['slash-notice-bar']}>
           <span className={styles['slash-notice-dot']} />
-          <span>{inlineNotice}</span>
+          <span>{translatedInlineNotice}</span>
         </div>
       )}
       {inlineError && !recoverableDraft && (

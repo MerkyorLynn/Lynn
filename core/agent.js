@@ -756,13 +756,15 @@ export class Agent {
           + "1. 先用 read 工具打开对应 skill 的 `SKILL.md`\n"
           + "2. 按 skill 里的步骤执行，而不是只凭技能名或简短描述猜\n"
           + "3. 如果多个已启用 skill 都相关，先加载最贴近主任务的那个，再按需要补第二个\n"
-          + "4. 不要在已经有匹配 skill 的情况下重新上网搜替代技能"
+          + "4. 不要在已经有匹配 skill 的情况下重新上网搜替代技能\n"
+          + "5. 像“今天金价多少”“今天股价/指数/新闻”这类通用现价与资讯查询，默认先用 web_search、web_fetch、stock_market 等工具完成，不要优先读取重型金融分析 skill（例如 stock-analysis）的 SKILL.md。只有当用户明确要求股票分析、持仓分析、分红分析、趋势扫描、传闻扫描、观察列表或 /stock 系列命令时，才使用这类 skill"
         : "\n## Enabled Skill Matching Rules\n\n"
           + "Enabled skills are not decorative. When the request clearly matches a skill description:\n"
           + "1. Read that skill's `SKILL.md` first\n"
           + "2. Follow the workflow in the skill instead of guessing from the name or short description\n"
           + "3. If multiple enabled skills are relevant, load the one most central to the task first, then add others as needed\n"
-          + "4. Do not search for replacement skills when an enabled skill already matches"
+          + "4. Do not search for replacement skills when an enabled skill already matches\n"
+          + "5. For generic spot-price or news lookups such as “today's gold price”, “today's stock price/index/news”, use web_search, web_fetch, or stock_market first. Do not default to heavyweight finance-analysis skills (for example stock-analysis) unless the user explicitly asks for stock analysis, portfolio/dividend analysis, trend scanning, rumor scanning, watchlists, or /stock-style workflows"
       );
     }
 

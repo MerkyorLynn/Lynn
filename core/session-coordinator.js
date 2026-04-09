@@ -37,6 +37,7 @@ import { resolveCompactionSettings, resolveModelContextWindow } from "./compacti
 import { formatProjectInstructions } from "../lib/project-instructions.js";
 import { getBrainDisplayName, isBrainModelRef } from "../shared/brain-provider.js";
 import { getUserFacingModelAlias, getUserFacingRoleModelLabel, resolveRoleDefaultModel } from "../shared/assistant-role-models.js";
+import { buildRouteIntentSystemHint, classifyRouteIntent } from "../shared/task-route-intent.js";
 
 const log = createModuleLogger("session");
 
@@ -258,6 +259,9 @@ export class SessionCoordinator {
           }
           if (sessionEntry._atInjectionHintContext) {
             extras.push(sessionEntry._atInjectionHintContext);
+          }
+          if (sessionEntry._routeIntentHintContext) {
+            extras.push(sessionEntry._routeIntentHintContext);
           }
           if (sessionEntry._relaySummaryContext) {
             extras.push(sessionEntry._relaySummaryContext);
@@ -558,6 +562,7 @@ export class SessionCoordinator {
       _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
       _lastSkillHintContext: "",
       _atInjectionHintContext: "",
+      _routeIntentHintContext: "",
       _relaySummaryContext: "",
       compactionCount: 0,
       relayInProgress: false,
@@ -686,6 +691,10 @@ export class SessionCoordinator {
           entry._lastSkillHintContext = "";
         }
         entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
+        entry._routeIntentHintContext = buildRouteIntentSystemHint(
+          classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 }),
+          getLocale(),
+        );
       }
     }
 
@@ -704,6 +713,7 @@ export class SessionCoordinator {
           entry._lastRecallContext = "";
           entry._lastSkillHintContext = "";
           entry._atInjectionHintContext = "";
+          entry._routeIntentHintContext = "";
         }
       }
     }
@@ -757,6 +767,10 @@ export class SessionCoordinator {
       entry._lastSkillHintContext = "";
     }
     entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
+    entry._routeIntentHintContext = buildRouteIntentSystemHint(
+      classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 }),
+      getLocale(),
+    );
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
@@ -767,6 +781,7 @@ export class SessionCoordinator {
       entry._lastRecallContext = "";
       entry._lastSkillHintContext = "";
       entry._atInjectionHintContext = "";
+      entry._routeIntentHintContext = "";
     }
   }
 

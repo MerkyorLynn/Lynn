@@ -31,6 +31,12 @@ import {
   countPseudoToolMarkers,
   stripPseudoToolCallMarkup,
 } from "../../shared/pseudo-tool-call.js";
+import {
+  classifyRouteIntent,
+  getDefaultRouteRecoveryNoticeKey,
+  getDefaultRouteSlowNoticeKey,
+  ROUTE_INTENTS,
+} from "../../shared/task-route-intent.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
@@ -106,22 +112,23 @@ function reportEmptyResponse(engine, sessionPath) {
   });
 }
 
-function buildSlowNoticePayload(engine, sessionPath, elapsedMs) {
+function buildSlowNoticePayload(engine, sessionPath, routeIntent, elapsedMs) {
   const info = resolveCurrentModelInfo(engine);
   if (info.isBrain) {
+    const noticeKey = getDefaultRouteSlowNoticeKey(routeIntent, elapsedMs);
     if (elapsedMs < 60_000) {
       return {
         type: "status",
         isStreaming: true,
         sessionPath,
-        noticeKey: "status.defaultModelSlowResponse",
+        noticeKey,
       };
     }
     return {
       type: "status",
       isStreaming: true,
       sessionPath,
-      noticeKey: "status.defaultModelStillWorking",
+      noticeKey,
       noticeVars: {
         minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
       },
@@ -146,14 +153,14 @@ function buildSlowNoticePayload(engine, sessionPath, elapsedMs) {
   };
 }
 
-function buildPseudoToolRecoveryNotice(engine, sessionPath) {
+function buildPseudoToolRecoveryNotice(engine, sessionPath, routeIntent) {
   const info = resolveCurrentModelInfo(engine);
   return {
     type: "status",
     isStreaming: true,
     sessionPath,
     noticeKey: info.isBrain
-      ? "status.defaultModelRecoveringToolExecution"
+      ? getDefaultRouteRecoveryNoticeKey(routeIntent)
       : "status.recoveringToolExecution",
   };
 }
@@ -257,6 +264,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         titleRequested: false,
         titlePreview: "",
         lastActivity: Date.now(),
+        routeIntent: ROUTE_INTENTS.CHAT,
         ...createSessionStreamState(),
       });
     }
@@ -375,7 +383,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.pseudoToolMarkerCount = Math.max(ss.pseudoToolMarkerCount || 0, countPseudoToolMarkers(ss.rawTextAcc));
       if (!ss.hasToolCall && !ss.pseudoToolSimulationSteered && engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) {
         ss.pseudoToolSimulationSteered = true;
-        broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath));
+        broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
       }
       if (!ss.hasToolCall
         && !ss.pseudoToolAbortRequested
@@ -871,6 +879,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.hasToolCall = false;
       ss.hasThinking = false;
       ss.hasError = false;
+      ss.routeIntent = ROUTE_INTENTS.CHAT;
       resetTextTracking(ss);
       ss.thinkTagParser.reset();
       ss.moodParser.reset();
@@ -1086,6 +1095,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               }
               const ss = getState(promptSessionPath);
               try {
+                ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
                 ss.thinkTagParser.reset();
                 ss.moodParser.reset();
                 ss.xingParser.reset();
@@ -1110,7 +1120,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     return;
                   }
                   const elapsedMs = Date.now() - slowNoticeStartedAt;
-                  broadcast(buildSlowNoticePayload(engine, promptSessionPath, elapsedMs));
+                  broadcast(buildSlowNoticePayload(engine, promptSessionPath, ss.routeIntent, elapsedMs));
                 };
                 const slowStreamTimer = setTimeout(() => {
                   broadcastSlowNotice();

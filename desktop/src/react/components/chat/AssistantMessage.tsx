@@ -168,6 +168,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [dismissModelHint]);
 
   const { t } = useI18n();
+  const openLabel = fallbackI18n(t('common.open'), 'Open');
   const [copied, setCopied] = useState(false);
   const [reviewRequestPending, setReviewRequestPending] = useState(false);
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
@@ -382,6 +383,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
           agentYuan={displayYuan}
           agentAvatarUrl={avatarSrc}
           agentModelLabel={formatCompactModelLabel(currentModel, { role: displayYuan, purpose: 'chat' })}
+          openLabel={openLabel}
           stateKey={message.id}
           sourceResponse={plainText}
           onReviewTaskCreated={handleReviewTaskCreated}
@@ -469,12 +471,13 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   );
 });
 
-const ContentBlockView = memo(function ContentBlockView({ block, agentName, agentYuan, agentAvatarUrl, agentModelLabel, stateKey, sourceResponse, onReviewTaskCreated }: {
+const ContentBlockView = memo(function ContentBlockView({ block, agentName, agentYuan, agentAvatarUrl, agentModelLabel, openLabel, stateKey, sourceResponse, onReviewTaskCreated }: {
   block: ContentBlock;
   agentName: string;
   agentYuan?: string;
   agentAvatarUrl?: string | null;
   agentModelLabel?: string | null;
+  openLabel: string;
   stateKey?: string;
   sourceResponse?: string;
   onReviewTaskCreated?: () => void;
@@ -489,7 +492,7 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, agen
     case 'xing':
       return <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />;
     case 'file_output':
-      return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} />;
+      return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} openLabel={openLabel} />;
     case 'file_diff':
       return <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />;
     case 'artifact':
@@ -557,8 +560,24 @@ function extLabel(ext: string): string {
   return EXT_LABELS[ext.toLowerCase()] || ext.toUpperCase();
 }
 
-function FileOutputCard({ filePath, label, ext }: { filePath: string; label: string; ext: string }) {
-  const [hover, setHover] = useState(false);
+function fallbackI18n(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const trimmed = String(value).trim();
+  if (/^[a-z0-9_]+(?:\.[a-z0-9_]+)+$/i.test(trimmed)) return fallback;
+  return trimmed;
+}
+
+function FileOutputCard({
+  filePath,
+  label,
+  ext,
+  openLabel,
+}: {
+  filePath: string;
+  label: string;
+  ext: string;
+  openLabel: string;
+}) {
   const [mdHtml, setMdHtml] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const isMd = ext === 'md' || ext === 'markdown';
@@ -579,27 +598,27 @@ function FileOutputCard({ filePath, label, ext }: { filePath: string; label: str
     <div
       className={styles.fileOutputCard}
       style={isMd && mdHtml ? { flexDirection: 'column', alignItems: 'stretch', maxWidth: '100%' } : undefined}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
     >
       <div className={styles.fileOutputHead}>
         <span className={styles.fileOutputBadge}>{extLabel(ext)}</span>
         <span className={styles.fileOutputLabel}>{label || filePath.split('/').pop() || filePath}</span>
-        {isMd && mdHtml && (
-          <button
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '0 4px' }}
-            onClick={(e) => { e.stopPropagation(); setCollapsed(c => !c); }}
-          >
-            {collapsed ? '▶' : '▼'}
+        <div className={styles.fileOutputActions}>
+          <button type="button" className={styles.fileOutputOpen} onClick={() => openFilePreview(filePath, label, ext)}>
+            {openLabel}
           </button>
-        )}
+          {isMd && mdHtml && (
+            <button
+              type="button"
+              className={styles.fileOutputToggle}
+              onClick={(e) => { e.stopPropagation(); setCollapsed(c => !c); }}
+              aria-label={collapsed ? 'Expand preview' : 'Collapse preview'}
+            >
+              {collapsed ? '▶' : '▼'}
+            </button>
+          )}
+        </div>
       </div>
       <div className={styles.fileOutputPath}>{filePath}</div>
-      {hover && (
-        <button className={styles.fileOutputOpen} onClick={() => openFilePreview(filePath, label, ext)}>
-          {window.t('common.open') || 'Open'}
-        </button>
-      )}
       {isMd && mdHtml && !collapsed && (
         <div
           className="md-content"

@@ -3,6 +3,7 @@ import type { PromptImage, UserAttachment, GitContext } from './chat-types';
 import type { ComposerDraft, QuotedSelection } from './input-slice';
 import { ensureSession, showSidebarToast } from './session-actions';
 import { getWebSocket } from '../services/websocket';
+import { classifyRouteIntent, getRouteIntentNoticeKey } from '../../../../shared/task-route-intent.js';
 
 export interface SendPromptOptions {
   mode?: 'prompt' | 'steer';
@@ -104,6 +105,17 @@ export async function submitPromptTask(options: SendPromptOptions): Promise<bool
   });
   syncOptimisticSessionList(displayText || requestText, sessionPath);
   useStore.setState({ welcomeVisible: false });
+
+  if (mode === 'prompt') {
+    const routeIntent = classifyRouteIntent(requestText, { imagesCount: options.images?.length || 0 });
+    const noticeKey = getRouteIntentNoticeKey(routeIntent);
+    const notice = noticeKey ? window.t?.(noticeKey) : null;
+    if (notice) {
+      const store = useStore.getState();
+      store.setInlineError?.(null);
+      store.setInlineNotice?.(notice);
+    }
+  }
 
   if (mode === 'steer') {
     ws.send(JSON.stringify({ type: 'steer', text: requestText, sessionPath }));

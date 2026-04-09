@@ -159,7 +159,6 @@ describe('ensureFirstRun', () => {
       'ffmpeg-video-editor',
       'docker-essentials',
       'baidu-search',
-      'stock-analysis',
     ]));
     expect(migrated.skills._recommended_seeded).toBe(true);
   });

@@ -49,7 +49,7 @@ const RECOMMENDED_SKILLS: RecommendedSkill[] = [
   { id: 'ffmpeg-video-editor', aliases: ['ffmpeg-video-editor'], category: '开发工具', score: 87, downloads: 32, builtin: true, defaultSeeded: true },
   { id: 'docker-essentials', aliases: ['docker-essentials'], category: '开发工具', score: 86, downloads: 29, builtin: true, defaultSeeded: true },
   { id: 'baidu-search', aliases: ['baidu-search'], category: '数据分析', score: 85, downloads: 79, builtin: true, defaultSeeded: false, requiresCredentials: true },
-  { id: 'stock-analysis', aliases: ['stock-analysis'], category: '数据分析', score: 84, downloads: 63, builtin: true, defaultSeeded: true },
+  { id: 'stock-analysis', aliases: ['stock-analysis'], category: '数据分析', score: 84, downloads: 63, builtin: true, defaultSeeded: false },
 ];
 
 const CAPABILITY_CATEGORIES = [

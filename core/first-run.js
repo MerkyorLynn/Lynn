@@ -31,7 +31,6 @@ const RECOMMENDED_DEFAULT_SKILLS = [
   "ffmpeg-video-editor",
   "docker-essentials",
   "baidu-search",
-  "stock-analysis",
 ];
 
 const BUILT_IN_AGENT_SPECS = [
@@ -87,6 +86,7 @@ export function ensureFirstRun(lynnHome, productDir) {
   if (fs.existsSync(skillsSrc)) {
     syncSkills(skillsSrc, skillsDst);
     seedRecommendedSkills(agentsDir, skillsDst);
+    unseedDeprecatedRecommendedSkills(agentsDir);
   }
 
   // 4. 确保可选文件存在（老用户升级 + 新 agent 都覆盖）
@@ -574,6 +574,37 @@ function seedRecommendedSkills(agentsDir, skillsDir) {
 
       cfg.skills.enabled = [...new Set([...currentEnabled, ...recommended])];
       cfg.skills._recommended_seeded = true;
+      fs.writeFileSync(configPath, YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
+    } catch {}
+  }
+}
+
+function hasStockAnalysisUserData() {
+  const root = path.join(os.homedir(), ".clawdbot", "skills", "stock-analysis");
+  return fs.existsSync(path.join(root, "portfolios.json"))
+    || fs.existsSync(path.join(root, "watchlist.json"));
+}
+
+function unseedDeprecatedRecommendedSkills(agentsDir) {
+  const deprecated = new Set(["stock-analysis"]);
+  if (deprecated.size === 0 || hasStockAnalysisUserData()) return;
+
+  const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const configPath = path.join(agentsDir, entry.name, "config.yaml");
+    if (!fs.existsSync(configPath)) continue;
+
+    try {
+      const cfg = YAML.load(fs.readFileSync(configPath, "utf-8")) || {};
+      const enabled = Array.isArray(cfg?.skills?.enabled) ? cfg.skills.enabled.filter(Boolean) : [];
+      if (enabled.length === 0) continue;
+
+      const nextEnabled = enabled.filter((name) => !deprecated.has(name));
+      if (nextEnabled.length === enabled.length) continue;
+
+      cfg.skills = cfg.skills || {};
+      cfg.skills.enabled = nextEnabled;
       fs.writeFileSync(configPath, YAML.dump(cfg, { lineWidth: 120, noRefs: true, quotingType: '"' }), "utf-8");
     } catch {}
   }

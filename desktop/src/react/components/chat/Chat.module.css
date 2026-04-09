@@ -1857,17 +1857,66 @@
 
 .fileOutputCard {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--space-md);
     min-width: 300px;
-    max-width: 420px;
+    max-width: min(100%, 920px);
     margin: var(--space-sm) 0;
-    padding: 0.7rem 0.9rem;
+    padding: 0.9rem 1rem;
     background: var(--bg-card, var(--bg));
     border: 1px solid var(--border, rgba(0,0,0,0.1));
     border-radius: var(--radius-lg);
     overflow: hidden;
     transition: background 0.15s, border-color 0.15s;
+}
+
+.fileOutputHead {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.fileOutputBadge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+}
+
+.fileOutputLabel {
+    min-width: 0;
+    flex: 1;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.fileOutputActions {
+    flex-shrink: 0;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.fileOutputPath {
+    width: 100%;
+    margin-top: 0.4rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    word-break: break-all;
 }
 
 .fileOutputPreviewable:hover {
@@ -1910,16 +1959,19 @@
 
 .fileOutputOpen {
     flex-shrink: 0;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    margin-left: auto;
+    min-width: 60px;
+    height: 32px;
+    padding: 0 0.8rem;
     background: transparent;
     color: var(--text-muted);
     border: 1px solid var(--border, rgba(0,0,0,0.1));
     border-radius: var(--radius-sm);
+    white-space: nowrap;
+    font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
     transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
@@ -1928,6 +1980,26 @@
     color: var(--text);
     border-color: var(--text-muted);
     background: var(--overlay-light, rgba(0,0,0,0.04));
+}
+
+.fileOutputToggle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.fileOutputToggle:hover {
+    background: var(--overlay-light, rgba(0,0,0,0.04));
+    color: var(--text);
 }
 
 /* ── 聊天气泡中的 Artifact 卡片 ── */
