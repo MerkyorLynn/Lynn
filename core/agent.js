@@ -24,6 +24,7 @@ import { createStockMarketTool } from "../lib/tools/stock-market.js";
 import { createLiveNewsTool, createSportsScoreTool, createWeatherTool } from "../lib/tools/realtime-info.js";
 import { createPresentFilesTool } from "../lib/tools/output-file-tool.js";
 import { createArtifactTool } from "../lib/tools/artifact-tool.js";
+import { createPptxTool } from "../lib/tools/pptx-tool.js";
 import { createChannelTool } from "../lib/tools/channel-tool.js";
 import { createAskAgentTool } from "../lib/tools/ask-agent-tool.js";
 import { createDmTool } from "../lib/tools/dm-tool.js";
@@ -370,6 +371,7 @@ export class Agent {
     });
     this._presentFilesTool = createPresentFilesTool();
     this._artifactTool = createArtifactTool();
+    this._pptxTool = createPptxTool({ getDeskDir: () => this.deskDir });
     this._browserTool = createBrowserTool();
     this._notifyTool = createNotifyTool({
       onNotify: (title, body) => this._notifyHandler?.(title, body),
@@ -533,6 +535,7 @@ export class Agent {
       this._cronTool,
       this._presentFilesTool,
       this._artifactTool,
+      this._pptxTool,
       this._channelTool,
       this._askAgentTool,
       this._dmTool,

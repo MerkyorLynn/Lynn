@@ -380,6 +380,9 @@
     "copy": "Copy",
     "copied": "Copied ✓"
   },
+  "preview": {
+    "openInBrowser": "Open in Browser"
+  },
   "cron": {
     "typeAt": "Once",
     "typeEvery": "Interval",
@@ -1787,6 +1790,18 @@
       "titleDesc": "Display title, a short description of the content",
       "contentDesc": "Full content (HTML source / code / Markdown text)",
       "languageDesc": "Programming language (only for type=code), e.g. javascript, python, css"
+    },
+    "pptx": {
+      "label": "Create PPT",
+      "description": "Generate a PowerPoint presentation (.pptx file). Provide a title and slides array to create a professional PPT.\nEach slide supports 4 layouts: title (cover page), content (default), section (transition), two_column (side-by-side comparison).\nLines starting with - or * in body are rendered as bullet points. Use ||| to separate left/right columns in two_column layout.",
+      "titleDesc": "Presentation title",
+      "authorDesc": "Author name (optional)",
+      "slidesDesc": "Array of slides, each with layout, title, body, notes",
+      "layoutDesc": "Layout type: title (cover), content (default), section (transition), two_column (comparison)",
+      "slideTitleDesc": "Slide title",
+      "bodyDesc": "Slide body content, supports Markdown list format. Use ||| to separate columns in two_column layout",
+      "notesDesc": "Speaker notes (optional)",
+      "created": "Created PPT \"{title}\" with {count} slides, saved to {path}"
     },
     "askAgent": {
       "label": "Cross-Agent Call",

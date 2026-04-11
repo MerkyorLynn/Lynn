@@ -721,6 +721,19 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         });
       }
 
+      if (event.toolName === "create_pptx") {
+        const details = event.result?.details || {};
+        const files = details.files || [];
+        for (const f of files) {
+          emitStreamEvent(sessionPath, ss, {
+            type: "file_output",
+            filePath: f.filePath,
+            label: f.label,
+            ext: f.ext || "pptx",
+          });
+        }
+      }
+
       if (event.toolName === "browser") {
         const d = event.result?.details || {};
         if (d.action === "screenshot" && event.result?.content) {

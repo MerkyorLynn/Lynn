@@ -29,6 +29,10 @@ export function FloatingActions({ artifact, content, editable, onDetach, onExpor
     });
   }, [content]);
 
+  const handleOpenInBrowser = useCallback(() => {
+    window.platform?.openHtmlInBrowser?.(content, artifact.title);
+  }, [content, artifact.title]);
+
   const handleAttachToInput = useCallback(() => {
     if (!artifact.filePath) return;
     addAttachedFile({
@@ -50,6 +54,16 @@ export function FloatingActions({ artifact, content, editable, onDetach, onExpor
         </svg>
         <span>{copyLabel ?? t('attach.copy')}</span>
       </button>
+      {artifact.type === 'html' && (
+        <button className={styles.actionBtn} onClick={handleOpenInBrowser} title={t('preview.openInBrowser')}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          <span>{t('preview.openInBrowser')}</span>
+        </button>
+      )}
       {artifact.filePath && (
         <button className={styles.actionBtn} onClick={handleAttachToInput} title={t('input.attachFile')}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

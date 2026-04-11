@@ -232,6 +232,7 @@ export interface PlatformApi {
   openSettings(target?: string | SettingsNavigationTarget): void;
   getInitialSettingsNavigationTarget?(): Promise<SettingsNavigationTarget | null>;
   openBrowserViewer(url?: string, theme?: string): void;
+  openHtmlInBrowser(html: string, title?: string): Promise<void>;
   selectFolder(): Promise<string | null>;
   getOnboardingDefaults?(): Promise<{ workspacePath: string; trustedRoots: string[]; installRoot?: string | null; desktopRoot?: string | null }>;
   selectSkill(): Promise<string | null>;

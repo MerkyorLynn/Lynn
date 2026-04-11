@@ -372,6 +372,9 @@
     "copy": "複製",
     "copied": "已複製 ✓"
   },
+  "preview": {
+    "openInBrowser": "在瀏覽器中開啟"
+  },
   "cron": {
     "typeAt": "單次",
     "typeEvery": "間隔",
@@ -1689,6 +1692,18 @@
       "titleDesc": "展示標題，簡短描述內容",
       "contentDesc": "完整內容（HTML 原始碼 / 程式碼 / Markdown 文字）",
       "languageDesc": "程式語言（僅 type=code 時有效），如 javascript, python, css"
+    },
+    "pptx": {
+      "label": "建立 PPT",
+      "description": "產生 PowerPoint 簡報檔（.pptx 檔案）。提供標題和投影片陣列即可自動產生專業的 PPT 檔案。\n每張投影片支援 4 種版面：title（封面頁）、content（內容頁，預設）、section（章節過渡頁）、two_column（雙欄對比頁）。\n正文中以 - 或 * 開頭的行會呈現為項目符號清單。雙欄版面用 ||| 分隔左右內容。",
+      "titleDesc": "簡報標題",
+      "authorDesc": "作者姓名（選填）",
+      "slidesDesc": "投影片陣列，每張包含 layout、title、body、notes",
+      "layoutDesc": "版面類型：title（封面）、content（預設）、section（過渡）、two_column（對比）",
+      "slideTitleDesc": "投影片標題",
+      "bodyDesc": "投影片正文，支援 Markdown 清單格式。雙欄版面用 ||| 分隔左右內容",
+      "notesDesc": "演講者備註（選填）",
+      "created": "已產生 PPT「{title}」，共 {count} 頁，儲存至 {path}"
     },
     "askAgent": {
       "label": "跨 Agent 呼叫",

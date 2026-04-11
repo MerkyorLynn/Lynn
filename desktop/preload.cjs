@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("hana", {
   selectSkill: () => ipcRenderer.invoke("select-skill"),
   openFolder: (path) => ipcRenderer.invoke("open-folder", path),
   openFile: (path) => ipcRenderer.invoke("open-file", path),
+  openHtmlInBrowser: (html, title) => ipcRenderer.invoke("open-html-in-browser", html, title),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   showInFinder: (path) => ipcRenderer.invoke("show-in-finder", path),
   saveFileDialog: (opts) => ipcRenderer.invoke("save-file-dialog", opts),

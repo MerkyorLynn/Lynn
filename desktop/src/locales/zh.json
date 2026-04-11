@@ -466,6 +466,9 @@
     "copy": "复制",
     "copied": "已复制 ✓"
   },
+  "preview": {
+    "openInBrowser": "在浏览器中打开"
+  },
   "cron": {
     "typeAt": "单次",
     "typeEvery": "间隔",
@@ -1811,6 +1814,18 @@
       "titleDesc": "展示标题，简短描述内容",
       "contentDesc": "完整内容（HTML 源码 / 代码 / Markdown 文本）",
       "languageDesc": "编程语言（仅 type=code 时有效），如 javascript, python, css"
+    },
+    "pptx": {
+      "label": "创建 PPT",
+      "description": "生成 PowerPoint 演示文稿（.pptx 文件）。提供标题和幻灯片数组即可自动生成专业的 PPT 文件。\n每张幻灯片支持 4 种布局：title（标题页）、content（内容页，默认）、section（章节过渡页）、two_column（双栏对比页）。\n正文 body 中以 - 或 * 开头的行会渲染为项目符号列表。双栏布局用 ||| 分隔左右两栏内容。",
+      "titleDesc": "演示文稿的标题",
+      "authorDesc": "作者姓名（可选）",
+      "slidesDesc": "幻灯片数组，每张包含 layout、title、body、notes",
+      "layoutDesc": "布局类型：title（标题页）、content（内容页，默认）、section（章节过渡页）、two_column（双栏对比页）",
+      "slideTitleDesc": "幻灯片标题",
+      "bodyDesc": "幻灯片正文内容，支持 Markdown 列表格式。双栏布局用 ||| 分隔左右内容",
+      "notesDesc": "演讲者备注（可选）",
+      "created": "已生成 PPT「{title}」，共 {count} 页，保存至 {path}"
     },
     "askAgent": {
       "label": "跨 Agent 调用",

@@ -74,6 +74,7 @@
     // OS 集成 → 静默降级
     openFolder: () => {},
     openFile: () => {},
+    openHtmlInBrowser: async (html) => { try { const b = new Blob([html], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); } catch {} },
     openExternal: (url) => { try { window.open(url, '_blank'); } catch {} },
     showInFinder: () => {},
     startDrag: () => {},

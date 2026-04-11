@@ -236,6 +236,9 @@
     "copy": "복사",
     "copied": "복사됨 ✓"
   },
+  "preview": {
+    "openInBrowser": "브라우저에서 열기"
+  },
   "cron": {
     "typeAt": "1회",
     "typeEvery": "반복",
@@ -1597,6 +1600,18 @@
       "titleDesc": "표시 제목, 콘텐츠에 대한 간단한 설명",
       "contentDesc": "전체 콘텐츠 (HTML 소스 / 코드 / Markdown 텍스트)",
       "languageDesc": "프로그래밍 언어 (type=code일 때만 유효), 예: javascript, python, css"
+    },
+    "pptx": {
+      "label": "PPT 만들기",
+      "description": "PowerPoint 프레젠테이션(.pptx 파일)을 생성합니다. 제목과 슬라이드 배열을 제공하면 전문적인 PPT를 자동으로 생성합니다.\n각 슬라이드는 4가지 레이아웃 지원: title(표지), content(기본), section(구분), two_column(2열 비교).\n본문에서 - 또는 *로 시작하는 줄은 글머리 기호로 렌더링됩니다. two_column 레이아웃에서는 |||로 좌우를 구분합니다.",
+      "titleDesc": "프레젠테이션 제목",
+      "authorDesc": "저자 이름 (선택)",
+      "slidesDesc": "슬라이드 배열, 각각 layout, title, body, notes 포함",
+      "layoutDesc": "레이아웃: title(표지), content(기본), section(구분), two_column(비교)",
+      "slideTitleDesc": "슬라이드 제목",
+      "bodyDesc": "슬라이드 본문, Markdown 목록 형식 지원. two_column에서는 |||로 좌우 구분",
+      "notesDesc": "발표자 노트 (선택)",
+      "created": "PPT \"{title}\" 생성 완료, {count}페이지, 저장 위치: {path}"
     },
     "askAgent": {
       "label": "크로스 Agent 호출",

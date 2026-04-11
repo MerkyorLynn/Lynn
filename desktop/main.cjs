@@ -2683,6 +2683,18 @@ wrapIpcHandler("open-file", (event, filePath) => {
   shell.openPath(access.canonical);
 });
 
+wrapIpcHandler("open-html-in-browser", async (_event, html, title) => {
+  if (typeof html !== "string" || !html) return;
+  const safeTitle = String(title || "lynn-report").replace(/[\\/:*?"<>|]/g, "-").slice(0, 80);
+  const tmpFile = path.join(os.tmpdir(), `${safeTitle}-${Date.now()}.html`);
+  try {
+    fs.writeFileSync(tmpFile, html, "utf-8");
+    await shell.openPath(tmpFile);
+  } catch (err) {
+    log.error("[open-html-in-browser]", err.message || err);
+  }
+});
+
 wrapIpcHandler("save-file-dialog", async (event, opts = {}) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (!win) return null;

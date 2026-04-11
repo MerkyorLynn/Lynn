@@ -236,6 +236,9 @@
     "copy": "コピー",
     "copied": "コピーしました ✓"
   },
+  "preview": {
+    "openInBrowser": "ブラウザで開く"
+  },
   "cron": {
     "typeAt": "一回のみ",
     "typeEvery": "一定間隔",
@@ -1587,6 +1590,18 @@
       "titleDesc": "表示タイトル、コンテンツの簡単な説明",
       "contentDesc": "完全なコンテンツ（HTML ソース / コード / Markdown テキスト）",
       "languageDesc": "プログラミング言語（type=code の場合のみ有効）、例：javascript, python, css"
+    },
+    "pptx": {
+      "label": "PPT 作成",
+      "description": "PowerPoint プレゼンテーション（.pptx）を生成します。タイトルとスライド配列を指定するだけでプロフェッショナルな PPT を自動作成します。\n各スライドは 4 種類のレイアウトに対応：title（表紙）、content（コンテンツ、デフォルト）、section（セクション区切り）、two_column（2 列比較）。\n本文で - または * で始まる行は箇条書きになります。two_column レイアウトでは ||| で左右を区切ります。",
+      "titleDesc": "プレゼンテーションのタイトル",
+      "authorDesc": "著者名（任意）",
+      "slidesDesc": "スライドの配列。各スライドに layout、title、body、notes を指定",
+      "layoutDesc": "レイアウト：title（表紙）、content（デフォルト）、section（区切り）、two_column（2列）",
+      "slideTitleDesc": "スライドのタイトル",
+      "bodyDesc": "スライドの本文。Markdown リスト形式対応。two_column では ||| で左右を区切る",
+      "notesDesc": "スピーカーノート（任意）",
+      "created": "PPT「{title}」を作成しました。{count} ページ、保存先: {path}"
     },
     "askAgent": {
       "label": "クロス Agent 呼び出し",
