@@ -1827,6 +1827,25 @@
       "notesDesc": "演讲者备注（可选）",
       "created": "已生成 PPT「{title}」，共 {count} 页，保存至 {path}"
     },
+    "report": {
+      "label": "生成报告",
+      "description": "生成专业的深色主题 HTML 分析报告。内置精美模板，你只需提供结构化数据（标题、指标卡片、文本章节、数据表格、走势预判、风险提示）。\n章节类型：metrics（指标卡片网格）、text（段落文本）、table（数据表格）、verdict（预判卡片）、warning（风险警示框）。\n适用场景：个股深度分析、行业研究、产品评测、竞品分析等需要专业排版的报告。",
+      "titleDesc": "报告标题",
+      "tagDesc": "分类标签，如「连接器 · 估值分析」",
+      "subtitleDesc": "副标题，一行描述",
+      "dateDesc": "报告日期",
+      "sectionsDesc": "章节数组",
+      "secTitleDesc": "章节标题",
+      "secTypeDesc": "章节类型：metrics/text/table/verdict/warning",
+      "disclaimerDesc": "免责声明（可选）",
+      "created": "已生成报告「{title}」，共 {count} 个章节，保存至 {path}"
+    },
+    "stockResearch": {
+      "label": "股票研究",
+      "description": "获取 A 股深度研究数据：60日行情、财务指标（8个季度）、利润表（4年）、十大股东、估值数据（PE/PB/市值）。在生成分析报告前先调用此工具获取真实数据。仅支持 A 股。",
+      "codeDesc": "股票代码（带交易所后缀），如 688629.SH 或 000001.SZ",
+      "nameDesc": "公司名称（用于显示）"
+    },
     "askAgent": {
       "label": "跨 Agent 调用",
       "description": "派任务给另一个 agent，立即拿到结果。对方会当场处理并回复，你可以直接把结果告诉用户。\n适用场景：让对方 review 代码、翻译一段文字、从对方的专业视角分析问题等需要即时反馈的任务。\n对方以自己的人格和模型回复，有只读工具（读文件、搜索、web fetch），不能写文件或调用其他 agent。",

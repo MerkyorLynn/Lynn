@@ -1803,6 +1803,25 @@
       "notesDesc": "Speaker notes (optional)",
       "created": "Created PPT \"{title}\" with {count} slides, saved to {path}"
     },
+    "report": {
+      "label": "Generate Report",
+      "description": "Generate a professional dark-themed HTML analysis report with built-in template. Provide structured data (title, metrics, sections) and the tool renders a polished page.\nSection types: metrics (KPI card grid), text (paragraphs), table (data table), verdict (prediction cards), warning (alert box).\nUse for: stock analysis, industry research, product reviews, competitive analysis.",
+      "titleDesc": "Report title",
+      "tagDesc": "Category tag, e.g. 'Semiconductor · Valuation'",
+      "subtitleDesc": "Subtitle, one line description",
+      "dateDesc": "Report date",
+      "sectionsDesc": "Sections array",
+      "secTitleDesc": "Section title",
+      "secTypeDesc": "Section type: metrics/text/table/verdict/warning",
+      "disclaimerDesc": "Disclaimer text (optional)",
+      "created": "Generated report \"{title}\" with {count} sections, saved to {path}"
+    },
+    "stockResearch": {
+      "label": "Stock Research",
+      "description": "Get comprehensive A-share stock research data: 60-day price history, financial indicators (8 quarters), income statement (4 years), top 10 shareholders, valuation (PE/PB/market cap). Call this BEFORE create_report to get real data. A-shares only.",
+      "codeDesc": "Stock code with exchange suffix, e.g. 688629.SH or 000001.SZ",
+      "nameDesc": "Company name (for display)"
+    },
     "askAgent": {
       "label": "Cross-Agent Call",
       "description": "Assign a task to another agent and get an immediate result. The other agent processes it on the spot and responds, and you can relay the result to the user.\nGood for: having the other agent review code, translate text, analyze a problem from their expertise, or any task requiring instant feedback.\nThe other agent responds with its own persona and model, has read-only tools (read files, search, web fetch), and cannot write files or call other agents.",
