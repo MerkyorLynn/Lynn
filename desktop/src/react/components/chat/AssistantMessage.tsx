@@ -651,16 +651,29 @@ function ArtifactCard({ title, artifactType, artifactId, content, language }: {
   content: string;
   language?: string;
 }) {
+  const t = window.t ?? ((p: string) => p);
   return (
-    <button
+    <div
       className={styles.fileOutputCard}
+      style={{ cursor: 'pointer' }}
       onClick={() => openPreview({ id: artifactId, type: artifactType as any, title, content, language })}
     >
       <div className={styles.fileOutputHead}>
         <span className={styles.fileOutputBadge}>{artifactType.toUpperCase()}</span>
         <span className={styles.fileOutputLabel}>{title}</span>
+        {artifactType === 'html' && (
+          <div className={styles.fileOutputActions}>
+            <button
+              type="button"
+              className={styles.fileOutputOpen}
+              onClick={(e) => { e.stopPropagation(); window.platform?.openHtmlInBrowser?.(content, title); }}
+            >
+              {t('preview.openInBrowser')}
+            </button>
+          </div>
+        )}
       </div>
-    </button>
+    </div>
   );
 }
 
