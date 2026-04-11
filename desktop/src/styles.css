@@ -1441,6 +1441,15 @@ html[data-platform="darwin"] .main-content::before {
     line-height: 1.5;
 }
 
+.md-content pre .code-btn-group {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    display: flex;
+    gap: 0.25rem;
+    z-index: 2;
+}
+
 /* 代码块复制按钮 */
 .md-content pre .copy-btn {
     position: absolute;
@@ -1456,6 +1465,12 @@ html[data-platform="darwin"] .main-content::before {
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.md-content pre .code-btn-group .copy-btn {
+    position: static;
+    top: auto;
+    right: auto;
 }
 
 .md-content pre:hover .copy-btn {

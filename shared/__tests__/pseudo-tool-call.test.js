@@ -19,6 +19,7 @@ describe("pseudo tool detection", () => {
   it("detects xml-style pseudo tool tags before cleanup", () => {
     expect(containsPseudoToolSimulation('<tool_call name="web_search">x</tool_call>')).toBe(true);
     expect(containsPseudoToolSimulation('<invoke name="read_file">x</invoke>')).toBe(true);
+    expect(containsPseudoToolSimulation('<execute>\n\n</execute>')).toBe(true);
   });
 
   it("detects shell-style pseudo commands", () => {
@@ -42,6 +43,8 @@ describe("pseudo tool detection", () => {
       "先看一下",
       "",
       'web_search(querys=["今日金价"])',
+      "",
+      "<execute>\n\n</execute>",
       "",
       "<tool_call name=\"web_search\">x</tool_call>",
       "",

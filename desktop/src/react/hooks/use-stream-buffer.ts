@@ -16,6 +16,7 @@ import { cleanMoodText } from '../utils/message-parser';
 import { sanitizeBrainIdentityDisclosureText } from '../../../../shared/brain-provider.js';
 // @ts-expect-error - shared JS module
 import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
+import { normalizeReportResponseText } from '../../../../shared/report-normalizer.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 流式消息 handle(msg) 接收动态 JSON */
 
@@ -174,9 +175,10 @@ class StreamBufferManager {
 
       // ── Text ──
       if (buf.textAcc) {
-        const displayText = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
+        const displayTextBase = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
           buf.textAcc.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, ''),
         ));
+        const displayText = finalizeText ? normalizeReportResponseText(displayTextBase) : displayTextBase;
         if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
           buf.lastRenderedText = displayText;
           buf.lastRenderedFinalized = finalizeText;

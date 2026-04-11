@@ -35,6 +35,7 @@ const KNOWN_TOOL_NAMES = new Set([
   'dm',
   'edit',
   'edit-diff',
+  'execute',
   'execute_command',
   'fetch',
   'find',
@@ -90,7 +91,7 @@ const KNOWN_TOOL_PREFIXES = [
   'close_',
   'resume_',
 ];
-const PSEUDO_TOOL_TAG_RE = /<(?:\/)?(?:tool[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/iu;
+const PSEUDO_TOOL_TAG_RE = /<(?:\/)?(?:tool[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/iu;
 const PSEUDO_SHELL_LINE_RE = /^\s*(?:(?:shell|bash|terminal|cmd|powershell)(?:\s*[:：])?\s*(?:[>》〉»›≫$#]+)|(?:\$|#)\s+(?:(?:ls|find|grep|rg|cat|pwd|read|python|node|npm|git|bash|sh)\b)).*$/iu;
 const BARE_PSEUDO_COMMAND_LINE_RE = /^\s*(?:(?:find|ls|grep|rg|cat|pwd|glob|read|read_file|invoke|exec|bash)\b.*(?:\/Users\/|[A-Za-z]:\\|2>\/dev\/null|\|\||&&|-maxdepth|-name\b|pattern=|path=|command=).*)$/iu;
 
@@ -168,6 +169,7 @@ export function stripToolCodeMarkup(raw: string): string {
     .replace(/<tool_code\b[\s\S]*?<\/tool_code>\s*/gi, '')
     .replace(/<tool\b[\s\S]*?<\/tool>\s*/gi, '')
     .replace(/<tool_call\b[\s\S]*?<\/tool_call>\s*/gi, '')
+    .replace(/<execute\b[\s\S]*?<\/execute>\s*/gi, '')
     .replace(/<minimax:tool_call\b[\s\S]*?<\/minimax:tool_call>\s*/gi, '')
     .replace(/<invoke\b[\s\S]*?<\/invoke>\s*/gi, '')
     .replace(/<read\b[\s\S]*?<\/read>\s*/gi, '')
@@ -215,7 +217,7 @@ function cleanPseudoToolLine(line: string): string {
   if (!PSEUDO_TOOL_TAG_RE.test(cleaned)) return cleaned;
 
   cleaned = cleaned
-    .replace(/<\/?(?:tool[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b[^>\n]*(?:>|$)/giu, '')
+    .replace(/<\/?(?:tool[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b[^>\n]*(?:>|$)/giu, '')
     .replace(/<(?:function|parameter)=[^>\n]*(?:>|$)/giu, '');
 
   return stripLeadingPseudoArgs(cleaned);

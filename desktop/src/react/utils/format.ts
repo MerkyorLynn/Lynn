@@ -161,6 +161,10 @@ function checkboxStateKey(stateKey: string | undefined, index: number): string |
  */
 export function injectCopyButtons(container: HTMLElement): void {
   const t = window.t ?? ((p: string) => p);
+  const tt = (key: string, fallback: string) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
   const pres = container.querySelectorAll('pre');
   for (const pre of pres) {
     if (pre.querySelector('.copy-btn')) continue;
@@ -189,6 +193,21 @@ export function injectCopyButtons(container: HTMLElement): void {
     });
 
     btnGroup.appendChild(copyBtn);
+
+    // Paste 按钮：把代码直接送回输入框，方便继续追问、改写或执行。
+    // eslint-disable-next-line no-restricted-syntax -- paste button injected into rendered Markdown HTML, outside React tree
+    const pasteBtn = document.createElement('button');
+    pasteBtn.className = 'copy-btn paste-btn';
+    pasteBtn.textContent = tt('common.pasteToInput', '粘贴');
+    pasteBtn.title = tt('common.pasteToInputTitle', '粘贴到输入框');
+    pasteBtn.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('hana-paste-to-input', {
+        detail: { text: text || '', source: 'code-block', language },
+      }));
+      pasteBtn.textContent = tt('common.pastedToInput', '已粘贴');
+      setTimeout(() => { pasteBtn.textContent = tt('common.pasteToInput', '粘贴'); }, 1200);
+    });
+    btnGroup.appendChild(pasteBtn);
 
     if (looksLikeCommandBlock(text, language)) {
       // Run 按钮（仅 shell/命令块）

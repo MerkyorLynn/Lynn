@@ -333,6 +333,38 @@ function InputAreaInner() {
   const hasContent = composerText.trim().length > 0 || attachedFiles.length > 0 || !!quotedSelection;
   const canSend = hasContent && connected && !isStreaming;
 
+  const insertTextIntoComposer = useCallback((text: string) => {
+    const incoming = String(text || '');
+    if (!incoming) return;
+
+    const el = textareaRef.current;
+    const current = useStore.getState().composerText;
+    const start = el ? el.selectionStart : current.length;
+    const end = el ? el.selectionEnd : current.length;
+    const needsSpacer = current && start === current.length && !current.endsWith('\n') ? '\n\n' : '';
+    const insert = start === current.length ? `${needsSpacer}${incoming}` : incoming;
+    const next = `${current.slice(0, start)}${insert}${current.slice(end)}`;
+    const caret = start + insert.length;
+
+    setComposerText(next);
+    requestInputFocus();
+    requestAnimationFrame(() => {
+      const target = textareaRef.current;
+      if (!target) return;
+      target.focus();
+      target.setSelectionRange(caret, caret);
+    });
+  }, [requestInputFocus, setComposerText]);
+
+  useEffect(() => {
+    const handlePasteToInput = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string }>).detail || {};
+      insertTextIntoComposer(detail.text || '');
+    };
+    window.addEventListener('hana-paste-to-input', handlePasteToInput);
+    return () => window.removeEventListener('hana-paste-to-input', handlePasteToInput);
+  }, [insertTextIntoComposer]);
+
   useEffect(() => {
     const handleRunCommand = (event: Event) => {
       const detail = (event as CustomEvent<{ command?: string; language?: string }>).detail || {};

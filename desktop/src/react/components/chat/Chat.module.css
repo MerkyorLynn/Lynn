@@ -144,9 +144,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-light);
+    color: rgba(var(--accent-rgb), 0.72);
+    background:
+        radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.9), transparent 42%),
+        linear-gradient(145deg, rgba(var(--accent-rgb), 0.13), rgba(var(--accent-rgb), 0.06));
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
     font-size: 0.8rem;
     line-height: 1;
+}
+
+.userAvatar svg {
+    display: block;
 }
 
 .avatarName {
@@ -404,6 +413,13 @@
 .messageGroupAssistant:hover .msgCopyBtn { opacity: 1; }
 .msgCopyBtn:hover { opacity: 1 !important; color: var(--hana-text); }
 .msgCopyBtnCopied { opacity: 1 !important; color: var(--hana-accent, #4a9); }
+
+.msgPasteBtn {
+    padding: 4px 8px;
+    min-width: auto;
+    font-size: 0.72rem;
+    color: var(--hana-text-muted);
+}
 
 /* ── MOOD / PULSE / REFLECT ── */
 

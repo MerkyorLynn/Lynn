@@ -50,6 +50,13 @@ import {
   resolveCurrentModelInfo,
 } from "../chat/chat-recovery.js";
 import {
+  buildLocalWorkspaceDirectReply,
+  buildLocalWorkspaceContext,
+  shouldAttachLocalWorkspaceContext,
+} from "../chat/local-workspace-context.js";
+import { buildReportResearchContext } from "../chat/report-research-context.js";
+import { buildReportStructureHint } from "../../shared/report-normalizer.js";
+import {
   recordCurrentProvider,
   recordFallback,
   recordProviderIssue,
@@ -58,7 +65,38 @@ import {
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
-const ENABLE_LOCAL_TOOL_RECOVERY = process.env.LYNN_ENABLE_LOCAL_TOOL_RECOVERY === "1";
+const ENABLE_LOCAL_TOOL_RECOVERY = process.env.LYNN_ENABLE_LOCAL_TOOL_RECOVERY !== "0";
+
+function appendHiddenRetryContext(engine, sessionPath, context) {
+  const text = String(context || "").trim();
+  if (!text) return false;
+  try {
+    const session = engine.getSessionByPath?.(sessionPath);
+    const sessionManager = session?.sessionManager;
+    if (typeof sessionManager?.appendCustomMessageEntry !== "function") return false;
+    sessionManager.appendCustomMessageEntry("lynn.tool-recovery", text, false, {
+      source: "local-tool-recovery",
+      createdAt: new Date().toISOString(),
+    });
+    return true;
+  } catch (err) {
+    debugLog()?.warn?.("ws", `append hidden retry context failed: ${err?.message || err}`);
+    return false;
+  }
+}
+
+function appendSessionMessage(engine, sessionPath, message) {
+  try {
+    const session = engine.getSessionByPath?.(sessionPath);
+    const sessionManager = session?.sessionManager;
+    if (typeof sessionManager?.appendMessage !== "function") return false;
+    sessionManager.appendMessage(message);
+    return true;
+  } catch (err) {
+    debugLog()?.warn?.("ws", `append session message failed: ${err?.message || err}`);
+    return false;
+  }
+}
 
 /**
  * 从 Pi SDK 的 content 块中提取纯文本
@@ -70,6 +108,21 @@ function extractText(content) {
     .filter(b => b.type === "text" && b.text)
     .map(b => b.text)
     .join("");
+}
+
+function getRecentConversationText(engine, sessionPath, maxChars = 6000) {
+  try {
+    const session = engine.getSessionByPath?.(sessionPath);
+    const messages = Array.isArray(session?.messages) ? session.messages : [];
+    const text = messages.slice(-8).map((message) => {
+      const role = message?.role || "message";
+      const content = extractText(message?.content);
+      return content ? `${role}: ${content}` : "";
+    }).filter(Boolean).join("\n\n");
+    return text.length > maxChars ? text.slice(-maxChars) : text;
+  } catch {
+    return "";
+  }
 }
 
 function resolveEditSnapshotPath(session, engine, rawPath) {
@@ -361,6 +414,70 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.titleRequested = false;
       console.error("[chat] generateSessionTitle error:", err.message);
     });
+  }
+
+  function resolveSessionCwd(sessionPath) {
+    const activeSession = engine.getSessionByPath?.(sessionPath);
+    return activeSession?.sessionManager?.getCwd?.()
+      || engine.homeCwd
+      || engine.cwd
+      || process.cwd();
+  }
+
+  function handleLocalWorkspaceDirect(promptText, sessionPath, ss) {
+    if (!ENABLE_LOCAL_TOOL_RECOVERY || !sessionPath || !ss) return false;
+    const routeIntent = classifyRouteIntent(promptText);
+    if (!shouldAttachLocalWorkspaceContext(promptText, routeIntent)) return false;
+
+    const cwd = resolveSessionCwd(sessionPath);
+    const reply = buildLocalWorkspaceDirectReply({ promptText, cwd });
+    const text = reply.text || "";
+    if (!text.trim()) return false;
+
+    resetTextTracking(ss);
+    ss.routeIntent = routeIntent;
+    ss.hasToolCall = true;
+    ss.hasOutput = true;
+    beginSessionStream(ss);
+    broadcast({ type: "status", isStreaming: true, sessionPath });
+
+    appendSessionMessage(engine, sessionPath, {
+      role: "user",
+      content: [{ type: "text", text: promptText }],
+    });
+
+    const toolArgs = { path: reply.root || cwd };
+    emitStreamEvent(sessionPath, ss, { type: "tool_start", name: "ls", args: toolArgs });
+    recordToolCall({ phase: "start", name: "ls", sessionPath, args: toolArgs });
+    emitStreamEvent(sessionPath, ss, {
+      type: "tool_end",
+      name: "ls",
+      success: reply.ok !== false,
+      details: {
+        path: reply.root || cwd,
+        entriesCount: reply.entriesCount || 0,
+        docsCount: reply.docsCount || 0,
+        source: "local-workspace-direct",
+      },
+      summary: {
+        outputPreview: text.slice(0, 200),
+        matchCount: reply.entriesCount || 0,
+      },
+    });
+    recordToolCall({ phase: "end", name: "ls", sessionPath, args: toolArgs });
+
+    emitSanitizedTextDelta(sessionPath, ss, text);
+    appendSessionMessage(engine, sessionPath, {
+      role: "assistant",
+      content: [{ type: "text", text }],
+    });
+
+    emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+    finishSessionStream(ss);
+    broadcast({ type: "status", isStreaming: false, sessionPath });
+    maybeGenerateFirstTurnTitle(sessionPath, ss);
+    debugLog()?.log("ws", "local workspace direct reply done");
+    return true;
   }
 
   // 单订阅：事件只写入一次，再按需广播到所有连接中的客户端。
@@ -1038,6 +1155,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 return;
               }
               const ss = getState(promptSessionPath);
+              if (!msg.images?.length && handleLocalWorkspaceDirect(promptText, promptSessionPath, ss)) {
+                return;
+              }
               try {
                 const prepareAttemptState = (attemptIndex) => {
                   ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
@@ -1106,7 +1226,26 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   }
                 };
 
+                const promptRouteIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
+                ss.routeIntent = promptRouteIntent;
+                const recentConversationText = getRecentConversationText(engine, promptSessionPath);
+                const reportPromptBasis = [recentConversationText, `user: ${promptText}`].filter(Boolean).join("\n\n");
+                let reportResearchContext = "";
+                try {
+                  reportResearchContext = await buildReportResearchContext(reportPromptBasis, {
+                    userPrompt: promptText,
+                    locale: getLocale(),
+                  });
+                  if (reportResearchContext) {
+                    debugLog()?.log("ws", `attached report research context (${reportResearchContext.length} chars)`);
+                  }
+                } catch (err) {
+                  debugLog()?.warn?.("ws", `report research prefetch failed: ${err?.message || err}`);
+                }
                 let finalError = null;
+                let localWorkspaceContextAttached = false;
+                let reportResearchContextAttached = false;
+                let reportStructureHintAttached = false;
                 const maxRecoveryAttempts = ENABLE_LOCAL_TOOL_RECOVERY ? MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS : 0;
                 for (let attemptIndex = 0; attemptIndex <= maxRecoveryAttempts; attemptIndex++) {
                   const currentModelInfo = resolveCurrentModelInfo(engine);
@@ -1119,23 +1258,54 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     sessionPath: promptSessionPath,
                     attemptIndex,
                   });
-                  const attemptText = attemptIndex === 0
-                    ? promptText
-                    : (ss.installPrompt
-                      ? buildInstallRetryPrompt(promptText)
+                  if (!reportResearchContextAttached) {
+                    reportResearchContextAttached = appendHiddenRetryContext(
+                      engine,
+                      promptSessionPath,
+                      reportResearchContext,
+                    );
+                  }
+                  if (!reportStructureHintAttached) {
+                    reportStructureHintAttached = appendHiddenRetryContext(
+                      engine,
+                      promptSessionPath,
+                      buildReportStructureHint(reportPromptBasis, getLocale()),
+                    );
+                  }
+                  if (
+                    !localWorkspaceContextAttached
+                    && shouldAttachLocalWorkspaceContext(promptText, ss.routeIntent)
+                  ) {
+                    const activeSession = engine.getSessionByPath?.(promptSessionPath);
+                    const workspaceCwd = activeSession?.sessionManager?.getCwd?.()
+                      || engine.homeCwd
+                      || engine.cwd
+                      || process.cwd();
+                    const localContext = buildLocalWorkspaceContext({
+                      promptText,
+                      cwd: workspaceCwd,
+                    });
+                    localWorkspaceContextAttached = appendHiddenRetryContext(engine, promptSessionPath, localContext);
+                  }
+                  if (attemptIndex > 0) {
+                    const retryContext = ss.installPrompt
+                      ? buildInstallRetryPrompt("")
                       : (ss.pendingToolExecutionDetected
                         ? [
-                            "【严格执行要求】上一轮只输出了“我来查询/我来搜索”这类承诺文本，但没有真正调用工具。",
-                            "这一次请直接调用真实工具（如 weather、stock_market、sports_score、live_news、web_search、web_fetch），拿到结果后再回复，不要先输出计划或承诺句。",
+                            "【严格执行要求】上一轮只输出了“我来查询/我来搜索/我来读取/我来查看”这类承诺文本，但没有真正调用工具。",
+                            "这一次必须直接调用真实工具完成当前任务。文件和工作区任务优先调用 ls/read/grep/find/bash；实时信息任务优先调用 weather、stock_market、sports_score、live_news、web_search、web_fetch。",
+                            "拿到工具结果后再回复用户，不要先输出计划、承诺句、Premise / Conduct / Reflection / Act 或伪工具文本。",
                             buildProviderToolCallHint({
                               routeIntent: ss.routeIntent,
                               provider: currentModelInfo.provider,
                               modelId: currentModelInfo.modelId,
                               locale: getLocale(),
                             }),
-                            String(promptText || ""),
                           ].filter(Boolean).join("\n\n")
-                        : buildPseudoToolRetryPrompt(promptText)));
+                        : buildPseudoToolRetryPrompt(""));
+                    appendHiddenRetryContext(engine, promptSessionPath, retryContext);
+                  }
+                  const attemptText = promptText;
                   const attemptError = await sendPromptAttempt(attemptText, attemptIndex);
                   const needsRecovery = ENABLE_LOCAL_TOOL_RECOVERY && (!!ss.pseudoToolNeedsRetry || !!ss.installDeflectionDetected || attemptError?.code === "INVALID_TOOL_SIMULATION");
                   const wasAborted = attemptError?.message?.includes("aborted");

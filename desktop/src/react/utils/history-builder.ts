@@ -8,6 +8,7 @@ import type { ChatMessage, ChatListItem, ContentBlock } from '../stores/chat-typ
 import { parseMoodFromContent, parseXingFromContent, parseUserAttachments } from './message-parser';
 import { renderMarkdown } from './markdown';
 import { isInternalRecoveryPromptText } from '../../../../shared/internal-control-message.js';
+import { normalizeReportResponseText } from '../../../../shared/report-normalizer.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- API 历史消息 JSON 结构动态，难以静态收窄 */
 
@@ -167,7 +168,7 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
       // 4. 主文本（去掉 mood 和 xing 后的内容）
       const { xingBlocks, text: mainText } = parseXingFromContent(afterMood);
       if (mainText) {
-        blocks.push({ type: 'text', html: renderMarkdown(mainText) });
+        blocks.push({ type: 'text', html: renderMarkdown(normalizeReportResponseText(mainText)) });
       }
 
       // 5. Xing
