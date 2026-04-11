@@ -263,7 +263,10 @@
     "weekPrefix": ""
   },
   "mood": {
-    "label": "✿ MOOD"
+    "label": "✿ ムード",
+    "hanakoLabel": "✿ ムード",
+    "butterLabel": "❊ パルス",
+    "lynnLabel": "◈ 振り返り"
   },
   "xing": {
     "title": "内省",
@@ -1135,10 +1138,10 @@
     "title": "スケジュールタスク",
     "empty": "スケジュールタスクはまだありません。\n必要に応じてアシスタントが作成します。",
     "guideTitle": "定期タスクで自動化",
-    "guideDesc": "スケジュールを設定すると、アシスタントが自動で実行します。チャットで作成を依頼することもできます。",
+    "guideDesc": "まずテンプレートを選び、そのあとでプロジェクト・時間・モデルを設定します。作成後はすぐにテスト実行して、予定通り動くか確認できます。",
     "guideTip": "クリックですぐ追加。時間と内容は後から編集できます。",
     "deleteConfirm": "このスケジュールタスクを削除しますか？",
-    "defaultModel": "デフォルトモデル",
+    "defaultModel": "既定の作業モデル",
     "edit": "編集",
     "delete": "削除",
     "tpl": {
@@ -1542,6 +1545,14 @@
       "urlDesc": "取得する完全な URL（https:// を含む）",
       "maxLenDesc": "返す最大文字数、デフォルト {max}"
     },
+    "stockMarket": {
+      "label": "相場照会",
+      "description": "金価格、株価、指数、ファンド、為替、原油などの相場情報を照会します。Tencent、Sina Finance、Xueqiu、Eastmoney、AkShare などの金融系ソースを優先検索・取得し、構造化した要約を返します。",
+      "queryDesc": "元の相場問い合わせ。例:「今日の金価格」",
+      "kindDesc": "任意の種類: gold / stock / index / fund / fx / oil",
+      "marketDesc": "任意の市場。例: CN / HK / US / GLOBAL",
+      "symbolDesc": "任意の銘柄コードや商品コード。例: 600519 / XAUUSD"
+    },
     "browser": {
       "label": "ブラウザ",
       "description": "ブラウザを操作してウェブページを閲覧します。ナビゲーション、クリック、入力、スクロール、スクリーンショットが可能です。\n操作：\n- start：ブラウザを起動（初回使用前に必ず呼び出すこと）\n- stop：ブラウザを閉じる\n- navigate(url)：指定 URL に移動\n- snapshot：現在のページの要素ツリーを取得（推奨：テキスト形式、低コスト）\n- screenshot：現在のページのスクリーンショットを撮影（視覚情報が必要な場合のみ使用）\n- click(ref)：snapshot が返した [ref] 番号の要素をクリック\n- type(text, ref?)：要素にテキストを入力、オプションで ref をクリックしてフォーカス\n- scroll(direction, amount?)：ページをスクロール、direction は up/down\n- select(ref, value)：ドロップダウンの選択肢を選択\n- key(key)：キーを押す、例：Enter、Escape、Tab、Control+a\n- wait(timeout?, state?)：ページの読み込みを待機\n- evaluate(expression)：ページ上で JavaScript を実行\n- show：ブラウザウィンドウを前面に表示\n\n重要：snapshot が返す [ref] 番号はページ変更後に無効になります。navigate/click の後に新しい snapshot が自動的に返されます。",
@@ -1839,9 +1850,9 @@
   "status.routeExecutionPlanned": "実行系のタスクを検出しました。Lynn はこのターンで既定の実行ルートを優先します。",
   "status.routeCodingPlanned": "コーディング系のタスクを検出しました。Lynn はこのターンで既定のコーディングルートを優先します。",
   "status.routeVisionPlanned": "画像または添付ファイルの解析タスクを検出しました。Lynn はこのターンで既定の推論ルートを優先します。",
-  "status.defaultModelSlowResponse": "デフォルトモデルの主経路が少し遅いため、Lynn がバックグラウンドで予備経路へ引き継いでいます。",
-  "status.defaultModelRecoveringToolExecution": "デフォルトモデルは実際のツール実行を完了できなかったため、Lynn がこのターンを予備の実行ルートへ切り替えています。",
-  "status.defaultModelStillWorking": "デフォルトモデルはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備経路へ引き継ぎながら処理します。",
+  "status.defaultModelSlowResponse": "既定の作業モデルの主経路が少し遅いため、Lynn がバックグラウンドで予備経路へ引き継いでいます。",
+  "status.defaultModelRecoveringToolExecution": "既定の作業モデルは実際のツール実行を完了できなかったため、Lynn がこのターンを予備の実行ルートへ切り替えています。",
+  "status.defaultModelStillWorking": "既定の作業モデルはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備経路へ引き継ぎながら処理します。",
   "status.defaultReasoningSlowResponse": "既定の推論ルートが少し遅いため、Lynn がバックグラウンドで予備の推論ルートへ引き継いでいます。",
   "status.defaultReasoningStillWorking": "既定の推論ルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備の推論ルートへ引き継ぎながら処理します。",
   "status.defaultExecutionSlowResponse": "既定の実行ルートが少し遅いため、Lynn がバックグラウンドで予備の実行ルートへ引き継いでいます。",

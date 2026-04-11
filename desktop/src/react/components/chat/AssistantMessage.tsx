@@ -19,7 +19,7 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
 import { openFilePreview, openSkillPreview } from '../../utils/file-preview';
 import { openPreview } from '../../stores/artifact-actions';
-import { yuanFallbackAvatar } from '../../utils/agent-helpers';
+import { isBundledLynnAvatarSrc, yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { buildRetryDraftFromMessage } from '../../utils/composer-state';
 import { formatCompactModelLabel } from '../../utils/brain-models';
 import { resendPromptRequest } from '../../stores/prompt-actions';
@@ -106,6 +106,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const displayYuan = sessionAgent?.yuan || agentYuan;
   const fallbackAvatar = useMemo(() => yuanFallbackAvatar(displayYuan), [displayYuan]);
   const avatarSrc = sessionAgent?.avatarUrl || agentAvatarUrl || fallbackAvatar;
+  const isBundledLynnAvatar = useMemo(() => isBundledLynnAvatarSrc(avatarSrc), [avatarSrc]);
 
   useEffect(() => {
     setAvatarFailed(false);
@@ -328,22 +329,24 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
       {showAvatar && (
         <div className={styles.avatarRow}>
           {!avatarFailed ? (
-            <img
-              className={`${styles.avatar} ${styles.hanaAvatar}`}
-              src={avatarSrc}
-              alt={displayName}
-              draggable={false}
-              onError={(e) => {
-                const img = e.target as HTMLImageElement;
-                if (img.src.endsWith(fallbackAvatar)) {
+            <span className={styles.avatar}>
+              <img
+                className={`${styles.hanaAvatar}${isBundledLynnAvatar ? ` ${styles.hanaAvatarBundledLynn}` : ''}`}
+                src={avatarSrc}
+                alt={displayName}
+                draggable={false}
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  if (img.src.endsWith(fallbackAvatar)) {
+                    img.onerror = null;
+                    setAvatarFailed(true);
+                    return;
+                  }
                   img.onerror = null;
-                  setAvatarFailed(true);
-                  return;
-                }
-                img.onerror = null;
-                img.src = fallbackAvatar;
-              }}
-            />
+                  img.src = fallbackAvatar;
+                }}
+              />
+            </span>
           ) : (
             <span className={`${styles.avatar} ${styles.userAvatar}`}>🌸</span>
           )}

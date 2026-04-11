@@ -36,7 +36,6 @@ const QUERY_TOKEN_SYNONYMS = [
   { pattern: /搜索|查找|检索|搜一下/u, expansions: ["search", "find", "lookup"] },
   { pattern: /总结|概括|摘要|整理/u, expansions: ["summarize", "summary"] },
   { pattern: /新闻|资讯|动态/u, expansions: ["news"] },
-  { pattern: /天气|气温|预报/u, expansions: ["weather", "forecast"] },
   { pattern: /文档|文件|pdf/u, expansions: ["document", "file", "pdf"] },
   { pattern: /github|仓库|代码/u, expansions: ["github", "repo", "code"] },
 ];

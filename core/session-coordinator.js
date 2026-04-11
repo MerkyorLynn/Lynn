@@ -37,7 +37,13 @@ import { resolveCompactionSettings, resolveModelContextWindow } from "./compacti
 import { formatProjectInstructions } from "../lib/project-instructions.js";
 import { getBrainDisplayName, isBrainModelRef } from "../shared/brain-provider.js";
 import { getUserFacingModelAlias, getUserFacingRoleModelLabel, resolveRoleDefaultModel } from "../shared/assistant-role-models.js";
-import { buildRouteIntentSystemHint, classifyRouteIntent } from "../shared/task-route-intent.js";
+import {
+  buildProviderToolCallHint,
+  buildRouteIntentSystemHint,
+  classifyRouteIntent,
+  ROUTE_INTENTS,
+} from "../shared/task-route-intent.js";
+import { containsPseudoToolCallSimulation } from "./llm-utils.js";
 
 const log = createModuleLogger("session");
 
@@ -63,11 +69,11 @@ function getSteerPrefix() {
 // ── Tool Tiering（P0：按模型能力裁剪自定义工具集） ──
 
 const MINIMAL_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch",
+  "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score",
 ]);
 
 const STANDARD_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch", "todo", "present_files", "notify",
+  "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score", "todo", "present_files", "notify",
   "search_memory", "pin_memory", "unpin_memory",
   "recall_experience", "record_experience",
 ]);
@@ -117,6 +123,60 @@ const DRY_RUN_COPY_IGNORES = new Set([
   "__pycache__",
 ]);
 
+function createReplyIntegrityTracker() {
+  return {
+    replyText: "",
+    sawToolCall: false,
+    handle(event) {
+      if (event?.type === "message_update") {
+        const sub = event.assistantMessageEvent;
+        if (sub?.type === "text_delta") {
+          this.replyText += sub.delta || "";
+        } else if (sub?.type === "toolcall_start" || sub?.type === "toolcall_end") {
+          this.sawToolCall = true;
+        }
+        return;
+      }
+
+      if (event?.type === "tool_execution_start" || event?.type === "tool_execution_end") {
+        this.sawToolCall = true;
+      }
+    },
+  };
+}
+
+function pseudoToolSimulationMessage() {
+  const localized = t("error.invalidToolSimulation");
+  return localized && localized !== "error.invalidToolSimulation"
+    ? localized
+    : "Model emitted an invalid tool-call simulation instead of executing the tool.";
+}
+
+function createPseudoToolSimulationError() {
+  const err = new Error(pseudoToolSimulationMessage());
+  err.code = "INVALID_TOOL_SIMULATION";
+  return err;
+}
+
+function ensureValidReplyExecution(tracker) {
+  if (!tracker || tracker.sawToolCall) return;
+  if (!containsPseudoToolCallSimulation(tracker.replyText)) return;
+  throw createPseudoToolSimulationError();
+}
+
+function buildPseudoToolRetryPrompt(prompt) {
+  const isZh = getLocale().startsWith("zh");
+  return [
+    isZh
+      ? "【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。"
+      : "[Strict execution requirement] The previous attempt simulated tool calls in plain text instead of actually executing them.",
+    isZh
+      ? "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 之类的伪工具文本。请直接调用真实工具完成当前任务，拿到结果后再回复。"
+      : "Do not output any pseudo tool text such as <tool_call>, XML, shell commands, or web_search(...). Use the real tool interface, finish the task, and only then reply.",
+    String(prompt || ""),
+  ].filter(Boolean).join("\n\n");
+}
+
 function getBuiltinToolNames(tools) {
   return tools.map((tool) => tool.name);
 }
@@ -143,6 +203,10 @@ function buildSkillHintContext(suggestions) {
     }),
     "Read the most relevant skill's SKILL.md first, then follow its workflow.",
   ].join("\n");
+}
+
+function shouldAttachSkillHint(routeIntent) {
+  return normalizeRouteIntent(routeIntent) !== ROUTE_INTENTS.UTILITY;
 }
 
 const FILE_MENTION_PATTERN = /\b([A-Za-z0-9_./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh))\b/gi;
@@ -263,6 +327,15 @@ export class SessionCoordinator {
           if (sessionEntry._routeIntentHintContext) {
             extras.push(sessionEntry._routeIntentHintContext);
           }
+          const providerToolCallHint = buildProviderToolCallHint({
+            routeIntent: sessionEntry._routeIntentValue,
+            provider: sessionEntry.modelProvider || effectiveModel?.provider || sessionEntry.session?.model?.provider,
+            modelId: sessionEntry.modelId || effectiveModel?.id || sessionEntry.session?.model?.id,
+            locale: getLocale(),
+          });
+          if (providerToolCallHint) {
+            extras.push(providerToolCallHint);
+          }
           if (sessionEntry._relaySummaryContext) {
             extras.push(sessionEntry._relaySummaryContext);
           }
@@ -281,7 +354,22 @@ export class SessionCoordinator {
               : "[System Notice] Currently in SAFE MODE. Dangerous operations (sudo, chmod, etc.) and writes to protected paths are directly rejected with no approval prompt. If the user truly needs them, ask them to switch to 'Execute Mode' via the selector at the bottom-left of the input area.";
             extras.push(safeModePrompt);
           }
-          // authorized mode: no special system prompt needed
+          else {
+            const executeModePrompt = isZh
+              ? [
+                  "【系统通知】当前处于「执行模式」，你可以使用真实工具执行命令、读写文件和完成安装类操作。",
+                  "当用户要求你安装软件、安装依赖、执行终端命令、检查命令是否成功时，不要说自己没有 shell/命令工具，也不要让用户手动复制命令去终端运行。",
+                  "在这类场景下，应优先使用真实 bash 工具执行，并基于执行结果继续完成任务。",
+                  "如果命令涉及安装软件、提升权限、写入系统路径或执行远程安装脚本，系统会自动弹出确认卡片；你只需要正常发起真实工具调用。",
+                ].join(" ")
+              : [
+                  "[System Notice] You are currently in EXECUTE MODE and may use real tools to run commands, read/write files, and carry out installation tasks.",
+                  "When the user asks you to install software, install dependencies, run terminal commands, or verify whether a command succeeded, do not claim that you lack shell or command tools and do not tell the user to copy commands into a terminal manually.",
+                  "In these cases, prefer the real bash tool and continue the task based on the execution result.",
+                  "If a command installs software, elevates privileges, writes to system paths, or runs a remote install script, the system will automatically show a confirmation card; you should still initiate the real tool call normally.",
+                ].join(" ");
+            extras.push(executeModePrompt);
+          }
 
           // 项目级指令注入（AGENTS.md / CLAUDE.md 等）
           const sessionCwd = sessionEntry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || "";
@@ -563,6 +651,7 @@ export class SessionCoordinator {
       _lastSkillHintContext: "",
       _atInjectionHintContext: "",
       _routeIntentHintContext: "",
+      _routeIntentValue: ROUTE_INTENTS.CHAT,
       _relaySummaryContext: "",
       compactionCount: 0,
       relayInProgress: false,
@@ -684,29 +773,38 @@ export class SessionCoordinator {
         } catch {
           entry._lastRecallContext = "";
         }
+        entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
+        entry._routeIntentHintContext = buildRouteIntentSystemHint(
+          entry._routeIntentValue,
+          getLocale(),
+        );
         try {
           const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
-          entry._lastSkillHintContext = buildSkillHintContext(suggestions);
+          entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
+            ? buildSkillHintContext(suggestions)
+            : "";
         } catch {
           entry._lastSkillHintContext = "";
         }
         entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
-        entry._routeIntentHintContext = buildRouteIntentSystemHint(
-          classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 }),
-          getLocale(),
-        );
       }
     }
 
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
+    const tracker = createReplyIntegrityTracker();
+    const unsub = this._session.subscribe((event) => {
+      tracker.handle(event);
+    });
     try {
       await this._session.prompt(text, promptOpts);
+      ensureValidReplyExecution(tracker);
       if (sp) {
         const entry = this._sessions.get(sp);
         const agentForTicker = entry ? this._d.getAgentById(entry.agentId) : agent;
         agentForTicker?._memoryTicker?.notifyTurn(sp);
       }
     } finally {
+      unsub?.();
       if (sp) {
         const entry = this._sessions.get(sp);
         if (entry) {
@@ -714,6 +812,7 @@ export class SessionCoordinator {
           entry._lastSkillHintContext = "";
           entry._atInjectionHintContext = "";
           entry._routeIntentHintContext = "";
+          entry._routeIntentValue = ROUTE_INTENTS.CHAT;
         }
       }
     }
@@ -760,28 +859,38 @@ export class SessionCoordinator {
     } catch {
       entry._lastRecallContext = "";
     }
+    entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
+    entry._routeIntentHintContext = buildRouteIntentSystemHint(
+      entry._routeIntentValue,
+      getLocale(),
+    );
     try {
       const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
-      entry._lastSkillHintContext = buildSkillHintContext(suggestions);
+      entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
+        ? buildSkillHintContext(suggestions)
+        : "";
     } catch {
       entry._lastSkillHintContext = "";
     }
     entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
-    entry._routeIntentHintContext = buildRouteIntentSystemHint(
-      classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 }),
-      getLocale(),
-    );
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
+    const tracker = createReplyIntegrityTracker();
+    const unsub = entry.session.subscribe((event) => {
+      tracker.handle(event);
+    });
     try {
       await entry.session.prompt(text, promptOpts);
+      ensureValidReplyExecution(tracker);
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {
+      unsub?.();
       entry._lastRecallContext = "";
       entry._lastSkillHintContext = "";
       entry._atInjectionHintContext = "";
       entry._routeIntentHintContext = "";
+      entry._routeIntentValue = ROUTE_INTENTS.CHAT;
     }
   }
 
@@ -1328,15 +1437,19 @@ export class SessionCoordinator {
         ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       });
 
-      let replyText = "";
-      const unsub = session.subscribe((event) => {
-        if (event.type === "message_update") {
-          const sub = event.assistantMessageEvent;
-          if (sub?.type === "text_delta") {
-            replyText += sub.delta || "";
-          }
+      const runPromptAttempt = async (attemptPrompt) => {
+        const tracker = createReplyIntegrityTracker();
+        const unsub = session.subscribe((event) => {
+          tracker.handle(event);
+        });
+        try {
+          await session.prompt(attemptPrompt);
+          ensureValidReplyExecution(tracker);
+          return tracker.replyText;
+        } finally {
+          unsub?.();
         }
-      });
+      };
 
       // abort signal：监听中止，转发到子 session
       const abortHandler = () => session.abort();
@@ -1345,16 +1458,21 @@ export class SessionCoordinator {
       // 二次检查：覆盖初始化期间 signal 已变 aborted 的竞争窗口
       if (opts.signal?.aborted) {
         opts.signal.removeEventListener("abort", abortHandler);
-        unsub?.();
         cleanupTempSession();
         return { sessionPath: null, replyText: "", error: "aborted" };
       }
 
+      let replyText = "";
       try {
-        await session.prompt(prompt);
+        try {
+          replyText = await runPromptAttempt(prompt);
+        } catch (err) {
+          if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
+          log.warn("[executeIsolated] 检测到伪工具调用，立即重试一次");
+          replyText = await runPromptAttempt(buildPseudoToolRetryPrompt(prompt));
+        }
       } finally {
         opts.signal?.removeEventListener("abort", abortHandler);
-        unsub?.();
       }
 
       const sessionPath = session.sessionManager?.getSessionFile?.() || null;

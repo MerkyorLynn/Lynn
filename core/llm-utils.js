@@ -8,12 +8,27 @@ import fs from "fs";
 import path from "path";
 import { callText } from "./llm-client.js";
 import { getLocale } from "../server/i18n.js";
+import {
+  containsPseudoToolSimulation as containsSharedPseudoToolSimulation,
+  stripPseudoToolCallMarkup,
+} from "../shared/pseudo-tool-call.js";
 
 /** Pi SDK content block 是否为工具调用（兼容 tool_use / toolCall 两种格式） */
 export const isToolCallBlock = (b) => (b.type === "tool_use" || b.type === "toolCall") && !!b.name;
 
 /** 取工具调用参数（兼容 input / arguments） */
 export const getToolArgs = (b) => b.input || b.arguments;
+
+export function containsPseudoToolCallSimulation(raw) {
+  return containsSharedPseudoToolSimulation(raw);
+}
+
+export function sanitizeAssistantTextContent(raw) {
+  return stripPseudoToolCallMarkup(raw)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /**
  * 统一的 utility LLM 调用
@@ -77,7 +92,7 @@ function parseSessionContent(sessionPath, { userLimit = 1000, assistantLimit = 1
     }
     if (msg.role === "assistant") {
       const textParts = (msg.content || []).filter(c => c.type === "text");
-      assistantText = textParts.map(c => c.text).join("\n").slice(0, assistantLimit);
+      assistantText = sanitizeAssistantTextContent(textParts.map(c => c.text).join("\n")).slice(0, assistantLimit);
       const toolParts = (msg.content || []).filter(isToolCallBlock);
       for (const t of toolParts) toolCalls.push(t.name || "unknown_tool");
     }

@@ -6,10 +6,10 @@ import { lookupToolTier } from "../shared/known-models.js";
 
 // 直接测试 filterCustomToolsByTier 逻辑（从 session-coordinator 复制，保持同步）
 const MINIMAL_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch",
+  "web_search", "web_fetch", "stock_market",
 ]);
 const STANDARD_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch", "todo", "present_files", "notify",
+  "web_search", "web_fetch", "stock_market", "todo", "present_files", "notify",
   "search_memory", "pin_memory", "unpin_memory",
   "recall_experience", "record_experience",
 ]);
@@ -24,7 +24,7 @@ function filterCustomToolsByTier(customTools, tier) {
 const ALL_TOOLS = [
   { name: "search_memory" }, { name: "pin_memory" }, { name: "unpin_memory" },
   { name: "recall_experience" }, { name: "record_experience" },
-  { name: "web_search" }, { name: "web_fetch" },
+  { name: "web_search" }, { name: "web_fetch" }, { name: "stock_market" },
   { name: "todo" }, { name: "cron" }, { name: "present_files" },
   { name: "create_artifact" }, { name: "channel" }, { name: "browser" },
   { name: "install_skill" }, { name: "notify" }, { name: "update_settings" },
@@ -43,6 +43,7 @@ describe("filterCustomToolsByTier", () => {
     const names = result.map(t => t.name);
     expect(names).toContain("web_search");
     expect(names).toContain("web_fetch");
+    expect(names).toContain("stock_market");
     expect(names).toContain("todo");
     expect(names).toContain("present_files");
     expect(names).toContain("notify");
@@ -51,13 +52,13 @@ describe("filterCustomToolsByTier", () => {
     expect(names).not.toContain("cron");
     expect(names).not.toContain("browser");
     expect(names).not.toContain("create_artifact");
-    expect(result.length).toBe(10);
+    expect(result.length).toBe(11);
   });
 
   it("minimal tier 只保留搜索工具", () => {
     const result = filterCustomToolsByTier(ALL_TOOLS, "minimal");
     const names = result.map(t => t.name);
-    expect(names).toEqual(["web_search", "web_fetch"]);
+    expect(names).toEqual(["web_search", "web_fetch", "stock_market"]);
   });
 });
 

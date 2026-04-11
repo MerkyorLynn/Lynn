@@ -21,7 +21,7 @@ describe('brain-models', () => {
 
     expect(collapsed).toHaveLength(2);
     expect(collapsed[0]).toEqual(expect.objectContaining({
-      id: 'step-3.5-flash-2603',
+      id: 'lynn-brain-router',
       provider: 'brain',
       name: '默认模型',
       isCurrent: true,
@@ -33,7 +33,7 @@ describe('brain-models', () => {
   });
 
   it('把 brain 当前模型显示成默认模型', () => {
-    expect(normalizeDisplayModelId('glm-z1-9b-0414', 'brain')).toBe('step-3.5-flash-2603');
+    expect(normalizeDisplayModelId('glm-z1-9b-0414', 'brain')).toBe('lynn-brain-router');
     expect(normalizeDisplayModelName({ id: 'lynn-brain-router', name: 'Lynn Brain Router', provider: 'brain' })).toBe('默认模型');
     expect(normalizeDisplayProviderLabel('brain')).toBe('默认模型');
     expect(formatCompactModelLabel({ id: 'lynn-brain-router', provider: 'brain' })).toBe('默认模型');
@@ -55,7 +55,7 @@ describe('brain-models', () => {
 
     expect(options).toEqual([
       expect.objectContaining({
-        value: 'brain/step-3.5-flash-2603',
+        value: 'brain/lynn-brain-router',
         label: '默认模型',
       }),
       expect.objectContaining({

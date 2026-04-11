@@ -20,10 +20,20 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
   const t = window.t ?? ((p: string) => p);
   const userName = useStore(s => s.userName) || t('common.me');
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setAvatarFailed(false);
   }, [userAvatarUrl]);
+
+  const handleCopy = useCallback(() => {
+    const text = String(message.text || '').trim();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }, [message.text]);
 
   return (
     <div className={`${styles.messageGroup} ${styles.messageGroupUser}`}>
@@ -63,6 +73,28 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
       <div className={`${styles.message} ${styles.messageUser}`}>
         {message.textHtml && <MarkdownContent html={message.textHtml} stateKey={message.id} />}
       </div>
+      {!!String(message.text || '').trim() && (
+        <div className={`${styles.messageActionRail} ${styles.messageActionRailUser}`}>
+          <div className={styles.messageActionRailIcons}>
+            <button
+              className={`${styles.msgCopyBtn}${copied ? ` ${styles.msgCopyBtnCopied}` : ''}`}
+              onClick={handleCopy}
+              title={t('common.copyText')}
+              aria-label={t('common.copyText')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {copied
+                  ? <polyline points="20 6 9 17 4 12" />
+                  : <>
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </>
+                }
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

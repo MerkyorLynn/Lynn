@@ -252,6 +252,27 @@ const BUILTIN_GROUP_META: Array<{
   },
 ];
 
+function humanizeBuiltinError(name: string, rawMessage?: string | null) {
+  const message = String(rawMessage || '').trim();
+  if (!message) return '';
+  if (/missing required credentials/i.test(message)) {
+    return '请先填写必要的 Token / API Key 后再测试。 Missing required token / API key.';
+  }
+  if (/spawn uvx ENOENT/i.test(message)) {
+    if (name === 'minimax-enhanced') {
+      return '未检测到 uvx。请先安装 uv / uvx 后，再测试 MiniMax 搜索增强。 Missing uvx. Please install uv / uvx first.';
+    }
+    return '未检测到 uvx。请先安装 uv / uvx。 Missing uvx. Please install uv / uvx first.';
+  }
+  if (/spawn npx ENOENT/i.test(message)) {
+    if (name === 'zhipu-vision') {
+      return '未检测到 npx。请先安装 Node.js 18+ 并确保 npx 可用，再测试智谱视觉增强。 Missing npx. Please install Node.js 18+ and ensure npx is available.';
+    }
+    return '未检测到 npx。请先安装 Node.js 18+ 并确保 npx 可用。 Missing npx. Please install Node.js 18+ and ensure npx is available.';
+  }
+  return message;
+}
+
 type DraftState = {
   name: string;
   transport: 'stdio' | 'sse';
@@ -677,7 +698,7 @@ export function McpTab() {
       await loadBuiltinServers();
       showToast(t('settings.saved') || '保存成功', 'success');
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = humanizeBuiltinError(name, err instanceof Error ? err.message : String(err));
       showToast(message, 'error');
     } finally {
       setBuiltinBusy((prev) => ({ ...prev, [name]: null }));
@@ -700,7 +721,7 @@ export function McpTab() {
       setBuiltinTestResults((prev) => ({ ...prev, [name]: summary }));
       showToast(summary, 'success');
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = humanizeBuiltinError(name, err instanceof Error ? err.message : String(err));
       setBuiltinTestResults((prev) => ({ ...prev, [name]: message }));
       showToast(message, 'error');
     } finally {
@@ -750,10 +771,11 @@ export function McpTab() {
                   {section.servers.map((server) => {
                     const fields = server.credentialFields || [];
                     const busy = builtinBusy[server.name];
+                    const detailError = humanizeBuiltinError(server.name, builtinTestResults[server.name] || server.lastError || '');
                     const statusText = server.connected
                       ? (t('settings.providers.ready') || '已就绪')
                       : server.configured
-                        ? (server.lastError || t('settings.providers.verifyFailed') || '连接失败')
+                        ? (t('settings.providers.verifyFailed') || '验证失败')
                         : (t('settings.providers.noKey') || '未配置');
                     return (
                       <div key={server.name} className={styles['mcp-builtin-card']}>
@@ -832,9 +854,9 @@ export function McpTab() {
                           )}
                         </div>
 
-                        {builtinTestResults[server.name] && (
+                        {detailError && (
                           <div className={styles['settings-hint']} style={{ textAlign: 'left', marginTop: '8px' }}>
-                            {builtinTestResults[server.name]}
+                            {detailError}
                           </div>
                         )}
                       </div>

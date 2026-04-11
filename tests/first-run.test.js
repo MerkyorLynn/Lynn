@@ -120,13 +120,11 @@ describe('ensureFirstRun', () => {
       ['github', 'github'],
       ['proactive-agent', 'Proactive Agent'],
       ['ontology', 'ontology'],
-      ['weather', 'weather'],
       ['skill-vetter', 'Skill Vetter'],
       ['nano-pdf', 'Nano PDF'],
       ['humanizer', 'Humanizer'],
       ['ffmpeg-video-editor', 'Ffmpeg Video Editor'],
       ['docker-essentials', 'Docker Essentials'],
-      ['baidu-search', 'baidu-search'],
       ['stock-analysis', 'stock-analysis'],
     ]) {
       const skillDir = path.join(skillsRoot, dirName);
@@ -145,20 +143,17 @@ describe('ensureFirstRun', () => {
     expect(migrated.skills.enabled).toEqual(expect.arrayContaining([
       'quiet-musing',
       'self-improving-agent',
-      'tavily-search',
       'find-skills',
       'summarize',
       'agent-browser',
       'github',
       'proactive-agent',
       'ontology',
-      'weather',
       'skill-vetter',
       'nano-pdf',
       'humanizer',
       'ffmpeg-video-editor',
       'docker-essentials',
-      'baidu-search',
     ]));
     expect(migrated.skills._recommended_seeded).toBe(true);
   });

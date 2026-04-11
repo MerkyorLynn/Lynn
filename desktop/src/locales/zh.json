@@ -493,7 +493,10 @@
     "weekPrefix": "周"
   },
   "mood": {
-    "label": "✿ MOOD"
+    "label": "✿ 情绪",
+    "hanakoLabel": "✿ 情绪",
+    "butterLabel": "❊ 脉冲",
+    "lynnLabel": "◈ 反思"
   },
   "xing": {
     "title": "反省",
@@ -1333,10 +1336,10 @@
     "title": "自动任务",
     "empty": "暂无自动任务\n助手会在需要时自动创建",
     "guideTitle": "让助手按计划自动做事",
-    "guideDesc": "设置自动任务后，助手会按计划自动执行。也可以在对话中让助手创建。",
+    "guideDesc": "先选模板，再设置项目、时间和模型。创建后可以先测试一次，确认它真的会按计划执行。",
     "guideTip": "点击即可添加，添加后可编辑时间和内容",
     "deleteConfirm": "确定要删除这个定时任务吗？",
-    "defaultModel": "默认模型",
+    "defaultModel": "默认工作模型",
     "edit": "编辑",
     "delete": "删除",
     "addCustom": "+ 自定义任务",
@@ -1766,6 +1769,14 @@
       "urlDesc": "要抓取的完整 URL（包含 https://）",
       "maxLenDesc": "返回的最大字符数，默认 {max}"
     },
+    "stockMarket": {
+      "label": "行情查询",
+      "description": "查询金价、股价、指数、基金、汇率、原油等财经行情。工具会优先搜索并抓取腾讯自选股、新浪财经、雪球、东方财富、AkShare 等来源，再返回结构化摘要。",
+      "queryDesc": "原始行情问题，例如“今天金价多少”",
+      "kindDesc": "可选类型：gold / stock / index / fund / fx / oil",
+      "marketDesc": "可选市场，例如 CN / HK / US / GLOBAL",
+      "symbolDesc": "可选代码或品种，例如 600519 / XAUUSD"
+    },
     "browser": {
       "label": "浏览器",
       "description": "控制浏览器浏览网页。可以导航、点击、输入、滚动、截图。\n操作：\n- start：启动浏览器（首次使用前必须调用）\n- stop：关闭浏览器\n- navigate(url)：导航到指定 URL\n- snapshot：获取当前页面的元素树（推荐：文本格式，成本低）\n- screenshot：截取当前页面截图（仅在需要视觉信息时使用）\n- click(ref)：点击 snapshot 返回的 [ref] 编号对应的元素\n- type(text, ref?)：在元素中输入文本，可选先点击 ref 聚焦\n- scroll(direction, amount?)：滚动页面，direction 为 up/down\n- select(ref, value)：选择下拉菜单选项\n- key(key)：按键，如 Enter、Escape、Tab、Control+a\n- wait(timeout?, state?)：等待页面加载\n- evaluate(expression)：执行页面 JavaScript\n- show：将浏览器窗口置于前台\n\n重要：snapshot 返回的 [ref] 编号在页面变化后会失效，每次 navigate/click 后会自动返回新的 snapshot。",
@@ -1822,13 +1833,13 @@
     },
     "cron": {
       "label": "定时任务",
-      "description": "创建和管理定时任务。定时任务在后台自动执行，到时间时会开一个独立 session 运行指定的 prompt。\n操作：\n- list：查看所有任务\n- add(type, schedule, prompt, label?, model?)：创建任务\n  - type \"at\"：一次性，schedule 为 ISO 时间字符串\n  - type \"every\"：间隔，schedule 为毫秒数（如 3600000 = 1 小时）\n  - type \"cron\"：cron 表达式（如 \"0 7 * * *\" = 每天早上 7 点）\n  - model：可选，指定执行任务使用的模型（不填则使用默认对话模型）\n- remove(id)：删除任务\n- toggle(id)：启用/禁用任务",
+      "description": "创建和管理定时任务。定时任务在后台自动执行，到时间时会开一个独立 session 运行指定的 prompt。\n操作：\n- list：查看所有任务\n- add(type, schedule, prompt, label?, model?)：创建任务\n  - type \"at\"：一次性，schedule 为 ISO 时间字符串\n  - type \"every\"：间隔，schedule 为毫秒数（如 3600000 = 1 小时）\n  - type \"cron\"：cron 表达式（如 \"0 7 * * *\" = 每天早上 7 点）\n  - model：可选，指定执行任务使用的模型（不填则使用默认工作模型）\n- remove(id)：删除任务\n- toggle(id)：启用/禁用任务",
       "actionDesc": "操作类型",
       "typeDesc": "调度类型（add 时必填）",
       "scheduleDesc": "调度参数：ISO 时间(at)，分钟数(every，如 60=每小时)，cron 表达式(cron)",
       "promptDesc": "到时间时执行的 prompt（add 时必填）",
       "labelDesc": "任务显示标签（可选）",
-      "modelDesc": "指定执行模型（可选，不填则使用默认对话模型）",
+      "modelDesc": "指定执行模型（可选，不填则使用默认工作模型）",
       "idDesc": "任务 ID（remove/toggle 时必填）"
     },
     "notify": {
@@ -2032,11 +2043,15 @@
       "alwaysAllow": "以后都允许此类操作",
       "trustedRoot": "受信任根目录",
       "scope": "终端",
+      "softwareInstall": "软件安装",
+      "installScript": "远程安装脚本",
       "fileWrite": "文件写入",
       "fileRead": "文件读取",
       "fileOp": "文件访问",
       "terminal": "终端执行",
       "currentProject": "当前项目",
+      "installCommandLabel": "将要安装的命令",
+      "installScriptLabel": "将要执行的远程安装脚本",
       "allowOnceHint": "只放行当前这一步，后面类似操作还会再问你。",
       "allowSessionHint": "本次任务剩下的类似操作都直接放行，任务结束后恢复确认。",
       "allowAlwaysHereHint": "以后在 {project} 里的类似操作都直接放行。"
@@ -2071,9 +2086,9 @@
   "status.routeExecutionPlanned": "检测到执行型任务，Lynn 会优先按默认执行链路处理。",
   "status.routeCodingPlanned": "检测到编码型任务，Lynn 会优先按默认编码链路处理。",
   "status.routeVisionPlanned": "检测到图像或附件分析任务，Lynn 会优先按默认推理链路处理。",
-  "status.defaultModelSlowResponse": "默认模型主链路稍慢，Lynn 正在后台接力备用链路。",
-  "status.defaultModelRecoveringToolExecution": "默认模型刚才没有真正完成工具执行，Lynn 正在切到备用执行链路继续处理。",
-  "status.defaultModelStillWorking": "默认模型仍在处理中，已等待约 {minutes} 分钟。Lynn 会继续接力备用链路。",
+  "status.defaultModelSlowResponse": "默认工作模型主链路稍慢，Lynn 正在后台接力备用链路。",
+  "status.defaultModelRecoveringToolExecution": "默认工作模型刚才没有真正完成工具执行，Lynn 正在切到备用执行链路继续处理。",
+  "status.defaultModelStillWorking": "默认工作模型仍在处理中，已等待约 {minutes} 分钟。Lynn 会继续接力备用链路。",
   "status.defaultReasoningSlowResponse": "默认推理链路稍慢，Lynn 正在后台接力备用推理链路。",
   "status.defaultReasoningStillWorking": "默认推理链路仍在处理中，已等待约 {minutes} 分钟。Lynn 会继续接力备用推理链路。",
   "status.defaultExecutionSlowResponse": "默认执行链路稍慢，Lynn 正在后台接力备用执行链路。",

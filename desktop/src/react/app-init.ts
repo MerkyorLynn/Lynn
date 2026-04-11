@@ -59,23 +59,35 @@ window.addEventListener('unhandledrejection', (e) => {
 export async function initApp(): Promise<void> {
   const platform = window.platform;
   let shouldDiagnoseBrain = false;
+  const startup = useStore.getState();
+  startup.resetStartupDiagnostics();
+  startup.markStartupStep('server-port', '读取本地服务端口', 'running');
 
   // 1. 获取 server 连接信息并存入 Zustand
   const serverPort = await platform.getServerPort();
   const serverToken = await platform.getServerToken();
   useStore.setState({ serverPort, serverToken });
+  useStore.getState().markStartupStep(
+    'server-port',
+    '读取本地服务端口',
+    serverPort ? 'success' : 'error',
+    serverPort ? `127.0.0.1:${serverPort}` : '未拿到本地服务端口',
+  );
 
   if (!serverPort) {
     setStatus('status.serverNotReady', false);
+    useStore.getState().markStartupStep('bootstrap', '主窗口启动', 'warning', '服务尚未 ready，已提前显示外壳');
     platform.appReady();
     return;
   }
 
   // 先让主窗口壳子显示出来，避免 onboarding 结束后卡在米色空白页等待网络与配置。
   useStore.setState({ pendingNewSession: true });
+  useStore.getState().markStartupStep('bootstrap', '主窗口启动', 'success', '已提前显示主窗口壳层');
   platform.appReady();
 
   // 2. 并行获取 health + config
+  useStore.getState().markStartupStep('health-config', '加载 health / config / app-state', 'running');
   try {
     const [healthRes, configRes, appStateRes] = await Promise.all([
       hanaFetch('/api/health'),
@@ -87,10 +99,13 @@ export async function initApp(): Promise<void> {
     const appStateData = await appStateRes.json();
 
     // 3. 加载 i18n
+    useStore.getState().markStartupStep('locale', '加载语言资源', 'running');
     await i18n.load(configData.locale || 'zh-CN');
     useStore.setState({ locale: i18n.locale });
+    useStore.getState().markStartupStep('locale', '加载语言资源', 'success', i18n.locale);
 
     // 4. 应用 agent 身份
+    useStore.getState().markStartupStep('agent-identity', '同步当前助手身份', 'running');
     await applyAgentIdentity({
       agentName: appStateData?.agent?.name || healthData.agent || 'Lynn',
       agentId: appStateData?.agent?.currentAgentId || undefined,
@@ -98,6 +113,12 @@ export async function initApp(): Promise<void> {
       yuan: appStateData?.agent?.yuan || undefined,
       ui: { avatars: false, agents: false, welcome: true },
     });
+    useStore.getState().markStartupStep(
+      'agent-identity',
+      '同步当前助手身份',
+      'success',
+      appStateData?.agent?.name || healthData.agent || 'Lynn',
+    );
 
     // 5. 设置 desk 相关状态
     useStore.setState({
@@ -122,24 +143,38 @@ export async function initApp(): Promise<void> {
 
     // 6. 加载头像
     loadAvatars(healthData.avatars);
+    useStore.getState().markStartupStep('health-config', '加载 health / config / app-state', 'success');
   } catch (err) {
     console.error('[init] i18n/health/config failed:', err);
+    useStore.getState().markStartupStep(
+      'health-config',
+      '加载 health / config / app-state',
+      'error',
+      err instanceof Error ? err.message : String(err),
+    );
   }
 
   // 8. 连接 WebSocket
+  useStore.getState().markStartupStep('websocket', '连接 WebSocket', 'running');
   connectWebSocket();
   initErrorBusBridge();
 
   // 9. 初始化书桌
+  useStore.getState().markStartupStep('desk-init', '初始化书桌运行时', 'running');
   initJian();
+  useStore.getState().markStartupStep('desk-init', '初始化书桌运行时', 'success');
 
   // 10. 初始化编辑器事件
+  useStore.getState().markStartupStep('editor-events', '初始化编辑器事件', 'running');
   initEditorEvents();
+  useStore.getState().markStartupStep('editor-events', '初始化编辑器事件', 'success');
 
   // 11. 初始 layout 计算
   updateLayout();
+  useStore.getState().markStartupStep('layout', '计算初始布局', 'success');
 
   // 12-17. 主数据与次要状态统一转后台补齐，避免阻塞首屏。
+  useStore.getState().markStartupStep('background-loads', '后台补齐主数据', 'running', 'agents / sessions / models / channels / cron / bridge');
   void Promise.allSettled([
     loadAgents(),
     loadSessions(),
@@ -175,18 +210,31 @@ export async function initApp(): Promise<void> {
         }
       } catch { /* ignore */ }
     })(),
-  ]);
+  ]).then((results) => {
+    const hasRejected = results.some((result) => result.status === 'rejected');
+    useStore.getState().markStartupStep(
+      'background-loads',
+      '后台补齐主数据',
+      hasRejected ? 'warning' : 'success',
+      hasRejected ? '部分后台数据加载失败，已降级继续' : '主数据已加载完成',
+    );
+  });
 
   if (shouldDiagnoseBrain) {
+    useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'running');
     setTimeout(() => {
       void (async () => {
         try {
           const diagRes = await hanaFetch('/api/brain/diagnose');
           const diag = await diagRes.json();
-          if (diag.registering || diag.reachable) return;
+          if (diag.registering || diag.reachable) {
+            useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'success', diag.registering ? '服务注册中' : '连通正常');
+            return;
+          }
           const currentModel = useStore.getState().currentModel;
           if (currentModel?.provider !== 'brain') return;
           console.warn('[init] Brain 连通性诊断失败:', diag.error);
+          useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'warning', diag.error || '默认模型服务暂时不可达');
           useStore.getState().addToast(
             t('error.brainUnreachable') ||
             `默认模型服务暂时不可达${diag.error ? ` (${diag.error})` : ''}，请检查网络连接或在设置中切换到自己的 API Key。`,
@@ -194,9 +242,18 @@ export async function initApp(): Promise<void> {
             8000,
             { dedupeKey: 'brain-unreachable' },
           );
-        } catch { /* ignore — 非关键路径 */ }
+        } catch (err) {
+          useStore.getState().markStartupStep(
+            'brain-diagnose',
+            '诊断默认模型服务',
+            'warning',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
       })();
     }, 0);
+  } else {
+    useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'success', '当前未使用默认模型服务');
   }
 
   // 18. 设置快捷键
@@ -210,6 +267,7 @@ export async function initApp(): Promise<void> {
   // 19. 服务端重启后同步新端口/令牌并主动重连 WS
   platform.onServerRestarted?.((data: { port: number; token: string }) => {
     useStore.setState({ serverPort: String(data.port), serverToken: data.token });
+    useStore.getState().markStartupStep('server-restart', '检测到本地服务重启', 'warning', `127.0.0.1:${data.port}`);
     connectWebSocket(String(data.port), data.token);
     void syncRuntimeSnapshot({ announceRecovery: true });
     hanaFetch('/api/health')
@@ -305,4 +363,5 @@ export async function initApp(): Promise<void> {
   });
 
   // appReady 已提前触发，避免 splash 额外阻塞。
+  useStore.getState().setStartupPhase('ready');
 }

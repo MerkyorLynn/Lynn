@@ -42,7 +42,7 @@ const RECOMMENDED_SKILLS: RecommendedSkill[] = [
   { id: 'github', aliases: ['github'], category: '开发工具', score: 94, downloads: 88, builtin: true, defaultSeeded: true },
   { id: 'proactive-agent', aliases: ['proactive-agent'], category: 'AI 智能', score: 93, downloads: 69, builtin: true, defaultSeeded: true },
   { id: 'ontology', aliases: ['ontology'], category: 'AI 智能', score: 92, downloads: 65, builtin: true, defaultSeeded: true },
-  { id: 'weather', aliases: ['weather'], category: '生活实用', score: 91, downloads: 61, builtin: true, defaultSeeded: true },
+  { id: 'weather', aliases: ['weather'], category: '生活实用', score: 91, downloads: 61, builtin: true, defaultSeeded: false },
   { id: 'skill-vetter', aliases: ['skill-vetter'], category: 'AI 智能', score: 90, downloads: 58, builtin: true, defaultSeeded: true },
   { id: 'nano-pdf', aliases: ['nano-pdf'], category: '效率提升', score: 89, downloads: 71, builtin: true, defaultSeeded: true },
   { id: 'humanizer', aliases: ['humanizer'], category: '内容创作', score: 88, downloads: 69, builtin: true, defaultSeeded: true },

@@ -40,6 +40,8 @@ function statusText(status: AuthorizationStatus): string {
 }
 
 function deriveScopeLabel(category: string, command: string): string {
+  if (category === 'package_install') return window.t('security.auth.softwareInstall') || 'Software Install';
+  if (category === 'script_install') return window.t('security.auth.installScript') || 'Remote Install Script';
   if (category.startsWith('path_write')) return window.t('security.auth.fileWrite') || 'File Write';
   if (category.startsWith('path_read')) return window.t('security.auth.fileRead') || 'File Read';
   if (category.startsWith('path_')) return window.t('security.auth.fileOp') || 'File Access';
@@ -64,6 +66,18 @@ function buildSummary(scopeLabel: string, trustedRootLabel: string): string {
   return (window.t('security.auth.summary') || 'Lynn wants to perform a {scope} action in {project}. Choose how much to allow.')
     .replace('{scope}', scopeLabel)
     .replace('{project}', projectLabel);
+}
+
+function deriveCommandLabel(category: string): string {
+  if (category === 'package_install') {
+    const v = window.t('security.auth.installCommandLabel');
+    return (v && v !== 'security.auth.installCommandLabel') ? v : '将要安装的命令';
+  }
+  if (category === 'script_install') {
+    const v = window.t('security.auth.installScriptLabel');
+    return (v && v !== 'security.auth.installScriptLabel') ? v : '将要执行的远程安装脚本';
+  }
+  return window.t('security.auth.commandLabel') || 'About to execute:';
 }
 
 function sendAction(confirmId: string, action: AuthorizationAction) {
@@ -119,6 +133,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
 
   const trustedRootLabel = trustedRoot ? shortPath(trustedRoot) : '';
   const scopeLabel = deriveScopeLabel(category, command);
+  const commandLabel = deriveCommandLabel(category);
   const [onceHint, sessionHint, persistentHint] = decisionHints(trustedRootLabel);
   const summary = buildSummary(scopeLabel, trustedRootLabel);
   if (status !== 'pending') {
@@ -150,7 +165,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
       ) : null}
 
       <div className={styles.commandWrap}>
-        <div className={styles.commandLabel}>{window.t('security.auth.commandLabel') || 'About to execute:'}</div>
+        <div className={styles.commandLabel}>{commandLabel}</div>
         <pre className={styles.commandBlock}><code>{command}</code></pre>
       </div>
 

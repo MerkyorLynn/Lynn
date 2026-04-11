@@ -78,6 +78,20 @@ function renderStreamingTextHtml(src: string): string {
     .join('');
 }
 
+function resetBufferState(buf: Buffer): void {
+  buf.textAcc = '';
+  buf.thinkingAcc = '';
+  buf.moodAcc = '';
+  buf.xingAcc = '';
+  buf.inThinking = false;
+  buf.inMood = false;
+  buf.inXing = false;
+  buf.messageAppended = false;
+  buf.lastRenderedText = '';
+  buf.lastRenderedHtml = '';
+  buf.lastRenderedFinalized = false;
+}
+
 class StreamBufferManager {
   private buffers = new Map<string, Buffer>();
 
@@ -429,18 +443,29 @@ class StreamBufferManager {
 
       case 'turn_end':
         this.flush(buf, true);
-        // 清理 buffer
-        buf.textAcc = '';
-        buf.thinkingAcc = '';
-        buf.moodAcc = '';
-        buf.xingAcc = '';
-        buf.inThinking = false;
-        buf.inMood = false;
-        buf.inXing = false;
-        buf.messageAppended = false;
-        buf.lastRenderedText = '';
-        buf.lastRenderedHtml = '';
-        buf.lastRenderedFinalized = false;
+        resetBufferState(buf);
+        break;
+
+      case 'turn_retry':
+        if (buf.flushTimer) {
+          clearTimeout(buf.flushTimer);
+          buf.flushTimer = null;
+        }
+        useStore.setState((state) => {
+          const chatSession = state.chatSessions[sessionPath];
+          if (!chatSession?.items?.length) return state;
+          const items = [...chatSession.items];
+          const last = items[items.length - 1];
+          if (last?.type !== 'message' || last.data.role !== 'assistant') return state;
+          items.pop();
+          return {
+            chatSessions: {
+              ...state.chatSessions,
+              [sessionPath]: { ...chatSession, items },
+            },
+          };
+        });
+        resetBufferState(buf);
         break;
     }
   }

@@ -17,20 +17,17 @@ import { getRoleDefaultModelRefs } from "../shared/assistant-role-models.js";
 
 const RECOMMENDED_DEFAULT_SKILLS = [
   "self-improving-agent",
-  "tavily-search",
   "find-skills",
   "summarize",
   "agent-browser",
   "github",
   "proactive-agent",
   "ontology",
-  "weather",
   "skill-vetter",
   "nano-pdf",
   "humanizer",
   "ffmpeg-video-editor",
   "docker-essentials",
-  "baidu-search",
 ];
 
 const BUILT_IN_AGENT_SPECS = [

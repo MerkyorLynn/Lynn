@@ -42,6 +42,17 @@ function ensureStreamResumeWatchdog(): void {
   }, STREAM_RESUME_WATCHDOG_MS);
 }
 
+function markWebSocketStartup(
+  status: 'running' | 'success' | 'warning' | 'error',
+  detail?: string | null,
+): void {
+  try {
+    useStore.getState().markStartupStep('websocket', '连接 WebSocket', status, detail ?? null);
+  } catch {
+    // ignore diagnostics timing issues during bootstrap
+  }
+}
+
 /** 获取当前 WebSocket 实例 */
 export function getWebSocket(): WebSocket | null {
   return _ws;
@@ -71,6 +82,7 @@ export function connectWebSocket(port?: string, token?: string): void {
     _wsRetryCount = 0;
     setStatus('status.connected', true);
     useStore.setState({ wsState: 'connected', wsReconnectAttempt: 0, compactingSessions: [] });
+    markWebSocketStartup('success', `ws://127.0.0.1:${serverPort}/ws`);
 
     const s = useStore.getState();
     if (s.currentSessionPath && s.isStreaming) {
@@ -101,14 +113,17 @@ export function connectWebSocket(port?: string, token?: string): void {
 
     if (_wsRetryCount <= WS_MAX_RETRIES) {
       useStore.setState({ wsState: 'reconnecting', wsReconnectAttempt: _wsRetryCount });
+      markWebSocketStartup('warning', `连接中断，正在重连（第 ${_wsRetryCount} 次）`);
       _wsRetryTimer = setTimeout(() => connectWebSocket(serverPort, serverToken ?? undefined), _wsRetryDelay);
       _wsRetryDelay = Math.min(_wsRetryDelay * 2, WS_RETRY_MAX);
     } else {
       useStore.setState({ wsState: 'disconnected' });
+      markWebSocketStartup('error', 'WebSocket 多次重连失败');
     }
   };
 
   _ws.onerror = () => {
+    markWebSocketStartup('error', 'WebSocket 连接出错');
     errorBus.report(new AppError('WS_DISCONNECTED'));
   };
 }

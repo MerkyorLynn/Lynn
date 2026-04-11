@@ -109,11 +109,10 @@ export async function submitPromptTask(options: SendPromptOptions): Promise<bool
   if (mode === 'prompt') {
     const routeIntent = classifyRouteIntent(requestText, { imagesCount: options.images?.length || 0 });
     const noticeKey = getRouteIntentNoticeKey(routeIntent);
-    const notice = noticeKey ? window.t?.(noticeKey) : null;
-    if (notice) {
+    if (noticeKey) {
       const store = useStore.getState();
       store.setInlineError?.(null);
-      store.setInlineNotice?.(notice);
+      store.setInlineNotice?.(noticeKey);
     }
   }
 

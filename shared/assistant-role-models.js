@@ -30,7 +30,7 @@ function _ref(providerEncoded, idEncoded) {
 }
 
 export const USER_FACING_MODEL_LABELS = Object.freeze({
-  lynn: "默认对话模型",
+  lynn: "默认工作模型",
   hanako: "默认复查模型",
   butter: "默认复查模型",
   review: "默认复查模型",

@@ -68,11 +68,13 @@ const _BRAIN_MODEL_AUX_2_ENCODED = "NDE0MC1iOS00LW1sZw==";
 const _BRAIN_MODEL_ROUTER_ENCODED = "cmV0dW9yLW5pYXJiLW5ueWw=";
 const _BRAIN_MODEL_LEGACY_ENCODED = "YjctbmV3cS1sbGl0c2lkLTFyLWtlZXNwZWVk";
 
-export const BRAIN_CHAT_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
-export const BRAIN_UTILITY_MODEL_ID = _d(_BRAIN_MODEL_UTILITY_ENCODED);
-export const BRAIN_UTILITY_LARGE_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
-export const BRAIN_SUMMARIZER_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
-export const BRAIN_COMPILER_MODEL_ID = _d(_BRAIN_MODEL_PRIMARY_ENCODED);
+// All user-facing default roles enter through the Brain router. Older concrete
+// model IDs remain listed below only for migration/display compatibility.
+export const BRAIN_CHAT_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
+export const BRAIN_UTILITY_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
+export const BRAIN_UTILITY_LARGE_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
+export const BRAIN_SUMMARIZER_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
+export const BRAIN_COMPILER_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
 export const BRAIN_DEFAULT_MODEL_ID = BRAIN_CHAT_MODEL_ID;
 export const BRAIN_DEFAULT_DISPLAY_NAME = "默认模型";
 export const BRAIN_DEFAULT_META_LABEL = "第三方已备案 AI 模型";
@@ -82,11 +84,11 @@ export const BRAIN_LEGACY_MODEL_IDS = [
   _d(_BRAIN_MODEL_LEGACY_ENCODED),
 ];
 export const BRAIN_DEFAULT_MODEL_IDS = [
+  _d(_BRAIN_MODEL_ROUTER_ENCODED),
   _d(_BRAIN_MODEL_PRIMARY_ENCODED),
   _d(_BRAIN_MODEL_UTILITY_ENCODED),
   _d(_BRAIN_MODEL_AUX_1_ENCODED),
   _d(_BRAIN_MODEL_AUX_2_ENCODED),
-  _d(_BRAIN_MODEL_ROUTER_ENCODED),
 ];
 export const BRAIN_ROLE_MODEL_IDS = {
   chat: BRAIN_CHAT_MODEL_ID,
@@ -131,6 +133,7 @@ export function sanitizeBrainIdentityDisclosureText(raw) {
 
   const genericZh = "我当前使用的是 Lynn 的默认模型服务。";
   const genericEn = "I’m currently running on Lynn's default model service.";
+  const prefersZh = /[\u3400-\u9fff]/u.test(source);
   const _BRAIN_UPSTREAM_TOKEN_ENCODINGS = [
     "bWxn",
     "6K+65pm6",
@@ -181,12 +184,21 @@ export function sanitizeBrainIdentityDisclosureText(raw) {
     }
   }
 
-  return sanitized
+  let output = sanitized
     .join(" ")
     .replace(/(?:我当前使用的是 Lynn 的默认模型服务。\s*){2,}/g, genericZh)
     .replace(/(?:I’m currently running on Lynn's default model service\.\s*){2,}/g, genericEn)
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
+  if (prefersZh) {
+    output = output.replace(/I’m currently running on Lynn's default model service\./g, genericZh);
+  }
+
+  return output
+    .replace(/([。！？])\s+/g, "$1")
+    .replace(/(?:我当前使用的是 Lynn 的默认模型服务。\s*){2,}/g, genericZh)
     .trim();
 }
 

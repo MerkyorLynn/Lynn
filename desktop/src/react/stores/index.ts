@@ -18,6 +18,7 @@ import { createAutomationSlice, type AutomationSlice } from './automation-slice'
 import { createActivitySlice, type ActivitySlice } from './activity-slice';
 import { createBridgeSlice, type BridgeSlice } from './bridge-slice';
 import { createSecuritySlice, type SecuritySlice } from './security-slice';
+import { createStartupSlice, type StartupSlice } from './startup-slice';
 
 export type StoreState = ConnectionSlice &
   SessionSlice &
@@ -36,7 +37,8 @@ export type StoreState = ConnectionSlice &
   AutomationSlice &
   ActivitySlice &
   BridgeSlice &
-  SecuritySlice;
+  SecuritySlice &
+  StartupSlice;
 
 export const useStore = create<StoreState>()((set, _get, _api) => ({
   ...createConnectionSlice(set),
@@ -57,6 +59,7 @@ export const useStore = create<StoreState>()((set, _get, _api) => ({
   ...createActivitySlice(set),
   ...createBridgeSlice(set),
   ...createSecuritySlice(set),
+  ...createStartupSlice(set),
 }));
 
 export { useShallow };
@@ -81,4 +84,5 @@ export type {
   ActivitySlice,
   BridgeSlice,
   SecuritySlice,
+  StartupSlice,
 };

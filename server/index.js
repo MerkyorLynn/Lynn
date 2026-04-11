@@ -52,6 +52,7 @@ import { createMcpRoute } from "./routes/mcp.js";
 import { createReviewRoute } from "./routes/review.js";
 import { createTasksRoute } from "./routes/tasks.js";
 import { createAppStateRoute } from "./routes/app-state.js";
+import { createDebugRoute } from "./routes/debug.js";
 // internal-browser WS is handled directly via raw ws.WebSocketServer in the
 // upgrade handler below (WsTransport needs raw ws .on()/.off() methods)
 import { ConfirmStore } from "../lib/confirm-store.js";
@@ -199,6 +200,7 @@ app.route("", chatWsRoute);
 app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast, taskRuntime }));
 app.route("/api", createTasksRoute(taskRuntime, engine));
 app.route("/api", createAppStateRoute(engine, { taskRuntime }));
+app.route("/api", createDebugRoute(engine));
 app.route("/api", createSessionsRoute(engine));
 app.route("/api", createModelsRoute(engine));
 app.route("/api", createConfigRoute(engine));

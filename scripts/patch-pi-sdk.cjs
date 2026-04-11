@@ -186,6 +186,165 @@ if (fs.existsSync(completionsTarget)) {
     console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot apply zai-thinking patch");
   }
 
+  // ── Patch 3: Brain provider tolerant adapter ──
+  // Brain 云端在部分链路下的 SSE 收尾不够标准，OpenAI SDK 严格流解析器
+  // 会把已有内容消费成空消息。默认模型改为非流式兼容请求，再转回
+  // Pi 的 AssistantMessageEventStream；其他供应商仍走原始流式路径。
+  if (completionsCode.includes("function streamBrainTolerantOpenAICompletions")) {
+    console.log("[patch-pi-sdk] openai-completions.js brain tolerant adapter already applied");
+  } else {
+    const helperNeedle = "export const streamOpenAICompletions = (model, context, options) => {\n";
+    const helperCode =
+`function streamBrainTolerantOpenAICompletions(model, context, options) {
+    const stream = new AssistantMessageEventStream();
+    (async () => {
+        const output = {
+            role: "assistant",
+            content: [],
+            api: model.api,
+            provider: model.provider,
+            model: model.id,
+            usage: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                totalTokens: 0,
+                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+            },
+            stopReason: "stop",
+            timestamp: Date.now(),
+        };
+        const blockIndex = () => output.content.length - 1;
+        const pushText = (text) => {
+            const value = typeof text === "string" ? text : "";
+            if (!value)
+                return;
+            const block = { type: "text", text: value };
+            output.content.push(block);
+            stream.push({ type: "text_start", contentIndex: blockIndex(), partial: output });
+            stream.push({ type: "text_delta", contentIndex: blockIndex(), delta: value, partial: output });
+            stream.push({ type: "text_end", contentIndex: blockIndex(), content: value, partial: output });
+        };
+        const pushToolCall = (toolCall) => {
+            const fn = toolCall?.function || {};
+            const id = toolCall?.id || \`call_\${Math.random().toString(36).slice(2)}\`;
+            const rawArgs = typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments || {});
+            const block = {
+                type: "toolCall",
+                id,
+                name: fn.name || "",
+                arguments: parseStreamingJson(rawArgs),
+            };
+            output.content.push(block);
+            stream.push({ type: "toolcall_start", contentIndex: blockIndex(), partial: output });
+            stream.push({ type: "toolcall_delta", contentIndex: blockIndex(), delta: rawArgs, partial: output });
+            stream.push({ type: "toolcall_end", contentIndex: blockIndex(), toolCall: block, partial: output });
+        };
+        try {
+            const apiKey = options?.apiKey || getEnvApiKey(model.provider) || "";
+            const params = buildParams(model, context, options);
+            params.stream = false;
+            delete params.stream_options;
+            delete params.store;
+            if (params.max_completion_tokens && !params.max_tokens) {
+                params.max_tokens = params.max_completion_tokens;
+                delete params.max_completion_tokens;
+            }
+            options?.onPayload?.(params);
+            const headers = {
+                "Content-Type": "application/json",
+                ...(model.headers || {}),
+                ...(options?.headers || {}),
+            };
+            if (apiKey && apiKey !== "local")
+                headers.Authorization = \`Bearer \${apiKey}\`;
+            const base = String(model.baseUrl || "").replace(/\\/+$/, "");
+            const response = await fetch(\`\${base}/chat/completions\`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(params),
+                signal: options?.signal,
+            });
+            const raw = await response.text();
+            let data = {};
+            try {
+                data = raw ? JSON.parse(raw) : {};
+            }
+            catch {
+                throw new Error(raw.slice(0, 500) || \`Brain response is not JSON (\${response.status})\`);
+            }
+            if (!response.ok) {
+                throw new Error(data?.error?.message || data?.error || \`Brain \${response.status}\`);
+            }
+            const choice = data.choices?.[0] || {};
+            const message = choice.message || {};
+            stream.push({ type: "start", partial: output });
+            if (data.usage) {
+                const cachedTokens = data.usage.prompt_tokens_details?.cached_tokens || 0;
+                const reasoningTokens = data.usage.completion_tokens_details?.reasoning_tokens || 0;
+                const input = (data.usage.prompt_tokens || 0) - cachedTokens;
+                const outputTokens = (data.usage.completion_tokens || 0) + reasoningTokens;
+                output.usage = {
+                    input,
+                    output: outputTokens,
+                    cacheRead: cachedTokens,
+                    cacheWrite: 0,
+                    totalTokens: input + outputTokens + cachedTokens,
+                    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+                };
+                calculateCost(model, output.usage);
+            }
+            if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+                output.stopReason = "toolUse";
+                for (const toolCall of message.tool_calls)
+                    pushToolCall(toolCall);
+            }
+            else {
+                output.stopReason = mapStopReason(choice.finish_reason || "stop");
+                const content = Array.isArray(message.content)
+                    ? message.content.map((part) => typeof part === "string" ? part : (part?.text || "")).join("")
+                    : (message.content || "");
+                pushText(content);
+            }
+            stream.push({ type: "done", reason: output.stopReason, message: output });
+            stream.end();
+        }
+        catch (error) {
+            output.stopReason = options?.signal?.aborted ? "aborted" : "error";
+            output.errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+            stream.push({ type: "error", reason: output.stopReason, error: output });
+            stream.end();
+        }
+    })();
+    return stream;
+}
+
+`;
+
+    if (completionsCode.includes(helperNeedle)) {
+      completionsCode = completionsCode.replace(helperNeedle, helperCode + helperNeedle);
+      console.log("[patch-pi-sdk] patched openai-completions.js → Brain tolerant adapter helper");
+    } else {
+      console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot insert Brain tolerant helper");
+    }
+  }
+
+  const brainBranchNeedle = "export const streamOpenAICompletions = (model, context, options) => {\n";
+  const brainBranchReplacement =
+    "export const streamOpenAICompletions = (model, context, options) => {\n" +
+    "    if (model.provider === \"brain\" || String(model.baseUrl || \"\").includes(\"api.merkyorlynn.com\")) {\n" +
+    "        return streamBrainTolerantOpenAICompletions(model, context, options);\n" +
+    "    }\n";
+  if (completionsCode.includes("return streamBrainTolerantOpenAICompletions(model, context, options);")) {
+    console.log("[patch-pi-sdk] openai-completions.js brain tolerant branch already applied");
+  } else if (completionsCode.includes(brainBranchNeedle)) {
+    completionsCode = completionsCode.replace(brainBranchNeedle, brainBranchReplacement);
+    console.log("[patch-pi-sdk] patched openai-completions.js → route Brain through tolerant adapter");
+  } else {
+    console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot insert Brain tolerant branch");
+  }
+
   fs.writeFileSync(completionsTarget, completionsCode, "utf8");
 } else {
   console.log("[patch-pi-sdk] openai-completions.js not found, skipping");

@@ -62,6 +62,7 @@ let _mainWindowReadyWaiters = [];
 let settingsWindow = null;
 let settingsWindowInitialNavigationTarget = null;
 let settingsWindowContentStamp = null;
+let preferredPrimaryWindowKind = "main";
 
 let browserViewerWindow = null;
 let _browserWebView = null;        // 当前活跃的 WebContentsView
@@ -1017,9 +1018,31 @@ function monitorServer() {
 /**
  * 显示当前最相关窗口
  */
+function markPreferredPrimaryWindow(kind) {
+  if (typeof kind === "string" && kind) preferredPrimaryWindowKind = kind;
+}
+
+function getPreferredPrimaryWindow() {
+  const windowByKind = {
+    settings: settingsWindow,
+    onboarding: onboardingWindow,
+    browser: browserViewerWindow,
+    editor: editorWindow,
+    main: mainWindow,
+  };
+  const preferred = windowByKind[preferredPrimaryWindowKind];
+  if (preferred && !preferred.isDestroyed()) return preferred;
+  return settingsWindow
+    || onboardingWindow
+    || browserViewerWindow
+    || editorWindow
+    || mainWindow
+    || null;
+}
+
 function showPrimaryWindow() {
   if (process.platform === "darwin") app.dock.show();
-  const win = settingsWindow || onboardingWindow || browserViewerWindow || mainWindow;
+  const win = getPreferredPrimaryWindow();
   if (win && !win.isDestroyed()) { win.show(); win.focus(); }
 }
 
@@ -1291,6 +1314,7 @@ function createMainWindow() {
 
   // 窗口获焦时清除 Dock badge
   mainWindow.on("focus", () => {
+    markPreferredPrimaryWindow("main");
     if (process.platform === "darwin") {
       _pendingNotificationCount = 0;
       app.dock.setBadge("");
@@ -1395,6 +1419,7 @@ function createSettingsWindow(target, theme) {
 
   settingsWindowInitialNavigationTarget = navigationTarget;
   settingsWindowContentStamp = desiredStamp;
+  markPreferredPrimaryWindow("settings");
 
   settingsWindow = new BrowserWindow({
     width: 720,
@@ -1414,7 +1439,15 @@ function createSettingsWindow(target, theme) {
   });
 
   settingsWindow.once("ready-to-show", () => {
-    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.show();
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      markPreferredPrimaryWindow("settings");
+      settingsWindow.show();
+      settingsWindow.focus();
+    }
+  });
+
+  settingsWindow.on("focus", () => {
+    markPreferredPrimaryWindow("settings");
   });
 
   settingsWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
@@ -1461,6 +1494,9 @@ function createSettingsWindow(target, theme) {
   });
 
   settingsWindow.on("closed", () => {
+    if (preferredPrimaryWindowKind === "settings") {
+      preferredPrimaryWindowKind = "main";
+    }
     settingsWindowInitialNavigationTarget = null;
     settingsWindowContentStamp = null;
     settingsWindow = null;
@@ -1564,6 +1600,7 @@ function createBrowserViewerWindow(opts = {}) {
 
   // 窗口获得焦点时，将输入焦点转发到 WebContentsView（否则无法滚动/打字）
   browserViewerWindow.on("focus", () => {
+    markPreferredPrimaryWindow("browser");
     if (_browserWebView) {
       _browserWebView.webContents.focus();
       console.log("[browser-viewer] window focus → view.focus(), isFocused:", _browserWebView.webContents.isFocused());
@@ -1579,6 +1616,9 @@ function createBrowserViewerWindow(opts = {}) {
   });
 
   browserViewerWindow.on("closed", () => {
+    if (preferredPrimaryWindowKind === "browser") {
+      preferredPrimaryWindowKind = "main";
+    }
     browserViewerWindow = null;
   });
 }
@@ -2206,7 +2246,14 @@ function createOnboardingWindow(query = {}) {
     onboardingWindow.show();
   });
 
+  onboardingWindow.on("focus", () => {
+    markPreferredPrimaryWindow("onboarding");
+  });
+
   onboardingWindow.on("closed", () => {
+    if (preferredPrimaryWindowKind === "onboarding") {
+      preferredPrimaryWindowKind = "main";
+    }
     const shouldSkipIntoApp = query.preview !== "1" && !forceQuitApp && (!mainWindow || mainWindow.isDestroyed());
     onboardingWindow = null;
     if (shouldSkipIntoApp) {
@@ -2317,6 +2364,10 @@ wrapIpcHandler("open-editor-window", (event, data) => {
     }
   });
 
+  editorWindow.on("focus", () => {
+    markPreferredPrimaryWindow("editor");
+  });
+
   editorWindow.on("close", (e) => {
     if (!isQuitting) {
       e.preventDefault();
@@ -2329,6 +2380,9 @@ wrapIpcHandler("open-editor-window", (event, data) => {
   });
 
   editorWindow.on("closed", () => {
+    if (preferredPrimaryWindowKind === "editor") {
+      preferredPrimaryWindowKind = "main";
+    }
     editorWindow = null;
     _editorFileData = null;
     // 清理编辑器窗口关联的文件监听

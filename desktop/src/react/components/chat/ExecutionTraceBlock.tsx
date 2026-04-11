@@ -39,7 +39,7 @@ function zhSummary(tools: ToolCall[]): string {
   };
   for (const tool of tools) {
     if (tool.name === 'read') counts.read += 1;
-    else if (['grep', 'glob', 'find', 'web_search', 'search_memory'].includes(tool.name)) counts.search += 1;
+    else if (['grep', 'glob', 'find', 'web_search', 'search_memory', 'stock_market', 'weather', 'sports_score', 'live_news'].includes(tool.name)) counts.search += 1;
     else if (['write', 'edit', 'edit-diff'].includes(tool.name)) counts.edit += 1;
     else if (tool.name === 'bash') counts.command += 1;
     else if (['browser', 'web_fetch'].includes(tool.name)) counts.browse += 1;
@@ -67,7 +67,7 @@ function enSummary(tools: ToolCall[]): string {
   };
   for (const tool of tools) {
     if (tool.name === 'read') counts.read += 1;
-    else if (['grep', 'glob', 'find', 'web_search', 'search_memory'].includes(tool.name)) counts.search += 1;
+    else if (['grep', 'glob', 'find', 'web_search', 'search_memory', 'stock_market', 'weather', 'sports_score', 'live_news'].includes(tool.name)) counts.search += 1;
     else if (['write', 'edit', 'edit-diff'].includes(tool.name)) counts.edit += 1;
     else if (tool.name === 'bash') counts.command += 1;
     else if (['browser', 'web_fetch'].includes(tool.name)) counts.browse += 1;
@@ -95,6 +95,14 @@ function buildToolTraceLine(tool: ToolCall, zh: boolean): string {
     case 'web_search':
     case 'search_memory':
       return zh ? `搜索 ${detail || tool.name}` : `Searched ${detail || tool.name}`;
+    case 'stock_market':
+      return zh ? `查询行情 ${detail || '市场数据'}` : `Checked market data ${detail || ''}`.trim();
+    case 'weather':
+      return zh ? `查询天气 ${detail || '天气信息'}` : `Checked weather ${detail || ''}`.trim();
+    case 'sports_score':
+      return zh ? `查询比分 ${detail || '赛事信息'}` : `Checked scores ${detail || ''}`.trim();
+    case 'live_news':
+      return zh ? `汇总热点 ${detail || '最新资讯'}` : `Summarized live news ${detail || ''}`.trim();
     case 'write':
     case 'edit':
     case 'edit-diff':

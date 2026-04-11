@@ -35,6 +35,7 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
   const requiresKey = summary.type === 'api-key' && !presetInfo?.local;
   const isDefaultModelProvider = providerId === BRAIN_PROVIDER_ID;
   const [connStatus, setConnStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>(isDefaultModelProvider ? 'ok' : 'idle');
+  const smokeModelId = summary.models?.[0] || presetInfo?.defaultModelId || '';
 
   // 未编辑时，从 summary 同步 base_url
   useEffect(() => {
@@ -44,6 +45,13 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
   useEffect(() => {
     if (isDefaultModelProvider) setConnStatus('ok');
   }, [isDefaultModelProvider]);
+
+  useEffect(() => {
+    setKeyVal('');
+    setKeyEdited(false);
+    setUrlEdited(false);
+    setConnStatus(isDefaultModelProvider ? 'ok' : 'idle');
+  }, [providerId, isDefaultModelProvider]);
 
   const verifyAndSave = async (btn: HTMLButtonElement) => {
     if (requiresKey && !keyEdited) return;
@@ -55,11 +63,11 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
       const testRes = await hanaFetch('/api/providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: providerId, base_url: effectiveUrl, api, api_key: key }),
+        body: JSON.stringify({ name: providerId, base_url: effectiveUrl, api, api_key: key, model_id: smokeModelId }),
       });
       const testData = await testRes.json();
       if (!testData.ok) {
-        showToast(t('settings.providers.verifyFailed'), 'error');
+        showToast(testData.error || testData.message || t('settings.providers.verifyFailed'), 'error');
         return;
       }
       const payload: Record<string, unknown> = isPresetSetup
@@ -105,11 +113,15 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
           base_url: urlVal.trim() || derivedBaseUrl,
           api,
           api_key: requiresKey ? (keyVal.trim() || undefined) : undefined,
+          model_id: smokeModelId,
         }),
       });
       const testData = await testRes.json();
       setConnStatus(testData.ok ? 'ok' : 'fail');
-      showToast(testData.ok ? t('settings.providers.verifySuccess') : t('settings.providers.verifyFailed'), testData.ok ? 'success' : 'error');
+      showToast(
+        testData.ok ? t('settings.providers.verifySuccess') : (testData.error || testData.message || t('settings.providers.verifyFailed')),
+        testData.ok ? 'success' : 'error',
+      );
     } catch {
       setConnStatus('fail');
       showToast(t('settings.providers.verifyFailed'), 'error');

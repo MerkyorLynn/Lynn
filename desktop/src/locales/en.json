@@ -407,7 +407,10 @@
     "weekPrefix": ""
   },
   "mood": {
-    "label": "✿ MOOD"
+    "label": "✿ MOOD",
+    "hanakoLabel": "✿ MOOD",
+    "butterLabel": "❊ PULSE",
+    "lynnLabel": "◈ REFLECT"
   },
   "xing": {
     "title": "Reflection",
@@ -1309,10 +1312,10 @@
     "title": "Scheduled Tasks",
     "empty": "No scheduled tasks yet.\nThe assistant will create them when needed.",
     "guideTitle": "Automate with scheduled tasks",
-    "guideDesc": "Set up tasks to run on a schedule. You can also ask the assistant to create them in chat.",
+    "guideDesc": "Pick a template first, then choose the project, schedule, and model. After creating it, you can run a test immediately to confirm it really works.",
     "guideTip": "Click to add instantly. You can edit the time and content later.",
     "deleteConfirm": "Are you sure you want to delete this scheduled task?",
-    "defaultModel": "Default model",
+    "defaultModel": "Default work model",
     "edit": "Edit",
     "delete": "Delete",
     "addCustom": "+ Custom Task",
@@ -1742,6 +1745,14 @@
       "urlDesc": "Full URL to fetch (including https://)",
       "maxLenDesc": "Maximum characters to return, default {max}"
     },
+    "stockMarket": {
+      "label": "Market Lookup",
+      "description": "Look up gold, stocks, indices, funds, FX, and oil market information. The tool searches and fetches finance-focused sources such as Tencent, Sina Finance, Xueqiu, Eastmoney, and AkShare, then returns a structured summary.",
+      "queryDesc": "Original market question, for example “today's gold price”",
+      "kindDesc": "Optional kind: gold / stock / index / fund / fx / oil",
+      "marketDesc": "Optional market, for example CN / HK / US / GLOBAL",
+      "symbolDesc": "Optional symbol or instrument, for example 600519 / XAUUSD"
+    },
     "browser": {
       "label": "Browser",
       "description": "Control a browser to browse the web. Supports navigation, clicking, typing, scrolling, and screenshots.\nActions:\n- start: Launch the browser (must be called before first use)\n- stop: Close the browser\n- navigate(url): Navigate to a URL\n- snapshot: Get the current page's element tree (recommended: text format, low cost)\n- screenshot: Take a screenshot of the current page (use only when visual info is needed)\n- click(ref): Click the element with the [ref] number from snapshot\n- type(text, ref?): Type text into an element, optionally click ref to focus first\n- scroll(direction, amount?): Scroll the page, direction is up/down\n- select(ref, value): Select a dropdown option\n- key(key): Press a key, e.g. Enter, Escape, Tab, Control+a\n- wait(timeout?, state?): Wait for the page to load\n- evaluate(expression): Execute JavaScript on the page\n- show: Bring the browser window to front\n\nImportant: [ref] numbers from snapshot become invalid after page changes. A new snapshot is automatically returned after each navigate/click.",
@@ -2008,11 +2019,15 @@
       "alwaysAllow": "Always allow this type of operation",
       "trustedRoot": "Trusted root",
       "scope": "Terminal",
+      "softwareInstall": "Software install",
+      "installScript": "Remote install script",
       "fileWrite": "File write",
       "fileRead": "File read",
       "fileOp": "File access",
       "terminal": "Terminal action",
       "currentProject": "current project",
+      "installCommandLabel": "Install command to run",
+      "installScriptLabel": "Remote install script to run",
       "allowOnceHint": "Only allow this single action.",
       "allowSessionHint": "Allow similar actions for the rest of this task or session.",
       "allowAlwaysHereHint": "Always allow similar actions inside {project}."
@@ -2050,9 +2065,9 @@
   "status.routeExecutionPlanned": "Detected an execution task. Lynn will prioritize the default execution route for this turn.",
   "status.routeCodingPlanned": "Detected a coding task. Lynn will prioritize the default coding route for this turn.",
   "status.routeVisionPlanned": "Detected an image or attachment analysis task. Lynn will prioritize the default reasoning route for this turn.",
-  "status.defaultModelSlowResponse": "The default model's primary route is a bit slow. Lynn is relaying this turn through backup routes in the background.",
-  "status.defaultModelRecoveringToolExecution": "The default model did not complete real tool execution just now. Lynn is moving this turn onto a backup execution route.",
-  "status.defaultModelStillWorking": "The default model is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup routes.",
+  "status.defaultModelSlowResponse": "The default work model primary route is a bit slow. Lynn is relaying this turn through backup routes in the background.",
+  "status.defaultModelRecoveringToolExecution": "The default work model did not complete real tool execution just now. Lynn is moving this turn onto a backup execution route.",
+  "status.defaultModelStillWorking": "The default work model is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup routes.",
   "status.defaultReasoningSlowResponse": "The default reasoning route is a bit slow. Lynn is relaying this turn through backup reasoning routes in the background.",
   "status.defaultReasoningStillWorking": "The default reasoning route is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup reasoning routes.",
   "status.defaultExecutionSlowResponse": "The default execution route is a bit slow. Lynn is relaying this turn through backup execution routes in the background.",

@@ -399,7 +399,10 @@
     "weekPrefix": "週"
   },
   "mood": {
-    "label": "✿ MOOD"
+    "label": "✿ 情緒",
+    "hanakoLabel": "✿ 情緒",
+    "butterLabel": "❊ 脈衝",
+    "lynnLabel": "◈ 反思"
   },
   "xing": {
     "title": "反省",
@@ -1221,10 +1224,10 @@
     "title": "自動任務",
     "empty": "暫無自動任務\n助手會在需要時自動建立",
     "guideTitle": "讓助手按計畫自動做事",
-    "guideDesc": "設定自動任務後，助手會按計畫自動執行。也可以在對話中讓助手建立。",
+    "guideDesc": "先選模板，再設定專案、時間和模型。建立後可以先測試一次，確認它真的會按計畫執行。",
     "guideTip": "點擊即可新增，新增後可編輯時間和內容",
     "deleteConfirm": "確定要刪除這個定時任務嗎？",
-    "defaultModel": "預設模型",
+    "defaultModel": "預設工作模型",
     "edit": "編輯",
     "delete": "刪除",
     "tpl": {
@@ -1644,6 +1647,14 @@
       "urlDesc": "要擷取的完整 URL（包含 https://）",
       "maxLenDesc": "回傳的最大字元數，預設 {max}"
     },
+    "stockMarket": {
+      "label": "行情查詢",
+      "description": "查詢金價、股價、指數、基金、匯率、原油等財經行情。工具會優先搜尋並抓取騰訊自選股、新浪財經、雪球、東方財富、AkShare 等來源，再回傳結構化摘要。",
+      "queryDesc": "原始行情問題，例如「今天金價多少」",
+      "kindDesc": "可選類型：gold / stock / index / fund / fx / oil",
+      "marketDesc": "可選市場，例如 CN / HK / US / GLOBAL",
+      "symbolDesc": "可選代碼或品種，例如 600519 / XAUUSD"
+    },
     "browser": {
       "label": "瀏覽器",
       "description": "控制瀏覽器瀏覽網頁。可以導覽、點擊、輸入、捲動、截圖。\n操作：\n- start：啟動瀏覽器（首次使用前必須呼叫）\n- stop：關閉瀏覽器\n- navigate(url)：導覽到指定 URL\n- snapshot：取得目前頁面的元素樹（推薦：文字格式，成本低）\n- screenshot：截取目前頁面截圖（僅在需要視覺資訊時使用）\n- click(ref)：點擊 snapshot 回傳的 [ref] 編號對應的元素\n- type(text, ref?)：在元素中輸入文字，可選先點擊 ref 取得焦點\n- scroll(direction, amount?)：捲動頁面，direction 為 up/down\n- select(ref, value)：選擇下拉選單選項\n- key(key)：按鍵，如 Enter、Escape、Tab、Control+a\n- wait(timeout?, state?)：等待頁面載入\n- evaluate(expression)：執行頁面 JavaScript\n- show：將瀏覽器視窗帶到前景\n\n重要：snapshot 回傳的 [ref] 編號在頁面變更後會失效，每次 navigate/click 後會自動回傳新的 snapshot。",
@@ -1952,9 +1963,9 @@
   "status.routeExecutionPlanned": "偵測到執行型任務，Lynn 會優先按預設執行鏈路處理。",
   "status.routeCodingPlanned": "偵測到編碼型任務，Lynn 會優先按預設編碼鏈路處理。",
   "status.routeVisionPlanned": "偵測到圖像或附件分析任務，Lynn 會優先按預設推理鏈路處理。",
-  "status.defaultModelSlowResponse": "預設模型主鏈路稍慢，Lynn 正在背景接力備援鏈路。",
-  "status.defaultModelRecoveringToolExecution": "預設模型剛才沒有真正完成工具執行，Lynn 正在切到備援執行鏈路繼續處理。",
-  "status.defaultModelStillWorking": "預設模型仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援鏈路。",
+  "status.defaultModelSlowResponse": "預設工作模型主鏈路稍慢，Lynn 正在背景接力備援鏈路。",
+  "status.defaultModelRecoveringToolExecution": "預設工作模型剛才沒有真正完成工具執行，Lynn 正在切到備援執行鏈路繼續處理。",
+  "status.defaultModelStillWorking": "預設工作模型仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援鏈路。",
   "status.defaultReasoningSlowResponse": "預設推理鏈路稍慢，Lynn 正在背景接力備援推理鏈路。",
   "status.defaultReasoningStillWorking": "預設推理鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援推理鏈路。",
   "status.defaultExecutionSlowResponse": "預設執行鏈路稍慢，Lynn 正在背景接力備援執行鏈路。",

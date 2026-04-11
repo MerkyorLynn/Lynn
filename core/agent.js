@@ -20,6 +20,8 @@ import { createDeskManager } from "../lib/desk/desk-manager.js";
 import { CronStore } from "../lib/desk/cron-store.js";
 import { createCronTool } from "../lib/tools/cron-tool.js";
 import { createWebFetchTool } from "../lib/tools/web-fetch.js";
+import { createStockMarketTool } from "../lib/tools/stock-market.js";
+import { createLiveNewsTool, createSportsScoreTool, createWeatherTool } from "../lib/tools/realtime-info.js";
 import { createPresentFilesTool } from "../lib/tools/output-file-tool.js";
 import { createArtifactTool } from "../lib/tools/artifact-tool.js";
 import { createChannelTool } from "../lib/tools/channel-tool.js";
@@ -82,6 +84,10 @@ export class Agent {
     this._memorySearchTool = null;
     this._webSearchTool = null;
     this._webFetchTool = null;
+    this._stockMarketTool = null;
+    this._weatherTool = null;
+    this._liveNewsTool = null;
+    this._sportsScoreTool = null;
 
     // System Prompt 静态/动态分层缓存（Claude Code 启发）
     this._staticPromptCache = null;  // { hash, text }
@@ -296,6 +302,10 @@ export class Agent {
     this._memorySearchTool = createMemorySearchTool(this._factStore, { retriever });
     this._webSearchTool = createWebSearchTool();
     this._webFetchTool = createWebFetchTool();
+    this._stockMarketTool = createStockMarketTool();
+    this._weatherTool = createWeatherTool();
+    this._liveNewsTool = createLiveNewsTool();
+    this._sportsScoreTool = createSportsScoreTool();
     this._todoTool = createTodoTool();
     this._restoreSnapshotTool = createRestoreSnapshotTool(path.basename(this.agentDir));
     this._pinnedMemoryTools = createPinnedMemoryTools(this.agentDir);
@@ -514,6 +524,10 @@ export class Agent {
       ...memTools,
       this._webSearchTool,
       this._webFetchTool,
+      this._stockMarketTool,
+      this._weatherTool,
+      this._liveNewsTool,
+      this._sportsScoreTool,
       this._todoTool,
       this._restoreSnapshotTool,
       this._cronTool,
@@ -757,14 +771,14 @@ export class Agent {
           + "2. 按 skill 里的步骤执行，而不是只凭技能名或简短描述猜\n"
           + "3. 如果多个已启用 skill 都相关，先加载最贴近主任务的那个，再按需要补第二个\n"
           + "4. 不要在已经有匹配 skill 的情况下重新上网搜替代技能\n"
-          + "5. 像“今天金价多少”“今天股价/指数/新闻”这类通用现价与资讯查询，默认先用 web_search、web_fetch、stock_market 等工具完成，不要优先读取重型金融分析 skill（例如 stock-analysis）的 SKILL.md。只有当用户明确要求股票分析、持仓分析、分红分析、趋势扫描、传闻扫描、观察列表或 /stock 系列命令时，才使用这类 skill"
+          + "5. 像“今天金价多少”“天气如何”“今天股价/指数/新闻”“体育比分”这类通用实时查询，优先使用当前链路已提供的实时信息工具（例如 stock_market、weather、sports_score、live_news），若当前链路未提供，再回退到 web_search、web_fetch。不要优先读取重型分析 skill（例如 stock-analysis、weather）的 SKILL.md。只有当用户明确要求股票分析、持仓分析、分红分析、趋势扫描、传闻扫描、观察列表、深度天气分析或 /stock 系列命令时，才使用这类 skill"
         : "\n## Enabled Skill Matching Rules\n\n"
           + "Enabled skills are not decorative. When the request clearly matches a skill description:\n"
           + "1. Read that skill's `SKILL.md` first\n"
           + "2. Follow the workflow in the skill instead of guessing from the name or short description\n"
           + "3. If multiple enabled skills are relevant, load the one most central to the task first, then add others as needed\n"
           + "4. Do not search for replacement skills when an enabled skill already matches\n"
-          + "5. For generic spot-price or news lookups such as “today's gold price”, “today's stock price/index/news”, use web_search, web_fetch, or stock_market first. Do not default to heavyweight finance-analysis skills (for example stock-analysis) unless the user explicitly asks for stock analysis, portfolio/dividend analysis, trend scanning, rumor scanning, watchlists, or /stock-style workflows"
+          + "5. For generic real-time lookups such as today's gold price, weather, stock price/index/news, or sports scores, prefer any real-time information tools available on the current route (for example stock_market, weather, sports_score, or live_news). If the current route does not provide them, fall back to web_search and web_fetch. Do not default to heavyweight analysis skills (for example stock-analysis or weather) unless the user explicitly asks for stock analysis, portfolio/dividend analysis, trend scanning, rumor scanning, watchlists, deeper weather analysis, or /stock-style workflows"
       );
     }
 
@@ -775,16 +789,16 @@ export class Agent {
         + "1. **web_search** — 查找信息、获取 URL。大多数「帮我查一下 XX」的请求用这个就够了\n"
         + "2. **web_fetch** — 已知 URL，需要提取页面文字内容。简单抓取必须用这个\n"
         + "3. **browser** — 只在以下情况使用：页面需要登录/身份验证、需要填表或点击交互、web_fetch 返回的内容为空或不完整（JS 动态渲染页面）、需要查看页面视觉布局\n\n"
-        + "对于「今日/最新/实时/行情/新闻/调研/官方文档」这类任务：先用 **web_search** 找结果，再对最相关的 1-2 个 URL 用 **web_fetch** 深读，不要只看搜索标题就下结论。\n"
-        + "对于「股价/金价/基金/汇率/指数/体育比分」这类任务：优先交叉核对 2 个来源；如果 web_search 已提示推荐来源（如 AkShare、腾讯自选股、新浪财经、腾讯体育等），优先从这些来源里挑结果继续深读。\n\n"
+        + "对于「今日/最新/实时/行情/新闻/调研/官方文档」这类任务：若当前链路提供了实时信息工具（例如 stock_market、weather、sports_score、live_news），优先使用；否则先用 **web_search** 找结果，再对最相关的 1-2 个 URL 用 **web_fetch** 深读，不要只看搜索标题就下结论。\n"
+        + "对于「股价/金价/基金/汇率/指数/体育比分/天气/热点资讯」这类任务：优先交叉核对 2 个来源；如果 web_search 已提示推荐来源（如 AkShare、腾讯自选股、新浪财经、腾讯体育等），优先从这些来源里挑结果继续深读。\n\n"
         + "**禁止**在 web_search 或 web_fetch 能完成的场景下启动浏览器。浏览器启动成本高、会打开窗口干扰用户。"
       : "\n## Web Tool Priority\n\n"
         + "When fetching web information, choose tools in this order:\n"
         + "1. **web_search** — Find information, get URLs. Most \"look up XX\" requests are handled by this alone\n"
         + "2. **web_fetch** — Known URL, need to extract page text. Simple scraping must use this\n"
         + "3. **browser** — Only use when: the page requires login/authentication, form filling or click interaction is needed, web_fetch returns empty or incomplete content (JS-rendered pages), or you need to see visual layout\n\n"
-        + "For queries like \"today/latest/live/market/news/research/official docs\", use **web_search** first and then **web_fetch** the most relevant 1-2 URLs before drawing conclusions.\n"
-        + "For stock prices, gold prices, funds, FX, indexes, or sports scores, cross-check at least two sources. If web_search suggests preferred sources (for example AkShare, Tencent quotes, Sina Finance, or sports sites), use those results first for deeper reading.\n\n"
+        + "For queries like today/latest/live/market/news/research/official docs, use route-provided real-time tools first when available (for example stock_market, weather, sports_score, or live_news). Otherwise use **web_search** first and then **web_fetch** the most relevant 1-2 URLs before drawing conclusions.\n"
+        + "For stock prices, gold prices, funds, FX, indexes, sports scores, weather, or breaking-news summaries, cross-check at least two sources. If web_search suggests preferred sources (for example AkShare, Tencent quotes, Sina Finance, or sports/news sites), use those results first for deeper reading.\n\n"
         + "**Do not** launch the browser when web_search or web_fetch can do the job. Browser startup is expensive and opens a window that interrupts the user."
     );
 

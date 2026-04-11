@@ -263,7 +263,10 @@
     "weekPrefix": ""
   },
   "mood": {
-    "label": "✿ MOOD"
+    "label": "✿ 무드",
+    "hanakoLabel": "✿ 무드",
+    "butterLabel": "❊ 펄스",
+    "lynnLabel": "◈ 성찰"
   },
   "xing": {
     "title": "반성",
@@ -1145,10 +1148,10 @@
     "title": "예약 작업",
     "empty": "아직 예약 작업이 없어요.\n필요할 때 어시스턴트가 만들어 줄 거예요.",
     "guideTitle": "예약 작업으로 자동화하기",
-    "guideDesc": "일정에 따라 실행할 작업을 설정하세요. 대화에서 어시스턴트에게 만들어 달라고 할 수도 있어요.",
+    "guideDesc": "먼저 템플릿을 고르고, 그다음 프로젝트·시간·모델을 설정하세요. 만든 뒤에는 바로 테스트 실행해서 실제로 동작하는지 확인할 수 있어요.",
     "guideTip": "클릭하면 바로 추가돼요. 시간과 내용은 나중에 수정할 수 있어요.",
     "deleteConfirm": "이 예약 작업을 삭제하시겠습니까?",
-    "defaultModel": "기본 모델",
+    "defaultModel": "기본 작업 모델",
     "edit": "편집",
     "delete": "삭제",
     "tpl": {
@@ -1552,6 +1555,14 @@
       "urlDesc": "가져올 전체 URL (https:// 포함)",
       "maxLenDesc": "반환할 최대 문자 수, 기본값 {max}"
     },
+    "stockMarket": {
+      "label": "시세 조회",
+      "description": "금값, 주가, 지수, 펀드, 환율, 원유 등 시장 정보를 조회해요. Tencent, Sina Finance, Xueqiu, Eastmoney, AkShare 같은 금융 소스를 우선 검색/가져온 뒤 구조화된 요약을 반환해요.",
+      "queryDesc": "원래 시세 질문. 예: \"오늘 금값 얼마야\"",
+      "kindDesc": "선택 종류: gold / stock / index / fund / fx / oil",
+      "marketDesc": "선택 시장. 예: CN / HK / US / GLOBAL",
+      "symbolDesc": "선택 종목 코드/상품 코드. 예: 600519 / XAUUSD"
+    },
     "browser": {
       "label": "브라우저",
       "description": "브라우저를 조작해서 웹페이지를 탐색해요. 내비게이션, 클릭, 입력, 스크롤, 스크린샷이 가능해요.\n동작:\n- start: 브라우저 시작 (처음 사용 전에 반드시 호출)\n- stop: 브라우저 닫기\n- navigate(url): 지정 URL로 이동\n- snapshot: 현재 페이지의 요소 트리 가져오기 (권장: 텍스트 형식, 저비용)\n- screenshot: 현재 페이지 스크린샷 찍기 (시각 정보가 필요할 때만 사용)\n- click(ref): snapshot이 반환한 [ref] 번호의 요소 클릭\n- type(text, ref?): 요소에 텍스트 입력, 선택적으로 ref를 클릭해서 포커스\n- scroll(direction, amount?): 페이지 스크롤, direction은 up/down\n- select(ref, value): 드롭다운 옵션 선택\n- key(key): 키 누르기, 예: Enter, Escape, Tab, Control+a\n- wait(timeout?, state?): 페이지 로딩 대기\n- evaluate(expression): 페이지에서 JavaScript 실행\n- show: 브라우저 창을 앞으로 가져오기\n\n중요: snapshot이 반환한 [ref] 번호는 페이지 변경 후 무효가 돼요. navigate/click 후에 새로운 snapshot이 자동으로 반환돼요.",
@@ -1849,9 +1860,9 @@
   "status.routeExecutionPlanned": "실행형 작업이 감지되어 Lynn이 이번 턴에서 기본 실행 경로를 우선 사용합니다.",
   "status.routeCodingPlanned": "코딩 작업이 감지되어 Lynn이 이번 턴에서 기본 코딩 경로를 우선 사용합니다.",
   "status.routeVisionPlanned": "이미지 또는 첨부 분석 작업이 감지되어 Lynn이 이번 턴에서 기본 추론 경로를 우선 사용합니다.",
-  "status.defaultModelSlowResponse": "기본 모델의 주 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 경로로 넘겨 처리하고 있어요.",
-  "status.defaultModelRecoveringToolExecution": "기본 모델이 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 실행 경로로 넘기고 있어요.",
-  "status.defaultModelStillWorking": "기본 모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 경로로 넘겨 처리하고 있어요.",
+  "status.defaultModelSlowResponse": "기본 작업 모델의 주 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 경로로 넘겨 처리하고 있어요.",
+  "status.defaultModelRecoveringToolExecution": "기본 작업 모델이 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 실행 경로로 넘기고 있어요.",
+  "status.defaultModelStillWorking": "기본 작업 모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 경로로 넘겨 처리하고 있어요.",
   "status.defaultReasoningSlowResponse": "기본 추론 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 추론 경로로 넘겨 처리하고 있어요.",
   "status.defaultReasoningStillWorking": "기본 추론 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 추론 경로로 넘겨 처리하고 있어요.",
   "status.defaultExecutionSlowResponse": "기본 실행 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 실행 경로로 넘겨 처리하고 있어요.",

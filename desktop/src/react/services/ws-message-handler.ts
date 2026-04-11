@@ -15,6 +15,7 @@ import { loadChannels as loadChannelsAction, openChannel as openChannelAction } 
 import { showError } from '../utils/ui-helpers';
 import { renderMarkdown } from '../utils/markdown';
 import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
+import { resolveUiI18nText } from '../utils/ui-i18n';
 import { getWebSocket } from './websocket';
 import {
   replayStreamResume,
@@ -29,7 +30,7 @@ const REACT_CHAT_EVENTS = new Set([
   'text_delta', 'thinking_start', 'thinking_delta', 'thinking_end',
   'mood_start', 'mood_text', 'mood_end',
   'xing_start', 'xing_text', 'xing_end',
-  'tool_start', 'tool_end', 'turn_end',
+  'tool_start', 'tool_end', 'turn_end', 'turn_retry',
   'file_diff',
   'file_output', 'skill_activated', 'artifact',
   'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
@@ -50,18 +51,8 @@ const INLINE_PROGRESS_EVENTS = new Set([
   'turn_end',
 ]);
 
-function looksLikeI18nKey(value: string): boolean {
-  return /^[a-z0-9_]+(?:\.[a-z0-9_]+)+$/i.test(value);
-}
-
 function resolveUiText(raw: unknown, vars?: Record<string, string | number>): string {
-  const text = String(raw || '').trim();
-  if (!text) return '';
-  if (window.t && looksLikeI18nKey(text)) {
-    const translated = window.t(text, vars);
-    if (translated && translated !== text) return translated;
-  }
-  return text;
+  return resolveUiI18nText(raw, vars);
 }
 
 function targetsCurrentSession(msg: any, currentSessionPath: string | null): boolean {

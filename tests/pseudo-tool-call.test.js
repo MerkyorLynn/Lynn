@@ -38,6 +38,9 @@ describe("pseudo tool call sanitizer", () => {
     expect(containsPseudoToolSimulation('<tool_call>list_dir path="/tmp" limit="10"')).toBe(true);
     expect(containsPseudoToolSimulation('<invoke name="exec"><parameter name="command">pwd</parameter></invoke>')).toBe(true);
     expect(containsPseudoToolSimulation("<read>\n<路径>/tmp/demo</路径>\n</read>")).toBe(true);
+    expect(containsPseudoToolSimulation('stock_market(query="今天金价多少")')).toBe(true);
+    expect(containsPseudoToolSimulation('weather(location="北京")')).toBe(true);
+    expect(containsPseudoToolSimulation('live_news(topic="AI")')).toBe(true);
     expect(containsPseudoToolSimulation("我先看一下目录结构，然后再给你建议。")).toBe(false);
   });
 

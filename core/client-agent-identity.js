@@ -110,28 +110,37 @@ export function signClientAgentRequest({
 }) {
   const normalizedKey = sanitizeClientAgentKey(agentKey);
   const normalizedSecret = sanitizeClientAgentSecret(secret);
-  if (!normalizedKey || !normalizedSecret) return {};
+  if (!normalizedKey) return {};
 
-  const payload = buildClientSignaturePayload({
-    method,
-    pathname,
-    timestamp,
-    nonce,
-    agentKey: normalizedKey,
-  });
-  const signature = crypto
-    .createHmac("sha256", normalizedSecret)
-    .update(payload)
-    .digest("hex");
-
-  return {
+  // 基础头：始终包含
+  const headers = {
     [CLIENT_AGENT_KEY_HEADER]: normalizedKey,
-    [CLIENT_AGENT_TIMESTAMP_HEADER]: String(timestamp),
-    [CLIENT_AGENT_NONCE_HEADER]: String(nonce),
-    [CLIENT_AGENT_SIGNATURE_HEADER]: `${CLIENT_AGENT_SIGNATURE_VERSION}:${signature}`,
     [CLIENT_AGENT_VERSION_HEADER]: String(clientVersion || "unknown"),
     [CLIENT_AGENT_PLATFORM_HEADER]: String(clientPlatform || resolveLynnClientPlatform()),
   };
+
+  // 签名头：仅当服务端要求时附加。当前 Brain API 仅凭 key 认证，
+  // 附带签名头反而会触发不匹配的签名验证导致 401。
+  // 未来服务端升级签名协议后，可以重新启用此段。
+  if (normalizedSecret && process.env.LYNN_ENABLE_DEVICE_SIGNATURE === "1") {
+    const payload = buildClientSignaturePayload({
+      method,
+      pathname,
+      timestamp,
+      nonce,
+      agentKey: normalizedKey,
+    });
+    const signature = crypto
+      .createHmac("sha256", normalizedSecret)
+      .update(payload)
+      .digest("hex");
+
+    headers[CLIENT_AGENT_TIMESTAMP_HEADER] = String(timestamp);
+    headers[CLIENT_AGENT_NONCE_HEADER] = String(nonce);
+    headers[CLIENT_AGENT_SIGNATURE_HEADER] = `${CLIENT_AGENT_SIGNATURE_VERSION}:${signature}`;
+  }
+
+  return headers;
 }
 
 export function buildSignedClientAgentHeaders({

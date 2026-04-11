@@ -132,25 +132,35 @@ export function SettingsApp() {
   const [uiRestored, setUiRestored] = React.useState(false);
 
   useEffect(() => {
-    const restored = readPersistedSettingsUi();
-    if (restored.activeTab) {
-      useSettingsStore.setState(restored);
-    }
+    let disposed = false;
+    let unsubscribe: (() => void) | void;
 
-    platform?.getInitialSettingsNavigationTarget?.()
-      .then((target: SettingsNavigationTarget | null) => {
+    const boot = async () => {
+      const restored = readPersistedSettingsUi();
+      if (restored.activeTab) {
+        useSettingsStore.setState(restored);
+      }
+
+      try {
+        const target = await platform?.getInitialSettingsNavigationTarget?.();
+        if (!disposed) applyNavigationTarget(target);
+      } catch {
+        // ignore initial navigation failures
+      }
+
+      if (disposed) return;
+      unsubscribe = platform?.onSwitchTab?.((target: string | SettingsNavigationTarget) => {
         applyNavigationTarget(target);
-      })
-      .catch(() => {});
+      });
 
-    const unsubscribe = platform?.onSwitchTab?.((target: string | SettingsNavigationTarget) => {
-      applyNavigationTarget(target);
-    });
+      setUiRestored(true);
+      initSettings();
+    };
 
-    setUiRestored(true);
-    initSettings();
+    void boot();
 
     return () => {
+      disposed = true;
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);

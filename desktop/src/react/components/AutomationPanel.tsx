@@ -81,8 +81,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: "Yesterday's work update",
     zhDesc: '总结昨天推进了什么、卡在哪里、今天最该继续跟进什么。',
     enDesc: "Summarize what moved yesterday, what is blocked, and what deserves attention today.",
-    promptZh: '根据当前工作区、笺和最近活动，整理一段昨日工作简报：昨天做了什么、卡在哪里、今天最该继续推进什么。',
-    promptEn: 'Use the current workspace, note, and recent activity to summarize what moved yesterday, what is blocked, and what deserves attention today.',
+    promptZh: '只基于当前工作区、笺和最近活动，整理一份昨日工作简报。输出三段：1. 昨天完成了什么 2. 现在卡在哪里 3. 今天最该继续推进什么。尽量锚定到真实文件、活动或任务，不要猜测没有证据的计划。',
+    promptEn: 'Using only the current workspace, note, and recent activity, prepare a standup-style update with three parts: what moved yesterday, what is blocked now, and what deserves attention today. Anchor statements to real files, activity, or tasks and avoid speculation.',
     defaultLabelZh: '昨日工作简报',
     defaultLabelEn: "Yesterday's work update",
     defaultPreset: 'daily',
@@ -97,8 +97,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'Weekly work summary',
     zhDesc: '汇总这周完成了什么、遗留了什么，以及下周最值得推进的重点。',
     enDesc: 'Summarize what got done this week, what remains open, and what to focus on next week.',
-    promptZh: '结合当前工作区、笺和最近活动，整理一份每周工作周报：这周完成了什么、遗留了什么、下周重点是什么。',
-    promptEn: 'Use the workspace, note, and recent activity to prepare a weekly work summary with completed work, open items, and next-week priorities.',
+    promptZh: '结合当前工作区、笺和最近活动，整理一份每周工作周报。输出三段：1. 本周完成 2. 仍未解决的问题 3. 下周最值得推进的重点。优先引用真实文件、任务或活动记录。',
+    promptEn: 'Use the workspace, note, and recent activity to prepare a weekly summary with three parts: work completed this week, unresolved items, and the most valuable next-week priorities. Prefer grounding statements in real files, tasks, or activity.',
     defaultLabelZh: '每周工作周报',
     defaultLabelEn: 'Weekly work summary',
     defaultPreset: 'weekly',
@@ -114,8 +114,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'Timed work summary',
     zhDesc: '按固定时间整理当前项目、笺和活动流，生成一段简短进展小结。',
     enDesc: 'Generate a short status update from the project, note, and activity feed on a fixed cadence.',
-    promptZh: '按当前工作区、笺和最近活动，生成一段简洁的工作进展小结，方便我快速回看。',
-    promptEn: 'Use the current workspace, note, and recent activity to create a short work summary I can quickly review.',
+    promptZh: '按当前工作区、笺和最近活动，生成一段简洁的进展小结。控制在三到五句，说明最新变化、当前焦点，以及一个值得我关注的提醒。',
+    promptEn: 'Use the current workspace, note, and recent activity to create a short progress digest in three to five sentences covering the latest changes, the current focus, and one thing worth attention.',
     defaultLabelZh: '定时工作小结',
     defaultLabelEn: 'Timed work summary',
     defaultPreset: 'daily',
@@ -130,8 +130,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'File digest',
     zhDesc: '整理工作区里新增或变化的文件，提炼重点并给出归档建议。',
     enDesc: 'Summarize new or changed files and suggest how to organize them.',
-    promptZh: '查看当前工作区里最近新增或变化的文件，整理出重点、归类建议和需要我确认的事项。',
-    promptEn: 'Review recent new or changed files in the workspace and summarize key points, organization suggestions, and anything needing confirmation.',
+    promptZh: '查看当前工作区里最近新增或变化的文件，整理出三部分：1. 文件变化重点 2. 推荐的归档或归类方式 3. 需要我确认的事项。优先提文件名和目录，不要空泛描述。',
+    promptEn: 'Review recent new or changed files in the workspace and return three parts: key file changes, suggested organization, and anything that needs confirmation. Prefer explicit filenames and folders over generic wording.',
     defaultLabelZh: '文件自动归纳',
     defaultLabelEn: 'File digest',
     defaultPreset: 'weekdays',
@@ -146,8 +146,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'Document digest',
     zhDesc: '定期把文档、笔记和产出整理成可复用的摘要与下一步建议。',
     enDesc: 'Turn notes and documents into reusable summaries and next steps.',
-    promptZh: '整理当前工作区中的文档、笔记和产出，生成一份简洁摘要，并给出下一步建议。',
-    promptEn: 'Summarize the current workspace documents and notes into a concise digest with recommended next steps.',
+    promptZh: '整理当前工作区中的文档、笔记和产出，生成一份简洁摘要，并补一段下一步建议。输出时优先说明哪些文档值得继续写、哪些信息重复、哪些地方还缺结论。',
+    promptEn: 'Summarize the current workspace documents and notes into a concise digest, then add recommended next steps. Call out which documents deserve more work, where information is duplicated, and which areas still lack conclusions.',
     defaultLabelZh: '文档摘要整理',
     defaultLabelEn: 'Document digest',
     defaultPreset: 'weekly',
@@ -163,8 +163,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'Workday check-in',
     zhDesc: '在工作日固定时间查看笺、活动和文件变化，提醒我今天最该跟进什么。',
     enDesc: 'Check the note, recent activity, and file changes on workdays and remind me what to follow up on.',
-    promptZh: '在工作日固定时间查看笺、最近活动和文件变化，提醒我今天最应该先跟进的事项。',
-    promptEn: 'On workdays, check the note, recent activity, and file changes, then remind me what deserves attention first.',
+    promptZh: '在工作日固定时间查看笺、最近活动和文件变化，提醒我今天最应该先跟进的事项。输出三条以内，按优先级从高到低排列，并说明为什么值得先看。',
+    promptEn: 'On workdays, check the note, recent activity, and file changes, then list up to three follow-up items in priority order and explain briefly why each deserves attention first.',
     defaultLabelZh: '工作日巡检提醒',
     defaultLabelEn: 'Workday check-in',
     defaultPreset: 'weekdays',
@@ -179,8 +179,8 @@ const TEMPLATES: TemplateDefinition[] = [
     enTitle: 'Next-step roundup',
     zhDesc: '汇总这周未完成事项、风险和下周最值得推进的重点。',
     enDesc: 'Summarize unfinished work, risks, and priorities for the coming week.',
-    promptZh: '结合笺、活动和最近产出，整理本周未完成事项、风险和下周最值得推进的重点。',
-    promptEn: 'Use the note, activity, and recent outputs to summarize unfinished work, risks, and next-week priorities.',
+    promptZh: '结合笺、活动和最近产出，整理本周未完成事项、风险和下周最值得推进的重点。输出三段：未完成、风险、下周重点，并尽量指出对应文件或任务。',
+    promptEn: 'Use the note, activity, and recent outputs to summarize unfinished work, risks, and next-week priorities. Return three sections and point to relevant files or tasks whenever possible.',
     defaultLabelZh: '下周重点提醒',
     defaultLabelEn: 'Next-step roundup',
     defaultPreset: 'weekly',
@@ -398,6 +398,7 @@ function AutomationJobCard({
   job,
   modelOptions,
   isZh,
+  defaultModelLabel,
   onToggle,
   onEdit,
   onRemove,
@@ -406,6 +407,7 @@ function AutomationJobCard({
   job: CronJob;
   modelOptions: ModelOption[];
   isZh: boolean;
+  defaultModelLabel: string;
   onToggle: (id: string) => void;
   onEdit: (job: CronJob) => void;
   onRemove: (id: string) => void;
@@ -414,7 +416,7 @@ function AutomationJobCard({
   const selectedValue = resolveJobModelValue(job.model, modelOptions);
   const modelLabel = selectedValue
     ? modelOptions.find((option) => option.value === selectedValue)?.label || job.model || ''
-    : (isZh ? '默认模型' : 'Default model');
+    : defaultModelLabel;
   const workspaceLabel = folderLabel(job.workspace || null);
   const nextRunText = formatAutomationDateTime(job.nextRunAt || null);
   const lastRunText = formatAutomationDateTime(job.lastRunAt || job.latestRun?.finishedAt || job.latestRun?.timestamp || null);
@@ -515,11 +517,11 @@ export function AutomationPanel() {
   const setPendingConfirm = useStore((s) => s.setPendingConfirm);
   const addToast = useStore((s) => s.addToast);
   const isZh = locale.startsWith('zh');
-  const t = window.t ?? ((key: string) => key);
+  const translate = window.t;
   const tt = useCallback((key: string, zhText: string, enText: string) => {
-    const value = t(key);
+    const value = translate ? translate(key) : key;
     return !value || value === key ? (isZh ? zhText : enText) : value;
-  }, [isZh, t]);
+  }, [isZh, translate]);
 
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
@@ -538,6 +540,7 @@ export function AutomationPanel() {
   const [draftMinute, setDraftMinute] = useState('00');
   const [draftWeeklyDay, setDraftWeeklyDay] = useState(1);
   const [draftCustomDays, setDraftCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [showTemplatePrompt, setShowTemplatePrompt] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const sectionRefs = useRef<Record<AutomationCategory, HTMLDivElement | null>>({
     reports: null,
@@ -562,10 +565,16 @@ export function AutomationPanel() {
         meta: value,
       }));
   }, [currentSession?.cwd, homeFolder, selectedFolder]);
+  const currentTemplate = selectedTemplateId
+    ? TEMPLATES.find((template) => template.id === selectedTemplateId) || null
+    : null;
+  const templateMode = Boolean(currentTemplate) && !editingJobId;
+  const defaultModelLabel = tt('automation.defaultModel', '默认工作模型', 'Default work model');
 
   const resetComposer = useCallback(() => {
     setSelectedTemplateId(null);
     setEditingJobId(null);
+    setShowTemplatePrompt(false);
     setDraftName('');
     setDraftPrompt('');
     setDraftModel('');
@@ -642,6 +651,7 @@ export function AutomationPanel() {
   const startFromTemplate = useCallback((template: TemplateDefinition) => {
     setSelectedTemplateId(template.id);
     setEditingJobId(null);
+    setShowTemplatePrompt(false);
     setDraftName(isZh ? template.defaultLabelZh : template.defaultLabelEn);
     setDraftPrompt(isZh ? template.promptZh : template.promptEn);
     setDraftProject(projectOptions[0]?.value || '');
@@ -656,6 +666,7 @@ export function AutomationPanel() {
   const startCustom = useCallback(() => {
     setSelectedTemplateId('custom');
     setEditingJobId(null);
+    setShowTemplatePrompt(true);
     setDraftName(isZh ? '自定义自动任务' : 'Custom task');
     setDraftPrompt('');
     setDraftProject(projectOptions[0]?.value || '');
@@ -673,6 +684,7 @@ export function AutomationPanel() {
     const cronDays = parseCronDays(job.schedule);
     setSelectedTemplateId(null);
     setEditingJobId(job.id);
+    setShowTemplatePrompt(true);
     setDraftName(job.label || '');
     setDraftPrompt(job.prompt || '');
     setDraftProject(job.workspace || projectOptions[0]?.value || '');
@@ -742,8 +754,12 @@ export function AutomationPanel() {
     }
   }, [addToast, isZh, loadData]);
 
-  const saveDraft = useCallback(async () => {
-    if (!draftName.trim() || !draftPrompt.trim()) return;
+  const saveDraft = useCallback(async (opts?: { runNow?: boolean }) => {
+    const resolvedName = draftName.trim()
+      || (currentTemplate ? (isZh ? currentTemplate.defaultLabelZh : currentTemplate.defaultLabelEn) : '');
+    const resolvedPrompt = draftPrompt.trim()
+      || (currentTemplate ? (isZh ? currentTemplate.promptZh : currentTemplate.promptEn) : '');
+    if (!resolvedName || !resolvedPrompt) return;
     setSaving(true);
     try {
       const schedule = buildScheduleFromPreset(
@@ -757,41 +773,62 @@ export function AutomationPanel() {
         ? {
             action: 'update',
             id: editingJobId,
-            label: draftName.trim(),
-            prompt: draftPrompt.trim(),
+            label: resolvedName,
+            prompt: resolvedPrompt,
             schedule,
             workspace: draftProject,
           }
         : {
             action: 'add',
             type: 'cron',
-            label: draftName.trim(),
-            prompt: draftPrompt.trim(),
+            label: resolvedName,
+            prompt: resolvedPrompt,
             schedule,
             workspace: draftProject,
           };
       if (draftModel) payload.model = draftModel;
-      await hanaFetch('/api/desk/cron', {
+      const res = await hanaFetch('/api/desk/cron', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || tt('settings.saveFailed', '自动任务保存失败', 'Failed to save task'));
+      }
+      const savedJobId = String(data?.job?.id || editingJobId || '').trim();
+      if (opts?.runNow && savedJobId) {
+        const runRes = await hanaFetch('/api/desk/cron', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'run', id: savedJobId }),
+        });
+        const runData = await runRes.json();
+        if (!runRes.ok || runData?.error) {
+          throw new Error(runData?.error || (isZh ? '创建成功，但立即测试没有启动起来' : 'Task was created, but the test run did not start'));
+        }
+      }
       await loadData();
       addToast(
-        editingJobId
-          ? tt('settings.saved', '自动任务已更新', 'Task updated')
-          : tt('settings.saved', '自动任务已创建', 'Task created'),
+        opts?.runNow
+          ? (editingJobId
+              ? tt('settings.saved', '自动任务已更新，并且已经开始测试执行', 'Task updated and test run started')
+              : tt('settings.saved', '自动任务已创建，并且已经开始测试执行', 'Task created and test run started'))
+          : (editingJobId
+              ? tt('settings.saved', '自动任务已更新', 'Task updated')
+              : tt('settings.saved', '自动任务已创建', 'Task created')),
         'success',
       );
       resetComposer();
     } catch (error) {
       console.error('[automation] save failed:', error);
-      addToast(tt('settings.saveFailed', '自动任务保存失败', 'Failed to save task'), 'error');
+      addToast(error instanceof Error ? error.message : tt('settings.saveFailed', '自动任务保存失败', 'Failed to save task'), 'error');
     } finally {
       setSaving(false);
     }
   }, [
     addToast,
+    currentTemplate,
     draftCustomDays,
     draftHour,
     draftMinute,
@@ -802,14 +839,12 @@ export function AutomationPanel() {
     draftSchedulePreset,
     draftWeeklyDay,
     editingJobId,
+    isZh,
     loadData,
     resetComposer,
     tt,
   ]);
 
-  const currentTemplate = selectedTemplateId
-    ? TEMPLATES.find((template) => template.id === selectedTemplateId) || null
-    : null;
   const templateSections = useMemo(() => {
     return CATEGORY_DEFS.map((category) => ({
       ...category,
@@ -904,6 +939,7 @@ export function AutomationPanel() {
                         job={job}
                         modelOptions={availableModels}
                         isZh={isZh}
+                        defaultModelLabel={defaultModelLabel}
                         onToggle={toggleJob}
                         onEdit={editJob}
                         onRemove={removeJob}
@@ -973,21 +1009,23 @@ export function AutomationPanel() {
                 </div>
                 <div className={fp.automationComposerHint}>
                   {isZh
-                    ? '不选模型时会走默认模型。项目会作为执行工作区保存，但结果默认显示在“活动”里；只有提示里明确要求写文件时，才会落到工作区。'
-                    : 'Leave model empty to use the default model. The selected project becomes the task workspace, but results appear in Activity unless the prompt explicitly writes files there.'}
+                    ? '模板任务默认已经带好目标和输出格式。通常只需要选项目、时间和模型；只有你想改写模板时，才需要展开下面的任务内容。'
+                    : 'Template tasks already come with a goal and output shape. Usually you only need project, schedule, and model here; only expand the prompt when you want to customize the template.'}
                 </div>
               </div>
 
               <div className={fp.automationComposerFields}>
-                <label className={fp.automationField}>
-                  <span className={fp.automationFieldLabel}>{isZh ? '任务名称' : 'Task name'}</span>
-                  <input
-                    className={fp.automationFieldInput}
-                    value={draftName}
-                    onChange={(event) => setDraftName(event.target.value)}
-                    placeholder={isZh ? '例如：工作日项目巡检' : 'e.g. Weekday project review'}
-                  />
-                </label>
+                {!templateMode && (
+                  <label className={fp.automationField}>
+                    <span className={fp.automationFieldLabel}>{isZh ? '任务名称' : 'Task name'}</span>
+                    <input
+                      className={fp.automationFieldInput}
+                      value={draftName}
+                      onChange={(event) => setDraftName(event.target.value)}
+                      placeholder={isZh ? '例如：工作日项目巡检' : 'e.g. Weekday project review'}
+                    />
+                  </label>
+                )}
                 <label className={fp.automationField}>
                   <span className={fp.automationFieldLabel}>{isZh ? '项目' : 'Project'}</span>
                   <select
@@ -1024,7 +1062,7 @@ export function AutomationPanel() {
                     value={draftModel}
                     onChange={(event) => setDraftModel(event.target.value)}
                   >
-                    <option value="">{tt('automation.defaultModel', '默认模型', 'Default model')}</option>
+                    <option value="">{defaultModelLabel}</option>
                     {availableModels.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -1040,6 +1078,26 @@ export function AutomationPanel() {
                   }} />
                 </div>
               </div>
+
+              {templateMode && currentTemplate && (
+                <div className={fp.automationPanelNotice} style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                    {isZh ? currentTemplate.zhTitle : currentTemplate.enTitle}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    {isZh ? currentTemplate.zhDesc : currentTemplate.enDesc}
+                  </div>
+                  <button
+                    type="button"
+                    className={fp.automationLinkBtn}
+                    onClick={() => setShowTemplatePrompt((value) => !value)}
+                  >
+                    {showTemplatePrompt
+                      ? (isZh ? '收起模板内容' : 'Hide template details')
+                      : (isZh ? '查看模板内容' : 'View template details')}
+                  </button>
+                </div>
+              )}
 
               {(draftSchedulePreset === 'weekly' || draftSchedulePreset === 'custom') && (
                 <div className={fp.automationComposerDays}>
@@ -1063,16 +1121,18 @@ export function AutomationPanel() {
                 </div>
               )}
 
-              <label className={`${fp.automationField} ${fp.automationFieldGrow}`}>
-                <span className={fp.automationFieldLabel}>{isZh ? '任务内容' : 'Prompt'}</span>
-                <textarea
-                  className={fp.automationFieldTextarea}
-                  rows={4}
-                  value={draftPrompt}
-                  onChange={(event) => setDraftPrompt(event.target.value)}
-                  placeholder={isZh ? '写下这条自动任务要替你做什么' : 'Describe what this scheduled task should do'}
-                />
-              </label>
+              {(!templateMode || showTemplatePrompt) && (
+                <label className={`${fp.automationField} ${fp.automationFieldGrow}`}>
+                  <span className={fp.automationFieldLabel}>{isZh ? '任务内容' : 'Prompt'}</span>
+                  <textarea
+                    className={fp.automationFieldTextarea}
+                    rows={4}
+                    value={draftPrompt}
+                    onChange={(event) => setDraftPrompt(event.target.value)}
+                    placeholder={isZh ? '写下这条自动任务要替你做什么' : 'Describe what this scheduled task should do'}
+                  />
+                </label>
+              )}
 
               <div className={fp.automationComposerActions}>
                 <button type="button" className={fp.automationGhostBtn} onClick={resetComposer}>
@@ -1080,8 +1140,20 @@ export function AutomationPanel() {
                 </button>
                 <button
                   type="button"
+                  className={fp.automationGhostBtn}
+                  disabled={saving || (!draftName.trim() && !currentTemplate) || (!draftPrompt.trim() && !currentTemplate)}
+                  onClick={() => void saveDraft({ runNow: true })}
+                >
+                  {saving
+                    ? (isZh ? '处理中…' : 'Saving...')
+                    : editingJobId
+                      ? (isZh ? '保存并测试' : 'Save & test')
+                      : (isZh ? '创建并测试' : 'Create & test')}
+                </button>
+                <button
+                  type="button"
                   className={fp.automationPrimaryBtn}
-                  disabled={saving || !draftName.trim() || !draftPrompt.trim()}
+                  disabled={saving || (!draftName.trim() && !currentTemplate) || (!draftPrompt.trim() && !currentTemplate)}
                   onClick={() => void saveDraft()}
                 >
                   {saving

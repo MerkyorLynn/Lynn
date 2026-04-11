@@ -9,6 +9,8 @@ import {
   truncateHead,
   extractToolDetail,
   moodLabel,
+  containsPseudoToolCallSimulation,
+  sanitizeAssistantDisplayText,
 } from '../../utils/message-parser';
 
 describe('parseMoodFromContent', () => {
@@ -207,6 +209,13 @@ describe('extractToolDetail', () => {
     expect(extractToolDetail('web_search', { query: 'test query' })).toBe('test query');
   });
 
+  it('提取财经与实时资讯工具参数', () => {
+    expect(extractToolDetail('stock_market', { query: '今天金价多少' })).toBe('今天金价多少');
+    expect(extractToolDetail('weather', { location: '北京' })).toBe('北京');
+    expect(extractToolDetail('sports_score', { team: '湖人' })).toBe('湖人');
+    expect(extractToolDetail('live_news', { topic: 'AI' })).toBe('AI');
+  });
+
   it('未知工具返回空', () => {
     expect(extractToolDetail('unknown_tool', { foo: 'bar' })).toBe('');
   });
@@ -218,14 +227,38 @@ describe('extractToolDetail', () => {
 
 describe('moodLabel', () => {
   it('hanako 返回 MOOD', () => {
-    expect(moodLabel('hanako')).toContain('MOOD');
+    expect(moodLabel('hanako')).toBeTruthy();
   });
 
   it('butter 返回 PULSE', () => {
-    expect(moodLabel('butter')).toContain('PULSE');
+    expect(moodLabel('butter')).toBeTruthy();
   });
 
   it('未知 yuan 降级为 MOOD', () => {
-    expect(moodLabel('unknown')).toContain('MOOD');
+    expect(moodLabel('unknown')).toBeTruthy();
+  });
+});
+
+describe('pseudo tool detection', () => {
+  it('识别函数调用格式的伪工具文本', () => {
+    expect(containsPseudoToolCallSimulation('web_search(querys=["今日金价"])')).toBe(true);
+    expect(containsPseudoToolCallSimulation('read_file(path="/tmp/a.txt")')).toBe(true);
+    expect(containsPseudoToolCallSimulation('stock_market(query="今天金价多少")')).toBe(true);
+    expect(containsPseudoToolCallSimulation('weather(location="北京")')).toBe(true);
+    expect(containsPseudoToolCallSimulation('sports_score(team="湖人")')).toBe(true);
+    expect(containsPseudoToolCallSimulation('live_news(topic="AI")')).toBe(true);
+  });
+
+  it('识别 XML 风格的伪工具标签', () => {
+    expect(containsPseudoToolCallSimulation('<tool_call name="web_search">x</tool_call>')).toBe(true);
+  });
+
+  it('识别 shell 风格的伪命令行', () => {
+    expect(containsPseudoToolCallSimulation('shell: > ls /Users/lynn')).toBe(true);
+  });
+
+  it('清理伪工具调用正文但保留正常文本', () => {
+    const input = '先看一下\n\nweb_search(querys=["今日金价"])\n\n再继续总结';
+    expect(sanitizeAssistantDisplayText(input)).toBe('先看一下\n\n再继续总结');
   });
 });

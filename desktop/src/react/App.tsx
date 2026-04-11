@@ -17,6 +17,7 @@ import { ChangesPanel } from './components/ChangesPanel';
 
 const SkillViewerOverlay = lazy(() => import('./components/SkillViewerOverlay').then(m => ({ default: m.SkillViewerOverlay })));
 import { PreviewPanel } from './components/PreviewPanel';
+import { DiagnosticsPanel } from './components/debug/DiagnosticsPanel';
 import { DeskSection } from './components/DeskSection';
 import { DeskSkillsSection } from './components/desk/DeskSkillsSection';
 import { InputArea } from './components/InputArea';
@@ -184,6 +185,7 @@ function App() {
   const titleRenameEnabled = !!currentSession && !welcomeVisible;
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -235,6 +237,17 @@ function App() {
       console.error('[init] 初始化异常:', err);
       window.platform?.appReady?.();
     });
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isModifier = event.metaKey || event.ctrlKey;
+      if (!isModifier || !event.shiftKey || event.key.toLowerCase() !== 'd') return;
+      event.preventDefault();
+      setDiagnosticsOpen((prev) => !prev);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
   useEffect(() => {
@@ -443,6 +456,7 @@ function App() {
       <StatusBar />
       <ConfirmationDialog />
       <ToastContainer />
+      <DiagnosticsPanel open={diagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
     </ErrorBoundary>
   );
 }

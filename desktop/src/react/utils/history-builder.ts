@@ -7,6 +7,7 @@
 import type { ChatMessage, ChatListItem, ContentBlock } from '../stores/chat-types';
 import { parseMoodFromContent, parseXingFromContent, parseUserAttachments } from './message-parser';
 import { renderMarkdown } from './markdown';
+import { isInternalRecoveryPromptText } from '../../../../shared/internal-control-message.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- API 历史消息 JSON 结构动态，难以静态收窄 */
 
@@ -72,6 +73,7 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
     if (m.role === 'user') {
       // strip steer 前缀（内部标记，不应展示给用户）
       const rawContent = (m.content || '').replace(/^（插话，无需 MOOD）\n?/, '');
+      if (isInternalRecoveryPromptText(rawContent)) continue;
       const { text, files, deskContext, quotedText, gitContext } = parseUserAttachments(rawContent);
       const requestText = rawContent || text;
       const fileAtts = files.map(f => ({

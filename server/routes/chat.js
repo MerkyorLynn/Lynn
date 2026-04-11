@@ -10,7 +10,7 @@ import { Hono } from "hono";
 import { MoodParser, XingParser, ThinkTagParser } from "../../core/events.js";
 import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
-import { t } from "../i18n.js";
+import { getLocale, t } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import {
   createSessionStreamState,
@@ -21,25 +21,44 @@ import {
 } from "../session-stream-store.js";
 import { AppError } from "../../shared/errors.js";
 import { errorBus } from "../../shared/error-bus.js";
-import {
-  getBrainDisplayName,
-  isBrainModelRef,
-  sanitizeBrainIdentityDisclosureText,
-} from "../../shared/brain-provider.js";
+import { sanitizeBrainIdentityDisclosureText } from "../../shared/brain-provider.js";
 import {
   containsPseudoToolSimulation,
   countPseudoToolMarkers,
   stripPseudoToolCallMarkup,
 } from "../../shared/pseudo-tool-call.js";
 import {
+  buildProviderToolCallHint,
   classifyRouteIntent,
-  getDefaultRouteRecoveryNoticeKey,
-  getDefaultRouteSlowNoticeKey,
+  looksLikePendingToolExecutionText,
+  matchesInstallIntent,
   ROUTE_INTENTS,
 } from "../../shared/task-route-intent.js";
+import {
+  buildEmptyResponseUserMessage,
+  buildInstallRecoverySteerText,
+  buildInstallRetryPrompt,
+  buildInvalidToolSimulationUserMessage,
+  buildPseudoToolRecoveryNotice,
+  buildPseudoToolRecoverySteerText,
+  buildPseudoToolRetryPrompt,
+  buildSlowNoticePayload,
+  looksLikeManualShellDeflection,
+  MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL,
+  MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS,
+  reportEmptyResponse,
+  resolveCurrentModelInfo,
+} from "../chat/chat-recovery.js";
+import {
+  recordCurrentProvider,
+  recordFallback,
+  recordProviderIssue,
+  recordToolCall,
+} from "../diagnostics.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
+const ENABLE_LOCAL_TOOL_RECOVERY = process.env.LYNN_ENABLE_LOCAL_TOOL_RECOVERY === "1";
 
 /**
  * 从 Pi SDK 的 content 块中提取纯文本
@@ -62,124 +81,6 @@ function resolveEditSnapshotPath(session, engine, rawPath) {
   const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
   return path.resolve(cwd, trimmed);
 }
-
-function resolveCurrentModelInfo(engine) {
-  const model = engine.resolveModelOverrides?.(engine.currentModel) || engine.currentModel || null;
-  return {
-    model,
-    provider: model?.provider || null,
-    modelId: model?.id || null,
-    modelName: model?.name || model?.id || null,
-    api: model?.api || null,
-    isBrain: isBrainModelRef(model?.id, model?.provider),
-  };
-}
-
-function shouldExposeModelRouting() {
-  if (typeof process === "undefined" || !process?.env) return false;
-  return process.env.LYNN_DEBUG_MODELS === "1" || process.env.DEBUG_MODEL_ROUTING === "1";
-}
-
-function buildEmptyResponseUserMessage(engine) {
-  const info = resolveCurrentModelInfo(engine);
-  if (info.isBrain) {
-    return t("error.defaultModelNoResponse", { model: getBrainDisplayName() });
-  }
-  return t("error.modelNoResponse", {
-    model: info.modelName || info.modelId || info.provider || t("model.unknown"),
-  });
-}
-
-function reportEmptyResponse(engine, sessionPath) {
-  const info = resolveCurrentModelInfo(engine);
-  const exposeRouting = shouldExposeModelRouting();
-  errorBus.report(new AppError("LLM_EMPTY_RESPONSE", {
-    message: "Model returned no displayable content",
-    context: {
-      sessionPath,
-      isBrain: info.isBrain,
-      ...(exposeRouting ? {
-        provider: info.provider,
-        modelId: info.modelId,
-        modelName: info.modelName,
-        api: info.api,
-      } : {}),
-    },
-  }), {
-    dedupeKey: info.isBrain
-      ? "LLM_EMPTY_RESPONSE:brain"
-      : `LLM_EMPTY_RESPONSE:${info.provider || "unknown"}:${info.modelId || "unknown"}`,
-  });
-}
-
-function buildSlowNoticePayload(engine, sessionPath, routeIntent, elapsedMs) {
-  const info = resolveCurrentModelInfo(engine);
-  if (info.isBrain) {
-    const noticeKey = getDefaultRouteSlowNoticeKey(routeIntent, elapsedMs);
-    if (elapsedMs < 60_000) {
-      return {
-        type: "status",
-        isStreaming: true,
-        sessionPath,
-        noticeKey,
-      };
-    }
-    return {
-      type: "status",
-      isStreaming: true,
-      sessionPath,
-      noticeKey,
-      noticeVars: {
-        minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
-      },
-    };
-  }
-  if (elapsedMs < 60_000) {
-    return {
-      type: "status",
-      isStreaming: true,
-      sessionPath,
-      noticeKey: "status.llmSlowResponse",
-    };
-  }
-  return {
-    type: "status",
-    isStreaming: true,
-    sessionPath,
-    noticeKey: "status.llmStillWorking",
-    noticeVars: {
-      minutes: Math.max(1, Math.round(elapsedMs / 60_000)),
-    },
-  };
-}
-
-function buildPseudoToolRecoveryNotice(engine, sessionPath, routeIntent) {
-  const info = resolveCurrentModelInfo(engine);
-  return {
-    type: "status",
-    isStreaming: true,
-    sessionPath,
-    noticeKey: info.isBrain
-      ? getDefaultRouteRecoveryNoticeKey(routeIntent)
-      : "status.recoveringToolExecution",
-  };
-}
-
-function buildPseudoToolRecoverySteerText() {
-  return [
-    "你刚才在正文里输出了伪工具调用标记（如 <tool_call>、<invoke>、XML 标签），这不会真正执行工具。",
-    "立即停止输出任何伪工具调用文本，改为使用真实工具接口继续完成当前任务；只有拿到工具结果后再向用户汇报。",
-    "Do not simulate tool calls in plain text. Stop outputting pseudo tool-call markup and use the real tool interface now. Continue the current task and only reply after real tool results arrive.",
-  ].join("\n");
-}
-
-function buildInvalidToolSimulationUserMessage(engine) {
-  const info = resolveCurrentModelInfo(engine);
-  if (info.isBrain) return t("error.defaultModelInvalidToolSimulation");
-  return t("error.invalidToolSimulation");
-}
-
-const MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL = 3;
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   const restRoute = new Hono();
@@ -261,6 +162,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         pseudoToolSimulationSteered: false,
         pseudoToolMarkerCount: 0,
         pseudoToolAbortRequested: false,
+        pseudoToolNeedsRetry: false,
+        pseudoToolRetryCount: 0,
+        installPrompt: false,
+        installDeflectionDetected: false,
+        pendingToolExecutionDetected: false,
         titleRequested: false,
         titlePreview: "",
         lastActivity: Date.now(),
@@ -361,13 +267,19 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return entry;
   }
 
-  function resetTextTracking(ss) {
+  function resetTextTracking(ss, opts = {}) {
+    const preserveRetry = !!opts.preserveRetry;
+    const preserveRetryCount = !!opts.preserveRetryCount;
     ss.rawTextAcc = "";
     ss.cleanTextAcc = "";
     ss.pseudoToolSimulationDetected = false;
     ss.pseudoToolSimulationSteered = false;
     ss.pseudoToolMarkerCount = 0;
     ss.pseudoToolAbortRequested = false;
+    if (!preserveRetry) ss.pseudoToolNeedsRetry = false;
+    if (!preserveRetryCount) ss.pseudoToolRetryCount = 0;
+    ss.installDeflectionDetected = false;
+    ss.pendingToolExecutionDetected = false;
   }
 
   function emitSanitizedTextDelta(sessionPath, ss, rawDelta) {
@@ -378,7 +290,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     const prevCleanText = ss.cleanTextAcc || "";
     const pseudoDetected = containsPseudoToolSimulation(rawDelta) || containsPseudoToolSimulation(ss.rawTextAcc);
 
-    if (pseudoDetected) {
+    if (ENABLE_LOCAL_TOOL_RECOVERY && pseudoDetected) {
       ss.pseudoToolSimulationDetected = true;
       ss.pseudoToolMarkerCount = Math.max(ss.pseudoToolMarkerCount || 0, countPseudoToolMarkers(ss.rawTextAcc));
       if (!ss.hasToolCall && !ss.pseudoToolSimulationSteered && engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) {
@@ -389,12 +301,25 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         && !ss.pseudoToolAbortRequested
         && (ss.pseudoToolMarkerCount || 0) >= MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL) {
         ss.pseudoToolAbortRequested = true;
-        ss.hasError = true;
-        broadcast({ type: "error", message: buildInvalidToolSimulationUserMessage(engine) });
+        ss.pseudoToolNeedsRetry = true;
         queueMicrotask(() => {
           engine.abortSessionByPath(sessionPath).catch(() => {});
         });
       }
+    }
+
+    if (ENABLE_LOCAL_TOOL_RECOVERY && ss.installPrompt && !ss.hasToolCall && looksLikeManualShellDeflection(cleanText)) {
+      ss.installDeflectionDetected = true;
+      if (!ss.pseudoToolAbortRequested) {
+        ss.pseudoToolAbortRequested = true;
+        queueMicrotask(() => {
+          engine.abortSessionByPath(sessionPath).catch(() => {});
+        });
+      }
+    }
+
+    if (ENABLE_LOCAL_TOOL_RECOVERY && !ss.hasToolCall && !ss.hasError && looksLikePendingToolExecutionText(cleanText, ss.routeIntent)) {
+      ss.pendingToolExecutionDetected = true;
     }
 
     if (cleanText.trim()) ss.hasOutput = true;
@@ -521,6 +446,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     } else if (event.type === "tool_execution_start") {
       if (!ss) return;
       ss.hasToolCall = true;
+      recordToolCall({
+        phase: "start",
+        name: event.toolName || "",
+        sessionPath,
+        args: event.args || null,
+      });
       if (ss.isThinking) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -615,6 +546,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         success: !event.isError,
         details: rawDetails,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
+      });
+      recordToolCall({
+        phase: "end",
+        name: toolName,
+        sessionPath,
+        success: !event.isError,
+        summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
+        error: event.isError ? extractText(event.result?.content) : null,
       });
 
       if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
@@ -861,14 +800,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       });
 
-      if (ss.pseudoToolSimulationDetected && !ss.hasToolCall && !ss.hasError && isActive) {
-        reportEmptyResponse(engine, sessionPath);
-        broadcast({ type: "error", message: buildInvalidToolSimulationUserMessage(engine) });
+      if (ENABLE_LOCAL_TOOL_RECOVERY && ss.pseudoToolSimulationDetected && !ss.hasToolCall && !ss.hasError) {
+        ss.pseudoToolNeedsRetry = true;
+      }
+      if (ENABLE_LOCAL_TOOL_RECOVERY && ss.pendingToolExecutionDetected && !ss.hasToolCall && !ss.hasError) {
+        ss.pseudoToolNeedsRetry = true;
       }
 
       // 空回复检测：本轮没有文本输出也没有工具调用。
       // 这更像上游空响应或接口兼容问题，不一定是用户配置错误。
-      if (!ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
+      if (!ss.pseudoToolNeedsRetry && !ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
         reportEmptyResponse(engine, sessionPath);
         broadcast({ type: "error", message: buildEmptyResponseUserMessage(engine) });
       }
@@ -880,7 +821,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.hasThinking = false;
       ss.hasError = false;
       ss.routeIntent = ROUTE_INTENTS.CHAT;
-      resetTextTracking(ss);
+      resetTextTracking(ss, {
+        preserveRetry: ss.pseudoToolNeedsRetry,
+        preserveRetryCount: ss.pseudoToolNeedsRetry,
+      });
       ss.thinkTagParser.reset();
       ss.moodParser.reset();
       ss.xingParser.reset();
@@ -1095,44 +1039,154 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               }
               const ss = getState(promptSessionPath);
               try {
-                ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
-                ss.thinkTagParser.reset();
-                ss.moodParser.reset();
-                ss.xingParser.reset();
-                resetTextTracking(ss);
-                ss.titleRequested = false;
-                ss.titlePreview = "";
-                beginSessionStream(ss);
-                broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                // 流式慢响应提示：15s 无可见输出先提示一次，之后持续更新“仍在处理中”
-                const STREAM_SLOW_MS = 15_000;
-                const STREAM_STILL_WORKING_MS = 30_000;
-                const slowNoticeStartedAt = Date.now();
-                let slowStreamInterval = null;
-                const shouldShowSlowNotice = () =>
-                  !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError;
-                const broadcastSlowNotice = () => {
-                  if (!shouldShowSlowNotice()) {
-                    if (slowStreamInterval) {
-                      clearInterval(slowStreamInterval);
-                      slowStreamInterval = null;
-                    }
-                    return;
+                const prepareAttemptState = (attemptIndex) => {
+                  ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
+                  ss.thinkTagParser.reset();
+                  ss.moodParser.reset();
+                  ss.xingParser.reset();
+                  resetTextTracking(ss, { preserveRetryCount: attemptIndex > 0 });
+                  ss.titleRequested = false;
+                  ss.titlePreview = "";
+                  ss.hasOutput = false;
+                  ss.hasToolCall = false;
+                  ss.hasThinking = false;
+                  ss.hasError = false;
+                  ss.installPrompt = matchesInstallIntent(promptText);
+                  if (attemptIndex > 0) {
+                    ss.pseudoToolRetryCount = attemptIndex;
                   }
-                  const elapsedMs = Date.now() - slowNoticeStartedAt;
-                  broadcast(buildSlowNoticePayload(engine, promptSessionPath, ss.routeIntent, elapsedMs));
                 };
-                const slowStreamTimer = setTimeout(() => {
-                  broadcastSlowNotice();
-                  slowStreamInterval = setInterval(broadcastSlowNotice, STREAM_STILL_WORKING_MS);
-                }, STREAM_SLOW_MS);
-                try {
-                  await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
-                } finally {
-                  clearTimeout(slowStreamTimer);
-                  if (slowStreamInterval) clearInterval(slowStreamInterval);
+
+                const sendPromptAttempt = async (attemptText, attemptIndex) => {
+                  prepareAttemptState(attemptIndex);
+                  beginSessionStream(ss);
+                  broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
+                  const STREAM_SLOW_MS = 15_000;
+                  const STREAM_STILL_WORKING_MS = 30_000;
+                  const TOOL_EVENT_GRACE_MS = 8_000;
+                  const slowNoticeStartedAt = Date.now();
+                  let slowStreamInterval = null;
+                  let missingToolExecutionTimer = null;
+                  const shouldShowSlowNotice = () =>
+                    !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError;
+                  const broadcastSlowNotice = () => {
+                    if (!shouldShowSlowNotice()) {
+                      if (slowStreamInterval) {
+                        clearInterval(slowStreamInterval);
+                        slowStreamInterval = null;
+                      }
+                      return;
+                    }
+                    const elapsedMs = Date.now() - slowNoticeStartedAt;
+                    broadcast(buildSlowNoticePayload(engine, promptSessionPath, ss.routeIntent, elapsedMs));
+                  };
+                  const slowStreamTimer = setTimeout(() => {
+                    broadcastSlowNotice();
+                    slowStreamInterval = setInterval(broadcastSlowNotice, STREAM_STILL_WORKING_MS);
+                  }, STREAM_SLOW_MS);
+                  if (ENABLE_LOCAL_TOOL_RECOVERY && [ROUTE_INTENTS.UTILITY, ROUTE_INTENTS.CODING].includes(ss.routeIntent)) {
+                    missingToolExecutionTimer = setTimeout(() => {
+                      if (!ss.pendingToolExecutionDetected || ss.hasToolCall || ss.hasError || ss.pseudoToolAbortRequested) return;
+                      ss.pseudoToolNeedsRetry = true;
+                      ss.pseudoToolAbortRequested = true;
+                      broadcast(buildPseudoToolRecoveryNotice(engine, promptSessionPath, ss.routeIntent));
+                      engine.abortSessionByPath(promptSessionPath).catch(() => {});
+                    }, TOOL_EVENT_GRACE_MS);
+                  }
+                  try {
+                    await hub.send(attemptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                    return null;
+                  } catch (err) {
+                    return err;
+                  } finally {
+                    clearTimeout(slowStreamTimer);
+                    if (slowStreamInterval) clearInterval(slowStreamInterval);
+                    if (missingToolExecutionTimer) clearTimeout(missingToolExecutionTimer);
+                    broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                  }
+                };
+
+                let finalError = null;
+                const maxRecoveryAttempts = ENABLE_LOCAL_TOOL_RECOVERY ? MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS : 0;
+                for (let attemptIndex = 0; attemptIndex <= maxRecoveryAttempts; attemptIndex++) {
+                  const currentModelInfo = resolveCurrentModelInfo(engine);
+                  recordCurrentProvider({
+                    provider: currentModelInfo.provider,
+                    modelId: currentModelInfo.modelId,
+                    modelName: currentModelInfo.modelName,
+                    api: currentModelInfo.api,
+                    routeIntent: ss.routeIntent,
+                    sessionPath: promptSessionPath,
+                    attemptIndex,
+                  });
+                  const attemptText = attemptIndex === 0
+                    ? promptText
+                    : (ss.installPrompt
+                      ? buildInstallRetryPrompt(promptText)
+                      : (ss.pendingToolExecutionDetected
+                        ? [
+                            "【严格执行要求】上一轮只输出了“我来查询/我来搜索”这类承诺文本，但没有真正调用工具。",
+                            "这一次请直接调用真实工具（如 weather、stock_market、sports_score、live_news、web_search、web_fetch），拿到结果后再回复，不要先输出计划或承诺句。",
+                            buildProviderToolCallHint({
+                              routeIntent: ss.routeIntent,
+                              provider: currentModelInfo.provider,
+                              modelId: currentModelInfo.modelId,
+                              locale: getLocale(),
+                            }),
+                            String(promptText || ""),
+                          ].filter(Boolean).join("\n\n")
+                        : buildPseudoToolRetryPrompt(promptText)));
+                  const attemptError = await sendPromptAttempt(attemptText, attemptIndex);
+                  const needsRecovery = ENABLE_LOCAL_TOOL_RECOVERY && (!!ss.pseudoToolNeedsRetry || !!ss.installDeflectionDetected || attemptError?.code === "INVALID_TOOL_SIMULATION");
+                  const wasAborted = attemptError?.message?.includes("aborted");
+
+                  if (attemptError && !wasAborted) {
+                    recordProviderIssue({
+                      provider: currentModelInfo.provider,
+                      modelId: currentModelInfo.modelId,
+                      modelName: currentModelInfo.modelName,
+                      routeIntent: ss.routeIntent,
+                      sessionPath: promptSessionPath,
+                      code: attemptError.code || null,
+                      message: attemptError.message || String(attemptError),
+                    });
+                  }
+
+                  if (needsRecovery && attemptIndex < maxRecoveryAttempts) {
+                    recordFallback({
+                      reason: ss.installDeflectionDetected
+                        ? "install-deflection"
+                        : ss.pendingToolExecutionDetected
+                          ? "pending-tool-execution"
+                          : "pseudo-tool-simulation",
+                      provider: currentModelInfo.provider,
+                      modelId: currentModelInfo.modelId,
+                      routeIntent: ss.routeIntent,
+                      sessionPath: promptSessionPath,
+                    });
+                    if (ss.installDeflectionDetected && engine.steerSession(promptSessionPath, buildInstallRecoverySteerText())) {
+                      broadcast(buildPseudoToolRecoveryNotice(engine, promptSessionPath, ss.routeIntent));
+                    }
+                    broadcast({ type: "turn_retry", sessionPath: promptSessionPath });
+                    continue;
+                  }
+                  if (needsRecovery) {
+                    finalError = new Error(buildInvalidToolSimulationUserMessage(engine));
+                    break;
+                  }
+                  if (attemptError && !wasAborted) {
+                    finalError = attemptError;
+                  }
+                  break;
                 }
-                broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+
+                if (finalError) {
+                  wsSend(ws, {
+                    type: "error",
+                    message: finalError.message,
+                    sessionPath: promptSessionPath,
+                  });
+                }
               } catch (err) {
                 if (!err.message?.includes("aborted")) {
                   wsSend(ws, { type: "error", message: err.message, sessionPath: promptSessionPath });

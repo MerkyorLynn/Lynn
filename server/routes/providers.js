@@ -221,6 +221,72 @@ export function createProvidersRoute(engine) {
     return null;
   }
 
+  function normalizeModelId(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object" && typeof value.id === "string") return value.id.trim();
+    return String(value).trim();
+  }
+
+  function resolveProviderSmokeModel(providerName, body = {}) {
+    const explicit = normalizeModelId(body.model_id || body.modelId || body.model);
+    if (explicit && explicit !== "test") return explicit;
+    if (!providerName) return "";
+    const rawProviders = engine.providerRegistry?.getAllProvidersRaw?.() || {};
+    const savedModels = rawProviders[providerName]?.models || [];
+    const savedModel = savedModels.map(normalizeModelId).find(Boolean);
+    if (savedModel) return savedModel;
+    const defaults = engine.providerRegistry?.getDefaultModels?.(providerName) || [];
+    return defaults.map(normalizeModelId).find(Boolean) || "";
+  }
+
+  async function runProviderChatSmoke({ baseUrl, api, apiKey, allowMissingApiKey, modelId }) {
+    if (!modelId) return null;
+    if (!["openai-completions", "openai-responses", "anthropic-messages"].includes(api)) return null;
+
+    const base = String(baseUrl || "").replace(/\/+$/, "");
+    const endpoint = api === "anthropic-messages"
+      ? `${base}/v1/messages`
+      : api === "openai-responses"
+        ? `${base}/responses`
+        : `${base}/chat/completions`;
+    const pathname = api === "anthropic-messages"
+      ? "/v1/messages"
+      : api === "openai-responses"
+        ? "/responses"
+        : "/chat/completions";
+    const headers = buildProviderAuthHeaders(api, apiKey, {
+      allowMissingApiKey,
+      method: "POST",
+      pathname,
+    });
+    const body = api === "anthropic-messages"
+      ? { model: modelId, max_tokens: 8, messages: [{ role: "user", content: "ping" }] }
+      : api === "openai-responses"
+        ? { model: modelId, max_output_tokens: 8, input: [{ role: "user", content: "ping" }] }
+        : { model: modelId, max_tokens: 8, messages: [{ role: "user", content: "ping" }] };
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(12000),
+    });
+    let payload = null;
+    try {
+      const text = await res.text();
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = null;
+    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      model: modelId,
+      message: payload?.error?.message || payload?.message || `HTTP ${res.status}`,
+    };
+  }
+
   // ── Fetch / Test ──
 
   function normalizeRegistryModels(models) {
@@ -417,20 +483,19 @@ export function createProvidersRoute(engine) {
       })();
 
       if (effectiveApi === "anthropic-messages") {
-        const headers = buildProviderAuthHeaders(effectiveApi, effectiveApiKey, {
+        const smoke = await runProviderChatSmoke({
+          baseUrl: effectiveBaseUrl,
+          api: effectiveApi,
+          apiKey: effectiveApiKey,
           allowMissingApiKey,
-          method: probe.method,
-          pathname,
+          modelId: resolveProviderSmokeModel(name, body),
         });
-        const res = await fetch(probe.url, {
-          method: probe.method,
-          headers,
-          body: JSON.stringify({ model: "test", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
-          signal: AbortSignal.timeout(10000),
-        });
-        // 401/403 = key 无效，其他错误（400 model not found 等）说明认证通过了
-        const authOk = res.status !== 401 && res.status !== 403;
-        return c.json({ ok: authOk, status: res.status });
+        if (smoke) {
+          return c.json(smoke.ok
+            ? { ok: true, status: smoke.status, model: smoke.model }
+            : { ok: false, status: smoke.status, model: smoke.model, error: smoke.message });
+        }
+        return c.json({ ok: false, error: "No model available for smoke test" });
       }
 
       let headers = {};
@@ -453,26 +518,35 @@ export function createProvidersRoute(engine) {
         return c.json({ ok: false, status: res.status });
       }
       if (res.ok) {
+        const smoke = await runProviderChatSmoke({
+          baseUrl: effectiveBaseUrl,
+          api: effectiveApi,
+          apiKey: effectiveApiKey,
+          allowMissingApiKey,
+          modelId: resolveProviderSmokeModel(name, body),
+        });
+        if (smoke) {
+          return c.json(smoke.ok
+            ? { ok: true, status: smoke.status, model: smoke.model }
+            : { ok: false, status: smoke.status, model: smoke.model, error: smoke.message });
+        }
         return c.json({ ok: true, status: res.status });
       }
       // /models 端点不存在或不可用（404/405/500 等），回退到 chat completions 探测
       if (effectiveApi === "openai-completions" || effectiveApi === "openai-responses") {
         try {
-          const chatUrl = `${String(effectiveBaseUrl).replace(/\/+$/, "")}/chat/completions`;
-          const chatHeaders = buildProviderAuthHeaders(effectiveApi, effectiveApiKey, {
+          const smoke = await runProviderChatSmoke({
+            baseUrl: effectiveBaseUrl,
+            api: effectiveApi,
+            apiKey: effectiveApiKey,
             allowMissingApiKey,
-            method: "POST",
-            pathname: "/chat/completions",
+            modelId: resolveProviderSmokeModel(name, body),
           });
-          const chatRes = await fetch(chatUrl, {
-            method: "POST",
-            headers: chatHeaders,
-            body: JSON.stringify({ model: "test", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
-            signal: AbortSignal.timeout(10000),
-          });
-          // 401/403 = key 无效，其他状态（400 model not found 等）说明认证通过
-          const authOk = chatRes.status !== 401 && chatRes.status !== 403;
-          return c.json({ ok: authOk, status: chatRes.status });
+          if (smoke) {
+            return c.json(smoke.ok
+              ? { ok: true, status: smoke.status, model: smoke.model }
+              : { ok: false, status: smoke.status, model: smoke.model, error: smoke.message });
+          }
         } catch {
           // 回退探测也失败，返回原始 /models 结果
         }

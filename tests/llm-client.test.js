@@ -84,7 +84,7 @@ describe("callText", () => {
     expect(body.thinking).toBeUndefined();
   });
 
-  it("attaches signed client identity headers from preferences.json", async () => {
+  it("attaches client identity headers from preferences.json without signature by default", async () => {
     const lynnHome = makeTempDir("hanako-llm-");
     const clientKey = "ak_test_client_001";
     const clientSecret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -98,6 +98,48 @@ describe("callText", () => {
       "utf-8",
     );
     vi.stubEnv("LYNN_HOME", lynnHome);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [{ message: { content: "OK" } }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await callText({
+      api: "openai-completions",
+      apiKey: "sk-test",
+      baseUrl: "https://example.com/v1",
+      model: "demo-model",
+      messages: [{ role: "user", content: "hello" }],
+      timeoutMs: 1000,
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    expect(requestInit.headers["X-Agent-Key"]).toBe(clientKey);
+    expect(requestInit.headers["X-Lynn-Client-Platform"]).toBeTruthy();
+    expect(requestInit.headers["X-Lynn-Timestamp"]).toBeUndefined();
+    expect(requestInit.headers["X-Lynn-Nonce"]).toBeUndefined();
+    expect(requestInit.headers["X-Lynn-Signature"]).toBeUndefined();
+  });
+
+  it("attaches signed client identity headers when signature mode is enabled", async () => {
+    const lynnHome = makeTempDir("hanako-llm-signature-");
+    const clientKey = "ak_test_client_001";
+    const clientSecret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    fs.mkdirSync(path.join(lynnHome, "user"), { recursive: true });
+    fs.writeFileSync(
+      path.join(lynnHome, "user", "preferences.json"),
+      JSON.stringify({
+        client_agent_key: clientKey,
+        client_agent_secret: clientSecret,
+      }, null, 2),
+      "utf-8",
+    );
+    vi.stubEnv("LYNN_HOME", lynnHome);
+    vi.stubEnv("LYNN_ENABLE_DEVICE_SIGNATURE", "1");
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -16,4 +16,9 @@ describe("sanitizeBrainIdentityDisclosureText", () => {
     const raw = "I am currently running on Zhipu GLM-5.1, specifically the zhipu-coding route.";
     expect(sanitizeBrainIdentityDisclosureText(raw)).toBe("I’m currently running on Lynn's default model service.");
   });
+
+  it("keeps Chinese replies from mixing in the English default-model sentence", () => {
+    const raw = "未检测到 uvx。I’m currently running on Lynn's default model service. Missing uvx.";
+    expect(sanitizeBrainIdentityDisclosureText(raw)).toBe("未检测到 uvx。我当前使用的是 Lynn 的默认模型服务。Missing uvx.");
+  });
 });

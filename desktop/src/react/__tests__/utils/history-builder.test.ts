@@ -56,6 +56,29 @@ describe('history-builder', () => {
     expect(message.data.requestText).toContain('[Git 上下文] repo=openhanako; branch=main; changed=4');
   });
 
+  it('过滤内部自动纠错提示，不在历史消息里显示', () => {
+    const history: HistoryApiResponse = {
+      messages: [
+        {
+          id: 'u-internal',
+          role: 'user',
+          content: '【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。\n\n请直接调用真实工具完成当前任务。',
+        },
+        {
+          id: 'a-real',
+          role: 'assistant',
+          content: '好的，我继续处理。',
+        },
+      ],
+    };
+
+    const items = buildItemsFromHistory(history);
+    expect(items).toHaveLength(1);
+    const message = items[0];
+    if (message.type !== 'message' || message.data.role !== 'assistant') throw new Error('expected assistant message');
+    expect(message.data.text).toBeUndefined();
+  });
+
   it('重建 file diff，并保留 rollbackId', () => {
     const history: HistoryApiResponse = {
       messages: [{

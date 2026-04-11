@@ -20,6 +20,18 @@ export function buildRouteIntentSystemHint(
   locale?: string | null,
 ): string;
 
+export function buildProviderToolCallHint(opts?: {
+  routeIntent?: string | null;
+  provider?: string | null;
+  modelId?: string | null;
+  locale?: string | null;
+}): string;
+
+export function looksLikePendingToolExecutionText(
+  text?: string | null,
+  routeIntent?: string | null,
+): boolean;
+
 export function getRouteIntentNoticeKey(routeIntent?: string | null): string;
 
 export function getDefaultRouteSlowNoticeKey(

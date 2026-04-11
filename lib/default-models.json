@@ -27,11 +27,11 @@
   ],
 
   "brain": [
+    "lynn-brain-router",
     "step-3.5-flash-2603",
     "glm-z1-9b-0414",
     "glm-4-9b-0414",
-    "qwen3-8b",
-    "lynn-brain-router"
+    "qwen3-8b"
   ],
 
   "dashscope": [

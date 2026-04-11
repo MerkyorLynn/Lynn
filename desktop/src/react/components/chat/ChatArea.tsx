@@ -13,6 +13,7 @@ import { ApplyCodeDialog } from './ApplyCodeDialog';
 import type { ChatListItem } from '../../stores/chat-types';
 import { findLastAssistantMessageId } from '../../utils/chat-list';
 import styles from './Chat.module.css';
+import { isInternalRecoveryPromptText } from '../../../../../shared/internal-control-message.js';
 
 const MAX_ALIVE = 5;
 
@@ -249,6 +250,9 @@ const ItemView = memo(function ItemView({ item, prevItem, lastAssistantMessageId
 }) {
   if (item.type === 'compaction') return null;
   const msg = item.data;
+  if (msg.role === 'user' && isInternalRecoveryPromptText(msg.text || msg.requestText || '')) {
+    return null;
+  }
   const prevRole = prevItem?.type === 'message' ? prevItem.data.role : null;
   const showAvatar = msg.role !== prevRole;
   if (msg.role === 'user') {

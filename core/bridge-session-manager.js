@@ -22,6 +22,7 @@ import {
   readSignedClientAgentHeaders,
 } from "./client-agent-identity.js";
 import { resolveCompactionSettings } from "./compaction-settings.js";
+import { containsPseudoToolCallSimulation, sanitizeAssistantTextContent } from "./llm-utils.js";
 
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
@@ -57,6 +58,13 @@ function buildGuestSafetyPrompt(ownerName = "User") {
     "- If the visitor is asking about a general concept, you may answer in general terms, but never map it to the current user, device, or service.",
     "- If you cannot verify something, say you need to check. Do not guess or invent details.",
   ].join("\n");
+}
+
+function pseudoToolSimulationMessage() {
+  const localized = t("error.invalidToolSimulation");
+  return localized && localized !== "error.invalidToolSimulation"
+    ? localized
+    : "Model emitted an invalid tool-call simulation instead of executing the tool.";
 }
 
 export class BridgeSessionManager {
@@ -274,8 +282,9 @@ export class BridgeSessionManager {
 
       this._activeSessions.set(sessionKey, session);
 
-      // 捕获文本输出
+      // 捕获文本输出，并识别是否真的执行了工具
       let capturedText = "";
+      let sawToolCall = false;
       const unsub = session.subscribe((event) => {
         if (event.type === "message_update") {
           const sub = event.assistantMessageEvent;
@@ -283,7 +292,11 @@ export class BridgeSessionManager {
             const delta = sub.delta || "";
             capturedText += delta;
             try { opts.onDelta?.(delta, capturedText); } catch {}
+          } else if (sub?.type === "toolcall_start" || sub?.type === "toolcall_end") {
+            sawToolCall = true;
           }
+        } else if (event.type === "tool_execution_start" || event.type === "tool_execution_end") {
+          sawToolCall = true;
         }
       });
 
@@ -299,6 +312,12 @@ export class BridgeSessionManager {
       } finally {
         unsub?.();
         this._activeSessions.delete(sessionKey);
+      }
+
+      if (!sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
+        const err = new Error(pseudoToolSimulationMessage());
+        err.code = "INVALID_TOOL_SIMULATION";
+        throw err;
       }
 
       // 更新索引 + 元数据
@@ -317,7 +336,7 @@ export class BridgeSessionManager {
         this.writeIndex(index, agent);
       }
 
-      return capturedText.trim() || null;
+      return sanitizeAssistantTextContent(capturedText).trim() || null;
     } catch (err) {
       console.error(`[bridge-session] external message failed (${sessionKey}):`, err.message);
       return { __bridgeError: true, message: err.message };

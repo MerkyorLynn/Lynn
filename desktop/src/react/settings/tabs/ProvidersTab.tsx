@@ -5,7 +5,7 @@ import { t, PROVIDER_PRESETS } from '../helpers';
 import { loadSettingsConfig } from '../actions';
 import { ProviderDetail } from './providers/ProviderDetail';
 import { AddCustomButton } from './providers/ProviderList';
-import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL } from '../../../../../shared/brain-provider.js';
+import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, buildBrainProviderConfig } from '../../../../../shared/brain-provider.js';
 import styles from '../Settings.module.css';
 
 const OAUTH_PROVIDER_ORDER = [
@@ -78,6 +78,39 @@ function resolvePreferredProviderId(settingsConfig: Record<string, any> | null):
   return null;
 }
 
+function buildPresetSummary(id: string): ProviderSummary | null {
+  if (id === BRAIN_PROVIDER_ID) {
+    const cfg = buildBrainProviderConfig();
+    return {
+      type: 'none',
+      display_name: cfg.display_name,
+      base_url: cfg.base_url,
+      api: cfg.api,
+      api_key: '',
+      models: cfg.models || [],
+      custom_models: [],
+      has_credentials: true,
+      supports_oauth: false,
+      can_delete: false,
+    };
+  }
+
+  const preset = PROVIDER_PRESETS.find(p => p.value === id);
+  if (!preset) return null;
+  return {
+    type: (preset.noKey || preset.local) ? 'none' as const : 'api-key' as const,
+    display_name: preset.label,
+    base_url: preset.url || '',
+    api: preset.api || '',
+    api_key: '',
+    models: preset.defaultModelId ? [preset.defaultModelId] : [],
+    custom_models: [],
+    has_credentials: !!preset.noKey || !!preset.local,
+    supports_oauth: false,
+    can_delete: false,
+  };
+}
+
 export function ProvidersTab() {
   const { providersSummary, selectedProviderId, preferredProviderId, settingsConfig } = useSettingsStore();
   const providers = settingsConfig?.providers || {};
@@ -92,6 +125,12 @@ export function ProvidersTab() {
   }, []);
 
   useEffect(() => { loadSummary(); }, [loadSummary]);
+
+  useEffect(() => {
+    if (!selectedProviderId) {
+      useSettingsStore.setState({ selectedProviderId: BRAIN_PROVIDER_ID });
+    }
+  }, [selectedProviderId]);
 
   const providerIds = Object.keys(providersSummary);
   const summaryLoaded = providerIds.length > 0;
@@ -127,7 +166,7 @@ export function ProvidersTab() {
       useSettingsStore.setState({ selectedProviderId: fallback });
     }
   }, [resolvedPreferredProviderId, selectedProviderId, summaryLoaded, visibleProviderIds]);
-  const selected = selectedProviderId;
+  const selected = selectedProviderId || BRAIN_PROVIDER_ID;
 
   // 分组：OAuth / Coding Plan / API Key
   const oauthProviders = visibleOauthProviderIds;
@@ -221,18 +260,14 @@ export function ProvidersTab() {
           {selected ? (() => {
             const existing = providersSummary[selected];
             const preset = PROVIDER_PRESETS.find(p => p.value === selected);
-            const summary: ProviderSummary = existing || {
-              type: (preset?.noKey || preset?.local) ? 'none' as const : 'api-key' as const,
-              display_name: getProviderLabel(selected),
-              base_url: preset?.url || '',
-              api: preset?.api || '',
-              api_key: '',
-              models: [],
-              custom_models: [],
-              has_credentials: false,
-              supports_oauth: false,
-              can_delete: false,
-            };
+            const summary = existing || buildPresetSummary(selected);
+            if (!summary) {
+              return (
+                <div className={styles['pv-empty']}>
+                  {summaryLoaded ? t('settings.providers.selectHint') : '正在读取供应商配置...'}
+                </div>
+              );
+            }
             return (
               <ProviderDetail
                 providerId={selected}

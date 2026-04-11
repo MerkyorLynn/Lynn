@@ -395,10 +395,6 @@ export function WorkTab() {
     const resolved = selectedId
       ? candidates.find((item) => item.id === selectedId) || null
       : autoCandidate;
-    const options = [
-      { value: '', label: t('review.auto') || 'Auto select' },
-      ...candidates.map((item) => ({ value: item.id, label: item.name, group: item.modelProvider || undefined })),
-    ];
     const reviewerModelValue = resolved?.modelId
       ? encodeUserVisibleModelValue({
         id: normalizeDisplayModelId(resolved.modelId, resolved.modelProvider || undefined),
@@ -426,17 +422,6 @@ export function WorkTab() {
           <span className={styles['work-review-unbound']}>{t('settings.work.review.unboundHint')}</span>
         )}
         <div className={styles['work-review-actions']}>
-          <SelectWidget
-            options={options}
-            value={selectedId || ''}
-            onChange={(value) => {
-              void updateReviewConfig(kind === 'butter'
-                ? { butterReviewerId: value || null }
-                : { hanakoReviewerId: value || null });
-            }}
-            placeholder={t('settings.work.review.chooseReviewer')}
-            disabled={reviewSaving || reviewLoading}
-          />
           <button
             className={styles['work-review-link']}
             onClick={() => {
