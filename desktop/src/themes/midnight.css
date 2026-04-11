@@ -15,9 +15,9 @@
     --accent-light: rgba(158, 128, 128, 0.10);
 
     /* 文字（提高亮度，增大与背景对比） */
-    --text:         #DDE3E9;
-    --text-light:   #A0ADB8;
-    --text-muted:   #6B7D8A;
+    --text:         #E8EEF4;
+    --text-light:   #B3C0CC;
+    --text-muted:   #8A9DB0;
 
     /* 边框与阴影 */
     --border:       rgba(158, 128, 128, 0.18);
@@ -36,12 +36,12 @@
     --jian-note-border: rgba(150, 155, 160, 0.12);
 
     /* 聊天专用（提亮正文色，增强可读性） */
-    --hana-text:    #D5DEE5;
+    --hana-text:    #E2EAF0;
     --mood-bg:      rgba(234, 178, 160, 0.08);
     --mood-text:    #EAB2A0;
     --mood-border:  rgba(234, 178, 160, 0.20);
     --tool-bg:      rgba(60, 80, 95, 0.25);
-    --tool-text:    #A0ADB8;
+    --tool-text:    #B3C0CC;
     --user-bg:      rgba(158, 128, 128, 0.12);
     --drop-overlay-bg: rgba(37, 47, 58, 0.85);
     --attach-bg:    rgba(255, 255, 255, 0.07);
