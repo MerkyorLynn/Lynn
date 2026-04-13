@@ -47,15 +47,43 @@ interface ReviewConfigResponse {
   resolvedReviewer?: ReviewConfigAgent | null;
 }
 
-function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number } {
+const TOOL_LABELS: Record<string, string> = {
+  web_search: '\ud83d\udd0d \u641c\u7d22\u4e2d',
+  web_fetch: '\ud83c\udf10 \u8bfb\u53d6\u7f51\u9875',
+  weather: '\u26c5 \u67e5\u8be2\u5929\u6c14',
+  stock_market: '\ud83d\udcc8 \u67e5\u8be2\u884c\u60c5',
+  stock_research: '\ud83d\udcca \u80a1\u7968\u7814\u7a76',
+  create_pptx: '\ud83d\udcca \u751f\u6210 PPT',
+  create_report: '\ud83d\udccb \u751f\u6210\u62a5\u544a',
+  create_artifact: '\ud83c\udfa8 \u521b\u5efa\u9884\u89c8',
+  browser: '\ud83c\udf10 \u6d4f\u89c8\u5668\u64cd\u4f5c',
+  read: '\ud83d\udcc4 \u8bfb\u53d6\u6587\u4ef6',
+  write: '\u270f\ufe0f \u5199\u5165\u6587\u4ef6',
+  edit: '\u270f\ufe0f \u7f16\u8f91\u6587\u4ef6',
+  bash: '\ud83d\udcbb \u6267\u884c\u547d\u4ee4',
+  grep: '\ud83d\udd0d \u641c\u7d22\u5185\u5bb9',
+  find: '\ud83d\udcc2 \u67e5\u627e\u6587\u4ef6',
+  ls: '\ud83d\udcc2 \u5217\u51fa\u76ee\u5f55',
+  notify: '\ud83d\udd14 \u53d1\u9001\u901a\u77e5',
+  cron: '\u23f0 \u5b9a\u65f6\u4efb\u52a1',
+  todo: '\u2705 \u5f85\u529e\u7ba1\u7406',
+};
+
+function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number; activeLabel: string } {
   let running = 0;
   let total = 0;
+  let activeLabel = '';
   for (const block of blocks) {
     if (block.type !== 'tool_group') continue;
     total += block.tools.length;
-    running += block.tools.filter(tool => !tool.done).length;
+    for (const tool of block.tools) {
+      if (!tool.done) {
+        running++;
+        if (!activeLabel) activeLabel = TOOL_LABELS[tool.name] || tool.name;
+      }
+    }
   }
-  return { running, total };
+  return { running, total, activeLabel };
 }
 
 function extractPlainTextFromBlocks(blocks: ContentBlock[]): string {
@@ -128,11 +156,19 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const plainText = useMemo(() => extractPlainTextFromBlocks(blocks), [blocks]);
   const latestReviewBlock = useMemo(() => findLatestReviewBlock(blocks), [blocks]);
   const currentModel = useStore(s => s.currentModel);
-  const { running: runningTools, total: totalTools } = useMemo(() => summarizeToolState(blocks), [blocks]);
+  const { running: runningTools, total: totalTools, activeLabel: activeToolLabel } = useMemo(() => summarizeToolState(blocks), [blocks]);
   const isStreamMsg = !!message.id?.startsWith('stream-');
   const showStreamingMeta = isStreamMsg && (runningTools > 0 || blocks.some(block => block.type === 'thinking' && !block.sealed));
   // T2: TTFT 等待提示——streaming 中但还没有任何实际内容
   const showWaitingHint = isStreamMsg && blocks.length === 0;
+
+  // 等待计时器：显示已等待的秒数
+  const [waitSeconds, setWaitSeconds] = useState(0);
+  useEffect(() => {
+    if (!showWaitingHint) { setWaitSeconds(0); return; }
+    const timer = setInterval(() => setWaitSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [showWaitingHint]);
 
   // 超时提示：等待超过 30 秒未收到内容，提示用户可能是网络问题
   const [waitingTooLong, setWaitingTooLong] = useState(false);
@@ -358,18 +394,19 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
           )}
           {showStreamingMeta && (
             <span className={styles.avatarMeta}>
-              {runningTools > 0 ? 'tools ' + runningTools + '/' + totalTools : 'thinking'}
+              {runningTools > 0 ? activeToolLabel + ' ' + runningTools + '/' + totalTools : '\ud83d\udcad ' + (t('chat.thinking') || '正在思考')}
+              <span className={styles.thinkingDots}><span /><span /><span /></span>
             </span>
           )}
           {showWaitingHint && !showStreamingMeta && (
             <span className={styles.avatarMeta}>
-              {t('chat.waiting') || '等待回复'}
+              {waitSeconds > 0 ? (t('chat.waiting') || '等待回复') + ' ' + waitSeconds + 's' : (t('chat.waiting') || '等待回复')}
               <span className={styles.thinkingDots}><span /><span /><span /></span>
             </span>
           )}
           {waitingTooLong && showWaitingHint && (
             <span className={styles.avatarMetaWarn}>
-              {t('chat.waitingTooLong') || '响应超时，当前网络可能受限。可尝试切换网络或在设置中更换模型。'}
+              {t('chat.waitingTooLong') || '响应较慢，可能正在切换备用模型...'}
             </span>
           )}
         </div>

@@ -734,6 +734,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       }
 
+      if (event.toolName === "create_poster") {
+        const d = event.result?.details || {};
+        if (d.artifactId) {
+          emitStreamEvent(sessionPath, ss, {
+            type: "artifact",
+            artifactId: d.artifactId,
+            artifactType: d.type || "html",
+            title: d.title,
+            content: d.content,
+          });
+        }
+        const files = d.files || [];
+        for (const f of files) {
+          emitStreamEvent(sessionPath, ss, { type: "file_output", filePath: f.filePath, label: f.label, ext: f.ext || "html" });
+        }
+      }
+
       if (event.toolName === "create_report") {
         const d = event.result?.details || {};
         if (d.artifactId) {

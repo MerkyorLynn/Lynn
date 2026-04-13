@@ -209,7 +209,9 @@
     "compacting": "Compacting context",
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
     "retry": "Retry",
-    "waitingTooLong": "This reply is still being processed. Lynn will keep relaying the default model through backup routes and try to finish this turn."
+    "thinking": "Thinking",
+    "toolRunning": "Running tool",
+    "waitingTooLong": "Response is slow, switching to backup model..."
   },
   "markdown": {
     "runConfirm": {
@@ -1815,6 +1817,15 @@
       "secTypeDesc": "Section type: metrics/text/table/verdict/warning",
       "disclaimerDesc": "Disclaimer text (optional)",
       "created": "Generated report \"{title}\" with {count} sections, saved to {path}"
+    },
+    "poster": {
+      "label": "Create Poster",
+      "description": "Generate a professional HTML poster. Provide title, content and style.\n4 themes: dark, light, gradient, minimal. 4 sizes: a4, wide, square, phone.\nUse # for headings, - for bullet points in content.",
+      "titleDesc": "Poster main title",
+      "subtitleDesc": "Subtitle (optional)",
+      "contentDesc": "Poster body content, supports Markdown headings and lists",
+      "footerDesc": "Footer info (optional), e.g. date, author, contact",
+      "created": "Created poster \"{title}\", saved to {path}"
     },
     "stockResearch": {
       "label": "Stock Research",
