@@ -349,3 +349,87 @@ if (fs.existsSync(completionsTarget)) {
 } else {
   console.log("[patch-pi-sdk] openai-completions.js not found, skipping");
 }
+
+// ── Patch 4: tolerate assistant messages without usage ──
+// 工具恢复/中断路径可能留下没有 usage 的 assistant 消息。
+// Pi 的上下文统计在 turn_end 后会读取 totalTokens；这里兜底避免
+// “Cannot read properties of undefined (reading 'totalTokens')”。
+const compactionTarget = path.join(
+  __dirname, "..",
+  "node_modules", "@mariozechner", "pi-coding-agent",
+  "dist", "core", "compaction", "compaction.js"
+);
+
+if (fs.existsSync(compactionTarget)) {
+  let compactionCode = fs.readFileSync(compactionTarget, "utf8");
+  if (compactionCode.includes("patched: tolerate missing usage")) {
+    console.log("[patch-pi-sdk] compaction.js missing-usage patch already applied");
+  } else {
+    const usageNeedle =
+      "export function calculateContextTokens(usage) {\n" +
+      "    return usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;\n" +
+      "}";
+    const usageReplacement =
+      "export function calculateContextTokens(usage) {\n" +
+      "    // patched: tolerate missing usage\n" +
+      "    if (!usage)\n" +
+      "        return 0;\n" +
+      "    return (usage.totalTokens || 0) || (usage.input || 0) + (usage.output || 0) + (usage.cacheRead || 0) + (usage.cacheWrite || 0);\n" +
+      "}";
+    if (compactionCode.includes(usageNeedle)) {
+      compactionCode = compactionCode.replace(usageNeedle, usageReplacement);
+      fs.writeFileSync(compactionTarget, compactionCode, "utf8");
+      console.log("[patch-pi-sdk] patched compaction.js → tolerate missing usage");
+    } else {
+      console.warn("[patch-pi-sdk] compaction.js structure changed, cannot apply missing-usage patch");
+    }
+  }
+} else {
+  console.log("[patch-pi-sdk] compaction.js not found, skipping");
+}
+
+const agentSessionTarget = path.join(
+  __dirname, "..",
+  "node_modules", "@mariozechner", "pi-coding-agent",
+  "dist", "core", "agent-session.js"
+);
+
+if (fs.existsSync(agentSessionTarget)) {
+  let agentSessionCode = fs.readFileSync(agentSessionTarget, "utf8");
+  if (agentSessionCode.includes("patched: tolerate missing assistant usage in stats")) {
+    console.log("[patch-pi-sdk] agent-session.js missing-usage stats patch already applied");
+  } else {
+    const statsNeedle =
+      "            if (message.role === \"assistant\") {\n" +
+      "                const assistantMsg = message;\n" +
+      "                toolCalls += assistantMsg.content.filter((c) => c.type === \"toolCall\").length;\n" +
+      "                totalInput += assistantMsg.usage.input;\n" +
+      "                totalOutput += assistantMsg.usage.output;\n" +
+      "                totalCacheRead += assistantMsg.usage.cacheRead;\n" +
+      "                totalCacheWrite += assistantMsg.usage.cacheWrite;\n" +
+      "                totalCost += assistantMsg.usage.cost.total;\n" +
+      "            }";
+    const statsReplacement =
+      "            if (message.role === \"assistant\") {\n" +
+      "                const assistantMsg = message;\n" +
+      "                // patched: tolerate missing assistant usage in stats\n" +
+      "                const usage = assistantMsg.usage || {};\n" +
+      "                const cost = usage.cost || {};\n" +
+      "                toolCalls += (assistantMsg.content || []).filter((c) => c.type === \"toolCall\").length;\n" +
+      "                totalInput += usage.input || 0;\n" +
+      "                totalOutput += usage.output || 0;\n" +
+      "                totalCacheRead += usage.cacheRead || 0;\n" +
+      "                totalCacheWrite += usage.cacheWrite || 0;\n" +
+      "                totalCost += cost.total || 0;\n" +
+      "            }";
+    if (agentSessionCode.includes(statsNeedle)) {
+      agentSessionCode = agentSessionCode.replace(statsNeedle, statsReplacement);
+      fs.writeFileSync(agentSessionTarget, agentSessionCode, "utf8");
+      console.log("[patch-pi-sdk] patched agent-session.js → tolerate missing usage in stats");
+    } else {
+      console.warn("[patch-pi-sdk] agent-session.js structure changed, cannot apply missing-usage stats patch");
+    }
+  }
+} else {
+  console.log("[patch-pi-sdk] agent-session.js not found, skipping");
+}

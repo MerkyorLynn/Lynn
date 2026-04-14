@@ -9,6 +9,7 @@ import {
 
 const LOCAL_WORKSPACE_RE = /(?:\b(?:workspace|working directory|folder|directory|files?|desk|note|notes|todo|task list|current project)\b|工作空间|工作区|当前目录|桌面|文件夹|目录|文件|文档|笺|便签|工作清单|优先事项|待办|项目)/i;
 const LOCAL_ACTION_RE = /(?:\b(?:read|scan|inspect|look at|list|summarize|organize|review|check)\b|读一下|读取|看看|看一下|查看|检查|扫描|列出|整理|总结|汇总|分析|打开)/i;
+const ABSOLUTE_PATH_RE = /((?:\/(?:Users|Volumes|Applications|opt|var|tmp|private|home|srv|mnt|etc)[^\s"'`“”‘’）),，。；;]*)|(?:[A-Za-z]:\\[^\s"'`“”‘’）),，。；;]*))/g;
 const SKIP_DIRS = new Set([
   ".git",
   "node_modules",
@@ -30,6 +31,21 @@ function safeStat(filePath) {
 
 function safeReadDir(dir) {
   try { return fs.readdirSync(dir, { withFileTypes: true }); } catch { return []; }
+}
+
+function extractExplicitWorkspacePath(promptText) {
+  const text = String(promptText || "");
+  const matches = [];
+  for (const match of text.matchAll(ABSOLUTE_PATH_RE)) {
+    const raw = String(match[1] || "").replace(/[，。；;:：,.]+$/g, "");
+    if (raw) matches.push(raw);
+  }
+  for (const candidate of matches) {
+    const resolved = path.resolve(candidate);
+    const stat = safeStat(resolved);
+    if (stat?.isDirectory()) return resolved;
+  }
+  return matches[0] ? path.resolve(matches[0]) : "";
 }
 
 function formatSize(bytes) {
@@ -112,7 +128,8 @@ function extractOpenTasks(text) {
 }
 
 function getSnapshot({ promptText, cwd, maxEntries = 80, maxDocs = 6, maxDocChars = 2600, now = new Date() } = {}) {
-  const root = path.resolve(String(cwd || process.cwd()));
+  const explicitRoot = extractExplicitWorkspacePath(promptText);
+  const root = explicitRoot || path.resolve(String(cwd || process.cwd()));
   const stat = safeStat(root);
   if (!stat || !stat.isDirectory()) {
     return {

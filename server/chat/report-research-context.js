@@ -1,4 +1,9 @@
 import { createStockMarketTool } from "../../lib/tools/stock-market.js";
+import {
+  createLiveNewsTool,
+  createSportsScoreTool,
+  createWeatherTool,
+} from "../../lib/tools/realtime-info.js";
 import { fetchWebContent } from "../../lib/tools/web-fetch.js";
 import { runSearchQuery } from "../../lib/tools/web-search.js";
 import { inferReportPromptKind } from "../../shared/report-normalizer.js";
@@ -7,6 +12,7 @@ const MAX_CONTEXT_CHARS = 9000;
 const SEARCH_TIMEOUT_MS = 9000;
 const FETCH_TIMEOUT_MS = 7000;
 const STOCK_MARKET_TIMEOUT_MS = 12000;
+const REALTIME_TOOL_TIMEOUT_MS = 12000;
 
 const KNOWN_STOCK_NAME_TO_CODE = new Map([
   ["华丰科技", "688629"],
@@ -15,6 +21,10 @@ const KNOWN_STOCK_NAME_TO_CODE = new Map([
 const STOCK_COMPANY_RE = /[\u4e00-\u9fa5A-Za-z]{2,18}(?:科技|股份|电子|智能|软件|证券|银行|集团|药业|医药|能源|材料|半导体|光电|电气|通信|汽车|机器人|芯片|电力|股份)/;
 const STOCK_ANALYSIS_RE = /(?:股票|股价|个股|A股|a股|科创板|创业板|沪深|标的|走势|怎么看|技术面|基本面|估值|市值|总股本|PE|PB|PS|资金|资金流|财报|研报|公告|解禁|减持|支撑位|压力位|K线|k线|均线|成交量|成交额|筹码|止损|止盈|仓位|目标价|三种情景|操作计划|未来1-3个月)/i;
 const GENERIC_RESEARCH_RE = /(?=.*(?:调研|研究|分析|评估|对比|比较|判断|怎么看|报告|预测|整理|汇总))(?=.*(?:最新|数据|资料|来源|公司|行业|市场|政策|公告|财报|研报|楼盘|房价|成交|竞品|价格|估值|市值|PDF|文档|报表|合同|产品|品牌))/i;
+const WEATHER_LOOKUP_RE = /(?:天气|气温|温度|预报|冷不冷|热不热|下雨|下雪|多少度|几度|紫外线|空气质量|湿度|风力|体感)/i;
+const SPORTS_LOOKUP_RE = /(?:比分|赛程|排名|战绩|湖人|勇士|NBA|CBA|英超|中超|欧冠|世界杯|比赛结果)/i;
+const MARKET_LOOKUP_RE = /(?:金价|黄金|白银|油价|原油|汇率|美元|人民币|指数|基金|ETF|etf|股价|行情|收盘|涨跌|现价|报价)/i;
+const LIVE_NEWS_LOOKUP_RE = /(?=.*(?:今天|今日|今晚|最新|实时|进展|消息|新闻|报道|发生|了吗|如何|怎么样|快讯|热点))(?=.*(?:美伊|伊朗|美国|中东|巴以|以色列|巴勒斯坦|俄乌|俄罗斯|乌克兰|关税|制裁|冲突|停火|谈判|选举|地震|台风|事故|发布|宣布|外交|战争|袭击|股市|市场|公司|政策))/i;
 
 function textOf(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -90,6 +100,10 @@ export function inferReportResearchKind(text) {
     && /(?:\b[0368]\d{5}\b|股票|股价|个股|A股|a股|科创板|创业板|华丰科技)/.test(normalized)) {
     return "stock";
   }
+  if (WEATHER_LOOKUP_RE.test(normalized)) return "weather";
+  if (SPORTS_LOOKUP_RE.test(normalized)) return "sports";
+  if (MARKET_LOOKUP_RE.test(normalized)) return "market";
+  if (LIVE_NEWS_LOOKUP_RE.test(normalized)) return "news";
   if (GENERIC_RESEARCH_RE.test(normalized)) return "generic";
   return "";
 }
@@ -217,11 +231,74 @@ async function buildGenericResearchContext(userPrompt) {
   return sections.join("\n").slice(0, MAX_CONTEXT_CHARS);
 }
 
+function extractToolText(result) {
+  return (result?.content || [])
+    .map((item) => item?.text || "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+async function buildRealtimeToolContext({ title, toolFactory, params, timeoutMs = REALTIME_TOOL_TIMEOUT_MS } = {}) {
+  const tool = toolFactory();
+  const result = await withTimeout(
+    tool.execute("lynn-local-prefetch", params || {}),
+    timeoutMs,
+    tool.name || "realtime_tool",
+  );
+  const text = extractToolText(result);
+  if (!text) return "";
+  return [
+    title || "【系统已完成实时工具预取】",
+    "下面是真实工具已经返回的资料。请直接基于这些资料回答用户，不要再调用工具、不要模拟工具调用、不要输出“我搜一下/我来查询”。",
+    "如果资料不足以得出确定结论，请明确说明“未检索到明确证据/需继续核验”，并告诉用户还需要补充什么来源。",
+    "",
+    text,
+  ].join("\n").slice(0, MAX_CONTEXT_CHARS);
+}
+
+async function buildWeatherResearchContext(userPrompt) {
+  return buildRealtimeToolContext({
+    title: "【系统已完成天气工具预取】",
+    toolFactory: createWeatherTool,
+    params: { query: userPrompt },
+  });
+}
+
+async function buildSportsResearchContext(userPrompt) {
+  return buildRealtimeToolContext({
+    title: "【系统已完成体育比分工具预取】",
+    toolFactory: createSportsScoreTool,
+    params: { query: userPrompt, maxResults: 5 },
+  });
+}
+
+async function buildMarketResearchContext(userPrompt) {
+  return buildRealtimeToolContext({
+    title: "【系统已完成行情工具预取】",
+    toolFactory: createStockMarketTool,
+    params: { query: userPrompt },
+    timeoutMs: STOCK_MARKET_TIMEOUT_MS,
+  });
+}
+
+async function buildLiveNewsResearchContext(userPrompt) {
+  return buildRealtimeToolContext({
+    title: "【系统已完成实时新闻工具预取】",
+    toolFactory: createLiveNewsTool,
+    params: { query: userPrompt, maxResults: 5 },
+  });
+}
+
 export async function buildReportResearchContext(text, opts = {}) {
   const userPrompt = opts.userPrompt || text;
   const kind = inferReportResearchKind(text);
   if (kind === "stock") return buildStockResearchContext(text, userPrompt);
   if (kind === "real_estate") return buildRealEstateResearchContext(userPrompt);
+  if (kind === "weather") return buildWeatherResearchContext(userPrompt);
+  if (kind === "sports") return buildSportsResearchContext(userPrompt);
+  if (kind === "market") return buildMarketResearchContext(userPrompt);
+  if (kind === "news") return buildLiveNewsResearchContext(userPrompt);
   if (kind === "generic") return buildGenericResearchContext(userPrompt);
   return "";
 }

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Lynn 下载 | macOS 与 Windows 安装包</title>
+    <meta
+      name="description"
+      content="下载 Lynn 的 macOS Apple Silicon、macOS Intel 和 Windows 安装包。"
+    />
+    <meta name="theme-color" content="#f7f1e6" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Lynn 下载 | macOS 与 Windows 安装包" />
+    <meta
+      property="og:description"
+      content="下载 Lynn 的 macOS Apple Silicon、macOS Intel 和 Windows 安装包。"
+    />
+    <meta property="og:image" content="../.github/assets/screenshot-main-20260407-v3.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="../desktop/src/icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="download">
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="./index.html" aria-label="Lynn 首页">
+          <span class="brand-mark">L</span>
+          <span class="brand-copy">
+            <strong>Lynn</strong>
+            <span>Download</span>
+          </span>
+        </a>
+        <nav class="topnav">
+          <a href="./index.html#features">功能</a>
+          <a href="./index.html#scenes">场景</a>
+          <a href="./download.html" aria-current="page">下载</a>
+          <a href="https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2" target="_blank" rel="noreferrer">Release</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="download-hero">
+          <div class="download-copy">
+            <span class="eyebrow">Lynn 下载页</span>
+            <h1>选择适合你设备的版本</h1>
+            <p class="lead">
+              当前版本 <strong id="release-version">0.75.2</strong>。
+              下载后即可开始使用 Lynn 的默认模型、桌面记忆、自动任务和多 Agent 协作能力。
+            </p>
+            <div class="platform-callout" id="platform-callout">
+              系统识别中…
+            </div>
+          </div>
+        </section>
+
+        <section class="download-grid" aria-label="下载选项">
+          <article class="download-card" data-platform-card="mac-arm">
+            <div class="download-card-top">
+              <span class="pill">推荐给 M1 / M2 / M3 / M4</span>
+              <h2>macOS Apple Silicon</h2>
+            </div>
+            <p>适用于 Apple Silicon 芯片的 Mac。已完成签名与公证，可直接安装。</p>
+            <ul>
+              <li>文件格式：`.dmg`</li>
+              <li>签名状态：Apple Developer ID</li>
+              <li>公证状态：已通过 Apple notarization</li>
+              <li>下载大小：约 172 MB</li>
+            </ul>
+            <a class="button button-primary" data-download-key="macArm" href="#">下载 Apple Silicon 版</a>
+          </article>
+
+          <article class="download-card" data-platform-card="mac-intel">
+            <div class="download-card-top">
+              <span class="pill pill-soft">适用于 Intel Mac</span>
+              <h2>macOS Intel</h2>
+            </div>
+            <p>适用于 Intel 芯片的 Mac。已完成签名与公证，适合仍在使用 Intel 机型的用户。</p>
+            <ul>
+              <li>文件格式：`.dmg`</li>
+              <li>签名状态：Apple Developer ID</li>
+              <li>公证状态：已通过 Apple notarization</li>
+              <li>下载大小：约 181 MB</li>
+            </ul>
+            <a class="button button-primary" data-download-key="macIntel" href="#">下载 Intel 版</a>
+          </article>
+
+          <article class="download-card" data-platform-card="windows">
+            <div class="download-card-top">
+              <span class="pill pill-warm">Windows 安装版</span>
+              <h2>Windows</h2>
+            </div>
+            <p>提供 `Setup.exe` 安装包。首次运行时，Windows 可能会提示未知发布者或 SmartScreen。</p>
+            <ul>
+              <li>文件格式：`.exe`</li>
+              <li>安装方式：图形安装向导</li>
+              <li>说明：未做 Windows 代码签名，不影响安装</li>
+              <li>下载大小：约 195 MB</li>
+            </ul>
+            <a class="button button-primary" data-download-key="windows" href="#">下载 Windows 安装版</a>
+          </article>
+        </section>
+
+        <section class="section requirements-section">
+          <div class="section-heading">
+            <span class="eyebrow">系统要求</span>
+            <h2>上线前可直接使用的安装说明</h2>
+          </div>
+          <div class="requirement-grid">
+            <article class="requirement-card">
+              <h3>macOS</h3>
+              <p>推荐使用较新的 macOS 版本。Apple Silicon 与 Intel 机型请分别下载对应的 DMG 包。</p>
+            </article>
+            <article class="requirement-card">
+              <h3>Windows</h3>
+              <p>当前提供安装版 Setup.exe。首次安装可能需要点击 SmartScreen 的“更多信息”继续运行。</p>
+            </article>
+            <article class="requirement-card">
+              <h3>网络与模型</h3>
+              <p>可直接使用 Lynn 默认模型，也支持后续在应用设置中接入自己的模型供应商和工具服务。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section faq-section" id="faq">
+          <div class="section-heading">
+            <span class="eyebrow">安装说明</span>
+            <h2>安装前你可能想知道</h2>
+          </div>
+          <div class="faq-list">
+            <article class="faq-card">
+              <h3>我怎么知道我的 Mac 是 Apple Silicon 还是 Intel？</h3>
+              <p>点击左上角苹果菜单，选择“关于本机”。如果看到 M1 / M2 / M3 / M4，就是 Apple Silicon；如果看到 Intel，就是 Intel 版。</p>
+            </article>
+            <article class="faq-card">
+              <h3>Windows 弹出安全提示还能装吗？</h3>
+              <p>可以。当前安装包未做 Windows Authenticode 签名，所以系统可能提示未知发布者。点击“更多信息”后仍可继续安装。</p>
+            </article>
+            <article class="faq-card">
+              <h3>我想看更新说明或校验原始发布记录怎么办？</h3>
+              <p>你可以直接打开 GitHub Release 页面查看所有历史版本、更新说明和备用下载入口。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section release-summary">
+          <div class="release-card">
+            <h2>本次版本重点</h2>
+            <ul>
+              <li>修复默认模型在对话中暴露上游模型名称的问题</li>
+              <li>修复 MCP 设置页首次打开时腾讯文档内置卡片延迟出现的问题</li>
+              <li>修复 Bridge 会话覆盖首页与长任务提示叠在顶栏的问题</li>
+              <li>Windows 发布物切换为安装版 `Setup.exe`</li>
+            </ul>
+            <a
+              class="button button-secondary"
+              href="https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2"
+              target="_blank"
+              rel="noreferrer"
+            >查看完整 Release</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-links">
+          <a href="./index.html">产品介绍</a>
+          <a href="https://github.com/MerkyorLynn/Lynn" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/MerkyorLynn/Lynn/releases/tag/v0.75.2" target="_blank" rel="noreferrer">Release</a>
+          <a href="#faq">常见问题</a>
+        </div>
+        <div class="footer-meta">
+          <span>© 2026 Lynn</span>
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">粤ICP备2026037844号</a>
+          <span>公安备案号可在完成后补充在此处</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -101,10 +101,10 @@ export class Scheduler {
       getWorkspacePath: () => engine.homeCwd,
       registryPath: path.join(agent.deskDir, "jian-registry.json"),
       overwatchPath: path.join(agent.deskDir, "overwatch.md"),
-      onBeat: (prompt) => this._executeActivity(prompt, "heartbeat"),
+      onBeat: (prompt) => this._executeActivity(prompt, "heartbeat", getLocale().startsWith("zh") ? "日常巡检" : "routine patrol", { quiet: true }),
       onJianBeat: (prompt, cwd) => {
         const isZh = getLocale().startsWith("zh");
-        this._executeActivity(prompt, "heartbeat", `${isZh ? "笺" : "jian"}:${path.basename(cwd)}`, { cwd });
+        this._executeActivity(prompt, "heartbeat", `${isZh ? "笺" : "jian"}:${path.basename(cwd)}`, { cwd, quiet: true });
       },
       onJianSchedule: ({ dirPath, schedule, taskText, rawTask, label }) => {
         const store = agent.cronStore;
@@ -246,6 +246,7 @@ export class Scheduler {
 
     // 所有 agent 统一走 executeIsolated（支持 agentId + signal 参数）
     const { signal, ...restOpts } = opts;
+    const quiet = restOpts.quiet === true || (type === "heartbeat" && restOpts.quiet !== false);
     const result = await engine.executeIsolated(prompt, {
       agentId,
       persist: activityDir,
@@ -261,9 +262,19 @@ export class Scheduler {
     const ag = engine.getAgent(agentId);
     const agentName = ag?.agentName || agentId;
 
-    // 生成摘要
+    const assistantText = String(result.replyText || extractAssistantResultText(sessionPath) || "").trim();
+    const toolCalls = extractActivityToolCalls(sessionPath);
+    if (quiet && !failed && isQuietPatrolNoop({ assistantText, toolCalls })) {
+      cleanupActivitySession(sessionPath);
+      engine.emitDevLog(`[${type}] ${label || "后台巡检"} 无需用户可见记录`, "heartbeat");
+      return;
+    }
+
+    // 生成摘要。安静巡检只用本地摘要，避免为“后台无声任务”再烧一次摘要模型。
     let summary = null;
-    if (typeof sessionPath === "string" && sessionPath) {
+    if (quiet) {
+      summary = buildQuietActivitySummary({ assistantText, toolCalls, label, locale: getLocale() });
+    } else if (typeof sessionPath === "string" && sessionPath) {
       try {
         summary = await engine.summarizeActivity(sessionPath);
       } catch {}
@@ -326,7 +337,7 @@ export class Scheduler {
       status: failed ? "error" : "done",
       error: error || null,
     };
-    if (!failed && jianDir) {
+    if (!failed && jianDir && !(quiet && type === "heartbeat")) {
       try {
         appendRecentExecutionToJian(jianDir, {
           summary: entry.summary,
@@ -470,6 +481,65 @@ function extractAssistantResultText(sessionPath) {
   } catch {
     return "";
   }
+}
+
+function extractActivityToolCalls(sessionPath) {
+  if (!sessionPath || !fs.existsSync(sessionPath)) return [];
+  const names = [];
+  try {
+    const raw = fs.readFileSync(sessionPath, "utf-8");
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      let parsed = null;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (parsed?.type !== "message" || parsed.message?.role !== "assistant") continue;
+      const content = Array.isArray(parsed.message.content) ? parsed.message.content : [];
+      for (const block of content) {
+        if ((block?.type === "tool_use" || block?.type === "toolCall") && block.name) {
+          names.push(block.name);
+        }
+      }
+    }
+  } catch {}
+  return [...new Set(names)];
+}
+
+function cleanupActivitySession(sessionPath) {
+  if (!sessionPath || !fs.existsSync(sessionPath)) return;
+  try { fs.unlinkSync(sessionPath); } catch {}
+}
+
+function isQuietPatrolNoop({ assistantText, toolCalls }) {
+  if (toolCalls.length > 0) return false;
+  const text = String(assistantText || "").replace(/\s+/g, " ").trim();
+  if (!text) return true;
+
+  const positiveSignal = /(?:已(?:完成|更新|创建|整理|写入|设定|修复|同步|发布|备份|移动|合并|读取|分析)|发现|异常|错误|失败|风险|提醒|需要(?:关注|处理|确认|你)|建议(?:关注|处理)|notified|updated|created|wrote|fixed|synced|published|backed up|merged|found|alert|warning|error|failed|risk|needs attention)/i;
+  if (positiveSignal.test(text)) return false;
+
+  const noopSignal = /(?:一切正常|无(?:特定)?(?:待办|事项|异常|警报|需要处理)|无需(?:行动|处理|关注)|没有(?:需要|发现).{0,20}(?:处理|关注|异常|待办)|巡检(?:完成|完毕)|系统运行正常|all clear|nothing to do|no action needed|no pending|no issues|patrol complete)/i;
+  return noopSignal.test(text) || text.length <= 80;
+}
+
+function buildQuietActivitySummary({ assistantText, toolCalls, label, locale }) {
+  const isZh = String(locale || "").startsWith("zh");
+  if (toolCalls.length > 0) {
+    const tools = toolCalls.slice(0, 3).join(isZh ? "、" : ", ");
+    return isZh
+      ? `${label || "巡检"}执行了 ${tools}${toolCalls.length > 3 ? " 等工具" : ""}`
+      : `${label || "Patrol"} ran ${tools}${toolCalls.length > 3 ? ", etc." : ""}`;
+  }
+  const clean = String(assistantText || "")
+    .replace(/[#*_`>\-[\]()]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return label || (isZh ? "巡检有更新" : "Patrol updated");
+  const max = isZh ? 44 : 72;
+  return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }
 
 function buildCronResultDocument({ isZh, label, startedAt, finishedAt, cwd, body, error }) {

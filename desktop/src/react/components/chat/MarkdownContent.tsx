@@ -51,6 +51,7 @@ async function renderMermaidBlocks(container: HTMLElement) {
     try {
       const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const { svg } = await mermaid.render(id, source);
+      // eslint-disable-next-line no-restricted-syntax -- Mermaid returns SVG that needs a controlled replacement mount.
       const wrapper = document.createElement('div');
       wrapper.className = 'mermaid-rendered';
       wrapper.style.cssText = 'overflow-x: auto; margin: 8px 0; text-align: center;';

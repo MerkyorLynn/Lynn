@@ -1,0 +1,30 @@
+server {
+  listen 80;
+  server_name merkyorlynn.com www.merkyorlynn.com;
+  return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name merkyorlynn.com www.merkyorlynn.com;
+
+  root /var/www/lynn-site;
+  index index.html;
+
+  ssl_certificate     /etc/nginx/ssl/merkyorlynn/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/merkyorlynn/privkey.pem;
+
+  location = /download {
+    try_files /download.html =404;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+
+  location = /404.html {
+    internal;
+  }
+
+  error_page 404 /404.html;
+}

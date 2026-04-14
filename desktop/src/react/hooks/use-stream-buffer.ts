@@ -22,10 +22,15 @@ import { normalizeReportResponseText } from '../../../../shared/report-normalize
 
 /** 主文本流式刷新间隔。配合轻量预览渲染，提高流式顺滑度并减少明显卡段。 */
 const FLUSH_INTERVAL = 32;
+/** 视觉打字机节奏：API 如果一次性吐大块文本，UI 仍按稳定节奏揭示。 */
+const REVEAL_INTERVAL = 24;
 
 interface Buffer {
   sessionPath: string;
+  /** 网络侧已收到的完整文本。 */
   textAcc: string;
+  /** UI 侧已经揭示的、清洗后的可见文本。 */
+  visibleTextAcc: string;
   thinkingAcc: string;
   moodAcc: string;
   moodYuan: string;
@@ -36,6 +41,7 @@ interface Buffer {
   inXing: boolean;
   lastFlushTime: number;
   flushTimer: ReturnType<typeof setTimeout> | null;
+  revealTimer: ReturnType<typeof setTimeout> | null;
   /** 当前 turn 是否已追加了空 assistant message */
   messageAppended: boolean;
   lastRenderedText: string;
@@ -47,6 +53,7 @@ function createBuffer(sessionPath: string): Buffer {
   return {
     sessionPath,
     textAcc: '',
+    visibleTextAcc: '',
     thinkingAcc: '',
     moodAcc: '',
     moodYuan: 'hanako',
@@ -57,11 +64,27 @@ function createBuffer(sessionPath: string): Buffer {
     inXing: false,
     lastFlushTime: 0,
     flushTimer: null,
+    revealTimer: null,
     messageAppended: false,
     lastRenderedText: '',
     lastRenderedHtml: '',
     lastRenderedFinalized: false,
   };
+}
+
+function buildDisplayText(raw: string, finalizeText = false): string {
+  const displayTextBase = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
+    raw.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, ''),
+  ));
+  return finalizeText ? normalizeReportResponseText(displayTextBase) : displayTextBase;
+}
+
+function revealStepSize(remaining: number): number {
+  if (remaining > 6000) return 240;
+  if (remaining > 2000) return 120;
+  if (remaining > 600) return 60;
+  if (remaining > 160) return 24;
+  return 8;
 }
 
 function renderStreamingTextHtml(src: string): string {
@@ -80,7 +103,12 @@ function renderStreamingTextHtml(src: string): string {
 }
 
 function resetBufferState(buf: Buffer): void {
+  if (buf.revealTimer) {
+    clearTimeout(buf.revealTimer);
+    buf.revealTimer = null;
+  }
   buf.textAcc = '';
+  buf.visibleTextAcc = '';
   buf.thinkingAcc = '';
   buf.moodAcc = '';
   buf.xingAcc = '';
@@ -133,6 +161,57 @@ class StreamBufferManager {
     }
   }
 
+  private cancelReveal(buf: Buffer): void {
+    if (!buf.revealTimer) return;
+    clearTimeout(buf.revealTimer);
+    buf.revealTimer = null;
+  }
+
+  private revealTextStep(buf: Buffer): void {
+    const targetText = buildDisplayText(buf.textAcc, false);
+
+    if (!targetText) {
+      if (buf.visibleTextAcc) {
+        buf.visibleTextAcc = '';
+        this.scheduleFlush(buf);
+      }
+      this.cancelReveal(buf);
+      return;
+    }
+
+    if (!targetText.startsWith(buf.visibleTextAcc)) {
+      const nextLength = Math.min(buf.visibleTextAcc.length, targetText.length);
+      buf.visibleTextAcc = targetText.slice(0, nextLength);
+    }
+
+    const remaining = targetText.length - buf.visibleTextAcc.length;
+    if (remaining <= 0) {
+      this.cancelReveal(buf);
+      return;
+    }
+
+    const nextLength = buf.visibleTextAcc.length + Math.min(remaining, revealStepSize(remaining));
+    buf.visibleTextAcc = targetText.slice(0, nextLength);
+    this.scheduleFlush(buf);
+
+    if (nextLength < targetText.length && !buf.revealTimer) {
+      buf.revealTimer = setTimeout(() => {
+        buf.revealTimer = null;
+        this.revealTextStep(buf);
+      }, REVEAL_INTERVAL);
+    }
+  }
+
+  private drainText(buf: Buffer, finalizeText = false): void {
+    this.cancelReveal(buf);
+    buf.visibleTextAcc = buildDisplayText(buf.textAcc, finalizeText);
+  }
+
+  private flushBeforeStructuralBlock(buf: Buffer): void {
+    this.drainText(buf, false);
+    this.flush(buf);
+  }
+
   /** 把 buffer 中累积的内容一次性 flush 到 Zustand */
   private flush(buf: Buffer, finalizeText = false): void {
     buf.lastFlushTime = Date.now();
@@ -140,6 +219,7 @@ class StreamBufferManager {
       clearTimeout(buf.flushTimer);
       buf.flushTimer = null;
     }
+    if (finalizeText) this.drainText(buf, true);
 
     const store = useStore.getState();
     store.updateLastMessage(buf.sessionPath, (msg) => {
@@ -174,11 +254,8 @@ class StreamBufferManager {
       }
 
       // ── Text ──
-      if (buf.textAcc) {
-        const displayTextBase = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
-          buf.textAcc.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, ''),
-        ));
-        const displayText = finalizeText ? normalizeReportResponseText(displayTextBase) : displayTextBase;
+      if (buf.visibleTextAcc) {
+        const displayText = buf.visibleTextAcc;
         if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
           buf.lastRenderedText = displayText;
           buf.lastRenderedFinalized = finalizeText;
@@ -192,6 +269,12 @@ class StreamBufferManager {
         } else {
           blocks.push({ type: 'text', html: buf.lastRenderedHtml });
         }
+      } else if (buf.lastRenderedText) {
+        const idx = blocks.findIndex(b => b.type === 'text');
+        if (idx >= 0) blocks.splice(idx, 1);
+        buf.lastRenderedText = '';
+        buf.lastRenderedHtml = '';
+        buf.lastRenderedFinalized = finalizeText;
       }
 
       // ── Xing ──
@@ -222,7 +305,7 @@ class StreamBufferManager {
       case 'text_delta':
         this.ensureMessage(buf);
         buf.textAcc += msg.delta || '';
-        this.scheduleFlush(buf);
+        this.revealTextStep(buf);
         break;
 
       case 'thinking_start':
@@ -281,7 +364,7 @@ class StreamBufferManager {
       case 'tool_start':
         this.ensureMessage(buf);
         // 工具事件频率低，直接写 store
-        this.flush(buf); // 先 flush 文本
+        this.flushBeforeStructuralBlock(buf); // 先排空并 flush 文本
         useStore.getState().updateLastMessage(sessionPath, (m) => {
           const blocks = [...(m.blocks || [])];
           // 找最后一个 tool_group 或创建新的
@@ -330,7 +413,7 @@ class StreamBufferManager {
 
       case 'file_output':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'file_output', filePath: msg.filePath, label: msg.label, ext: msg.ext }],
@@ -339,7 +422,7 @@ class StreamBufferManager {
 
       case 'file_diff':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -355,7 +438,7 @@ class StreamBufferManager {
 
       case 'artifact':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -371,7 +454,7 @@ class StreamBufferManager {
 
       case 'browser_screenshot':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'browser_screenshot', base64: msg.base64, mimeType: msg.mimeType }],
@@ -380,7 +463,7 @@ class StreamBufferManager {
 
       case 'skill_activated':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'skill', skillName: msg.skillName, skillFilePath: msg.skillFilePath }],
@@ -389,7 +472,7 @@ class StreamBufferManager {
 
       case 'cron_confirmation':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'cron_confirm', confirmId: msg.confirmId, jobData: msg.jobData, status: 'pending' as const }],
@@ -398,7 +481,7 @@ class StreamBufferManager {
 
       case 'settings_confirmation':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -420,7 +503,7 @@ class StreamBufferManager {
 
       case 'tool_authorization':
         this.ensureMessage(buf);
-        this.flush(buf);
+        this.flushBeforeStructuralBlock(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -476,6 +559,7 @@ class StreamBufferManager {
   clear(sessionPath: string): void {
     const buf = this.buffers.get(sessionPath);
     if (buf?.flushTimer) clearTimeout(buf.flushTimer);
+    if (buf?.revealTimer) clearTimeout(buf.revealTimer);
     this.buffers.delete(sessionPath);
   }
 
@@ -483,6 +567,7 @@ class StreamBufferManager {
   clearAll(): void {
     for (const [, buf] of this.buffers) {
       if (buf.flushTimer) clearTimeout(buf.flushTimer);
+      if (buf.revealTimer) clearTimeout(buf.revealTimer);
     }
     this.buffers.clear();
   }

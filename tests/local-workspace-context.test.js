@@ -26,6 +26,7 @@ describe("local workspace context", () => {
 
   it("only attaches for local workspace utility requests", () => {
     expect(shouldAttachLocalWorkspaceContext("读一下桌面Lynn文件夹", "utility")).toBe(true);
+    expect(shouldAttachLocalWorkspaceContext("读一下这个项目/Users/lynn/DEV/Lynn", "utility")).toBe(true);
     expect(shouldAttachLocalWorkspaceContext("请先看看当前工作空间和笺", "utility")).toBe(true);
     expect(shouldAttachLocalWorkspaceContext("今天深圳天气如何", "utility")).toBe(false);
     expect(shouldAttachLocalWorkspaceContext("随便聊两句", "chat")).toBe(false);
@@ -69,5 +70,22 @@ describe("local workspace context", () => {
     expect(result.text).toContain("[文件] jian.md");
     expect(result.text).toContain("未完成事项");
     expect(result.text).toContain("修复默认模型读取工作区");
+  });
+
+  it("prefers an explicit absolute directory in the prompt over the session cwd", () => {
+    const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-workspace-other-"));
+    try {
+      const result = buildLocalWorkspaceDirectReply({
+        promptText: `读一下这个项目${tmpDir}`,
+        cwd: otherDir,
+        now: new Date("2026-04-11T04:00:00Z"),
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.root).toBe(tmpDir);
+      expect(result.text).toContain("[文件] jian.md");
+    } finally {
+      fs.rmSync(otherDir, { recursive: true, force: true });
+    }
   });
 });

@@ -4941,6 +4941,20 @@
       "toolTier": "standard"
     }
   },
+  "stepfun-coding": {
+    "step-3.5-flash-2603": {
+      "name": "Step 3.5 Flash",
+      "context": 65536,
+      "maxOutput": 8192,
+      "toolTier": "standard"
+    },
+    "step-3.5-flash": {
+      "name": "Step 3.5 Flash (Latest)",
+      "context": 65536,
+      "maxOutput": 8192,
+      "toolTier": "standard"
+    }
+  },
   "minimax-oauth": {
     "MiniMax-M2": {
       "name": "MiniMax M2",

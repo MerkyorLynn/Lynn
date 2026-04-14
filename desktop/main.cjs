@@ -2683,12 +2683,30 @@ wrapIpcHandler("open-file", (event, filePath) => {
   shell.openPath(access.canonical);
 });
 
+const STANDALONE_HTML_CSP = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: https: file:; style-src 'unsafe-inline' https:; font-src https: data:; connect-src 'none'; script-src 'none'; base-uri 'none'; form-action 'none'\">";
+
+function sanitizeStandaloneHtml(html) {
+  let next = String(html || "").slice(0, 5 * 1024 * 1024);
+  next = next
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<\s*(iframe|object|embed)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
+    .replace(/<\s*(iframe|object|embed)\b[^>]*\/?>/gi, "")
+    .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, "")
+    .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\s+(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, " $1=\"#\"");
+
+  if (/<head\b[^>]*>/i.test(next)) {
+    return next.replace(/<head\b([^>]*)>/i, `<head$1>${STANDALONE_HTML_CSP}`);
+  }
+  return `${STANDALONE_HTML_CSP}\n${next}`;
+}
+
 wrapIpcHandler("open-html-in-browser", async (_event, html, title) => {
   if (typeof html !== "string" || !html) return;
   const safeTitle = String(title || "lynn-report").replace(/[\\/:*?"<>|]/g, "-").slice(0, 80);
   const tmpFile = path.join(os.tmpdir(), `${safeTitle}-${Date.now()}.html`);
   try {
-    fs.writeFileSync(tmpFile, html, "utf-8");
+    fs.writeFileSync(tmpFile, sanitizeStandaloneHtml(html), "utf-8");
     await shell.openPath(tmpFile);
   } catch (err) {
     log.error("[open-html-in-browser]", err.message || err);

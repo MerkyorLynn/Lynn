@@ -25,6 +25,7 @@ export default defineConfig({
         "node-telegram-bot-api",
         "exceljs",
         "mammoth",
+        "pptxgenjs",
         "fsevents",
 
         // qrcode: 有 browser/node 双入口，Vite 会选 browser 版（期望 DOM canvas）。

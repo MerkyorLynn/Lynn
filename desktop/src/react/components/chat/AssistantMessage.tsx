@@ -179,24 +179,9 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, [showWaitingHint]);
 
   // ── 模型表现评估：回复质量不佳时提示用户切换模型 ──
-  const hasToolCalls = totalTools > 0;
-  const isFinished = !isStreamMsg || (blocks.length > 0 && !showStreamingMeta && !showWaitingHint);
-  const textLen = plainText.length;
   const modelHintDismissKey = 'lynn-model-hint-dismissed';
-  const [hintDismissed, setHintDismissed] = useState(() => {
-    try {
-      const ts = Number(localStorage.getItem(modelHintDismissKey) || 0);
-      return ts > 0 && Date.now() - ts < 86400000;
-    } catch { return false; }
-  });
-  const showModelHint = useMemo(() => {
-    if (hintDismissed || !isLastAssistant || !isFinished) return false;
-    if (hasToolCalls) return false;
-    if (textLen > 0 && textLen < 15) return true;
-    return false;
-  }, [hintDismissed, isLastAssistant, isFinished, hasToolCalls, textLen]);
+  const showModelHint = false; // disabled: short response does not mean the model is weak
   const dismissModelHint = useCallback(() => {
-    setHintDismissed(true);
     try { localStorage.setItem(modelHintDismissKey, String(Date.now())); } catch {}
   }, []);
   const openProvidersFromHint = useCallback(() => {
@@ -689,11 +674,22 @@ function ArtifactCard({ title, artifactType, artifactId, content, language }: {
   language?: string;
 }) {
   const t = window.t ?? ((p: string) => p);
+  const handleOpenPreview = () => openPreview({ id: artifactId, type: artifactType as any, title, content, language });
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handleOpenPreview();
+  };
+
   return (
     <div
       className={styles.fileOutputCard}
       style={{ cursor: 'pointer' }}
-      onClick={() => openPreview({ id: artifactId, type: artifactType as any, title, content, language })}
+      role="button"
+      tabIndex={0}
+      onClick={handleOpenPreview}
+      onKeyDown={handleKeyDown}
     >
       <div className={styles.fileOutputHead}>
         <span className={styles.fileOutputBadge}>{artifactType.toUpperCase()}</span>
