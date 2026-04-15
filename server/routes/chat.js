@@ -1359,6 +1359,28 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.routeIntent = promptRouteIntent;
                 ss.localEvidencePrefetched = false;
                 ss.routeNoticeSent = false;
+
+                // Brain 模式下检测本地文件操作意图 → 引导用户
+                const LOCAL_OP_RE = /整理桌面|整理工作区|整理文件|改文件|移动文件|删除文件|重命名|新建文件夹|打开文件|读取文件|扫描目录|列出文件|清理桌面|organize.*desktop|move.*files?|rename.*files?|delete.*files?|scan.*folder|clean.*desktop/i;
+                const _modelInfo = resolveCurrentModelInfo(engine);
+                if (_modelInfo.isBrain && LOCAL_OP_RE.test(promptText)) {
+                  const isZh = getLocale().startsWith("zh");
+                  broadcast({
+                    type: "status",
+                    isStreaming: true,
+                    sessionPath: promptSessionPath,
+                    noticeKey: isZh ? "hint.localToolNeeded" : "hint.localToolNeeded",
+                    noticeText: isZh
+                      ? "💡 此任务需要操作本地文件。默认模型无法直接操作，将为你生成操作方案。如需自动执行，请在设置中配置支持工具调用的供应商。"
+                      : "💡 This task requires local file access. The default model will generate a plan. For auto-execution, configure a provider with tool support in Settings.",
+                  });
+                  // 注入提示让模型给出可执行的步骤方案
+                  appendHiddenRetryContext(engine, promptSessionPath,
+                    isZh
+                      ? "【系统提示】用户要求执行本地文件操作，但当前模型无法直接调用 bash/ls/write 等本地工具。请为用户生成具体的操作方案：列出需要执行的 shell 命令（带完整路径），让用户可以复制粘贴到终端执行。如果需要用户提供更多信息（如具体路径），直接询问。"
+                      : "[System] User wants local file operations but current model cannot call bash/ls/write tools. Generate specific shell commands (with full paths) the user can copy-paste into terminal. Ask for paths if needed."
+                  );
+                }
                 const recentConversationText = getRecentConversationText(engine, promptSessionPath);
                 const reportPromptBasis = [recentConversationText, `user: ${promptText}`].filter(Boolean).join("\n\n");
                 let reportResearchKind = "";

@@ -179,6 +179,12 @@ export function stripPseudoToolCallMarkup(raw) {
   let text = stripToolCodeMarkup(raw);
   if (!text) return "";
 
+  // Strip Qwen-style tool call markup: <|tool_calls_section_begin|>...<|tool_calls_section_end|>
+  text = text.replace(/<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/g, "");
+  // Strip partial/unclosed Qwen tool tags
+  text = text.replace(/<\|tool_call(?:s_section)?_(?:begin|end)\|>/g, "");
+  text = text.replace(/<\|tool_call_argument_(?:begin|end)\|>/g, "");
+
   text = text
     .replace(REPEATED_READ_TOOL_ERROR_RE, "")
     .split("\n")
