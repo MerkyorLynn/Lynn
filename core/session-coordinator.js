@@ -184,6 +184,29 @@ function getBuiltinToolNames(tools) {
 function buildSkillHintContext(suggestions) {
   if (!Array.isArray(suggestions) || suggestions.length === 0) return "";
   const isZh = getLocale().startsWith("zh");
+
+  // 尝试直接注入最佳匹配 skill 的内容（Brain 模式下模型无法自己 read 文件）
+  const bestSkill = suggestions[0];
+  let skillContent = "";
+  if (bestSkill?.filePath) {
+    try {
+      skillContent = fs.readFileSync(bestSkill.filePath, "utf-8").trim();
+      // 截断过长的 skill 内容（保留前 3000 字符，避免撑爆 GPU 16K 上下文）
+      if (skillContent.length > 3000) skillContent = skillContent.slice(0, 3000) + "\n...(truncated)";
+    } catch {}
+  }
+
+  if (skillContent) {
+    return [
+      isZh
+        ? `【技能已加载】当前请求匹配技能「${bestSkill.name}」，以下是完整指令，请严格按照指令执行：`
+        : `[Skill Loaded] Request matches skill "${bestSkill.name}". Follow these instructions:`,
+      "",
+      skillContent,
+    ].join("\n");
+  }
+
+  // Fallback：提示模型自己去读
   if (isZh) {
     return [
       "【技能候选提示】当前请求很可能匹配以下已启用技能：",
