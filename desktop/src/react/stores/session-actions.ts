@@ -78,9 +78,14 @@ export async function loadSessions(): Promise<void> {
     useStore.setState({ sessions });
 
     // 校验当前 session 是否还存在于列表中（可能被外部删除/归档）
-    if (s.currentSessionPath && sessions.length > 0 && !sessions.some(sess => sess.path === s.currentSessionPath)) {
-      useStore.setState({ currentSessionPath: null });
-      clearChatAction();
+    // 使用路径末段比较，避免 Windows 反斜杠 vs 正斜杠不匹配
+    if (s.currentSessionPath && sessions.length > 0) {
+      const normalize = (p: string) => p.replace(/\\/g, '/');
+      const currentNorm = normalize(s.currentSessionPath);
+      if (!sessions.some(sess => normalize(sess.path) === currentNorm)) {
+        useStore.setState({ currentSessionPath: null });
+        clearChatAction();
+      }
     }
 
     const updated = useStore.getState();
