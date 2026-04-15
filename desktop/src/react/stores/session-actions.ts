@@ -77,8 +77,15 @@ export async function loadSessions(): Promise<void> {
     const s = useStore.getState();
     useStore.setState({ sessions });
 
-    if (sessions.length > 0 && !s.currentSessionPath && !s.pendingNewSession) {
-      // 首次加载：走完整的 switchSession 确保后端同步 + 消息加载
+    // 校验当前 session 是否还存在于列表中（可能被外部删除/归档）
+    if (s.currentSessionPath && sessions.length > 0 && !sessions.some(sess => sess.path === s.currentSessionPath)) {
+      useStore.setState({ currentSessionPath: null });
+      clearChatAction();
+    }
+
+    const updated = useStore.getState();
+    if (sessions.length > 0 && !updated.currentSessionPath && !updated.pendingNewSession) {
+      // 首次加载或当前 session 失效：走完整的 switchSession 确保后端同步 + 消息加载
       await switchSession(sessions[0].path);
     }
   } catch (err) {

@@ -372,6 +372,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.pseudoToolAbortRequested = false;
     if (!preserveRetry) ss.pseudoToolNeedsRetry = false;
     if (!preserveRetryCount) ss.pseudoToolRetryCount = 0;
+    ss.toolCallWithoutText = false;
     if (!preserveRecoveryCause) {
       ss.missingToolExecutionDetected = false;
       ss.installDeflectionDetected = false;
@@ -1033,6 +1034,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.pseudoToolNeedsRetry = true;
       }
 
+      // 工具调了但没有文字输出：标记为可恢复场景（模型执行了工具但忘记/超时未生成回复文字）
+      if (ss.hasToolCall && !ss.hasOutput && !ss.hasThinking && !ss.hasError && isActive) {
+        ss.toolCallWithoutText = true;
+      }
+
       // 空回复检测：本轮没有文本输出也没有工具调用。
       // 这更像上游空响应或接口兼容问题，不一定是用户配置错误。
       if (!ss.pseudoToolNeedsRetry && !ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
@@ -1442,7 +1448,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 let localWorkspaceContextAttached = false;
                 let reportResearchContextAttached = false;
                 let reportStructureHintAttached = false;
-                const maxRecoveryAttempts = ENABLE_LOCAL_TOOL_RECOVERY ? MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS : 0;
+                const maxRecoveryAttempts = ENABLE_LOCAL_TOOL_RECOVERY ? MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS : 1;
                 for (let attemptIndex = 0; attemptIndex <= maxRecoveryAttempts; attemptIndex++) {
                   const currentModelInfo = resolveCurrentModelInfo(engine);
                   recordCurrentProvider({
@@ -1553,6 +1559,20 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   if (attemptError && !wasAborted) {
                     finalError = attemptError;
                   }
+
+                  // 工具调用后无文字输出恢复：追加隐藏提示让模型根据工具结果生成回复（仅重试一次）
+                  if (!attemptError && ss.toolCallWithoutText && attemptIndex === 0) {
+                    ss.toolCallWithoutText = false;
+                    const isZh = getLocale().startsWith("zh");
+                    appendHiddenRetryContext(engine, promptSessionPath,
+                      isZh
+                        ? "工具已成功执行并返回结果。请根据以上工具返回的信息直接回答用户的问题，不要再次调用工具。"
+                        : "Tools have been executed and returned results. Please answer the user's question based on the tool results above. Do not call tools again."
+                    );
+                    broadcast({ type: "turn_retry", sessionPath: promptSessionPath });
+                    continue;
+                  }
+
                   break;
                 }
 

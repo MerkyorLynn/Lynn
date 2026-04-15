@@ -47,6 +47,8 @@ interface Buffer {
   lastRenderedText: string;
   lastRenderedHtml: string;
   lastRenderedFinalized: boolean;
+  /** turn_end 已到达，等待 reveal 完成后再 finalize */
+  pendingFinalize: boolean;
 }
 
 function createBuffer(sessionPath: string): Buffer {
@@ -69,6 +71,7 @@ function createBuffer(sessionPath: string): Buffer {
     lastRenderedText: '',
     lastRenderedHtml: '',
     lastRenderedFinalized: false,
+    pendingFinalize: false,
   };
 }
 
@@ -119,6 +122,7 @@ function resetBufferState(buf: Buffer): void {
   buf.lastRenderedText = '';
   buf.lastRenderedHtml = '';
   buf.lastRenderedFinalized = false;
+  buf.pendingFinalize = false;
 }
 
 class StreamBufferManager {
@@ -187,6 +191,12 @@ class StreamBufferManager {
     const remaining = targetText.length - buf.visibleTextAcc.length;
     if (remaining <= 0) {
       this.cancelReveal(buf);
+      // turn_end 已到达且 reveal 完成 → 执行延迟 finalize
+      if (buf.pendingFinalize) {
+        buf.pendingFinalize = false;
+        this.flush(buf, true);
+        resetBufferState(buf);
+      }
       return;
     }
 
@@ -526,10 +536,17 @@ class StreamBufferManager {
       case 'compaction_end':
         break;
 
-      case 'turn_end':
-        this.flush(buf, true);
-        resetBufferState(buf);
+      case 'turn_end': {
+        const hasUnrevealedText = buf.textAcc && buf.visibleTextAcc.length < buildDisplayText(buf.textAcc, false).length;
+        if (hasUnrevealedText && buf.revealTimer) {
+          // reveal 动画仍在进行 → 延迟 finalize，让文字逐步展示完毕
+          buf.pendingFinalize = true;
+        } else {
+          this.flush(buf, true);
+          resetBufferState(buf);
+        }
         break;
+      }
 
       case 'turn_retry':
         if (buf.flushTimer) {

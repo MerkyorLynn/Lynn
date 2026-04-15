@@ -1,5 +1,13 @@
 {
   "_comment": "模型参考词典。provider + model 为唯一键。model-sync.js 对表时查询。vision/reasoning 缺省为 false，quirks 缺省为 []。",
+  "brain": {
+    "lynn-brain-router": {
+      "name": "默认模型",
+      "context": 128000,
+      "maxOutput": 8192,
+      "vision": true
+    }
+  },
   "dashscope": {
     "qwen3.5-plus": {
       "name": "Qwen 3.5 Plus",

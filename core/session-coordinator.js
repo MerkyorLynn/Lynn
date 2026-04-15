@@ -790,6 +790,11 @@ export class SessionCoordinator {
       }
     }
 
+    // 非 vision 模型：静默剥离图片，只发文字（与 bridge-session-manager 保持一致）
+    const _resolved = this._d.resolveModelOverrides?.(agent.model, agent.config?.models?.overrides);
+    if (opts?.images?.length && _resolved?.vision === false) {
+      opts.images = undefined;
+    }
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
     const tracker = createReplyIntegrityTracker();
     const unsub = this._session.subscribe((event) => {
@@ -875,6 +880,11 @@ export class SessionCoordinator {
     entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
+    // 非 vision 模型：静默剥离图片（与 bridge-session-manager 保持一致）
+    const _resolvedSub = this._d.resolveModelOverrides?.(agent.model, agent.config?.models?.overrides);
+    if (opts?.images?.length && _resolvedSub?.vision === false) {
+      opts.images = undefined;
+    }
     const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
     const tracker = createReplyIntegrityTracker();
     const unsub = entry.session.subscribe((event) => {
