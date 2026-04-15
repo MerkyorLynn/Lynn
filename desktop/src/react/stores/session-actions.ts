@@ -77,20 +77,8 @@ export async function loadSessions(): Promise<void> {
     const s = useStore.getState();
     useStore.setState({ sessions });
 
-    // 校验当前 session 是否还存在于列表中（可能被外部删除/归档）
-    // 使用路径末段比较，避免 Windows 反斜杠 vs 正斜杠不匹配
-    if (s.currentSessionPath && sessions.length > 0) {
-      const normalize = (p: string) => p.replace(/\\/g, '/');
-      const currentNorm = normalize(s.currentSessionPath);
-      if (!sessions.some(sess => normalize(sess.path) === currentNorm)) {
-        useStore.setState({ currentSessionPath: null });
-        clearChatAction();
-      }
-    }
-
-    const updated = useStore.getState();
-    if (sessions.length > 0 && !updated.currentSessionPath && !updated.pendingNewSession) {
-      // 首次加载或当前 session 失效：走完整的 switchSession 确保后端同步 + 消息加载
+    if (sessions.length > 0 && !s.currentSessionPath && !s.pendingNewSession) {
+      // 首次加载：走完整的 switchSession 确保后端同步 + 消息加载
       await switchSession(sessions[0].path);
     }
   } catch (err) {
