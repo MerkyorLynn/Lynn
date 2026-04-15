@@ -1034,13 +1034,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.pseudoToolNeedsRetry = true;
       }
 
-      // 工具调了但没有文字输出：标记为可恢复场景（模型执行了工具但忘记/超时未生成回复文字）
-      if (ss.hasToolCall && !ss.hasOutput && !ss.hasThinking && !ss.hasError && isActive) {
+      // 工具调了或只有反思/思考但没有文字输出：标记为可恢复场景，下一轮追加提示
+      if (!ss.hasOutput && !ss.hasError && isActive && (ss.hasToolCall || ss.hasThinking)) {
         ss.toolCallWithoutText = true;
+        ss._recoveryHadToolCall = ss.hasToolCall; // 保存原始值，重置后恢复逻辑需要
       }
 
-      // 空回复检测：本轮没有文本输出也没有工具调用。
-      // 这更像上游空响应或接口兼容问题，不一定是用户配置错误。
+      // 空回复检测：本轮没有任何有效输出（无文本、无工具、无思考）。
       if (!ss.pseudoToolNeedsRetry && !ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
         reportEmptyResponse(engine, sessionPath);
         broadcast({ type: "error", message: buildEmptyResponseUserMessage(engine) });
@@ -1562,13 +1562,17 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
                   // 工具调用后无文字输出恢复：追加隐藏提示让模型根据工具结果生成回复（仅重试一次）
                   if (!attemptError && ss.toolCallWithoutText && attemptIndex === 0) {
+                    const hadToolCall = ss._recoveryHadToolCall;
                     ss.toolCallWithoutText = false;
                     const isZh = getLocale().startsWith("zh");
-                    appendHiddenRetryContext(engine, promptSessionPath,
-                      isZh
+                    const retryHint = hadToolCall
+                      ? (isZh
                         ? "工具已成功执行并返回结果。请根据以上工具返回的信息直接回答用户的问题，不要再次调用工具。"
-                        : "Tools have been executed and returned results. Please answer the user's question based on the tool results above. Do not call tools again."
-                    );
+                        : "Tools have been executed and returned results. Please answer the user's question based on the tool results above. Do not call tools again.")
+                      : (isZh
+                        ? "上一轮你只进行了内部思考/反思，但没有给用户任何回复文字。请直接回答用户的问题。如果无法完成用户的请求，请明确说明原因和替代建议。"
+                        : "In the previous turn you only produced internal thinking/reflection but did not reply to the user. Please answer the user's question directly. If you cannot fulfill the request, explain why and suggest alternatives.");
+                    appendHiddenRetryContext(engine, promptSessionPath, retryHint);
                     broadcast({ type: "turn_retry", sessionPath: promptSessionPath });
                     continue;
                   }
