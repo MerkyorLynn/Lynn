@@ -156,3 +156,26 @@ User: analyze NVDA AVGO AMD in detail
 User: give me a quick top 10 stock ranking
 → /quant_top
 ```
+
+## Use with Lynn (Zero Config)
+
+> Part of [Lynn](https://github.com/MerkyorLynn/Lynn) — a personal AI agent with memory and soul. Lynn has this built-in by default.
+
+With Lynn desktop agent, quant-scanner works seamlessly:
+
+- **Natural language** — just say "scan US stocks" or "what should I buy", Lynn auto-triggers the skill
+- **Memory integration** — Lynn remembers your preferred tickers, past scan results, and investment style
+- **Multi-model routing** — Lynn uses the best model for analysis (reasoning model for factor interpretation, fast model for data fetching)
+- **Scheduled scans** — set up daily pre-market scans that run automatically
+- **Combined with A-share scanner** — Lynn also has a Tushare-powered A-share quantitative scanner for Chinese stocks
+
+```bash
+# Install Lynn
+git clone https://github.com/MerkyorLynn/Lynn.git
+cd Lynn && npm install
+
+# Then just chat:
+# "scan the US market for me"
+# "compare NVDA and AMD"
+# "set up a daily pre-market scan"
+```
