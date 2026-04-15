@@ -90,3 +90,5 @@ logs/
 reviews/
 .build-signing.keychain-db
 .fl*
+dist-release-*/
+dist-fresh*/
