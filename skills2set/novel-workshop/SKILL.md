@@ -1,6 +1,6 @@
 ---
 name: novel-workshop
-description: "AI-assisted novel writing workbench. Use when user wants to: write a novel, create fiction, start a story project, develop characters/plot, write chapters, assemble a book. Handles the full pipeline: outline → character design → chapter drafting → editing → book assembly."
+description: "小说创作工作台。用户说写小说、创作小说、写故事、写穿越文、写言情、写科幻、创作故事、开始创作、继续写、写下一章、装订成册时使用。AI-assisted novel writing workbench for outline, characters, chapter drafting, editing, and book assembly."
 version: "1.0.0"
 allowed-tools:
   - Read
