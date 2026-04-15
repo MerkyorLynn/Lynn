@@ -49,11 +49,15 @@ export const ImageBlock = memo(function ImageBlock({ src, alt, className }: Imag
     setScale(prev => Math.min(5, Math.max(0.5, prev - e.deltaY * 0.002)));
   }, []);
 
+  // Track if mouse actually dragged (vs. simple click)
+  const didDrag = useRef(false);
+
   // Drag start
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
     dragging.current = true;
+    didDrag.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY };
     translateStart.current = { ...translate };
   }, [translate]);
@@ -63,9 +67,12 @@ export const ImageBlock = memo(function ImageBlock({ src, alt, className }: Imag
     if (!open) return;
     const handleMove = (e: MouseEvent) => {
       if (!dragging.current) return;
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
       setTranslate({
-        x: translateStart.current.x + e.clientX - dragStart.current.x,
-        y: translateStart.current.y + e.clientY - dragStart.current.y,
+        x: translateStart.current.x + dx,
+        y: translateStart.current.y + dy,
       });
     };
     const handleUp = () => { dragging.current = false; };
@@ -116,6 +123,8 @@ export const ImageBlock = memo(function ImageBlock({ src, alt, className }: Imag
           className={styles.lightboxOverlay}
           onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
         >
+          {/* 右上角关闭按钮 */}
+          <button className={styles.lightboxCloseBtn} onClick={handleClose} title="Close (ESC)">✕</button>
           <div className={styles.lightboxToolbar}>
             <button onClick={() => setScale(s => Math.min(5, s + 0.25))} title="Zoom in">+</button>
             <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} title="Zoom out">−</button>
@@ -130,11 +139,12 @@ export const ImageBlock = memo(function ImageBlock({ src, alt, className }: Imag
             draggable={false}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
+            onMouseUp={() => { if (!didDrag.current && scale === 1) handleClose(); }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             style={{
               transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-              cursor: dragging.current ? 'grabbing' : 'grab',
+              cursor: scale === 1 && !dragging.current ? 'zoom-out' : dragging.current ? 'grabbing' : 'grab',
             }}
           />
         </div>
