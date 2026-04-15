@@ -181,6 +181,27 @@ function getBuiltinToolNames(tools) {
   return tools.map((tool) => tool.name);
 }
 
+function buildSkillToolCompatibilityHint(skillName) {
+  const isZh = getLocale().startsWith("zh");
+  const toolNames = "read, write, edit, bash, grep, find, ls";
+  if (isZh) {
+    return [
+      "【Lynn 技能执行兼容说明】",
+      `- 这是已启用技能「${skillName || "unknown"}」的执行指令，不是普通参考资料。`,
+      `- 如果技能正文或 frontmatter 提到 Read / Write / Edit / Bash，请映射为当前 Lynn 工具名：${toolNames}。`,
+      "- 需要读写文件、运行脚本、整理项目时，必须调用真实工具；不要把工具调用写成正文，也不要只口头说“我会去做”。",
+      "- 如果当前模型或执行模式没有对应工具，先明确说明缺少哪个工具或权限，再给用户下一步选择。",
+    ].join("\n");
+  }
+  return [
+    "[Lynn skill execution compatibility]",
+    `- These are executable instructions for the enabled skill "${skillName || "unknown"}", not just reference text.`,
+    `- If the skill body or frontmatter mentions Read / Write / Edit / Bash, map them to the current Lynn tool names: ${toolNames}.`,
+    "- When the task requires reading/writing files, running scripts, or organizing a project, use real tool calls. Do not print pseudo tool calls as plain text.",
+    "- If the current model or execution mode lacks a required tool, say which tool/permission is missing and ask for the next step.",
+  ].join("\n");
+}
+
 function buildSkillHintContext(suggestions) {
   if (!Array.isArray(suggestions) || suggestions.length === 0) return "";
   const isZh = getLocale().startsWith("zh");
@@ -201,6 +222,8 @@ function buildSkillHintContext(suggestions) {
       isZh
         ? `【技能已加载】当前请求匹配技能「${bestSkill.name}」，以下是完整指令，请严格按照指令执行：`
         : `[Skill Loaded] Request matches skill "${bestSkill.name}". Follow these instructions:`,
+      "",
+      buildSkillToolCompatibilityHint(bestSkill.name),
       "",
       skillContent,
     ].join("\n");

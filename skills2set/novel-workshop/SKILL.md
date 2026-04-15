@@ -3,10 +3,13 @@ name: novel-workshop
 description: "小说创作工作台。用户说写小说、创作小说、写故事、写穿越文、写言情、写科幻、创作故事、开始创作、继续写、写下一章、装订成册时使用。AI-assisted novel writing workbench for outline, characters, chapter drafting, editing, and book assembly."
 version: "1.0.0"
 allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
+  - read
+  - write
+  - edit
+  - bash
+  - grep
+  - find
+  - ls
   - create_artifact
   - create_report
   - create_pdf
@@ -26,6 +29,12 @@ metadata:
 2. **一次只写一章** — 不要试图一次输出整本书
 3. **文件即真相** — 所有内容持久化到文件，作者可随时编辑
 4. **上下文经济** — 通过摘要传递章节间连续性，不加载全文
+
+## Lynn 工具执行约定
+
+- 在 Lynn 中使用小写工具名：`read`、`write`、`edit`、`bash`、`grep`、`find`、`ls`。
+- 需要创建目录、保存章节、读取已有大纲或装订成册时，必须调用真实工具，不要把 shell 命令或伪工具调用写成正文。
+- 如果当前模型或执行模式没有真实工具调用能力，先明确说明缺少工具/权限，并向用户要路径、文件或切换执行模式。
 
 ## Stage 1: 项目初始化
 

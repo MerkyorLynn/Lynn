@@ -232,4 +232,16 @@ describe("SkillManager metadata scanning", () => {
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].name).toBe("novel-workshop");
   });
+
+  it("keeps bundled novel workshop tool names compatible with Lynn tools", () => {
+    const skillPath = path.join(process.cwd(), "skills2set", "novel-workshop", "SKILL.md");
+    const content = fs.readFileSync(skillPath, "utf-8");
+
+    for (const tool of ["read", "write", "edit", "bash", "grep", "find", "ls"]) {
+      expect(content).toContain(`  - ${tool}`);
+    }
+    for (const legacyTool of ["Read", "Write", "Edit", "Bash"]) {
+      expect(content).not.toContain(`  - ${legacyTool}`);
+    }
+  });
 });
