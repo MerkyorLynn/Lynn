@@ -1360,25 +1360,34 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.localEvidencePrefetched = false;
                 ss.routeNoticeSent = false;
 
-                // Brain 模式下检测本地文件操作意图 → 引导用户
+                // Brain 模式下检测需要本地工具的意图 → 引导用户
                 const LOCAL_OP_RE = /整理桌面|整理工作区|整理文件|改文件|移动文件|删除文件|重命名|新建文件夹|打开文件|读取文件|扫描目录|列出文件|清理桌面|organize.*desktop|move.*files?|rename.*files?|delete.*files?|scan.*folder|clean.*desktop/i;
+                const SKILL_NEEDED_RE = /写小说|创作小说|写故事|写穿越|写言情|写科幻|小说工作台|继续写.*章|写下一章|装订成册/i;
                 const _modelInfo = resolveCurrentModelInfo(engine);
-                if (_modelInfo.isBrain && LOCAL_OP_RE.test(promptText)) {
+                if (_modelInfo.isBrain && (LOCAL_OP_RE.test(promptText) || SKILL_NEEDED_RE.test(promptText))) {
                   const isZh = getLocale().startsWith("zh");
+                  const isSkill = SKILL_NEEDED_RE.test(promptText);
                   broadcast({
                     type: "status",
                     isStreaming: true,
                     sessionPath: promptSessionPath,
-                    noticeKey: isZh ? "hint.localToolNeeded" : "hint.localToolNeeded",
+                    noticeKey: "hint.localToolNeeded",
                     noticeText: isZh
-                      ? "💡 此任务需要操作本地文件。默认模型无法直接操作，将为你生成操作方案。如需自动执行，请在设置中配置支持工具调用的供应商。"
-                      : "💡 This task requires local file access. The default model will generate a plan. For auto-execution, configure a provider with tool support in Settings.",
+                      ? isSkill
+                        ? "💡 小说工作台需要本地工具支持（创建文件、管理章节）。请在模型选择器中切换到支持工具调用的模型（如 Kimi K2.5），即可自动执行完整创作流程。"
+                        : "💡 此任务需要操作本地文件。默认模型无法直接操作，将为你生成操作方案。如需自动执行，请在设置中配置支持工具调用的供应商。"
+                      : isSkill
+                        ? "💡 Novel Workshop requires local tools. Switch to a model with tool support (e.g. Kimi K2.5) in the model selector for the full workflow."
+                        : "💡 This task requires local file access. Configure a provider with tool support in Settings for auto-execution.",
                   });
-                  // 注入提示让模型给出可执行的步骤方案
                   appendHiddenRetryContext(engine, promptSessionPath,
                     isZh
-                      ? "【系统提示】用户要求执行本地文件操作，但当前模型无法直接调用 bash/ls/write 等本地工具。请为用户生成具体的操作方案：列出需要执行的 shell 命令（带完整路径），让用户可以复制粘贴到终端执行。如果需要用户提供更多信息（如具体路径），直接询问。"
-                      : "[System] User wants local file operations but current model cannot call bash/ls/write tools. Generate specific shell commands (with full paths) the user can copy-paste into terminal. Ask for paths if needed."
+                      ? isSkill
+                        ? "【系统提示】用户想使用小说创作工作台，但当前默认模型无法调用本地工具（bash/write/read）。请告诉用户：1) 点击底部模型选择器，切换到 Kimi K2.5 或其他支持工具调用的模型；2) 切换后重新发送「写小说」即可启动完整的小说工作台流程（自动创建项目目录、大纲、分章节写作、装订成册）。当前你可以先帮用户构思故事大纲和人设。"
+                        : "【系统提示】用户要求执行本地文件操作，但当前模型无法直接调用 bash/ls/write 等本地工具。请为用户生成具体的操作方案：列出需要执行的 shell 命令（带完整路径），让用户可以复制粘贴到终端执行。如果需要用户提供更多信息（如具体路径），直接询问。"
+                      : isSkill
+                        ? "[System] User wants the Novel Workshop but the default model cannot call local tools. Tell the user to switch to Kimi K2.5 or another model with tool support, then resend 'write a novel' to activate the full workflow. For now, help brainstorm the outline."
+                        : "[System] User wants local file operations but current model cannot call bash/ls/write tools. Generate specific shell commands the user can copy-paste. Ask for paths if needed."
                   );
                 }
                 const recentConversationText = getRecentConversationText(engine, promptSessionPath);
