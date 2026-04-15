@@ -577,6 +577,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                           emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
                           break;
                         case "xing_start":
+                          ss.hasXing = true;
                           emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
                           break;
                         case "xing_text":
@@ -1034,8 +1035,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.pseudoToolNeedsRetry = true;
       }
 
-      // 工具调了或只有反思/思考但没有文字输出：标记为可恢复场景，下一轮追加提示
-      if (!ss.hasOutput && !ss.hasError && isActive && (ss.hasToolCall || ss.hasThinking)) {
+      // 工具调了/只有反思/只有思考但没有文字输出：标记为可恢复场景，下一轮追加提示
+      if (!ss.hasOutput && !ss.hasError && isActive && (ss.hasToolCall || ss.hasThinking || ss.hasXing)) {
         ss.toolCallWithoutText = true;
         ss._recoveryHadToolCall = ss.hasToolCall; // 保存原始值，重置后恢复逻辑需要
       }
@@ -1051,6 +1052,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.hasOutput = false;
       ss.hasToolCall = false;
       ss.hasThinking = false;
+      ss.hasXing = false;
       ss.hasError = false;
       ss.routeIntent = ROUTE_INTENTS.CHAT;
       ss.localEvidencePrefetched = false;
