@@ -199,4 +199,37 @@ describe("SkillManager metadata scanning", () => {
     expect(suggestions[0].name).toBe("tavily-search");
     expect(suggestions[0].matchedTokens.length).toBeGreaterThan(0);
   });
+
+  it("suggests novel workshop for Chinese continuation prompts", () => {
+    const root = makeTmpRoot();
+    const skillsDir = path.join(root, "skills");
+    const agentDir = path.join(root, "agents", "hana");
+
+    fs.mkdirSync(skillsDir, { recursive: true });
+    fs.mkdirSync(agentDir, { recursive: true });
+
+    const manager = new SkillManager({ skillsDir, externalPaths: [] });
+    manager._allSkills = [
+      {
+        name: "novel-workshop",
+        description: "小说创作工作台。用户说写小说、创作小说、写故事、写穿越文、写言情、写科幻、创作故事、开始创作、继续写、写下一章、装订成册时使用。",
+        filePath: path.join(skillsDir, "novel-workshop", "SKILL.md"),
+        baseDir: path.join(skillsDir, "novel-workshop"),
+        source: "builtin",
+      },
+    ];
+
+    const agent = {
+      agentDir,
+      config: {
+        skills: {
+          enabled: ["novel-workshop"],
+        },
+      },
+    };
+
+    const suggestions = manager.suggestSkillsForText(agent, "继续写下一章", 1);
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].name).toBe("novel-workshop");
+  });
 });

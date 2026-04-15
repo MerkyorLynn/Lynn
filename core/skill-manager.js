@@ -38,7 +38,7 @@ const QUERY_TOKEN_SYNONYMS = [
   { pattern: /新闻|资讯|动态/u, expansions: ["news"] },
   { pattern: /文档|文件|pdf/u, expansions: ["document", "file", "pdf"] },
   { pattern: /github|仓库|代码/u, expansions: ["github", "repo", "code"] },
-  { pattern: /小说|写作|创作|故事|章节/u, expansions: ["novel", "writing", "fiction", "story", "chapter", "workshop"] },
+  { pattern: /小说|写作|创作|故事|章节|下一章|续写|继续写|装订成册|穿越|言情|科幻/u, expansions: ["novel-workshop", "novel", "writing", "fiction", "story", "chapter", "workshop"] },
   { pattern: /novel|fiction|story|writing/u, expansions: ["小说", "创作", "故事", "写作"] },
 ];
 
