@@ -66,7 +66,7 @@ import {
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
-const ENABLE_LOCAL_TOOL_RECOVERY = false; // disabled: Brain handles tools server-side
+const ENABLE_LOCAL_TOOL_RECOVERY = process.env.LYNN_ENABLE_LOCAL_TOOL_RECOVERY !== "0";
 const DEFAULT_TOOL_EVENT_GRACE_MS = 8_000;
 const BRAIN_TOOL_EVENT_GRACE_MS = 5_000;
 
