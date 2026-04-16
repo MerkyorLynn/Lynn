@@ -113,11 +113,35 @@ export async function switchSession(path: string): Promise<void> {
   const myVersion = ++_switchVersion;
 
   try {
-    const res = await hanaFetch('/api/sessions/switch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
-    });
+    const switchController = new AbortController();
+    const switchTimeout = setTimeout(() => switchController.abort(), 7000);
+    let res: Response;
+    try {
+      res = await hanaFetch('/api/sessions/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+        signal: switchController.signal,
+      });
+    } catch (abortErr: any) {
+      clearTimeout(switchTimeout);
+      const isAbort = abortErr?.name === 'AbortError'
+        || String(abortErr?.message || '').includes('abort')
+        || String(abortErr?.message || '').includes('signal');
+      if (isAbort) {
+        console.warn('[session] switch timed out after 7s, forcing local switch');
+        // Timeout — force local state switch so UI is not stuck
+        useStore.setState({
+          currentSessionPath: path,
+          pendingNewSession: false,
+          welcomeVisible: false,
+        });
+        loadMessages(path);
+        return;
+      }
+      throw abortErr;
+    }
+    clearTimeout(switchTimeout);
     const data = await res.json();
     if (myVersion !== _switchVersion) return;
     if (data.error) {

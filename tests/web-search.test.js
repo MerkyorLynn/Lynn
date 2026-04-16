@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchDuckDuckGoHtml } from "../lib/tools/web-search.js";
+import { runSearchQuery, searchDuckDuckGoHtml } from "../lib/tools/web-search.js";
 
 describe("web search fallback", () => {
   afterEach(() => {
@@ -33,5 +33,23 @@ describe("web search fallback", () => {
         snippet: "",
       },
     ]);
+  });
+
+  it("tries DuckDuckGo HTML before requiring a configured search provider", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => `
+        <html>
+          <body>
+            <a class="result__a" href="https://example.com/fast">Fast Result</a>
+          </body>
+        </html>
+      `,
+    })));
+
+    const result = await runSearchQuery("OpenAI docs", 5);
+    expect(result.provider).toBe("duckduckgo-html");
+    expect(result.results[0]?.url).toBe("https://example.com/fast");
   });
 });

@@ -96,13 +96,19 @@ function buildToolTraceLine(tool: ToolCall, zh: boolean): string {
     case 'search_memory':
       return zh ? `搜索 ${detail || tool.name}` : `Searched ${detail || tool.name}`;
     case 'stock_market':
-      return zh ? `查询行情 ${detail || '市场数据'}` : `Checked market data ${detail || ''}`.trim();
     case 'weather':
-      return zh ? `查询天气 ${detail || '天气信息'}` : `Checked weather ${detail || ''}`.trim();
     case 'sports_score':
-      return zh ? `查询比分 ${detail || '赛事信息'}` : `Checked scores ${detail || ''}`.trim();
-    case 'live_news':
-      return zh ? `汇总热点 ${detail || '最新资讯'}` : `Summarized live news ${detail || ''}`.trim();
+    case 'live_news': {
+      // Smart label: detect actual content from query args instead of hardcoded tool name
+      const q = String(detail || (tool.args as Record<string, unknown>)?.query || '').toLowerCase();
+      const isWeather = /天气|气温|下雨|下雪|温度|weather|rain|snow|forecast|风|晴|阴/.test(q);
+      const isSports = /比分|赛程|排名|球|赛|score|match|game|nba|cba/.test(q);
+      const isNews = /新闻|热点|消息|news|最新|头条|动态/.test(q);
+      const label = zh
+        ? (isWeather ? '查询天气' : isSports ? '查询比分' : isNews ? '汇总热点' : '查询行情')
+        : (isWeather ? 'Checked weather' : isSports ? 'Checked scores' : isNews ? 'Summarized news' : 'Checked market');
+      return `${label} ${detail || ''}`.trim();
+    }
     case 'write':
     case 'edit':
     case 'edit-diff':

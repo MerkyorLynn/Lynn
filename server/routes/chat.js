@@ -1402,7 +1402,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   ss.routeNoticeSent = true;
                 }
                 try {
-                  reportResearchKind = inferReportResearchKind(reportPromptBasis);
+                  // Skip prefetch for vision requests — image analysis doesn't need search/weather tools
+                  reportResearchKind = msg.images?.length ? "" : inferReportResearchKind(reportPromptBasis);
                   const prefetchTool = reportResearchKind
                     ? resolveLocalPrefetchToolMeta(reportResearchKind, promptText)
                     : null;
