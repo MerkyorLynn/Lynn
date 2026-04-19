@@ -6,6 +6,7 @@
 
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { getWebSocket } from '../../services/websocket';
+import { getAllSlashCommands } from '../../config/task-modes';
 
 // ── Xing Prompt ──
 
@@ -190,6 +191,29 @@ export function executeSave(
       setBusy(null);
     }
   };
+}
+
+/**
+ * 任务模式 slash 命令（/xhs /gzh /weibo 等）— 扩展为 composer 文本，让用户在后面填主题再发。
+ * 跨模式全局可用：即使当前模式是「自动」，也能用 /xhs。
+ */
+export function buildTaskModeSlashCommands(
+  setInput: (text: string) => void,
+  setMenuOpen: (open: boolean) => void,
+  requestInputFocus: () => void,
+): SlashCommand[] {
+  return getAllSlashCommands().map((sc) => ({
+    name: sc.cmd.replace(/^\//, ''),
+    label: sc.cmd,
+    description: sc.label,
+    busyLabel: '',
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+    execute: async () => {
+      setInput(sc.prompt);
+      setMenuOpen(false);
+      requestInputFocus();
+    },
+  }));
 }
 
 export function buildSlashCommands(

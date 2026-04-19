@@ -93,3 +93,7 @@ reviews/
 dist-release-*/
 dist-fresh*/
 pi-skills/
+
+# Marketing / 营销素材（内部）
+marketing/
+/marketing-*

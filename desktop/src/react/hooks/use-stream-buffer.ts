@@ -11,26 +11,16 @@
 import type { ChatMessage, ContentBlock } from '../stores/chat-types';
 import { useStore } from '../stores';
 import { renderMarkdown } from '../utils/markdown';
-import { cleanMoodText } from '../utils/message-parser';
-// @ts-expect-error - shared JS module
-import { sanitizeBrainIdentityDisclosureText } from '../../../../shared/brain-provider.js';
-// @ts-expect-error - shared JS module
-import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
-import { normalizeReportResponseText } from '../../../../shared/report-normalizer.js';
+import { cleanMoodText, sanitizeAssistantDisplayText } from '../utils/message-parser';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 流式消息 handle(msg) 接收动态 JSON */
 
 /** 主文本流式刷新间隔。配合轻量预览渲染，提高流式顺滑度并减少明显卡段。 */
 const FLUSH_INTERVAL = 32;
-/** 视觉打字机节奏：API 如果一次性吐大块文本，UI 仍按稳定节奏揭示。 */
-const REVEAL_INTERVAL = 24;
 
 interface Buffer {
   sessionPath: string;
-  /** 网络侧已收到的完整文本。 */
   textAcc: string;
-  /** UI 侧已经揭示的、清洗后的可见文本。 */
-  visibleTextAcc: string;
   thinkingAcc: string;
   moodAcc: string;
   moodYuan: string;
@@ -41,21 +31,17 @@ interface Buffer {
   inXing: boolean;
   lastFlushTime: number;
   flushTimer: ReturnType<typeof setTimeout> | null;
-  revealTimer: ReturnType<typeof setTimeout> | null;
   /** 当前 turn 是否已追加了空 assistant message */
   messageAppended: boolean;
   lastRenderedText: string;
   lastRenderedHtml: string;
   lastRenderedFinalized: boolean;
-  /** turn_end 已到达，等待 reveal 完成后再 finalize */
-  pendingFinalize: boolean;
 }
 
 function createBuffer(sessionPath: string): Buffer {
   return {
     sessionPath,
     textAcc: '',
-    visibleTextAcc: '',
     thinkingAcc: '',
     moodAcc: '',
     moodYuan: 'hanako',
@@ -66,33 +52,19 @@ function createBuffer(sessionPath: string): Buffer {
     inXing: false,
     lastFlushTime: 0,
     flushTimer: null,
-    revealTimer: null,
     messageAppended: false,
     lastRenderedText: '',
     lastRenderedHtml: '',
     lastRenderedFinalized: false,
-    pendingFinalize: false,
   };
-}
-
-function buildDisplayText(raw: string, finalizeText = false): string {
-  const displayTextBase = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(
-    raw.replace(/<tool_code>[\s\S]*?<\/tool_code>\s*/g, ''),
-  ));
-  return finalizeText ? normalizeReportResponseText(displayTextBase) : displayTextBase;
-}
-
-function revealStepSize(remaining: number): number {
-  if (remaining > 6000) return 240;
-  if (remaining > 2000) return 120;
-  if (remaining > 600) return 60;
-  if (remaining > 160) return 24;
-  return 8;
 }
 
 function renderStreamingTextHtml(src: string): string {
   if (!src) return '';
-  const escaped = src
+  // [2026-04-20 vertical-char-fix] 防御:streaming 时如果出现连续单字符行（sanitizeAssistantDisplayText
+  // 剥离部分伪工具标签后可能留下这种模式），合并回正常行，避免每字符 <br> 产生竖排显示
+  const compacted = src.replace(/(?:^|\n)(\S)\n(?=\S\n)/g, (_m, ch) => ch);
+  const escaped = compacted
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -103,26 +75,6 @@ function renderStreamingTextHtml(src: string): string {
     .split(/\n{2,}/)
     .map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>') || '&nbsp;'}</p>`)
     .join('');
-}
-
-function resetBufferState(buf: Buffer): void {
-  if (buf.revealTimer) {
-    clearTimeout(buf.revealTimer);
-    buf.revealTimer = null;
-  }
-  buf.textAcc = '';
-  buf.visibleTextAcc = '';
-  buf.thinkingAcc = '';
-  buf.moodAcc = '';
-  buf.xingAcc = '';
-  buf.inThinking = false;
-  buf.inMood = false;
-  buf.inXing = false;
-  buf.messageAppended = false;
-  buf.lastRenderedText = '';
-  buf.lastRenderedHtml = '';
-  buf.lastRenderedFinalized = false;
-  buf.pendingFinalize = false;
 }
 
 class StreamBufferManager {
@@ -165,63 +117,6 @@ class StreamBufferManager {
     }
   }
 
-  private cancelReveal(buf: Buffer): void {
-    if (!buf.revealTimer) return;
-    clearTimeout(buf.revealTimer);
-    buf.revealTimer = null;
-  }
-
-  private revealTextStep(buf: Buffer): void {
-    const targetText = buildDisplayText(buf.textAcc, false);
-
-    if (!targetText) {
-      if (buf.visibleTextAcc) {
-        buf.visibleTextAcc = '';
-        this.scheduleFlush(buf);
-      }
-      this.cancelReveal(buf);
-      return;
-    }
-
-    if (!targetText.startsWith(buf.visibleTextAcc)) {
-      const nextLength = Math.min(buf.visibleTextAcc.length, targetText.length);
-      buf.visibleTextAcc = targetText.slice(0, nextLength);
-    }
-
-    const remaining = targetText.length - buf.visibleTextAcc.length;
-    if (remaining <= 0) {
-      this.cancelReveal(buf);
-      // turn_end 已到达且 reveal 完成 → 执行延迟 finalize
-      if (buf.pendingFinalize) {
-        buf.pendingFinalize = false;
-        this.flush(buf, true);
-        resetBufferState(buf);
-      }
-      return;
-    }
-
-    const nextLength = buf.visibleTextAcc.length + Math.min(remaining, revealStepSize(remaining));
-    buf.visibleTextAcc = targetText.slice(0, nextLength);
-    this.scheduleFlush(buf);
-
-    if (nextLength < targetText.length && !buf.revealTimer) {
-      buf.revealTimer = setTimeout(() => {
-        buf.revealTimer = null;
-        this.revealTextStep(buf);
-      }, REVEAL_INTERVAL);
-    }
-  }
-
-  private drainText(buf: Buffer, finalizeText = false): void {
-    this.cancelReveal(buf);
-    buf.visibleTextAcc = buildDisplayText(buf.textAcc, finalizeText);
-  }
-
-  private flushBeforeStructuralBlock(buf: Buffer): void {
-    this.drainText(buf, false);
-    this.flush(buf);
-  }
-
   /** 把 buffer 中累积的内容一次性 flush 到 Zustand */
   private flush(buf: Buffer, finalizeText = false): void {
     buf.lastFlushTime = Date.now();
@@ -229,7 +124,6 @@ class StreamBufferManager {
       clearTimeout(buf.flushTimer);
       buf.flushTimer = null;
     }
-    if (finalizeText) this.drainText(buf, true);
 
     const store = useStore.getState();
     store.updateLastMessage(buf.sessionPath, (msg) => {
@@ -264,8 +158,8 @@ class StreamBufferManager {
       }
 
       // ── Text ──
-      if (buf.visibleTextAcc) {
-        const displayText = buf.visibleTextAcc;
+      if (buf.textAcc) {
+        const displayText = sanitizeAssistantDisplayText(buf.textAcc);
         if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
           buf.lastRenderedText = displayText;
           buf.lastRenderedFinalized = finalizeText;
@@ -279,12 +173,6 @@ class StreamBufferManager {
         } else {
           blocks.push({ type: 'text', html: buf.lastRenderedHtml });
         }
-      } else if (buf.lastRenderedText) {
-        const idx = blocks.findIndex(b => b.type === 'text');
-        if (idx >= 0) blocks.splice(idx, 1);
-        buf.lastRenderedText = '';
-        buf.lastRenderedHtml = '';
-        buf.lastRenderedFinalized = finalizeText;
       }
 
       // ── Xing ──
@@ -315,7 +203,7 @@ class StreamBufferManager {
       case 'text_delta':
         this.ensureMessage(buf);
         buf.textAcc += msg.delta || '';
-        this.revealTextStep(buf);
+        this.scheduleFlush(buf);
         break;
 
       case 'thinking_start':
@@ -374,7 +262,9 @@ class StreamBufferManager {
       case 'tool_start':
         this.ensureMessage(buf);
         // 工具事件频率低，直接写 store
-        this.flushBeforeStructuralBlock(buf); // 先排空并 flush 文本
+        this.flush(buf); // 先 flush 文本
+        // [PROGRESS-UX v1] also surface to title bar
+        useStore.setState({ currentActivity: msg.name || 'tool' });
         useStore.getState().updateLastMessage(sessionPath, (m) => {
           const blocks = [...(m.blocks || [])];
           // 找最后一个 tool_group 或创建新的
@@ -402,6 +292,26 @@ class StreamBufferManager {
         break;
 
       case 'tool_end':
+        // [PROGRESS-UX v1] clear activity if no other tool still running on this turn
+        {
+          const cur = useStore.getState();
+          const session = cur.chatSessions[sessionPath];
+          const lastItem = session?.items?.[session.items.length - 1];
+          const lastMsg = lastItem?.type === 'message' ? lastItem.data : null;
+          // Determine if any other tool is still pending after this one closes
+          let stillBusy = false;
+          for (const b of (lastMsg?.blocks || [])) {
+            if (b.type === 'tool_group') {
+              for (const t of b.tools) {
+                // Skip the one we're about to mark done
+                if (t.name === msg.name && !t.done) continue;
+                if (!t.done) { stillBusy = true; break; }
+              }
+            }
+            if (stillBusy) break;
+          }
+          if (!stillBusy) useStore.setState({ currentActivity: null });
+        }
         useStore.getState().updateLastMessage(sessionPath, (m) => {
           const blocks = [...(m.blocks || [])];
           // 从后往前找含该 tool 名且未 done 的
@@ -421,18 +331,83 @@ class StreamBufferManager {
         });
         break;
 
+      // [PROGRESS-UX v1] Brain-side tool progress (web_search/stock_market/weather/...)
+      // Translate to the same tool_group block model that client-side tool_start/tool_end uses.
+      case 'tool_progress': {
+        this.ensureMessage(buf);
+        this.flush(buf);
+        const event = msg.event;
+        const name = msg.name || 'tool';
+        if (event === 'start') {
+          useStore.getState().updateLastMessage(sessionPath, (m) => {
+            const blocks = [...(m.blocks || [])];
+            let lastTg = blocks.length - 1;
+            while (lastTg >= 0 && blocks[lastTg].type !== 'tool_group') lastTg--;
+            if (lastTg >= 0 && blocks[lastTg].type === 'tool_group') {
+              const tg = blocks[lastTg] as Extract<ContentBlock, { type: 'tool_group' }>;
+              if (tg.tools.some(t => !t.done)) {
+                blocks[lastTg] = {
+                  ...tg,
+                  tools: [...tg.tools, { name, args: undefined, done: false, success: false, startedAt: Date.now() }],
+                };
+                return { ...m, blocks };
+              }
+            }
+            blocks.push({
+              type: 'tool_group',
+              tools: [{ name, args: undefined, done: false, success: false, startedAt: Date.now() }],
+              collapsed: false,
+            });
+            return { ...m, blocks };
+          });
+          // Also surface to title bar via store activity
+          useStore.setState({ currentActivity: name });
+        } else if (event === 'end') {
+          useStore.getState().updateLastMessage(sessionPath, (m) => {
+            const blocks = [...(m.blocks || [])];
+            for (let i = blocks.length - 1; i >= 0; i--) {
+              if (blocks[i].type !== 'tool_group') continue;
+              const tg = blocks[i] as Extract<ContentBlock, { type: 'tool_group' }>;
+              const toolIdx = tg.tools.findIndex(t => t.name === name && !t.done);
+              if (toolIdx >= 0) {
+                const tools = [...tg.tools];
+                tools[toolIdx] = { ...tools[toolIdx], done: true, success: !!msg.ok };
+                const allDone = tools.every(t => t.done);
+                blocks[i] = { ...tg, tools, collapsed: allDone && tools.length > 1 };
+                return { ...m, blocks };
+              }
+            }
+            return m;
+          });
+          // Clear activity if no other tool is still running
+          const cur = useStore.getState();
+          const session = cur.chatSessions[sessionPath];
+          const lastItem = session?.items?.[session.items.length - 1];
+          const lastMsg = lastItem?.type === 'message' ? lastItem.data : null;
+          const stillBusy = lastMsg?.blocks?.some(
+            (b) => b.type === 'tool_group' && b.tools.some((t) => !t.done),
+          );
+          if (!stillBusy) useStore.setState({ currentActivity: null });
+        }
+        break;
+      }
+
       case 'file_output':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'file_output', filePath: msg.filePath, label: msg.label, ext: msg.ext }],
         }));
+        // 写作模式：通知预览面板
+        if (msg.filePath) {
+          window.dispatchEvent(new CustomEvent('hana-writing-file', { detail: { filePath: msg.filePath, type: 'output' } }));
+        }
         break;
 
       case 'file_diff':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -444,11 +419,15 @@ class StreamBufferManager {
             rollbackId: msg.rollbackId,
           }],
         }));
+        // 写作模式：通知预览面板刷新
+        if (msg.filePath) {
+          window.dispatchEvent(new CustomEvent('hana-writing-file', { detail: { filePath: msg.filePath, type: 'diff' } }));
+        }
         break;
 
       case 'artifact':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -464,7 +443,7 @@ class StreamBufferManager {
 
       case 'browser_screenshot':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'browser_screenshot', base64: msg.base64, mimeType: msg.mimeType }],
@@ -473,7 +452,7 @@ class StreamBufferManager {
 
       case 'skill_activated':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'skill', skillName: msg.skillName, skillFilePath: msg.skillFilePath }],
@@ -482,7 +461,7 @@ class StreamBufferManager {
 
       case 'cron_confirmation':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), { type: 'cron_confirm', confirmId: msg.confirmId, jobData: msg.jobData, status: 'pending' as const }],
@@ -491,7 +470,7 @@ class StreamBufferManager {
 
       case 'settings_confirmation':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -513,7 +492,7 @@ class StreamBufferManager {
 
       case 'tool_authorization':
         this.ensureMessage(buf);
-        this.flushBeforeStructuralBlock(buf);
+        this.flush(buf);
         useStore.getState().updateLastMessage(sessionPath, (m) => ({
           ...m,
           blocks: [...(m.blocks || []), {
@@ -536,38 +515,47 @@ class StreamBufferManager {
       case 'compaction_end':
         break;
 
-      case 'turn_end': {
-        const hasUnrevealedText = buf.textAcc && buf.visibleTextAcc.length < buildDisplayText(buf.textAcc, false).length;
-        if (hasUnrevealedText && buf.revealTimer) {
-          // reveal 动画仍在进行 → 延迟 finalize，让文字逐步展示完毕
-          buf.pendingFinalize = true;
-        } else {
-          this.flush(buf, true);
-          resetBufferState(buf);
+      case 'model_hint':
+        // [PROVIDER-BADGE v2] Follow-up event (arrives shortly after turn_end) carrying the
+        // actual provider/model that answered. Attach to the latest assistant message.
+        if (msg.model) {
+          try {
+            const state = useStore.getState();
+            const sess = state.chatSessions?.[sessionPath];
+            const items = sess?.items;
+            if (items && items.length) {
+              for (let i = items.length - 1; i >= 0; i--) {
+                const it = items[i];
+                if (it?.type === 'message' && it.data?.role === 'assistant') {
+                  const nextItems = items.slice();
+                  nextItems[i] = { ...it, data: { ...it.data, model: String(msg.model) } };
+                  useStore.setState({
+                    chatSessions: { ...state.chatSessions, [sessionPath]: { ...sess, items: nextItems } },
+                  });
+                  break;
+                }
+              }
+            }
+          } catch { /* non-fatal */ }
         }
         break;
-      }
 
-      case 'turn_retry':
-        if (buf.flushTimer) {
-          clearTimeout(buf.flushTimer);
-          buf.flushTimer = null;
-        }
-        useStore.setState((state) => {
-          const chatSession = state.chatSessions[sessionPath];
-          if (!chatSession?.items?.length) return state;
-          const items = [...chatSession.items];
-          const last = items[items.length - 1];
-          if (last?.type !== 'message' || last.data.role !== 'assistant') return state;
-          items.pop();
-          return {
-            chatSessions: {
-              ...state.chatSessions,
-              [sessionPath]: { ...chatSession, items },
-            },
-          };
-        });
-        resetBufferState(buf);
+      case 'turn_end':
+        this.flush(buf, true);
+        // 清理 buffer
+        buf.textAcc = '';
+        buf.thinkingAcc = '';
+        buf.moodAcc = '';
+        buf.xingAcc = '';
+        buf.inThinking = false;
+        buf.inMood = false;
+        buf.inXing = false;
+        buf.messageAppended = false;
+        buf.lastRenderedText = '';
+        buf.lastRenderedHtml = '';
+        buf.lastRenderedFinalized = false;
+        // [PROGRESS-UX v1] clear title-bar activity on turn end
+        useStore.setState({ currentActivity: null });
         break;
     }
   }
@@ -576,7 +564,6 @@ class StreamBufferManager {
   clear(sessionPath: string): void {
     const buf = this.buffers.get(sessionPath);
     if (buf?.flushTimer) clearTimeout(buf.flushTimer);
-    if (buf?.revealTimer) clearTimeout(buf.revealTimer);
     this.buffers.delete(sessionPath);
   }
 
@@ -584,7 +571,6 @@ class StreamBufferManager {
   clearAll(): void {
     for (const [, buf] of this.buffers) {
       if (buf.flushTimer) clearTimeout(buf.flushTimer);
-      if (buf.revealTimer) clearTimeout(buf.revealTimer);
     }
     this.buffers.clear();
   }

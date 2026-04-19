@@ -39,7 +39,9 @@ exports.default = async function (context) {
     }
   }
 
-  if (!fs.existsSync(distModules)) return;
+  // distModules 可能不存在（asar: true 时 app 被打成 app.asar）
+  // 但 server/node_modules 仍需要清理，所以不能早退
+  const hasDistModules = fs.existsSync(distModules);
 
   // 获取生产依赖树
   let prodDeps;
@@ -75,20 +77,22 @@ exports.default = async function (context) {
   // 含 native binding 的包（需要平台匹配编译），补全时额外警告
   const NATIVE_PACKAGES = new Set(["bufferutil", "utf-8-validate"]);
 
-  for (const dep of allProd) {
-    const distPath = path.join(distModules, dep);
-    const localPath = path.join(localModules, dep);
-    if (!fs.existsSync(distPath) && fs.existsSync(localPath)) {
-      if (NATIVE_PACKAGES.has(dep)) {
-        console.warn(`[fix-modules] ⚠ 补全 native 包 "${dep}"（确保已针对当前平台编译）`);
+  if (hasDistModules) {
+    for (const dep of allProd) {
+      const distPath = path.join(distModules, dep);
+      const localPath = path.join(localModules, dep);
+      if (!fs.existsSync(distPath) && fs.existsSync(localPath)) {
+        if (NATIVE_PACKAGES.has(dep)) {
+          console.warn(`[fix-modules] ⚠ 补全 native 包 "${dep}"（确保已针对当前平台编译）`);
+        }
+        fs.cpSync(localPath, distPath, { recursive: true });
+        copied++;
       }
-      fs.cpSync(localPath, distPath, { recursive: true });
-      copied++;
     }
-  }
 
-  if (copied > 0) {
-    console.log(`[fix-modules] 补全了 ${copied} 个缺失的生产依赖`);
+    if (copied > 0) {
+      console.log(`[fix-modules] 补全了 ${copied} 个缺失的生产依赖`);
+    }
   }
 
   // 清理 node_modules 中指向 bundle 外部的 .bin 符号链接（codesign 会报错）
@@ -100,25 +104,75 @@ exports.default = async function (context) {
       const full = path.join(dir, entry.name);
       if (entry.isSymbolicLink()) {
         const target = fs.readlinkSync(full);
-        if (path.isAbsolute(target) && !target.startsWith(appDir)) {
+        // 绝对路径指向外部 → 删
+        if (path.isAbsolute(target) && !target.startsWith(bundleRoot)) {
+          fs.unlinkSync(full);
+          removedLinks++;
+          continue;
+        }
+        // 相对路径解析后指向 bundle 外 → 删
+        try {
+          const resolved = fs.realpathSync(full);
+          if (!resolved.startsWith(bundleRoot)) {
+            fs.unlinkSync(full);
+            removedLinks++;
+          }
+        } catch {
+          // 断链 → 删
           fs.unlinkSync(full);
           removedLinks++;
         }
       } else if (entry.isDirectory() && entry.name !== ".bin") {
-        // 递归进 node_modules 子目录，但跳过非 node_modules 的深层目录
         const binDir = path.join(full, "node_modules", ".bin");
         if (fs.existsSync(binDir)) cleanBinLinks(binDir);
       }
     }
   }
 
-  // 扫描顶层和嵌套的 .bin 目录
-  const topBin = path.join(distModules, ".bin");
-  if (fs.existsSync(topBin)) cleanBinLinks(topBin);
-  for (const entry of fs.readdirSync(distModules, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const nested = path.join(distModules, entry.name, "node_modules", ".bin");
-    if (fs.existsSync(nested)) cleanBinLinks(nested);
+  function walk(dir, depth = 0) {
+    if (depth > 8) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.name === ".bin") {
+        cleanBinLinks(full);
+        continue;
+      }
+      if (entry.name === "node_modules") {
+        walk(full, depth + 1);
+        continue;
+      }
+      // Scope 目录（@cypress / @aws-sdk 等）当作容器，直接递归进去
+      if (entry.name.startsWith("@")) {
+        walk(full, depth + 1);
+        continue;
+      }
+      // 普通 package 目录：找 node_modules 子目录
+      const nm = path.join(full, "node_modules");
+      if (fs.existsSync(nm)) walk(nm, depth + 1);
+    }
+  }
+
+  // 扫两个根：renderer (Resources/app) + server (Resources/server)
+  // bundleRoot 用 .app 根，确保任何指向外部路径的 symlink 都会被干掉
+  let bundleRoot = appDir;
+  if (platformName === "mac") {
+    bundleRoot = path.join(context.appOutDir, context.packager.appInfo.productFilename + ".app");
+  }
+
+  if (hasDistModules) {
+    const topBin1 = path.join(distModules, ".bin");
+    if (fs.existsSync(topBin1)) cleanBinLinks(topBin1);
+    walk(distModules);
+  }
+
+  const serverNM = path.join(serverDir, "node_modules");
+  if (fs.existsSync(serverNM)) {
+    const topBin2 = path.join(serverNM, ".bin");
+    if (fs.existsSync(topBin2)) cleanBinLinks(topBin2);
+    walk(serverNM);
   }
 
   if (removedLinks > 0) {

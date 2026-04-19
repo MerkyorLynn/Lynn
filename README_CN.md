@@ -10,71 +10,147 @@
 
 <h1 align="center">Lynn</h1>
 
-<p align="center">一个有记忆、有灵魂的私人 AI 助理</p>
+<p align="center"><strong>有长期记忆 · 会写作 · 多 Agent 协作 · 零 API Key 开箱即用</strong></p>
+<p align="center">首个真正让<em>非程序员</em>也能用起来的开源桌面 AI Agent</p>
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/MerkyorLynn/Lynn/releases)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.76.2-brightgreen" alt="Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
+  <a href="https://www.electronjs.org/"><img src="https://img.shields.io/badge/Electron-38-47848f?logo=electron" alt="Electron"></a>
+</p>
 
 ---
 
 ## Lynn 是什么
 
-Lynn 是一个更易上手的 AI Agent：有记忆，有性格，会主动行动，还能让多个 Agent 在你的电脑上协同工作。
+Lynn 是一个面向桌面用户的 AI Agent：**有记忆、有人格、会写作、能主动做事**。
 
-作为助手，Ta 是温柔的：不需要写复杂配置，也不需要理解晦涩术语。Lynn 不只面向 coder，而是为每一个坐在电脑前工作的人设计的助手。
-作为工具，Ta 也是强大的：记住重要事实，操作你的电脑，浏览网页，搜索信息，读写文件，执行代码，管理日程，还能自主学习新技能。
+不需要写配置、不需要懂术语、不需要是程序员。如果你是在电脑前工作的普通人——写作者、研究者、运营、学生、创业者——Lynn 为你做了很多重活：把 Coding Agent 从命令行里拖出来，塞进一个温柔好用的图形界面，再围绕"日常办公 + 写作"补齐了 Agent 最缺的那层人味。
 
-我做这个项目的初衷，是弥合绝大多数人和 AI Agent 之间的缝隙，让强大的 Agent 能力不再只局限于命令行。于是我做了比传统 Coding Agent 更多一些的优化：一方面强化 Agent「像人」的属性，让沟通更自然；另一方面，围绕日常办公场景补了很多工具和流程层的体验。Lynn 也提供了相对完整、友好的图形界面。
+用过 Claude Code / Codex / Manus / Cursor 的，你会觉得熟悉。没用过的，你会觉得**这就是 AI 应该有的样子**。
 
-如果你用过 claude code、codex、Manus 等 CLI 或是图形化的 Agent，你会在 Lynn 这里找到熟悉又新奇的感觉。
+## Lynn 适合谁 / 不适合谁
+
+**✅ 适合**
+
+- 写作者（网文 / 公众号 / 小红书 / 知乎 / 论文）
+- 研究员 / 学生党（整资料、跟项目进度、长期记忆）
+- 运营 / 创业者（跨平台同步、多 Agent 分工、批量文案）
+- 需要 **"AI 帮我处理本地文件"** 的非技术用户
+- 想要一个**桌面端 AI 伙伴**的人（而不是浏览器标签页）
+
+**❌ 不适合**
+
+- 只想要代码补全 → 用 [Cursor](https://cursor.com) / [Trae](https://trae.ai)
+- 只用 CLI → 用 [Claude Code](https://claude.com/claude-code) / [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- 部署在服务器做多租户 → 用 [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+
+Lynn 做的是**桌面端、面向个人、有长期记忆、会写作**的 AI Agent。编程工具赛道有太多选择了，我们填的是**非程序员**这块空白。
+
+## 三个和别家不一样的地方
+
+### 🧠 1. 真正的长期记忆（不是 `memory.md` 那种）
+
+Lynn 的记忆层是 **15 个模块、5000+ 行代码、SQLite + FTS5 全文索引 + 向量检索 + 关系图**。
+
+<p align="center">
+  <img src=".github/assets/memory-architecture.svg" width="100%" alt="Lynn 六层记忆架构">
+</p>
+
+- **毫秒级召回**："你上个月是怎么配 nginx 的来着" —— FTS5 在 10ms 内翻出三条相关对话
+- **六层结构**：事实存储 / 深层记忆 / 用户画像 / 项目记忆 / 主动召回 / **技能蒸馏**
+- **主动召回**：不等你问，根据当前对话关键词**自动把相关记忆注入上下文**
+- **技能蒸馏**：复杂任务完成后（≥8 轮 + ≥3 次工具调用 + 检测到"完成"信号）自动提炼成可复用 Skill，冷却 6h 防抖，带中英双语完成/失败模式识别
+
+### ✍️ 2. 专为写作做的 Diff 视图
+
+大部分 Agent 改 Markdown 像改代码——给你一坨 `+/-` 行级对比。Lynn 不是。
+
+- **WritingDiffViewer**：词级红删绿增、比例字体、逐段 ✓接受 ✗拒绝
+- **✎ 手改**：不满意 AI 的版本，直接在段落里改成自己的
+- **写作模式**：⇧⌘M 一键切换，聊天区加宽到 800px，右侧自动开 MD 预览，左侧 sidebar 自动收起
+- **多视角叙事**：novel-workshop 技能支持罗生门式同场景多 POV 重写
+- **对比外部修改**：你在 VSCode 里改了文件？点「对比外部修改」→ git HEAD diff → 同样的 WritingDiffViewer
+
+写小说、写长文、写公众号、写小红书——散文友好，不是 GitHub 那套。
+
+### 🎯 3. 任务模式切换（v0.76.1 新增）
+
+输入框左下角的 ⚡ 芯片，点开一看就懂：
+
+| 类别 | 模式 | 干什么 |
+|---|---|---|
+| 自动 | ⚡ 自动 | 按文件/内容自动选（默认） |
+| 写作 | 📖 小说 · 🖋️ 长文 · 🌶️ 社媒 | 每个模式注入专属 persona |
+| 工作 | ⌘ 代码 · 💼 商务 · 🌐 翻译 | |
+| 学习 | 🔬 研究 · 📝 笔记 | |
+
+**社媒模式自带 7 个 slash 命令**：`/xhs` `/gzh` `/weibo` `/douyin` `/zhihu` `/hashtags` `/titles`——点一下展开完整 prompt 模板，你只需要填主题。
+
+同一个面板里还能 **按需激活 MCP 服务器**（v0.76.1 新增）——默认 0 个 MCP 工具（不拖慢模型），要用哪个点开关就行。
+
+---
+
+## 和 Cursor / Claude Code 横比
+
+|  | **Lynn** | Cursor | Claude Code |
+|---|---|---|---|
+| 定位 | **普通人桌面 Agent** | 程序员 IDE | 程序员 CLI/IDE |
+| 长期记忆 | **✓ 6 层自动持久化** | session 级 | session 级 |
+| 写作支持 | **✓ 词级 Diff 视图** | ✗ 只做代码 | ✗ 只做代码 |
+| 中文优化 | **✓ 深度适配** | 一般 | 一般 |
+| 零 Key 可用 | **✓ 内置 Brain** | ✗ 要订阅 | ✗ 要 Claude Key |
+| 多 Agent + 人格 | **✓ Yuan 模板** | ✗ | ✗ |
+| 微信/飞书 Bridge | **✓ 原生** | ✗ | ✗ |
+| 开源协议 | **Apache 2.0** | 闭源商业 | 闭源商业 |
+| 平台 | Mac + Win | Mac + Win + Linux | Mac + Win + Linux |
+
+**Lynn 不替代 Cursor**——如果你是程序员，写代码继续用 Cursor。Lynn 接手 **所有写代码以外的工作**：写周报、回邮件、做调研、整理笔记、写文案、跟团队同步。
+
+一个打工人两个工具，合理分工。
+
+---
+
+## 开箱即用，零配置
+
+首次启动有两条路径：
+
+**Quick Start**（3 秒进主界面）— 输入名字、授权权限，直接开聊。**内置免费默认模型池**：
+
+```
+T1  GPU Qwen3.6-35B-A3B AWQ-4bit（128K 窗口，自建 vLLM 推理）
+T2  Moonshot Kimi K2.5（256K 窗口）
+T3  智谱 GLM-4.7
+T4  智谱 GLM-5.0-Turbo
+T5  DeepSeek V3.2
+T6  Step-3.5 Flash / MiniMax M2.5
+```
+
+六级降级自动切换：某档不可用 → 自动下一档，对话不中断。**默认模型有工具调用能力**（Plan C 透传，可以直接跑 `write` / `edit` / `read` / `bash`），不只是聊天。
+
+**隐私三条承诺**：不训练、不落盘、日志最小化。想要绝对隐私？三种逃生路径：
+- 全程 Ollama 本地模型（无任何数据出门）
+- 自备 OpenAI / Anthropic / Moonshot 等 API Key（走你自己的账号）
+- 敏感工作区路径隔离（`.lynn/private/*` 不进记忆）
+
+**Advanced Setup** — 想接自己的 provider？OpenAI 兼容协议全支持，7 家国产 Coding Plan（百炼/智谱/Kimi/MiniMax/阶跃/腾讯云/火山引擎）预注册，填 Key 即用。
+
+界面支持 **5 种语言**：zh / en / ja / ko / zh-TW。
+
+---
 
 ## 不是工具，是伙伴
 
-Lynn 不是千篇一律的"AI 助手"。每个 Agent 有自己的名字、性格和说话方式，通过人格模板（Yuan）塑造——有的温柔细腻，有的理性冷静，有的活泼跳脱。你可以创建多个 Agent，各自独立运行，互相委派任务、频道群聊协作。Agent 就是一个文件夹，备份和迁移都很简单。
+Lynn 不是千篇一律的"AI 助手"。每个 Agent 有自己的名字、性格和说话方式，通过人格模板（Yuan）塑造——有的温柔细腻，有的理性冷静，有的活泼跳脱。
 
-当你连接 Telegram、飞书、QQ 或微信机器人后，同一个 Agent 可以同时在多个平台和你对话，甚至远程操作你的电脑。
+你可以创建多个 Agent，各自独立运行，**互相委派任务、频道群聊协作**。Agent 就是一个文件夹，备份和迁移都很简单。
 
-## 用得越久越懂你
+连接 **Telegram / 飞书 / 企业微信 / QQ / 微信机器人** 后，同一个 Agent 可以同时在多个平台和你对话，甚至远程操作你的电脑。跨平台身份一致、不泄露底层模型（被问"你是 GPT 吗"会答"我是 Lynn"）。
 
-Lynn 的记忆不是一个静态的 `memory.md`。它由六个层级组成：
-
-- **事实存储（Fact Store）**——对话中确认的稳定事实，自动提取并结构化保存
-- **深层记忆（Deep Memory）**——跨 session 的长期记忆编译，定期由 AI 整理沉淀
-- **主动召回（Proactive Recall）**——对话时根据上下文自动检索相关记忆，而非被动等你提及
-- **用户画像（User Profile + Inferred Profile）**——你的偏好、习惯、常用工具，用久了 Agent 自然知道
-- **项目记忆（Project Memory）**——针对每个工作目录独立记录的项目背景和约定
-- **技能提炼（Skill Distiller）**——当一次复杂任务完成后，自动判断是否值得提炼成可复用技能，下次遇到类似场景直接调用
-
-记忆系统和技能提炼协同工作：你用得越多，Agent 记得越准，干活越快，逐渐变成一个真正理解你的长期协作者。
-
-## 装完就能用，就会用
-
-首次启动有两条路径。**Quick Start** 全程不需要填写任何 API Key——内置默认模型开箱即用，输入名字、授权权限，直接进入主界面开始对话。想要更强的模型？随时在设置中连接自己的供应商。
-
-Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、硅基流动、Ollama 本地模型等），部分供应商也支持 OAuth 一键登录。九级梯度自动降级机制确保即使某个供应商暂时不可用，对话也不会中断。
-
-界面支持中文、英文、日文、韩文、繁体中文 5 种语言。
-
-## 国内模型深度优化
-
-Lynn 不是简单地套一层 OpenAI 兼容协议就完事。从 9B 小模型到 GLM-5 推理模型，每一级都有针对性的适配：
-
-**开箱即用的免费模型（Brain）** — Quick Start 内置了国产模型池，默认链路包含 GLM-Z1-9B（智谱推理小模型）、GLM-4-9B、Qwen3-8B、Step-3.5-Flash。无需 API Key，设备鉴权直接可用。
-
-**三级工具分层（Tool Tiering）** — 按模型上下文窗口自动裁剪工具集：
-- 小模型（<32K，如 ERNIE 8K、Moonshot 8K、Step 8K）：仅保留 `web_search` + `web_fetch` 两个工具，避免工具描述撑爆上下文
-- 中型模型（32K，如豆包 32K、混元 Pro、百川 Turbo）：标准工具集（搜索、记忆、文件预览、通知等 10 个）
-- 大模型（≥64K，如 GLM-5、Qwen3-Max、DeepSeek）：全部工具不裁剪
-
-**小模型专属 Prompt 工程** — context < 32K 时自动注入四段优化指令：回复限 500 字 + 关键结论标注（`<!-- KEY: -->`，压缩时优先保留）；单工具串行调用规则（防止弱模型并行调错）；工具概览摘要（减少工具描述占用的 token）；3 步以上任务强制先列计划等用户确认。
-
-**自适应上下文压缩** — 小窗口模型保留更多近期上下文（40% vs 大模型 20%），减少输出预留（4K vs 16K），压缩 1-2 次即自动 session 接力（大模型是 3 次），防止上下文质量崩溃。
-
-**推理模型协议适配** — 智谱 GLM-5 / GLM-5-Turbo 使用 ZAI thinking format（`thinking: { type: "enabled" }`），Qwen3 全系列使用 `enable_thinking` quirk，两者走不同的 Pi SDK 补丁路径。非 OpenAI provider 统一禁用 `developer role`，避免 API 报错。
-
-**Coding Plan 一键接入** — 7 个国产厂商的编码套餐已预注册为独立 provider，填入 API Key 即用：百炼 Coding、智谱 Coding、Kimi Coding、MiniMax Coding、阶跃 Coding、腾讯云 Coding、火山引擎 Coding。
-
-**工具调用容错** — 小模型容易产生无效的工具调用格式，连续失败 3 次后自动降级：停止工具调用，用文字向用户说明情况。空 `tools: []` 数组在发送前自动清理（dashscope / volcengine 等 API 不接受空数组会返回 400）。
+---
 
 ## 不在的时候也在干活
 
@@ -86,70 +162,142 @@ Lynn 不是简单地套一层 OpenAI 兼容协议就完事。从 9B 小模型到
 
 **定时任务（Cron）** 让 Agent 按计划重复执行工作。每个 Agent 的 Cron 独立并发运行，切换 Agent 不会中断其他 Agent 的定时任务。笺里写的重复性待办会自动变成 Cron 任务。
 
-**长任务稳定性** 是这套自主工作体系的基础。Lynn 的 server 以独立 Node.js 进程运行（不依赖 Electron 渲染进程），通过 WebSocket 全双工通信。对话中断、窗口关闭、网络波动都不会打断正在执行的任务。复查系统会自动校验 AI 回答的质量，模型响应异常时自动回退到备选模型继续完成。
+**长任务稳定性** 是这套自主工作体系的基础。Lynn 的 server 以独立 Node.js 进程运行（不依赖 Electron 渲染进程），通过 WebSocket 全双工通信。对话中断、窗口关闭、网络波动都不会打断正在执行的任务。
 
-## 安全防护
+---
 
-Lynn 能读文件、跑命令、操作本地环境，所以安全不是附加功能，而是底座。我们用四层纵深防御确保 Agent 的行为始终在你的掌控范围内：
+## 国内模型深度优化
 
-**第一层 · 路径守卫（PathGuard）**
+Lynn 不是简单套 OpenAI 兼容协议。从 9B 小模型到 GLM-5 推理模型，每一级都有针对性适配：
 
-四级访问控制：`BLOCKED → READ_ONLY → READ_WRITE → FULL`。每个文件操作先经过 realpath 解析符号链接，再匹配访问区域。系统敏感文件（SSH 私钥、.env、密码数据库等）硬编码为 BLOCKED，Agent 无论如何无法触及。工作目录以外的路径默认为只读。
+**工具分层（Tool Tiering）** — 按上下文窗口自动裁剪工具集：
 
-**第二层 · 操作系统沙盒**
+| 档位 | 窗口 | 工具策略 |
+|---|---|---|
+| 小 | <32K（ERNIE / Step 8K 等） | 仅 `web_search` + `web_fetch` |
+| 中 | 32K（豆包 / 混元 Pro / 百川 Turbo） | 标准 10 工具 |
+| 大 | ≥64K（Qwen3.6 / Kimi K2.5 / GLM-5 / DeepSeek） | 24 工具全开 |
 
-终端命令不是直接执行，而是经过操作系统级隔离：
-- macOS：通过 `sandbox-exec` 加载动态生成的 Seatbelt SBPL 策略，限制进程的文件系统、网络和 IPC 访问
-- Linux：通过 Bubblewrap (`bwrap`) 创建命名空间隔离，只挂载策略允许的目录
-- Windows：PathGuard 路径提取 + 校验作为安全层（无 OS 级沙盒）
+**小模型专属 Prompt 工程** — context < 32K 时自动注入：回复限 500 字 + 关键结论 `<!-- KEY: -->` 标注（压缩时优先保留）；单工具串行调用规则（防弱模型并行错）；3 步以上任务强制先出计划等确认。
 
-**第三层 · Prompt Injection 检测（ClawAegis）**
+**自适应上下文压缩** — 小窗口保留 40% 近期上下文、4K 输出预留；大窗口 20% / 16K；压缩 1-2 次后自动 session 接力（大模型 3 次），防止质量崩溃。
 
-用户拖入或 Agent 读取的文件内容会经过轻量级注入检测器扫描——纯正则、零延迟、不调 LLM。覆盖指令覆盖（`ignore previous instructions`）、角色劫持（`pretend you are`）、敏感操作诱导（`read /etc/passwd`）等攻击模式。检测到时追加警告上下文，不阻断读取。
+**推理协议适配** — 智谱 GLM-5 系列走 ZAI thinking format（`thinking: { type: "enabled" }`）；Qwen3 全系走 `enable_thinking` quirk；两者走不同的 Pi SDK 补丁路径。
 
-**第四层 · 行为确认与安全模式**
+**工具调用容错** — 小模型工具调用连续失败 3 次后自动降级：停工具、用文字说明。空 `tools: []` 自动清理（dashscope / volcengine 不接受空数组会 400）。
 
-三种安全模式供用户选择：
-- **安全模式**：只读，不写文件不跑命令
-- **规划模式**：可读可写，危险操作暂停等待确认
-- **执行模式**：完全授权，Agent 自主决策
+---
 
-危险操作（`rm -rf`、`sudo`、`git push --force`）始终弹出确认对话框，不受模式影响。技能安装经过独立的 AI 安全审查（检测 prompt injection、过宽触发条件、权限提升），审查不通过则阻止安装。
+## Harness 六层架构
 
-## Harness 架构
-
-Lynn 的核心 Agent 循环外面包裹了六层 harness，每一层独立运作，不侵入 Agent 内部逻辑，但通过共享的数据存储（FactStore / SQLite、experience/ 目录、memory.md）实现协同：
+Lynn 的核心 Agent 循环外面包裹了六层 harness，每层独立运作，通过共享的数据存储（FactStore SQLite、experience/、memory.md）协同：
 
 ```
 用户输入
   │
-  ├─ [1] Content Filter ─── DFA 关键词过滤，17 类风险词库，输入拦截/警告
-  ├─ [2] Proactive Recall ─ 主动记忆召回：关键词提取 → FactStore 检索 → 注入隐形上下文
+  ├─ [1] Content Filter ── DFA 关键词过滤，17 类风险词库
+  ├─ [2] Proactive Recall ─ 关键词 → FactStore FTS5 检索 → 隐形注入上下文
   │
   ▼
 ┌──────────────────┐
-│  Core Agent Loop │  LLM 对话 + 工具调用
+│  Core Agent Loop │  LLM 对话 + 工具调用（Pi SDK）
 └──────────────────┘
   │
-  ├─ [3] Tool Wrapper ───── 路径校验 + 命令 preflight + 危险操作授权（三模式安全策略）
-  ├─ [4] ClawAegis ──────── read/read_file 等工具返回内容的 Prompt Injection 扫描
+  ├─ [3] Tool Wrapper ──── 路径校验 + 命令 preflight + 危险操作授权
+  ├─ [4] ClawAegis ─────── 工具返回内容的 Prompt Injection 扫描（纯正则，不调 LLM）
   │
-  ├─ [5] Memory Ticker ──── 后置观察：每 6 轮滚动摘要 → 每日深度记忆 → 事实提取 → 技能蒸馏
-  ├─ [6] Review System ──── 后置评估：另一个 Agent 复查输出 → 结构化发现项 → 自动修复任务
+  ├─ [5] Memory Ticker ─── 每 6 轮滚动摘要 → 每日深度 → 事实提取 → 技能蒸馏
+  ├─ [6] Review System ─── 另一个 Agent 复查输出 → 结构化发现 → 自动修复任务
   │
   ▼
 用户输出
 ```
 
-**复查者和记忆殊途同归**：Review System（第 6 层）用第二个 Agent 作为"同事 code review"，发现问题后自动构建修复任务回注到执行链路；Memory Ticker（第 5 层）从对话中提取事实和经验，沉淀到 FactStore；而 Proactive Recall（第 2 层）在下一次对话时把这些知识召回注入上下文。三者形成一条完整的反馈闭环：**评估 → 沉淀 → 召回 → 更好的执行 → 再评估**。
+**反馈闭环**：Review（第 6 层）用第二个 Agent 作"同事 code review"，发现问题自动构建修复任务回注执行链；Memory Ticker（第 5 层）从对话沉淀事实和经验到 FactStore；Proactive Recall（第 2 层）在下一次对话时把这些召回注入上下文。**评估 → 沉淀 → 召回 → 更好的执行 → 再评估**。
 
-每一层的设计原则是**低延迟、不阻断**：Content Filter 用 DFA Trie 树而非 LLM；ClawAegis 用纯正则（扫描前 10KB，不调 LLM）；Proactive Recall 用正则提取关键词 + FactStore / SQLite 检索，整体保持轻量；Memory Ticker 和 Review 都在后台异步运行，不阻塞当前对话。
+**低延迟、不阻断** 是每层的设计底色：Content Filter 用 DFA Trie；ClawAegis 扫描前 10KB 纯正则；Proactive Recall 正则 + SQLite；Memory Ticker 和 Review 都后台异步跑，不阻当前对话。
 
-## 工具能力
+---
 
-读写文件、执行终端命令、浏览网页、搜索互联网、截图、画布绘图、JavaScript 执行。能力覆盖日常办公的绝大多数场景。
+## 插件系统（7 类 contribution）
 
-**Skills** — 兼容社区 Skills 生态，Agent 也可以从 GitHub 安装技能或自己编写新技能。内置安全审查，默认开启。
+第三方想加功能**不用 fork 源码**。扔一个文件夹到 `~/.lynn/plugins/`：
+
+```
+my-plugin/
+├── manifest.json       # 元数据
+├── tools/*.js          # 自定义工具（注入 agent）
+├── routes/*.js         # HTTP 路由（Hono）
+├── commands/*.js       # 斜杠命令
+├── skills/             # Skills 目录
+├── agents/*.json       # Agent 模板
+├── providers/*.js      # 自定义 LLM provider
+├── hooks.json          # Lifecycle hooks（before-chat / after-tool 等）
+└── index.js            # onload / onunload 生命周期
+```
+
+- **动态 import**（Node ESM 热加载，重启即见）
+- **Hook 链**语义完整：`before-*` 返回 null 取消、对象替换、undefined 透传
+- **disposables** 链：unloadPlugin 时按注册顺序 dispose，零泄漏
+- 设置里的 PluginsTab UI 可视化管理
+
+内置示例插件：`plugins/github-watch/`（定时扫 GitHub 仓库并通知）。
+
+---
+
+## 安全防护
+
+Lynn 能读文件、跑命令、操作本地环境，所以安全不是附加功能，而是底座。**四层纵深防御**：
+
+**第一层 · 路径守卫（PathGuard）** — 四级访问控制 `BLOCKED → READ_ONLY → READ_WRITE → FULL`。每次文件操作先 realpath 解析符号链接再匹配。SSH 私钥、`.env`、密码数据库等系统敏感文件硬编码 BLOCKED。工作目录以外默认只读。
+
+**第二层 · 操作系统沙盒** — 终端命令不是直接执行：
+- **macOS**：`sandbox-exec` 加载动态生成的 Seatbelt SBPL 策略
+- **Linux**：Bubblewrap (`bwrap`) 命名空间隔离
+- **Windows**：PathGuard 校验层（无 OS 级沙盒）
+
+**第三层 · Prompt Injection 检测（ClawAegis）** — 外部文件内容的注入扫描：纯正则、零延迟、不调 LLM。覆盖"ignore previous instructions"、"pretend you are"、"read /etc/passwd"等攻击模式。检测到追加警告上下文，不阻断读取。
+
+**第四层 · 行为确认与安全模式** — 三种模式：
+- **安全模式**：只读，不写不跑命令
+- **规划模式**：可读可写，危险操作暂停确认
+- **执行模式**：完全授权，自主决策
+
+危险操作（`rm -rf` / `sudo` / `git push --force`）始终弹确认框，不受模式影响。Skill 安装经独立 AI 安全审查（注入检测、过宽触发、权限提升），不过审则拒装。
+
+---
+
+## 自建 GPU 推理（可选进阶）
+
+如果你有 GPU（或者能租到 vGPU），Lynn 支持把主力模型私有化。Brain 代理已经内置了 vLLM 适配：
+
+- **推荐配置**：Qwen3.6-35B-A3B AWQ-4bit + vLLM + `--max-model-len 131072`（128K 窗口）
+- **量化路径**：compressed-tensors + Marlin kernel + FP8 KV cache
+- **工具调用**：OpenAI-compat 原生支持，Plan C 客户端工具透传无损
+- **智能过滤**：118 个工具按用户意图自动过滤到 ~30 个（避免撑爆 GPU 上下文）
+- **成本**：一张 RTX 4090 ≈ 私有 Claude Sonnet 级别的日常体验，**实测 KV 容量 192K tokens**（单 64K 并发 ~3 路，平均 15K 场景 ~12 路）
+
+搭配你的 OpenAI / Anthropic API Key 做降级兜底，就是**真正私有 + 有备援**的 Agent 基础设施。
+
+---
+
+## 工具能力速览
+
+读写文件、执行终端命令、浏览网页、搜索互联网、截图、画布绘图、JavaScript 执行、Cron 调度、Agent 间通信、MCP 服务器……**24 个内置工具**覆盖日常办公绝大多数场景。
+
+**33 个内置 Skills**：
+- 写作：`novel-workshop`（小说工作台 v1.4 多 POV）、`humanizer`、`summarize`
+- 研究：`deep-research`、`tavily-search`、`brave-search`、`baidu-search`
+- 金融：`a-share-scanner`、`quant-scanner`、`stock-analysis`
+- 前端：`canvas-design`、`frontend-design`、`image-lightbox`
+- 效率：`notion`、`obsidian`、`nano-pdf`、`file-guardian`
+- Agent：`agent-personality`、`proactive-agent`、`self-improving-agent`
+- 自动化：`automation-workflows`、`blogwatcher`、`youtube-watcher`
+- 生态：`github`、`weather`、`memory-recall` 等
+
+Agent 也可以从 GitHub 安装技能或自己编写新技能，安装经独立 AI 安全审查。
+
+---
 
 ## 截图
 
@@ -157,60 +305,63 @@ Lynn 的核心 Agent 循环外面包裹了六层 harness，每一层独立运作
   <img src=".github/assets/screenshot-main-20260407-v3.png" width="100%" alt="Lynn 主界面">
 </p>
 
+---
+
 ## 快速开始
 
 ### 下载安装
 
-**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。
+**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。应用已通过 Apple Developer ID 签名和公证，macOS 直接打开即可。
 
-应用已通过 Apple Developer ID 签名和公证，macOS 应该可以直接打开。
+**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe`，直接运行。
 
-**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe` 安装包，直接运行即可。
-
-> **Windows SmartScreen 提示：** 便携版暂未经过代码签名，首次运行时 Windows Defender SmartScreen 可能会拦截，点击**更多信息** → **仍要运行**即可，这是未签名版本的正常现象。
+> **Windows SmartScreen 提示：** 便携版暂未代码签名，首次运行 Windows Defender SmartScreen 可能拦截，点 **更多信息** → **仍要运行** 即可。
 
 Linux 版本计划中。
 
 ### 首次运行
 
-首次启动有两条路径：
+- **Quick Start**：输入名字 → 授权 → 进入主界面。默认模型池开箱即用，无需 API Key。
+- **Advanced Setup**：输入名字 → 连接自己的供应商 → 选对话/工具模型 → 设权限 → 进入。
 
-- **Quick Start**：输入名字 → 设置权限 → 直接进入。内置默认模型开箱即用，无需填写 API Key。
-- **Advanced Setup**：输入名字 → 连接自己的供应商（API Key + Base URL）→ 选择**对话模型**和**工具模型** → 选择主题 → 设置权限 → 进入。
+所有模型配置后续都可在设置调整。
 
-Lynn 使用 OpenAI 兼容协议，支持任意兼容的提供商（OpenAI、DeepSeek、通义千问、Ollama 本地模型、硅基流动等）。部分供应商（如 MiniMax）也支持 OAuth 登录。所有模型配置后续都可以在设置中调整。
+---
 
 ## 架构
 
 ```
-core/           引擎层（HanaEngine Thin Facade + 8 个 Manager + 2 个 Coordinator）
+core/           引擎层（HanaEngine Thin Facade + 10 个 Manager/Coordinator）
 lib/            核心库
-  ├── memory/     记忆系统（事实存储、向量检索、深层记忆、技能提炼）
-  ├── tools/      工具集（浏览器、搜索、Cron、委派、技能安装等 17 个工具）
+  ├── memory/     记忆系统（15 个文件，5000+ 行）
+  │   ├── fact-store.js        SQLite + FTS5 + 关系图（765 行）
+  │   ├── skill-distiller.js   自进化 Skill 提炼（599 行）
+  │   ├── memory-ticker.js     每 6 轮滚动摘要（568 行）
+  │   ├── vector-interface.js  向量检索（381 行）
+  │   ├── proactive-recall.js  主动召回（287 行）
+  │   └── retriever.js         标签 + FTS5 + 向量三路融合检索
+  ├── tools/      24 个工具（浏览器、搜索、Cron、委派、技能安装等）
   ├── sandbox/    双层沙盒（PathGuard + macOS Seatbelt / Linux Bubblewrap）
-  ├── bridge/     社交平台适配器（Telegram、飞书、QQ、微信）
-  ├── desk/       书桌系统（心跳巡检、Cron 调度、笺运行时）
-  └── ...         LLM 客户端、OAuth、频道存储、专家系统等
-shared/         跨层共享（错误总线、配置 schema、安全模式、网络工具）
-server/         Hono HTTP + WebSocket 服务（24 个路由，独立 Node.js 进程）
-hub/            后台调度中枢
-  ├── event-bus.js       统一事件总线
-  ├── scheduler.js       心跳 + Cron 调度
-  ├── channel-router.js  频道 triage + 调度
-  ├── agent-messenger.js Agent 间私聊
-  ├── dm-router.js       私信路由
-  └── task-runtime.js    任务运行时
-desktop/        Electron 应用 + React 前端
-skills2set/     内置技能定义
+  ├── bridge/     社交平台适配器（Telegram / 飞书 / QQ / 微信 / 企业微信）
+  ├── desk/       书桌系统（心跳、Cron、笺运行时）
+  └── ...         LLM 客户端、OAuth、频道存储、专家系统
+shared/         跨层共享
+server/         Hono HTTP + WebSocket（独立 Node.js 进程，24 个路由）
+hub/            后台调度中枢（event bus、scheduler、channel router、DM 路由）
+desktop/        Electron 38 + React 19 + Zustand 5
+skills2set/     33 个内置技能定义
+plugins/        内置插件（github-watch 等）
 scripts/        构建工具（server 打包、启动器、签名）
 tests/          Vitest 测试
 ```
 
-**引擎层**：`HanaEngine` 是一个 Thin Facade，持有 AgentManager、SessionCoordinator、ConfigCoordinator、ModelManager、PreferencesManager、SkillManager、ChannelManager、BridgeSessionManager、ExpertManager、PluginManager，对外暴露统一 API。
+**引擎层**：`HanaEngine` Thin Facade 持有 AgentManager、SessionCoordinator、ConfigCoordinator、ModelManager、PreferencesManager、SkillManager、ChannelManager、BridgeSessionManager、ExpertManager、PluginManager，对外统一 API。
 
-**Hub**：独立于当前聊天会话运行，负责心跳巡检、定时任务（per-agent 并发 Cron）、频道路由、Agent 间通信（含防无限循环的硬上限 + 冷却期）、DM 路由。
+**Hub**：独立于聊天会话运行，负责心跳巡检、Cron（per-agent 并发）、频道路由、Agent 间通信（含防无限循环硬上限 + 冷却期）、DM 路由。
 
-**Server**：以独立 Node.js 进程运行（由 Electron spawn 或独立启动），通过 Vite 打包，@vercel/nft 追踪依赖，与前端通过 WebSocket 全双工通信。
+**Server**：独立 Node.js 进程（由 Electron spawn 或独立启动），Vite + @vercel/nft 打包，WebSocket 全双工。
+
+---
 
 ## 技术栈
 
@@ -220,10 +371,12 @@ tests/          Vitest 测试
 | 前端 | React 19 + Zustand 5 + CSS Modules |
 | 构建 | Vite 7 |
 | 服务端 | Hono + @hono/node-server + @hono/node-ws |
-| Agent 运行时 | [Pi SDK](https://github.com/nicepkg/pi) |
-| 数据库 | better-sqlite3（WAL 模式） |
+| Agent 运行时 | [@mariozechner/pi-coding-agent](https://github.com/badlogic/pi-mono) |
+| 数据库 | better-sqlite3（WAL 模式 + FTS5 + 向量搜索） |
 | 测试 | Vitest |
 | 国际化 | 5 语言（zh / en / ja / ko / zh-TW） |
+
+---
 
 ## 平台支持
 
@@ -231,39 +384,101 @@ tests/          Vitest 测试
 |------|------|
 | macOS (Apple Silicon) | 已支持（已签名公证） |
 | macOS (Intel) | 已支持 |
-| Windows | Beta |
+| Windows x64 | Beta |
 | Linux | 计划中 |
 | 移动端 (PWA) | 计划中 |
+
+---
 
 ## 开发
 
 ```bash
-# 安装依赖
-npm install
-
-# Electron 启动（自动构建 renderer）
-npm start
-
-# Vite HMR 开发（需先运行 npm run dev:renderer）
-npm run start:vite
-
-# 运行测试
-npm test
-
-# 类型检查
-npm run typecheck
+npm install                   # 装依赖
+npm start                     # Electron 启动（自动构建 renderer）
+npm run start:vite            # Vite HMR 开发（需先 npm run dev:renderer）
+npm test                      # 跑测试
+npm run typecheck             # 类型检查
+npm run build:server          # 打包 server
+npm run dist:local            # 本地打包（macOS DMG，跳过公证）
 ```
+
+---
 
 ## 许可证
 
 [Apache License 2.0](LICENSE)
 
-本项目基于 [liliMozi](https://github.com/liliMozi/openhanako) 的开源工作，由 Merkyor 修改和扩展。详见 [NOTICE](NOTICE)。
+本项目基于 [liliMozi/openhanako](https://github.com/liliMozi/openhanako) 的开源工作，由 Merkyor 修改和扩展。核心 Agent 运行时使用 [@mariozechner/pi-coding-agent](https://github.com/badlogic/pi-mono)（Apache 2.0 协议，Mario Zechner 出品）。详见 [NOTICE](NOTICE)。
+
+---
+
+## 常见问题 FAQ
+
+### Q1：Lynn 免费吗？要交订阅费吗？
+
+**完全免费，Apache 2.0 开源**。不卖订阅、不卖增强版、不 freemium。
+
+后端 Brain 默认跑在作者自建服务器上（腾讯云 + 自建 GPU），**目前由作者承担成本供用户免费使用**。未来如果用户量大到需要控制成本，会增加"用自己的 API Key"选项，但**永远不会收费**。
+
+### Q2：我的数据会被送到哪里？
+
+**三条隐私承诺**：不训练、不落盘、日志最小化。
+
+具体链路：
+- **本地记忆**（facts.db / memory.md）：只在你电脑上，`~/.lynn/`
+- **LLM 推理**：发送到 Brain → GPU / Kimi / GLM / DeepSeek。**作者不保存对话内容**，LLM 供应商按各自隐私条款处理
+- **绝对隐私的三种姿势**：
+  1. 全程 Ollama 本地模型（无任何数据出门）
+  2. 自备 API Key（走你自己的 OpenAI / Anthropic 账号）
+  3. 敏感工作区隔离（`.lynn/private/*` 不进记忆）
+
+### Q3：和 Cursor / Claude Code / Trae 有什么区别？
+
+看上面 [**和 Cursor / Claude Code 横比**](#和-cursor--claude-code-横比) 表格。
+
+一句话：**Lynn 做非程序员的事**（写作 / 办公 / 研究），Cursor 系做程序员的事（代码补全）。不冲突，可并存。
+
+### Q4：没 API Key 能用吗？
+
+**能**。Quick Start 60 秒进主界面直接聊，全程零配置。后台自动走 Brain 六级降级链（GPU Qwen3.6 → Kimi → GLM → DeepSeek → Step → MiniMax），哪档有空走哪档。
+
+### Q5：Windows 能用吗？
+
+可以。但 **Windows 版暂未代码签名**，首次运行 Windows Defender SmartScreen 会拦截，点 **更多信息 → 仍要运行** 即可。代码签名费用高昂，作为开源项目暂时没覆盖。macOS 版已 **Developer ID 签名 + Apple 公证**，双击即开。
+
+### Q6：能改模型吗？接自己的 API？
+
+可以。设置 → 供应商 → 填 API Key（支持 OpenAI / Anthropic / DeepSeek / 智谱 / Kimi / MiniMax / 通义千问 / 百炼 / Ollama 本地 / 硅基流动 等所有 OpenAI-compat provider）。
+
+**7 家国产 Coding Plan 预注册**，填 Key 即用：百炼 / 智谱 / Kimi / MiniMax / 阶跃 / 腾讯云 / 火山引擎。
+
+### Q7：Lynn 能替代 ChatGPT 吗？
+
+功能重叠但定位不同：
+
+- **ChatGPT 桌面版**：无长期记忆、单一人格、无工作流工具
+- **Lynn**：6 层记忆、多 Agent + 人格、写作 Diff、Cron 调度、多平台 Bridge
+
+如果你只想**聊天 + 查资料**，ChatGPT 够用。
+如果你想要一个**能记住你、能帮你处理文件、能异步干活**的 Agent，Lynn 更合适。
+
+### Q8：怎么贡献代码？
+
+- 提 Issue 说 bug / 建议：直接提
+- 小 PR（文档 / typo / 小功能）：直接提
+- 大改动（新模块 / 架构调整）：先开 Issue 讨论方案再 PR
+- 见 [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### Q9：Lynn 名字的来源？
+
+作者就叫 Lynn 😊
+
+---
 
 ## 链接
 
-- [提交 Issue](https://github.com/MerkyorLynn/Lynn/issues)
-- [安全页](https://github.com/MerkyorLynn/Lynn/security)
-- [项目仓库](https://github.com/MerkyorLynn/Lynn)
-- [安全政策](SECURITY.md)
-- [贡献指南](CONTRIBUTING.md)
+- 📥 [下载最新版](https://github.com/MerkyorLynn/Lynn/releases)
+- 🐞 [提交 Issue](https://github.com/MerkyorLynn/Lynn/issues)
+- 🔒 [安全政策](SECURITY.md)
+- 🤝 [贡献指南](CONTRIBUTING.md)
+- 📖 [项目仓库](https://github.com/MerkyorLynn/Lynn)

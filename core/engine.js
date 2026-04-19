@@ -1000,6 +1000,31 @@ export class HanaEngine {
   get pluginManager() { return this._pluginManager; }
   get mcpManager() { return this._mcpManager; }
 
+  // [2026-04-17] MCP 按需激活 API (供 session-coordinator + UI 调用)
+  activateMcpServer(sessionPath, serverName) {
+    if (!this._sessionCoord) return false;
+    const entry = this._sessionCoord._sessions?.get(sessionPath);
+    if (!entry) return false;
+    if (!entry.activeMcpServers) entry.activeMcpServers = new Set();
+    entry.activeMcpServers.add(serverName);
+    this._sessionCoord._applySessionToolRuntime?.(sessionPath);
+    this._emitEvent({ type: 'mcp_activation_changed', sessionPath, serverName, active: true }, sessionPath);
+    return true;
+  }
+  deactivateMcpServer(sessionPath, serverName) {
+    if (!this._sessionCoord) return false;
+    const entry = this._sessionCoord._sessions?.get(sessionPath);
+    if (!entry?.activeMcpServers) return false;
+    entry.activeMcpServers.delete(serverName);
+    this._sessionCoord._applySessionToolRuntime?.(sessionPath);
+    this._emitEvent({ type: 'mcp_activation_changed', sessionPath, serverName, active: false }, sessionPath);
+    return true;
+  }
+  getSessionActiveMcp(sessionPath) {
+    const entry = this._sessionCoord?._sessions?.get(sessionPath);
+    return entry?.activeMcpServers ? [...entry.activeMcpServers] : [];
+  }
+
   // ════════════════════════════
   //  工具构建
   // ════════════════════════════
@@ -1008,7 +1033,27 @@ export class HanaEngine {
     const ct = customTools || this.agent.tools;
     // Append plugin tools + MCP tools
     const pluginTools = this._pluginManager?.getAllTools() || [];
-    const mcpTools = this._mcpManager?.getTools() || [];
+
+    // [2026-04-17] MCP 按需激活：默认不加载 MCP 工具，避免 tools 数量膨胀拖慢模型
+    // 用户可在 session 里通过 activateMcpServer(name) 或 UI 开关激活
+    const prefs = this._readPreferences?.() || {};
+    const mcpAutoLoad = prefs.mcpAutoLoad === true; // default false
+    const sessionActiveMcp = opts.activeMcpServers; // Set<string> | undefined
+    let mcpTools = [];
+    if (this._mcpManager) {
+      if (sessionActiveMcp && sessionActiveMcp.size > 0) {
+        // 仅 session 激活的 server 的工具
+        mcpTools = (this._mcpManager.getTools() || []).filter(tool => {
+          const m = (tool.name || '').match(/^mcp__([^_]+(?:_[^_]+)*?)__/);
+          return m && sessionActiveMcp.has(m[1]);
+        });
+      } else if (mcpAutoLoad) {
+        // 全量加载（向后兼容：用户在 preferences 里显式开启）
+        mcpTools = this._mcpManager.getTools() || [];
+      }
+      // else: default — 不加载 MCP 工具
+    }
+
     const allTools = [...ct, ...pluginTools, ...mcpTools];
 
     const effectiveAgentDir = opts.agentDir || this.agent.agentDir;

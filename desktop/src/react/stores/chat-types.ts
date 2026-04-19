@@ -159,6 +159,7 @@ export interface ChatMessage {
   retryDraft?: ComposerDraft | null;
   // Assistant
   blocks?: ContentBlock[];
+  model?: string | null;  // [PROVIDER-BADGE v1] which provider actually answered (T1/T2/T3...)
   // 通用
   timestamp?: number;
 }

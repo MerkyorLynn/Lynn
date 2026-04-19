@@ -161,6 +161,20 @@ export function buildSignedClientAgentHeaders({
   });
 }
 
+// [2026-04-18 v0.76.2] Auto-fill clientVersion from package.json so brain
+// receives a real X-Lynn-Client-Version (was always "unknown" before, which
+// broke brain's >= 0.76.2 version gate for tool_progress markers).
+//
+// Note: Vite inlines package.json as a base64 data URL when bundled, and
+// fs.readFileSync() can't read data URLs. So we import the JSON statically
+// (Vite turns this into a plain object literal at build time, so version
+// is baked into the bundle directly).
+import pkg from "../package.json" with { type: "json" };
+const LYNN_VERSION = String(pkg?.version || "");
+function _getLynnPackageVersion() {
+  return LYNN_VERSION;
+}
+
 export function readSignedClientAgentHeaders(opts = {}) {
   const prefs = readPreferencesFile(opts);
   const agentKey = sanitizeClientAgentKey(prefs?.[CLIENT_AGENT_KEY_PREF_KEY]);
@@ -170,7 +184,7 @@ export function readSignedClientAgentHeaders(opts = {}) {
     pathname: opts.pathname,
     agentKey,
     secret,
-    clientVersion: opts.clientVersion,
+    clientVersion: opts.clientVersion || _getLynnPackageVersion(),
     clientPlatform: opts.clientPlatform,
   });
 }

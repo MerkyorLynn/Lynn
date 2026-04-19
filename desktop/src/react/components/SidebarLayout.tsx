@@ -11,6 +11,7 @@ import { useStore } from '../stores';
 import { createNewSession } from '../stores/session-actions';
 import { closePreview } from '../stores/artifact-actions';
 import { toggleJianSidebar } from '../stores/desk-actions';
+import { enterWritingMode, exitWritingMode } from '../hooks/use-writing-preview';
 import { getWebSocket } from '../services/websocket';
 
 const CHAT_MIN_WIDTH = 400;
@@ -164,6 +165,18 @@ export function SidebarLayout() {
       if (mod && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         toggleJianSidebar();
+        return;
+      }
+
+      // Cmd+Shift+M → 切换写作模式（M = Markdown/Mode；避开 Cmd+Shift+W 的"关闭所有窗口"）
+      if (mod && e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        const state = useStore.getState();
+        if (state.writingMode) {
+          exitWritingMode();
+        } else {
+          enterWritingMode();
+        }
         return;
       }
 

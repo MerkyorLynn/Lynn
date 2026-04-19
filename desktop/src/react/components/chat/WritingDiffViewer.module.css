@@ -1,0 +1,406 @@
+/* WritingDiffViewer — 写作修订视图样式（类似 Word Track Changes） */
+
+.card {
+    margin: var(--space-sm) 0;
+    border: 1px solid var(--border, rgba(0,0,0,0.1));
+    border-radius: var(--radius-md, 8px);
+    overflow: hidden;
+    max-width: 100%;
+    background: var(--bg-card, #fff);
+}
+
+.cardResolved {
+    opacity: 0.7;
+}
+
+/* ── 头部 ── */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--overlay-subtle, rgba(0,0,0,0.02));
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+}
+
+.header:hover {
+    background: var(--overlay-light, rgba(0,0,0,0.04));
+}
+
+.fileInfo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    color: var(--text-muted);
+}
+
+.fileName {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    font-size: 0.82rem;
+}
+
+.filePath {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.statsAdded {
+    color: var(--green, #4caf50);
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.statsRemoved {
+    color: var(--coral, #e57373);
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.toggleArrow {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+.badge {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--accent, #6366f1);
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ── 正文区域 ── */
+
+.body {
+    max-height: 600px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+    padding: 12px 16px;
+}
+
+/* ── 段落 ── */
+
+.paragraph {
+    position: relative;
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 6px;
+    font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+    font-size: 0.88rem;
+    line-height: 1.7;
+    transition: background 0.15s;
+    /* 保留段落内的单换行，同时自动换行长中文行 */
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.paragraphUnchanged {
+    color: var(--text);
+}
+
+.paragraphModified {
+    background: rgba(100, 100, 100, 0.04);
+    border-left: 3px solid var(--accent, #6366f1);
+}
+
+.paragraphAdded {
+    background: rgba(46, 160, 67, 0.06);
+    border-left: 3px solid var(--green, #4caf50);
+}
+
+.paragraphRemoved {
+    background: rgba(248, 81, 73, 0.06);
+    border-left: 3px solid var(--coral, #e57373);
+}
+
+/* 段落被接受 */
+.paragraphAccepted {
+    opacity: 0.6;
+    border-left-color: var(--green, #4caf50);
+}
+
+.paragraphAccepted::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(46, 160, 67, 0.05);
+    border-radius: 6px;
+    pointer-events: none;
+}
+
+/* 段落被拒绝 */
+.paragraphRejected {
+    opacity: 0.4;
+    border-left-color: var(--text-muted);
+}
+
+.paragraphRejected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+    pointer-events: none;
+}
+
+/* ── 词级高亮 ── */
+
+.wordAdded {
+    background: rgba(46, 160, 67, 0.2);
+    color: var(--green-dark, #1a7f37);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.wordRemoved {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--coral, #e57373);
+    text-decoration: line-through;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* ── 段落操作按钮 ── */
+
+.paragraphActions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.paragraph:hover .paragraphActions {
+    opacity: 1;
+}
+
+/* 段落已决定后始终显示状态 */
+.paragraphAccepted .paragraphActions,
+.paragraphRejected .paragraphActions {
+    opacity: 1;
+}
+
+.paraBtn {
+    padding: 2px 8px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    font-family: inherit;
+}
+
+.paraAcceptBtn {
+    composes: paraBtn;
+    background: var(--green, #4caf50);
+    color: #fff;
+}
+
+.paraRejectBtn {
+    composes: paraBtn;
+    background: var(--overlay-medium, rgba(0,0,0,0.1));
+    color: var(--text-light);
+}
+
+.paraEditBtn {
+    composes: paraBtn;
+    background: var(--accent, #6366f1);
+    color: #fff;
+}
+
+/* 已手改的段落 */
+.paragraphEdited {
+    background: rgba(99, 102, 241, 0.08);
+    border-left: 3px solid var(--accent, #6366f1);
+}
+
+.editedPreview {
+    display: block;
+}
+
+.editedTag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    background: var(--accent, #6366f1);
+    color: #fff;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+    font-weight: 500;
+}
+
+/* 编辑器 */
+.editorWrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.editorTextarea {
+    width: 100%;
+    min-height: 80px;
+    max-height: 400px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent, #6366f1);
+    border-radius: 6px;
+    background: var(--bg-card, #fff);
+    color: var(--text);
+    font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+    font-size: 0.88rem;
+    line-height: 1.7;
+    resize: vertical;
+    overflow-y: auto;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.editorTextarea:focus {
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.editorActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+}
+
+.editorHint {
+    flex: 1;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.paraBtn:hover {
+    opacity: 0.85;
+}
+
+.paraBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── 底部操作栏 ── */
+
+.actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+    background: var(--overlay-subtle, rgba(0,0,0,0.01));
+    align-items: center;
+}
+
+.acceptAllBtn,
+.rejectAllBtn,
+.finishBtn {
+    padding: 4px 14px;
+    border: none;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.76rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.acceptAllBtn {
+    background: var(--green, #4caf50);
+    color: #fff;
+}
+
+.rejectAllBtn {
+    background: var(--overlay-medium, rgba(0,0,0,0.1));
+    color: var(--text-light);
+}
+
+.finishBtn {
+    background: var(--accent, #6366f1);
+    color: #fff;
+    margin-left: auto;
+}
+
+.acceptAllBtn:hover,
+.rejectAllBtn:hover,
+.finishBtn:hover {
+    opacity: 0.85;
+}
+
+.acceptAllBtn:disabled,
+.rejectAllBtn:disabled,
+.finishBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ── 状态栏 ── */
+
+.statusBar {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-style: italic;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+}
+
+.statusAccepted {
+    color: var(--green, #4caf50);
+    background: rgba(46, 160, 67, 0.05);
+}
+
+.statusRejected {
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.statusPartial {
+    color: var(--accent, #6366f1);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.error {
+    padding: 6px 12px;
+    color: var(--coral, #e57373);
+    font-size: 0.74rem;
+    border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+    background: rgba(248, 81, 73, 0.05);
+}
+
+/* ── 段落分隔标记 ── */
+
+.paragraphLabel {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+/* ── 审阅进度 ── */
+
+.progress {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    padding: 0 4px;
+}
