@@ -7,10 +7,11 @@
 import fs from "fs";
 import path from "path";
 import { Hono } from "hono";
-import { MoodParser, XingParser, ThinkTagParser } from "../../core/events.js";
+import { MoodParser, XingParser, ThinkTagParser, LynnProgressParser } from "../../core/events.js";
+import { containsPseudoToolCallSimulation } from "../../core/llm-utils.js";
 import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
-import { getLocale, t } from "../i18n.js";
+import { t, getLocale } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import {
   createSessionStreamState,
@@ -21,119 +22,9 @@ import {
 } from "../session-stream-store.js";
 import { AppError } from "../../shared/errors.js";
 import { errorBus } from "../../shared/error-bus.js";
-import { sanitizeBrainIdentityDisclosureText } from "../../shared/brain-provider.js";
-import {
-  containsPseudoToolSimulation,
-  countPseudoToolMarkers,
-  stripPseudoToolCallMarkup,
-} from "../../shared/pseudo-tool-call.js";
-import {
-  buildProviderToolCallHint,
-  classifyRouteIntent,
-  getRouteIntentNoticeKey,
-  looksLikePendingToolExecutionText,
-  matchesInstallIntent,
-  ROUTE_INTENTS,
-} from "../../shared/task-route-intent.js";
-import {
-  buildEmptyResponseUserMessage,
-  buildInstallRecoverySteerText,
-  buildInstallRetryPrompt,
-  buildInvalidToolSimulationUserMessage,
-  buildPseudoToolRecoveryNotice,
-  buildPseudoToolRecoverySteerText,
-  buildPseudoToolRetryPrompt,
-  buildSlowNoticePayload,
-  looksLikeManualShellDeflection,
-  MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL,
-  MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS,
-  reportEmptyResponse,
-  resolveCurrentModelInfo,
-} from "../chat/chat-recovery.js";
-import {
-  buildLocalWorkspaceDirectReply,
-  buildLocalWorkspaceContext,
-  shouldAttachLocalWorkspaceContext,
-} from "../chat/local-workspace-context.js";
-import { buildReportResearchContext, inferReportResearchKind } from "../chat/report-research-context.js";
-import { buildReportStructureHint } from "../../shared/report-normalizer.js";
-import {
-  recordCurrentProvider,
-  recordFallback,
-  recordProviderIssue,
-  recordToolCall,
-} from "../diagnostics.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
-const ENABLE_LOCAL_TOOL_RECOVERY = process.env.LYNN_ENABLE_LOCAL_TOOL_RECOVERY !== "0";
-const DEFAULT_TOOL_EVENT_GRACE_MS = 8_000;
-const BRAIN_TOOL_EVENT_GRACE_MS = 5_000;
-
-function appendHiddenRetryContext(engine, sessionPath, context) {
-  const text = String(context || "").trim();
-  if (!text) return false;
-  try {
-    const session = engine.getSessionByPath?.(sessionPath);
-    const sessionManager = session?.sessionManager;
-    if (typeof sessionManager?.appendCustomMessageEntry !== "function") return false;
-    sessionManager.appendCustomMessageEntry("lynn.tool-recovery", text, false, {
-      source: "local-tool-recovery",
-      createdAt: new Date().toISOString(),
-    });
-    return true;
-  } catch (err) {
-    debugLog()?.warn?.("ws", `append hidden retry context failed: ${err?.message || err}`);
-    return false;
-  }
-}
-
-function appendSessionMessage(engine, sessionPath, message) {
-  try {
-    const session = engine.getSessionByPath?.(sessionPath);
-    const sessionManager = session?.sessionManager;
-    if (typeof sessionManager?.appendMessage !== "function") return false;
-    sessionManager.appendMessage(message);
-    return true;
-  } catch (err) {
-    debugLog()?.warn?.("ws", `append session message failed: ${err?.message || err}`);
-    return false;
-  }
-}
-
-function createZeroUsage() {
-  return {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-    totalTokens: 0,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-  };
-}
-
-function resolveLocalPrefetchToolMeta(kind, promptText) {
-  const query = String(promptText || "").trim();
-  const normalized = String(kind || "").trim();
-  const common = { query, type: normalized || "research", source: "local-prefetch" };
-  if (normalized === "weather") return { name: "weather", args: common };
-  if (normalized === "sports") return { name: "sports_score", args: common };
-  if (normalized === "market" || normalized === "stock") return { name: "stock_market", args: common };
-  if (normalized === "news") return { name: "live_news", args: common };
-  if (normalized === "real_estate" || normalized === "generic") return { name: "web_search", args: common };
-  return { name: "web_search", args: common };
-}
-
-function buildLocalPrefetchToolSummary(contextText, kind) {
-  const text = String(contextText || "").trim();
-  return {
-    outputPreview: text
-      ? text.replace(/\s+/g, " ").slice(0, 220)
-      : `No local ${kind || "research"} evidence was collected.`,
-    matchCount: text ? Math.max(1, Math.min(9, (text.match(/查询：|URL:|【/g) || []).length)) : 0,
-    source: "local-prefetch",
-  };
-}
 
 /**
  * 从 Pi SDK 的 content 块中提取纯文本
@@ -147,21 +38,6 @@ function extractText(content) {
     .join("");
 }
 
-function getRecentConversationText(engine, sessionPath, maxChars = 6000) {
-  try {
-    const session = engine.getSessionByPath?.(sessionPath);
-    const messages = Array.isArray(session?.messages) ? session.messages : [];
-    const text = messages.slice(-8).map((message) => {
-      const role = message?.role || "message";
-      const content = extractText(message?.content);
-      return content ? `${role}: ${content}` : "";
-    }).filter(Boolean).join("\n\n");
-    return text.length > maxChars ? text.slice(-maxChars) : text;
-  } catch {
-    return "";
-  }
-}
-
 function resolveEditSnapshotPath(session, engine, rawPath) {
   if (typeof rawPath !== "string") return null;
   const trimmed = rawPath.trim();
@@ -170,6 +46,22 @@ function resolveEditSnapshotPath(session, engine, rawPath) {
 
   const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
   return path.resolve(cwd, trimmed);
+}
+
+function buildPseudoToolRecoverySteerText() {
+  const isZh = getLocale().startsWith("zh");
+  if (isZh) {
+    return [
+      "你刚才把工具调用写成了普通文本，例如 web_search(...)，这不会真的执行。",
+      "不要输出任何 tool_name(...)、XML 工具标签或伪 JSON 调用。",
+      "如果需要搜索或读取，请直接调用真实工具；给用户只输出结果本身。",
+    ].join(" ");
+  }
+  return [
+    "You just printed a tool call like web_search(...), which does not execute anything.",
+    "Do not output tool_name(...), XML tool tags, or pseudo JSON calls.",
+    "If you need a tool, call the real tool and only show the user the result.",
+  ].join(" ");
 }
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
@@ -239,6 +131,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
       sessionState.set(sessionPath, {
         thinkTagParser: new ThinkTagParser(),
+        progressParser: new LynnProgressParser(),
         moodParser: new MoodParser(),
         xingParser: new XingParser(),
         isThinking: false,
@@ -246,24 +139,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         hasToolCall: false,
         hasThinking: false,
         hasError: false,
-        rawTextAcc: "",
-        cleanTextAcc: "",
-        pseudoToolSimulationDetected: false,
-        pseudoToolSimulationSteered: false,
-        pseudoToolMarkerCount: 0,
-        pseudoToolAbortRequested: false,
-        pseudoToolNeedsRetry: false,
-        pseudoToolRetryCount: 0,
-        missingToolExecutionDetected: false,
-        localEvidencePrefetched: false,
-        routeNoticeSent: false,
-        installPrompt: false,
-        installDeflectionDetected: false,
-        pendingToolExecutionDetected: false,
         titleRequested: false,
         titlePreview: "",
+        visibleTextAcc: "",
+        pseudoToolSteered: false,
         lastActivity: Date.now(),
-        routeIntent: ROUTE_INTENTS.CHAT,
         ...createSessionStreamState(),
       });
     }
@@ -360,93 +240,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return entry;
   }
 
-  function resetTextTracking(ss, opts = {}) {
-    const preserveRetry = !!opts.preserveRetry;
-    const preserveRetryCount = !!opts.preserveRetryCount;
-    const preserveRecoveryCause = !!opts.preserveRecoveryCause || preserveRetry;
-    ss.rawTextAcc = "";
-    ss.cleanTextAcc = "";
-    ss.pseudoToolSimulationDetected = false;
-    ss.pseudoToolSimulationSteered = false;
-    ss.pseudoToolMarkerCount = 0;
-    ss.pseudoToolAbortRequested = false;
-    if (!preserveRetry) ss.pseudoToolNeedsRetry = false;
-    if (!preserveRetryCount) ss.pseudoToolRetryCount = 0;
-    ss.toolCallWithoutText = false;
-    if (!preserveRecoveryCause) {
-      ss.missingToolExecutionDetected = false;
-      ss.installDeflectionDetected = false;
-      ss.pendingToolExecutionDetected = false;
-    }
-  }
-
-  function shouldRecoverMissingToolExecution(ss, currentModelInfo, attemptIndex) {
-    if (!ss || ss.hasToolCall || ss.hasError || ss.pseudoToolAbortRequested) return false;
-    if (ss.pendingToolExecutionDetected) return true;
-    if (ss.localEvidencePrefetched) return false;
-    if (!currentModelInfo?.isBrain || attemptIndex > 0) return false;
-    return !ss.hasOutput && !ss.hasThinking;
-  }
-
-  function emitSanitizedTextDelta(sessionPath, ss, rawDelta) {
-    if (!rawDelta) return;
-
-    ss.rawTextAcc += rawDelta;
-    const cleanText = sanitizeBrainIdentityDisclosureText(stripPseudoToolCallMarkup(ss.rawTextAcc));
-    const prevCleanText = ss.cleanTextAcc || "";
-    const currentModelInfo = resolveCurrentModelInfo(engine);
-    const pseudoDetected = !currentModelInfo.isBrain
-      && (containsPseudoToolSimulation(rawDelta) || containsPseudoToolSimulation(ss.rawTextAcc));
-
-    if (ENABLE_LOCAL_TOOL_RECOVERY && pseudoDetected) {
-      ss.pseudoToolSimulationDetected = true;
-      ss.pseudoToolMarkerCount = Math.max(ss.pseudoToolMarkerCount || 0, countPseudoToolMarkers(ss.rawTextAcc));
-      if (!ss.hasToolCall && !ss.pseudoToolSimulationSteered && engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) {
-        ss.pseudoToolSimulationSteered = true;
-        broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
-      }
-      if (!ss.hasToolCall
-        && !ss.pseudoToolAbortRequested
-        && (ss.pseudoToolMarkerCount || 0) >= MAX_PSEUDO_TOOL_MARKERS_WITHOUT_REAL_TOOL) {
-        ss.pseudoToolAbortRequested = true;
-        ss.pseudoToolNeedsRetry = true;
-        queueMicrotask(() => {
-          engine.abortSessionByPath(sessionPath).catch(() => {});
-        });
-      }
-    }
-
-    if (ENABLE_LOCAL_TOOL_RECOVERY && ss.installPrompt && !ss.hasToolCall && looksLikeManualShellDeflection(cleanText)) {
-      ss.installDeflectionDetected = true;
-      if (!ss.pseudoToolAbortRequested) {
-        ss.pseudoToolAbortRequested = true;
-        queueMicrotask(() => {
-          engine.abortSessionByPath(sessionPath).catch(() => {});
-        });
-      }
-    }
-
-    if (ENABLE_LOCAL_TOOL_RECOVERY && !ss.hasToolCall && !ss.hasError && looksLikePendingToolExecutionText(cleanText, ss.routeIntent)) {
-      ss.pendingToolExecutionDetected = true;
-    }
-
-    if (cleanText.trim()) ss.hasOutput = true;
-
-    let delta = "";
-    if (cleanText.startsWith(prevCleanText)) {
-      delta = cleanText.slice(prevCleanText.length);
-    } else if (!prevCleanText.startsWith(cleanText)) {
-      delta = cleanText;
-    }
-    ss.cleanTextAcc = cleanText;
-
-    if (delta) {
-      ss.titlePreview += delta || "";
-      emitStreamEvent(sessionPath, ss, { type: "text_delta", delta });
-      maybeGenerateFirstTurnTitle(sessionPath, ss);
-    }
-  }
-
   function maybeGenerateFirstTurnTitle(sessionPath, ss) {
     if (!sessionPath || !ss || ss.titleRequested) return;
 
@@ -471,71 +264,22 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     });
   }
 
-  function resolveSessionCwd(sessionPath) {
-    const activeSession = engine.getSessionByPath?.(sessionPath);
-    return activeSession?.sessionManager?.getCwd?.()
-      || engine.homeCwd
-      || engine.cwd
-      || process.cwd();
+  function maybeSteerPseudoToolSimulation(sessionPath, ss) {
+    if (!sessionPath || !ss || ss.hasToolCall || ss.pseudoToolSteered) return;
+    if (!containsPseudoToolCallSimulation(ss.visibleTextAcc || "")) return;
+    if (!engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) return;
+    ss.pseudoToolSteered = true;
+    debugLog()?.warn("ws", `pseudo tool text detected, steering ${sessionPath}`);
   }
 
-  function handleLocalWorkspaceDirect(promptText, sessionPath, ss) {
-    if (!ENABLE_LOCAL_TOOL_RECOVERY || !sessionPath || !ss) return false;
-    const routeIntent = classifyRouteIntent(promptText);
-    if (!shouldAttachLocalWorkspaceContext(promptText, routeIntent)) return false;
-
-    const cwd = resolveSessionCwd(sessionPath);
-    const reply = buildLocalWorkspaceDirectReply({ promptText, cwd });
-    const text = reply.text || "";
-    if (!text.trim()) return false;
-
-    resetTextTracking(ss);
-    ss.routeIntent = routeIntent;
-    ss.hasToolCall = true;
-    ss.hasOutput = true;
-    beginSessionStream(ss);
-    broadcast({ type: "status", isStreaming: true, sessionPath });
-
-    appendSessionMessage(engine, sessionPath, {
-      role: "user",
-      content: [{ type: "text", text: promptText }],
-    });
-
-    const toolArgs = { path: reply.root || cwd };
-    emitStreamEvent(sessionPath, ss, { type: "tool_start", name: "ls", args: toolArgs });
-    recordToolCall({ phase: "start", name: "ls", sessionPath, args: toolArgs });
-    emitStreamEvent(sessionPath, ss, {
-      type: "tool_end",
-      name: "ls",
-      success: reply.ok !== false,
-      details: {
-        path: reply.root || cwd,
-        entriesCount: reply.entriesCount || 0,
-        docsCount: reply.docsCount || 0,
-        source: "local-workspace-direct",
-      },
-      summary: {
-        outputPreview: text.slice(0, 200),
-        matchCount: reply.entriesCount || 0,
-      },
-    });
-    recordToolCall({ phase: "end", name: "ls", sessionPath, args: toolArgs });
-
-    emitSanitizedTextDelta(sessionPath, ss, text);
-    appendSessionMessage(engine, sessionPath, {
-      role: "assistant",
-      content: [{ type: "text", text }],
-      usage: createZeroUsage(),
-      stopReason: "stop",
-      timestamp: Date.now(),
-    });
-
-    emitStreamEvent(sessionPath, ss, { type: "turn_end" });
-    finishSessionStream(ss);
-    broadcast({ type: "status", isStreaming: false, sessionPath });
+  function emitVisibleTextDelta(sessionPath, ss, delta) {
+    const next = delta || "";
+    if (!next) return;
+    ss.titlePreview += next;
+    ss.visibleTextAcc += next;
+    emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: next });
     maybeGenerateFirstTurnTitle(sessionPath, ss);
-    debugLog()?.log("ws", "local workspace direct reply done");
-    return true;
+    maybeSteerPseudoToolSimulation(sessionPath, ss);
   }
 
   // 单订阅：事件只写入一次，再按需广播到所有连接中的客户端。
@@ -548,13 +292,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const sub = event.assistantMessageEvent?.type;
 
       if (sub === "text_delta") {
+        ss.hasOutput = true;
         if (ss.isThinking) {
           ss.isThinking = false;
           emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
         }
 
         const delta = event.assistantMessageEvent.delta;
-        // ThinkTagParser（最外层）→ MoodParser → XingParser
+        // ThinkTagParser（最外层）→ LynnProgressParser → MoodParser → XingParser
         ss.thinkTagParser.feed(delta, (tEvt) => {
           switch (tEvt.type) {
             case "think_start":
@@ -567,17 +312,29 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
               break;
             case "text":
-              // 非 think 内容继续走 MoodParser → XingParser 链
-              ss.moodParser.feed(tEvt.data, (evt) => {
+              // 非 think 内容先过 LynnProgressParser 抠掉 <lynn_tool_progress> 标记，
+              // 再继续走 MoodParser → XingParser 链
+              ss.progressParser.feed(tEvt.data, (pEvt) => {
+                if (pEvt.type === "tool_progress") {
+                  emitStreamEvent(sessionPath, ss, {
+                    type: "tool_progress",
+                    event: pEvt.event,
+                    name: pEvt.name,
+                    ms: pEvt.ms,
+                    ok: pEvt.ok,
+                  });
+                  return;
+                }
+                // pEvt.type === "text" — 进入 mood/xing 解析链
+                ss.moodParser.feed(pEvt.data, (evt) => {
                 switch (evt.type) {
                   case "text":
                     ss.xingParser.feed(evt.data, (xEvt) => {
                       switch (xEvt.type) {
                         case "text":
-                          emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
+                          emitVisibleTextDelta(sessionPath, ss, xEvt.data);
                           break;
                         case "xing_start":
-                          ss.hasXing = true;
                           emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
                           break;
                         case "xing_text":
@@ -599,6 +356,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     emitStreamEvent(sessionPath, ss, { type: "mood_end" });
                     break;
                 }
+              });
               });
               break;
           }
@@ -622,12 +380,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     } else if (event.type === "tool_execution_start") {
       if (!ss) return;
       ss.hasToolCall = true;
-      recordToolCall({
-        phase: "start",
-        name: event.toolName || "",
-        sessionPath,
-        args: event.args || null,
-      });
       if (ss.isThinking) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -723,14 +475,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         details: rawDetails,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
-      recordToolCall({
-        phase: "end",
-        name: toolName,
-        sessionPath,
-        success: !event.isError,
-        summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
-        error: event.isError ? extractText(event.result?.content) : null,
-      });
 
       if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
         if (event.isError || !rawDetails.diff) {
@@ -778,58 +522,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           content: d.content,
           language: d.language,
         });
-      }
-
-      if (event.toolName === "create_pptx") {
-        const details = event.result?.details || {};
-        const files = details.files || [];
-        for (const f of files) {
-          emitStreamEvent(sessionPath, ss, {
-            type: "file_output",
-            filePath: f.filePath,
-            label: f.label,
-            ext: f.ext || "pptx",
-          });
-        }
-      }
-
-      if (event.toolName === "create_poster") {
-        const d = event.result?.details || {};
-        if (d.artifactId) {
-          emitStreamEvent(sessionPath, ss, {
-            type: "artifact",
-            artifactId: d.artifactId,
-            artifactType: d.type || "html",
-            title: d.title,
-            content: d.content,
-          });
-        }
-        const files = d.files || [];
-        for (const f of files) {
-          emitStreamEvent(sessionPath, ss, { type: "file_output", filePath: f.filePath, label: f.label, ext: f.ext || "html" });
-        }
-      }
-
-      if (event.toolName === "create_report") {
-        const d = event.result?.details || {};
-        if (d.artifactId) {
-          emitStreamEvent(sessionPath, ss, {
-            type: "artifact",
-            artifactId: d.artifactId,
-            artifactType: d.type || "html",
-            title: d.title,
-            content: d.content,
-          });
-        }
-        const files = d.files || [];
-        for (const f of files) {
-          emitStreamEvent(sessionPath, ss, {
-            type: "file_output",
-            filePath: f.filePath,
-            label: f.label,
-            ext: f.ext || "html",
-          });
-        }
       }
 
       if (event.toolName === "browser") {
@@ -959,15 +651,31 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
       }
-      // flush 顺序：ThinkTag → Mood → Xing（和 feed 顺序一致）
-      // flush 内部的 mood → xing 管线（thinkTag flush 和 mood flush 共用）
+      // flush 顺序：ThinkTag → LynnProgress → Mood → Xing（和 feed 顺序一致）
+      // flush 内部的 progress → mood → xing 管线（thinkTag flush 和 mood flush 共用）
       const feedMoodPipeline = (text) => {
+        ss.progressParser.feed(text, (pEvt) => {
+          if (pEvt.type === "tool_progress") {
+            emitStreamEvent(sessionPath, ss, {
+              type: "tool_progress",
+              event: pEvt.event,
+              name: pEvt.name,
+              ms: pEvt.ms,
+              ok: pEvt.ok,
+            });
+            return;
+          }
+          // pEvt.type === "text"
+          feedMoodOnly(pEvt.data);
+        });
+      };
+      const feedMoodOnly = (text) => {
         ss.moodParser.feed(text, (evt) => {
           if (evt.type === "text") {
             ss.xingParser.feed(evt.data, (xEvt) => {
               switch (xEvt.type) {
                 case "text":
-                  emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
+                  emitVisibleTextDelta(sessionPath, ss, xEvt.data);
                   break;
                 case "xing_start":
                   emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
@@ -998,12 +706,25 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           feedMoodPipeline(tEvt.data);
         }
       });
+      ss.progressParser.flush((pEvt) => {
+        if (pEvt.type === "text") {
+          feedMoodOnly(pEvt.data);
+        } else if (pEvt.type === "tool_progress") {
+          emitStreamEvent(sessionPath, ss, {
+            type: "tool_progress",
+            event: pEvt.event,
+            name: pEvt.name,
+            ms: pEvt.ms,
+            ok: pEvt.ok,
+          });
+        }
+      });
       ss.moodParser.flush((evt) => {
         if (evt.type === "text") {
           ss.xingParser.feed(evt.data, (xEvt) => {
             switch (xEvt.type) {
               case "text":
-                emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
+                emitVisibleTextDelta(sessionPath, ss, xEvt.data);
                 break;
               case "xing_start":
                 emitStreamEvent(sessionPath, ss, { type: "xing_start", title: xEvt.title });
@@ -1022,48 +743,50 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
       ss.xingParser.flush((xEvt) => {
         if (xEvt.type === "text") {
-          emitSanitizedTextDelta(sessionPath, ss, xEvt.data);
+          emitVisibleTextDelta(sessionPath, ss, xEvt.data);
         } else if (xEvt.type === "xing_text") {
           emitStreamEvent(sessionPath, ss, { type: "xing_text", delta: xEvt.data });
         }
       });
 
-      if (ENABLE_LOCAL_TOOL_RECOVERY && ss.pseudoToolSimulationDetected && !ss.hasToolCall && !ss.hasError) {
-        ss.pseudoToolNeedsRetry = true;
-      }
-      if (ENABLE_LOCAL_TOOL_RECOVERY && ss.pendingToolExecutionDetected && !ss.hasToolCall && !ss.hasError) {
-        ss.pseudoToolNeedsRetry = true;
+      // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
+      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
+        broadcast({ type: "error", message: t("error.modelNoResponse") });
       }
 
-      // 工具调了/只有反思/只有思考但没有文字输出：标记为可恢复场景，下一轮追加提示
-      if (!ss.hasOutput && !ss.hasError && isActive && (ss.hasToolCall || ss.hasThinking || ss.hasXing)) {
-        ss.toolCallWithoutText = true;
-        ss._recoveryHadToolCall = ss.hasToolCall; // 保存原始值，重置后恢复逻辑需要
-      }
-
-      // 空回复检测：本轮没有任何有效输出（无文本、无工具、无思考）。
-      if (!ss.pseudoToolNeedsRetry && !ss.pseudoToolSimulationDetected && !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
-        reportEmptyResponse(engine, sessionPath);
-        broadcast({ type: "error", message: buildEmptyResponseUserMessage(engine) });
-      }
-
+      // [PROVIDER-BADGE v2] Emit turn_end synchronously; then fire-and-forget tail the session
+      // JSONL for the last assistant message's model and emit a follow-up "model_hint" event.
+      // Subscribe callback is sync — cannot await here.
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+      (async () => {
+        try {
+          const { readFile } = await import("node:fs/promises");
+          const raw = await readFile(sessionPath, "utf-8").catch(() => "");
+          if (!raw) return;
+          const lines = raw.split("\n").filter(Boolean);
+          for (let i = lines.length - 1; i >= 0; i--) {
+            try {
+              const entry = JSON.parse(lines[i]);
+              const mm = entry?.message;
+              if (mm?.role === "assistant" && mm.model) {
+                emitStreamEvent(sessionPath, ss, { type: "model_hint", model: String(mm.model) });
+                return;
+              }
+            } catch { /* skip */ }
+          }
+        } catch { /* non-fatal */ }
+      })();
       finishSessionStream(ss);
       ss.hasOutput = false;
       ss.hasToolCall = false;
       ss.hasThinking = false;
-      ss.hasXing = false;
       ss.hasError = false;
-      ss.routeIntent = ROUTE_INTENTS.CHAT;
-      ss.localEvidencePrefetched = false;
-      ss.routeNoticeSent = false;
-      resetTextTracking(ss, {
-        preserveRetry: ss.pseudoToolNeedsRetry,
-        preserveRetryCount: ss.pseudoToolNeedsRetry,
-      });
       ss.thinkTagParser.reset();
+      ss.progressParser.reset();
       ss.moodParser.reset();
       ss.xingParser.reset();
+      ss.visibleTextAcc = "";
+      ss.pseudoToolSteered = false;
 
       if (isActive) debugLog()?.log("ws", "assistant reply done");
       maybeGenerateFirstTurnTitle(sessionPath, ss);
@@ -1274,353 +997,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 return;
               }
               const ss = getState(promptSessionPath);
-              if (!msg.images?.length && handleLocalWorkspaceDirect(promptText, promptSessionPath, ss)) {
-                return;
-              }
               try {
-                const prepareAttemptState = (attemptIndex) => {
-                  ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
-                  ss.thinkTagParser.reset();
-                  ss.moodParser.reset();
-                  ss.xingParser.reset();
-                  resetTextTracking(ss, { preserveRetryCount: attemptIndex > 0 });
-                  ss.titleRequested = false;
-                  ss.titlePreview = "";
-                  ss.hasOutput = false;
-                  ss.hasToolCall = false;
-                  ss.hasThinking = false;
-                  ss.hasError = false;
-                  ss.installPrompt = matchesInstallIntent(promptText);
-                  if (attemptIndex > 0) {
-                    ss.pseudoToolRetryCount = attemptIndex;
-                  }
-                };
-
-                const sendPromptAttempt = async (attemptText, attemptIndex) => {
-                  prepareAttemptState(attemptIndex);
-                  const reuseLocalPrefetchStream = attemptIndex === 0 && ss.isStreaming;
-                  if (!reuseLocalPrefetchStream) beginSessionStream(ss);
-                  broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                  if (attemptIndex === 0 && !ss.routeNoticeSent) {
-                    const routeNoticeKey = getRouteIntentNoticeKey(ss.routeIntent);
-                    if (routeNoticeKey) {
-                      broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath, noticeKey: routeNoticeKey });
-                      ss.routeNoticeSent = true;
-                    }
-                  }
-                  const STREAM_SLOW_MS = 15_000;
-                  const STREAM_STILL_WORKING_MS = 30_000;
-                  const currentModelInfo = resolveCurrentModelInfo(engine);
-                  const toolEventGraceMs = currentModelInfo.isBrain ? BRAIN_TOOL_EVENT_GRACE_MS : DEFAULT_TOOL_EVENT_GRACE_MS;
-                  const slowNoticeStartedAt = Date.now();
-                  let slowStreamInterval = null;
-                  let missingToolExecutionTimer = null;
-                  const shouldShowSlowNotice = () =>
-                    !ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError;
-                  const broadcastSlowNotice = () => {
-                    if (!shouldShowSlowNotice()) {
-                      if (slowStreamInterval) {
-                        clearInterval(slowStreamInterval);
-                        slowStreamInterval = null;
-                      }
-                      return;
-                    }
-                    const elapsedMs = Date.now() - slowNoticeStartedAt;
-                    broadcast(buildSlowNoticePayload(engine, promptSessionPath, ss.routeIntent, elapsedMs));
-                  };
-                  const slowStreamTimer = setTimeout(() => {
-                    broadcastSlowNotice();
-                    slowStreamInterval = setInterval(broadcastSlowNotice, STREAM_STILL_WORKING_MS);
-                  }, STREAM_SLOW_MS);
-                  if (ENABLE_LOCAL_TOOL_RECOVERY && [ROUTE_INTENTS.UTILITY, ROUTE_INTENTS.CODING].includes(ss.routeIntent)) {
-                    missingToolExecutionTimer = setTimeout(() => {
-                      if (!shouldRecoverMissingToolExecution(ss, currentModelInfo, attemptIndex)) return;
-                      ss.missingToolExecutionDetected = !ss.pendingToolExecutionDetected;
-                      ss.pseudoToolNeedsRetry = true;
-                      ss.pseudoToolAbortRequested = true;
-                      broadcast(buildPseudoToolRecoveryNotice(engine, promptSessionPath, ss.routeIntent));
-                      engine.abortSessionByPath(promptSessionPath).catch(() => {});
-                    }, toolEventGraceMs);
-                  }
-                  try {
-                    await hub.send(attemptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
-                    return null;
-                  } catch (err) {
-                    return err;
-                  } finally {
-                    clearTimeout(slowStreamTimer);
-                    if (slowStreamInterval) clearInterval(slowStreamInterval);
-                    if (missingToolExecutionTimer) clearTimeout(missingToolExecutionTimer);
-                    broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
-                  }
-                };
-
-                const promptRouteIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
-                ss.routeIntent = promptRouteIntent;
-                ss.localEvidencePrefetched = false;
-                ss.routeNoticeSent = false;
-
-                // Brain 模式下检测需要本地工具的意图 → 引导用户
-                const LOCAL_OP_RE = /整理桌面|整理工作区|整理文件|改文件|移动文件|删除文件|重命名|新建文件夹|打开文件|读取文件|扫描目录|列出文件|清理桌面|organize.*desktop|move.*files?|rename.*files?|delete.*files?|scan.*folder|clean.*desktop/i;
-                const SKILL_NEEDED_RE = /写小说|创作小说|写故事|写穿越|写言情|写科幻|小说工作台|继续写.*章|写下一章|装订成册/i;
-                const _modelInfo = resolveCurrentModelInfo(engine);
-                if (_modelInfo.isBrain && (LOCAL_OP_RE.test(promptText) || SKILL_NEEDED_RE.test(promptText))) {
-                  const isZh = getLocale().startsWith("zh");
-                  const isSkill = SKILL_NEEDED_RE.test(promptText);
-                  broadcast({
-                    type: "status",
-                    isStreaming: true,
-                    sessionPath: promptSessionPath,
-                    noticeKey: "hint.localToolNeeded",
-                    noticeText: isZh
-                      ? isSkill
-                        ? "💡 小说工作台需要本地工具支持（创建文件、管理章节）。请在模型选择器中切换到支持工具调用的模型（如 Kimi K2.5），即可自动执行完整创作流程。"
-                        : "💡 此任务需要操作本地文件。默认模型无法直接操作，将为你生成操作方案。如需自动执行，请在设置中配置支持工具调用的供应商。"
-                      : isSkill
-                        ? "💡 Novel Workshop requires local tools. Switch to a model with tool support (e.g. Kimi K2.5) in the model selector for the full workflow."
-                        : "💡 This task requires local file access. Configure a provider with tool support in Settings for auto-execution.",
-                  });
-                  appendHiddenRetryContext(engine, promptSessionPath,
-                    isZh
-                      ? isSkill
-                        ? "【系统提示】用户想使用小说创作工作台，但当前默认模型无法调用本地工具（bash/write/read）。请告诉用户：1) 点击底部模型选择器，切换到 Kimi K2.5 或其他支持工具调用的模型；2) 切换后重新发送「写小说」即可启动完整的小说工作台流程（自动创建项目目录、大纲、分章节写作、装订成册）。当前你可以先帮用户构思故事大纲和人设。"
-                        : "【系统提示】用户要求执行本地文件操作，但当前模型无法直接调用 bash/ls/write 等本地工具。请为用户生成具体的操作方案：列出需要执行的 shell 命令（带完整路径），让用户可以复制粘贴到终端执行。如果需要用户提供更多信息（如具体路径），直接询问。"
-                      : isSkill
-                        ? "[System] User wants the Novel Workshop but the default model cannot call local tools. Tell the user to switch to Kimi K2.5 or another model with tool support, then resend 'write a novel' to activate the full workflow. For now, help brainstorm the outline."
-                        : "[System] User wants local file operations but current model cannot call bash/ls/write tools. Generate specific shell commands the user can copy-paste. Ask for paths if needed."
-                  );
-                }
-                const recentConversationText = getRecentConversationText(engine, promptSessionPath);
-                const reportPromptBasis = [recentConversationText, `user: ${promptText}`].filter(Boolean).join("\n\n");
-                let reportResearchKind = "";
-                let reportResearchContext = "";
+                ss.thinkTagParser.reset();
+                ss.moodParser.reset();
+                ss.xingParser.reset();
+                ss.titleRequested = false;
+                ss.titlePreview = "";
                 beginSessionStream(ss);
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                const routeNoticeKey = getRouteIntentNoticeKey(ss.routeIntent);
-                if (routeNoticeKey) {
-                  broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath, noticeKey: routeNoticeKey });
-                  ss.routeNoticeSent = true;
-                }
-                try {
-                  // Skip prefetch for vision requests — image analysis doesn't need search/weather tools
-                  reportResearchKind = msg.images?.length ? "" : inferReportResearchKind(reportPromptBasis);
-                  const prefetchTool = reportResearchKind
-                    ? resolveLocalPrefetchToolMeta(reportResearchKind, promptText)
-                    : null;
-                  if (prefetchTool) {
-                    emitStreamEvent(promptSessionPath, ss, {
-                      type: "tool_start",
-                      name: prefetchTool.name,
-                      args: prefetchTool.args,
-                    });
-                    recordToolCall({
-                      phase: "start",
-                      name: prefetchTool.name,
-                      sessionPath: promptSessionPath,
-                      args: prefetchTool.args,
-                    });
-                  }
-                  reportResearchContext = await buildReportResearchContext(reportPromptBasis, {
-                    userPrompt: promptText,
-                    locale: getLocale(),
-                  });
-                  if (reportResearchContext) {
-                    debugLog()?.log("ws", `attached report research context (${reportResearchContext.length} chars)`);
-                    ss.localEvidencePrefetched = true;
-                  }
-                  if (prefetchTool) {
-                    emitStreamEvent(promptSessionPath, ss, {
-                      type: "tool_end",
-                      name: prefetchTool.name,
-                      success: !!reportResearchContext,
-                      summary: buildLocalPrefetchToolSummary(reportResearchContext, reportResearchKind),
-                      details: {
-                        kind: reportResearchKind,
-                        source: "local-prefetch",
-                        chars: reportResearchContext.length,
-                      },
-                    });
-                    recordToolCall({
-                      phase: "end",
-                      name: prefetchTool.name,
-                      sessionPath: promptSessionPath,
-                      args: prefetchTool.args,
-                      success: !!reportResearchContext,
-                      summary: buildLocalPrefetchToolSummary(reportResearchContext, reportResearchKind),
-                    });
-                  }
-                } catch (err) {
-                  debugLog()?.warn?.("ws", `report research prefetch failed: ${err?.message || err}`);
-                  if (reportResearchKind) {
-                    const prefetchTool = resolveLocalPrefetchToolMeta(reportResearchKind, promptText);
-                    emitStreamEvent(promptSessionPath, ss, {
-                      type: "tool_end",
-                      name: prefetchTool.name,
-                      success: false,
-                      summary: {
-                        outputPreview: `Local prefetch failed: ${err?.message || err}`,
-                        matchCount: 0,
-                        source: "local-prefetch",
-                      },
-                      details: {
-                        kind: reportResearchKind,
-                        source: "local-prefetch",
-                        error: err?.message || String(err),
-                      },
-                    });
-                    recordToolCall({
-                      phase: "end",
-                      name: prefetchTool.name,
-                      sessionPath: promptSessionPath,
-                      args: prefetchTool.args,
-                      success: false,
-                      error: err?.message || String(err),
-                    });
-                  }
-                }
-                let finalError = null;
-                let localWorkspaceContextAttached = false;
-                let reportResearchContextAttached = false;
-                let reportStructureHintAttached = false;
-                const maxRecoveryAttempts = ENABLE_LOCAL_TOOL_RECOVERY ? MAX_PSEUDO_TOOL_RECOVERY_ATTEMPTS : 1;
-                for (let attemptIndex = 0; attemptIndex <= maxRecoveryAttempts; attemptIndex++) {
-                  const currentModelInfo = resolveCurrentModelInfo(engine);
-                  recordCurrentProvider({
-                    provider: currentModelInfo.provider,
-                    modelId: currentModelInfo.modelId,
-                    modelName: currentModelInfo.modelName,
-                    api: currentModelInfo.api,
-                    routeIntent: ss.routeIntent,
-                    sessionPath: promptSessionPath,
-                    attemptIndex,
-                  });
-                  if (!reportResearchContextAttached) {
-                    reportResearchContextAttached = appendHiddenRetryContext(
-                      engine,
-                      promptSessionPath,
-                      reportResearchContext,
-                    );
-                  }
-                  if (!reportStructureHintAttached) {
-                    reportStructureHintAttached = appendHiddenRetryContext(
-                      engine,
-                      promptSessionPath,
-                      buildReportStructureHint(reportPromptBasis, getLocale()),
-                    );
-                  }
-                  if (
-                    !localWorkspaceContextAttached
-                    && shouldAttachLocalWorkspaceContext(promptText, ss.routeIntent)
-                  ) {
-                    const activeSession = engine.getSessionByPath?.(promptSessionPath);
-                    const workspaceCwd = activeSession?.sessionManager?.getCwd?.()
-                      || engine.homeCwd
-                      || engine.cwd
-                      || process.cwd();
-                    const localContext = buildLocalWorkspaceContext({
-                      promptText,
-                      cwd: workspaceCwd,
-                    });
-                    localWorkspaceContextAttached = appendHiddenRetryContext(engine, promptSessionPath, localContext);
-                  }
-                  if (attemptIndex > 0) {
-                    const retryContext = ss.installPrompt
-                      ? buildInstallRetryPrompt("")
-                      : (reportResearchContext
-                        ? [
-                            "【严格执行要求】上一轮错误地把工具调用写成了正文文本，没有真正执行工具。",
-                            "本轮所需的搜索/行情/新闻/天气/资料已经由 Lynn 本地工具预取，并写在上文【系统已完成】资料块中。",
-                            "这一次不要再调用工具，也不要输出 <execute>、web_search(...)、XML 或任何伪工具文本。请直接基于上文真实资料回答用户；资料不足时标注不足并说明需要补充什么来源。",
-                          ].join("\n\n")
-                      : ((ss.pendingToolExecutionDetected || ss.missingToolExecutionDetected)
-                        ? [
-                            ss.missingToolExecutionDetected
-                              ? "【严格执行要求】上一轮在工具优先任务里没有及时发出真实工具调用。"
-                              : "【严格执行要求】上一轮只输出了“我来查询/我来搜索/我来读取/我来查看”这类承诺文本，但没有真正调用工具。",
-                            "这一次必须直接调用真实工具完成当前任务。文件和工作区任务优先调用 ls/read/grep/find/bash；实时信息任务优先调用 weather、stock_market、sports_score、live_news、web_search、web_fetch。",
-                            "拿到工具结果后再回复用户，不要先输出计划、承诺句、Premise / Conduct / Reflection / Act 或伪工具文本。",
-                            buildProviderToolCallHint({
-                              routeIntent: ss.routeIntent,
-                              provider: currentModelInfo.provider,
-                              modelId: currentModelInfo.modelId,
-                              locale: getLocale(),
-                            }),
-                          ].filter(Boolean).join("\n\n")
-                        : buildPseudoToolRetryPrompt("")));
-                    appendHiddenRetryContext(engine, promptSessionPath, retryContext);
-                  }
-                  const attemptText = promptText;
-                  const attemptError = await sendPromptAttempt(attemptText, attemptIndex);
-                  const needsRecovery = ENABLE_LOCAL_TOOL_RECOVERY && (!!ss.pseudoToolNeedsRetry || !!ss.installDeflectionDetected || !!ss.missingToolExecutionDetected || attemptError?.code === "INVALID_TOOL_SIMULATION");
-                  const wasAborted = attemptError?.message?.includes("aborted");
-
-                  if (attemptError && !wasAborted) {
-                    recordProviderIssue({
-                      provider: currentModelInfo.provider,
-                      modelId: currentModelInfo.modelId,
-                      modelName: currentModelInfo.modelName,
-                      routeIntent: ss.routeIntent,
-                      sessionPath: promptSessionPath,
-                      code: attemptError.code || null,
-                      message: attemptError.message || String(attemptError),
-                    });
-                  }
-
-                  if (needsRecovery && attemptIndex < maxRecoveryAttempts) {
-                    recordFallback({
-                      reason: ss.installDeflectionDetected
-                        ? "install-deflection"
-                        : ss.missingToolExecutionDetected
-                          ? "missing-tool-execution"
-                        : ss.pendingToolExecutionDetected
-                          ? "pending-tool-execution"
-                          : "pseudo-tool-simulation",
-                      provider: currentModelInfo.provider,
-                      modelId: currentModelInfo.modelId,
-                      routeIntent: ss.routeIntent,
-                      sessionPath: promptSessionPath,
-                    });
-                    if (ss.installDeflectionDetected && engine.steerSession(promptSessionPath, buildInstallRecoverySteerText())) {
-                      broadcast(buildPseudoToolRecoveryNotice(engine, promptSessionPath, ss.routeIntent));
-                    }
-                    broadcast({ type: "turn_retry", sessionPath: promptSessionPath });
-                    continue;
-                  }
-                  if (needsRecovery) {
-                    finalError = new Error(buildInvalidToolSimulationUserMessage(engine));
-                    break;
-                  }
-                  if (attemptError && !wasAborted) {
-                    finalError = attemptError;
-                  }
-
-                  // 工具调用后无文字输出恢复：追加隐藏提示让模型根据工具结果生成回复（仅重试一次）
-                  if (!attemptError && ss.toolCallWithoutText && attemptIndex === 0) {
-                    const hadToolCall = ss._recoveryHadToolCall;
-                    ss.toolCallWithoutText = false;
-                    const isZh = getLocale().startsWith("zh");
-                    const retryHint = hadToolCall
-                      ? (isZh
-                        ? "工具已成功执行并返回结果。请根据以上工具返回的信息直接回答用户的问题，不要再次调用工具。"
-                        : "Tools have been executed and returned results. Please answer the user's question based on the tool results above. Do not call tools again.")
-                      : (isZh
-                        ? "上一轮你只进行了内部思考/反思，但没有给用户任何回复文字。请直接回答用户的问题。如果无法完成用户的请求，请明确说明原因和替代建议。"
-                        : "In the previous turn you only produced internal thinking/reflection but did not reply to the user. Please answer the user's question directly. If you cannot fulfill the request, explain why and suggest alternatives.");
-                    appendHiddenRetryContext(engine, promptSessionPath, retryHint);
-                    broadcast({ type: "turn_retry", sessionPath: promptSessionPath });
-                    continue;
-                  }
-
-                  break;
-                }
-
-                if (finalError) {
-                  wsSend(ws, {
-                    type: "error",
-                    message: finalError.message,
-                    sessionPath: promptSessionPath,
-                  });
-                }
+                await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
               } catch (err) {
                 if (!err.message?.includes("aborted")) {
                   wsSend(ws, { type: "error", message: err.message, sessionPath: promptSessionPath });

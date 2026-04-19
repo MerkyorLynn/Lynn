@@ -208,10 +208,7 @@
     "browserScreenshot": "Browser screenshot",
     "compacting": "Compacting context",
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
-    "retry": "Retry",
-    "thinking": "Thinking",
-    "toolRunning": "Running tool",
-    "waitingTooLong": "Response is slow, switching to backup model..."
+    "retry": "Retry"
   },
   "markdown": {
     "runConfirm": {
@@ -278,7 +275,6 @@
     "deskContext": "With desk context",
     "pastedImage": "Pasted image",
     "attachFile": "Attach file",
-    "restoreDraft": "Restore draft",
     "docContext": "With document",
     "docContextOpenRecent": "Click to open a recent document",
     "embeddedModel": {
@@ -382,9 +378,6 @@
     "copy": "Copy",
     "copied": "Copied ✓"
   },
-  "preview": {
-    "openInBrowser": "Open in Browser"
-  },
   "cron": {
     "typeAt": "Once",
     "typeEvery": "Interval",
@@ -412,10 +405,7 @@
     "weekPrefix": ""
   },
   "mood": {
-    "label": "✿ MOOD",
-    "hanakoLabel": "✿ MOOD",
-    "butterLabel": "❊ PULSE",
-    "lynnLabel": "◈ REFLECT"
+    "label": "✿ MOOD"
   },
   "xing": {
     "title": "Reflection",
@@ -548,6 +538,71 @@
       "running": "📄 {name} is peeking at a webpage",
       "done": "📄 {name} got it all",
       "failed": "📄 {name} couldn't reach the page"
+    },
+    "stock_market": {
+      "running": "📈 {name} is checking the markets",
+      "done": "📈 {name} got the prices",
+      "failed": "📈 {name} couldn't fetch prices"
+    },
+    "stock_research": {
+      "running": "📊 {name} is pulling financials",
+      "done": "📊 {name} read the report",
+      "failed": "📊 {name} couldn't fetch financials"
+    },
+    "weather": {
+      "running": "☀️ {name} is checking the weather",
+      "done": "☀️ {name} got the weather",
+      "failed": "☀️ {name} couldn't fetch the weather"
+    },
+    "live_news": {
+      "running": "📰 {name} is scanning the news",
+      "done": "📰 {name} read the news",
+      "failed": "📰 {name} couldn't fetch news"
+    },
+    "sports_score": {
+      "running": "⚽ {name} is checking scores",
+      "done": "⚽ {name} got the scores",
+      "failed": "⚽ {name} couldn't fetch scores"
+    },
+    "exchange_rate": {
+      "running": "💱 {name} is checking exchange rates",
+      "done": "💱 {name} got the rates",
+      "failed": "💱 {name} couldn't fetch rates"
+    },
+    "express_tracking": {
+      "running": "📦 {name} is tracking the package",
+      "done": "📦 {name} got the status",
+      "failed": "📦 {name} couldn't track it"
+    },
+    "calendar": {
+      "running": "📅 {name} is doing the date math",
+      "done": "📅 {name} worked it out",
+      "failed": "📅 {name} couldn't compute"
+    },
+    "unit_convert": {
+      "running": "🔢 {name} is converting units",
+      "done": "🔢 {name} converted it",
+      "failed": "🔢 {name} couldn't convert"
+    },
+    "create_report": {
+      "running": "📋 {name} is drafting the report",
+      "done": "📋 {name} finished the report",
+      "failed": "📋 {name} couldn't generate the report"
+    },
+    "create_pdf": {
+      "running": "📑 {name} is laying out the PDF",
+      "done": "📑 {name} finished the PDF",
+      "failed": "📑 {name} couldn't make the PDF"
+    },
+    "create_pptx": {
+      "running": "🎬 {name} is building the deck",
+      "done": "🎬 {name} finished the deck",
+      "failed": "🎬 {name} couldn't make the deck"
+    },
+    "create_artifact": {
+      "running": "🎨 {name} is composing the artifact",
+      "done": "🎨 {name} finished the artifact",
+      "failed": "🎨 {name} couldn't compose it"
     },
     "search_memory": {
       "running": "💭 {name} is trying to remember",
@@ -734,7 +789,7 @@
       "setActive": "Set as active",
       "lastAgent": "Must keep at least one agent",
       "yuan": "Yuan",
-      "yuanHint": ""
+      "yuanHint": "\"Yuan\" is the agent's innate thinking style. Build your unique companion from this foundation."
     },
     "about": {
       "title": "About Them",
@@ -822,7 +877,6 @@
     "mcp": {
       "title": "MCP Servers",
       "hint": "Manage local stdio and remote SSE MCP servers. Connected tools become available inside Lynn.",
-      "builtinTitle": "Built-in document services",
       "presets": "Presets",
       "newServer": "New",
       "serverList": "Servers",
@@ -841,9 +895,6 @@
       "testSuccess": "Connection succeeded",
       "reload": "Reload",
       "reloaded": "MCP reloaded",
-      "openDocs": "Open docs",
-      "enableBuiltin": "Enable",
-      "disableBuiltin": "Disable",
       "empty": "No MCP servers yet",
       "tools": "Tools",
       "resources": "Resources",
@@ -898,7 +949,6 @@
       "searchProviderField": "Search engine",
       "searchApiKey": "Search API Key",
       "searchApiKeyHint": "Enter the API key for the selected search provider",
-      "searchBaseUrlHint": "When using searXNG, enter your instance URL. No API key is required.",
       "favorites": "Favorites",
       "searchModel": "Search models...",
       "noFavorites": "Click ☆ to favorite models",
@@ -999,8 +1049,7 @@
       "verified": "Verified & saved ✿",
       "verifyFailed": "Verification failed",
       "noProvider": "Please select a search engine first",
-      "noKey": "Please enter an API Key first",
-      "noBaseUrl": "Please enter the searXNG URL first"
+      "noKey": "Please enter an API Key first"
     },
     "work": {
       "title": "Patrol",
@@ -1317,10 +1366,10 @@
     "title": "Scheduled Tasks",
     "empty": "No scheduled tasks yet.\nThe assistant will create them when needed.",
     "guideTitle": "Automate with scheduled tasks",
-    "guideDesc": "Pick a template first, then choose the project, schedule, and model. After creating it, you can run a test immediately to confirm it really works.",
+    "guideDesc": "Set up tasks to run on a schedule. You can also ask the assistant to create them in chat.",
     "guideTip": "Click to add instantly. You can edit the time and content later.",
     "deleteConfirm": "Are you sure you want to delete this scheduled task?",
-    "defaultModel": "Default work model",
+    "defaultModel": "Default model",
     "edit": "Edit",
     "delete": "Delete",
     "addCustom": "+ Custom Task",
@@ -1444,10 +1493,7 @@
     "agentModelNotAvailable": "Model \"{model}\" configured for agent \"{id}\" is not available",
     "agentDeleteActive": "Cannot delete the currently active agent",
     "agentNotExists": "Agent \"{id}\" does not exist",
-    "modelNoResponse": "{model} returned no displayable content. This is usually an upstream empty response or compatibility issue, not necessarily a bad API configuration. Please retry or switch models.",
-    "defaultModelNoResponse": "{model}'s primary route did not produce any displayable result this turn. Lynn already relayed the request onto backup routes, but still could not get usable content. Please retry later, or switch to your own model service in Settings.",
-    "invalidToolSimulation": "This round did not execute any real tool calls, so the result was ignored. Please try again.",
-    "defaultModelInvalidToolSimulation": "The default model did not complete any real tool execution in this round, so the result was ignored. Lynn is switching this task onto a steadier backup execution route.",
+    "modelNoResponse": "Model returned no content. Please check API configuration and network connection.",
     "noActiveSession": "No active session",
     "compacting": "Compaction in progress",
     "waitForReply": "Please wait for the response to finish before compacting",
@@ -1459,13 +1505,11 @@
     "modelNoVision": "Current model does not support images. Please switch to a vision-capable model",
     "searchProviderNotConfigured": "Search provider not configured",
     "searchProviderMissingKey": "Search provider \"{provider}\" is missing API Key",
-    "searchProviderMissingBaseUrl": "Search provider \"{provider}\" is missing Base URL",
     "searchProviderUnknown": "Unknown search provider: {provider}",
     "searchFailed": "Search failed: {msg}",
     "searchEmptyQuery": "Please provide a search query.",
     "searchNoResults": "No relevant results found. (via {provider})",
     "searchResults": "Search results (via {provider}):\n\n{results}",
-    "searchFollowupHint": "If you need exact figures, full details, or citations, use web_fetch on the most relevant 1-2 URLs next.",
     "searchError": "Search error: {msg}",
     "fetchEmptyUrl": "Please provide a URL to fetch.",
     "fetchHttpOnly": "Only http/https URLs are supported.",
@@ -1750,14 +1794,6 @@
       "urlDesc": "Full URL to fetch (including https://)",
       "maxLenDesc": "Maximum characters to return, default {max}"
     },
-    "stockMarket": {
-      "label": "Market Lookup",
-      "description": "Look up gold, stocks, indices, funds, FX, and oil market information. The tool searches and fetches finance-focused sources such as Tencent, Sina Finance, Xueqiu, Eastmoney, and AkShare, then returns a structured summary.",
-      "queryDesc": "Original market question, for example “today's gold price”",
-      "kindDesc": "Optional kind: gold / stock / index / fund / fx / oil",
-      "marketDesc": "Optional market, for example CN / HK / US / GLOBAL",
-      "symbolDesc": "Optional symbol or instrument, for example 600519 / XAUUSD"
-    },
     "browser": {
       "label": "Browser",
       "description": "Control a browser to browse the web. Supports navigation, clicking, typing, scrolling, and screenshots.\nActions:\n- start: Launch the browser (must be called before first use)\n- stop: Close the browser\n- navigate(url): Navigate to a URL\n- snapshot: Get the current page's element tree (recommended: text format, low cost)\n- screenshot: Take a screenshot of the current page (use only when visual info is needed)\n- click(ref): Click the element with the [ref] number from snapshot\n- type(text, ref?): Type text into an element, optionally click ref to focus first\n- scroll(direction, amount?): Scroll the page, direction is up/down\n- select(ref, value): Select a dropdown option\n- key(key): Press a key, e.g. Enter, Escape, Tab, Control+a\n- wait(timeout?, state?): Wait for the page to load\n- evaluate(expression): Execute JavaScript on the page\n- show: Bring the browser window to front\n\nImportant: [ref] numbers from snapshot become invalid after page changes. A new snapshot is automatically returned after each navigate/click.",
@@ -1792,46 +1828,6 @@
       "titleDesc": "Display title, a short description of the content",
       "contentDesc": "Full content (HTML source / code / Markdown text)",
       "languageDesc": "Programming language (only for type=code), e.g. javascript, python, css"
-    },
-    "pptx": {
-      "label": "Create PPT",
-      "description": "Generate a PowerPoint presentation (.pptx file). Provide a title and slides array to create a professional PPT.\nEach slide supports 4 layouts: title (cover page), content (default), section (transition), two_column (side-by-side comparison).\nLines starting with - or * in body are rendered as bullet points. Use ||| to separate left/right columns in two_column layout.",
-      "titleDesc": "Presentation title",
-      "authorDesc": "Author name (optional)",
-      "slidesDesc": "Array of slides, each with layout, title, body, notes",
-      "layoutDesc": "Layout type: title (cover), content (default), section (transition), two_column (comparison)",
-      "slideTitleDesc": "Slide title",
-      "bodyDesc": "Slide body content, supports Markdown list format. Use ||| to separate columns in two_column layout",
-      "notesDesc": "Speaker notes (optional)",
-      "created": "Created PPT \"{title}\" with {count} slides, saved to {path}"
-    },
-    "report": {
-      "label": "Generate Report",
-      "description": "Generate a professional dark-themed HTML analysis report with built-in template. Provide structured data (title, metrics, sections) and the tool renders a polished page.\nSection types: metrics (KPI card grid), text (paragraphs), table (data table), verdict (prediction cards), warning (alert box).\nUse for: stock analysis, industry research, product reviews, competitive analysis.",
-      "titleDesc": "Report title",
-      "tagDesc": "Category tag, e.g. 'Semiconductor · Valuation'",
-      "subtitleDesc": "Subtitle, one line description",
-      "dateDesc": "Report date",
-      "sectionsDesc": "Sections array",
-      "secTitleDesc": "Section title",
-      "secTypeDesc": "Section type: metrics/text/table/verdict/warning",
-      "disclaimerDesc": "Disclaimer text (optional)",
-      "created": "Generated report \"{title}\" with {count} sections, saved to {path}"
-    },
-    "poster": {
-      "label": "Create Poster",
-      "description": "Generate a professional HTML poster. Provide title, content and style.\n4 themes: dark, light, gradient, minimal. 4 sizes: a4, wide, square, phone.\nUse # for headings, - for bullet points in content.",
-      "titleDesc": "Poster main title",
-      "subtitleDesc": "Subtitle (optional)",
-      "contentDesc": "Poster body content, supports Markdown headings and lists",
-      "footerDesc": "Footer info (optional), e.g. date, author, contact",
-      "created": "Created poster \"{title}\", saved to {path}"
-    },
-    "stockResearch": {
-      "label": "Stock Research",
-      "description": "Get comprehensive A-share stock research data: 60-day price history, financial indicators (8 quarters), income statement (4 years), top 10 shareholders, valuation (PE/PB/market cap). Call this BEFORE create_report to get real data. A-shares only.",
-      "codeDesc": "Stock code with exchange suffix, e.g. 688629.SH or 000001.SZ",
-      "nameDesc": "Company name (for display)"
     },
     "askAgent": {
       "label": "Cross-Agent Call",
@@ -2064,15 +2060,11 @@
       "alwaysAllow": "Always allow this type of operation",
       "trustedRoot": "Trusted root",
       "scope": "Terminal",
-      "softwareInstall": "Software install",
-      "installScript": "Remote install script",
       "fileWrite": "File write",
       "fileRead": "File read",
       "fileOp": "File access",
       "terminal": "Terminal action",
       "currentProject": "current project",
-      "installCommandLabel": "Install command to run",
-      "installScriptLabel": "Remote install script to run",
       "allowOnceHint": "Only allow this single action.",
       "allowSessionHint": "Allow similar actions for the rest of this task or session.",
       "allowAlwaysHereHint": "Always allow similar actions inside {project}."
@@ -2080,10 +2072,9 @@
   },
   "error.llmTimeout": "Model request timed out",
   "error.llmRateLimited": "Model rate limited, please wait",
-  "error.llmEmptyResponse": "Model returned empty or non-displayable content",
+  "error.llmEmptyResponse": "Model returned empty response",
   "error.llmAuthFailed": "Model authentication failed",
   "error.llmSlowResponse": "Model is responding slowly, please wait",
-  "error.brainUnreachable": "Default model service is temporarily unreachable. Check your network or switch to your own API key in Settings.",
   "error.fsPermission": "File permission denied",
   "error.fsNotFound": "File not found",
   "error.fsCopyFailed": "File copy failed",
@@ -2103,23 +2094,6 @@
   "status.reconnecting": "Reconnecting...",
   "status.disconnected": "Connection lost",
   "status.reconnect": "Reconnect",
-  "status.llmSlowResponse": "The model is still working. Please wait a moment.",
-  "status.llmStillWorking": "The model is still working. Waited about {minutes} minute(s).",
-  "status.recoveringToolExecution": "The model just simulated tools in text. Lynn is steering it back to the real execution path.",
-  "status.routeReasoningPlanned": "Detected an analysis task. Lynn will prioritize the default reasoning route for this turn.",
-  "status.routeExecutionPlanned": "Detected an execution task. Lynn will prioritize the default execution route for this turn.",
-  "status.routeCodingPlanned": "Detected a coding task. Lynn will prioritize the default coding route for this turn.",
-  "status.routeVisionPlanned": "Detected an image or attachment analysis task. Lynn will prioritize the default reasoning route for this turn.",
-  "status.defaultModelSlowResponse": "The default work model primary route is a bit slow. Lynn is relaying this turn through backup routes in the background.",
-  "status.defaultModelRecoveringToolExecution": "The default work model did not complete real tool execution just now. Lynn is moving this turn onto a backup execution route.",
-  "status.defaultModelStillWorking": "The default work model is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup routes.",
-  "status.defaultReasoningSlowResponse": "The default reasoning route is a bit slow. Lynn is relaying this turn through backup reasoning routes in the background.",
-  "status.defaultReasoningStillWorking": "The default reasoning route is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup reasoning routes.",
-  "status.defaultExecutionSlowResponse": "The default execution route is a bit slow. Lynn is relaying this turn through backup execution routes in the background.",
-  "status.defaultExecutionStillWorking": "The default execution route is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup execution routes.",
-  "status.defaultCodingSlowResponse": "The default coding route is a bit slow. Lynn is relaying this turn through backup coding routes in the background.",
-  "status.defaultCodingStillWorking": "The default coding route is still working. Waited about {minutes} minute(s). Lynn will keep relaying this turn through backup coding routes.",
-  "status.defaultCodingRecoveringToolExecution": "The default coding route did not complete real tool execution just now. Lynn is moving this turn onto a backup coding route.",
   "status.tasksRecovered": "Recovered {count} background task(s)",
   "status.tasksRecoveredRunning": "{count} background task(s) are still running",
   "status.tasksRecoveredWaiting": "{count} background task(s) are still running, with {waiting} waiting for approval",

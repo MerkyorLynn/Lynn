@@ -19,10 +19,15 @@ function formatElapsed(ms: number): string {
 
 export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed }: Props) {
   const t = window.t ?? ((p: string) => p);
-  const [open, setOpen] = useState(false);
+  // [PROGRESS-UX v2] DeepSeek-R1 style:
+  //   - During streaming (sealed=false): expanded so user reads along
+  //   - After thinking completes (sealed=true): auto-collapse to surface answer
+  //   - User manual toggle overrides auto behavior (explicitOpen is sticky once set)
+  const [explicitOpen, setExplicitOpen] = useState<boolean | null>(null);
+  const open = explicitOpen !== null ? explicitOpen : !sealed;
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(Date.now());
-  const toggle = useCallback(() => setOpen(v => !v), []);
+  const toggle = useCallback(() => setExplicitOpen(v => !(v !== null ? v : !sealed)), [sealed]);
 
   useEffect(() => {
     if (sealed) return;
@@ -36,7 +41,7 @@ export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed }: Pr
   const elapsedLabel = !sealed && elapsed >= 2000 ? ` (${formatElapsed(elapsed)})` : '';
 
   return (
-    <details className={styles.thinkingBlock} open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+    <details className={styles.thinkingBlock} open={open} onToggle={(e) => setExplicitOpen((e.target as HTMLDetailsElement).open)}>
       <summary className={styles.thinkingBlockSummary} onClick={(e) => { e.preventDefault(); toggle(); }}>
         <span className={`${styles.thinkingBlockArrow}${open ? ` ${styles.thinkingBlockArrowOpen}` : ''}`}>›</span>
         <span className={styles.thinkingBlockLabel}>

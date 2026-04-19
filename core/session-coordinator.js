@@ -1006,6 +1006,8 @@ export class SessionCoordinator {
       workspace: cwd,
       mode: SECURITY_MODE_CONFIG[effectiveMode]?.sandboxMode,
       getSessionPath: () => sessionPath,
+      // [2026-04-17] MCP 按需激活：sessionEntry.activeMcpServers 由 UI / command 维护
+      activeMcpServers: entry.activeMcpServers || null,
     });
   }
 

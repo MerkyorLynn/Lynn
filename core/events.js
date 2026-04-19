@@ -29,6 +29,12 @@ function trailingPrefixLen(buffer, target) {
 
 const XING_OPEN_RE = /<xing\s+title=["\u201C\u201D]([^"\u201C\u201D]*)["\u201C\u201D]>/;
 
+// [PROGRESS-UX v1] Brain emits self-closing markers like
+//   <lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>
+//   <lynn_tool_progress event="end" name="web_search" ms="3245" ok="true"></lynn_tool_progress>
+// Captured (non-greedy) attribute block, then the matching close tag.
+const LYNN_PROGRESS_RE = /<lynn_tool_progress\s+([^>]*?)><\/lynn_tool_progress>/;
+
 export class MoodParser {
   constructor() {
     this.inMood = false;
@@ -351,6 +357,88 @@ export class XingParser {
         emit({ type: "xing_text", data: this.buffer });
         this.buffer = "";
       }
+    }
+  }
+}
+
+/**
+ * LynnProgressParser — 从 streaming text 中抠掉 Brain 注入的进度标记
+ *
+ * 输入格式 (Brain server.js callQwenLocalStream 注入):
+ *   <lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>
+ *   <lynn_tool_progress event="end" name="web_search" ms="3245" ok="true"></lynn_tool_progress>
+ *
+ * 输出事件:
+ *   { type: "text", data }                                — 非进度内容透传
+ *   { type: "tool_progress", event: "start"|"end", name, ms?, ok? }
+ *
+ * 链接位置: ThinkTagParser.text → LynnProgressParser.text → MoodParser.feed
+ *           （即在 text-后、mood-前）
+ */
+export class LynnProgressParser {
+  constructor() {
+    this.buffer = "";
+  }
+
+  feed(delta, emit) {
+    this.buffer += delta;
+    this._drain(emit);
+  }
+
+  flush(emit) {
+    if (this.buffer) {
+      emit({ type: "text", data: this.buffer });
+      this.buffer = "";
+    }
+  }
+
+  reset() {
+    this.buffer = "";
+  }
+
+  _parseAttrs(attrStr) {
+    const out = {};
+    const re = /(\w+)=["']([^"']*)["']/g;
+    let m;
+    while ((m = re.exec(attrStr)) !== null) out[m[1]] = m[2];
+    return out;
+  }
+
+  _drain(emit) {
+    while (this.buffer.length > 0) {
+      const match = this.buffer.match(LYNN_PROGRESS_RE);
+      if (match) {
+        const before = this.buffer.slice(0, match.index);
+        if (before) emit({ type: "text", data: before });
+        const attrs = this._parseAttrs(match[1]);
+        emit({
+          type: "tool_progress",
+          event: attrs.event || "start",
+          name: attrs.name || "tool",
+          ms: attrs.ms ? Number(attrs.ms) : undefined,
+          ok: attrs.ok === undefined ? undefined : attrs.ok === "true",
+        });
+        this.buffer = this.buffer.slice(match.index + match[0].length);
+        continue;
+      }
+      // Hold tail if it might be the start of "<lynn_tool_progress"
+      const partialIdx = this.buffer.indexOf("<lynn_tool_progress");
+      if (partialIdx !== -1) {
+        // Have an opening tag but no closing — wait for more data
+        const before = this.buffer.slice(0, partialIdx);
+        if (before) emit({ type: "text", data: before });
+        this.buffer = this.buffer.slice(partialIdx);
+        break;
+      }
+      const holdLen = trailingPrefixLen(this.buffer, "<lynn_tool_progress");
+      if (holdLen > 0) {
+        const safe = this.buffer.slice(0, -holdLen);
+        if (safe) emit({ type: "text", data: safe });
+        this.buffer = this.buffer.slice(-holdLen);
+        break;
+      }
+      emit({ type: "text", data: this.buffer });
+      this.buffer = "";
     }
   }
 }

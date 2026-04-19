@@ -12,6 +12,7 @@ import { XingCard } from './XingCard';
 import { SettingsConfirmCard } from './SettingsConfirmCard';
 import { AuthorizationCard } from './AuthorizationCard';
 import { DiffViewer } from './DiffViewer';
+import { WritingDiffViewer } from './WritingDiffViewer';
 import { ReviewCard } from './ReviewCard';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
@@ -518,8 +519,13 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, agen
       return <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />;
     case 'file_output':
       return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} openLabel={openLabel} />;
-    case 'file_diff':
-      return <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />;
+    case 'file_diff': {
+      const ext = (block.filePath.split('.').pop() || '').toLowerCase();
+      const isProse = ext === 'md' || ext === 'markdown' || ext === 'txt';
+      return isProse
+        ? <WritingDiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />
+        : <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />;
+    }
     case 'artifact':
       return <ArtifactCard title={block.title} artifactType={block.artifactType} artifactId={block.artifactId} content={block.content} language={block.language} />;
     case 'browser_screenshot':
@@ -605,7 +611,14 @@ function FileOutputCard({
 }) {
   const [mdHtml, setMdHtml] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [externalDiff, setExternalDiff] = useState<{
+    diff: string; linesAdded: number; linesRemoved: number; rollbackId?: string;
+  } | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
   const isMd = ext === 'md' || ext === 'markdown';
+  const isProse = isMd || ext === 'txt';
+  const isZh = String(document?.documentElement?.lang || '').startsWith('zh');
 
   useEffect(() => {
     if (!isMd) return;
@@ -619,6 +632,41 @@ function FileOutputCard({
     return () => { cancelled = true; };
   }, [filePath, isMd]);
 
+  const handleViewExternalDiff = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (diffLoading) return;
+    if (externalDiff) {
+      // 已显示则切换隐藏
+      setExternalDiff(null);
+      return;
+    }
+    setDiffLoading(true);
+    setDiffError(null);
+    try {
+      const res = await hanaFetch('/api/fs/external-diff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath }),
+      });
+      const data = await res.json();
+      if (!data.hasChanges) {
+        setDiffError(data.message || (isZh ? '无外部修改' : 'No external changes'));
+        return;
+      }
+      setExternalDiff({
+        diff: data.diff,
+        linesAdded: data.linesAdded,
+        linesRemoved: data.linesRemoved,
+        rollbackId: data.rollbackId,
+      });
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : '';
+      setDiffError(raw.replace(/^hanaFetch\s+\S+:\s*/, '').trim() || (isZh ? '对比失败' : 'Diff failed'));
+    } finally {
+      setDiffLoading(false);
+    }
+  }, [diffLoading, externalDiff, filePath, isZh]);
+
   return (
     <div
       className={styles.fileOutputCard}
@@ -631,6 +679,21 @@ function FileOutputCard({
           <button type="button" className={styles.fileOutputOpen} onClick={() => openFilePreview(filePath, label, ext)}>
             {openLabel}
           </button>
+          {isProse && (
+            <button
+              type="button"
+              className={styles.fileOutputOpen}
+              onClick={handleViewExternalDiff}
+              disabled={diffLoading}
+              title={isZh ? '对比 Git HEAD 以查看外部工具（如 Claude Code / VSCode）的修改' : 'Compare with git HEAD to view external edits'}
+            >
+              {diffLoading
+                ? (isZh ? '… 对比中' : '… Comparing')
+                : externalDiff
+                  ? (isZh ? '隐藏对比' : 'Hide diff')
+                  : (isZh ? '对比外部修改' : 'External diff')}
+            </button>
+          )}
           {isMd && mdHtml && (
             <button
               type="button"
@@ -644,6 +707,24 @@ function FileOutputCard({
         </div>
       </div>
       <div className={styles.fileOutputPath}>{filePath}</div>
+      {diffError && (
+        <div style={{
+          marginTop: 8, padding: '6px 10px', fontSize: '0.78rem',
+          color: 'var(--text-muted)', background: 'var(--overlay-subtle, rgba(0,0,0,0.03))',
+          borderRadius: 4,
+        }}>{diffError}</div>
+      )}
+      {externalDiff && (
+        <div style={{ marginTop: 8 }}>
+          <WritingDiffViewer
+            filePath={filePath}
+            diff={externalDiff.diff}
+            linesAdded={externalDiff.linesAdded}
+            linesRemoved={externalDiff.linesRemoved}
+            rollbackId={externalDiff.rollbackId}
+          />
+        </div>
+      )}
       {isMd && mdHtml && !collapsed && (
         <div
           className="md-content"

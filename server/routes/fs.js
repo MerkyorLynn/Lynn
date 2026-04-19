@@ -8,6 +8,7 @@
  */
 
 import crypto from "crypto";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -211,6 +212,127 @@ export function createFsRoute(engine) {
       });
     } catch (err) {
       return c.json({ error: err?.message || "rollback failed" }, 500);
+    }
+  });
+
+  // ── [2026-04-16] 对比外部修改：git diff HEAD -- <file> ──
+  // 用于查看 Lynn 会话外（Claude Code / VSCode / 手改）对文件的修改
+  route.post("/fs/external-diff", async (c) => {
+    try {
+      const body = await c.req.json();
+      const filePath = typeof body?.filePath === "string" ? body.filePath.trim() : "";
+      if (!filePath) {
+        return c.json({ error: "missing filePath" }, 400);
+      }
+      if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
+        return c.json({ error: "path not allowed" }, 403);
+      }
+      if (!fs.existsSync(filePath)) {
+        return c.json({ error: "file not found" }, 404);
+      }
+
+      const fileDir = path.dirname(filePath);
+
+      // 查 git 仓库根目录
+      let gitRoot = null;
+      try {
+        gitRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+          cwd: fileDir,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim();
+      } catch {
+        return c.json({
+          ok: false,
+          hasChanges: false,
+          source: "none",
+          message: "文件不在 git 仓库内，无法对比外部修改",
+        });
+      }
+
+      // 相对仓库根的路径
+      const relPath = path.relative(gitRoot, filePath);
+
+      // git diff HEAD -- <file>（unified diff 格式）
+      let diffOutput = "";
+      try {
+        diffOutput = execFileSync(
+          "git",
+          ["--no-pager", "diff", "HEAD", "--", relPath],
+          { cwd: gitRoot, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+        );
+      } catch (err) {
+        // 新文件（HEAD 里还没有）— 对比空文件
+        try {
+          diffOutput = execFileSync(
+            "git",
+            ["--no-pager", "diff", "--no-index", "/dev/null", filePath],
+            { cwd: gitRoot, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+          );
+        } catch (err2) {
+          // git diff --no-index 有改动时退出码为 1，需要 catch 才能拿到输出
+          if (err2?.stdout) {
+            diffOutput = err2.stdout.toString();
+          } else {
+            return c.json({ error: "git diff failed: " + (err?.message || err2?.message || "unknown") }, 500);
+          }
+        }
+      }
+
+      if (!diffOutput || !diffOutput.trim()) {
+        return c.json({
+          ok: true,
+          hasChanges: false,
+          filePath,
+          source: "git",
+          message: "没有检测到外部修改",
+        });
+      }
+
+      // 统计 +/-
+      let added = 0, removed = 0;
+      for (const line of diffOutput.split("\n")) {
+        if (line.startsWith("+") && !line.startsWith("+++")) added++;
+        if (line.startsWith("-") && !line.startsWith("---")) removed++;
+      }
+
+      // 保存 rollbackId，使得 reject 可走 /fs/revert-edit 的流程
+      // 从 git HEAD 读出原始内容作为 rollback snapshot
+      let rollbackId = null;
+      try {
+        const headContent = execFileSync(
+          "git",
+          ["--no-pager", "show", `HEAD:${relPath}`],
+          { cwd: gitRoot, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+        );
+        if (editRollbackStore?.finalize && editRollbackStore?.setPending) {
+          const tmpId = `external-${crypto.randomBytes(8).toString("hex")}`;
+          editRollbackStore.setPending(tmpId, {
+            sessionPath: "",
+            cwd: fileDir,
+            filePath,
+            originalContent: headContent,
+          });
+          const finalized = editRollbackStore.finalize(tmpId);
+          rollbackId = finalized?.rollbackId || null;
+        }
+      } catch {
+        // HEAD 没有这个文件（新增文件）— 回滚 = 删除文件
+        // 暂不支持此场景的 reject（rollbackId 留 null）
+      }
+
+      return c.json({
+        ok: true,
+        hasChanges: true,
+        filePath,
+        diff: diffOutput,
+        linesAdded: added,
+        linesRemoved: removed,
+        source: "git",
+        rollbackId,
+      });
+    } catch (err) {
+      return c.json({ error: err?.message || "external-diff failed" }, 500);
     }
   });
 

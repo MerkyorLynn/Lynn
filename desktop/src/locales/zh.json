@@ -146,7 +146,7 @@
       "model": "模型",
       "jian": "笺",
       "continueBusy": "有任务正在推进",
-      "continueIdle": "工作区就绪 · 试试“帮我看看项目”",
+      "continueIdle": "工作区就绪 · 试试搜索“今天的 AI 热点”",
       "tryAt": "@ 引用文件",
       "startWorkspace": "浏览工作区",
       "resumeTask": "继续当前任务",
@@ -211,13 +211,7 @@
     "browserScreenshot": "浏览器截图",
     "compacting": "上下文压缩中",
     "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
-    "retry": "Retry",
-    "waiting": "等待回复",
-    "thinking": "正在思考",
-    "toolRunning": "工具执行中",
-    "waitingTooLong": "响应较慢，可能正在切换备用模型...",
-    "modelHint": "当前模型回复较简短，切换到更强的模型可能效果更好",
-    "modelHintAction": "去设置"
+    "retry": "Retry"
   },
   "markdown": {
     "runConfirm": {
@@ -292,7 +286,6 @@
     "deskContext": "看着书桌说",
     "pastedImage": "粘贴图片",
     "attachFile": "添加附件",
-    "restoreDraft": "恢复草稿",
     "docContext": "看着文档说",
     "docContextOpenRecent": "点击打开最近的文档",
     "embeddedModel": {
@@ -396,12 +389,10 @@
         "name": "Hanako"
       },
       "butter": {
-        "name": "Butter",
         "label": "更富有感情",
         "avatar": "Butter.png"
       },
       "kong": {
-        "name": "Kong",
         "label": "模型原本的样子",
         "avatar": "Kong.png"
       },
@@ -468,9 +459,6 @@
     "copy": "复制",
     "copied": "已复制 ✓"
   },
-  "preview": {
-    "openInBrowser": "在浏览器中打开"
-  },
   "cron": {
     "typeAt": "单次",
     "typeEvery": "间隔",
@@ -498,10 +486,7 @@
     "weekPrefix": "周"
   },
   "mood": {
-    "label": "✿ 情绪",
-    "hanakoLabel": "✿ 情绪",
-    "butterLabel": "❊ 脉冲",
-    "lynnLabel": "◈ 反思"
+    "label": "✿ MOOD"
   },
   "xing": {
     "title": "反省",
@@ -566,6 +551,71 @@
       "running": "📄 {name} 正在看网页",
       "done": "📄 {name} 了然于心",
       "failed": "📄 {name} 上网失败"
+    },
+    "stock_market": {
+      "running": "📈 {name} 正在查行情",
+      "done": "📈 {name} 拿到行情了",
+      "failed": "📈 {name} 行情没查到"
+    },
+    "stock_research": {
+      "running": "📊 {name} 在拉财报",
+      "done": "📊 {name} 财报看完了",
+      "failed": "📊 {name} 财报拉不到"
+    },
+    "weather": {
+      "running": "☀️ {name} 在查天气",
+      "done": "☀️ {name} 天气查到了",
+      "failed": "☀️ {name} 天气没查到"
+    },
+    "live_news": {
+      "running": "📰 {name} 在翻最新新闻",
+      "done": "📰 {name} 新闻翻好了",
+      "failed": "📰 {name} 没翻到新闻"
+    },
+    "sports_score": {
+      "running": "⚽ {name} 在看比分",
+      "done": "⚽ {name} 比分看到了",
+      "failed": "⚽ {name} 比分没看到"
+    },
+    "exchange_rate": {
+      "running": "💱 {name} 在查汇率",
+      "done": "💱 {name} 汇率到手",
+      "failed": "💱 {name} 汇率没查到"
+    },
+    "express_tracking": {
+      "running": "📦 {name} 在查快递",
+      "done": "📦 {name} 快递查到了",
+      "failed": "📦 {name} 快递没查到"
+    },
+    "calendar": {
+      "running": "📅 {name} 在算日子",
+      "done": "📅 {name} 日子算好了",
+      "failed": "📅 {name} 日子没算出来"
+    },
+    "unit_convert": {
+      "running": "🔢 {name} 在换算",
+      "done": "🔢 {name} 换算好了",
+      "failed": "🔢 {name} 换算失败"
+    },
+    "create_report": {
+      "running": "📋 {name} 在写报告",
+      "done": "📋 {name} 报告写好了",
+      "failed": "📋 {name} 报告没生成"
+    },
+    "create_pdf": {
+      "running": "📑 {name} 在排版 PDF",
+      "done": "📑 {name} PDF 排好了",
+      "failed": "📑 {name} PDF 失败了"
+    },
+    "create_pptx": {
+      "running": "🎬 {name} 在做 PPT",
+      "done": "🎬 {name} PPT 做好了",
+      "failed": "🎬 {name} PPT 失败了"
+    },
+    "create_artifact": {
+      "running": "🎨 {name} 在拼内容",
+      "done": "🎨 {name} 拼好了",
+      "failed": "🎨 {name} 拼失败了"
     },
     "search_memory": {
       "running": "💭 {name} 正在努力回想",
@@ -752,7 +802,7 @@
       "setActive": "设为主助手",
       "lastAgent": "至少保留一个助手",
       "yuan": "元",
-      "yuanHint": ""
+      "yuanHint": "「元」是助手的先天思维方式，以此为基础搭建你独一无二的伙伴"
     },
     "about": {
       "title": "关于 Ta",
@@ -844,7 +894,6 @@
     "mcp": {
       "title": "MCP 服务",
       "hint": "管理本地 stdio 和远程 SSE MCP 服务，连上后工具会直接进入 Lynn。",
-      "builtinTitle": "内置文档服务",
       "presets": "预设模板",
       "newServer": "新建",
       "serverList": "服务器列表",
@@ -863,9 +912,6 @@
       "testSuccess": "连接成功",
       "reload": "重新加载",
       "reloaded": "已重新加载 MCP",
-      "openDocs": "打开文档",
-      "enableBuiltin": "启用",
-      "disableBuiltin": "停用",
       "empty": "还没有 MCP 服务器",
       "tools": "工具",
       "resources": "资源",
@@ -920,7 +966,6 @@
       "searchProviderField": "搜索引擎",
       "searchApiKey": "搜索 API Key",
       "searchApiKeyHint": "启用搜索时请填写所选 provider 的 API Key",
-      "searchBaseUrlHint": "使用 searXNG 时填写你的实例地址，不需要 API Key",
       "favorites": "收藏",
       "searchModel": "搜索模型...",
       "noFavorites": "点击 ☆ 收藏常用模型",
@@ -1021,8 +1066,7 @@
       "verified": "验证通过，已保存 ✿",
       "verifyFailed": "验证失败",
       "noProvider": "请先选择搜索引擎",
-      "noKey": "请先输入 API Key",
-      "noBaseUrl": "请先输入 searXNG 地址"
+      "noKey": "请先输入 API Key"
     },
     "work": {
       "title": "巡检",
@@ -1341,10 +1385,10 @@
     "title": "自动任务",
     "empty": "暂无自动任务\n助手会在需要时自动创建",
     "guideTitle": "让助手按计划自动做事",
-    "guideDesc": "先选模板，再设置项目、时间和模型。创建后可以先测试一次，确认它真的会按计划执行。",
+    "guideDesc": "设置自动任务后，助手会按计划自动执行。也可以在对话中让助手创建。",
     "guideTip": "点击即可添加，添加后可编辑时间和内容",
     "deleteConfirm": "确定要删除这个定时任务吗？",
-    "defaultModel": "默认工作模型",
+    "defaultModel": "默认模型",
     "edit": "编辑",
     "delete": "删除",
     "addCustom": "+ 自定义任务",
@@ -1468,10 +1512,7 @@
     "agentModelNotAvailable": "agent \"{id}\" 配置的模型 \"{model}\" 不在可用列表中",
     "agentDeleteActive": "不能删除当前正在使用的助手",
     "agentNotExists": "助手 \"{id}\" 不存在",
-    "modelNoResponse": "{model} 这次没有返回任何可显示内容。这通常是上游空响应或接口兼容问题，不一定是你的 API 配置错误。请重试，或切换其他模型。",
-    "defaultModelNoResponse": "模型未返回任何内容，请检查 API 配置和网络连接。",
-    "invalidToolSimulation": "模型这轮没有真正执行工具调用，结果已忽略。请再试一次。",
-    "defaultModelInvalidToolSimulation": "默认模型这轮没有真正完成工具执行，这次结果已忽略。Lynn 正在切到更稳的备用执行链路。",
+    "modelNoResponse": "模型未返回任何内容，请检查 API 配置和网络连接。",
     "noActiveSession": "没有活跃的 session",
     "compacting": "正在压缩中",
     "waitForReply": "请等待回复结束后再压缩",
@@ -1483,13 +1524,11 @@
     "modelNoVision": "当前模型不支持图片，请切换到支持图片的模型后再试",
     "searchProviderNotConfigured": "未配置搜索 provider",
     "searchProviderMissingKey": "搜索 provider \"{provider}\" 缺少 API Key",
-    "searchProviderMissingBaseUrl": "搜索 provider \"{provider}\" 缺少 Base URL",
     "searchProviderUnknown": "未知搜索 provider: {provider}",
     "searchFailed": "搜索失败: {msg}",
     "searchEmptyQuery": "请提供搜索关键词。",
     "searchNoResults": "没有找到相关结果。(via {provider})",
     "searchResults": "搜索结果 (via {provider}):\n\n{results}",
-    "searchFollowupHint": "如果需要精确数字、正文细节或出处，请继续对最相关的 1-2 个结果使用 web_fetch。",
     "searchError": "搜索出错: {msg}",
     "fetchEmptyUrl": "请提供要抓取的 URL。",
     "fetchHttpOnly": "只支持 http/https 协议的 URL。",
@@ -1774,14 +1813,6 @@
       "urlDesc": "要抓取的完整 URL（包含 https://）",
       "maxLenDesc": "返回的最大字符数，默认 {max}"
     },
-    "stockMarket": {
-      "label": "行情查询",
-      "description": "查询金价、股价、指数、基金、汇率、原油等财经行情。工具会优先搜索并抓取腾讯自选股、新浪财经、雪球、东方财富、AkShare 等来源，再返回结构化摘要。",
-      "queryDesc": "原始行情问题，例如“今天金价多少”",
-      "kindDesc": "可选类型：gold / stock / index / fund / fx / oil",
-      "marketDesc": "可选市场，例如 CN / HK / US / GLOBAL",
-      "symbolDesc": "可选代码或品种，例如 600519 / XAUUSD"
-    },
     "browser": {
       "label": "浏览器",
       "description": "控制浏览器浏览网页。可以导航、点击、输入、滚动、截图。\n操作：\n- start：启动浏览器（首次使用前必须调用）\n- stop：关闭浏览器\n- navigate(url)：导航到指定 URL\n- snapshot：获取当前页面的元素树（推荐：文本格式，成本低）\n- screenshot：截取当前页面截图（仅在需要视觉信息时使用）\n- click(ref)：点击 snapshot 返回的 [ref] 编号对应的元素\n- type(text, ref?)：在元素中输入文本，可选先点击 ref 聚焦\n- scroll(direction, amount?)：滚动页面，direction 为 up/down\n- select(ref, value)：选择下拉菜单选项\n- key(key)：按键，如 Enter、Escape、Tab、Control+a\n- wait(timeout?, state?)：等待页面加载\n- evaluate(expression)：执行页面 JavaScript\n- show：将浏览器窗口置于前台\n\n重要：snapshot 返回的 [ref] 编号在页面变化后会失效，每次 navigate/click 后会自动返回新的 snapshot。",
@@ -1817,46 +1848,6 @@
       "contentDesc": "完整内容（HTML 源码 / 代码 / Markdown 文本）",
       "languageDesc": "编程语言（仅 type=code 时有效），如 javascript, python, css"
     },
-    "pptx": {
-      "label": "创建 PPT",
-      "description": "生成 PowerPoint 演示文稿（.pptx 文件）。提供标题和幻灯片数组即可自动生成专业的 PPT 文件。\n每张幻灯片支持 4 种布局：title（标题页）、content（内容页，默认）、section（章节过渡页）、two_column（双栏对比页）。\n正文 body 中以 - 或 * 开头的行会渲染为项目符号列表。双栏布局用 ||| 分隔左右两栏内容。",
-      "titleDesc": "演示文稿的标题",
-      "authorDesc": "作者姓名（可选）",
-      "slidesDesc": "幻灯片数组，每张包含 layout、title、body、notes",
-      "layoutDesc": "布局类型：title（标题页）、content（内容页，默认）、section（章节过渡页）、two_column（双栏对比页）",
-      "slideTitleDesc": "幻灯片标题",
-      "bodyDesc": "幻灯片正文内容，支持 Markdown 列表格式。双栏布局用 ||| 分隔左右内容",
-      "notesDesc": "演讲者备注（可选）",
-      "created": "已生成 PPT「{title}」，共 {count} 页，保存至 {path}"
-    },
-    "report": {
-      "label": "生成报告",
-      "description": "生成专业的深色主题 HTML 分析报告。内置精美模板，你只需提供结构化数据（标题、指标卡片、文本章节、数据表格、走势预判、风险提示）。\n章节类型：metrics（指标卡片网格）、text（段落文本）、table（数据表格）、verdict（预判卡片）、warning（风险警示框）。\n适用场景：个股深度分析、行业研究、产品评测、竞品分析等需要专业排版的报告。",
-      "titleDesc": "报告标题",
-      "tagDesc": "分类标签，如「连接器 · 估值分析」",
-      "subtitleDesc": "副标题，一行描述",
-      "dateDesc": "报告日期",
-      "sectionsDesc": "章节数组",
-      "secTitleDesc": "章节标题",
-      "secTypeDesc": "章节类型：metrics/text/table/verdict/warning",
-      "disclaimerDesc": "免责声明（可选）",
-      "created": "已生成报告「{title}」，共 {count} 个章节，保存至 {path}"
-    },
-    "poster": {
-      "label": "生成海报",
-      "description": "生成精美的 HTML 海报。提供标题、内容和风格即可自动生成专业海报。\n支持 4 种主题：dark（深色，默认）、light（浅色）、gradient（渐变彩色）、minimal（简约）。\n支持 4 种尺寸：a4（竖版）、wide（16:9 横版）、square（方形）、phone（手机竖屏）。\n内容中以 # 开头的行为大标题，## 为小标题，- 开头为列表项。",
-      "titleDesc": "海报主标题",
-      "subtitleDesc": "副标题（可选）",
-      "contentDesc": "海报正文内容，支持 Markdown 标题和列表",
-      "footerDesc": "底部信息（可选），如日期、作者、联系方式",
-      "created": "已生成海报「{title}」，保存至 {path}"
-    },
-    "stockResearch": {
-      "label": "股票研究",
-      "description": "获取 A 股深度研究数据：60日行情、财务指标（8个季度）、利润表（4年）、十大股东、估值数据（PE/PB/市值）。在生成分析报告前先调用此工具获取真实数据。仅支持 A 股。",
-      "codeDesc": "股票代码（带交易所后缀），如 688629.SH 或 000001.SZ",
-      "nameDesc": "公司名称（用于显示）"
-    },
     "askAgent": {
       "label": "跨 Agent 调用",
       "description": "派任务给另一个 agent，立即拿到结果。对方会当场处理并回复，你可以直接把结果告诉用户。\n适用场景：让对方 review 代码、翻译一段文字、从对方的专业视角分析问题等需要即时反馈的任务。\n对方以自己的人格和模型回复，有只读工具（读文件、搜索、web fetch），不能写文件或调用其他 agent。",
@@ -1878,13 +1869,13 @@
     },
     "cron": {
       "label": "定时任务",
-      "description": "创建和管理定时任务。定时任务在后台自动执行，到时间时会开一个独立 session 运行指定的 prompt。\n操作：\n- list：查看所有任务\n- add(type, schedule, prompt, label?, model?)：创建任务\n  - type \"at\"：一次性，schedule 为 ISO 时间字符串\n  - type \"every\"：间隔，schedule 为毫秒数（如 3600000 = 1 小时）\n  - type \"cron\"：cron 表达式（如 \"0 7 * * *\" = 每天早上 7 点）\n  - model：可选，指定执行任务使用的模型（不填则使用默认工作模型）\n- remove(id)：删除任务\n- toggle(id)：启用/禁用任务",
+      "description": "创建和管理定时任务。定时任务在后台自动执行，到时间时会开一个独立 session 运行指定的 prompt。\n操作：\n- list：查看所有任务\n- add(type, schedule, prompt, label?, model?)：创建任务\n  - type \"at\"：一次性，schedule 为 ISO 时间字符串\n  - type \"every\"：间隔，schedule 为毫秒数（如 3600000 = 1 小时）\n  - type \"cron\"：cron 表达式（如 \"0 7 * * *\" = 每天早上 7 点）\n  - model：可选，指定执行任务使用的模型（不填则使用默认对话模型）\n- remove(id)：删除任务\n- toggle(id)：启用/禁用任务",
       "actionDesc": "操作类型",
       "typeDesc": "调度类型（add 时必填）",
       "scheduleDesc": "调度参数：ISO 时间(at)，分钟数(every，如 60=每小时)，cron 表达式(cron)",
       "promptDesc": "到时间时执行的 prompt（add 时必填）",
       "labelDesc": "任务显示标签（可选）",
-      "modelDesc": "指定执行模型（可选，不填则使用默认工作模型）",
+      "modelDesc": "指定执行模型（可选，不填则使用默认对话模型）",
       "idDesc": "任务 ID（remove/toggle 时必填）"
     },
     "notify": {
@@ -2088,15 +2079,11 @@
       "alwaysAllow": "以后都允许此类操作",
       "trustedRoot": "受信任根目录",
       "scope": "终端",
-      "softwareInstall": "软件安装",
-      "installScript": "远程安装脚本",
       "fileWrite": "文件写入",
       "fileRead": "文件读取",
       "fileOp": "文件访问",
       "terminal": "终端执行",
       "currentProject": "当前项目",
-      "installCommandLabel": "将要安装的命令",
-      "installScriptLabel": "将要执行的远程安装脚本",
       "allowOnceHint": "只放行当前这一步，后面类似操作还会再问你。",
       "allowSessionHint": "本次任务剩下的类似操作都直接放行，任务结束后恢复确认。",
       "allowAlwaysHereHint": "以后在 {project} 里的类似操作都直接放行。"
@@ -2104,10 +2091,9 @@
   },
   "error.llmTimeout": "模型请求超时",
   "error.llmRateLimited": "模型限流，请稍候",
-  "error.llmEmptyResponse": "模型返回了空响应或不可显示内容",
+  "error.llmEmptyResponse": "模型返回了空响应",
   "error.llmAuthFailed": "模型认证失败",
   "error.llmSlowResponse": "模型响应较慢，请耐心等待",
-  "error.brainUnreachable": "默认模型服务暂时不可达，请检查网络连接或在设置中切换到自己的 API Key",
   "error.fsPermission": "文件权限不足",
   "error.fsNotFound": "文件未找到",
   "error.fsCopyFailed": "文件复制失败",
@@ -2124,23 +2110,6 @@
   "error.serverAuthFailed": "认证失败",
   "error.unknown": "发生了未知错误",
   "error.regionUnavailable": "此区域暂时无法显示",
-  "status.llmSlowResponse": "模型仍在处理中，请稍等片刻",
-  "status.llmStillWorking": "模型仍在处理中，已等待约 {minutes} 分钟",
-  "status.recoveringToolExecution": "模型刚才没有真正调用工具，Lynn 正在把它拉回真实执行链路。",
-  "status.routeReasoningPlanned": "检测到分析型任务，Lynn 会优先按默认推理链路处理。",
-  "status.routeExecutionPlanned": "检测到执行型任务，Lynn 会优先按默认执行链路处理。",
-  "status.routeCodingPlanned": "检测到编码型任务，Lynn 会优先按默认编码链路处理。",
-  "status.routeVisionPlanned": "检测到图像或附件分析任务，Lynn 会优先按默认推理链路处理。",
-  "status.defaultModelSlowResponse": "当前模型响应较慢，Lynn 正在尝试备用模型...",
-  "status.defaultModelRecoveringToolExecution": "工具执行未完成，Lynn 正在切换到备用模型重试...",
-  "status.defaultModelStillWorking": "仍在处理中，已等待约 {minutes} 分钟。Lynn 会继续尝试备用模型。",
-  "status.defaultReasoningSlowResponse": "推理模型响应较慢，Lynn 正在切换备用推理模型...",
-  "status.defaultReasoningStillWorking": "推理仍在进行，已等待约 {minutes} 分钟。",
-  "status.defaultExecutionSlowResponse": "执行模型响应较慢，Lynn 正在切换备用模型...",
-  "status.defaultExecutionStillWorking": "执行仍在进行，已等待约 {minutes} 分钟。",
-  "status.defaultCodingSlowResponse": "编码模型响应较慢，Lynn 正在切换备用模型...",
-  "status.defaultCodingStillWorking": "编码仍在进行，已等待约 {minutes} 分钟。",
-  "status.defaultCodingRecoveringToolExecution": "编码工具执行未完成，Lynn 正在切换备用模型重试...",
   "action.retry": "重试",
   "agentDiscovery.title": "发现已安装的 AI 工具",
   "agentDiscovery.body": "检测到你电脑上已安装以下 AI 工具：",

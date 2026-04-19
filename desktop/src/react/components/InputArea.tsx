@@ -17,14 +17,17 @@ import { TodoDisplay } from './input/TodoDisplay';
 import { AttachedFilesBar } from './input/AttachedFilesBar';
 import { SecurityModeSelector } from './input/SecurityModeSelector';
 import { ContextRing } from './input/ContextRing';
+import { enterWritingMode, exitWritingMode } from '../hooks/use-writing-preview';
 import { ThinkingLevelButton } from './input/ThinkingLevelButton';
 import { ModelSelector } from './input/ModelSelector';
 import { SlashCommandMenu } from './input/SlashCommandMenu';
 import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
+import { TaskModePicker } from './input/TaskModePicker';
 import {
   XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
+  buildTaskModeSlashCommands,
   type SlashCommand,
 } from './input/slash-commands';
 import {
@@ -43,6 +46,52 @@ export type { SlashCommand };
 
 export function InputArea() {
   return <InputAreaInner />;
+}
+
+// ── 写作模式切换按钮（✎ 图标）──
+function WritingModeToggle() {
+  const writingMode = useStore(s => s.writingMode);
+  const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || '');
+  const kbd = isMac ? '⇧⌘M' : 'Ctrl+Shift+M';
+  const isZh = String(document?.documentElement?.lang || '').startsWith('zh');
+  const title = writingMode
+    ? (isZh ? `退出写作模式 (${kbd})` : `Exit writing mode (${kbd})`)
+    : (isZh ? `进入写作模式 (${kbd}) — 加宽聊天 + 自动 MD 预览` : `Writing mode (${kbd}) — wider chat + auto MD preview`);
+
+  const toggle = useCallback(() => {
+    if (writingMode) exitWritingMode();
+    else enterWritingMode();
+  }, [writingMode]);
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={title}
+      aria-pressed={writingMode}
+      aria-label={isZh ? '写作模式' : 'Writing mode'}
+      style={{
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 26,
+        height: 26,
+        padding: 0,
+        border: `1px solid ${writingMode ? 'var(--accent)' : 'rgba(var(--accent-rgb), 0.14)'}`,
+        borderRadius: 'var(--radius-sm, 6px)',
+        background: writingMode ? 'rgba(var(--accent-rgb), 0.12)' : 'transparent',
+        color: writingMode ? 'var(--accent)' : 'var(--text-muted)',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    </button>
+  );
 }
 
 function deriveRunRisk(command: string): 'low' | 'medium' | 'high' {
@@ -213,8 +262,12 @@ function InputAreaInner() {
   );
 
   const slashCommands = useMemo(
-    () => buildSlashCommands(t, diaryFn, xingFn, compactFn, clearFn, planFn, saveFn),
-    [diaryFn, xingFn, compactFn, clearFn, planFn, saveFn, t],
+    () => {
+      const core = buildSlashCommands(t, diaryFn, xingFn, compactFn, clearFn, planFn, saveFn);
+      const taskModeSlash = buildTaskModeSlashCommands(setComposerText, setSlashMenuOpen, requestInputFocus);
+      return [...core, ...taskModeSlash];
+    },
+    [diaryFn, xingFn, compactFn, clearFn, planFn, saveFn, t, setComposerText, requestInputFocus],
   );
 
   const filteredCommands = useMemo(() => {
@@ -414,6 +467,8 @@ function InputAreaInner() {
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    // [2026-04-17] IME 组合态不要 resize，避免中文输入法候选框飞到左下角
+    if (isComposing.current) return;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   }, [composerText]);
@@ -862,14 +917,22 @@ function InputAreaInner() {
           rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
           onCompositionStart={() => { isComposing.current = true; }}
-          onCompositionEnd={() => { isComposing.current = false; }} />
+          onCompositionEnd={(e) => {
+            isComposing.current = false;
+            // 组合结束后补一次 resize（IME 确认字符时高度可能需要更新）
+            const el = e.target as HTMLTextAreaElement;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+          }} />
         <div className={styles['input-bottom-bar']}>
           <div className={styles['input-actions']}>
             <button type="button" className={styles['attach-btn']} onClick={handleAttachClick} title={t('input.attachFile') || '添加附件'}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileInputChange} />
+            <TaskModePicker />
             <SecurityModeSelector />
+            <WritingModeToggle />
             <ContextRing />
           </div>
           <div className={styles['input-controls']}>

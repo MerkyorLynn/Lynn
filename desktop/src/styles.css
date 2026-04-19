@@ -1395,6 +1395,19 @@ html[data-platform="darwin"] .main-content::before {
     overflow-y: auto;
     padding: 56px var(--space-lg) 10rem;
     scroll-behavior: smooth;
+    /* 底部渐变 mask：聊天内容在进入输入区前 80px 自然淡出，彻底消除穿透 */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black calc(100% - 80px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        black 0%,
+        black calc(100% - 80px),
+        transparent 100%
+    );
 }
 
 /* session panel 存在时 chatArea 不自己滚动 */
@@ -2419,21 +2432,20 @@ html[data-platform="darwin"] .main-content::before {
     left: 0;
     right: 0;
     padding: var(--space-sm) var(--space-lg) var(--space-lg);
-    background: transparent;
+    /* 顶部 25% 渐变淡入实色，无硬边界，聊天内容上滚时自然过渡 */
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        var(--bg) 25%,
+        var(--bg) 100%
+    );
     z-index: 5;
+    pointer-events: none; /* 让渐变透明区域不拦截点击 */
 }
 
-/* 从输入框中部往下铺实色，挡住底下穿过来的文字 */
-.input-area::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(var(--space-lg) + 1.5rem);
-    background: var(--bg);
-    z-index: -1;
-    pointer-events: none;
+/* 子元素恢复点击能力 */
+.input-area > * {
+    pointer-events: auto;
 }
 
 .input-area > * {

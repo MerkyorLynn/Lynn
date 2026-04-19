@@ -15,7 +15,6 @@ import { loadChannels as loadChannelsAction, openChannel as openChannelAction } 
 import { showError } from '../utils/ui-helpers';
 import { renderMarkdown } from '../utils/markdown';
 import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
-import { resolveUiI18nText } from '../utils/ui-i18n';
 import { getWebSocket } from './websocket';
 import {
   replayStreamResume,
@@ -24,46 +23,21 @@ import {
   updateSessionStreamMeta,
 } from './stream-resume';
 
+declare function t(key: string, vars?: Record<string, string>): any;
+
 // ── 聊天事件集合（走 StreamBufferManager） ──
 
 const REACT_CHAT_EVENTS = new Set([
   'text_delta', 'thinking_start', 'thinking_delta', 'thinking_end',
   'mood_start', 'mood_text', 'mood_end',
   'xing_start', 'xing_text', 'xing_end',
-  'tool_start', 'tool_end', 'turn_end', 'turn_retry',
+  'tool_start', 'tool_end', 'tool_progress', 'turn_end',
   'file_diff',
   'file_output', 'skill_activated', 'artifact',
   'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
   'tool_authorization',
   'compaction_start', 'compaction_end',
 ]);
-
-const INLINE_PROGRESS_EVENTS = new Set([
-  'text_delta',
-  'tool_start',
-  'tool_end',
-  'file_output',
-  'artifact',
-  'browser_screenshot',
-  'cron_confirmation',
-  'settings_confirmation',
-  'tool_authorization',
-  'turn_end',
-]);
-
-function resolveUiText(raw: unknown, vars?: Record<string, string | number>): string {
-  return resolveUiI18nText(raw, vars);
-}
-
-function targetsCurrentSession(msg: any, currentSessionPath: string | null): boolean {
-  return !msg?.sessionPath || !currentSessionPath || msg.sessionPath === currentSessionPath;
-}
-
-function stripReviewThinkTags(raw: unknown): string {
-  return String(raw || '')
-    .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
-    .trim();
-}
 
 function patchReviewBlock(sessionPath: string, reviewId: string, patch: Record<string, unknown>): void {
   const nextPatch = Object.fromEntries(
@@ -170,10 +144,6 @@ export function handleServerMessage(msg: any): void {
 
   // ── React 聊天渲染路径：聊天相关事件走 StreamBufferManager ──
   if (REACT_CHAT_EVENTS.has(msg.type)) {
-    if (INLINE_PROGRESS_EVENTS.has(msg.type) && targetsCurrentSession(msg, state.currentSessionPath)) {
-      if (state.inlineNotice) useStore.getState().setInlineNotice(null);
-      if (state.inlineError) useStore.getState().setInlineError(null);
-    }
     streamBufferManager.handle(msg);
     // turn_end 后仍需执行部分通用逻辑（loadSessions、context_usage）
     if (msg.type === 'turn_end') {
@@ -214,32 +184,6 @@ export function handleServerMessage(msg: any): void {
     // artifact 需要通知 artifacts shim 更新预览
     if (msg.type === 'artifact' && state.currentTab === 'chat') {
       handleArtifact(msg);
-    }
-    return;
-  }
-
-  // ── status / error 消息：更新 streaming 状态 / 显示错误 ──
-  if (msg.type === 'status') {
-    applyStreamingStatus(!!msg.isStreaming);
-    if (targetsCurrentSession(msg, state.currentSessionPath)) {
-      if (!msg.isStreaming) {
-        useStore.getState().setInlineNotice(null);
-        return;
-      }
-      const notice = resolveUiText(msg.noticeKey || msg.notice || msg.message, msg.noticeVars || msg.vars);
-      if (notice) {
-        useStore.getState().setInlineNotice(notice);
-      }
-    }
-    return;
-  }
-  if (msg.type === 'error') {
-    if (!targetsCurrentSession(msg, state.currentSessionPath)) return;
-    const errMsg = resolveUiText(msg.message || msg.error || '', msg.messageVars || msg.errorVars || msg.vars);
-    if (errMsg) {
-      useStore.getState().setInlineNotice(null);
-      useStore.getState().setInlineError(errMsg);
-      showError(errMsg);
     }
     return;
   }
@@ -366,16 +310,6 @@ export function handleServerMessage(msg: any): void {
     case 'bridge_message':
       if (msg.message) {
         useStore.getState().addBridgeMessage(msg.message);
-        // Auto-refresh if viewing this bridge session
-        const activeBridgeKey = useStore.getState().activeBridgeSessionKey;
-        if (activeBridgeKey && msg.message.sessionKey === activeBridgeKey) {
-          import('../hooks/use-hana-fetch').then(({ hanaFetch }) => {
-            hanaFetch(`/api/bridge/sessions/${encodeURIComponent(activeBridgeKey)}/messages`)
-              .then(r => r.json())
-              .then(data => useStore.getState().setActiveBridgeMessages(data.messages || []))
-              .catch(() => {});
-          });
-        }
       }
       break;
 
@@ -535,7 +469,7 @@ export function handleServerMessage(msg: any): void {
         reviewerModelLabel: msg.reviewerModelLabel || null,
         reviewerModelId: msg.reviewerModelId || null,
         reviewerModelProvider: msg.reviewerModelProvider || null,
-        content: stripReviewThinkTags(msg.content),
+        content: msg.content || '',
         error: msg.error,
         errorCode: msg.errorCode || null,
         status: 'done',
