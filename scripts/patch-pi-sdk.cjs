@@ -139,6 +139,22 @@ if (fs.existsSync(completionsTarget)) {
     '        params.enable_thinking = !!options?.reasoningEffort;\n' +
     '    }\n' +
     '    else if (options?.reasoningEffort && model.reasoning && compat.supportsReasoningEffort) {';
+  // 0.67+: zai / qwen / qwen-chat-template 分别独立 if/else 分支
+  // 我们只改 zai 分支，其他（qwen、qwen-chat-template、openrouter）原样保留
+  const modernThinkingNeedle =
+    '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
+    '        params.enable_thinking = !!options?.reasoningEffort;\n' +
+    '    }\n' +
+    '    else if (compat.thinkingFormat === "qwen" && model.reasoning) {';
+  const modernThinkingReplacement =
+    '    /* patched: zai-thinking-format (0.67+) */\n' +
+    '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
+    '        if (options?.reasoningEffort) {\n' +
+    '            params.thinking = { type: "enabled" };\n' +
+    '        }\n' +
+    '        // reasoningEffort 为空时不发 thinking 参数，避免智谱 API 返回空响应\n' +
+    '    }\n' +
+    '    else if (compat.thinkingFormat === "qwen" && model.reasoning) {';
   const legacyThinkingNeedle =
     '    /* patched: zai-thinking-format */\n' +
     '    if (compat.thinkingFormat === "zai" && model.reasoning) {\n' +
@@ -171,7 +187,12 @@ if (fs.existsSync(completionsTarget)) {
     '    }\n' +
     '    else if (options?.reasoningEffort && model.reasoning && compat.supportsReasoningEffort) {';
 
-  if (completionsCode.includes(legacyThinkingNeedle)) {
+  if (completionsCode.includes('/* patched: zai-thinking-format (0.67+) */')) {
+    console.log("[patch-pi-sdk] openai-completions.js zai-thinking patch (0.67+) already applied");
+  } else if (completionsCode.includes(modernThinkingNeedle)) {
+    completionsCode = completionsCode.replace(modernThinkingNeedle, modernThinkingReplacement);
+    console.log("[patch-pi-sdk] patched openai-completions.js (0.67+) → use zai thinking payload for GLM");
+  } else if (completionsCode.includes(legacyThinkingNeedle)) {
     completionsCode = completionsCode.replace(legacyThinkingNeedle, thinkingReplacement);
     console.log("[patch-pi-sdk] upgraded openai-completions.js legacy zai-thinking patch");
   } else if (completionsCode.includes(legacyThinkingNeedle2)) {
@@ -256,6 +277,7 @@ if (fs.existsSync(completionsTarget)) {
                 "Content-Type": "application/json",
                 ...(model.headers || {}),
                 ...(options?.headers || {}),
+                ...(options?.requestHeaders || {}),  /* patched: brain adapter respects requestHeaders */
             };
             if (apiKey && apiKey !== "local")
                 headers.Authorization = \`Bearer \${apiKey}\`;
@@ -330,19 +352,29 @@ if (fs.existsSync(completionsTarget)) {
     }
   }
 
-  const brainBranchNeedle = "export const streamOpenAICompletions = (model, context, options) => {\n";
-  const brainBranchReplacement =
-    "export const streamOpenAICompletions = (model, context, options) => {\n" +
-    "    if (model.provider === \"brain\" || String(model.baseUrl || \"\").includes(\"api.merkyorlynn.com\")) {\n" +
-    "        return streamBrainTolerantOpenAICompletions(model, context, options);\n" +
-    "    }\n";
+  // [v0.76.2 final] Brain tolerant branch DISABLED.
+  // The adapter forces stream:false which kills:
+  //   - Streaming UX ("一下子蹦出来" — answer appears all at once)
+  //   - lynn_tool_progress markers (server-side tool progress bubbles)
+  //   - reasoning_content streaming (thinking block progressive expansion)
+  // Brain SSE has been verified standards-compliant (tested via curl), so the
+  // adapter's value is no longer worth the UX cost. Helper function kept for
+  // future opt-in via runtime flag, but not auto-routed.
   if (completionsCode.includes("return streamBrainTolerantOpenAICompletions(model, context, options);")) {
-    console.log("[patch-pi-sdk] openai-completions.js brain tolerant branch already applied");
-  } else if (completionsCode.includes(brainBranchNeedle)) {
-    completionsCode = completionsCode.replace(brainBranchNeedle, brainBranchReplacement);
-    console.log("[patch-pi-sdk] patched openai-completions.js → route Brain through tolerant adapter");
+    const stripPattern =
+      "export const streamOpenAICompletions = (model, context, options) => {\n" +
+      "    if (model.provider === \"brain\" || String(model.baseUrl || \"\").includes(\"api.merkyorlynn.com\")) {\n" +
+      "        return streamBrainTolerantOpenAICompletions(model, context, options);\n" +
+      "    }\n";
+    const stripReplacement = "export const streamOpenAICompletions = (model, context, options) => {\n";
+    if (completionsCode.includes(stripPattern)) {
+      completionsCode = completionsCode.replace(stripPattern, stripReplacement);
+      console.log("[patch-pi-sdk] REMOVED Brain tolerant branch (now using normal SSE stream path)");
+    } else {
+      console.log("[patch-pi-sdk] Brain branch present but layout differs — leaving as-is");
+    }
   } else {
-    console.warn("[patch-pi-sdk] openai-completions.js structure changed, cannot insert Brain tolerant branch");
+    console.log("[patch-pi-sdk] Brain tolerant branch not installed (correct — using normal SSE stream)");
   }
 
   fs.writeFileSync(completionsTarget, completionsCode, "utf8");

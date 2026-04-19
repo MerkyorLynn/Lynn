@@ -104,6 +104,32 @@ export function createMcpRoute(engine) {
     }
   });
 
+  // [2026-04-17] Session-level MCP activation
+  route.get("/mcp/session-active", async (c) => {
+    const sessionPath = c.req.query("sessionPath") || engine.currentSessionPath || "";
+    const active = engine.getSessionActiveMcp?.(sessionPath) || [];
+    return c.json({ ok: true, sessionPath, active });
+  });
+
+  route.post("/mcp/session-activate", async (c) => {
+    const body = await safeJson(c);
+    const sessionPath = (body?.sessionPath || engine.currentSessionPath || "").trim();
+    const serverName = String(body?.serverName || "").trim();
+    if (!sessionPath || !serverName) return c.json({ error: "missing sessionPath or serverName" }, 400);
+    const ok = engine.activateMcpServer?.(sessionPath, serverName);
+    if (!ok) return c.json({ error: "session or engine not ready" }, 400);
+    return c.json({ ok: true, active: engine.getSessionActiveMcp(sessionPath) });
+  });
+
+  route.post("/mcp/session-deactivate", async (c) => {
+    const body = await safeJson(c);
+    const sessionPath = (body?.sessionPath || engine.currentSessionPath || "").trim();
+    const serverName = String(body?.serverName || "").trim();
+    if (!sessionPath || !serverName) return c.json({ error: "missing sessionPath or serverName" }, 400);
+    const ok = engine.deactivateMcpServer?.(sessionPath, serverName);
+    return c.json({ ok: !!ok, active: engine.getSessionActiveMcp?.(sessionPath) || [] });
+  });
+
   route.post("/mcp/reload", async (c) => {
     const manager = getManager(engine);
     if (!manager) {

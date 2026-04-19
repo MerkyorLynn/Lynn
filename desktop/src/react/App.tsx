@@ -162,6 +162,7 @@ function App() {
   const jianContent = useStore(s => s.deskJianContent);
   const isStreaming = useStore(s => s.isStreaming);
   const deskPatrolStatus = useStore(s => s.deskPatrolStatus);
+  const currentActivity = useStore(s => s.currentActivity);
   const isWorking = isStreaming || deskPatrolStatus?.state === 'running';
   const jianHasContent = !!jianContent && jianContent.trim().length > 0;
   const jianPendingCount = countPendingJianTodos(jianContent);
@@ -172,11 +173,21 @@ function App() {
     [sessions, currentSessionPath],
   );
   const titlePrimary = useMemo(() => {
+    // [PROGRESS-UX v1] when streaming with an active tool, replace title with activity label
+    if (isStreaming && currentActivity) {
+      const ag = agentName || 'Lynn';
+      const friendly = t(`tool.${currentActivity}.running`, { name: ag });
+      const fb = t('tool._fallback.running', { name: ag });
+      const label = (friendly && friendly !== `tool.${currentActivity}.running`)
+        ? friendly
+        : (fb && fb !== 'tool._fallback.running' ? fb : `正在调用 ${currentActivity}`);
+      return label;
+    }
     if (welcomeVisible) return '';
     if (currentSession) return resolveSessionTitle(currentSession, agentName);
     if (pendingNewSession) return t('sidebar.newChat') || '新对话';
     return agentName;
-  }, [agentName, currentSession, pendingNewSession, welcomeVisible]);
+  }, [agentName, currentSession, pendingNewSession, welcomeVisible, isStreaming, currentActivity]);
   const titleSecondary = useMemo(() => {
     const workspace = folderLabel(deskBasePath);
     if (!workspace) return '';

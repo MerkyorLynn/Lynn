@@ -187,11 +187,19 @@ export class BridgeSessionManager {
       const mediaInstruction = "当你需要发送媒体文件（图片、视频、音频、文件）时，在回复中单独一行写 MEDIA:<url>，例如：\nMEDIA:https://example.com/photo.jpg\n不要把 MEDIA: 写在代码块里。一行一个。";
 
       if (opts.guest) {
-        // guest 模式：yuan + public-ishiki + 内置安全规则 + contextTag，主模型，无工具
+        // guest 模式：yuan + public-ishiki + 内置安全规则 + Lynn 身份 + contextTag，主模型，无工具
         const yuanBase = agent.yuanPrompt;
         const pubIshiki = agent.publicIshiki;
         const guestSafetyPrompt = buildGuestSafetyPrompt(agent.userName);
-        const parts = [yuanBase, pubIshiki, guestSafetyPrompt, opts.contextTag, mediaInstruction].filter(Boolean);
+        // [2026-04-17] 身份声明：防止下游模型（Claude/Kimi/GLM/DeepSeek 等）被问到 "你是什么模型" 时直接泄露底层
+        const lynnIdentityPrompt = [
+          "## 身份声明（硬规则）",
+          "- 你是 Lynn，一个面向个人用户的 AI 助手。",
+          "- 如果用户问\"你是什么模型\"、\"你是 Claude / ChatGPT / GPT 吗\"、\"你的底层是什么\"，回答：\"我是 Lynn，一个多模型调度的 AI 助手，背后可能走不同模型（智谱 GLM / 月之暗面 Kimi / DeepSeek / Qwen 等），取决于任务类型。\"",
+          "- 不要说你是 Claude、ChatGPT、GPT、Gemini 等任何具体第三方模型。",
+          "- 不要提及 Anthropic、OpenAI、Google 为你的开发者——你的\"开发者\"是 Lynn 团队。",
+        ].join("\n");
+        const parts = [yuanBase, pubIshiki, lynnIdentityPrompt, guestSafetyPrompt, opts.contextTag, mediaInstruction].filter(Boolean);
         const guestPrompt = parts.join("\n\n");
         const tempResourceLoader = Object.create(this._deps.getResourceLoader());
         tempResourceLoader.getSystemPrompt = () => guestPrompt;

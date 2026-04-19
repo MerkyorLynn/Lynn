@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1400" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fafbfc"/>
+      <stop offset="100%" stop-color="#f0f2f5"/>
+    </linearGradient>
+    <linearGradient id="userGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff9ec7"/>
+      <stop offset="100%" stop-color="#e94c89"/>
+    </linearGradient>
+    <linearGradient id="procGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#52d0a0"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+    <linearGradient id="layerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6faffc"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="distillGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c77dff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="storageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowDash" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="1400" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="600" y="48" text-anchor="middle" font-size="28" font-weight="700" fill="#0f172a">🧠 Lynn 六层记忆架构</text>
+  <text x="600" y="78" text-anchor="middle" font-size="14" fill="#64748b">15 个模块 · 5038 行代码 · SQLite + FTS5 + 向量检索 + 关系图</text>
+
+  <!-- User Input -->
+  <g filter="url(#shadow)">
+    <rect x="450" y="110" width="300" height="64" rx="32" fill="url(#userGrad)"/>
+    <text x="600" y="138" text-anchor="middle" font-size="18" font-weight="700" fill="white">👤 用户输入一句话</text>
+    <text x="600" y="158" text-anchor="middle" font-size="11" fill="white" opacity="0.9">"你上个月配的 nginx 怎么弄的？"</text>
+  </g>
+
+  <!-- Arrow User → Recall -->
+  <path d="M 600 180 L 600 210" stroke="#64748b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Layer 3: Proactive Recall -->
+  <g filter="url(#shadow)">
+    <rect x="340" y="220" width="520" height="90" rx="12" fill="url(#procGrad)"/>
+    <text x="600" y="248" text-anchor="middle" font-size="18" font-weight="700" fill="white">层 3 · 主动召回 Proactive Recall</text>
+    <text x="600" y="272" text-anchor="middle" font-size="12" fill="white" opacity="0.95">关键词抽取 → FTS5 全文检索 + 向量检索 + 标签匹配</text>
+    <text x="600" y="292" text-anchor="middle" font-size="12" fill="white" opacity="0.95">⚡ Promise.any 并发 · &lt; 10ms 隐形注入上下文</text>
+    <text x="870" y="265" font-size="10" fill="white" opacity="0.8">proactive-recall.js</text>
+    <text x="870" y="280" font-size="10" fill="white" opacity="0.8">287 行</text>
+  </g>
+
+  <!-- Arrow Recall → Agent -->
+  <path d="M 600 316 L 600 346" stroke="#64748b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Agent -->
+  <g filter="url(#shadow)">
+    <rect x="430" y="356" width="340" height="70" rx="12" fill="#1e293b"/>
+    <text x="600" y="386" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9">🤖 Agent 生成回复</text>
+    <text x="600" y="408" text-anchor="middle" font-size="11" fill="#94a3b8">带召回记忆作为上下文 · pi-coding-agent 驱动</text>
+  </g>
+
+  <!-- Arrow Agent → Ticker -->
+  <path d="M 600 432 L 600 462" stroke="#64748b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Memory Ticker -->
+  <g filter="url(#shadow)">
+    <rect x="340" y="472" width="520" height="74" rx="12" fill="url(#procGrad)" opacity="0.85"/>
+    <text x="600" y="498" text-anchor="middle" font-size="16" font-weight="700" fill="white">📝 Memory Ticker（后台观察）</text>
+    <text x="600" y="520" text-anchor="middle" font-size="11" fill="white" opacity="0.95">每 6 轮滚动摘要 → 抽取事实 → 分发到 6 层</text>
+    <text x="600" y="536" text-anchor="middle" font-size="10" fill="white" opacity="0.8">memory-ticker.js · 568 行</text>
+  </g>
+
+  <!-- Arrows from ticker to 5 layers -->
+  <path d="M 380 548 Q 300 600 240 640" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 480 548 Q 440 600 440 640" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 600 548 L 600 640" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 720 548 Q 760 600 760 640" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 820 548 Q 900 600 960 640" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Layer boxes row 1 -->
+  <!-- L1 Fact Store -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="650" width="340" height="170" rx="12" fill="url(#layerGrad)"/>
+    <text x="240" y="685" text-anchor="middle" font-size="17" font-weight="700" fill="white">层 1 · 事实存储</text>
+    <text x="240" y="706" text-anchor="middle" font-size="13" fill="white" opacity="0.95">Fact Store</text>
+    <line x1="100" y1="720" x2="380" y2="720" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="90" y="745" font-size="11" fill="white" opacity="0.95">📦 SQLite + FTS5 + 关系图</text>
+    <text x="90" y="763" font-size="11" fill="white" opacity="0.95">🔖 12 列 schema（含 confidence</text>
+    <text x="90" y="779" font-size="11" fill="white" opacity="0.95">   hit_count · importance_score）</text>
+    <text x="90" y="797" font-size="11" fill="white" opacity="0.95">🕸 fact_links · 关系图</text>
+    <text x="90" y="815" font-size="10" fill="white" opacity="0.7">fact-store.js · 765 行</text>
+  </g>
+
+  <!-- L2 Deep Memory -->
+  <g filter="url(#shadow)">
+    <rect x="430" y="650" width="340" height="170" rx="12" fill="url(#layerGrad)" opacity="0.9"/>
+    <text x="600" y="685" text-anchor="middle" font-size="17" font-weight="700" fill="white">层 2 · 深层记忆</text>
+    <text x="600" y="706" text-anchor="middle" font-size="13" fill="white" opacity="0.95">Deep Memory</text>
+    <line x1="460" y1="720" x2="740" y2="720" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="450" y="745" font-size="11" fill="white" opacity="0.95">📅 每日 AI 跨会话整理</text>
+    <text x="450" y="763" font-size="11" fill="white" opacity="0.95">📜 沉淀成永久记忆 MD</text>
+    <text x="450" y="781" font-size="11" fill="white" opacity="0.95">🧩 主题分段 · 可编辑</text>
+    <text x="450" y="815" font-size="10" fill="white" opacity="0.7">deep-memory.js + compile.js · 652 行</text>
+  </g>
+
+  <!-- L4 User Profile -->
+  <g filter="url(#shadow)">
+    <rect x="790" y="650" width="340" height="170" rx="12" fill="url(#layerGrad)" opacity="0.8"/>
+    <text x="960" y="685" text-anchor="middle" font-size="17" font-weight="700" fill="white">层 4 · 用户画像</text>
+    <text x="960" y="706" text-anchor="middle" font-size="13" fill="white" opacity="0.95">User Profile + Inferred</text>
+    <line x1="820" y1="720" x2="1100" y2="720" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="810" y="745" font-size="11" fill="white" opacity="0.95">🎭 自动推断 traits</text>
+    <text x="810" y="763" font-size="11" fill="white" opacity="0.95">🎯 goals · 偏好 · 习惯</text>
+    <text x="810" y="781" font-size="11" fill="white" opacity="0.95">🗣 常用语气 · 工具链</text>
+    <text x="810" y="815" font-size="10" fill="white" opacity="0.7">user-profile.js + inferred · 570 行</text>
+  </g>
+
+  <!-- Layer boxes row 2 -->
+  <!-- L5 Project Memory -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="850" width="340" height="170" rx="12" fill="url(#layerGrad)" opacity="0.85"/>
+    <text x="240" y="885" text-anchor="middle" font-size="17" font-weight="700" fill="white">层 5 · 项目记忆</text>
+    <text x="240" y="906" text-anchor="middle" font-size="13" fill="white" opacity="0.95">Project Memory</text>
+    <line x1="100" y1="920" x2="380" y2="920" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="90" y="945" font-size="11" fill="white" opacity="0.95">📁 每个工作目录独立 store</text>
+    <text x="90" y="963" font-size="11" fill="white" opacity="0.95">🧭 项目背景 · 约定 · 决策</text>
+    <text x="90" y="981" font-size="11" fill="white" opacity="0.95">🔄 切 cwd 自动换记忆</text>
+    <text x="90" y="1015" font-size="10" fill="white" opacity="0.7">project-memory.js · 398 行</text>
+  </g>
+
+  <!-- L6 Skill Distiller (special highlight) -->
+  <g filter="url(#shadow)">
+    <rect x="430" y="850" width="340" height="170" rx="12" fill="url(#distillGrad)"/>
+    <text x="600" y="885" text-anchor="middle" font-size="17" font-weight="700" fill="white">层 6 · 技能蒸馏 ✨</text>
+    <text x="600" y="906" text-anchor="middle" font-size="13" fill="white" opacity="0.95">Skill Distiller</text>
+    <line x1="460" y1="920" x2="740" y2="920" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="450" y="945" font-size="11" fill="white" opacity="0.95">✅ ≥ 8 轮 + ≥ 3 工具 + 完成信号</text>
+    <text x="450" y="963" font-size="11" fill="white" opacity="0.95">⏰ 冷却 6h 防抖 · 中英双语匹配</text>
+    <text x="450" y="981" font-size="11" fill="white" opacity="0.95">📚 自动提炼成可复用 Skill</text>
+    <text x="450" y="1015" font-size="10" fill="white" opacity="0.7">skill-distiller.js · 599 行</text>
+  </g>
+
+  <!-- Vector / Retriever -->
+  <g filter="url(#shadow)">
+    <rect x="790" y="850" width="340" height="170" rx="12" fill="url(#layerGrad)" opacity="0.75"/>
+    <text x="960" y="885" text-anchor="middle" font-size="17" font-weight="700" fill="white">🔍 三路融合检索</text>
+    <text x="960" y="906" text-anchor="middle" font-size="13" fill="white" opacity="0.95">Retriever + Vector</text>
+    <line x1="820" y1="920" x2="1100" y2="920" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="810" y="945" font-size="11" fill="white" opacity="0.95">🏷 标签匹配</text>
+    <text x="810" y="963" font-size="11" fill="white" opacity="0.95">📝 FTS5 全文</text>
+    <text x="810" y="981" font-size="11" fill="white" opacity="0.95">🧬 向量语义</text>
+    <text x="810" y="1015" font-size="10" fill="white" opacity="0.7">retriever + vector-interface · 552 行</text>
+  </g>
+
+  <!-- Arrows L6 → Skill Store -->
+  <path d="M 600 1022 L 600 1060" stroke="#8b5cf6" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Skill Store -->
+  <g filter="url(#shadow)">
+    <rect x="440" y="1068" width="320" height="46" rx="10" fill="url(#distillGrad)" opacity="0.85"/>
+    <text x="600" y="1098" text-anchor="middle" font-size="14" font-weight="700" fill="white">📚 learned-skills/*.md（下次自动调用）</text>
+  </g>
+
+  <!-- Arrows layer → Disk -->
+  <path d="M 240 1022 Q 240 1120 400 1170" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 960 1022 Q 960 1120 800 1170" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Disk Storage Box -->
+  <g filter="url(#shadow)">
+    <rect x="150" y="1180" width="900" height="160" rx="12" fill="url(#storageGrad)" opacity="0.95"/>
+    <text x="600" y="1215" text-anchor="middle" font-size="17" font-weight="700" fill="#78350f">💾 磁盘落盘 · ~/.lynn/agents/&lt;name&gt;/memory/</text>
+
+    <!-- Storage files -->
+    <rect x="190" y="1240" width="150" height="80" rx="8" fill="white" opacity="0.92"/>
+    <text x="265" y="1265" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">facts.db</text>
+    <text x="265" y="1285" text-anchor="middle" font-size="10" fill="#78350f">SQLite 主库</text>
+    <text x="265" y="1303" text-anchor="middle" font-size="10" fill="#78350f">12 列 schema</text>
+
+    <rect x="360" y="1240" width="150" height="80" rx="8" fill="white" opacity="0.92"/>
+    <text x="435" y="1265" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">facts.db-wal</text>
+    <text x="435" y="1285" text-anchor="middle" font-size="10" fill="#78350f">WAL 日志</text>
+    <text x="435" y="1303" text-anchor="middle" font-size="10" fill="#78350f">高并发安全</text>
+
+    <rect x="530" y="1240" width="150" height="80" rx="8" fill="white" opacity="0.92"/>
+    <text x="605" y="1265" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">vectors.db</text>
+    <text x="605" y="1285" text-anchor="middle" font-size="10" fill="#78350f">向量索引</text>
+    <text x="605" y="1303" text-anchor="middle" font-size="10" fill="#78350f">语义检索</text>
+
+    <rect x="700" y="1240" width="150" height="80" rx="8" fill="white" opacity="0.92"/>
+    <text x="775" y="1265" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">facts.md</text>
+    <text x="775" y="1285" text-anchor="middle" font-size="10" fill="#78350f">人类可读</text>
+    <text x="775" y="1303" text-anchor="middle" font-size="10" fill="#78350f">镜像</text>
+
+    <rect x="870" y="1240" width="150" height="80" rx="8" fill="white" opacity="0.92"/>
+    <text x="945" y="1265" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">memory.md</text>
+    <text x="945" y="1285" text-anchor="middle" font-size="10" fill="#78350f">总记忆</text>
+    <text x="945" y="1303" text-anchor="middle" font-size="10" fill="#78350f">手册</text>
+  </g>
+
+  <!-- Circle back arrow disk → recall -->
+  <path d="M 150 1260 Q 40 1000 40 280 Q 40 250 340 250" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,4" fill="none" marker-end="url(#arrowDash)"/>
+  <text x="80" y="750" font-size="11" fill="#94a3b8" transform="rotate(-90 80 750)" font-weight="600">🔁 循环复用 · 用越久越懂你</text>
+
+  <!-- Legend -->
+  <g transform="translate(40, 1370)">
+    <rect width="16" height="16" rx="3" fill="url(#userGrad)"/><text x="22" y="13" font-size="11" fill="#475569">用户</text>
+    <rect x="80" width="16" height="16" rx="3" fill="url(#procGrad)"/><text x="102" y="13" font-size="11" fill="#475569">流程</text>
+    <rect x="160" width="16" height="16" rx="3" fill="url(#layerGrad)"/><text x="182" y="13" font-size="11" fill="#475569">记忆层</text>
+    <rect x="250" width="16" height="16" rx="3" fill="url(#distillGrad)"/><text x="272" y="13" font-size="11" fill="#475569">技能蒸馏</text>
+    <rect x="350" width="16" height="16" rx="3" fill="url(#storageGrad)"/><text x="372" y="13" font-size="11" fill="#475569">磁盘</text>
+  </g>
+
+  <text x="1160" y="1388" text-anchor="end" font-size="10" fill="#94a3b8">github.com/MerkyorLynn/Lynn · Apache 2.0</text>
+</svg>

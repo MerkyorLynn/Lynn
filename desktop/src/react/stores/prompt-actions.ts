@@ -4,6 +4,7 @@ import type { ComposerDraft, QuotedSelection } from './input-slice';
 import { ensureSession, showSidebarToast } from './session-actions';
 import { getWebSocket } from '../services/websocket';
 import { classifyRouteIntent, getRouteIntentNoticeKey } from '../../../../shared/task-route-intent.js';
+import { getModeById } from '../config/task-modes';
 
 export interface SendPromptOptions {
   mode?: 'prompt' | 'steer';
@@ -55,7 +56,17 @@ export async function sendPrompt(options: SendPromptOptions): Promise<boolean> {
 export async function submitPromptTask(options: SendPromptOptions): Promise<boolean> {
   const mode = options.mode ?? 'prompt';
   const displayText = options.displayText ?? options.text;
-  const requestText = options.requestText ?? options.text;
+  let requestText = options.requestText ?? options.text;
+
+  // ── 任务模式 persona 注入（仅新发 prompt；steer 流中已有上下文，不重复注入）──
+  if (mode === 'prompt') {
+    const activeModeId = useStore.getState().taskModeId;
+    const activeMode = activeModeId ? getModeById(activeModeId) : null;
+    const persona = activeMode?.persona;
+    if (persona && activeModeId !== 'auto') {
+      requestText = `${persona}\n\n${requestText}`;
+    }
+  }
 
   if (!canSendPayload(requestText, options.images)) {
     return false;

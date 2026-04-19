@@ -2178,6 +2178,11 @@
     gap: var(--space-sm);
 }
 
+/* 写作模式：加宽聊天区域 */
+.sessionMessagesWide {
+    max-width: 800px;
+}
+
 .sessionFooter {
     height: 12rem;
     flex-shrink: 0;

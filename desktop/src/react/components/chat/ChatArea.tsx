@@ -7,6 +7,7 @@
 
 import { memo, useRef, useEffect, useState, useMemo } from 'react';
 import { useStore } from '../../stores';
+import { useWritingPreview } from '../../hooks/use-writing-preview';
 import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { ApplyCodeDialog } from './ApplyCodeDialog';
@@ -23,6 +24,9 @@ export function ChatArea() {
   const [applyState, setApplyState] = useState<{ code: string; language?: string; anchorRect?: DOMRect } | null>(null);
   const activeBridgeKey = useStore(s => s.activeBridgeSessionKey);
   const welcomeVisible = useStore(s => s.welcomeVisible);
+
+  // 写作模式：监听 MD 文件操作自动打开预览
+  useWritingPreview();
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -81,7 +85,8 @@ function BridgeChatView() {
               {msg.ts ? ` · ${new Date(msg.ts).toLocaleTimeString()}` : ''}
             </div>
             <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-              {msg.content}
+              {/* [2026-04-17] 剥掉 bridge-manager 注入的 <t>MM-DD HH:mm</t> 紧凑时间标签（只在外部带给 LLM，不给用户看） */}
+              {typeof msg.content === 'string' ? msg.content.replace(/<t>\d{2}-\d{2}\s+\d{2}:\d{2}<\/t>\s*/g, '').trim() : msg.content}
             </div>
           </div>
         ))}
@@ -136,6 +141,7 @@ const _emptyItems: ChatListItem[] = [];
 const Panel = memo(function Panel({ path, active }: { path: string; active: boolean }) {
   const items = useStore(s => s.chatSessions[path]?.items ?? _emptyItems);
   const isSessionStreaming = useStore(s => s.streamingSessions.includes(path));
+  const writingMode = useStore(s => s.writingMode);
   const lastAssistantMessageId = useMemo(() => findLastAssistantMessageId(items), [items]);
   const ref = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -214,7 +220,7 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
         transition: active ? 'opacity 0.15s ease-out' : 'none',
       }}
     >
-      <div ref={contentRef} className={styles.sessionMessages}>
+      <div ref={contentRef} className={`${styles.sessionMessages}${writingMode ? ` ${styles.sessionMessagesWide}` : ''}`}>
         {items.map((item, i) => (
           <ItemView
             key={item.type === 'message' ? item.data.id : `c-${i}`}

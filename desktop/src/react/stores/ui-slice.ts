@@ -1,11 +1,26 @@
 import type { ActivePanel, TabType } from '../types';
 
+// 写作模式默认开启（跟 Claude Code 对齐，扩大可用屏幕宽度到 800px）
+// 用 localStorage 持久化用户的偏好
+const WRITING_MODE_KEY = 'hana-writing-mode';
+function readInitialWritingMode(): boolean {
+  try {
+    const stored = localStorage.getItem(WRITING_MODE_KEY);
+    if (stored === null) return true; // 默认开启
+    return stored === '1';
+  } catch {
+    return true;
+  }
+}
+
 export interface UiSlice {
   sidebarOpen: boolean;
   sidebarAutoCollapsed: boolean;
   jianOpen: boolean;
   jianAutoCollapsed: boolean;
   previewOpen: boolean;
+  /** 写作模式：加宽聊天区域，自动收起 Jian，自动打开 MD 预览 */
+  writingMode: boolean;
   welcomeVisible: boolean;
   currentTab: TabType;
   activePanel: ActivePanel;
@@ -38,6 +53,7 @@ export interface UiSlice {
   setJianOpen: (open: boolean) => void;
   setJianAutoCollapsed: (collapsed: boolean) => void;
   setPreviewOpen: (open: boolean) => void;
+  setWritingMode: (enabled: boolean) => void;
   setWelcomeVisible: (visible: boolean) => void;
   setCurrentTab: (tab: TabType) => void;
   setActivePanel: (panel: ActivePanel) => void;
@@ -59,6 +75,7 @@ export const createUiSlice = (
   jianOpen: false,
   jianAutoCollapsed: false,
   previewOpen: false,
+  writingMode: readInitialWritingMode(),
   welcomeVisible: true,
   currentTab: 'chat',
   activePanel: null,
@@ -77,6 +94,10 @@ export const createUiSlice = (
   setJianOpen: (open) => set({ jianOpen: open }),
   setJianAutoCollapsed: (collapsed) => set({ jianAutoCollapsed: collapsed }),
   setPreviewOpen: (open) => set({ previewOpen: open }),
+  setWritingMode: (enabled) => {
+    set({ writingMode: enabled });
+    try { localStorage.setItem(WRITING_MODE_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
+  },
   setWelcomeVisible: (visible) => set({ welcomeVisible: visible }),
   setCurrentTab: (tab) => set({ currentTab: tab }),
   setActivePanel: (panel) => set({ activePanel: panel }),
