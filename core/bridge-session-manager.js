@@ -315,8 +315,10 @@ export class BridgeSessionManager {
         if (opts.images?.length && _resolved?.vision === false) {
           opts.images = undefined;
         }
-        const promptOpts = opts.images?.length ? { images: opts.images } : undefined;
-        await session.prompt(prompt, promptOpts);
+        // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
+        // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
+        const _imagesArg = opts.images?.length ? opts.images : undefined;
+        await session.prompt(prompt, _imagesArg);
       } finally {
         unsub?.();
         this._activeSessions.delete(sessionKey);

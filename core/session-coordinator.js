@@ -841,13 +841,15 @@ export class SessionCoordinator {
     if (opts?.images?.length && _resolved?.vision === false) {
       opts.images = undefined;
     }
-    const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
+    // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
+    // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
+    const _imagesArg = opts?.images?.length ? opts.images : undefined;
     const tracker = createReplyIntegrityTracker();
     const unsub = this._session.subscribe((event) => {
       tracker.handle(event);
     });
     try {
-      await this._session.prompt(text, promptOpts);
+      await this._session.prompt(text, _imagesArg);
       ensureValidReplyExecution(tracker);
       if (sp) {
         const entry = this._sessions.get(sp);
@@ -931,13 +933,15 @@ export class SessionCoordinator {
     if (opts?.images?.length && _resolvedSub?.vision === false) {
       opts.images = undefined;
     }
-    const promptOpts = opts?.images?.length ? { images: opts.images } : undefined;
+    // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
+    // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
+    const _imagesArg = opts?.images?.length ? opts.images : undefined;
     const tracker = createReplyIntegrityTracker();
     const unsub = entry.session.subscribe((event) => {
       tracker.handle(event);
     });
     try {
-      await entry.session.prompt(text, promptOpts);
+      await entry.session.prompt(text, _imagesArg);
       ensureValidReplyExecution(tracker);
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {
