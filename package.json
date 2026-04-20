@@ -96,6 +96,7 @@
     "esbuild": "^0.27.4",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "msw": "^2.13.4",
     "patch-package": "^8.0.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.57.2",
@@ -189,5 +190,10 @@
       "allowToChangeInstallationDirectory": true,
       "include": "build/installer.nsh"
     }
+  },
+  "msw": {
+    "workerDirectory": [
+      "desktop/src/public"
+    ]
   }
 }

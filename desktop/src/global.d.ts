@@ -4,7 +4,17 @@
  * 集中声明 window 上的全局属性，避免散落的 `(window as any)` 和重复的 declare global。
  */
 
+/// <reference types="vite/client" />
+
 import type { PlatformApi } from './react/types';
+
+// v0.77 自定义 Vite env vars
+interface ImportMetaEnv {
+  readonly VITE_USE_MSW?: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
 
 declare global {
   interface Window {
