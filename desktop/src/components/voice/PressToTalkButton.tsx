@@ -354,7 +354,7 @@ async function mockTranscribe(
 }
 
 // ============ 默认样式 (可自己用 tailwind 覆盖) ============
-// @ts-expect-error · style block, 可以放在 global.css
+// 内联到 <style data-ptt> 节点,组件首次挂载时插入
 const style = `
 .ptt-root { position: relative; display: inline-block; }
 .ptt-btn {
