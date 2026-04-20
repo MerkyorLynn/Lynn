@@ -216,6 +216,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         silentBrainAbortTimer: null,
         activeStreamToken: null,
         degenerationAbortRequested: false,
+        // [TURN-FENCE v1 · 2026-04-20] 上一轮因超时/错误 abort 且未产出内容 → 下一轮 prompt 前加
+        // 【系统注意】提示,防 A3B 把上一个未答问题一起回答产生串轮(Round 7 T14→T15 观察)
+        _lastTurnAborted: false,
         // [FAKE-PROGRESS-GUARD v2] 模型可能幻觉 <lynn_tool_progress> 标记
         //   v2 策略：永不 emit content-derived progress · 仅计数用于 steer 触发
         //   前端进度完全由结构化 tool_execution_start/end event 驱动
@@ -259,6 +262,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.silentBrainAbortTimer = setTimeout(() => {
       ss.silentBrainAbortTimer = null;
       if (!ss.isStreaming || ss.hasOutput || ss.hasToolCall || ss.hasThinking || ss.hasError) return;
+      // [TURN-FENCE v1] 标记上一轮 abort 无产出 · 下一轮 prompt 前加串轮隔离提示
+      ss._lastTurnAborted = true;
       engine.abortSessionByPath?.(sessionPath).catch(() => {});
     }, timeoutMs);  // [2026-04-20] A3B fallback: utility 25s, reasoning/coding 45s
     if (ss.silentBrainAbortTimer.unref) ss.silentBrainAbortTimer.unref();
@@ -362,6 +367,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   function closeStreamAfterError(sessionPath, ss) {
     if (!sessionPath || !ss?.isStreaming) return;
     clearSilentBrainAbortTimer(ss);
+    // [TURN-FENCE v1] 本轮无产出被错误关闭 → 下一轮需要串轮隔离提示
+    if (!ss.hasOutput && !ss.hasToolCall) ss._lastTurnAborted = true;
     if (ss.isThinking) {
       ss.isThinking = false;
       emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -1301,6 +1308,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   finishSessionStream(ss);
                   resetCompletedTurnState(ss);
                   return;
+                }
+                // [TURN-FENCE v1 · 2026-04-20] 上一轮超时 abort 且无产出 → 加系统提示防串轮
+                // Round 7 观察:T14 超时后 T15 preview 以 T14 的答案(## T14 韦伯的官僚制)开头
+                // 根因是 pi-sdk session 历史里 T14 user 有但 assistant 为空,A3B 看到两个未答问题会一起回答
+                if (ss._lastTurnAborted) {
+                  effectivePromptText = `【系统注意】上一个问题因超时未能回答。本轮只回答下面这个当前问题,不要再回答之前未答复的任何问题。\n\n${effectivePromptText}`;
+                  ss._lastTurnAborted = false;
                 }
                 ss.effectivePromptText = effectivePromptText;
                 scheduleSilentBrainAbort(promptSessionPath, ss);
