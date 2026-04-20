@@ -105,11 +105,21 @@ check_env() {
   command -v systemctl &>/dev/null || { err "systemd 不可用"; exit 1; }
   ok "systemd"
 
-  # 网络
-  if curl -s -m 5 -o /dev/null -w "%{http_code}" "$HF_MIRROR" 2>/dev/null | grep -q "^[23]"; then
-    ok "HF mirror reachable: $HF_MIRROR"
+  # 网络 (优先 wget,curl 不一定装)
+  if command -v wget &>/dev/null; then
+    if wget -q --tries=1 --timeout=5 -O /dev/null "$HF_MIRROR" 2>/dev/null; then
+      ok "HF mirror reachable: $HF_MIRROR"
+    else
+      warn "HF mirror 不通,首次下载模型可能慢"
+    fi
+  elif command -v curl &>/dev/null; then
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "$HF_MIRROR" 2>/dev/null | grep -q "^[23]"; then
+      ok "HF mirror reachable: $HF_MIRROR"
+    else
+      warn "HF mirror 不通"
+    fi
   else
-    warn "HF mirror 不通,首次下载模型可能慢"
+    warn "wget/curl 都没装,跳过网络检查"
   fi
 
   ok "环境 OK"
@@ -123,23 +133,46 @@ setup_conda_env() {
 
   source "$CONDA_PATH/etc/profile.d/conda.sh"
 
-  if ! conda env list | grep -q "^$CONDA_ENV "; then
+  if ! sudo -u "$CONDA_ENV_OWNER" "$CONDA_PATH/bin/conda" env list 2>/dev/null | grep -q "^$CONDA_ENV "; then
     log "创建 conda env: $CONDA_ENV (Python $PYTHON_VER)"
     sudo -u "$CONDA_ENV_OWNER" "$CONDA_PATH/bin/conda" create -y -n "$CONDA_ENV" python="$PYTHON_VER"
   fi
 
-  PY="$CONDA_PATH/envs/$CONDA_ENV/bin/python"
-  PIP="$CONDA_PATH/envs/$CONDA_ENV/bin/pip"
+  # 自动检测 env 实际路径 (用户 default 可能是 ~/.conda/envs/ 也可能是 ~/miniconda3/envs/)
+  CONDA_ENV_PATH=$(sudo -u "$CONDA_ENV_OWNER" "$CONDA_PATH/bin/conda" env list 2>/dev/null \
+                    | awk -v n="$CONDA_ENV" '$1==n{print $NF}' | head -1)
+  if [[ -z "$CONDA_ENV_PATH" || ! -d "$CONDA_ENV_PATH" ]]; then
+    err "找不到 conda env $CONDA_ENV 的实际路径"
+    exit 1
+  fi
+  ok "conda env path: $CONDA_ENV_PATH"
 
-  log "安装 Python 包 (用 HF 镜像加速)..."
-  HF_ENDPOINT="$HF_MIRROR" sudo -u "$CONDA_ENV_OWNER" "$PIP" install -q --upgrade pip
-  HF_ENDPOINT="$HF_MIRROR" sudo -u "$CONDA_ENV_OWNER" "$PIP" install -q \
+  PY="$CONDA_ENV_PATH/bin/python"
+  PIP="$CONDA_ENV_PATH/bin/pip"
+
+  log "安装 Python 包 (用 HF/PyPI 镜像加速)..."
+  PIP_MIRROR_ARGS=("-i" "https://pypi.tuna.tsinghua.edu.cn/simple")
+  HF_ENV="HF_ENDPOINT=$HF_MIRROR"
+
+  # pip 自身先升级
+  sudo -u "$CONDA_ENV_OWNER" env $HF_ENV "$PIP" install -q --upgrade pip "${PIP_MIRROR_ARGS[@]}"
+
+  # torch 必须单独装(自带 CUDA wheels 走 pytorch 官方源)
+  log "  装 torch (CUDA 12.1 wheels, ~2GB)..."
+  sudo -u "$CONDA_ENV_OWNER" env $HF_ENV "$PIP" install -q \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    "torch>=2.4" \
+    || warn "torch 装失败 (如已存在可忽略)"
+
+  # 其他依赖走清华镜像
+  log "  装其他依赖..."
+  sudo -u "$CONDA_ENV_OWNER" env $HF_ENV "$PIP" install -q "${PIP_MIRROR_ARGS[@]}" \
     "fastapi>=0.110" "uvicorn[standard]>=0.27" \
     "FlagEmbedding>=1.3.0" \
     "faster-whisper>=1.0.3" \
-    "torch>=2.4 --index-url https://download.pytorch.org/whl/cu121" \
     "ctranslate2>=4.4" \
     "huggingface_hub>=0.26" \
+    "pydantic>=2.0" \
     || warn "pip 部分失败,如已存在可忽略"
 
   ok "Python 依赖装完"
@@ -310,7 +343,20 @@ PYEOF
 write_systemd() {
   hr; log "Step 4/5 · systemd units"; hr
 
-  PY="$CONDA_PATH/envs/$CONDA_ENV/bin/python"
+  # 优先用 setup_conda_env 探测出的路径,否则 fallback 默认两处
+  if [[ -z "${CONDA_ENV_PATH:-}" ]]; then
+    for cand in \
+        "/home/$CONDA_ENV_OWNER/.conda/envs/$CONDA_ENV" \
+        "$CONDA_PATH/envs/$CONDA_ENV"; do
+      [[ -d "$cand" ]] && CONDA_ENV_PATH="$cand" && break
+    done
+  fi
+  if [[ -z "$CONDA_ENV_PATH" ]]; then
+    err "找不到 conda env $CONDA_ENV"; exit 1
+  fi
+  PY="$CONDA_ENV_PATH/bin/python"
+  ok "using PY: $PY"
+
   COMMON_ENV="Environment=HF_ENDPOINT=$HF_MIRROR
 Environment=HF_HOME=$HF_CACHE
 Environment=TRANSFORMERS_CACHE=$HF_CACHE
@@ -404,7 +450,8 @@ start_services() {
     svc=${svc_port%:*}; port=${svc_port#*:}
     elapsed=0
     while [[ $elapsed -lt 180 ]]; do
-      if curl -sf "http://localhost:$port/health" >/dev/null 2>&1; then
+      if (command -v curl &>/dev/null && curl -sf "http://localhost:$port/health" >/dev/null 2>&1) \
+         || wget -q --tries=1 --timeout=2 -O /dev/null "http://localhost:$port/health" 2>/dev/null; then
         ok "$svc healthy (port $port)"
         break
       fi
