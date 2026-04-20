@@ -48,14 +48,18 @@ const KNOWN_TOOL_NAMES = new Set([
   'search_memory',
   'send_input',
   'spawn_agent',
+  'sports_score',
+  'stock_market',
   'todo',
   'unpin_memory',
   'update_settings',
   'view_image',
   'wait_agent',
+  'weather',
   'write_to_file',
   'web_fetch',
   'web_search',
+  'live_news',
   'write',
 ]);
 const KNOWN_TOOL_PREFIXES = [
@@ -149,12 +153,14 @@ function cleanPseudoToolLine(line: string): string {
 }
 
 export function containsPseudoToolCallSimulation(raw: string): boolean {
-  const cleaned = stripToolCodeMarkup(raw).trim();
-  if (!cleaned) return false;
+  const text = String(raw || '');
+  if (!text) return false;
+  if (PSEUDO_TOOL_TAG_RE.test(text)) return true;
+  if (PSEUDO_SHELL_LINE_RE.test(text)) return true;
+  if (BARE_PSEUDO_COMMAND_LINE_RE.test(text)) return true;
 
-  if (PSEUDO_TOOL_TAG_RE.test(cleaned)) return true;
-  if (PSEUDO_SHELL_LINE_RE.test(cleaned)) return true;
-  if (BARE_PSEUDO_COMMAND_LINE_RE.test(cleaned)) return true;
+  const cleaned = stripToolCodeMarkup(text).trim();
+  if (!cleaned) return false;
 
   return cleaned
     .split(/\n\s*\n/)
@@ -335,6 +341,14 @@ export function extractToolDetail(name: string, args: Record<string, unknown> | 
       return extractHostname((args.url || '') as string);
     case 'web_search':
       return truncateHead((args.query || '') as string, 40);
+    case 'stock_market':
+      return truncateHead((args.query || args.symbol || args.code || args.name || '') as string, 40);
+    case 'weather':
+      return truncateHead((args.location || args.city || args.query || '') as string, 40);
+    case 'sports_score':
+      return truncateHead((args.team || args.query || '') as string, 40);
+    case 'live_news':
+      return truncateHead((args.topic || args.query || '') as string, 40);
     case 'browser':
       return extractHostname((args.url || '') as string);
     case 'search_memory':

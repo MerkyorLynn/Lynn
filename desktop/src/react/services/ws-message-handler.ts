@@ -194,6 +194,29 @@ export function handleServerMessage(msg: any): void {
       replayStreamResume(msg);
       break;
 
+    case 'context_usage': {
+      const sp = msg.sessionPath;
+      if (!sp || sp === useStore.getState().currentSessionPath) {
+        const tokens = msg.tokens ?? msg.totalTokens ?? null;
+        const contextWindow = msg.contextWindow ?? msg.window ?? null;
+        const percent = msg.percent ?? (
+          tokens != null && contextWindow
+            ? Math.round((Number(tokens) / Number(contextWindow)) * 100)
+            : null
+        );
+        if (tokens != null && contextWindow != null) {
+          useStore.setState({
+            contextTokens: Number(tokens),
+            contextWindow: Number(contextWindow),
+            contextPercent: percent != null ? Number(percent) : null,
+          });
+        } else {
+          useStore.setState({ contextTokens: null, contextWindow: null, contextPercent: null });
+        }
+      }
+      break;
+    }
+
     case 'session_title':
       if (msg.title) {
         useStore.setState({

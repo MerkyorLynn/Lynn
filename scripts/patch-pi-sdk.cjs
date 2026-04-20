@@ -465,3 +465,31 @@ if (fs.existsSync(agentSessionTarget)) {
 } else {
   console.log("[patch-pi-sdk] agent-session.js not found, skipping");
 }
+
+// ── Patch 5: raise DEFAULT_MAX_BYTES 50KB → 100KB ──
+// 读 HTML 小说 / 长文时 50KB 会截断 + 触发分页,模型看不懂 offset 经常循环重读。
+// GPU 现在 64K context,100KB 读取占 ~25K tokens,完全放得下。
+const truncateTarget = path.join(
+  __dirname, "..",
+  "node_modules", "@mariozechner", "pi-coding-agent",
+  "dist", "core", "tools", "truncate.js"
+);
+
+if (fs.existsSync(truncateTarget)) {
+  let truncateCode = fs.readFileSync(truncateTarget, "utf8");
+  if (truncateCode.includes("patched: raised read limit")) {
+    console.log("[patch-pi-sdk] truncate.js max-bytes patch already applied");
+  } else {
+    const bytesNeedle = "export const DEFAULT_MAX_BYTES = 50 * 1024; // 50KB";
+    const bytesReplacement = "export const DEFAULT_MAX_BYTES = 100 * 1024; // patched: raised read limit 50→100KB (64K ctx can handle)";
+    if (truncateCode.includes(bytesNeedle)) {
+      truncateCode = truncateCode.replace(bytesNeedle, bytesReplacement);
+      fs.writeFileSync(truncateTarget, truncateCode, "utf8");
+      console.log("[patch-pi-sdk] patched truncate.js → DEFAULT_MAX_BYTES 50→100KB");
+    } else {
+      console.warn("[patch-pi-sdk] truncate.js structure changed, cannot apply max-bytes patch");
+    }
+  }
+} else {
+  console.log("[patch-pi-sdk] truncate.js not found, skipping");
+}

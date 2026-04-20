@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { execFileSync } from "child_process";
 import { Hono } from "hono";
 import { createFsRoute } from "../server/routes/fs.js";
 
@@ -77,4 +78,31 @@ describe("fs route rollback", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "rollback not found" });
   });
+
+  it("detects untracked files as external additions", async () => {
+    const workspace = path.join(tmpDir, "workspace");
+    execGit(workspace, ["init"]);
+    const untrackedPath = path.join(workspace, "new-note.md");
+    fs.writeFileSync(untrackedPath, "new file line\n", "utf8");
+
+    const res = await app.request("/api/fs/external-diff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filePath: untrackedPath }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual(expect.objectContaining({
+      ok: true,
+      hasChanges: true,
+      filePath: untrackedPath,
+      rollbackId: null,
+    }));
+    expect(json.diff).toContain("+new file line");
+  });
 });
+
+function execGit(cwd, args) {
+  return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
+}
