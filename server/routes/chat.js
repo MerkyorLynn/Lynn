@@ -82,6 +82,47 @@ function prefetchToolNameForKind(kind) {
   return "web_search";
 }
 
+function parseLooseAmount(value) {
+  const n = Number(String(value || "").replace(/[,\s]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function buildBudgetCalculationContext(text) {
+  const source = String(text || "");
+  if (!/(?:月收入|收入)/.test(source) || !/(?:攒|存|储蓄|存款)/.test(source)) return "";
+
+  const income = parseLooseAmount(source.match(/月收入\s*[：:]?\s*[¥￥]?\s*([\d,\s]+)/)?.[1]);
+  const rent = parseLooseAmount(source.match(/房租\s*[：:]?\s*[¥￥]?\s*([\d,\s]+)/)?.[1]);
+  const fixed = parseLooseAmount(source.match(/固定支出\s*[：:]?\s*[¥￥]?\s*([\d,\s]+)/)?.[1]);
+  const months = parseLooseAmount(source.match(/(\d+)\s*个?\s*月/)?.[1]);
+  const goal = parseLooseAmount(
+    source.match(/(?:攒|存|储蓄|存款)\s*[¥￥]?\s*([\d,\s]+)/)?.[1]
+      || source.match(/目标(?:金额|存款|储蓄)?\s*[：:]?\s*[¥￥]?\s*([\d,\s]+)/)?.[1],
+  );
+
+  if (![income, rent, fixed, months, goal].every((n) => Number.isFinite(n) && n > 0)) return "";
+  const fixedSpend = rent + fixed;
+  const remainingBeforeSaving = income - fixedSpend;
+  const monthlySaving = goal / months;
+  const disposableAfterSaving = remainingBeforeSaving - monthlySaving;
+  const fmt = (n) => Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.00$/, "");
+
+  return [
+    "【系统已完成本地精确计算】",
+    "请直接使用下面这些数字回答用户，不要重新心算，不要输出损坏的 Markdown 表格；如果要列表，优先用短句或要点。",
+    `月收入：${fmt(income)}`,
+    `房租：${fmt(rent)}`,
+    `固定支出：${fmt(fixed)}`,
+    `房租+固定支出：${fmt(fixedSpend)}`,
+    `未储蓄前每月剩余：${fmt(remainingBeforeSaving)}`,
+    `目标金额：${fmt(goal)}`,
+    `目标周期：${fmt(months)} 个月`,
+    `每月需要存：${fmt(monthlySaving)}`,
+    `完成储蓄后每月可支配：${fmt(disposableAfterSaving)}`,
+    "现实建议：若可支配金额偏紧，优先建议延长到 12 个月或降低月存款，不要建议全部压缩基本生活支出。",
+  ].join("\n");
+}
+
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   const restRoute = new Hono();
   const wsRoute = new Hono();
@@ -290,6 +331,36 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return entry;
   }
 
+  function resetCompletedTurnState(ss) {
+    ss.progressMarkerCount = 0;
+    ss._turnEndDeferred = false;
+    ss.hasOutput = false;
+    ss.hasToolCall = false;
+    ss.hasThinking = false;
+    ss.hasError = false;
+    ss.thinkTagParser.reset();
+    ss.progressParser.reset();
+    ss.moodParser.reset();
+    ss.xingParser.reset();
+    ss.visibleTextAcc = "";
+    ss.rawTextAcc = "";
+    ss.pseudoToolSteered = false;
+  }
+
+  function closeStreamAfterError(sessionPath, ss) {
+    if (!sessionPath || !ss?.isStreaming) return;
+    clearSilentBrainAbortTimer(ss);
+    if (ss.isThinking) {
+      ss.isThinking = false;
+      emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
+    }
+    emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+    broadcast({ type: "status", isStreaming: false, sessionPath });
+    finishSessionStream(ss);
+    resetCompletedTurnState(ss);
+    debugLog()?.warn("ws", `closed stream after model/tool error · ${sessionPath}`);
+  }
+
   function maybeGenerateFirstTurnTitle(sessionPath, ss) {
     if (!sessionPath || !ss || ss.titleRequested) return;
 
@@ -332,6 +403,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   function emitVisibleTextDelta(sessionPath, ss, delta) {
     const next = delta || "";
     if (!next) return;
+    if (next.trim()) ss.hasOutput = true;
     ss.titlePreview += next;
     ss.visibleTextAcc += next;
     emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: next });
@@ -349,7 +421,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const sub = event.assistantMessageEvent?.type;
 
       if (sub === "text_delta") {
-        ss.hasOutput = true;
         if (ss.isThinking) {
           ss.isThinking = false;
           emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -438,6 +509,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       } else if (sub === "error") {
         ss.hasError = true;
         if (isActive) broadcast({ type: "error", message: event.assistantMessageEvent.error || "Unknown error" });
+        closeStreamAfterError(sessionPath, ss);
       }
     } else if (event.type === "tool_execution_start") {
       if (!ss) return;
@@ -722,9 +794,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       //   下一个 turn_end（final text 流结束）才触发真正的 broadcast + 清理
       //
       // Escape hatch: 一次 turn 最多 defer 1 次 · 避免死锁（如 tool 后模型不输出 text）
-      if (ss.hasToolCall && !ss.hasOutput && !ss.hasError && !ss._turnEndDeferred) {
+      if (ss.hasToolCall && !ss.hasError && !ss._turnEndDeferred) {
         ss._turnEndDeferred = true;
-        debugLog()?.log("ws", `[TURN-END v1] defer premature turn_end (tool_phase ended, awaiting final assistant text) · ${sessionPath}`);
+        debugLog()?.log("ws", `[TURN-END v2] defer tool-phase turn_end (awaiting final assistant text) · hasOutput=${ss.hasOutput} · ${sessionPath}`);
         return; // 不 flush · 不 emit · 不清理 state
       }
       if (ss._turnEndDeferred) {
@@ -741,13 +813,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const feedMoodPipeline = (text) => {
         ss.progressParser.feed(text, (pEvt) => {
           if (pEvt.type === "tool_progress") {
-            emitStreamEvent(sessionPath, ss, {
-              type: "tool_progress",
-              event: pEvt.event,
-              name: pEvt.name,
-              ms: pEvt.ms,
-              ok: pEvt.ok,
-            });
+            ss.progressMarkerCount++;
+            debugLog()?.warn("ws", `suppressed hallucinated <lynn_tool_progress> during flush · ${sessionPath}`);
             return;
           }
           // pEvt.type === "text"
@@ -795,13 +862,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         if (pEvt.type === "text") {
           feedMoodOnly(pEvt.data);
         } else if (pEvt.type === "tool_progress") {
-          emitStreamEvent(sessionPath, ss, {
-            type: "tool_progress",
-            event: pEvt.event,
-            name: pEvt.name,
-            ms: pEvt.ms,
-            ok: pEvt.ok,
-          });
+          ss.progressMarkerCount++;
+          debugLog()?.warn("ws", `suppressed hallucinated <lynn_tool_progress> during progress flush · ${sessionPath}`);
         }
       });
       ss.moodParser.flush((evt) => {
@@ -875,6 +937,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       // JSONL for the last assistant message's model and emit a follow-up "model_hint" event.
       // Subscribe callback is sync — cannot await here.
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+      broadcast({ type: "status", isStreaming: false, sessionPath });
       if (shouldRetryPendingToolText) {
         ss.pendingToolRetryAttempted = true;
         broadcast({ type: "turn_retry", sessionPath });
@@ -908,20 +971,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       if (ss.progressMarkerCount > 0 && !ss.hasToolCall) {
         debugLog()?.warn("ws", `observed ${ss.progressMarkerCount} hallucinated <lynn_tool_progress> markers (no real tool_call) · session=${sessionPath}`);
       }
-      ss.progressMarkerCount = 0;
-      // [TURN-END-SEMANTICS v1] 重置 defer 标志 · 下一轮独立计算
-      ss._turnEndDeferred = false;
-      ss.hasOutput = false;
-      ss.hasToolCall = false;
-      ss.hasThinking = false;
-      ss.hasError = false;
-      ss.thinkTagParser.reset();
-      ss.progressParser.reset();
-      ss.moodParser.reset();
-      ss.xingParser.reset();
-      ss.visibleTextAcc = "";
-      ss.rawTextAcc = "";
-      ss.pseudoToolSteered = false;
+      resetCompletedTurnState(ss);
 
       if (isActive) debugLog()?.log("ws", "assistant reply done");
       maybeGenerateFirstTurnTitle(sessionPath, ss);
@@ -1127,11 +1177,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               debugLog()?.log("ws", `user message (${promptText.length} chars, ${msg.images?.length || 0} images)`);
               // Phase 2: 客户端可指定 sessionPath，否则用焦点 session
               const promptSessionPath = msg.sessionPath || engine.currentSessionPath;
-              if (engine.isSessionStreaming(promptSessionPath)) {
+              const ss = getState(promptSessionPath);
+              if (engine.isSessionStreaming(promptSessionPath) || ss?.isStreaming) {
                 wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
                 return;
               }
-              const ss = getState(promptSessionPath);
               try {
                 ss.thinkTagParser.reset();
                 ss.progressParser.reset();
@@ -1155,6 +1205,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
                 const reportKind = inferReportResearchKind(promptText);
                 let effectivePromptText = promptText;
+                const budgetContext = buildBudgetCalculationContext(promptText);
+                if (budgetContext) {
+                  effectivePromptText = `${budgetContext}\n\n【用户原始问题】\n${promptText}`;
+                }
                 if (reportKind) {
                   const toolName = prefetchToolNameForKind(reportKind);
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
@@ -1162,7 +1216,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     const reportContext = await buildReportResearchContext(promptText, { userPrompt: promptText });
                     if (reportContext && reportContext.trim()) {
                       ss.hasLocalPrefetchEvidence = true;
-                      effectivePromptText = `${reportContext.trim()}\n\n【用户原始问题】\n${promptText}`;
+                      effectivePromptText = [
+                        reportContext.trim(),
+                        budgetContext,
+                        `【用户原始问题】\n${promptText}`,
+                      ].filter(Boolean).join("\n\n");
                       emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: true });
                     } else {
                       emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: false, error: "no evidence returned" });
@@ -1180,7 +1238,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 scheduleSilentBrainAbort(promptSessionPath, ss);
                 await hub.send(effectivePromptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
                 clearSilentBrainAbortTimer(ss);
-                broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                if (!ss.isStreaming) {
+                  broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                } else {
+                  debugLog()?.log("ws", `hub.send returned while server stream remains open · ${promptSessionPath}`);
+                }
               } catch (err) {
                 clearSilentBrainAbortTimer(ss);
                 if (!err.message?.includes("aborted")) {
