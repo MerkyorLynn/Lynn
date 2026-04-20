@@ -36,8 +36,6 @@ node_modules/
 .claude/
 .vscode/
 *.code-workspace
-.codebuddy_remote_env
-.codebuddy_remote_server.js
 
 # 代理技能副本 / 临时探索产物
 .agents/
