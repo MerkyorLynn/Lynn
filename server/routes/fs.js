@@ -254,14 +254,27 @@ export function createFsRoute(engine) {
       const relPath = path.relative(gitRoot, filePath);
 
       // git diff HEAD -- <file>（unified diff 格式）
+      // 注意：未跟踪新文件对 `git diff HEAD -- file` 会返回空，因此必须先判定 tracked 状态。
       let diffOutput = "";
+      let isTracked = false;
       try {
+        execFileSync("git", ["ls-files", "--error-unmatch", "--", relPath], {
+          cwd: gitRoot,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+        isTracked = true;
+      } catch {
+        isTracked = false;
+      }
+
+      if (isTracked) {
         diffOutput = execFileSync(
           "git",
           ["--no-pager", "diff", "HEAD", "--", relPath],
           { cwd: gitRoot, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
         );
-      } catch (err) {
+      } else {
         // 新文件（HEAD 里还没有）— 对比空文件
         try {
           diffOutput = execFileSync(
@@ -274,7 +287,7 @@ export function createFsRoute(engine) {
           if (err2?.stdout) {
             diffOutput = err2.stdout.toString();
           } else {
-            return c.json({ error: "git diff failed: " + (err?.message || err2?.message || "unknown") }, 500);
+            return c.json({ error: "git diff failed: " + (err2?.message || "unknown") }, 500);
           }
         }
       }

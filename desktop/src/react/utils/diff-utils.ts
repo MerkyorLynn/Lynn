@@ -209,3 +209,93 @@ export function buildFinalContent(
 
   return parts.join('\n\n');
 }
+
+function compactBlankLines(text: string): string {
+  return text.replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * 将段落审阅结果应用到完整当前文件，而不是只从 diff hunk 重建整文。
+ *
+ * WritingDiffViewer 的 pairs 来自 unified diff 上下文，只覆盖被修改的片段。
+ * 如果直接 buildFinalContent(pairs, ...) 再覆盖文件，会把未出现在 diff
+ * hunk 里的正文全部截断。这里改为在完整 currentContent 中逐段替换/删除/插入。
+ */
+export function applyReviewToFullContent(
+  currentContent: string,
+  pairs: ParagraphPair[],
+  decisions: Map<number, 'accept' | 'reject'>,
+  edits?: Map<number, string>,
+): string {
+  let content = currentContent;
+  let cursor = 0;
+
+  const replaceOnce = (target: string, replacement: string, label: string) => {
+    if (!target) return;
+    let index = content.indexOf(target, cursor);
+    if (index < 0) index = content.indexOf(target);
+    if (index < 0) {
+      throw new Error(`Cannot safely apply review: ${label} paragraph no longer matches the file.`);
+    }
+    content = content.slice(0, index) + replacement + content.slice(index + target.length);
+    cursor = Math.max(0, index + replacement.length);
+  };
+
+  const insertNearContext = (pairIndex: number, insertion: string) => {
+    if (!insertion) return;
+
+    for (let i = pairIndex - 1; i >= 0; i--) {
+      const anchor = edits?.get(pairs[i].index) ?? pairs[i].newText ?? pairs[i].oldText ?? '';
+      if (!anchor) continue;
+      const index = content.indexOf(anchor);
+      if (index >= 0) {
+        const at = index + anchor.length;
+        content = `${content.slice(0, at)}\n\n${insertion}${content.slice(at)}`;
+        cursor = at + insertion.length + 2;
+        return;
+      }
+    }
+
+    for (let i = pairIndex + 1; i < pairs.length; i++) {
+      const anchor = edits?.get(pairs[i].index) ?? pairs[i].newText ?? pairs[i].oldText ?? '';
+      if (!anchor) continue;
+      const index = content.indexOf(anchor);
+      if (index >= 0) {
+        content = `${content.slice(0, index)}${insertion}\n\n${content.slice(index)}`;
+        cursor = index + insertion.length + 2;
+        return;
+      }
+    }
+
+    content = insertion + (content ? `\n\n${content}` : '');
+    cursor = insertion.length + 2;
+  };
+
+  for (let i = 0; i < pairs.length; i++) {
+    const pair = pairs[i];
+    const decision = decisions.get(pair.index);
+    const edited = edits?.get(pair.index);
+
+    if (edited !== undefined) {
+      if (pair.type === 'removed') {
+        if (edited.trim() !== '') insertNearContext(i, edited);
+      } else {
+        const target = pair.newText || pair.oldText || '';
+        replaceOnce(target, edited, 'edited');
+      }
+      continue;
+    }
+
+    if (pair.type === 'modified' && decision === 'reject') {
+      replaceOnce(pair.newText || '', pair.oldText || '', 'modified');
+    } else if (pair.type === 'added' && decision === 'reject') {
+      replaceOnce(pair.newText || '', '', 'added');
+      content = compactBlankLines(content);
+    } else if (pair.type === 'removed' && decision === 'reject') {
+      insertNearContext(i, pair.oldText || '');
+      content = compactBlankLines(content);
+    }
+  }
+
+  return compactBlankLines(content);
+}

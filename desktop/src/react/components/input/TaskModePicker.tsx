@@ -69,6 +69,13 @@ export const TaskModePicker = memo(function TaskModePicker() {
     }).finally(() => setLoadingMcp(false));
   }, [open, currentSessionPath]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
   const togglePanel = useCallback(() => setOpen(!open), [open, setOpen]);
   const closePanel = useCallback(() => setOpen(false), [setOpen]);
 

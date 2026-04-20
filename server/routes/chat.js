@@ -13,6 +13,16 @@ import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { t, getLocale } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
+import { buildReportResearchContext, inferReportResearchKind } from "../chat/report-research-context.js";
+import {
+  buildPseudoToolRecoveryNotice,
+  buildPseudoToolRetryPrompt,
+  resolveCurrentModelInfo,
+} from "../chat/chat-recovery.js";
+import {
+  classifyRouteIntent,
+  looksLikePendingToolExecutionText,
+} from "../../shared/task-route-intent.js";
 import {
   createSessionStreamState,
   beginSessionStream,
@@ -62,6 +72,14 @@ function buildPseudoToolRecoverySteerText() {
     "Do not output tool_name(...), XML tool tags, or pseudo JSON calls.",
     "If you need a tool, call the real tool and only show the user the result.",
   ].join(" ");
+}
+
+function prefetchToolNameForKind(kind) {
+  if (kind === "weather") return "weather";
+  if (kind === "sports") return "sports_score";
+  if (kind === "market" || kind === "stock") return "stock_market";
+  if (kind === "news") return "live_news";
+  return "web_search";
 }
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
@@ -142,7 +160,20 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         titleRequested: false,
         titlePreview: "",
         visibleTextAcc: "",
+        rawTextAcc: "",
         pseudoToolSteered: false,
+        routeIntent: "chat",
+        originalPromptText: "",
+        effectivePromptText: "",
+        hasLocalPrefetchEvidence: false,
+        pendingToolRetryAttempted: false,
+        silentBrainAbortTimer: null,
+        // [FAKE-PROGRESS-GUARD v2] 模型可能幻觉 <lynn_tool_progress> 标记
+        //   v2 策略：永不 emit content-derived progress · 仅计数用于 steer 触发
+        //   前端进度完全由结构化 tool_execution_start/end event 驱动
+        progressMarkerCount: 0,
+        // [TURN-END-SEMANTICS v1] tool_use 阶段 pi-sdk 发 turn_end 时 defer 一次 · 防 early broadcast
+        _turnEndDeferred: false,
         lastActivity: Date.now(),
         ...createSessionStreamState(),
       });
@@ -162,6 +193,25 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     }
   }, 60_000);
   if (_sessionEvictTimer.unref) _sessionEvictTimer.unref();
+
+  function clearSilentBrainAbortTimer(ss) {
+    if (ss?.silentBrainAbortTimer) {
+      clearTimeout(ss.silentBrainAbortTimer);
+      ss.silentBrainAbortTimer = null;
+    }
+  }
+
+  function scheduleSilentBrainAbort(sessionPath, ss) {
+    clearSilentBrainAbortTimer(ss);
+    const info = resolveCurrentModelInfo(engine);
+    if (!info.isBrain || ss?.hasLocalPrefetchEvidence) return;
+    ss.silentBrainAbortTimer = setTimeout(() => {
+      ss.silentBrainAbortTimer = null;
+      if (!ss.isStreaming || ss.hasOutput || ss.hasToolCall || ss.hasThinking || ss.hasError) return;
+      engine.abortSessionByPath?.(sessionPath).catch(() => {});
+    }, 25_000);  // [2026-04-20] 5s→15s→25s · A3B 多轮 provider fallback 容错
+    if (ss.silentBrainAbortTimer.unref) ss.silentBrainAbortTimer.unref();
+  }
 
   const clients = new Set();
 
@@ -266,10 +316,17 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
   function maybeSteerPseudoToolSimulation(sessionPath, ss) {
     if (!sessionPath || !ss || ss.hasToolCall || ss.pseudoToolSteered) return;
-    if (!containsPseudoToolCallSimulation(ss.visibleTextAcc || "")) return;
+    if (resolveCurrentModelInfo(engine).isBrain) return;
+    // [FAKE-PROGRESS-GUARD v1] 两路伪造检测：
+    //   1. pythonic 风格伪工具调用（老规则 · 基于 visibleTextAcc）
+    //   2. <lynn_tool_progress> 幻觉标记（新规则 · 基于 progressMarkerCount）
+    const hasPseudoToolText = containsPseudoToolCallSimulation(ss.visibleTextAcc || ss.rawTextAcc || "");
+    const hasFakeProgress = ss.progressMarkerCount > 0 && !ss.hasToolCall;
+    if (!hasPseudoToolText && !hasFakeProgress) return;
     if (!engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) return;
     ss.pseudoToolSteered = true;
-    debugLog()?.warn("ws", `pseudo tool text detected, steering ${sessionPath}`);
+    broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
+    debugLog()?.warn("ws", `pseudo tool/progress detected (text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount}), steering ${sessionPath}`);
   }
 
   function emitVisibleTextDelta(sessionPath, ss, delta) {
@@ -299,6 +356,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
 
         const delta = event.assistantMessageEvent.delta;
+        ss.rawTextAcc += delta || "";
+        maybeSteerPseudoToolSimulation(sessionPath, ss);
         // ThinkTagParser（最外层）→ LynnProgressParser → MoodParser → XingParser
         ss.thinkTagParser.feed(delta, (tEvt) => {
           switch (tEvt.type) {
@@ -316,14 +375,17 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               // 再继续走 MoodParser → XingParser 链
               ss.progressParser.feed(tEvt.data, (pEvt) => {
                 if (pEvt.type === "tool_progress") {
-                  emitStreamEvent(sessionPath, ss, {
-                    type: "tool_progress",
-                    event: pEvt.event,
-                    name: pEvt.name,
-                    ms: pEvt.ms,
-                    ok: pEvt.ok,
-                  });
-                  return;
+                  // [FAKE-PROGRESS-GUARD v2] 永不 emit content-derived tool_progress
+                  //   v1 思路（buffer + flush on tool_execution_start）有缺陷：
+                  //     tool_execution_start 触发时 flush 的事件可能本身是模型幻觉
+                  //     (早先 buffered 的 marker 与稍后真实 tool 不是同一对)
+                  //   v2 彻底方案：前端进度完全由结构化 tool_execution_start/end event 驱动
+                  //     LynnProgressParser 的作用退化：
+                  //       (a) 从 text 里剥离 <lynn_tool_progress> XML（避免原始标签泄露给用户）
+                  //       (b) 计数用于 steer 触发（fake progress 说明模型在模拟工具调用）
+                  ss.progressMarkerCount++;
+                  maybeSteerPseudoToolSimulation(sessionPath, ss);
+                  return; // 不 emit
                 }
                 // pEvt.type === "text" — 进入 mood/xing 解析链
                 ss.moodParser.feed(pEvt.data, (evt) => {
@@ -380,6 +442,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     } else if (event.type === "tool_execution_start") {
       if (!ss) return;
       ss.hasToolCall = true;
+      // [FAKE-PROGRESS-GUARD v2] 不再 flush buffered progress · 移除 v1 的 flush 逻辑
+      // 前端进度由此处结构化 tool_execution_start event 直接驱动（本函数下游会 emit）
       if (ss.isThinking) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -646,6 +710,27 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       broadcast({ type: "dm_new_message", from: event.from, to: event.to });
     } else if (event.type === "turn_end") {
       if (!ss) return;
+      // [TURN-END-SEMANTICS v1] 2026-04-20 · V4 发现 · P0 修复
+      // pi-sdk 在 tool_use 阶段结束也发 turn_end event
+      // 但真正的 turn 还没结束（后面还有 assistant stream 输出 tool_result → final text）
+      // 过早 broadcast turn_end → 客户端以为本轮结束 → 下一轮 prompt 进来 →
+      // pi-sdk 的"迟到" text_delta 被路由到当前 UI buffer → 跨轮污染（T07 答案投递到 T08）
+      //
+      // Heuristic:
+      //   有 tool_call + 没文本输出 + 没 error = tool_phase end · 不是真 turn_end
+      //   此时保留 parser/状态 · 等后续 assistant stream 的 text_delta
+      //   下一个 turn_end（final text 流结束）才触发真正的 broadcast + 清理
+      //
+      // Escape hatch: 一次 turn 最多 defer 1 次 · 避免死锁（如 tool 后模型不输出 text）
+      if (ss.hasToolCall && !ss.hasOutput && !ss.hasError && !ss._turnEndDeferred) {
+        ss._turnEndDeferred = true;
+        debugLog()?.log("ws", `[TURN-END v1] defer premature turn_end (tool_phase ended, awaiting final assistant text) · ${sessionPath}`);
+        return; // 不 flush · 不 emit · 不清理 state
+      }
+      if (ss._turnEndDeferred) {
+        debugLog()?.log("ws", `[TURN-END v1] resuming deferred turn_end · hasOutput=${ss.hasOutput} hasToolCall=${ss.hasToolCall} · ${sessionPath}`);
+      }
+      clearSilentBrainAbortTimer(ss);
       // 关闭结构化 thinking（如有）——必须在 flush 之前，否则前端收不到 thinking_end
       if (ss.isThinking) {
         ss.isThinking = false;
@@ -749,15 +834,57 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       });
 
+      const visibleTextBeforeReset = ss.visibleTextAcc || "";
+      const shouldRetryPendingToolText =
+        ss.hasLocalPrefetchEvidence &&
+        !ss.pendingToolRetryAttempted &&
+        !ss.hasToolCall &&
+        looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent);
+
       // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
       if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
         broadcast({ type: "error", message: t("error.modelNoResponse") });
+      }
+
+      // [EMPTY-REPLY-FALLBACK v1] 2026-04-20 · V4 发现 · P1 修复
+      //   3 个场景静默结束会让用户困惑：
+      //     (a) 工具调用成功但文本为空（T07 stock_market 调完 · 文本 0 字）
+      //     (b) 工具调完但文本只是"我再抓取一下"（S02 单轮财经 · 未完成语气）
+      //     (c) 只有长 thinking 没有可见文本（S03 单轮新闻 · 41s thinking 空白）
+      //   统一兜底：emit 一条明确的"未能完成"文案 · 不静默结束
+      const visibleTrimmed = visibleTextBeforeReset.trim();
+      const visibleLen = visibleTrimmed.length;
+      const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
+      const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
+      const isToolDidNotProduceText = ss.hasToolCall && visibleLen < 5;
+      const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
+      if (isActive && !ss.hasError && (isToolDidNotProduceText || isIncompletePending || isThinkingOnlyNoOutput)) {
+        const kind = isToolDidNotProduceText ? "tool_no_final_text"
+          : isIncompletePending ? "incomplete_pending"
+          : "thinking_only";
+        const fallbackMsg = getLocale().startsWith("zh")
+          ? "本轮工具已执行，但未能整合出明确答案（原因：流程提前结束）。建议重新提问或换个说法 · 类型：" + kind
+          : "Tools executed but the final answer could not be assembled (flow ended early). Please rephrase or try again · kind: " + kind;
+        emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: fallbackMsg });
+        ss.visibleTextAcc += fallbackMsg;
+        ss.hasOutput = true;
+        debugLog()?.warn("ws", `[EMPTY-REPLY-FALLBACK v1] emitted (${kind}) · visibleLen=${visibleLen} hasToolCall=${ss.hasToolCall} hasThinking=${ss.hasThinking} · ${sessionPath}`);
       }
 
       // [PROVIDER-BADGE v2] Emit turn_end synchronously; then fire-and-forget tail the session
       // JSONL for the last assistant message's model and emit a follow-up "model_hint" event.
       // Subscribe callback is sync — cannot await here.
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+      if (shouldRetryPendingToolText) {
+        ss.pendingToolRetryAttempted = true;
+        broadcast({ type: "turn_retry", sessionPath });
+        Promise.resolve().then(() => hub.send(
+          buildPseudoToolRetryPrompt(ss.effectivePromptText || ss.originalPromptText),
+          { sessionPath },
+        )).catch((retryErr) => {
+          debugLog()?.warn("ws", `pending tool retry failed: ${retryErr?.message || retryErr}`);
+        });
+      }
       (async () => {
         try {
           const { readFile } = await import("node:fs/promises");
@@ -777,6 +904,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         } catch { /* non-fatal */ }
       })();
       finishSessionStream(ss);
+      // [FAKE-PROGRESS-GUARD v2] turn_end 时若模型输出过 fake progress 但没真实工具 → 记录
+      if (ss.progressMarkerCount > 0 && !ss.hasToolCall) {
+        debugLog()?.warn("ws", `observed ${ss.progressMarkerCount} hallucinated <lynn_tool_progress> markers (no real tool_call) · session=${sessionPath}`);
+      }
+      ss.progressMarkerCount = 0;
+      // [TURN-END-SEMANTICS v1] 重置 defer 标志 · 下一轮独立计算
+      ss._turnEndDeferred = false;
       ss.hasOutput = false;
       ss.hasToolCall = false;
       ss.hasThinking = false;
@@ -786,6 +920,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.moodParser.reset();
       ss.xingParser.reset();
       ss.visibleTextAcc = "";
+      ss.rawTextAcc = "";
       ss.pseudoToolSteered = false;
 
       if (isActive) debugLog()?.log("ws", "assistant reply done");
@@ -999,15 +1134,55 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               const ss = getState(promptSessionPath);
               try {
                 ss.thinkTagParser.reset();
+                ss.progressParser.reset();
                 ss.moodParser.reset();
                 ss.xingParser.reset();
                 ss.titleRequested = false;
                 ss.titlePreview = "";
+                ss.visibleTextAcc = "";
+                ss.rawTextAcc = "";
+                ss.routeIntent = classifyRouteIntent(promptText, { imagesCount: msg.images?.length || 0 });
+                ss.originalPromptText = promptText;
+                ss.effectivePromptText = promptText;
+                ss.hasLocalPrefetchEvidence = false;
+                ss.pendingToolRetryAttempted = false;
+                ss.pseudoToolSteered = false;
+                ss.hasOutput = false;
+                ss.hasToolCall = false;
+                ss.hasThinking = false;
+                ss.hasError = false;
                 beginSessionStream(ss);
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                await hub.send(promptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                const reportKind = inferReportResearchKind(promptText);
+                let effectivePromptText = promptText;
+                if (reportKind) {
+                  const toolName = prefetchToolNameForKind(reportKind);
+                  emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
+                  try {
+                    const reportContext = await buildReportResearchContext(promptText, { userPrompt: promptText });
+                    if (reportContext && reportContext.trim()) {
+                      ss.hasLocalPrefetchEvidence = true;
+                      effectivePromptText = `${reportContext.trim()}\n\n【用户原始问题】\n${promptText}`;
+                      emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: true });
+                    } else {
+                      emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: false, error: "no evidence returned" });
+                    }
+                  } catch (prefetchErr) {
+                    emitStreamEvent(promptSessionPath, ss, {
+                      type: "tool_end",
+                      name: toolName,
+                      success: false,
+                      error: prefetchErr?.message || "prefetch failed",
+                    });
+                  }
+                }
+                ss.effectivePromptText = effectivePromptText;
+                scheduleSilentBrainAbort(promptSessionPath, ss);
+                await hub.send(effectivePromptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                clearSilentBrainAbortTimer(ss);
                 broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
               } catch (err) {
+                clearSilentBrainAbortTimer(ss);
                 if (!err.message?.includes("aborted")) {
                   wsSend(ws, { type: "error", message: err.message, sessionPath: promptSessionPath });
                 }

@@ -1,13 +1,13 @@
 const RELEASE = {
-  version: "0.76.1",
-  releasePage: "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.1",
+  version: "0.76.4",
+  releasePage: "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.4",
   assets: {
     macArm:
-      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.1/Lynn-0.76.1-macOS-Apple-Silicon.dmg",
+      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.4/Lynn-0.76.4-macOS-Apple-Silicon.dmg",
     macIntel:
-      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.1/Lynn-0.76.1-macOS-Intel.dmg",
+      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.4/Lynn-0.76.4-macOS-Intel.dmg",
     windows:
-      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.1/Lynn-0.76.1-Windows-Setup.exe",
+      "https://github.com/MerkyorLynn/Lynn/releases/download/v0.76.4/Lynn-0.76.4-Windows-Setup.exe",
   },
 };
 

@@ -15,7 +15,7 @@ import {
   splitParagraphs,
   alignParagraphs,
   computeWordDiff,
-  buildFinalContent,
+  applyReviewToFullContent,
   type ParagraphPair,
   type WordChange,
 } from '../../utils/diff-utils';
@@ -352,11 +352,13 @@ export const WritingDiffViewer = memo(function WritingDiffViewer({
       return;
     }
 
-    // 部分 accept/reject/edit — 重建内容写入
+    // 部分 accept/reject/edit — 基于完整当前文件安全应用，避免 diff hunk 截断整文
     setIsApplying(true);
     setError(null);
     try {
-      const finalContent = buildFinalContent(pairs, decisions, edits);
+      const readRes = await hanaFetch(`/api/fs/read?path=${encodeURIComponent(filePath)}`);
+      const currentContent = await readRes.text();
+      const finalContent = applyReviewToFullContent(currentContent, pairs, decisions, edits);
       await hanaFetch('/api/fs/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

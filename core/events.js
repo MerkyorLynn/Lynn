@@ -171,30 +171,144 @@ export class MoodParser {
 }
 
 /**
- * ThinkTagParser — 拦截 <think>...</think> 标签（DeepSeek / Qwen 等模型的文本内思考格式）
+ * 思考开头启发式前缀（SFT 训练产物 · Qwen3.6-A3B / DeepSeek-R1 等常见裸输出）
+ * [THINK-SANITIZE v2]
+ */
+const THINKING_PREFIX_PATTERNS = [
+  /^Here'?s (a |my |the )?thinking process[:：]/i,
+  /^Let me think (about|through) this/i,
+  /^(Let me )?Analyze (the )?[Uu]ser [Ii]nput[:：]/i,
+  /^\*{0,2}Thinking Process[:：]?\*{0,2}/i,
+  /^The user (wants|needs|is asking|has asked)/i,
+  /^用户(要求|希望|想要|在问)我?/,
+  /^\*?\(?Self[-_ ]Correction(\/Verification)?\)?\*?/i,
+  /^Step 1[:：]?\s*Analyze/i,
+  /^\d+\.\s*\*\*(Analyze|Identify|Understand)/i,
+];
+
+/**
+ * 输出崩坏模式（SFT 残留占位符 · 直接剥离）
+ * [THINK-SANITIZE v2]
+ */
+const CORRUPTION_PATTERNS = [
+  /\*\(Done\)\*/g,
+  /\*\(Proceeding?\)\*/g,
+  /\(Proceeds\)/g,
+  /\*\(Continuing\)\*/g,
+  /<\|[a-z_]{0,40}\|>/gi,
+];
+
+function matchesThinkingPrefix(text) {
+  const head = text.trimStart();
+  if (!head) return false;
+  for (const pat of THINKING_PREFIX_PATTERNS) {
+    if (pat.test(head)) return true;
+  }
+  return false;
+}
+
+function sanitizeCorruption(text) {
+  let out = text;
+  for (const pat of CORRUPTION_PATTERNS) out = out.replace(pat, "");
+  return out;
+}
+
+/**
+ * ThinkTagParser v2 — 拦截 <think>...</think> / 裸 </think> / 启发式思考前缀 / 崩坏模式
  *
- * 链在 MoodParser 之前（最外层），输出事件流：
+ * 关键机制：DECISION_WINDOW（前 120 字延迟 emit 做模式识别）
+ *   - 防止流式逐 token feed 导致"文本先 emit → 无法回溯当 thinking"
+ *   - 小代价：首字延迟约 120 字 · A3B 50 tok/s 下 ~2s
+ *
+ * 支持模式（Qwen3.6-A3B / DeepSeek-R1 / MoE SFT 常见）：
+ *   1. 标准     "<think>...</think> 正文"
+ *   2. 裸结尾   "纯文本思考...</think> 正文"  → 前半段当 think_text
+ *   3. 前缀     "Here's a thinking process:\n..."  → 匹配到即进 inThink
+ *   4. 崩坏     "答案 *(Done)* (Proceeds)" → 剥离
+ *
+ * 输出事件流：
  *   think_start / think_text { data } / think_end
- *   text { data } — 非 think 内容透传
+ *   text { data } — 已过 corruption sanitization
  */
 export class ThinkTagParser {
   constructor() {
     this.inThink = false;
     this.buffer = "";
     this._justEnded = false;
+    // [THINK-SANITIZE v2] 决策窗口 · 前 120 字累积不 emit · 直到做出模式判定
+    this.DECISION_WINDOW = 120;
+    this._decisionMade = false;
   }
 
   feed(delta, emit) {
     this.buffer += delta;
+    // 首轮 · 累积到决策阈值或看到确定标记 · 再 drain
+    if (!this._decisionMade && !this.inThink) {
+      const hasOpenTag = this.buffer.includes("<think>");
+      const hasCloseTag = this.buffer.includes("</think>");
+      if (this.buffer.length < this.DECISION_WINDOW && !hasOpenTag && !hasCloseTag) {
+        return; // 继续 buffer
+      }
+      this._makeDecision(emit);
+      this._decisionMade = true;
+    }
     this._drain(emit);
   }
 
-  flush(emit) {
-    if (this.buffer) {
-      emit({ type: this.inThink ? "think_text" : "text", data: this.buffer });
-      this.buffer = "";
+  // 做模式决策：look at buffer head · 决定是 thinking / 正文
+  _makeDecision(emit) {
+    const text = this.buffer;
+
+    // Case A: 裸 </think>（前面没 <think>）→ 前半段当 thinking
+    const closeIdx = text.indexOf("</think>");
+    const openIdx = text.indexOf("<think>");
+    if (closeIdx !== -1 && (openIdx === -1 || closeIdx < openIdx)) {
+      const thinkContent = text.slice(0, closeIdx);
+      if (thinkContent) {
+        emit({ type: "think_start" });
+        emit({ type: "think_text", data: thinkContent });
+        emit({ type: "think_end" });
+      }
+      this._justEnded = true;
+      this.buffer = text.slice(closeIdx + "</think>".length);
+      return;
     }
-    if (this.inThink) {
+
+    // Case B: 启发式前缀 【v2.1 已禁用】
+    // 之前设计：匹配 "Here's a thinking process:" 等 → 进 silent thinking
+    // 副作用：没有 </think> 终止 · 整段（含真答案）被吞 · 空输出 9/12
+    // 决定：保留 matchesThinkingPrefix/patterns 代码供未来使用 · 但不触发
+    // 前缀型思考泄露交给上层（server steer 或 post-processing）处理
+    //
+    // if (matchesThinkingPrefix(text)) {
+    //   emit({ type: "think_start" });
+    //   this.inThink = true;
+    //   return;
+    // }
+
+    // Case C: 正常 · buffer 保留让 _drain 处理（可能含标准 <think>）
+  }
+
+  flush(emit) {
+    // flush 前 · 如果还没决策 · 强制决策
+    if (!this._decisionMade && !this.inThink && this.buffer) {
+      this._makeDecision(emit);
+      this._decisionMade = true;
+    }
+    if (this.buffer) {
+      // [THINK-SANITIZE v2.1] flush 时 · 若 parser 陷在 inThink 没 </think> → **不要当 think_text 吞掉**
+      //   可能是启发式误匹配或 chat_template 遗漏 · 应该当正文 emit 以防空输出
+      //   真正的 thinking 一定带 <think>...</think> pair · 到 flush 时 inThink=true 是异常状态
+      if (this.inThink) {
+        emit({ type: "think_end" });
+        emit({ type: "text", data: sanitizeCorruption(this.buffer) });
+        this.inThink = false;
+      } else {
+        const cleaned = sanitizeCorruption(this.buffer);
+        if (cleaned) emit({ type: "text", data: cleaned });
+      }
+      this.buffer = "";
+    } else if (this.inThink) {
       emit({ type: "think_end" });
       this.inThink = false;
     }
@@ -204,6 +318,7 @@ export class ThinkTagParser {
     this.inThink = false;
     this.buffer = "";
     this._justEnded = false;
+    this._decisionMade = false;
   }
 
   _drain(emit) {
