@@ -95,3 +95,9 @@ pi-skills/
 # Marketing / 营销素材（内部）
 marketing/
 /marketing-*
+
+# v0.77 dev artifacts (Lynn agent QA outputs)
+.session_tmps/
+output/lynn-agent-qa-*/
+output/lynn-fix-verify-*/
+output/lynn-targeted-fix-*/
