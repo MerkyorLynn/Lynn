@@ -5,6 +5,7 @@
  * 支持带过滤的订阅：按 sessionPath / event type 过滤。
  * 支持 request/handle 请求响应模式，供 plugin 间通信使用。
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export class BusNoHandlerError extends Error {
   constructor(type) {
@@ -29,6 +30,11 @@ export class EventBus {
     this._nextId = 0;
     /** @type {Map<string, Function[]>} */
     this._handlers = new Map();
+    this._asyncContext = new AsyncLocalStorage();
+  }
+
+  runWithContext(context, fn) {
+    return this._asyncContext.run(context || {}, fn);
   }
 
   /**
@@ -51,10 +57,14 @@ export class EventBus {
    * @param {string|null} sessionPath  关联的 session 路径
    */
   emit(event, sessionPath) {
+    const context = this._asyncContext.getStore();
+    const eventWithContext = context && Object.keys(context).length
+      ? { ...event, _hubContext: context }
+      : event;
     for (const [, { callback, filter }] of this._subscribers) {
       if (filter.sessionPath && filter.sessionPath !== sessionPath) continue;
-      if (filter.types && !filter.types.includes(event.type)) continue;
-      try { callback(event, sessionPath); } catch (err) {
+      if (filter.types && !filter.types.includes(eventWithContext.type)) continue;
+      try { callback(eventWithContext, sessionPath); } catch (err) {
         console.error("[EventBus] subscriber error:", err.message);
       }
     }

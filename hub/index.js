@@ -105,6 +105,7 @@ export class Hub {
       images,
       sessionPath,
       agentId,
+      streamToken,
     } = opts;
     const o = { sessionKey, role, ephemeral, meta, isGroup, cwd, model, persist, from, to, onDelta, images, sessionPath, agentId };
 
@@ -136,7 +137,11 @@ export class Hub {
     ];
 
     for (const route of routes) {
-      if (route.match(o)) return route.handle();
+      if (!route.match(o)) continue;
+      if (streamToken) {
+        return this._eventBus.runWithContext({ streamToken }, () => route.handle());
+      }
+      return route.handle();
     }
     throw new Error(`[Hub] unhandled route: role=${o.role}, sessionKey=${o.sessionKey}, ephemeral=${o.ephemeral}`);
   }

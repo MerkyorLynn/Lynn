@@ -13,7 +13,12 @@ import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { t, getLocale } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
-import { buildReportResearchContext, inferReportResearchKind } from "../chat/report-research-context.js";
+import {
+  buildDirectResearchAnswer,
+  buildReportResearchContext,
+  inferReportResearchKind,
+} from "../chat/report-research-context.js";
+import { buildLocalOfficeDirectAnswer } from "../chat/local-office-answer.js";
 import {
   buildPseudoToolRecoveryNotice,
   buildPseudoToolRetryPrompt,
@@ -209,6 +214,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         hasLocalPrefetchEvidence: false,
         pendingToolRetryAttempted: false,
         silentBrainAbortTimer: null,
+        activeStreamToken: null,
+        degenerationAbortRequested: false,
         // [FAKE-PROGRESS-GUARD v2] 模型可能幻觉 <lynn_tool_progress> 标记
         //   v2 策略：永不 emit content-derived progress · 仅计数用于 steer 触发
         //   前端进度完全由结构化 tool_execution_start/end event 驱动
@@ -246,11 +253,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     clearSilentBrainAbortTimer(ss);
     const info = resolveCurrentModelInfo(engine);
     if (!info.isBrain || ss?.hasLocalPrefetchEvidence) return;
+    const timeoutMs = ss?.routeIntent === "reasoning" || ss?.routeIntent === "coding"
+      ? 45_000
+      : 25_000;
     ss.silentBrainAbortTimer = setTimeout(() => {
       ss.silentBrainAbortTimer = null;
       if (!ss.isStreaming || ss.hasOutput || ss.hasToolCall || ss.hasThinking || ss.hasError) return;
       engine.abortSessionByPath?.(sessionPath).catch(() => {});
-    }, 25_000);  // [2026-04-20] 5s→15s→25s · A3B 多轮 provider fallback 容错
+    }, timeoutMs);  // [2026-04-20] A3B fallback: utility 25s, reasoning/coding 45s
     if (ss.silentBrainAbortTimer.unref) ss.silentBrainAbortTimer.unref();
   }
 
@@ -332,6 +342,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   }
 
   function resetCompletedTurnState(ss) {
+    ss.activeStreamToken = null;
+    ss.degenerationAbortRequested = false;
     ss.progressMarkerCount = 0;
     ss._turnEndDeferred = false;
     ss.hasOutput = false;
@@ -400,8 +412,27 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     debugLog()?.warn("ws", `pseudo tool/progress detected (text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount}), steering ${sessionPath}`);
   }
 
+  function trimDegenerateTail(text) {
+    let out = String(text || "");
+    out = out.replace(/(?:\s*[—-]\s*[」]?\s*){8,}[\s\]\}】）」）]*$/g, "");
+    out = out.replace(/(?:\s*[\]\}】）」）]){12,}\s*$/g, "");
+    out = out.replace(/(.{1,6})\1{12,}\s*$/s, "");
+    return out;
+  }
+
   function emitVisibleTextDelta(sessionPath, ss, delta) {
-    const next = delta || "";
+    let next = String(delta || "").replace(/\uFFFD+/g, "");
+    if (!next) return;
+    const combined = ss.visibleTextAcc + next;
+    const trimmed = trimDegenerateTail(combined);
+    if (trimmed.length < combined.length) {
+      next = trimmed.length > ss.visibleTextAcc.length ? trimmed.slice(ss.visibleTextAcc.length) : "";
+      if (!ss.degenerationAbortRequested) {
+        ss.degenerationAbortRequested = true;
+        engine.abortSessionByPath?.(sessionPath).catch(() => {});
+        debugLog()?.warn("ws", `suppressed degenerate tail and requested abort · session=${sessionPath}`);
+      }
+    }
     if (!next) return;
     if (next.trim()) ss.hasOutput = true;
     ss.titlePreview += next;
@@ -411,10 +442,27 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     maybeSteerPseudoToolSimulation(sessionPath, ss);
   }
 
+  function isAssistantStreamScopedEvent(event) {
+    return event?.type === "message_update"
+      || event?.type === "tool_execution_start"
+      || event?.type === "tool_execution_end"
+      || event?.type === "turn_end";
+  }
+
   // 单订阅：事件只写入一次，再按需广播到所有连接中的客户端。
   hub.subscribe((event, sessionPath) => {
     const isActive = sessionPath === engine.currentSessionPath;
-    const ss = sessionPath ? getState(sessionPath) : null;
+    const ss = sessionPath ? sessionState.get(sessionPath) : null;
+
+    if (isAssistantStreamScopedEvent(event) && (!ss || !ss.isStreaming)) {
+      debugLog()?.warn("ws", `ignored late stream event after turn close · type=${event?.type} · session=${sessionPath || "unknown"}`);
+      return;
+    }
+    const eventStreamToken = event?._hubContext?.streamToken || null;
+    if (isAssistantStreamScopedEvent(event) && eventStreamToken && ss?.activeStreamToken && eventStreamToken !== ss.activeStreamToken) {
+      debugLog()?.warn("ws", `ignored stale stream event · type=${event?.type} · eventStream=${eventStreamToken} activeStream=${ss.activeStreamToken} · session=${sessionPath || "unknown"}`);
+      return;
+    }
 
     if (event.type === "message_update") {
       if (!ss) return;
@@ -1201,14 +1249,25 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.hasToolCall = false;
                 ss.hasThinking = false;
                 ss.hasError = false;
-                beginSessionStream(ss);
+                const streamToken = beginSessionStream(ss);
+                ss.activeStreamToken = streamToken;
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
+                const localOfficeAnswer = buildLocalOfficeDirectAnswer(promptText);
+                if (localOfficeAnswer) {
+                  emitVisibleTextDelta(promptSessionPath, ss, localOfficeAnswer);
+                  emitStreamEvent(promptSessionPath, ss, { type: "turn_end" });
+                  broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                  finishSessionStream(ss);
+                  resetCompletedTurnState(ss);
+                  return;
+                }
                 const reportKind = inferReportResearchKind(promptText);
                 let effectivePromptText = promptText;
                 const budgetContext = buildBudgetCalculationContext(promptText);
                 if (budgetContext) {
                   effectivePromptText = `${budgetContext}\n\n【用户原始问题】\n${promptText}`;
                 }
+                let directResearchAnswer = "";
                 if (reportKind) {
                   const toolName = prefetchToolNameForKind(reportKind);
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
@@ -1216,6 +1275,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     const reportContext = await buildReportResearchContext(promptText, { userPrompt: promptText });
                     if (reportContext && reportContext.trim()) {
                       ss.hasLocalPrefetchEvidence = true;
+                      directResearchAnswer = buildDirectResearchAnswer(reportKind, reportContext, promptText);
                       effectivePromptText = [
                         reportContext.trim(),
                         budgetContext,
@@ -1234,9 +1294,19 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                     });
                   }
                 }
+                if (directResearchAnswer) {
+                  emitVisibleTextDelta(promptSessionPath, ss, directResearchAnswer);
+                  emitStreamEvent(promptSessionPath, ss, { type: "turn_end" });
+                  broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                  finishSessionStream(ss);
+                  resetCompletedTurnState(ss);
+                  return;
+                }
                 ss.effectivePromptText = effectivePromptText;
                 scheduleSilentBrainAbort(promptSessionPath, ss);
-                await hub.send(effectivePromptText, msg.images ? { images: msg.images, sessionPath: promptSessionPath } : { sessionPath: promptSessionPath });
+                await hub.send(effectivePromptText, msg.images
+                  ? { images: msg.images, sessionPath: promptSessionPath, streamToken }
+                  : { sessionPath: promptSessionPath, streamToken });
                 clearSilentBrainAbortTimer(ss);
                 if (!ss.isStreaming) {
                   broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
@@ -1245,10 +1315,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 }
               } catch (err) {
                 clearSilentBrainAbortTimer(ss);
-                if (!err.message?.includes("aborted")) {
+                const aborted = err.message?.includes("aborted");
+                if (!aborted) {
                   wsSend(ws, { type: "error", message: err.message, sessionPath: promptSessionPath });
+                  ss.hasError = true;
+                } else if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError) {
+                  wsSend(ws, { type: "error", message: t("error.modelNoResponse"), sessionPath: promptSessionPath });
                 }
-                broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                if (ss.isStreaming) {
+                  closeStreamAfterError(promptSessionPath, ss);
+                } else {
+                  broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                }
               }
             }
           })().catch((err) => {

@@ -23,8 +23,10 @@ const STOCK_ANALYSIS_RE = /(?:股票|股价|个股|A股|a股|科创板|创业板
 const GENERIC_RESEARCH_RE = /(?=.*(?:调研|研究|分析|评估|对比|比较|判断|怎么看|报告|预测|整理|汇总))(?=.*(?:最新|数据|资料|来源|公司|行业|市场|政策|公告|财报|研报|楼盘|房价|成交|竞品|价格|估值|市值|PDF|文档|报表|合同|产品|品牌))/i;
 const WEATHER_LOOKUP_RE = /(?:天气|气温|温度|预报|冷不冷|热不热|下雨|下雪|多少度|几度|紫外线|空气质量|湿度|风力|体感)/i;
 const SPORTS_LOOKUP_RE = /(?:比分|赛程|排名|战绩|湖人|勇士|NBA|CBA|英超|中超|欧冠|世界杯|比赛结果)/i;
-const MARKET_LOOKUP_RE = /(?:金价|黄金|白银|油价|原油|汇率|美元|人民币|指数|基金|ETF|etf|股价|行情|收盘|涨跌|现价|报价)/i;
+const MARKET_LOOKUP_RE = /(?:金价|黄金|白银|油价|原油|汇率|美元|人民币|指数|基金|ETF|etf|股价|股票|行情|收盘|涨跌|现价|最新价|美股|港股|A股|a股|纳指|道指|标普|AAPL|TSLA|NVDA|MSFT|GOOGL|AMZN|META|\$[A-Z]{1,5}\b)/i;
 const LIVE_NEWS_LOOKUP_RE = /(?=.*(?:今天|今日|今晚|最新|实时|进展|消息|新闻|报道|发生|了吗|如何|怎么样|快讯|热点))(?=.*(?:AI|人工智能|科技|大模型|模型|Gemini|OpenAI|Anthropic|Claude|芯片|半导体|机器人|美伊|伊朗|美国|中东|巴以|以色列|巴勒斯坦|俄乌|俄罗斯|乌克兰|关税|制裁|冲突|停火|谈判|选举|地震|台风|事故|发布|宣布|外交|战争|袭击|股市|市场|公司|政策))/i;
+const EXTERNAL_RESEARCH_INTENT_RE = /(?:最新|实时|今天|今日|联网|搜索|查询|查一下|找一下|资料|来源|链接|官网|网页|公开信息|公告|财报|研报|新闻|政策|PDF|文档|市场数据|行业数据|竞品)/i;
+const LOCAL_OFFICE_TASK_RE = /(?:会议记录|会议纪要|行动项|负责人|截止时间|风险|经营分析|环比|增长率|根据数据|下面会议|Q[1-4]|报价模板|客户\s*[A-Z]\b)/i;
 
 function textOf(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -104,7 +106,7 @@ export function inferReportResearchKind(text) {
   if (SPORTS_LOOKUP_RE.test(normalized)) return "sports";
   if (MARKET_LOOKUP_RE.test(normalized)) return "market";
   if (LIVE_NEWS_LOOKUP_RE.test(normalized)) return "news";
-  if (GENERIC_RESEARCH_RE.test(normalized)) return "generic";
+  if (GENERIC_RESEARCH_RE.test(normalized) && EXTERNAL_RESEARCH_INTENT_RE.test(normalized) && !LOCAL_OFFICE_TASK_RE.test(normalized)) return "generic";
   return "";
 }
 
@@ -237,6 +239,123 @@ function extractToolText(result) {
     .filter(Boolean)
     .join("\n")
     .trim();
+}
+
+function parseStooqItems(context) {
+  const items = [];
+  const re = /\n\d+\.\s+([A-Z]{1,6})\s+最近可用行情\n来源：([^\n]+)\n(https?:\/\/\S+)\n-\s+价格:\s*([^\n]+)\n-\s+时间戳:\s*([^\n]+)(?:\n-\s+开盘\/最高\/最低:\s*([^\n]+))?/g;
+  for (const match of String(context || "").matchAll(re)) {
+    items.push({
+      symbol: match[1],
+      source: match[2],
+      url: match[3],
+      price: match[4],
+      timestamp: match[5],
+      range: match[6] || "",
+    });
+  }
+  return items;
+}
+
+function buildDirectMarketAnswer(context) {
+  const items = parseStooqItems(context);
+  if (!items.length) return "";
+  const rows = items.map((item) => {
+    return [
+      `**${item.symbol}**`,
+      `- 最新价：$${item.price}`,
+      `- 时间戳：${item.timestamp}`,
+      item.range ? `- 开盘/最高/最低：${item.range}` : "",
+      `- 来源：[${item.source}](${item.url})`,
+    ].filter(Boolean).join("\n");
+  }).join("\n\n");
+  return [
+    "根据已获取的最近可用行情：",
+    "",
+    rows,
+    "",
+    "说明：这些是最近可用行情，不一定等同于盘中实时成交价；需要交易级实时性时，请再用券商、交易所或专门行情源交叉核验。",
+    "",
+    "以上信息仅作行情展示，不构成任何投资建议、买卖建议或收益承诺。",
+  ].join("\n");
+}
+
+function parseNewsRssItems(context) {
+  const items = [];
+  const blocks = String(context || "").split(/\n(?=\d+\.\s+)/);
+  for (const block of blocks) {
+    const title = block.match(/^\d+\.\s+([^\n]+)/)?.[1]?.trim() || "";
+    const source = block.match(/\n来源:\s*([^\n]+)/)?.[1]?.trim() || "";
+    const sourceUrl = block.match(/\n来源站点:\s*(https?:\/\/\S+)/)?.[1]?.trim() || "";
+    const link = block.match(/\n(https?:\/\/\S+)/)?.[1]?.trim() || "";
+    const published = block.match(/\n发布时间:\s*([^\n]+)/)?.[1]?.trim() || "";
+    if (title && (link || sourceUrl) && published) {
+      items.push({ title, source, sourceUrl, link, published });
+    }
+  }
+  return items;
+}
+
+function newsImportance(title) {
+  const text = String(title || "");
+  if (/金融科技|券商|投顾|风控|交易|金融/.test(text)) {
+    return "这说明 AI 正在从演示和概念进入金融业务流程，对投研、风控、客服和交易系统的投入优先级会继续上升。";
+  }
+  if (/AI PC|电脑|终端|芯片|半导体|算力|昇腾|GPU/.test(text)) {
+    return "这关系到 AI 从云端模型走向本地终端和硬件生态，影响芯片、软件适配和个人设备升级节奏。";
+  }
+  if (/成立|新公司|认证|伙伴|通过|聆讯|上市|融资/.test(text)) {
+    return "这代表 AI 相关业务继续公司化、资本化和生态化，说明产业链正在把模型能力转成具体产品与商业机会。";
+  }
+  if (/机器人|具身|自动驾驶/.test(text)) {
+    return "这类进展关系到 AI 从文本和软件扩展到真实物理场景，是具身智能和自动化落地的重要观察点。";
+  }
+  return "这反映了 AI 应用正在进入更多垂直场景，值得继续跟踪它对业务流程、人才结构和产业竞争的影响。";
+}
+
+function scoreNewsItem(item) {
+  const text = `${item.title} ${item.source}`;
+  let score = 0;
+  if (/AI|人工智能|大模型|科技/i.test(text)) score += 2;
+  if (/金融科技|券商|AI PC|芯片|半导体|机器人|成立|认证|聆讯|上市|融资|人才|薪酬|重塑|增长/.test(text)) score += 3;
+  if (/新浪|中证|中国科技|东方财富|同花顺|澎湃|DoNews|36氪|证券/.test(text)) score += 1;
+  if (/直播|挑战|艺术|漫剧|培训|结课/.test(text)) score -= 2;
+  return score;
+}
+
+function buildDirectNewsAnswer(context) {
+  const picked = parseNewsRssItems(context)
+    .sort((a, b) => scoreNewsItem(b) - scoreNewsItem(a))
+    .slice(0, 2);
+  if (picked.length < 2) return "";
+  const rows = picked.map((item, index) => {
+    return [
+      `**${index + 1}. ${item.title}**`,
+      `- 发生/发布时间：${item.published}`,
+      `- 来源：${item.source || item.sourceUrl || "Google News RSS"}`,
+      `- 链接：${item.link || item.sourceUrl}`,
+      `- 为什么重要：${newsImportance(item.title)}`,
+    ].join("\n");
+  }).join("\n\n");
+  return [
+    "以下是我刚刚按最近 36 小时 RSS 候选筛出的两条科技/AI 新闻：",
+    "",
+    rows,
+    "",
+    "说明：这些条目的时间来自 Google News RSS 的发布时间；若要做正式引用，建议继续打开原站核验全文。",
+  ].join("\n");
+}
+
+export function buildDirectResearchAnswer(kind, context, userPrompt = "") {
+  if (!context) return "";
+  const prompt = textOf(userPrompt);
+  if (kind === "market" && /AAPL|TSLA|股价|行情|报价|最新价|最近可用/i.test(prompt)) {
+    return buildDirectMarketAnswer(context);
+  }
+  if (kind === "news" && /新闻|消息|今日|今天|最新/.test(prompt)) {
+    return buildDirectNewsAnswer(context);
+  }
+  return "";
 }
 
 async function buildRealtimeToolContext({ title, toolFactory, params, timeoutMs = REALTIME_TOOL_TIMEOUT_MS } = {}) {
