@@ -29,6 +29,25 @@ function getSteerPrefix() {
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
 }
 
+function toSessionPromptOptions(images) {
+  if (!images?.length) return undefined;
+  return {
+    images: images.map((img) => ({
+      type: "image",
+      // pi-coding-agent 文档使用 source.base64，
+      // 但下游 pi-ai 仍会从顶层 data/mimeType 取值。
+      // 同时保留两套字段，避免图片在 provider 层丢失。
+      data: img.data,
+      mimeType: img.mimeType || "image/png",
+      source: {
+        type: "base64",
+        mediaType: img.mimeType || "image/png",
+        data: img.data,
+      },
+    })),
+  };
+}
+
 function buildGuestSafetyPrompt(ownerName = "User") {
   const isZh = getLocale().startsWith("zh");
   if (isZh) {
@@ -315,10 +334,9 @@ export class BridgeSessionManager {
         if (opts.images?.length && _resolved?.vision === false) {
           opts.images = undefined;
         }
-        // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
-        // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
-        const _imagesArg = opts.images?.length ? opts.images : undefined;
-        await session.prompt(prompt, _imagesArg);
+        // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
+        const _promptOpts = toSessionPromptOptions(opts.images);
+        await session.prompt(prompt, _promptOpts);
       } finally {
         unsub?.();
         this._activeSessions.delete(sessionKey);

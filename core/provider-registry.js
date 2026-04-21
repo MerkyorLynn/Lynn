@@ -76,6 +76,7 @@ import { openrouterPlugin } from "../lib/providers/openrouter.js";
 import { ollamaPlugin } from "../lib/providers/ollama.js";
 import { minimaxPlugin } from "../lib/providers/minimax.js";
 import { minimaxOAuthPlugin } from "../lib/providers/minimax-oauth.js";
+import { openaiCodexOAuthPlugin } from "../lib/providers/openai-codex-oauth.js";
 // 中国
 import { siliconflowPlugin } from "../lib/providers/siliconflow.js";
 import { zhipuPlugin } from "../lib/providers/zhipu.js";
@@ -115,6 +116,7 @@ const BUILTIN_PLUGINS = [
   ollamaPlugin,
   minimaxPlugin,
   minimaxOAuthPlugin,
+  openaiCodexOAuthPlugin,
   // 中国
   siliconflowPlugin,
   zhipuPlugin,

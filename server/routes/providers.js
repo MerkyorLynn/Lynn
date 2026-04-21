@@ -240,6 +240,9 @@ export function createProvidersRoute(engine) {
     return defaults.map(normalizeModelId).find(Boolean) || "";
   }
 
+  const PROVIDER_SMOKE_PROMPT = "Reply with OK only.";
+  const PROVIDER_SMOKE_MAX_TOKENS = 128;
+
   async function runProviderChatSmoke({ baseUrl, api, apiKey, allowMissingApiKey, modelId }) {
     if (!modelId) return null;
     if (!["openai-completions", "openai-responses", "anthropic-messages"].includes(api)) return null;
@@ -261,10 +264,25 @@ export function createProvidersRoute(engine) {
       pathname,
     });
     const body = api === "anthropic-messages"
-      ? { model: modelId, max_tokens: 8, messages: [{ role: "user", content: "ping" }] }
+      ? {
+          model: modelId,
+          temperature: 0,
+          max_tokens: PROVIDER_SMOKE_MAX_TOKENS,
+          messages: [{ role: "user", content: PROVIDER_SMOKE_PROMPT }],
+        }
       : api === "openai-responses"
-        ? { model: modelId, max_output_tokens: 8, input: [{ role: "user", content: "ping" }] }
-        : { model: modelId, max_tokens: 8, messages: [{ role: "user", content: "ping" }] };
+        ? {
+            model: modelId,
+            temperature: 0,
+            max_output_tokens: PROVIDER_SMOKE_MAX_TOKENS,
+            input: [{ role: "user", content: PROVIDER_SMOKE_PROMPT }],
+          }
+        : {
+            model: modelId,
+            temperature: 0,
+            max_tokens: PROVIDER_SMOKE_MAX_TOKENS,
+            messages: [{ role: "user", content: PROVIDER_SMOKE_PROMPT }],
+          };
 
     const res = await fetch(endpoint, {
       method: "POST",

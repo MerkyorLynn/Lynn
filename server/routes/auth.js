@@ -50,6 +50,7 @@ export function createAuthRoute(engine) {
     if (!provider) {
       return c.json({ error: "provider is required" }, 400);
     }
+    const authKey = engine.providerRegistry?.getAuthJsonKey(provider) || provider;
 
     const sessionId = crypto.randomUUID();
 
@@ -71,11 +72,11 @@ export function createAuthRoute(engine) {
     let usesCallbackServer = false;
 
     // 检查 provider 是否使用本地回调服务器（如 OpenAI Codex）
-    const providerObj = engine.authStorage.getOAuthProviders().find(p => p.id === provider);
+    const providerObj = engine.authStorage.getOAuthProviders().find(p => p.id === authKey);
     if (providerObj?.usesCallbackServer) usesCallbackServer = true;
 
     // 启动 OAuth（不 await，loginPromise 会异步 resolve）
-    const loginPromise = engine.authStorage.login(provider, {
+    const loginPromise = engine.authStorage.login(authKey, {
       onAuth: (info) => {
         // callback server 流程不需要给前端显示 instructions（那只是提示文本，不是 user_code）
         // 只有设备码流程才需要（instructions 是 user_code）
@@ -98,7 +99,7 @@ export function createAuthRoute(engine) {
       flow.result = { ok: true };
     }).catch(err => {
       const cause = err.cause?.message || err.cause?.code || "";
-      console.error(`[auth] OAuth login failed (${provider}): ${err.message}${cause ? ` [${cause}]` : ""}`);
+      console.error(`[auth] OAuth login failed (${authKey}): ${err.message}${cause ? ` [${cause}]` : ""}`);
       flow.result = { ok: false, error: diagnoseOAuthError(err) };
     });
 

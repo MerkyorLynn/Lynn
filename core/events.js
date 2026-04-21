@@ -213,6 +213,41 @@ function sanitizeCorruption(text) {
   return out;
 }
 
+function stripLeadingThinkingPrefixOnce(text) {
+  const leadingWs = text.match(/^\s*/)?.[0] || "";
+  const head = text.slice(leadingWs.length);
+  if (!head) return text;
+
+  const candidates = [];
+  const lineBreak = head.indexOf("\n");
+  if (lineBreak !== -1 && lineBreak <= 180) candidates.push(lineBreak + 1);
+
+  // 中文常见写法会在句号后直接接下一句，不一定带空格或换行。
+  // 这里允许句末标点后直接截断；后续仍用 rest.trim() 保证不会把整段正文吞掉。
+  const sentenceMatch = head.match(/^.{0,180}?[。！？!?.](?:\s+|\n|$)?/);
+  if (sentenceMatch) candidates.push(sentenceMatch[0].length);
+
+  for (const cut of candidates) {
+    const prefix = head.slice(0, cut).trim();
+    const rest = head.slice(cut);
+    if (!prefix || !rest.trim()) continue;
+    if (!matchesThinkingPrefix(prefix)) continue;
+    return leadingWs + rest.replace(/^\s+/, "");
+  }
+
+  return text;
+}
+
+function stripLeadingThinkingPrefixes(text, maxPasses = 2) {
+  let out = text;
+  for (let i = 0; i < maxPasses; i++) {
+    const next = stripLeadingThinkingPrefixOnce(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /**
  * ThinkTagParser v2 — 拦截 <think>...</think> / 裸 </think> / 启发式思考前缀 / 崩坏模式
  *
@@ -274,17 +309,15 @@ export class ThinkTagParser {
       return;
     }
 
-    // Case B: 启发式前缀 【v2.1 已禁用】
-    // 之前设计：匹配 "Here's a thinking process:" 等 → 进 silent thinking
-    // 副作用：没有 </think> 终止 · 整段（含真答案）被吞 · 空输出 9/12
-    // 决定：保留 matchesThinkingPrefix/patterns 代码供未来使用 · 但不触发
-    // 前缀型思考泄露交给上层（server steer 或 post-processing）处理
-    //
-    // if (matchesThinkingPrefix(text)) {
-    //   emit({ type: "think_start" });
-    //   this.inThink = true;
-    //   return;
-    // }
+    // Case B: 启发式前缀
+    // 不再把它整体吞进 silent thinking；只有限剥离明显的模板头，
+    // 例如 "Here's a thinking process:" / "Let me think through this."
+    // 避免把后面的真实答案一起吃掉。
+    const stripped = stripLeadingThinkingPrefixes(text);
+    if (stripped !== text) {
+      this.buffer = stripped;
+      return;
+    }
 
     // Case C: 正常 · buffer 保留让 _drain 处理（可能含标准 <think>）
   }
@@ -301,10 +334,10 @@ export class ThinkTagParser {
       //   真正的 thinking 一定带 <think>...</think> pair · 到 flush 时 inThink=true 是异常状态
       if (this.inThink) {
         emit({ type: "think_end" });
-        emit({ type: "text", data: sanitizeCorruption(this.buffer) });
+        emit({ type: "text", data: sanitizeCorruption(stripLeadingThinkingPrefixes(this.buffer)) });
         this.inThink = false;
       } else {
-        const cleaned = sanitizeCorruption(this.buffer);
+        const cleaned = sanitizeCorruption(stripLeadingThinkingPrefixes(this.buffer));
         if (cleaned) emit({ type: "text", data: cleaned });
       }
       this.buffer = "";

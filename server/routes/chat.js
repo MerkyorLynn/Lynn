@@ -80,6 +80,7 @@ function buildPseudoToolRecoverySteerText() {
 }
 
 function prefetchToolNameForKind(kind) {
+  if (kind === "market_weather_brief") return "market_weather_brief";
   if (kind === "weather") return "weather";
   if (kind === "sports") return "sports_score";
   if (kind === "market" || kind === "stock") return "stock_market";
@@ -213,6 +214,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         effectivePromptText: "",
         hasLocalPrefetchEvidence: false,
         pendingToolRetryAttempted: false,
+        // [TOOL-FINALIZE-RETRY v1 · 2026-04-21] 工具真调完但模型没给 final text
+        //   (典型:GPT-5.4 / Kimi 在 T1 综合工具题) · 主动触发一次隐式 retry
+        //   让模型基于工具结果产出最终答案 · 每轮最多 retry 1 次
+        toolFinalizationRetryAttempted: false,
         silentBrainAbortTimer: null,
         activeStreamToken: null,
         degenerationAbortRequested: false,
@@ -255,7 +260,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   function scheduleSilentBrainAbort(sessionPath, ss) {
     clearSilentBrainAbortTimer(ss);
     const info = resolveCurrentModelInfo(engine);
-    if (!info.isBrain || ss?.hasLocalPrefetchEvidence) return;
+    // 本地预取只代表 Lynn 先做了一层浅证据抓取，不代表模型已经真正完成工具任务。
+    // 因此它不能豁免 silent-turn recovery，否则长研究任务会在“我再查一下/我来读取”
+    // 这类半截回复后静默结束。
+    if (!info.isBrain) return;
     const timeoutMs = ss?.routeIntent === "reasoning" || ss?.routeIntent === "coding"
       ? 45_000
       : 25_000;
@@ -362,6 +370,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.visibleTextAcc = "";
     ss.rawTextAcc = "";
     ss.pseudoToolSteered = false;
+    // [TOOL-FINALIZE-RETRY v1] reset per-turn flag · 每轮都可以 retry 一次
+    ss.toolFinalizationRetryAttempted = false;
   }
 
   function closeStreamAfterError(sessionPath, ss) {
@@ -963,20 +973,40 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         broadcast({ type: "error", message: t("error.modelNoResponse") });
       }
 
-      // [EMPTY-REPLY-FALLBACK v1] 2026-04-20 · V4 发现 · P1 修复
+      // [EMPTY-REPLY-FALLBACK v1 + TOOL-FINALIZE-RETRY v1] 2026-04-20/21 · P1→P0 升级
       //   3 个场景静默结束会让用户困惑：
-      //     (a) 工具调用成功但文本为空（T07 stock_market 调完 · 文本 0 字）
+      //     (a) 工具调用成功但文本为空（T07 stock_market / T1 综合工具收尾 · "tool_no_final_text"）
       //     (b) 工具调完但文本只是"我再抓取一下"（S02 单轮财经 · 未完成语气）
       //     (c) 只有长 thinking 没有可见文本（S03 单轮新闻 · 41s thinking 空白）
-      //   统一兜底：emit 一条明确的"未能完成"文案 · 不静默结束
+      //
+      //   v1 兜底：emit 一条明确的"未能完成"文案 · 不静默结束(仅限 b/c 场景)
+      //   v2 升级(TOOL-FINALIZE-RETRY v1)：a 场景主动触发一次隐式 retry · 让模型
+      //     基于已有工具结果给出最终答案 · 而不是让用户重问
+      //     · 条件: hasToolCall && 文本几乎空 && 本轮未 retry 过
+      //     · 实现: emit turn_end 后 · 发一条"基于工具结果给最终答案"的隐式 prompt
+      //     · 限制: 每轮最多 retry 1 次 · 防止无限循环
       const visibleTrimmed = visibleTextBeforeReset.trim();
       const visibleLen = visibleTrimmed.length;
       const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
       const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
       const isToolDidNotProduceText = ss.hasToolCall && visibleLen < 5;
       const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
-      if (isActive && !ss.hasError && (isToolDidNotProduceText || isIncompletePending || isThinkingOnlyNoOutput)) {
-        const kind = isToolDidNotProduceText ? "tool_no_final_text"
+
+      // [TOOL-FINALIZE-RETRY v1] 工具真调完但无 final text · 主动 retry
+      // 其他两个场景(incomplete_pending / thinking_only)仍走原 fallback msg 路径
+      const shouldRetryToolFinalize =
+        isActive &&
+        !ss.hasError &&
+        isToolDidNotProduceText &&
+        !ss.toolFinalizationRetryAttempted;
+
+      if (shouldRetryToolFinalize) {
+        // 不 emit fallback msg · 让 retry 产生的 turn 承担最终答案
+        ss.toolFinalizationRetryAttempted = true;
+        debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] will retry · session=${sessionPath}`);
+      } else if (isActive && !ss.hasError && (isIncompletePending || isThinkingOnlyNoOutput || (isToolDidNotProduceText && ss.toolFinalizationRetryAttempted))) {
+        // 其他两场景 · 或已 retry 过一次仍无 final text → emit fallback msg
+        const kind = isToolDidNotProduceText ? "tool_no_final_text_after_retry"
           : isIncompletePending ? "incomplete_pending"
           : "thinking_only";
         const fallbackMsg = getLocale().startsWith("zh")
@@ -1002,6 +1032,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         )).catch((retryErr) => {
           debugLog()?.warn("ws", `pending tool retry failed: ${retryErr?.message || retryErr}`);
         });
+      }
+      // [TOOL-FINALIZE-RETRY v1] 2026-04-21 · 工具调完但无 final text 的主动 retry
+      //   所有 provider 在 T1 综合工具收尾题都踩这条 · GPT-5.4/Kimi = tool_no_final_text
+      //   默认模型/DeepSeek/MiniMax = empty response · 这里统一 retry
+      //   retry prompt 明确告知: 工具结果已在对话历史 · 不要再调工具 · 直接综合给答案
+      if (shouldRetryToolFinalize) {
+        broadcast({ type: "turn_retry", sessionPath, reason: "tool_finalization" });
+        const retryPrompt = getLocale().startsWith("zh")
+          ? "[系统提示] 上面工具已经执行成功并拿到真实结果(在本次对话历史中)。请基于这些工具结果直接给用户最终答案 · 综合推理和结论。不要再调用任何工具 · 不要重复工具 raw output 的数据 · 直接给简洁可读的最终回答。"
+          : "[System] The tools above executed successfully and returned real results (in this conversation history). Use those results to give the user the final answer directly — synthesize and conclude. Do not call any more tools. Do not restate raw tool output; produce a concise, readable final answer.";
+        Promise.resolve().then(() => hub.send(
+          retryPrompt,
+          { sessionPath },
+        )).catch((retryErr) => {
+          debugLog()?.warn("ws", `tool finalization retry failed: ${retryErr?.message || retryErr}`);
+        });
+        debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] triggered · session=${sessionPath}`);
       }
       (async () => {
         try {
@@ -1231,8 +1278,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               }
               debugLog()?.log("ws", `user message (${promptText.length} chars, ${msg.images?.length || 0} images)`);
               // Phase 2: 客户端可指定 sessionPath，否则用焦点 session
-              const promptSessionPath = msg.sessionPath || engine.currentSessionPath;
+              let promptSessionPath = msg.sessionPath || engine.currentSessionPath;
+              if (!promptSessionPath) {
+                const createdSession = await engine.createSession(null, engine.homeCwd || process.cwd());
+                promptSessionPath = createdSession?.sessionManager?.getSessionFile?.() || engine.currentSessionPath || "";
+              }
               const ss = getState(promptSessionPath);
+              if (!ss) {
+                wsSend(ws, { type: "error", message: t("error.noActiveSession") });
+                return;
+              }
               if (engine.isSessionStreaming(promptSessionPath) || ss?.isStreaming) {
                 wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
                 return;
@@ -1332,7 +1387,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 const aborted = err.message?.includes("aborted");
                 if (!aborted) {
                   wsSend(ws, { type: "error", message: err.message, sessionPath: promptSessionPath });
-                  ss.hasError = true;
+                  if (ss) ss.hasError = true;
                 } else if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError) {
                   wsSend(ws, { type: "error", message: t("error.modelNoResponse"), sessionPath: promptSessionPath });
                 }

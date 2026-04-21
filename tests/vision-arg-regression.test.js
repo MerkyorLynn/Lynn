@@ -31,72 +31,84 @@ function readSource(relPath) {
   return fs.readFileSync(path.join(REPO_ROOT, relPath), "utf8");
 }
 
-describe("[VISION-ARG-FIX v0.76.5] pi-sdk prompt signature regression guard", () => {
+describe("[VISION-ARG-FIX] pi-sdk prompt image-argument regression guard", () => {
+  // 历史演化说明:
+  //   v0.76.5: pi-agent-core prompt(input, images?: ImageContent[]) 签名 · 直接传数组
+  //   v0.76.6: pi-ai 底层改成 options 对象 · 改用 toSessionPromptOptions 统一构造
+  //   任何版本都不应该出现 `{ images: opts.images }` 这种裸字面量 - 那是 v0.76.5 修过的 bug
   it.each(GUARDED_FILES)(
-    "%s · does not wrap images as { images: opts.images } object",
+    "%s · does not use deprecated { images: opts.images } bare literal",
     (file) => {
       const src = readSource(file);
-      // 匹配错误模式：{ images: opts.images } 或 { images: opts?.images }
       const badWrapping = /\{\s*images\s*:\s*opts\??\.images\s*\}/g;
       const matches = src.match(badWrapping) || [];
       expect(
         matches,
-        `Found ${matches.length} instance(s) of { images: opts.images } object wrapping in ${file}. ` +
-        `pi-agent-core.prompt(input, images?: ImageContent[]) expects images as a direct array, not wrapped in an object. ` +
-        `Fix: const _imagesArg = opts?.images?.length ? opts.images : undefined;`,
+        `Found ${matches.length} instance(s) of legacy { images: opts.images } literal in ${file}. ` +
+        `Use toSessionPromptOptions(opts.images) helper instead.`,
       ).toHaveLength(0);
     },
   );
 
   it.each(GUARDED_FILES)(
-    "%s · session.prompt() second argument is never a bare { images: ... } object literal",
+    "%s · session.prompt() uses _promptOpts variable (not inline bare { images: ... })",
     (file) => {
       const src = readSource(file);
-      // 匹配：session.prompt(something, { images  ← 这种直接传对象字面量
-      //       或 this._session.prompt(..., { images
-      const wrappedAtCallsite = /\.prompt\s*\([^,)]+,\s*\{\s*images\b/g;
-      const matches = src.match(wrappedAtCallsite) || [];
+      // 允许 session.prompt(text, _promptOpts) 或 session.prompt(text, variable_name)
+      // 禁止 session.prompt(text, { images: ... }) 这种内联对象字面量
+      const inlineObj = /\.prompt\s*\([^,)]+,\s*\{\s*images\b/g;
+      const matches = src.match(inlineObj) || [];
       expect(
         matches,
-        `Found ${matches.length} call site(s) in ${file} passing { images: ... } literal to session.prompt(). ` +
-        `Pass images as a direct array instead.`,
+        `Found ${matches.length} inline { images: ... } object literal at session.prompt call site in ${file}. ` +
+        `Use a named variable from toSessionPromptOptions() instead.`,
       ).toHaveLength(0);
     },
   );
 
-  it("session-coordinator.js marks the fix with [VISION-ARG-FIX v0.76.5] comment", () => {
-    const src = readSource("core/session-coordinator.js");
-    const markerCount = (src.match(/\[VISION-ARG-FIX v0\.76\.5\]/g) || []).length;
-    expect(
-      markerCount,
-      "session-coordinator.js should have 2 [VISION-ARG-FIX v0.76.5] markers (one per prompt call site).",
-    ).toBe(2);
-  });
+  it.each(GUARDED_FILES)(
+    "%s · uses toSessionPromptOptions helper (v0.76.6 canonicalized) for images",
+    (file) => {
+      const src = readSource(file);
+      // v0.76.6 之后 · 两边都应该用 toSessionPromptOptions(opts.images) 统一
+      // 而不是裸传数组 · 因为 pi-ai 底层字段布局已改(source.base64 + 顶层 data/mimeType 双带)
+      const usesHelper = /toSessionPromptOptions\s*\(/.test(src);
+      expect(
+        usesHelper,
+        `${file} should use toSessionPromptOptions() helper to build prompt options with correct image shape for current pi-ai.`,
+      ).toBe(true);
+    },
+  );
 
-  it("bridge-session-manager.js marks the fix with [VISION-ARG-FIX v0.76.5] comment", () => {
-    const src = readSource("core/bridge-session-manager.js");
-    const markerCount = (src.match(/\[VISION-ARG-FIX v0\.76\.5\]/g) || []).length;
-    expect(
-      markerCount,
-      "bridge-session-manager.js should have 1 [VISION-ARG-FIX v0.76.5] marker at the prompt call site.",
-    ).toBe(1);
-  });
+  it.each(GUARDED_FILES)(
+    "%s · carries a [VISION-ARG-FIX ...] marker (any version) near prompt call site",
+    (file) => {
+      const src = readSource(file);
+      const hasMarker = /\[VISION-ARG-FIX v0\.\d+\.\d+\]/.test(src);
+      expect(
+        hasMarker,
+        `${file} should carry a [VISION-ARG-FIX vX.Y.Z] marker near session.prompt() to signal the image-arg invariant is being actively enforced.`,
+      ).toBe(true);
+    },
+  );
 
-  it("@mariozechner/pi-agent-core.d.ts still declares prompt(input, images?)", () => {
-    // 如果 pi-sdk 升级改了签名，提早警报 · 告诉我们要重新审 VISION-ARG-FIX
+  it("@mariozechner/pi-agent-core.d.ts prompt signature is known", () => {
+    // pi-sdk 升级会改 prompt 签名 · 早期版本签名是 prompt(input: string, images?: ImageContent[])
+    // v0.76.6 之后改成 prompt(input: string, options?: { images?: ImageContent[] })
+    // 只要签名是这两种之一 · 就算通过;如果出现全新签名 · 测试红 · 提醒我们重新审
     const agentDts = path.join(
       REPO_ROOT,
       "node_modules/@mariozechner/pi-agent-core/dist/agent.d.ts",
     );
     if (!fs.existsSync(agentDts)) {
-      // 在 CI 没装 node_modules 的环境下，跳过（不算失败）
       return;
     }
     const src = fs.readFileSync(agentDts, "utf8");
-    const hasExpectedSig = /prompt\s*\(\s*input\s*:\s*string\s*,\s*images\?\s*:\s*ImageContent\[\]\s*\)/.test(src);
+    const hasArraySig = /prompt\s*\(\s*input\s*:\s*string\s*,\s*images\?\s*:\s*ImageContent\[\]\s*\)/.test(src);
+    const hasOptionsSig = /prompt\s*\(\s*input\s*:\s*string\s*,\s*(?:options|opts)\?\s*:/.test(src);
     expect(
-      hasExpectedSig,
-      "@mariozechner/pi-agent-core 的 prompt() 签名已变。请重新审视 core/session-coordinator.js 和 core/bridge-session-manager.js 的 _imagesArg 逻辑。",
+      hasArraySig || hasOptionsSig,
+      "@mariozechner/pi-agent-core 的 prompt() 签名已变为全新格式。请重新审视 core/session-coordinator.js 和 core/bridge-session-manager.js 的 toSessionPromptOptions 逻辑。",
     ).toBe(true);
   });
 });

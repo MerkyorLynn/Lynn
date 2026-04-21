@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const reportResearchMock = vi.hoisted(() => ({
   buildReportResearchContext: vi.fn(),
+  buildDirectResearchAnswer: vi.fn(),
   inferReportResearchKind: vi.fn(),
 }));
 
@@ -53,6 +54,10 @@ describe("chat route event forwarding", () => {
     };
     engine = {
       currentSessionPath: "/sessions/current.jsonl",
+      createSession: vi.fn(async () => ({
+        sessionManager: { getSessionFile: () => "/sessions/current.jsonl" },
+      })),
+      resolveModelOverrides: vi.fn((model) => model),
       abortAllStreaming: vi.fn(async () => 0),
       getSessionByPath: vi.fn(() => ({ messages: [] })),
       isSessionStreaming: vi.fn(() => false),
@@ -62,6 +67,7 @@ describe("chat route event forwarding", () => {
       cwd: process.cwd(),
     };
     reportResearchMock.buildReportResearchContext.mockResolvedValue("");
+    reportResearchMock.buildDirectResearchAnswer.mockReturnValue("");
     reportResearchMock.inferReportResearchKind.mockReturnValue("");
     const wsHarness = makeWebSocketHarness();
     clients = wsHarness.clients;
@@ -76,6 +82,11 @@ describe("chat route event forwarding", () => {
     const res = await app.request("/ws");
     expect(res.status).toBe(200);
     expect(typeof subscribed).toBe("function");
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "请执行终端命令 echo hi" }),
+    }, connections[0].client);
 
     subscribed({
       type: "tool_authorization",
@@ -106,9 +117,14 @@ describe("chat route event forwarding", () => {
         sessionManager: { getCwd: () => tmpDir },
         messages: [],
       }));
+      hub.send = vi.fn(() => new Promise(() => {}));
 
       const res = await app.request("/ws");
       expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "请修改 sample.txt" }),
+      }, connections[0].client);
 
       subscribed({
         type: "tool_execution_start",
@@ -179,9 +195,14 @@ describe("chat route event forwarding", () => {
     engine.currentModel = { id: "kimi-k2.5", provider: "moonshot", name: "Kimi K2.5" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => new Promise(() => {}));
 
     const res = await app.request("/ws");
     expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "帮我查一下深圳天气" }),
+    }, connections[0].client);
 
     subscribed({
       type: "message_update",
@@ -197,7 +218,7 @@ describe("chat route event forwarding", () => {
     }));
   });
 
-  it("aborts the first silent Brain tool turn after the shorter grace window", async () => {
+  it("aborts the first silent Brain tool turn after the 25s grace window", async () => {
     vi.useFakeTimers();
     let rejectSend;
     try {
@@ -215,7 +236,7 @@ describe("chat route event forwarding", () => {
         data: JSON.stringify({ type: "prompt", text: "请执行终端命令 echo hi" }),
       }, connections[0].client);
 
-      await vi.advanceTimersByTimeAsync(4_999);
+      await vi.advanceTimersByTimeAsync(24_999);
       expect(engine.abortSessionByPath).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(1);
@@ -260,7 +281,75 @@ describe("chat route event forwarding", () => {
     }));
   });
 
-  it("does not abort a silent Brain turn after local prefetch has evidence", async () => {
+  it("creates a session on the first prompt when currentSessionPath is empty", async () => {
+    engine.currentSessionPath = "";
+    engine.createSession = vi.fn(async () => ({
+      sessionManager: { getSessionFile: () => "/sessions/new.jsonl" },
+    }));
+    reportResearchMock.inferReportResearchKind.mockReturnValue("market_weather_brief");
+    reportResearchMock.buildReportResearchContext.mockResolvedValue("【系统已完成综合工具预取】");
+    reportResearchMock.buildDirectResearchAnswer.mockReturnValue("数据快照\n- AAPL：$273.05");
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "请同时看一下今天 AAPL 最新价和上海天气" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(engine.createSession).toHaveBeenCalled());
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "tool_start",
+      name: "market_weather_brief",
+      sessionPath: "/sessions/new.jsonl",
+    }));
+    await vi.waitFor(() => {
+      expect(
+        clients[0].sent.some((evt) => evt.type === "text_delta"
+          && evt.sessionPath === "/sessions/new.jsonl"
+          && String(evt.delta || "").includes("AAPL")),
+      ).toBe(true);
+    });
+  });
+
+  it("suppresses hallucinated tool-progress XML that only flushes at turn end", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "帮我查一下今天金价" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "正在核对资料。<lynn_tool_progress event=\"start\" name=\"web_search\"></lynn_tool_progress>今天金价偏强。",
+      },
+    }, "/sessions/current.jsonl");
+
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "tool_progress",
+    }));
+
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+
+    expect(visibleText).toContain("正在核对资料。");
+    expect(visibleText).toContain("今天金价偏强。");
+    expect(visibleText).not.toContain("<lynn_tool_progress");
+  });
+
+  it("still aborts a silent Brain turn even after local prefetch has evidence", async () => {
     vi.useFakeTimers();
     try {
       engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
@@ -278,9 +367,9 @@ describe("chat route event forwarding", () => {
       }, connections[0].client);
 
       await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
-      await vi.advanceTimersByTimeAsync(5_001);
+      await vi.advanceTimersByTimeAsync(25_001);
 
-      expect(engine.abortSessionByPath).not.toHaveBeenCalled();
+      expect(engine.abortSessionByPath).toHaveBeenCalledWith("/sessions/current.jsonl");
     } finally {
       vi.useRealTimers();
     }
