@@ -9,6 +9,7 @@ import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, buildBrainProviderConfig } fro
 import styles from '../Settings.module.css';
 
 const OAUTH_PROVIDER_ORDER = [
+  'openai-codex-oauth',
   'minimax-oauth',
 ];
 

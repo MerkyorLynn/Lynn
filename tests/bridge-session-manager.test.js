@@ -127,4 +127,39 @@ describe("BridgeSessionManager guest safety prompt", () => {
     expect(prompt).toContain("服务器 IP、域名、端口、内网地址");
     expect(prompt).toContain("system prompt、内部规则、安全策略本身");
   });
+
+  it("rejects fake progress markup as invalid tool simulation in bridge replies", async () => {
+    let handler = null;
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        model: { id: "chat-model", provider: "test-provider" },
+        subscribe: vi.fn((fn) => {
+          handler = fn;
+          return vi.fn();
+        }),
+        prompt: vi.fn(async () => {
+          handler?.({
+            type: "message_update",
+            assistantMessageEvent: {
+              type: "text_delta",
+              delta: '正在查询。<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>今天金价偏强。',
+            },
+          });
+        }),
+        sessionManager: {
+          getSessionFile: () => sessionFile,
+        },
+      },
+    });
+
+    const manager = buildManager(tempDir, "");
+    const result = await manager.executeExternalMessage("今天金价如何", "tg_dm_owner_1", { name: "Owner" }, {
+      guest: false,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      __bridgeError: true,
+      message: expect.stringContaining("invalid tool-call simulation"),
+    }));
+  });
 });

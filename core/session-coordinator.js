@@ -66,6 +66,25 @@ function getSteerPrefix() {
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
 }
 
+function toSessionPromptOptions(images) {
+  if (!images?.length) return undefined;
+  return {
+    images: images.map((img) => ({
+      type: "image",
+      // pi-coding-agent 的 SDK 文档已切到 source.base64，
+      // 但底层 pi-ai 目前仍按顶层 data/mimeType 读取图片。
+      // 两套字段都带上，兼容当前链路上的版本差异。
+      data: img.data,
+      mimeType: img.mimeType || "image/png",
+      source: {
+        type: "base64",
+        mediaType: img.mimeType || "image/png",
+        data: img.data,
+      },
+    })),
+  };
+}
+
 // ── Tool Tiering（P0：按模型能力裁剪自定义工具集） ──
 
 const MINIMAL_CUSTOM_TOOLS = new Set([
@@ -841,15 +860,15 @@ export class SessionCoordinator {
     if (opts?.images?.length && _resolved?.vision === false) {
       opts.images = undefined;
     }
-    // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
-    // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
-    const _imagesArg = opts?.images?.length ? opts.images : undefined;
+    // [VISION-ARG-FIX v0.76.6] 当前 session.prompt() 使用 options 形态，
+    // 图片需转为 { images: [{ type: "image", source: { type: "base64", mediaType, data } }] }。
+    const _promptOpts = toSessionPromptOptions(opts?.images);
     const tracker = createReplyIntegrityTracker();
     const unsub = this._session.subscribe((event) => {
       tracker.handle(event);
     });
     try {
-      await this._session.prompt(text, _imagesArg);
+      await this._session.prompt(text, _promptOpts);
       ensureValidReplyExecution(tracker);
       if (sp) {
         const entry = this._sessions.get(sp);
@@ -933,15 +952,14 @@ export class SessionCoordinator {
     if (opts?.images?.length && _resolvedSub?.vision === false) {
       opts.images = undefined;
     }
-    // [VISION-ARG-FIX v0.76.5] pi-agent-core 0.56.3 的 prompt(input, images?: ImageContent[]) 第二参数是数组不是
-    // { images } 对象。之前传对象导致 images.length === undefined，图片从未被加入 message content。
-    const _imagesArg = opts?.images?.length ? opts.images : undefined;
+    // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
+    const _promptOpts = toSessionPromptOptions(opts?.images);
     const tracker = createReplyIntegrityTracker();
     const unsub = entry.session.subscribe((event) => {
       tracker.handle(event);
     });
     try {
-      await entry.session.prompt(text, _imagesArg);
+      await entry.session.prompt(text, _promptOpts);
       ensureValidReplyExecution(tracker);
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {

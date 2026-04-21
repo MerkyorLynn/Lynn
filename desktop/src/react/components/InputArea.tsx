@@ -179,6 +179,7 @@ function InputAreaInner() {
   const [atSelected, setAtSelected] = useState(0);
   const [atResults, setAtResults] = useState<Array<{ name: string; path: string; rel: string; isDir: boolean }>>([]);
   const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
+  const [inputValue, setInputValue] = useState(composerText);
   const [showAtDiscovery, setShowAtDiscovery] = useState(() => {
     try {
       return !localStorage.getItem('hana-at-discovery-seen');
@@ -204,6 +205,11 @@ function InputAreaInner() {
   useEffect(() => {
     if (inputFocusTrigger > 0) textareaRef.current?.focus();
   }, [inputFocusTrigger]);
+
+  useEffect(() => {
+    if (isComposing.current) return;
+    setInputValue(composerText);
+  }, [composerText]);
 
   const addAttachedFile = useStore(s => s.addAttachedFile);
   const removeAttachedFile = useStore(s => s.removeAttachedFile);
@@ -277,7 +283,8 @@ function InputAreaInner() {
   }, [composerText, slashCommands]);
 
   const handleInputChange = useCallback((value: string) => {
-    setComposerText(value);
+    setInputValue(value);
+    if (!isComposing.current) setComposerText(value);
   }, [setComposerText]);
 
   const markAtDiscoverySeen = useCallback(() => {
@@ -302,7 +309,8 @@ function InputAreaInner() {
   }, []);
 
   useEffect(() => {
-    if (composerText.startsWith('/') && composerText.length <= 20) {
+    if (isComposing.current) return;
+    if (inputValue.startsWith('/') && inputValue.length <= 20) {
       setSlashMenuOpen(true);
       setSlashSelected(0);
       setAtMenuOpen(false);
@@ -311,8 +319,8 @@ function InputAreaInner() {
 
     setSlashMenuOpen(false);
 
-    const atMatch = composerText.match(/@(\S*)$/);
-    if (atMatch && !composerText.startsWith('/')) {
+    const atMatch = inputValue.match(/@(\S*)$/);
+    if (atMatch && !inputValue.startsWith('/')) {
       setAtMenuOpen(true);
       setAtQuery(atMatch[1]);
       setAtSelected(0);
@@ -322,7 +330,7 @@ function InputAreaInner() {
     setAtMenuOpen(false);
     setAtQuery('');
     setAtResults([]);
-  }, [composerText]);
+  }, [inputValue]);
 
   useEffect(() => {
     if (atMenuOpen) markAtDiscoverySeen();
@@ -383,7 +391,7 @@ function InputAreaInner() {
   }, [t, taskSnapshot]);
 
   const securityMode = useStore(s => s.securityMode);
-  const hasContent = composerText.trim().length > 0 || attachedFiles.length > 0 || !!quotedSelection;
+  const hasContent = inputValue.trim().length > 0 || attachedFiles.length > 0 || !!quotedSelection;
   const canSend = hasContent && connected && !isStreaming;
 
   const insertTextIntoComposer = useCallback((text: string) => {
@@ -471,7 +479,7 @@ function InputAreaInner() {
     if (isComposing.current) return;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }, [composerText]);
+  }, [inputValue]);
 
   const placeholderHints = useMemo(() => {
     const yuanPh = t(`yuan.placeholder.${agentYuan}`);
@@ -494,20 +502,20 @@ function InputAreaInner() {
 
   const [phIndex, setPhIndex] = useState(0);
   useEffect(() => {
-    if (composerText.trim()) return;
+    if (inputValue.trim()) return;
     const timer = setInterval(() => setPhIndex(i => (i + 1) % placeholderHints.length), 6000);
     return () => clearInterval(timer);
-  }, [composerText, placeholderHints.length]);
+  }, [inputValue, placeholderHints.length]);
 
   const placeholder = placeholderHints[phIndex] || placeholderHints[0];
 
   const inlineFileSuggestion = useMemo(() => {
     if (atInlineHintSeen >= 3) return null;
     if (attachedFiles.length > 0 || quotedSelection) return null;
-    if (!composerText.trim() || composerText.includes('@')) return null;
-    const match = composerText.match(FILE_CONTEXT_PATTERN);
+    if (!inputValue.trim() || inputValue.includes('@')) return null;
+    const match = inputValue.match(FILE_CONTEXT_PATTERN);
     return match?.[1] || null;
-  }, [atInlineHintSeen, attachedFiles.length, composerText, quotedSelection]);
+  }, [atInlineHintSeen, attachedFiles.length, inputValue, quotedSelection]);
 
   const handleAttachClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -515,6 +523,7 @@ function InputAreaInner() {
 
   const handleTryAtInjection = useCallback(() => {
     markAtDiscoverySeen();
+    setInputValue('@');
     setComposerText('@');
     requestInputFocus();
     requestAnimationFrame(() => {
@@ -529,8 +538,10 @@ function InputAreaInner() {
     if (!inlineFileSuggestion) return;
     markAtDiscoverySeen();
     markAtInlineHintSeen();
-    const stripped = composerText.replace(inlineFileSuggestion, '').replace(/\s{2,}/g, ' ').trim();
-    setComposerText(stripped ? `${stripped} @${inlineFileSuggestion}` : `@${inlineFileSuggestion}`);
+    const stripped = inputValue.replace(inlineFileSuggestion, '').replace(/\s{2,}/g, ' ').trim();
+    const next = stripped ? `${stripped} @${inlineFileSuggestion}` : `@${inlineFileSuggestion}`;
+    setInputValue(next);
+    setComposerText(next);
     requestInputFocus();
     requestAnimationFrame(() => {
       const el = textareaRef.current;
@@ -539,7 +550,7 @@ function InputAreaInner() {
       const end = el.value.length;
       el.setSelectionRange(end, end);
     });
-  }, [composerText, inlineFileSuggestion, markAtDiscoverySeen, markAtInlineHintSeen, requestInputFocus, setComposerText]);
+  }, [inlineFileSuggestion, inputValue, markAtDiscoverySeen, markAtInlineHintSeen, requestInputFocus, setComposerText]);
 
   const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -631,20 +642,20 @@ function InputAreaInner() {
     };
   }, [deskBasePath, deskCurrentPath, pendingNewSession, selectedFolder]);
 
-  const canSteer = isStreaming && composerText.trim().length > 0;
+  const canSteer = isStreaming && inputValue.trim().length > 0;
 
   const handleSubmitTask = useCallback(async (mode: ComposerTaskMode) => {
     if (mode === 'prompt') {
       if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
         useStore.setState({ selectedFolder: useStore.getState().homeFolder });
       }
-      const hasSendable = !!(composerText.trim() || attachedFiles.length > 0 || quotedSelection);
+      const hasSendable = !!(inputValue.trim() || attachedFiles.length > 0 || quotedSelection);
       if (!hasSendable || !connected) {
         if (!connected && hasSendable) showSidebarToast(t('chat.needWsConnection'));
         return;
       }
     } else {
-      if (!composerText.trim()) return;
+      if (!inputValue.trim()) return;
     }
 
     if (sending) return;
@@ -656,7 +667,7 @@ function InputAreaInner() {
       setInlineError(null);
       const prepared = await prepareComposerTask({
         mode,
-        composerText,
+        composerText: isComposing.current ? inputValue : composerText,
         preferredWorkspace: selectedFolder || deskBasePath || homeFolder || null,
         attachedFiles,
         docContextAttached: false,
@@ -706,8 +717,8 @@ function InputAreaInner() {
     attachedFiles,
     clearComposerState,
     clearQuotedSelection,
-    composerText,
     connected,
+    inputValue,
     isStreaming,
     pendingNewSession,
     quotedSelection,
@@ -727,7 +738,7 @@ function InputAreaInner() {
   ]);
 
   const handleSend = useCallback(async () => {
-    const text = composerText.trim();
+    const text = inputValue.trim();
 
     if (text.startsWith('/') && slashMenuOpen && filteredCommands.length > 0) {
       const cmd = filteredCommands[slashSelected] || filteredCommands[0];
@@ -738,19 +749,21 @@ function InputAreaInner() {
     }
 
     await handleSubmitTask('prompt');
-  }, [composerText, filteredCommands, handleSubmitTask, slashMenuOpen, slashSelected]);
+  }, [filteredCommands, handleSubmitTask, inputValue, slashMenuOpen, slashSelected]);
 
   const handleAtSelect = useCallback((file: { name: string; path: string; rel: string; isDir: boolean }) => {
-    const atMatch = composerText.match(/@(\S*)$/);
+    const atMatch = inputValue.match(/@(\S*)$/);
     if (atMatch) {
-      const before = composerText.slice(0, composerText.length - atMatch[0].length);
-      setComposerText(before + '@' + file.name + ' ');
+      const before = inputValue.slice(0, inputValue.length - atMatch[0].length);
+      const next = before + '@' + file.name + ' ';
+      setInputValue(next);
+      setComposerText(next);
     }
     addAttachedFile({ path: file.path, name: file.name, isDirectory: file.isDir });
     setAtMenuOpen(false);
     setAtQuery('');
     textareaRef.current?.focus();
-  }, [composerText, addAttachedFile, setComposerText]);
+  }, [inputValue, addAttachedFile, setComposerText]);
 
   const handleSteer = useCallback(async () => {
     await handleSubmitTask('steer');
@@ -790,9 +803,9 @@ function InputAreaInner() {
     }
     if (e.key === 'Enter' && !e.shiftKey && !isComposing.current) {
       e.preventDefault();
-      if (isStreaming && composerText.trim()) handleSteer(); else handleSend();
+      if (isStreaming && inputValue.trim()) handleSteer(); else handleSend();
     }
-  }, [handleAtSelect, handleSend, handleSteer, isStreaming, composerText, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen, atResults, atSelected]);
+  }, [handleAtSelect, handleSend, handleSteer, isStreaming, inputValue, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen, atResults, atSelected]);
 
   return (
     <>
@@ -874,7 +887,7 @@ function InputAreaInner() {
       {attachedFiles.length > 0 && (
         <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
       )}
-      {showAtDiscovery && !composerText.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !inlineNotice && !slashBusy && !compacting && (
+      {showAtDiscovery && !inputValue.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !inlineNotice && !slashBusy && !compacting && (
         <div className={styles['at-discovery-row']}>
           <button type="button" className={styles['at-discovery-pill']} onClick={handleTryAtInjection}>
             <span className={styles['at-discovery-badge']}>@</span>
@@ -914,11 +927,14 @@ function InputAreaInner() {
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
           aria-label={t('input.placeholder') || '输入消息'}
-          rows={1} spellCheck={false} value={composerText}
+          rows={1} spellCheck={false} value={inputValue}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={(e) => {
             isComposing.current = false;
+            const next = e.currentTarget.value;
+            setInputValue(next);
+            setComposerText(next);
             // 组合结束后补一次 resize（IME 确认字符时高度可能需要更新）
             const el = e.target as HTMLTextAreaElement;
             el.style.height = 'auto';

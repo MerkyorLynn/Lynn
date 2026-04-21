@@ -20,6 +20,7 @@ describe("pseudo tool detection", () => {
     expect(containsPseudoToolSimulation('<tool_call name="web_search">x</tool_call>')).toBe(true);
     expect(containsPseudoToolSimulation('<invoke name="read_file">x</invoke>')).toBe(true);
     expect(containsPseudoToolSimulation('<execute>\n\n</execute>')).toBe(true);
+    expect(containsPseudoToolSimulation('<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>')).toBe(true);
   });
 
   it("detects shell-style pseudo commands", () => {
@@ -51,5 +52,14 @@ describe("pseudo tool detection", () => {
       "再继续总结",
     ].join("\n");
     expect(stripPseudoToolCallMarkup(raw)).toBe("先看一下\n\n再继续总结");
+  });
+
+  it("strips lynn tool-progress markers while preserving the answer text", () => {
+    const raw = [
+      "正在核对资料。",
+      '<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>',
+      "今天金价偏强。",
+    ].join("");
+    expect(stripPseudoToolCallMarkup(raw)).toBe("正在核对资料。今天金价偏强。");
   });
 });

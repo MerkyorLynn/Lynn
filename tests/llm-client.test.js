@@ -84,6 +84,71 @@ describe("callText", () => {
     expect(body.thinking).toBeUndefined();
   });
 
+  it("extracts final text from structured OpenAI content arrays", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [{
+          message: {
+            content: [
+              { type: "reasoning", reasoning: "step by step" },
+              { type: "text", text: "最终答案" },
+            ],
+          },
+        }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const text = await callText({
+      api: "openai-completions",
+      apiKey: "sk-test",
+      baseUrl: "https://example.com/v1",
+      model: "demo-model",
+      messages: [{ role: "user", content: "请只回复最终答案" }],
+      timeoutMs: 1000,
+    });
+
+    expect(text).toBe("最终答案");
+  });
+
+  it("classifies reasoning-only OpenAI responses without treating them as generic empty text", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        choices: [{
+          message: {
+            content: "",
+            reasoning_content: "chain of thought",
+          },
+        }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(callText({
+      api: "openai-completions",
+      apiKey: "sk-test",
+      baseUrl: "https://example.com/v1",
+      model: "demo-reasoner",
+      provider: "custom-openai",
+      messages: [{ role: "user", content: "ping" }],
+      timeoutMs: 1000,
+    })).rejects.toMatchObject({
+      code: "LLM_EMPTY_RESPONSE",
+      retryable: false,
+      context: {
+        provider: "custom-openai",
+        modelId: "demo-reasoner",
+        api: "openai-completions",
+        responseKind: "reasoning_only",
+        reasoningBlockCount: 1,
+      },
+    });
+  });
+
   it("attaches client identity headers from preferences.json without signature by default", async () => {
     const lynnHome = makeTempDir("hanako-llm-");
     const clientKey = "ak_test_client_001";

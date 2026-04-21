@@ -6,6 +6,153 @@ import {
 } from './client-agent-identity.js';
 import { getPooledDispatcher } from '../shared/http-pool.js';
 
+const DISPLAYABLE_TEXT_TYPES = new Set(["text", "output_text", "input_text", "refusal"]);
+
+function extractTextValue(value) {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  if (typeof value.text === "string") return value.text;
+  if (typeof value.value === "string") return value.value;
+  if (typeof value.refusal === "string") return value.refusal;
+  if (value.text && typeof value.text === "object") {
+    if (typeof value.text.value === "string") return value.text.value;
+    if (typeof value.text.text === "string") return value.text.text;
+  }
+  return "";
+}
+
+function isReasoningLikeBlock(block) {
+  if (!block || typeof block !== "object") return false;
+  const type = String(block.type || "").toLowerCase();
+  return type.includes("thinking")
+    || type.includes("reasoning")
+    || typeof block.thinking === "string"
+    || typeof block.reasoning === "string"
+    || typeof block.reasoning_content === "string";
+}
+
+function collectContentStats(content) {
+  const stats = {
+    textParts: [],
+    reasoningBlockCount: 0,
+    nonDisplayableBlockCount: 0,
+  };
+
+  if (typeof content === "string") {
+    const text = content.trim();
+    if (text) stats.textParts.push(text);
+    return stats;
+  }
+
+  if (!Array.isArray(content)) return stats;
+
+  for (const block of content) {
+    if (typeof block === "string") {
+      const text = block.trim();
+      if (text) stats.textParts.push(text);
+      continue;
+    }
+    if (!block || typeof block !== "object") continue;
+
+    const type = String(block.type || "").toLowerCase();
+    if (DISPLAYABLE_TEXT_TYPES.has(type) || !type) {
+      const text = extractTextValue(block).trim();
+      if (text) {
+        stats.textParts.push(text);
+        continue;
+      }
+    }
+
+    if (isReasoningLikeBlock(block)) {
+      stats.reasoningBlockCount += 1;
+      continue;
+    }
+
+    stats.nonDisplayableBlockCount += 1;
+  }
+
+  return stats;
+}
+
+function mergeContentStats(target, source) {
+  target.textParts.push(...source.textParts);
+  target.reasoningBlockCount += source.reasoningBlockCount;
+  target.nonDisplayableBlockCount += source.nonDisplayableBlockCount;
+}
+
+function finalizeResponseAnalysis(stats) {
+  const text = stats.textParts.join("\n").trim();
+  const responseKind = text
+    ? "text"
+    : stats.reasoningBlockCount > 0
+      ? "reasoning_only"
+      : stats.nonDisplayableBlockCount > 0
+        ? "non_displayable_content"
+        : "empty";
+  return {
+    text,
+    responseKind,
+    reasoningBlockCount: stats.reasoningBlockCount,
+    nonDisplayableBlockCount: stats.nonDisplayableBlockCount,
+  };
+}
+
+function analyzeLlmResponse(api, data) {
+  if (api === "anthropic-messages") {
+    return finalizeResponseAnalysis(collectContentStats(data?.content));
+  }
+
+  if (api === "openai-responses" || api === "openai-codex-responses") {
+    const stats = {
+      textParts: [],
+      reasoningBlockCount: 0,
+      nonDisplayableBlockCount: 0,
+    };
+
+    if (typeof data?.output_text === "string" && data.output_text.trim()) {
+      stats.textParts.push(data.output_text.trim());
+    }
+
+    for (const item of Array.isArray(data?.output) ? data.output : []) {
+      if (item?.type === "message" && item?.role === "assistant") {
+        mergeContentStats(stats, collectContentStats(item.content));
+      } else if (isReasoningLikeBlock(item)) {
+        stats.reasoningBlockCount += 1;
+      } else if (item && typeof item === "object") {
+        stats.nonDisplayableBlockCount += 1;
+      }
+    }
+
+    return finalizeResponseAnalysis(stats);
+  }
+
+  const stats = {
+    textParts: [],
+    reasoningBlockCount: 0,
+    nonDisplayableBlockCount: 0,
+  };
+  const message = data?.choices?.[0]?.message;
+  if (message) {
+    mergeContentStats(stats, collectContentStats(message.content));
+    const refusalText = typeof message.refusal === "string" ? message.refusal.trim() : "";
+    if (!stats.textParts.length && refusalText) stats.textParts.push(refusalText);
+    if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+      stats.nonDisplayableBlockCount += message.tool_calls.length;
+    }
+    if (typeof message.reasoning_content === "string" && message.reasoning_content.trim()) {
+      stats.reasoningBlockCount += 1;
+    } else if (Array.isArray(message.reasoning_content) && message.reasoning_content.length > 0) {
+      stats.reasoningBlockCount += message.reasoning_content.length;
+    }
+    if (message.reasoning && typeof message.reasoning === "object") {
+      stats.reasoningBlockCount += 1;
+    } else if (typeof message.reasoning === "string" && message.reasoning.trim()) {
+      stats.reasoningBlockCount += 1;
+    }
+  }
+  return finalizeResponseAnalysis(stats);
+}
+
 /**
  * core/llm-client.js — 统一的非流式 LLM 调用入口
  *
@@ -187,39 +334,30 @@ export async function callText({
     }
 
     // ── 6. 提取文本 ──
-    let text = "";
-    if (api === "anthropic-messages") {
-      text = (data?.content || [])
-        .filter(c => c?.type === "text" && typeof c.text === "string")
-        .map(c => c.text).join("\n").trim();
-    } else if (api === "openai-responses" || api === "openai-codex-responses") {
-      if (typeof data?.output_text === "string") {
-        text = data.output_text.trim();
-      } else {
-        text = (data?.output || [])
-          .filter(item => item?.type === "message" && item?.role === "assistant")
-          .flatMap(item => (item.content || []).filter(c => typeof c?.text === "string").map(c => c.text.trim()))
-          .join("\n").trim();
-      }
-    } else {
-      text = (typeof data?.choices?.[0]?.message?.content === "string")
-        ? data.choices[0].message.content.trim()
-        : "";
-    }
+    const analysis = analyzeLlmResponse(api, data);
+    const text = analysis.text;
 
     if (!text) {
       if (combinedSignal.aborted) {
         throw new AppError('LLM_TIMEOUT', { context: { model } });
       }
-      throw new AppError('LLM_EMPTY_RESPONSE', {
-        message: 'Model returned empty or non-displayable content',
+      const err = new AppError('LLM_EMPTY_RESPONSE', {
+        message: analysis.responseKind === "reasoning_only"
+          ? 'Model returned reasoning content without a final visible answer'
+          : analysis.responseKind === "non_displayable_content"
+            ? 'Model returned non-displayable structured content without visible text'
+            : 'Model returned empty or non-displayable content',
         context: {
-          model,
-          provider: model?.provider || null,
-          modelId: model?.id || null,
-          api: model?.api || null,
+          provider: provider || null,
+          modelId: model || null,
+          api: api || null,
+          responseKind: analysis.responseKind,
+          reasoningBlockCount: analysis.reasoningBlockCount,
+          nonDisplayableBlockCount: analysis.nonDisplayableBlockCount,
         },
       });
+      if (analysis.responseKind !== "empty") err.retryable = false;
+      throw err;
     }
 
     return text;

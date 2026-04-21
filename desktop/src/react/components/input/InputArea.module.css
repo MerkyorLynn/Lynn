@@ -934,6 +934,7 @@
     transition: border-color 0.35s var(--ease-out),
                 box-shadow 0.35s var(--ease-out),
                 background-color 0.35s var(--ease-out);
+    -webkit-app-region: no-drag;
 }
 
 .input-wrapper:focus-within {
@@ -996,6 +997,7 @@
     max-height: 120px;
     overflow-y: auto;
     scrollbar-width: none;
+    -webkit-app-region: no-drag;
 }
 
 .input-box::-webkit-scrollbar {

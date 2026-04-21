@@ -1,4 +1,4 @@
-const PSEUDO_TOOL_TAG_RE = /<(?:\/)?(?:tool[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/iu;
+const PSEUDO_TOOL_TAG_RE = /<(?:\/)?(?:tool[\w:-]*|lynn_tool_progress[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/iu;
 const PSEUDO_SHELL_LINE_RE = /^\s*(?:(?:shell|bash|terminal|cmd|powershell)(?:\s*[:：])?\s*(?:[>》〉»›≫$#]+)|(?:\$|#)\s+(?:(?:ls|find|grep|rg|cat|pwd|read|python|node|npm|git|bash|sh)\b)).*$/iu;
 const BARE_PSEUDO_COMMAND_LINE_RE = /^\s*(?:(?:find|ls|grep|rg|cat|pwd|glob|read|read_file|invoke|exec|bash)\b.*(?:\/Users\/|[A-Za-z]:\\|2>\/dev\/null|\|\||&&|-maxdepth|-name\b|pattern=|path=|command=).*)$/iu;
 const READ_TOOL_LEAK_RE = /^\s*(?:read_tool(?:_missing_error)?(?:>|:)?|read_tool_missing_error)\b/iu;
@@ -78,6 +78,7 @@ function stripToolCodeMarkup(raw) {
   return String(raw || "")
     .replace(/<tool_code\b[\s\S]*?<\/tool_code>\s*/gi, "")
     .replace(/<tool\b[\s\S]*?<\/tool>\s*/gi, "")
+    .replace(/<lynn_tool_progress\b[\s\S]*?<\/lynn_tool_progress>\s*/gi, "")
     .replace(/<tool_call\b[\s\S]*?<\/tool_call>\s*/gi, "")
     .replace(/<execute\b[\s\S]*?<\/execute>\s*/gi, "")
     .replace(/<minimax:tool_call\b[\s\S]*?<\/minimax:tool_call>\s*/gi, "")
@@ -128,7 +129,7 @@ function cleanPseudoToolLine(line) {
   if (!PSEUDO_TOOL_TAG_RE.test(cleaned)) return cleaned;
 
   cleaned = cleaned
-    .replace(/<\/?(?:tool[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b[^>\n]*(?:>|$)/giu, "")
+    .replace(/<\/?(?:tool[\w:-]*|lynn_tool_progress[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b[^>\n]*(?:>|$)/giu, "")
     .replace(/<(?:function|parameter)=[^>\n]*(?:>|$)/giu, "");
 
   return stripLeadingPseudoArgs(cleaned);
@@ -138,7 +139,7 @@ export function countPseudoToolMarkers(raw) {
   const text = String(raw || "");
   if (!text) return 0;
 
-  const tagMatches = text.match(/<(?:\/)?(?:tool[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/giu) || [];
+  const tagMatches = text.match(/<(?:\/)?(?:tool[\w:-]*|lynn_tool_progress[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/giu) || [];
   const argLineMatches = text.match(/^\s*(?:list_dir|glob|read|read_file|invoke|exec|bash)\b[\s\S]*?(?:path=|pattern=|command=|limit=)/gim) || [];
   const shellLineMatches = text.match(/^\s*(?:(?:shell|bash|terminal|cmd|powershell)(?:\s*[:：])?\s*(?:[>》〉»›≫$#]+)|(?:\$|#)\s+(?:(?:ls|find|grep|rg|cat|pwd|read|python|node|npm|git|bash|sh)\b)).*$/gimu) || [];
   const bareCommandMatches = text.match(/^\s*(?:(?:find|ls|grep|rg|cat|pwd|glob|read|read_file|invoke|exec|bash)\b.*(?:\/Users\/|[A-Za-z]:\\|2>\/dev\/null|\|\||&&|-maxdepth|-name\b|pattern=|path=|command=).*)$/gimu) || [];

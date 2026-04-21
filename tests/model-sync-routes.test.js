@@ -351,4 +351,114 @@ describe("model sync related routes", () => {
       ],
     });
   });
+
+  it("provider chat smoke uses a larger token budget for OpenAI-compatible probes", async () => {
+    const { createProvidersRoute } = await import("../server/routes/providers.js");
+    const app = new Hono();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          choices: [{ message: { content: "OK" } }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const engine = {
+      lynnHome: "/tmp/lynn-provider-smoke-openai",
+      authStorage: {
+        getApiKey: vi.fn(),
+      },
+      providerRegistry: {
+        get: () => null,
+        getAll: () => new Map(),
+        getAllProvidersRaw: () => ({}),
+        getCredentials: () => null,
+        getDefaultModels: () => [],
+        isOAuth: () => false,
+        getAuthJsonKey: (id) => id,
+      },
+    };
+
+    app.route("/api", createProvidersRoute(engine));
+
+    const res = await app.request("/api/providers/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        base_url: "https://api.example.com/v1",
+        api: "openai-completions",
+        api_key: "sk-test",
+        model_id: "demo-reasoner",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, smokeInit] = fetchMock.mock.calls[1];
+    const smokeBody = JSON.parse(smokeInit.body);
+    expect(smokeBody.max_tokens).toBe(128);
+    expect(smokeBody.temperature).toBe(0);
+    expect(smokeBody.messages).toEqual([{ role: "user", content: "Reply with OK only." }]);
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, status: 200, model: "demo-reasoner" });
+  });
+
+  it("provider chat smoke uses the larger token budget for anthropic probes too", async () => {
+    const { createProvidersRoute } = await import("../server/routes/providers.js");
+    const app = new Hono();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        content: [{ type: "text", text: "OK" }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const engine = {
+      lynnHome: "/tmp/lynn-provider-smoke-anthropic",
+      authStorage: {
+        getApiKey: vi.fn(),
+      },
+      providerRegistry: {
+        get: () => null,
+        getAll: () => new Map(),
+        getAllProvidersRaw: () => ({}),
+        getCredentials: () => null,
+        getDefaultModels: () => [],
+        isOAuth: () => false,
+        getAuthJsonKey: (id) => id,
+      },
+    };
+
+    app.route("/api", createProvidersRoute(engine));
+
+    const res = await app.request("/api/providers/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        base_url: "https://api.anthropic.example",
+        api: "anthropic-messages",
+        api_key: "sk-test",
+        model_id: "claude-demo",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, smokeInit] = fetchMock.mock.calls[0];
+    const smokeBody = JSON.parse(smokeInit.body);
+    expect(smokeBody.max_tokens).toBe(128);
+    expect(smokeBody.temperature).toBe(0);
+    expect(smokeBody.messages).toEqual([{ role: "user", content: "Reply with OK only." }]);
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, status: 200, model: "claude-demo" });
+  });
 });

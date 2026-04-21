@@ -651,6 +651,83 @@ describe("SessionCoordinator", () => {
     expect(result.dryRun.validation.exitCode).toBe(0);
   });
 
+  it("retries executeIsolated once when the first reply only simulates progress markup", async () => {
+    let handler = null;
+    const promptMock = vi.fn(async (attemptPrompt) => {
+      if (promptMock.mock.calls.length === 1) {
+        handler?.({
+          type: "message_update",
+          assistantMessageEvent: {
+            type: "text_delta",
+            delta: '我来搜索一下。<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>',
+          },
+        });
+        return;
+      }
+
+      handler?.({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          delta: "今天金价偏强，建议同时看上金所和品牌金店报价。",
+        },
+      });
+    });
+
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        sessionManager: { getSessionFile: () => path.join(tempDir, "retry.jsonl"), getCwd: () => "/tmp/workspace" },
+        subscribe: vi.fn((fn) => {
+          handler = fn;
+          return vi.fn();
+        }),
+        abort: vi.fn(),
+        prompt: promptMock,
+      },
+    });
+
+    const coordinator = new SessionCoordinator({
+      agentsDir: "/tmp/agents",
+      getAgent: () => ({
+        agentDir: tempDir,
+        sessionDir: tempDir,
+        agentName: "test-agent",
+        config: { models: { chat: "default-model" } },
+        tools: [],
+      }),
+      getActiveAgentId: () => "hana",
+      getModels: () => ({
+        authStorage: {},
+        modelRegistry: {},
+        defaultModel: { id: "default-model" },
+        availableModels: [{ id: "default-model" }],
+        resolveExecutionModel: (model) => model,
+        resolveThinkingLevel: () => "medium",
+      }),
+      getResourceLoader: () => ({ getSystemPrompt: () => "prompt" }),
+      getSkills: () => ({ getSkillsForAgent: () => [] }),
+      buildTools: () => ({ tools: [], customTools: [] }),
+      emitEvent: () => {},
+      emitDevLog: () => {},
+      getHomeCwd: () => tempDir,
+      agentIdFromSessionPath: () => null,
+      switchAgentOnly: async () => {},
+      getConfig: () => ({}),
+      getPrefs: () => ({ getThinkingLevel: () => "medium" }),
+      getAgents: () => new Map(),
+      getActivityStore: () => null,
+      getAgentById: () => null,
+      listAgents: () => [],
+    });
+
+    const result = await coordinator.executeIsolated("今天金价如何");
+
+    expect(result.error).toBeNull();
+    expect(result.replyText).toContain("今天金价偏强");
+    expect(promptMock).toHaveBeenCalledTimes(2);
+    expect(promptMock.mock.calls[1][0]).not.toBe("今天金价如何");
+  });
+
   it("emits warn-level content filter events without blocking prompts", async () => {
     const emitEvent = vi.fn();
     const emitDevLog = vi.fn();
