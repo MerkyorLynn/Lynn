@@ -479,7 +479,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ text: plainText.slice(0, 3000), filename: `msg_${message.id?.slice(-8) || Date.now()}` }),
                     });
-                    addToast(t('chat.ttsQueued') || '语音已生成', 'success');
+                    addToast('语音已生成', 'success');
                   } catch (err) {
                     addToast(String(err), 'error');
                   }

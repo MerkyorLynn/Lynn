@@ -29,8 +29,32 @@ export async function execute(params, ctx) {
     : path.join(os.homedir(), ".lynn");
   const outDir = path.join(baseDir, "audio");
   fs.mkdirSync(outDir, { recursive: true });
+
+  // Lazy cleanup:删 7 天前 + 总数 > 50 时删最老(防 1GB/月 累积)
+  try {
+    const SEVEN_DAYS = 7 * 24 * 3600 * 1000;
+    const now = Date.now();
+    const files = fs.readdirSync(outDir)
+      .map((name) => {
+        const fp = path.join(outDir, name);
+        try {
+          const stat = fs.statSync(fp);
+          return { fp, mtime: stat.mtimeMs };
+        } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtime - a.mtime);
+    files.forEach((f, i) => {
+      if (i >= 50 || (now - f.mtime) > SEVEN_DAYS) {
+        try { fs.unlinkSync(f.fp); } catch {}
+      }
+    });
+  } catch {} // cleanup 失败不阻塞 TTS 生成
+
   const baseName = filename || `tts_${Date.now()}`;
-  const outPath = path.join(outDir, `${baseName}.mp3`);
+  // 当前 cosyvoice/say provider 输出 wav,edge/openai 输出 mp3 — 由 provider 内部决定真正写入格式
+  // 用 .wav 扩展名让 macOS afplay/QuickLook 直接识别(magic bytes 检测 RIFF 头)
+  const outPath = path.join(outDir, `${baseName}.wav`);
 
   const engineConfig = ctx.engine?.config || {};
   const voiceConfig = engineConfig.voice?.tts || {};
