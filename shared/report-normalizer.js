@@ -48,8 +48,13 @@ function detectRealEstateReport(text) {
 
 const STOCK_COMPANY_PROMPT_RE = /[\u4e00-\u9fa5A-Za-z]{2,18}(?:科技|股份|电子|智能|软件|证券|银行|集团|药业|医药|能源|材料|半导体|光电|电气|通信|汽车|机器人|芯片|电力|股份)/;
 const STOCK_PROMPT_ANALYSIS_RE = /(?:股票|股价|个股|A股|a股|科创板|创业板|标的|走势|怎么看|技术面|基本面|资金|资金流|财报|研报|公告|解禁|减持|支撑位|压力位|K线|k线|均线|成交量|成交额|筹码|止损|止盈|仓位|目标价|三种情景|操作计划|未来1-3个月|深度|报告|预测|分析|调研|研究)/i;
+const SIMPLE_STOCK_QUOTE_PROMPT_RE = /(?:股价|现价|最新价|行情|报价|涨跌幅|成交额|换手率).{0,80}(?:多少|是多少|给|只给|直接给|来源|数字)|(?:只给|直接给).{0,80}(?:价格|现价|涨跌幅|成交额|换手率|来源|数字)/i;
+const STOCK_DEEP_INTENT_RE = /(?:怎么看|分析|研究|调研|报告|预测|走势|未来|基本面|技术面|估值|市值|区间|资金|资金流|财报|研报|公告|解禁|减持|支撑位|压力位|K线|k线|均线|成交量|筹码|止损|止盈|仓位|目标价|三种情景|操作计划|风险|买|卖|投资)/i;
 
 function detectStockResearchPrompt(text) {
+  if (SIMPLE_STOCK_QUOTE_PROMPT_RE.test(text) && !STOCK_DEEP_INTENT_RE.test(text)) {
+    return false;
+  }
   if (/(?:\b[0368]\d{5}\b|股票|股价|走势|技术面|资金情绪|三种情景|操作计划|风险提示).{0,160}(?:深度|报告|预测|分析|未来1-3个月|腾讯文档|怎么看|支撑位|压力位|调研|研究)/s.test(text)) {
     return true;
   }

@@ -18,6 +18,7 @@ import { ProvidersTab } from './tabs/ProvidersTab';
 import { McpTab } from './tabs/McpTab';
 import { AboutTab } from './tabs/AboutTab';
 import { PluginsTab } from './tabs/PluginsTab';
+import { VoiceTab } from './tabs/VoiceTab';
 import { CropOverlay } from './overlays/CropOverlay';
 import { AgentCreateOverlay } from './overlays/AgentCreateOverlay';
 import { AgentDeleteOverlay } from './overlays/AgentDeleteOverlay';
@@ -41,7 +42,8 @@ const TAB_COMPONENTS: Record<string, React.ComponentType> = {
   bridge: BridgeTab,
   providers: ProvidersTab,
   mcp: McpTab,
-  // plugins: PluginsTab,  // 暂时隐藏，等社区插件开放后启用
+  plugins: PluginsTab,
+  voice: VoiceTab,
   about: AboutTab,
 };
 

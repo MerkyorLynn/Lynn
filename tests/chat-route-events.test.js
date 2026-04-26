@@ -197,7 +197,7 @@ describe("chat route event forwarding", () => {
     }));
   });
 
-  it("aborts the first silent Brain tool turn after the shorter grace window", async () => {
+  it("aborts the first silent Brain tool turn after the grace window", async () => {
     vi.useFakeTimers();
     let rejectSend;
     try {
@@ -215,7 +215,7 @@ describe("chat route event forwarding", () => {
         data: JSON.stringify({ type: "prompt", text: "请执行终端命令 echo hi" }),
       }, connections[0].client);
 
-      await vi.advanceTimersByTimeAsync(4_999);
+      await vi.advanceTimersByTimeAsync(24_999);
       expect(engine.abortSessionByPath).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(1);

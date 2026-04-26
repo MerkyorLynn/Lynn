@@ -13,6 +13,13 @@ interface PluginInfo {
   error?: string | null;
 }
 
+interface ConfigSchema {
+  pluginId: string;
+  schema?: {
+    properties?: Record<string, any>;
+  } | null;
+}
+
 function StatusBadge({ status }: { status: PluginInfo['status'] }) {
   const labelKey =
     status === 'loaded' ? 'settings.plugins.statusLoaded' :
@@ -27,10 +34,7 @@ function StatusBadge({ status }: { status: PluginInfo['status'] }) {
       : { color: 'var(--text-muted)', background: 'var(--overlay-light, rgba(0,0,0,0.06))' };
 
   return (
-    <span
-      className={styles['oauth-status-badge']}
-      style={style}
-    >
+    <span className={styles['oauth-status-badge']} style={style}>
       {t(labelKey)}
     </span>
   );
@@ -38,15 +42,10 @@ function StatusBadge({ status }: { status: PluginInfo['status'] }) {
 
 function ContributionBadges({ contributions }: { contributions?: string[] }) {
   if (!contributions || contributions.length === 0) return null;
-
   return (
     <span style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
       {contributions.map(c => (
-        <span
-          key={c}
-          className={styles['skills-source-badge']}
-          style={{ marginRight: 0, opacity: 1, background: 'var(--overlay-light, rgba(0,0,0,0.05))', padding: '1px 6px', borderRadius: 'var(--radius-sm)' }}
-        >
+        <span key={c} className={styles['skills-source-badge']} style={{ marginRight: 0, opacity: 1, background: 'var(--overlay-light, rgba(0,0,0,0.05))', padding: '1px 6px', borderRadius: 'var(--radius-sm)' }}>
           {c}
         </span>
       ))}
@@ -54,19 +53,47 @@ function ContributionBadges({ contributions }: { contributions?: string[] }) {
   );
 }
 
+function ConfigTable({ schema }: { schema?: Record<string, any> | null }) {
+  if (!schema || !schema.properties) return null;
+  const entries = Object.entries(schema.properties);
+  return (
+    <table style={{ width: '100%', fontSize: '12px', marginTop: '8px', borderCollapse: 'collapse' }}>
+      <tbody>
+        {entries.map(([key, prop]: [string, any]) => (
+          <tr key={key}>
+            <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{prop.title || key}</td>
+            <td style={{ padding: '4px 0', color: 'var(--text-secondary)' }}>
+              {prop.type === 'boolean' ? (prop.default ? '✅ 开启' : '❌ 关闭') :
+               prop.type === 'array' ? `[${prop.default?.join?.(', ') || ''}]` :
+               String(prop.default ?? '')}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function PluginsTab() {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [schemas, setSchemas] = useState<ConfigSchema[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadPlugins = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await hanaFetch('/api/plugins');
+      const [res, schemaRes] = await Promise.all([
+        hanaFetch('/api/plugins'),
+        hanaFetch('/api/plugins/config-schemas'),
+      ]);
       const data = await res.json();
+      const schemaData = await schemaRes.json();
       setPlugins(Array.isArray(data) ? data : []);
+      setSchemas(Array.isArray(schemaData) ? schemaData : []);
     } catch (err) {
       console.error('[plugins] load failed:', err);
       setPlugins([]);
+      setSchemas([]);
     } finally {
       setLoading(false);
     }
@@ -76,22 +103,15 @@ export function PluginsTab() {
     loadPlugins();
   }, [loadPlugins]);
 
+  const getSchema = (id: string) => schemas.find(s => s.pluginId === id)?.schema;
+
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="plugins">
       <section className={styles['settings-section']}>
         <div className={styles['settings-section-header']}>
           <h2 className={styles['settings-section-title']}>{t('settings.plugins.title')}</h2>
-          <button
-            className={styles['settings-icon-btn']}
-            title={t('settings.plugins.reload')}
-            onClick={loadPlugins}
-            disabled={loading}
-          >
-            <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-              className={loading ? styles['spin'] : ''}
-            >
+          <button className={styles['settings-icon-btn']} title={t('settings.plugins.reload')} onClick={loadPlugins} disabled={loading}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={loading ? styles['spin'] : ''}>
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
@@ -101,30 +121,23 @@ export function PluginsTab() {
         <p className={styles['settings-desc']}>{t('settings.plugins.desc')}</p>
 
         {!loading && plugins.length === 0 ? (
-          <p className={`${styles['settings-desc']} ${styles['skills-empty']}`}>
-            {t('settings.plugins.empty')}
-          </p>
+          <p className={`${styles['settings-desc']} ${styles['skills-empty']}`}>{t('settings.plugins.empty')}</p>
         ) : (
           <div className={styles['skills-list-block']}>
             {plugins.map(plugin => (
-              <div key={plugin.id} className={styles['skills-list-item']}>
-                <div className={styles['skills-list-info']}>
+              <div key={plugin.id} className={styles['skills-list-item']} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div className={styles['skills-list-info']} style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span className={styles['skills-list-name']}>{plugin.name}</span>
-                    {plugin.version && (
-                      <span className={styles['skills-list-name-hint']}>v{plugin.version}</span>
-                    )}
+                    {plugin.version && <span className={styles['skills-list-name-hint']}>v{plugin.version}</span>}
                     <StatusBadge status={plugin.status} />
                     <ContributionBadges contributions={plugin.contributions} />
                   </div>
-                  {plugin.description && (
-                    <span className={styles['skills-list-desc']}>{plugin.description}</span>
-                  )}
+                  {plugin.description && <span className={styles['skills-list-desc']}>{plugin.description}</span>}
                   {plugin.status === 'failed' && plugin.error && (
-                    <span className={styles['skills-list-desc']} style={{ color: 'var(--danger, #c55)' }}>
-                      {plugin.error}
-                    </span>
+                    <span className={styles['skills-list-desc']} style={{ color: 'var(--danger, #c55)' }}>{plugin.error}</span>
                   )}
+                  <ConfigTable schema={getSchema(plugin.id)} />
                 </div>
               </div>
             ))}

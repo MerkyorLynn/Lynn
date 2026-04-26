@@ -1,0 +1,3 @@
+{
+  "before-chat": "./hooks/enhance-context.js"
+}

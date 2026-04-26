@@ -1,23 +1,37 @@
 /**
  * auto-updater.cjs — 跨平台自动更新
  *
- * 所有平台统一读取公开的静态更新清单，再跳转浏览器下载安装包。
- * 不依赖 GitHub REST API，避免匿名限流导致 403。
+ * 两条通道:
+ * 1. 手写 manifest 做版本检测(.github/update-manifest.json),不依赖 GitHub REST API
+ * 2. electron-updater 接管下载+安装(需要 yml 文件存在)
  *
- * beta 开关读 preferences.update_channel，通过 IPC 传入。
+ * 当 native 下载/安装失败(dev 环境、yml 未发布等)自动回退到浏览器跳转。
+ * beta 开关读 preferences.update_channel,通过 IPC 传入。
  */
 const { ipcMain, shell } = require("electron");
 const { app } = require("electron");
 
+let _autoUpdater = null;
+try {
+  _autoUpdater = require("electron-updater").autoUpdater;
+  _autoUpdater.autoDownload = false;
+  _autoUpdater.autoInstallOnAppQuit = false;
+  _autoUpdater.logger = null;
+} catch (err) {
+  console.warn("[auto-updater] electron-updater unavailable, fallback only:", err?.message);
+}
+
 let _mainWindow = null;
 let _updateChannel = "stable"; // "stable" | "beta"
+let _nativeWired = false;
 
 let _updateState = {
-  status: "idle",      // idle | checking | available | error | latest
+  status: "idle",      // idle | checking | available | downloading | downloaded | error | latest
   version: null,
   releaseNotes: null,
   releaseUrl: null,     // GitHub release page URL
   downloadUrl: null,    // direct download URL (asset)
+  progress: null,       // { percent, bytesPerSecond, transferred, total }
   error: null,
 };
 
@@ -39,8 +53,51 @@ function setState(patch) {
 function resetState() {
   _updateState = {
     status: "idle", version: null, releaseNotes: null,
-    releaseUrl: null, downloadUrl: null, error: null,
+    releaseUrl: null, downloadUrl: null, progress: null, error: null,
   };
+}
+
+function wireNativeUpdater() {
+  if (_nativeWired || !_autoUpdater) return;
+  _nativeWired = true;
+
+  _autoUpdater.on("download-progress", (info) => {
+    setState({
+      status: "downloading",
+      progress: {
+        percent: info?.percent || 0,
+        bytesPerSecond: info?.bytesPerSecond || 0,
+        transferred: info?.transferred || 0,
+        total: info?.total || 0,
+      },
+    });
+  });
+
+  _autoUpdater.on("update-downloaded", (info) => {
+    setState({
+      status: "downloaded",
+      version: info?.version || _updateState.version,
+    });
+  });
+
+  _autoUpdater.on("error", (err) => {
+    console.warn("[auto-updater] native error:", err?.message || err);
+  });
+}
+
+async function tryNativeDownload() {
+  if (!_autoUpdater || !app.isPackaged) return false;
+  try {
+    wireNativeUpdater();
+    const result = await _autoUpdater.checkForUpdates();
+    if (!result || !result.updateInfo) return false;
+    setState({ status: "downloading", progress: { percent: 0 } });
+    await _autoUpdater.downloadUpdate();
+    return true;
+  } catch (err) {
+    console.warn("[auto-updater] native download failed, falling back:", err?.message || err);
+    return false;
+  }
 }
 
 // ── 版本比较 ──
@@ -186,6 +243,9 @@ function initAutoUpdater(mainWindow) {
   });
 
   ipcMain.handle("auto-update-download", async () => {
+    if (_updateState.status !== "available") return false;
+    const nativeOk = await tryNativeDownload();
+    if (nativeOk) return true;
     if (_updateState.downloadUrl) {
       shell.openExternal(_updateState.downloadUrl);
     }
@@ -193,6 +253,14 @@ function initAutoUpdater(mainWindow) {
   });
 
   ipcMain.handle("auto-update-install", () => {
+    if (_updateState.status === "downloaded" && _autoUpdater && app.isPackaged) {
+      try {
+        _autoUpdater.quitAndInstall();
+        return;
+      } catch (err) {
+        console.warn("[auto-updater] quitAndInstall failed, falling back:", err?.message || err);
+      }
+    }
     if (_updateState.releaseUrl) {
       shell.openExternal(_updateState.releaseUrl);
     }
@@ -203,7 +271,7 @@ function initAutoUpdater(mainWindow) {
   });
 
   ipcMain.handle("auto-update-set-channel", (_event, channel) => {
-    _updateChannel = channel === "beta" ? "beta" : "stable";
+    setUpdateChannel(channel);
   });
 }
 
@@ -213,6 +281,9 @@ async function checkForUpdatesAuto() {
 
 function setUpdateChannel(channel) {
   _updateChannel = channel === "beta" ? "beta" : "stable";
+  if (_autoUpdater) {
+    _autoUpdater.allowPrerelease = _updateChannel === "beta";
+  }
 }
 
 function setMainWindow(win) {
