@@ -494,11 +494,14 @@ function InputAreaInner() {
   }, [agentYuan, t]);
 
   const [phIndex, setPhIndex] = useState(0);
+  const [textareaFocused, setTextareaFocused] = useState(false);
   useEffect(() => {
-    if (composerText.trim()) return;
+    // [2026-04-26 IME-FIX] textarea focused 时暂停 placeholder 轮播 ——
+    // macOS 中文 IME 期间 placeholder 属性 DOM 变更会让候选窗 detach 飞到屏幕左下角
+    if (composerText.trim() || textareaFocused) return;
     const timer = setInterval(() => setPhIndex(i => (i + 1) % placeholderHints.length), 6000);
     return () => clearInterval(timer);
-  }, [composerText, placeholderHints.length]);
+  }, [composerText, textareaFocused, placeholderHints.length]);
 
   const placeholder = placeholderHints[phIndex] || placeholderHints[0];
 
@@ -917,6 +920,8 @@ function InputAreaInner() {
           aria-label={t('input.placeholder') || '输入消息'}
           rows={1} spellCheck={false} value={composerText}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
+          onFocus={() => setTextareaFocused(true)}
+          onBlur={() => setTextareaFocused(false)}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={(e) => {
             isComposing.current = false;
