@@ -35,8 +35,8 @@ export async function execute(params, ctx) {
   const engineConfig = ctx.engine?.config || {};
   const voiceConfig = engineConfig.voice?.tts || {};
   const cfg = {
-    provider: voiceConfig.provider || config?.get?.("provider") || "edge",
-    default_voice: voiceConfig.default_voice || config?.get?.("default_voice") || "zh-CN-XiaoxiaoNeural",
+    provider: voiceConfig.provider || config?.get?.("provider") || "cosyvoice",
+    default_voice: voiceConfig.default_voice || config?.get?.("default_voice") || "中文女",
   };
 
   const result = await synthesize({
