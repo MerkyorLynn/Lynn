@@ -19,6 +19,7 @@
  *   Response: { text, language, duration_ms }
  */
 import { useEffect, useRef, useState, useCallback } from "react";
+import type { CSSProperties } from "react";
 
 // ============ Types ============
 export interface PressToTalkButtonProps {
@@ -333,10 +334,10 @@ export function PressToTalkButton({
           cursor: isBusy ? "not-allowed" : "pointer",
           opacity: isBusy ? 0.7 : 1,
           transition: "all 0.15s ease",
-          WebkitAppRegion: "no-drag" as const,
+          WebkitAppRegion: "no-drag",
           WebkitUserSelect: "none",
           userSelect: "none",
-        }}
+        } as CSSProperties & { WebkitAppRegion?: string }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
