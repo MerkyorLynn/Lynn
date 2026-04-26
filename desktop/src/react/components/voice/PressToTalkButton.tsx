@@ -294,6 +294,8 @@ export function PressToTalkButton({
 }
 
 // ============ 真实 API 调用 (JSON 一次性返回) ============
+import { hanaFetch } from "../../hooks/use-hana-fetch";
+
 async function realTranscribe(
   blob: Blob,
   apiBase: string,
@@ -308,11 +310,12 @@ async function realTranscribe(
   const form = new FormData();
   form.append("file", blob, "audio.webm");
 
-  const url = `${apiBase}/audio/transcribe?language=${language}`;
+  // apiBase 默认 "/api/v1",拼出 "/api/v1/audio/transcribe?language=zh"
+  const path = `${apiBase}/audio/transcribe?language=${language}`;
 
-  const res = await fetch(url, { method: "POST", body: form });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
+  // 用 hanaFetch 自带 Bearer token,不会被 server middleware reject 成 forbidden
+  const res = await hanaFetch(path, { method: "POST", body: form, timeout: 60_000 });
+  // hanaFetch 已经 throws on !ok,这里直接读 json
   const data = await res.json();
   if (data.error) throw new Error(data.error);
 
