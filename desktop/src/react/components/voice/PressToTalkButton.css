@@ -1,0 +1,156 @@
+/* PressToTalkButton — 风格对齐 InputArea 工具栏(+ / 自动 / 执行模式) */
+
+.ptt-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 主按钮 — 跟 + 工具按钮一致的浅描边圆角 */
+.ptt-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.7));
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary, #2c2c2c);
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ptt-btn:hover:not(:disabled) {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--border-color-active, rgba(0, 0, 0, 0.18));
+}
+
+.ptt-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.ptt-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 录音中 — 红色脉冲 */
+.ptt-btn--recording {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: rgb(220, 38, 38);
+  animation: ptt-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes ptt-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50%      { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+}
+
+/* 上传/转写中 — 蓝紫色 */
+.ptt-btn--busy {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: rgb(79, 70, 229);
+}
+
+/* 录音/转写浮层 — 按钮上方气泡 */
+.ptt-overlay {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background: var(--surface-color, rgba(255, 255, 255, 0.97));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+  z-index: 100;
+  font-size: 13px;
+}
+
+.ptt-waveform {
+  background: rgba(239, 68, 68, 0.06);
+  border-radius: 6px;
+  display: block;
+}
+
+.ptt-duration {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+}
+
+.ptt-hint {
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+  border-left: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  padding-left: 10px;
+}
+
+.ptt-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: rgb(99, 102, 241);
+  border-radius: 50%;
+  animation: ptt-spin 0.8s linear infinite;
+}
+
+@keyframes ptt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ptt-partial {
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 错误提示 */
+.ptt-error {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.25);
+}
+
+/* dark mode 适配(Lynn 主题色变量) */
+@media (prefers-color-scheme: dark) {
+  .ptt-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .ptt-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .ptt-overlay {
+    background: rgba(38, 38, 42, 0.97);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
