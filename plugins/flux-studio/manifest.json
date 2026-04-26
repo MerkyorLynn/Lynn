@@ -1,0 +1,44 @@
+{
+  "id": "flux-studio",
+  "name": "Flux Studio",
+  "version": "0.1.0",
+  "description": "图像生成工作室：当前支持 SiliconFlow FLUX.1-schnell 和 OpenAI DALL-E 3。生成图片自动归档到书桌画廊。",
+  "contributes": {
+    "configuration": {
+      "properties": {
+        "provider": {
+          "type": "string",
+          "title": "Image Provider",
+          "default": "siliconflow",
+          "enum": ["siliconflow", "openai"],
+          "description": "图像生成服务来源。siliconflow 使用 FLUX.1-schnell（快但文字渲染弱）；openai 使用 DALL-E 3（语义理解强）。"
+        },
+        "api_key": {
+          "type": "string",
+          "title": "API Key",
+          "default": "",
+          "description": "远程服务商 API Key（如需）。"
+        },
+        "endpoint": {
+          "type": "string",
+          "title": "Custom Endpoint",
+          "default": "",
+          "description": "本地 ComfyUI / SD WebUI 地址预留字段（v0.77 尚未实现，请勿填写）。"
+        },
+        "default_size": {
+          "type": "string",
+          "title": "Default Size",
+          "default": "1024x1024",
+          "enum": ["512x512", "768x768", "1024x1024", "1024x768", "768x1024", "1920x1080"],
+          "description": "默认生成尺寸。"
+        },
+        "auto_save_to_desk": {
+          "type": "boolean",
+          "title": "Auto Save to Desk",
+          "default": true,
+          "description": "生成图片自动保存到书桌 gallery/ 目录。"
+        }
+      }
+    }
+  }
+}

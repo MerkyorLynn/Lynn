@@ -1,0 +1,39 @@
+{
+  "id": "tts-bridge",
+  "name": "TTS Bridge",
+  "version": "0.1.0",
+  "description": "文本转语音桥接：支持 Edge TTS（免费在线）和 macOS say（本地）。生成音频保存到书桌，支持 Bridge 多平台推送。",
+  "contributes": {
+    "configuration": {
+      "properties": {
+        "provider": {
+          "type": "string",
+          "title": "TTS Provider",
+          "default": "edge",
+          "enum": ["edge", "say"],
+          "description": "语音合成服务来源。edge 使用微软 Edge 在线 TTS（免费，需网络）；say 使用 macOS 本地语音（仅限 Mac，离线）。"
+        },
+        "default_voice": {
+          "type": "string",
+          "title": "Default Voice",
+          "default": "zh-CN-XiaoxiaoNeural",
+          "description": "默认音色 ID。edge 支持 300+ 音色（如 zh-CN-XiaoxiaoNeural、en-US-JennyNeural）；say 支持系统 voice（如 Ting-Ting、Mei-Jia）。"
+        },
+        "speed": {
+          "type": "number",
+          "title": "Default Speed",
+          "default": 1.0,
+          "minimum": 0.5,
+          "maximum": 2.0,
+          "description": "默认语速倍率。"
+        },
+        "auto_tts_for_long_text": {
+          "type": "boolean",
+          "title": "Auto TTS for Long Text",
+          "default": false,
+          "description": "当 Agent 输出超过 500 字时，自动询问是否生成语音摘要。（v0.77 计划中，当前不生效）"
+        }
+      }
+    }
+  }
+}

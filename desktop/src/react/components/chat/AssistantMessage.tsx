@@ -470,6 +470,28 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                   }
                 </svg>
               </button>
+              <button
+                className={styles.msgCopyBtn}
+                onClick={async () => {
+                  try {
+                    await hanaFetch('/api/tools/tts-bridge.tts_speak', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ text: plainText.slice(0, 3000), filename: `msg_${message.id?.slice(-8) || Date.now()}` }),
+                    });
+                    addToast(t('chat.ttsQueued') || '语音已生成', 'success');
+                  } catch (err) {
+                    addToast(String(err), 'error');
+                  }
+                }}
+                title={t('chat.speak') || '朗读'}
+                aria-label={t('chat.speak') || '朗读'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                </svg>
+              </button>
               {isLastAssistant && (
                 <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

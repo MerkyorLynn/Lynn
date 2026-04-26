@@ -70,12 +70,17 @@ function getSteerPrefix() {
 
 const MINIMAL_CUSTOM_TOOLS = new Set([
   "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score",
+  "knowledge_query", // v0.77 rag-core: 小模型也支持轻量知识库查询
 ]);
 
 const STANDARD_CUSTOM_TOOLS = new Set([
   "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score", "todo", "present_files", "notify",
   "search_memory", "pin_memory", "unpin_memory",
   "recall_experience", "record_experience",
+  // v0.77 插件工具（standard 档开放）
+  "knowledge_index", "knowledge_query", // rag-core
+  "tts_speak",                         // tts-bridge
+  "generate_image",                    // flux-studio
 ]);
 
 /**

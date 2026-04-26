@@ -11,6 +11,8 @@ import { DeskFileList } from './desk/DeskFileList';
 import { JianEditor } from './desk/DeskEditor';
 import { DeskDropZone } from './desk/DeskDropZone';
 import { DeskEmptyOverlay } from './desk/DeskEmptyOverlay';
+import { GalleryPanel } from './desk/GalleryPanel';
+import { GalleryToggleButton } from './desk/DeskToolbar';
 import styles from './desk/Desk.module.css';
 
 export function DeskSection() {
@@ -29,6 +31,7 @@ export function DeskSection() {
     setCtxMenu(null);
   }, []);
 
+  const deskGalleryOpen = useStore(state => state.deskGalleryOpen);
   const t = window.t ?? ((key: string) => key);
   const hasWorkspace = !!deskBasePath;
   const showFileSurface = hasWorkspace && deskFiles.length > 0;
@@ -44,12 +47,16 @@ export function DeskSection() {
           <>
             <div className={styles.toolbar}>
               <DeskBreadcrumb />
-              <DeskSortButton sortMode={sortMode} onSort={setSortMode} onShowMenu={handleShowMenu} />
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <GalleryToggleButton />
+                <DeskSortButton sortMode={sortMode} onSort={setSortMode} onShowMenu={handleShowMenu} />
+              </div>
             </div>
             <div className={styles.fileSection}>
               <div className={styles.fileSectionHeader}>{t('desk.workspace') || t('input.workspace')}</div>
               <DeskFileList sortMode={sortMode} onShowMenu={handleShowMenu} />
             </div>
+            {deskGalleryOpen && <GalleryPanel />}
           </>
         )}
         <JianEditor />

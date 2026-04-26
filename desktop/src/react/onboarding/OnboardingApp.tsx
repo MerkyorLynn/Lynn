@@ -8,6 +8,7 @@ import { ProviderStep } from './steps/ProviderStep';
 import { ModelStep } from './steps/ModelStep';
 import { ThemeStep } from './steps/ThemeStep';
 import { PermissionsStep } from './steps/PermissionsStep';
+import { CompatSkillsStep } from './steps/CompatSkillsStep';
 import { TutorialStep } from './steps/TutorialStep';
 import { BRAIN_PROVIDER_ID } from '../../../../shared/brain-provider.js';
 
@@ -15,14 +16,14 @@ interface OnboardingAppProps { preview: boolean; skipToTutorial: boolean }
 
 type OnboardingTrack = 'quick' | 'advanced';
 
-const QUICK_START_STEPS = [0, 1, 5, 6] as const;
-const ADVANCED_SETUP_STEPS = [0, 1, 2, 3, 4, 5, 6] as const;
-const ADVANCED_DEFAULT_STEPS = [0, 1, 2, 4, 5, 6] as const;
+const QUICK_START_STEPS = [0, 1, 5, 6, 7] as const;
+const ADVANCED_SETUP_STEPS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+const ADVANCED_DEFAULT_STEPS = [0, 1, 2, 4, 5, 6, 7] as const;
 
 export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   const [serverPort, setServerPort] = useState<string | null>(null);
   const [serverToken, setServerToken] = useState<string | null>(null);
-  const [step, setStep] = useState(skipToTutorial ? 5 : 0);
+  const [step, setStep] = useState(skipToTutorial ? 7 : 0);
   const [stepKey, setStepKey] = useState(0);
   const [track, setTrack] = useState<OnboardingTrack | null>(skipToTutorial ? 'quick' : null);
   const [agentName, setAgentName] = useState('Lynn');
@@ -53,7 +54,7 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
   }, []);
 
   const goToStep = useCallback((index: number) => {
-    if (index < 0 || index > 6) return;
+    if (index < 0 || index > 7) return;
     setStepKey(k => k + 1);
     setStep(index);
   }, []);
@@ -215,8 +216,18 @@ export function OnboardingApp({ preview, skipToTutorial }: OnboardingAppProps) {
         />
       )}
       {step === 6 && (
-        <TutorialStep
+        <CompatSkillsStep
           key={`step-6-${stepKey}`}
+          preview={preview}
+          onboardingFetch={onboardingFetch}
+          goToStep={goToStep}
+          showError={showError}
+          track={track ?? 'quick'}
+        />
+      )}
+      {step === 7 && (
+        <TutorialStep
+          key={`step-7-${stepKey}`}
           preview={preview}
           showError={showError}
           track={track ?? 'quick'}

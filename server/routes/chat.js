@@ -13,7 +13,7 @@ import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { t, getLocale } from "../i18n.js";
 import { BrowserManager } from "../../lib/browser/browser-manager.js";
-import { buildReportResearchContext, inferReportResearchKind } from "../chat/report-research-context.js";
+import { buildDirectRealtimeAnswer, buildReportResearchContext, inferReportResearchKind } from "../chat/report-research-context.js";
 import {
   buildPseudoToolRecoveryNotice,
   buildPseudoToolRetryPrompt,
@@ -409,6 +409,52 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: next });
     maybeGenerateFirstTurnTitle(sessionPath, ss);
     maybeSteerPseudoToolSimulation(sessionPath, ss);
+  }
+
+  function createLocalMessageId() {
+    return Math.random().toString(16).slice(2, 10);
+  }
+
+  async function appendLocalSessionMessage(sessionPath, message, parentId = null) {
+    if (!sessionPath || !message) return null;
+    const id = createLocalMessageId();
+    const entry = {
+      type: "message",
+      id,
+      parentId,
+      timestamp: new Date().toISOString(),
+      message,
+    };
+    await fs.promises.appendFile(sessionPath, `${JSON.stringify(entry)}\n`, "utf-8");
+    const session = engine.getSessionByPath(sessionPath);
+    if (Array.isArray(session?.messages)) session.messages.push(message);
+    return id;
+  }
+
+  async function appendLocalDirectExchange(sessionPath, userText, assistantText) {
+    const now = Date.now();
+    const userId = await appendLocalSessionMessage(sessionPath, {
+      role: "user",
+      content: [{ type: "text", text: String(userText || "") }],
+      timestamp: now,
+    });
+    await appendLocalSessionMessage(sessionPath, {
+      role: "assistant",
+      content: [{ type: "text", text: String(assistantText || "") }],
+      api: "local-prefetch",
+      provider: "local",
+      model: "lynn-local-realtime",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "stop",
+      timestamp: now,
+    }, userId);
   }
 
   // 单订阅：事件只写入一次，再按需广播到所有连接中的客户端。
@@ -1175,9 +1221,24 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 promptText = t("error.viewImage");
               }
               debugLog()?.log("ws", `user message (${promptText.length} chars, ${msg.images?.length || 0} images)`);
-              // Phase 2: 客户端可指定 sessionPath，否则用焦点 session
-              const promptSessionPath = msg.sessionPath || engine.currentSessionPath;
+              // Phase 2: 客户端可指定 sessionPath，否则用焦点 session。
+              // CLI / smoke-test clients may connect before a focus session exists;
+              // create one instead of crashing on a null stream state.
+              let promptSessionPath = msg.sessionPath || engine.currentSessionPath;
+              if (!promptSessionPath) {
+                try {
+                  await engine.createSession();
+                  promptSessionPath = engine.currentSessionPath;
+                } catch (err) {
+                  wsSend(ws, { type: "error", message: err?.message || t("error.noActiveSession") });
+                  return;
+                }
+              }
               const ss = getState(promptSessionPath);
+              if (!ss) {
+                wsSend(ws, { type: "error", message: t("error.noActiveSession") });
+                return;
+              }
               if (engine.isSessionStreaming(promptSessionPath) || ss?.isStreaming) {
                 wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
                 return;
@@ -1222,6 +1283,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                         `【用户原始问题】\n${promptText}`,
                       ].filter(Boolean).join("\n\n");
                       emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: true });
+                      const directRealtimeAnswer = buildDirectRealtimeAnswer(promptText, reportContext);
+                      if (directRealtimeAnswer) {
+                        await appendLocalDirectExchange(promptSessionPath, promptText, directRealtimeAnswer);
+                        emitVisibleTextDelta(promptSessionPath, ss, directRealtimeAnswer);
+                        emitStreamEvent(promptSessionPath, ss, { type: "turn_end" });
+                        broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
+                        finishSessionStream(ss);
+                        maybeGenerateFirstTurnTitle(promptSessionPath, ss);
+                        resetCompletedTurnState(ss);
+                        debugLog()?.log("ws", `local realtime answer completed · ${promptSessionPath}`);
+                        return;
+                      }
                     } else {
                       emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: false, error: "no evidence returned" });
                     }
