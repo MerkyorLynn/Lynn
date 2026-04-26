@@ -1,0 +1,138 @@
+/* PressToTalkButton — 跟 InputArea .secondary-action-btn 风格一致(Lynn 米色 warm-paper 主题) */
+
+.ptt-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 主按钮 — 跟 + / 自动 / 执行模式 同样的浅描边透明背景 */
+.ptt-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease-out);
+  -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ptt-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.28);
+  background: rgba(var(--accent-rgb), 0.06);
+  transform: scale(1.04);
+}
+
+.ptt-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* 录音中 — 珊瑚色脉冲(coral #EC8F8D 温柔不刺眼) */
+.ptt-btn--recording {
+  color: var(--coral);
+  background: rgba(var(--coral-rgb), 0.08);
+  border-color: rgba(var(--coral-rgb), 0.36);
+  animation: ptt-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ptt-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--coral-rgb), 0.32); }
+  50%      { box-shadow: 0 0 0 5px rgba(var(--coral-rgb), 0); }
+}
+
+/* 上传/转写中 — accent 蓝灰 */
+.ptt-btn--busy {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.06);
+  border-color: rgba(var(--accent-rgb), 0.28);
+}
+
+/* 录音/转写浮层 — 米色卡片气泡 */
+.ptt-overlay {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 18px var(--shadow);
+  white-space: nowrap;
+  z-index: 100;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.ptt-waveform {
+  background: rgba(var(--coral-rgb), 0.05);
+  border-radius: 4px;
+  display: block;
+}
+
+.ptt-duration {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+}
+
+.ptt-hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
+}
+
+.ptt-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.6px solid rgba(var(--accent-rgb), 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: ptt-spin 0.8s linear infinite;
+}
+
+@keyframes ptt-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ptt-partial {
+  font-size: 0.78rem;
+  color: var(--text);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 错误提示 — danger 深红米色背景 */
+.ptt-error {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--bg-card);
+  color: var(--danger);
+  border: 1px solid rgba(var(--coral-rgb), 0.4);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  z-index: 100;
+  box-shadow: 0 4px 12px var(--shadow);
+}

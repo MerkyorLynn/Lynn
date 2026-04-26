@@ -25,6 +25,7 @@ import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
 import { TaskModePicker } from './input/TaskModePicker';
+import { PressToTalkButton } from './voice/PressToTalkButton';
 import {
   XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
   buildTaskModeSlashCommands,
@@ -501,11 +502,14 @@ function InputAreaInner() {
   }, [agentYuan, t]);
 
   const [phIndex, setPhIndex] = useState(0);
+  const [textareaFocused, setTextareaFocused] = useState(false);
   useEffect(() => {
-    if (inputValue.trim()) return;
+    // [2026-04-26 IME-FIX] textarea focused 时暂停 placeholder 轮播 ——
+    // macOS 中文 IME 期间 placeholder 属性 DOM 变更会让候选窗 detach 飞到屏幕左下角
+    if (inputValue.trim() || textareaFocused) return;
     const timer = setInterval(() => setPhIndex(i => (i + 1) % placeholderHints.length), 6000);
     return () => clearInterval(timer);
-  }, [inputValue, placeholderHints.length]);
+  }, [inputValue, textareaFocused, placeholderHints.length]);
 
   const placeholder = placeholderHints[phIndex] || placeholderHints[0];
 
@@ -929,6 +933,8 @@ function InputAreaInner() {
           aria-label={t('input.placeholder') || '输入消息'}
           rows={1} spellCheck={false} value={inputValue}
           onChange={e => handleInputChange(e.target.value)} onKeyDown={handleKeyDown} onPaste={handlePaste}
+          onFocus={() => setTextareaFocused(true)}
+          onBlur={() => setTextareaFocused(false)}
           onCompositionStart={() => { isComposing.current = true; }}
           onCompositionEnd={(e) => {
             isComposing.current = false;
@@ -946,6 +952,13 @@ function InputAreaInner() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileInputChange} />
+            <PressToTalkButton
+              onTranscribed={(text) => {
+                setComposerText((composerText ? composerText + '\n' : '') + text);
+                requestInputFocus();
+              }}
+              mockMode={import.meta.env.DEV}
+            />
             <TaskModePicker />
             <SecurityModeSelector />
             <WritingModeToggle />

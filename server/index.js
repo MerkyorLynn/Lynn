@@ -47,6 +47,8 @@ import { createAuthRoute } from "./routes/auth.js";
 import { createDiaryRoute } from "./routes/diary.js";
 import { createConfirmRoute } from "./routes/confirm.js";
 import { createPluginsRoute } from "./routes/plugins.js";
+import { createToolsRoute } from "./routes/tools.js";
+import { createAudioRoute } from "./routes/audio.js";
 import { createExpertsRoute } from "./routes/experts.js";
 import { createMcpRoute } from "./routes/mcp.js";
 import { createReviewRoute } from "./routes/review.js";
@@ -220,6 +222,8 @@ app.route("/api", createAuthRoute(engine));
 app.route("/api", createDiaryRoute(engine));
 app.route("/api", createConfirmRoute(confirmStore, engine));
 app.route("/api", createPluginsRoute(engine));
+app.route("/api/tools", createToolsRoute(engine));
+app.route("/api/v1/audio", createAudioRoute(engine));
 app.route("/api", createExpertsRoute(engine));
 // internal-browser WS — see unified upgrade handler in server startup below
 
