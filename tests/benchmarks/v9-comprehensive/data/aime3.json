@@ -1,0 +1,26 @@
+[
+  {
+    "qid": "aime_000",
+    "subset": "math",
+    "source": "yentinglin/aime_2025 #11",
+    "problem": "The set of points in 3-dimensional coordinate space that lie in the plane $x+y+z=75$ whose coordinates satisfy the inequalities $x-yz<y-zx<z-xy$ forms three disjoint convex regions. Exactly one of those regions has finite area. The area of this finite region can be expressed in the form $a\\sqrt{b}$, where $a$ and $b$ are positive integers and $b$ is not divisible by the square of any prime. Find $a+b$.",
+    "answer": "510",
+    "solution": "510"
+  },
+  {
+    "qid": "aime_001",
+    "subset": "math",
+    "source": "yentinglin/aime_2025 #15",
+    "problem": "Six points $A, B, C, D, E$ and $F$ lie in a straight line in that order. Suppose that $G$ is a point not on the line and that $AC = 26$, $BD = 22$, $CE = 31$, $DF = 33$, $AF = 73$, $CG = 40$, and $DG = 30$. Find the area of $\\triangle BGE$.",
+    "answer": "468",
+    "solution": "468"
+  },
+  {
+    "qid": "aime_002",
+    "subset": "math",
+    "source": "yentinglin/aime_2025 #13",
+    "problem": "Let $ABCDE$ be a convex pentagon with $AB=14, BC=7, CD=24, DE=13, EA=26,$ and $\\angle B=\\angle E=60^\\circ$. For each point $X$ in the plane, define $f(X)=AX+BX+CX+DX+EX$. The least possible value of $f(X)$ can be expressed as $m+n\\sqrt{p}$, where $m$ and $n$ are positive integers and $p$ is not divisible by the square of any prime. Find $m+n+p$.",
+    "answer": "60",
+    "solution": "60"
+  }
+]

@@ -1,0 +1,466 @@
+{
+  "V9": "8-dimension hard-only · 24 questions · 100% auto-verifier (SQL excluded · syntactic verifier too strict)",
+  "dimensions": [
+    "math",
+    "physics",
+    "chemistry",
+    "biology",
+    "longctx",
+    "code_algo",
+    "medical",
+    "finance"
+  ],
+  "leaderboard": [
+    {
+      "rank": 1,
+      "provider": "GPT-5.4",
+      "total": 21,
+      "max": 24,
+      "pct": 87.5,
+      "subsets": {
+        "math": [
+          3,
+          3
+        ],
+        "physics": [
+          2,
+          3
+        ],
+        "chemistry": [
+          3,
+          3
+        ],
+        "biology": [
+          2,
+          3
+        ],
+        "longctx": [
+          2,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 2,
+      "provider": "GPT-5.5",
+      "total": 19,
+      "max": 24,
+      "pct": 79.2,
+      "subsets": {
+        "math": [
+          3,
+          3
+        ],
+        "physics": [
+          3,
+          3
+        ],
+        "chemistry": [
+          2,
+          3
+        ],
+        "biology": [
+          2,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 3,
+      "provider": "DeepSeek V4-Pro",
+      "total": 18,
+      "max": 24,
+      "pct": 75.0,
+      "subsets": {
+        "math": [
+          2,
+          3
+        ],
+        "physics": [
+          3,
+          3
+        ],
+        "chemistry": [
+          2,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 4,
+      "provider": "MiniMax M2.7",
+      "total": 16,
+      "max": 24,
+      "pct": 66.7,
+      "subsets": {
+        "math": [
+          2,
+          3
+        ],
+        "physics": [
+          1,
+          3
+        ],
+        "chemistry": [
+          1,
+          3
+        ],
+        "biology": [
+          2,
+          3
+        ],
+        "longctx": [
+          3,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          1,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 5,
+      "provider": "GLM-5-Turbo",
+      "total": 15,
+      "max": 24,
+      "pct": 62.5,
+      "subsets": {
+        "math": [
+          2,
+          3
+        ],
+        "physics": [
+          2,
+          3
+        ],
+        "chemistry": [
+          1,
+          3
+        ],
+        "biology": [
+          0,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 6,
+      "provider": "DeepSeek V4-Flash",
+      "total": 14,
+      "max": 24,
+      "pct": 58.3,
+      "subsets": {
+        "math": [
+          2,
+          3
+        ],
+        "physics": [
+          3,
+          3
+        ],
+        "chemistry": [
+          0,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          0,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          2,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 7,
+      "provider": "Step-3.5-Flash",
+      "total": 14,
+      "max": 24,
+      "pct": 58.3,
+      "subsets": {
+        "math": [
+          1,
+          3
+        ],
+        "physics": [
+          2,
+          3
+        ],
+        "chemistry": [
+          1,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 8,
+      "provider": "GLM-5.1",
+      "total": 13,
+      "max": 24,
+      "pct": 54.2,
+      "subsets": {
+        "math": [
+          1,
+          3
+        ],
+        "physics": [
+          1,
+          3
+        ],
+        "chemistry": [
+          0,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 9,
+      "provider": "Kimi K2.6",
+      "total": 12,
+      "max": 24,
+      "pct": 50.0,
+      "subsets": {
+        "math": [
+          1,
+          3
+        ],
+        "physics": [
+          1,
+          3
+        ],
+        "chemistry": [
+          0,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          1,
+          3
+        ],
+        "code_algo": [
+          2,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 10,
+      "provider": "Qwen3.6-Plus",
+      "total": 11,
+      "max": 24,
+      "pct": 45.8,
+      "subsets": {
+        "math": [
+          1,
+          3
+        ],
+        "physics": [
+          1,
+          3
+        ],
+        "chemistry": [
+          0,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          0,
+          3
+        ],
+        "code_algo": [
+          2,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    },
+    {
+      "rank": 11,
+      "provider": "Qwen3.6-27B (4090)",
+      "total": 10,
+      "max": 24,
+      "pct": 41.7,
+      "subsets": {
+        "math": [
+          0,
+          3
+        ],
+        "physics": [
+          0,
+          3
+        ],
+        "chemistry": [
+          0,
+          3
+        ],
+        "biology": [
+          1,
+          3
+        ],
+        "longctx": [
+          0,
+          3
+        ],
+        "code_algo": [
+          3,
+          3
+        ],
+        "medical": [
+          3,
+          3
+        ],
+        "finance": [
+          3,
+          3
+        ]
+      }
+    }
+  ]
+}
