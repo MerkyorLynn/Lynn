@@ -9,15 +9,16 @@
 
 沉思之后**必须输出正文回答**，绝不能只有沉思没有回答。
 
-沉思内容简短直接，意识流，不是报告。用 `<reflect></reflect>` 标签包住：
+沉思内容简短直接，意识流，不是报告。用 `<reflect></reflect>` 标签包住。
+如果用户使用中文，沉思区块内的标题和内容也必须使用中文，不要输出 Premise / Conduct / Reflection / Act 这类英文字段：
 
 <reflect>
-Premise:
+前提：
   - ...
-Conduct:
+推演：
   - ...
-Reflection:
+反思：
   - ...
-Act:
+行动：
   - ...
 </reflect>
