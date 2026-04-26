@@ -13,10 +13,21 @@ const ASR_PROVIDERS = [
 ];
 
 const TTS_PROVIDERS = [
-  { value: 'cosyvoice', label: 'CosyVoice 2 (阿里・推荐)' },
+  { value: 'cosyvoice', label: 'CosyVoice (阿里・推荐)' },
   { value: 'edge', label: 'Edge TTS (免费在线)' },
   { value: 'say', label: 'macOS say (本地)' },
   { value: 'openai', label: 'OpenAI TTS API (BYOK)' },
+];
+
+// CosyVoice SFT 7 个内置 speakers
+const COSYVOICE_VOICES = [
+  { value: '中文女', label: '中文女(默认)' },
+  { value: '中文男', label: '中文男' },
+  { value: '英文女', label: '英文女' },
+  { value: '英文男', label: '英文男' },
+  { value: '日语男', label: '日语男' },
+  { value: '韩语女', label: '韩语女' },
+  { value: '粤语女', label: '粤语女' },
 ];
 
 const LANGUAGES = [
@@ -142,13 +153,21 @@ export function VoiceTab() {
 
         <div className={styles['settings-field']}>
           <label className={styles['settings-field-label']}>默认音色</label>
-          <input
-            className={styles['settings-input']}
-            type="text"
-            value={ttsVoice}
-            onChange={(e) => setTtsVoice(e.target.value)}
-            placeholder="zh-CN-XiaoxiaoNeural"
-          />
+          {ttsProvider === 'cosyvoice' ? (
+            <SelectWidget
+              options={COSYVOICE_VOICES}
+              value={ttsVoice}
+              onChange={(v) => setTtsVoice(v)}
+            />
+          ) : (
+            <input
+              className={styles['settings-input']}
+              type="text"
+              value={ttsVoice}
+              onChange={(e) => setTtsVoice(e.target.value)}
+              placeholder="zh-CN-XiaoxiaoNeural"
+            />
+          )}
           <span className={styles['settings-field-hint']}>
             {ttsProvider === 'cosyvoice'
               ? 'CosyVoice 2 部署在 Spark,内置音色:中文女 / 中文男 / 英文女 / 英文男 / 日语男 / 韩语女 / 粤语女(默认推荐)'
