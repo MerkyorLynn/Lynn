@@ -1,0 +1,420 @@
+# Lynn Brain v0.77 API Contract
+# RAG (memory + knowledge) + ASR (voice)
+# 前后端共享 · 任何改动必须双方点头
+
+openapi: 3.0.3
+info:
+  title: Lynn Brain API
+  version: "0.77.0"
+  description: |
+    新增能力:
+      • 永久语义记忆 (bge-m3 + bge-reranker)
+      • 个人知识库 (拖文件 ingest)
+      • 语音输入 (Whisper distil-large-v3)
+    向后兼容 v0.76.x · 现有 chat/completions 接口完全不变,
+    新增 memory 字段为 opt-in。
+
+servers:
+  - url: http://localhost:18001/v1
+    description: Lynn brain (本地)
+
+tags:
+  - name: chat
+    description: 对话 (现有,新增 memory opt-in)
+  - name: memory
+    description: 语义记忆 CRUD
+  - name: knowledge
+    description: 文档知识库
+  - name: audio
+    description: 语音转写
+
+# ============================================================
+# 类型定义
+# ============================================================
+components:
+  schemas:
+    # ---------- 通用 ----------
+    MemoryLayer:
+      type: string
+      enum: [L1, L2, L3, L4, L5, L6]
+      description: |
+        L1=instant (~分钟) · L2=session · L3=短期 (~天)
+        L4=中期 (~周) · L5=长期 (~月) · L6=永久
+
+    MemorySource:
+      type: string
+      enum: [chat, note, doc, voice, code, web, manual]
+
+    # ---------- 记忆 ----------
+    MemoryWriteRequest:
+      type: object
+      required: [text, layer, source]
+      properties:
+        text: {type: string, minLength: 1, maxLength: 8192}
+        layer: {$ref: "#/components/schemas/MemoryLayer"}
+        source: {$ref: "#/components/schemas/MemorySource"}
+        metadata:
+          type: object
+          additionalProperties: true
+          example: {tags: ["v0.77", "RAG"], project: "Lynn"}
+
+    MemoryItem:
+      type: object
+      required: [id, text, layer, source, timestamp, score]
+      properties:
+        id: {type: integer}
+        text: {type: string}
+        layer: {$ref: "#/components/schemas/MemoryLayer"}
+        source: {$ref: "#/components/schemas/MemorySource"}
+        timestamp: {type: integer, description: "Unix ms"}
+        score: {type: number, format: float, minimum: 0, maximum: 1, description: "rerank 分数"}
+        snippet: {type: string, description: "高亮片段 (可空)"}
+        metadata: {type: object, additionalProperties: true}
+
+    MemoryRecallRequest:
+      type: object
+      required: [query]
+      properties:
+        query: {type: string, minLength: 1}
+        top_k: {type: integer, default: 5, minimum: 1, maximum: 30}
+        layers:
+          type: array
+          items: {$ref: "#/components/schemas/MemoryLayer"}
+          default: [L3, L4, L5, L6]
+        rerank: {type: boolean, default: true}
+        sources:
+          type: array
+          items: {$ref: "#/components/schemas/MemorySource"}
+          description: "限定来源 (空=全部)"
+
+    MemoryRecallResponse:
+      type: object
+      required: [hits, total_ms]
+      properties:
+        hits:
+          type: array
+          items: {$ref: "#/components/schemas/MemoryItem"}
+        total_ms: {type: integer, description: "embed + recall + rerank 总耗时"}
+        embed_ms: {type: integer}
+        recall_ms: {type: integer}
+        rerank_ms: {type: integer}
+
+    # ---------- 知识库 ----------
+    KnowledgeDocument:
+      type: object
+      required: [id, name, chunks_count, indexed_at, size_bytes]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        source_path: {type: string}
+        mime_type: {type: string}
+        chunks_count: {type: integer}
+        indexed_at: {type: integer, description: "Unix ms"}
+        size_bytes: {type: integer}
+        status: {type: string, enum: [pending, processing, ready, failed]}
+
+    # ---------- 音频 ----------
+    TranscribeOptions:
+      type: object
+      properties:
+        language:
+          type: string
+          enum: [auto, zh, en, ja, ko, fr, de, es]
+          default: auto
+        with_timestamps: {type: boolean, default: false}
+        translate_to_en: {type: boolean, default: false}
+
+  securitySchemes:
+    AgentKey:
+      type: apiKey
+      in: header
+      name: X-Agent-Key
+
+security:
+  - AgentKey: []
+
+# ============================================================
+# 路由
+# ============================================================
+paths:
+  # ---------- chat (兼容 + 增强) ----------
+  /chat/completions:
+    post:
+      tags: [chat]
+      summary: 兼容 OpenAI · 新增 memory opt-in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model: {type: string, example: "Qwen3.6-35B-A3B"}
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role: {type: string, enum: [system, user, assistant, tool]}
+                      content: {oneOf: [{type: string}, {type: array}]}
+                stream: {type: boolean, default: false}
+                temperature: {type: number, default: 0.7}
+                max_tokens: {type: integer}
+                tools: {type: array}
+                # ===== 新增 =====
+                memory:
+                  type: object
+                  description: "RAG 召回配置 (opt-in)"
+                  properties:
+                    enabled: {type: boolean, default: false}
+                    top_k: {type: integer, default: 5}
+                    layers:
+                      type: array
+                      items: {$ref: "#/components/schemas/MemoryLayer"}
+                    inject_strategy:
+                      type: string
+                      enum: [system_prompt, user_prefix, off]
+                      default: system_prompt
+      responses:
+        "200":
+          description: |
+            stream=true 时为 SSE。
+
+            **新增首帧** (memory.enabled=true 时):
+            ```
+            data: {"type":"memory_used","items":[
+              {"id":42,"snippet":"3天前你说...","source":"chat",
+               "timestamp":1745000000000,"score":0.87}
+            ],"recall_ms":24}
+            ```
+
+            后续帧不变 (OpenAI 兼容):
+            ```
+            data: {"choices":[{"delta":{"content":"你好"}}]}
+            ```
+          content:
+            text/event-stream: {schema: {type: string}}
+
+  # ---------- memory CRUD ----------
+  /memory/write:
+    post:
+      tags: [memory]
+      summary: 写入一条记忆 (会立即 embed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/MemoryWriteRequest"}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: integer}
+                  embedding_ms: {type: integer}
+
+  /memory/write_batch:
+    post:
+      tags: [memory]
+      summary: 批量写入 (ingest 用,自动 batch embed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: {$ref: "#/components/schemas/MemoryWriteRequest"}
+                  maxItems: 256
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ids: {type: array, items: {type: integer}}
+                  total_ms: {type: integer}
+
+  /memory/recall:
+    post:
+      tags: [memory]
+      summary: 召回相关记忆
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/MemoryRecallRequest"}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MemoryRecallResponse"}
+
+  /memory/list:
+    get:
+      tags: [memory]
+      summary: 浏览记忆 (UI 列表用)
+      parameters:
+        - {name: layer, in: query, schema: {$ref: "#/components/schemas/MemoryLayer"}}
+        - {name: source, in: query, schema: {$ref: "#/components/schemas/MemorySource"}}
+        - {name: limit, in: query, schema: {type: integer, default: 50, maximum: 500}}
+        - {name: offset, in: query, schema: {type: integer, default: 0}}
+        - {name: order, in: query, schema: {type: string, enum: [recent, oldest], default: recent}}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/MemoryItem"}
+                  total: {type: integer}
+
+  /memory/{id}:
+    delete:
+      tags: [memory]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "204": {description: deleted}
+
+  # ---------- knowledge ingest ----------
+  /knowledge/upload:
+    post:
+      tags: [knowledge]
+      summary: 上传文件入知识库 (SSE 进度)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+                tags:
+                  type: string
+                  description: "逗号分隔标签"
+                layer:
+                  $ref: "#/components/schemas/MemoryLayer"
+      responses:
+        "200":
+          description: |
+            SSE 进度流:
+            ```
+            data: {"phase":"parsing","progress":0.3}
+            data: {"phase":"chunking","progress":0.6,"chunks":42}
+            data: {"phase":"embedding","progress":0.9,"chunks":42}
+            data: {"phase":"done","document_id":"...","chunks":42}
+            ```
+          content:
+            text/event-stream: {schema: {type: string}}
+
+  /knowledge/list:
+    get:
+      tags: [knowledge]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items: {$ref: "#/components/schemas/KnowledgeDocument"}
+
+  /knowledge/{document_id}:
+    delete:
+      tags: [knowledge]
+      parameters:
+        - {name: document_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_chunks: {type: integer}
+
+  # ---------- audio ----------
+  /audio/transcribe:
+    post:
+      tags: [audio]
+      summary: 音频转文字 (流式)
+      parameters:
+        - {name: stream, in: query, schema: {type: boolean, default: true}}
+        - {name: language, in: query, schema: {type: string, default: auto}}
+        - {name: with_timestamps, in: query, schema: {type: boolean, default: false}}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        "200":
+          description: |
+            stream=true SSE:
+            ```
+            data: {"type":"partial","text":"你好"}
+            data: {"type":"partial","text":"你好我是"}
+            data: {"type":"final","text":"你好我是 Lynn",
+                   "duration_ms":1234,"language":"zh"}
+            ```
+
+            stream=false JSON:
+            ```
+            {"text":"...", "duration_ms":1234, "language":"zh",
+             "segments":[{"start":0,"end":1.5,"text":"..."}]}
+            ```
+          content:
+            text/event-stream: {schema: {type: string}}
+            application/json: {schema: {type: object}}
+
+  /audio/chat:
+    post:
+      tags: [audio]
+      summary: 一步到位 · 语音 → 转写 → 进 chat 流程
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+                model: {type: string, example: "Qwen3.6-35B-A3B"}
+                memory_enabled: {type: boolean, default: true}
+      responses:
+        "200":
+          description: |
+            SSE,首帧带 transcribed_text:
+            ```
+            data: {"type":"transcribed","text":"...","duration_ms":1100}
+            data: {"type":"memory_used","items":[...]}
+            data: {"choices":[{"delta":{"content":"你好"}}]}
+            ```
+          content:
+            text/event-stream: {schema: {type: string}}

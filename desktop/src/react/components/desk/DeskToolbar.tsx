@@ -89,6 +89,26 @@ export function DeskBreadcrumb() {
   );
 }
 
+export function GalleryToggleButton() {
+  const deskGalleryOpen = useStore(state => state.deskGalleryOpen);
+  const setDeskGalleryOpen = useStore(state => state.setDeskGalleryOpen);
+  const t = window.t ?? ((key: string) => key);
+
+  return (
+    <button
+      className={`${s.sortBtn}${deskGalleryOpen ? ' ' + s.sortBtnActive : ''}`}
+      onClick={() => setDeskGalleryOpen(!deskGalleryOpen)}
+      title={t('desk.gallery') || '画廊'}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </button>
+  );
+}
+
 export function DeskSortButton({ sortMode, onSort, onShowMenu }: {
   sortMode: SortMode;
   onSort: (mode: SortMode) => void;

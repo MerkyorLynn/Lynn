@@ -16,5 +16,11 @@
     <true/>
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
+    <!-- v0.77 voice — 麦克风访问(SenseVoice ASR 必需) -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <!-- 备:相机访问(后续 V0.79 vision 可能用) -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
 </dict>
 </plist>

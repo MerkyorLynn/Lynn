@@ -1,0 +1,43 @@
+{
+  "id": "rag-core",
+  "name": "RAG Core",
+  "version": "0.1.0",
+  "description": "本地知识库 RAG：文档索引、向量检索、引用溯源。当前需手动调用 knowledge_index 索引文件，再使用 knowledge_query 查询。",
+  "contributes": {
+    "configuration": {
+      "properties": {
+        "embedding_provider": {
+          "type": "string",
+          "title": "Embedding Provider",
+          "default": "local",
+          "enum": ["local"],
+          "description": "向量嵌入服务来源。当前仅支持 local（Lynn 内置 TF-IDF）。"
+        },
+        "chunk_size": {
+          "type": "number",
+          "title": "Chunk Size",
+          "default": 800,
+          "description": "文档分块大小（字符数）。"
+        },
+        "chunk_overlap": {
+          "type": "number",
+          "title": "Chunk Overlap",
+          "default": 100,
+          "description": "相邻分块重叠字符数，保证语义连贯。"
+        },
+        "auto_index_desk": {
+          "type": "boolean",
+          "title": "Auto Index Desk",
+          "default": false,
+          "description": "心跳巡检时发现书桌有新文档时，自动询问是否加入知识库。（v0.77 尚未实现，当前不生效）"
+        },
+        "collections": {
+          "type": "array",
+          "title": "Collections",
+          "default": ["default"],
+          "description": "知识库集合列表。"
+        }
+      }
+    }
+  }
+}

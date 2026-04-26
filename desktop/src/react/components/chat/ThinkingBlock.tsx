@@ -19,15 +19,13 @@ function formatElapsed(ms: number): string {
 
 export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed }: Props) {
   const t = window.t ?? ((p: string) => p);
-  // [PROGRESS-UX v2] DeepSeek-R1 style:
-  //   - During streaming (sealed=false): expanded so user reads along
-  //   - After thinking completes (sealed=true): auto-collapse to surface answer
-  //   - User manual toggle overrides auto behavior (explicitOpen is sticky once set)
+  // Keep raw provider thinking opt-in. Some providers stream internal thoughts in
+  // English, so default-collapsing prevents that text from reading like the answer.
   const [explicitOpen, setExplicitOpen] = useState<boolean | null>(null);
-  const open = explicitOpen !== null ? explicitOpen : !sealed;
+  const open = explicitOpen ?? false;
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(Date.now());
-  const toggle = useCallback(() => setExplicitOpen(v => !(v !== null ? v : !sealed)), [sealed]);
+  const toggle = useCallback(() => setExplicitOpen(v => !(v ?? false)), []);
 
   useEffect(() => {
     if (sealed) return;
@@ -36,6 +34,10 @@ export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed }: Pr
       setElapsed(Date.now() - startRef.current);
     }, 1000);
     return () => clearInterval(timer);
+  }, [sealed]);
+
+  useEffect(() => {
+    if (sealed) setExplicitOpen(false);
   }, [sealed]);
 
   const elapsedLabel = !sealed && elapsed >= 2000 ? ` (${formatElapsed(elapsed)})` : '';
