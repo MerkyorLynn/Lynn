@@ -98,7 +98,8 @@ export function PressToTalkButton({
         }
         finalize();
       };
-      recorder.start(250); // 每 250ms 触发一次 dataavailable
+      // 不传 timeslice → 整个录音单 WebM blob,EBML header 完整(chunked 模式 ffmpeg 解码会失败)
+      recorder.start();
 
       // 波形分析
       try {
