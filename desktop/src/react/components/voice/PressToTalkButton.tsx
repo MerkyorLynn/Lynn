@@ -295,6 +295,7 @@ export function PressToTalkButton({
 
 // ============ 真实 API 调用 (JSON 一次性返回) ============
 import { hanaFetch } from "../../hooks/use-hana-fetch";
+import "./PressToTalkButton.css";
 
 async function realTranscribe(
   blob: Blob,
