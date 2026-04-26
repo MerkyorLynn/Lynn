@@ -3,6 +3,7 @@
  */
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { Type } from "@sinclair/typebox";
 import { synthesize } from "../lib/tts-engine.js";
 
@@ -22,7 +23,11 @@ export async function execute(params, ctx) {
   const { log, config } = ctx;
   log.info("tts_speak:", text.slice(0, 40) + "...", "voice:", voice || "default");
 
-  const outDir = path.join(ctx.dataDir || "", "audio");
+  // ctx.dataDir 可能未注入或相对路径 → fallback 到 ~/.lynn/audio
+  const baseDir = ctx.dataDir && path.isAbsolute(ctx.dataDir)
+    ? ctx.dataDir
+    : path.join(os.homedir(), ".lynn");
+  const outDir = path.join(baseDir, "audio");
   fs.mkdirSync(outDir, { recursive: true });
   const baseName = filename || `tts_${Date.now()}`;
   const outPath = path.join(outDir, `${baseName}.mp3`);
