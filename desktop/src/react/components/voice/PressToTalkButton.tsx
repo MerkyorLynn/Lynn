@@ -70,7 +70,7 @@ export function PressToTalkButton({
     setPartialText("");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({  /* enhanced audio constraints */
         audio: {
           channelCount: 1,
           sampleRate: 16000,
@@ -163,6 +163,8 @@ export function PressToTalkButton({
     cleanup();
 
     const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    // DEBUG: 让用户能看到 blob size 判断 MediaRecorder 是否真录到音
+    console.log(`[PTT] blob size=${blob.size} bytes, chunks=${chunksRef.current.length}, duration=${duration}s`);
     chunksRef.current = [];
 
     try {
@@ -273,6 +275,39 @@ export function PressToTalkButton({
       <button
         type="button"
         className={`ptt-btn ${isRecording ? "ptt-btn--recording" : ""} ${isBusy ? "ptt-btn--busy" : ""}`}
+        style={{
+          /* 100% 优先级 — 防 Electron renderer cache 旧 CSS 或 vite extract 失败 */
+          flexShrink: 0,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          padding: 0,
+          fontFamily: "inherit",
+          fontSize: 14,
+          lineHeight: 1,
+          color: isRecording ? "#EC8F8D" : isBusy ? "#537D96" : "#8E9196",
+          background: isRecording
+            ? "rgba(236, 143, 141, 0.12)"
+            : isBusy
+            ? "rgba(83, 125, 150, 0.08)"
+            : "transparent",
+          border: `1px solid ${
+            isRecording
+              ? "rgba(236, 143, 141, 0.45)"
+              : isBusy
+              ? "rgba(83, 125, 150, 0.30)"
+              : "rgba(83, 125, 150, 0.18)"
+          }`,
+          borderRadius: 8,
+          cursor: isBusy ? "not-allowed" : "pointer",
+          opacity: isBusy ? 0.7 : 1,
+          transition: "all 0.15s ease",
+          WebkitAppRegion: "no-drag" as const,
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
