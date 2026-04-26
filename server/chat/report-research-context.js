@@ -18,6 +18,7 @@ const KNOWN_STOCK_NAME_TO_CODE = new Map([
   ["华丰科技", "688629"],
 ]);
 
+const GLOBAL_STOCK_QUOTE_RE = /\b[A-Z]{1,5}\b|\b\d{4,5}\s*\.?\s*HK\b|腾讯控股|腾讯|阿里巴巴|美团|小米集团|苹果|英伟达|微软|谷歌|亚马逊|特斯拉/i;
 const STOCK_COMPANY_RE = /[\u4e00-\u9fa5A-Za-z]{2,18}(?:科技|股份|电子|智能|软件|证券|银行|集团|药业|医药|能源|材料|半导体|光电|电气|通信|汽车|机器人|芯片|电力|股份)/;
 const STOCK_ANALYSIS_RE = /(?:股票|股价|个股|A股|a股|科创板|创业板|沪深|标的|走势|怎么看|技术面|基本面|估值|市值|总股本|PE|PB|PS|资金|资金流|财报|研报|公告|解禁|减持|支撑位|压力位|K线|k线|均线|成交量|成交额|筹码|止损|止盈|仓位|目标价|三种情景|操作计划|未来1-3个月)/i;
 const GENERIC_RESEARCH_RE = /(?=.*(?:调研|研究|分析|评估|对比|比较|判断|怎么看|报告|预测|整理|汇总))(?=.*(?:最新|数据|资料|来源|公司|行业|市场|政策|公告|财报|研报|楼盘|房价|成交|竞品|价格|估值|市值|PDF|文档|报表|合同|产品|品牌))/i;
@@ -98,7 +99,7 @@ export function inferReportResearchKind(text) {
   if (promptKind) return promptKind;
 
   const target = extractStockTargetForResearch(normalized);
-  if ((target.name || target.code) && SIMPLE_STOCK_QUOTE_RE.test(normalized) && !STOCK_DEEP_INTENT_RE.test(normalized)) {
+  if (((target.name || target.code) || GLOBAL_STOCK_QUOTE_RE.test(normalized)) && SIMPLE_STOCK_QUOTE_RE.test(normalized) && !STOCK_DEEP_INTENT_RE.test(normalized)) {
     return "market";
   }
   if ((target.name || target.code) && STOCK_ANALYSIS_RE.test(normalized)) return "stock";
@@ -327,6 +328,15 @@ function summarizeMarketContext(userPrompt, context) {
   if (text.includes("【直连 A 股报价】")) {
     const quote = extractFirstLine(text, /【直连 A 股报价】\s*\n-\s*([^\n]+)/);
     return quote ? `${cleanBulletLine(quote)}。` : "";
+  }
+
+  if (text.includes("【直连美股/港股报价】")) {
+    const rows = sectionBetween(text, "【直连美股/港股报价】", "财经/行情快照")
+      .split(/\r?\n/)
+      .map((line) => line.match(/^\s*-\s*(.+)$/)?.[1]?.trim() || "")
+      .filter(Boolean)
+      .map(cleanBulletLine);
+    if (rows.length) return `${rows.join("；")}。`;
   }
 
   if (text.includes("【直连贵金属报价】")) {
