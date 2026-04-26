@@ -143,6 +143,11 @@ export function PressToTalkButton({
     stopRecording();
   }, [stopRecording]);
 
+  // ============ B 模式:长按锁定连续录音 ============
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockedRef = useRef(false);
+  const [locked, setLocked] = useState(false);
+
   const cleanup = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
@@ -228,14 +233,34 @@ export function PressToTalkButton({
   // ============ 鼠标/触摸事件 ============
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
+    // 已锁定状态 → 第二次点击 = 结束录音并发送
+    if (lockedRef.current && state === "recording") {
+      lockedRef.current = false;
+      setLocked(false);
+      stopRecording();
+      return;
+    }
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     startRecording();
+    // 长按 600ms 自动锁定连续录音
+    longPressTimerRef.current = setTimeout(() => {
+      lockedRef.current = true;
+      setLocked(true);
+    }, 600);
   };
   const handlePointerUp = (e: React.PointerEvent) => {
     e.preventDefault();
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    // 锁定状态 → 不停止,等下次点击
+    if (lockedRef.current) return;
     stopRecording();
   };
   const handlePointerLeave = () => {
+    // 锁定状态下离开 button 不取消(继续录)
+    if (lockedRef.current) return;
     if (state === "recording") cancelRecording();
   };
 
@@ -287,14 +312,18 @@ export function PressToTalkButton({
           fontFamily: "inherit",
           fontSize: 14,
           lineHeight: 1,
-          color: isRecording ? "#EC8F8D" : isBusy ? "#537D96" : "#8E9196",
-          background: isRecording
+          color: locked && isRecording ? "#8B3A3A" : isRecording ? "#EC8F8D" : isBusy ? "#537D96" : "#8E9196",
+          background: locked && isRecording
+            ? "rgba(139, 58, 58, 0.18)"
+            : isRecording
             ? "rgba(236, 143, 141, 0.12)"
             : isBusy
             ? "rgba(83, 125, 150, 0.08)"
             : "transparent",
           border: `1px solid ${
-            isRecording
+            locked && isRecording
+              ? "rgba(139, 58, 58, 0.55)"
+              : isRecording
               ? "rgba(236, 143, 141, 0.45)"
               : isBusy
               ? "rgba(83, 125, 150, 0.30)"
@@ -316,7 +345,8 @@ export function PressToTalkButton({
       >
         {state === "idle" && "🎤"}
         {state === "starting" && "..."}
-        {isRecording && "🔴"}
+        {isRecording && !locked && "🔴"}
+        {isRecording && locked && "🔒"}
         {isBusy && "⏳"}
       </button>
 
