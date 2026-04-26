@@ -583,6 +583,7 @@ function getTrustedPathPolicy() {
   return {
     read: uniqueCanonicalPaths([
       path.join(lynnHome, "skills"),
+      path.join(lynnHome, "audio"),
       ...listAgentRoots("desk"),
       ...listAgentRoots("learned-skills"),
       ...workspaceRoots,

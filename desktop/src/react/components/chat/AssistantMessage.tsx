@@ -70,6 +70,47 @@ const TOOL_LABELS: Record<string, string> = {
   todo: '\u2705 \u5f85\u529e\u7ba1\u7406',
 };
 
+function audioFileNameFromPath(filePath: string): string {
+  return filePath.split(/[\\/]/).filter(Boolean).pop() || '';
+}
+
+/**
+ * 播放 TTS 生成的音频文件。走 IPC readFileBase64 而非 HTTP — 因为:
+ *  1) HTMLAudioElement 不会自动带 Bearer token,直接 audio.src = http://... 会被 server 403
+ *  2) Hono c.body(fs.createReadStream) 对 Node Readable Stream 兼容性问题,Audio 解码失败
+ *  3) IPC + Blob URL 路径稳定,前提是 main.cjs trustedPathPolicy 允许读 ~/.lynn/audio
+ *      + index.html CSP 包含 media-src 'self' blob:(否则 blob: URL 被 CSP 拦)
+ */
+async function playAudioHttpUrl(audioPath: string): Promise<void> {
+  if (!audioPath) throw new Error('音频路径无效');
+  const base64 = await window.hana?.readFileBase64?.(audioPath);
+  if (!base64) throw new Error('读取音频文件失败（检查路径白名单）');
+  const ext = audioPath.toLowerCase().endsWith('.mp3') ? 'mpeg' : 'wav';
+
+  // base64 → Uint8Array → Blob → ObjectURL（避免 200KB+ data URL 在 Audio 不稳定）
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: `audio/${ext}` });
+  const objectUrl = URL.createObjectURL(blob);
+  const audio = new Audio(objectUrl);
+  audio.preload = 'auto';
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+  audio.onended = cleanup;
+  audio.onerror = () => {
+    const code = audio.error?.code;
+    const codeMap: Record<number, string> = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src-not-supported' };
+    cleanup();
+    throw new Error(`audio error: ${codeMap[code || 0] || code}`);
+  };
+  try {
+    await audio.play();
+  } catch (err) {
+    cleanup();
+    throw err;
+  }
+}
+
 function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number; activeLabel: string } {
   let running = 0;
   let total = 0;
@@ -197,6 +238,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewConfigLoaded, setReviewConfigLoaded] = useState(false);
+  const [ttsAudioPath, setTtsAudioPath] = useState<string | null>(null);
   const reviewBusy = reviewRequestPending || !!pendingReviewId || latestReviewBlock?.status === 'loading';
   const canRequestReview = plainText.length > 0 && !showStreamingMeta;
   const showFollowUpAction = shouldShowFollowUpAction(latestReviewBlock);
@@ -474,18 +516,49 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                 className={styles.msgCopyBtn}
                 onClick={async () => {
                   try {
-                    await hanaFetch('/api/tools/tts-bridge.tts_speak', {
+                    if (ttsAudioPath) {
+                      try {
+                        await playAudioHttpUrl(ttsAudioPath);
+                        addToast('正在朗读', 'success');
+                        return;
+                      } catch {
+                        setTtsAudioPath(null);
+                      }
+                    }
+                    addToast('准备朗读…', 'info');
+                    const res = await hanaFetch('/api/tools/tts-bridge.tts_speak', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ text: plainText.slice(0, 3000), filename: `msg_${message.id?.slice(-8) || Date.now()}` }),
+                      body: JSON.stringify({
+                        text: plainText.slice(0, 3000),
+                        filename: `msg_${message.id?.slice(-8) || Date.now()}`,
+                      }),
+                      timeout: 60_000,
                     });
-                    addToast('语音已生成', 'success');
+                    const data = await res.json();
+                    const audioPath = data?.details?.path || data?.result?.details?.path;
+                    if (!audioPath) {
+                      addToast('TTS 返回缺失 path', 'error');
+                      return;
+                    }
+                    setTtsAudioPath(audioPath);
+                    try {
+                      await playAudioHttpUrl(audioPath);
+                      const cached = data?.details?.cached || data?.result?.details?.cached;
+                      addToast(cached ? '正在朗读（已缓存）' : '正在朗读 · 右键此按钮换音色', 'success');
+                    } catch (err: any) {
+                      addToast(`播放失败：${err?.message || err}。音频已保存，可在 Voice 设置里检查服务状态。`, 'error');
+                    }
                   } catch (err) {
                     addToast(String(err), 'error');
                   }
                 }}
-                title={t('chat.speak') || '朗读'}
+                title={t('chat.speak') || '朗读（右键打开音色设置）'}
                 aria-label={t('chat.speak') || '朗读'}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  window.hana?.openSettings?.('voice');
+                }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
