@@ -87,6 +87,11 @@ describe("task route intent", () => {
     expect(looksLikePendingToolExecutionText("我需要用正确的工具来读取文件夹内容，而不是搜索。让我用bash来列出文件夹。", "utility")).toBe(true);
   });
 
+  it("detects unfinished continuation text after a partial local tool run", () => {
+    expect(looksLikePendingToolExecutionText("找到 2 个 PDF 文件（`a.pdf` 和 `b.PDF`），开始创建文件夹并移动。", "utility")).toBe(true);
+    expect(looksLikePendingToolExecutionText("目录已经列出来了，接下来执行 mkdir 和 mv。", "utility")).toBe(true);
+  });
+
   it("detects local file permission deflections as unfinished execution", () => {
     expect(looksLikePendingToolExecutionText("抱歉，我当前没有文件系统读取权限，无法直接列出 /Users/lynn/Desktop/Lynn 文件夹内的内容。", "utility")).toBe(true);
     expect(looksLikePendingToolExecutionText("I cannot access the local file system to list this folder.", "utility")).toBe(true);

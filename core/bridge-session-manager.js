@@ -23,6 +23,7 @@ import {
 } from "./client-agent-identity.js";
 import { resolveCompactionSettings } from "./compaction-settings.js";
 import { containsPseudoToolCallSimulation, sanitizeAssistantTextContent } from "./llm-utils.js";
+import { stripPseudoToolCallMarkup } from "../shared/pseudo-tool-call.js";
 
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
@@ -84,6 +85,19 @@ function pseudoToolSimulationMessage() {
   return localized && localized !== "error.invalidToolSimulation"
     ? localized
     : "Model emitted an invalid tool-call simulation instead of executing the tool.";
+}
+
+function buildPseudoToolRetryPrompt(prompt) {
+  const isZh = getLocale().startsWith("zh");
+  return [
+    isZh
+      ? "【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。"
+      : "[Strict execution requirement] The previous attempt simulated tool calls in plain text instead of actually executing them.",
+    isZh
+      ? "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 之类的伪工具文本。请直接调用真实工具完成当前任务，拿到结果后再回复。"
+      : "Do not output any pseudo tool text such as <tool_call>, XML, shell commands, or web_search(...). Use the real tool interface, finish the task, and only then reply.",
+    String(prompt || ""),
+  ].filter(Boolean).join("\n\n");
 }
 
 export class BridgeSessionManager {
@@ -309,43 +323,57 @@ export class BridgeSessionManager {
 
       this._activeSessions.set(sessionKey, session);
 
-      // 捕获文本输出，并识别是否真的执行了工具
-      let capturedText = "";
-      let sawToolCall = false;
-      const unsub = session.subscribe((event) => {
-        if (event.type === "message_update") {
-          const sub = event.assistantMessageEvent;
-          if (sub?.type === "text_delta") {
-            const delta = sub.delta || "";
-            capturedText += delta;
-            try { opts.onDelta?.(delta, capturedText); } catch {}
-          } else if (sub?.type === "toolcall_start" || sub?.type === "toolcall_end") {
+      const _resolved = this._deps.resolveModelOverrides?.(session.model, agent.config?.models?.overrides);
+      if (opts.images?.length && _resolved?.vision === false) {
+        opts.images = undefined;
+      }
+      // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
+      const _promptOpts = toSessionPromptOptions(opts.images);
+
+      const runBridgeAttempt = async (attemptPrompt, { streamDeltas = true } = {}) => {
+        let capturedText = "";
+        let sawToolCall = false;
+        const unsub = session.subscribe((event) => {
+          if (event.type === "message_update") {
+            const sub = event.assistantMessageEvent;
+            if (sub?.type === "text_delta") {
+              const delta = sub.delta || "";
+              capturedText += delta;
+              if (streamDeltas) {
+                try { opts.onDelta?.(delta, capturedText); } catch {}
+              }
+            } else if (sub?.type === "toolcall_start" || sub?.type === "toolcall_end") {
+              sawToolCall = true;
+            }
+          } else if (event.type === "tool_execution_start" || event.type === "tool_execution_end") {
             sawToolCall = true;
           }
-        } else if (event.type === "tool_execution_start" || event.type === "tool_execution_end") {
-          sawToolCall = true;
+        });
+        try {
+          await session.prompt(attemptPrompt, _promptOpts);
+        } finally {
+          unsub?.();
         }
-      });
+        return { capturedText, sawToolCall };
+      };
 
+      let capturedText = "";
       try {
         // 非 vision 模型：静默剥离图片，只发文字
         // 注意：bridge session 可能不属于 focus agent，必须传入该 session 对应 agent 的 overrides
-        const _resolved = this._deps.resolveModelOverrides?.(session.model, agent.config?.models?.overrides);
-        if (opts.images?.length && _resolved?.vision === false) {
-          opts.images = undefined;
+        const first = await runBridgeAttempt(prompt);
+        capturedText = first.capturedText;
+        if (!first.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
+          debugLog()?.warn("bridge", "pseudo tool simulation detected, retrying once");
+          const retry = await runBridgeAttempt(buildPseudoToolRetryPrompt(prompt), { streamDeltas: false });
+          capturedText = retry.capturedText || capturedText;
+          if (!retry.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
+            debugLog()?.warn("bridge", "pseudo tool simulation persisted after retry; sanitizing final text");
+            capturedText = stripPseudoToolCallMarkup(capturedText);
+          }
         }
-        // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
-        const _promptOpts = toSessionPromptOptions(opts.images);
-        await session.prompt(prompt, _promptOpts);
       } finally {
-        unsub?.();
         this._activeSessions.delete(sessionKey);
-      }
-
-      if (!sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
-        const err = new Error(pseudoToolSimulationMessage());
-        err.code = "INVALID_TOOL_SIMULATION";
-        throw err;
       }
 
       // 更新索引 + 元数据

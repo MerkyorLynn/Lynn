@@ -394,6 +394,14 @@ function formatProviderLabel(provider?: string | null): string {
     .join(' ');
 }
 
+function inferSessionFallbackYuan(agentName?: string | null): string {
+  const normalized = String(agentName || '').trim().toLowerCase();
+  if (normalized.includes('hanako') || normalized.includes('花子')) return 'hanako';
+  if (normalized.includes('butter')) return 'butter';
+  if (normalized.includes('kong')) return 'kong';
+  return 'lynn';
+}
+
 function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, disabled = false }: {
   session: Session;
   isActive: boolean;
@@ -645,12 +653,18 @@ function AgentBadge({ agentId, agentName, agents }: {
   agents: Agent[];
 }) {
   const agent = agents.find(a => a.id === agentId);
-  const [apiUrl] = useState(() =>
+  const apiUrl = useMemo(() =>
     agent?.hasAvatar ? hanaUrl(`/api/agents/${agentId}/avatar?t=${Date.now()}`) : null,
-  );
+  [agent?.hasAvatar, agentId]);
   const [errored, setErrored] = useState(false);
 
-  const src = (!apiUrl || errored) ? yuanFallbackAvatar(agent?.yuan) : apiUrl;
+  useEffect(() => {
+    setErrored(false);
+  }, [apiUrl]);
+
+  const src = (!apiUrl || errored)
+    ? yuanFallbackAvatar(agent?.yuan || inferSessionFallbackYuan(agentName))
+    : apiUrl;
 
   return (
     <img

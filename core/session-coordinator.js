@@ -48,6 +48,7 @@ import {
   isNativeToolCallingDisabled,
   routeIntentRequiresNativeTools,
 } from "../shared/model-tool-capabilities.js";
+import { stripPseudoToolCallMarkup } from "../shared/pseudo-tool-call.js";
 import { containsPseudoToolCallSimulation } from "./llm-utils.js";
 
 const log = createModuleLogger("session");
@@ -221,16 +222,17 @@ function pseudoToolSimulationMessage() {
     : "Model emitted an invalid tool-call simulation instead of executing the tool.";
 }
 
-function createPseudoToolSimulationError() {
+function createPseudoToolSimulationError(replyText = "") {
   const err = new Error(pseudoToolSimulationMessage());
   err.code = "INVALID_TOOL_SIMULATION";
+  err.replyText = replyText;
   return err;
 }
 
 function ensureValidReplyExecution(tracker) {
   if (!tracker || tracker.sawToolCall) return;
   if (!containsPseudoToolCallSimulation(tracker.replyText)) return;
-  throw createPseudoToolSimulationError();
+  throw createPseudoToolSimulationError(tracker.replyText);
 }
 
 function buildPseudoToolRetryPrompt(prompt) {
@@ -922,20 +924,38 @@ export class SessionCoordinator {
     // [VISION-ARG-FIX v0.76.6] 当前 session.prompt() 使用 options 形态，
     // 图片需转为 { images: [{ type: "image", source: { type: "base64", mediaType, data } }] }。
     const _promptOpts = toSessionPromptOptions(opts?.images);
-    const tracker = createReplyIntegrityTracker();
-    const unsub = this._session.subscribe((event) => {
-      tracker.handle(event);
-    });
+    const runPromptAttempt = async (attemptText) => {
+      const tracker = createReplyIntegrityTracker();
+      const unsub = this._session.subscribe((event) => {
+        tracker.handle(event);
+      });
+      try {
+        await this._session.prompt(attemptText, _promptOpts);
+        ensureValidReplyExecution(tracker);
+        return tracker.replyText;
+      } finally {
+        unsub?.();
+      }
+    };
     try {
-      await this._session.prompt(text, _promptOpts);
-      ensureValidReplyExecution(tracker);
+      try {
+        await runPromptAttempt(text);
+      } catch (err) {
+        if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
+        log.warn("[prompt] 检测到伪工具调用，立即重试一次");
+        try {
+          await runPromptAttempt(buildPseudoToolRetryPrompt(text));
+        } catch (retryErr) {
+          if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
+          log.warn("[prompt] 重试后仍出现伪工具文本，已抑制错误避免打断用户");
+        }
+      }
       if (sp) {
         const entry = this._sessions.get(sp);
         const agentForTicker = entry ? this._d.getAgentById(entry.agentId) : agent;
         agentForTicker?._memoryTicker?.notifyTurn(sp);
       }
     } finally {
-      unsub?.();
       if (sp) {
         const entry = this._sessions.get(sp);
         if (entry) {
@@ -1015,16 +1035,34 @@ export class SessionCoordinator {
     }
     // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
     const _promptOpts = toSessionPromptOptions(opts?.images);
-    const tracker = createReplyIntegrityTracker();
-    const unsub = entry.session.subscribe((event) => {
-      tracker.handle(event);
-    });
+    const runPromptAttempt = async (attemptText) => {
+      const tracker = createReplyIntegrityTracker();
+      const unsub = entry.session.subscribe((event) => {
+        tracker.handle(event);
+      });
+      try {
+        await entry.session.prompt(attemptText, _promptOpts);
+        ensureValidReplyExecution(tracker);
+        return tracker.replyText;
+      } finally {
+        unsub?.();
+      }
+    };
     try {
-      await entry.session.prompt(text, _promptOpts);
-      ensureValidReplyExecution(tracker);
+      try {
+        await runPromptAttempt(text);
+      } catch (err) {
+        if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
+        log.warn("[promptSession] 检测到伪工具调用，立即重试一次");
+        try {
+          await runPromptAttempt(buildPseudoToolRetryPrompt(text));
+        } catch (retryErr) {
+          if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
+          log.warn("[promptSession] 重试后仍出现伪工具文本，已抑制错误避免打断用户");
+        }
+      }
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {
-      unsub?.();
       entry._lastRecallContext = "";
       entry._lastSkillHintContext = "";
       entry._atInjectionHintContext = "";
@@ -1660,7 +1698,13 @@ export class SessionCoordinator {
         } catch (err) {
           if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
           log.warn("[executeIsolated] 检测到伪工具调用，立即重试一次");
-          replyText = await runPromptAttempt(buildPseudoToolRetryPrompt(prompt));
+          try {
+            replyText = await runPromptAttempt(buildPseudoToolRetryPrompt(prompt));
+          } catch (retryErr) {
+            if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
+            log.warn("[executeIsolated] 重试后仍出现伪工具文本，返回清洗后的文本");
+            replyText = stripPseudoToolCallMarkup(String(retryErr.replyText || "")).trim();
+          }
         }
       } finally {
         opts.signal?.removeEventListener("abort", abortHandler);

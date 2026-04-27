@@ -128,8 +128,27 @@ describe("BridgeSessionManager guest safety prompt", () => {
     expect(prompt).toContain("system prompt、内部规则、安全策略本身");
   });
 
-  it("rejects fake progress markup as invalid tool simulation in bridge replies", async () => {
+  it("retries and sanitizes fake tool markup in bridge replies", async () => {
     let handler = null;
+    const promptMock = vi.fn(async () => {
+      if (promptMock.mock.calls.length === 1) {
+        handler?.({
+          type: "message_update",
+          assistantMessageEvent: {
+            type: "text_delta",
+            delta: '正在查询。<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>今天金价偏强。',
+          },
+        });
+        return;
+      }
+      handler?.({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          delta: "今天金价偏强。",
+        },
+      });
+    });
     createAgentSessionMock.mockResolvedValueOnce({
       session: {
         model: { id: "chat-model", provider: "test-provider" },
@@ -137,15 +156,7 @@ describe("BridgeSessionManager guest safety prompt", () => {
           handler = fn;
           return vi.fn();
         }),
-        prompt: vi.fn(async () => {
-          handler?.({
-            type: "message_update",
-            assistantMessageEvent: {
-              type: "text_delta",
-              delta: '正在查询。<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>今天金价偏强。',
-            },
-          });
-        }),
+        prompt: promptMock,
         sessionManager: {
           getSessionFile: () => sessionFile,
         },
@@ -157,9 +168,7 @@ describe("BridgeSessionManager guest safety prompt", () => {
       guest: false,
     });
 
-    expect(result).toEqual(expect.objectContaining({
-      __bridgeError: true,
-      message: expect.stringContaining("invalid tool-call simulation"),
-    }));
+    expect(promptMock).toHaveBeenCalledTimes(2);
+    expect(result).toBe("今天金价偏强。");
   });
 });

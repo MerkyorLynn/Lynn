@@ -9,6 +9,7 @@ import path from "path";
 import { Hono } from "hono";
 import { MoodParser, XingParser, ThinkTagParser, LynnProgressParser } from "../../core/events.js";
 import { containsPseudoToolCallSimulation } from "../../core/llm-utils.js";
+import { stripPseudoToolCallMarkup } from "../../shared/pseudo-tool-call.js";
 import { wsSend, wsParse } from "../ws-protocol.js";
 import { debugLog } from "../../lib/debug-log.js";
 import { t, getLocale } from "../i18n.js";
@@ -68,6 +69,84 @@ function normalizeToolArgsForSummary(toolName, rawArgs) {
 }
 
 const LOCAL_COMPLETION_TOOLS = new Set(["bash", "write", "edit", "edit-diff"]);
+const STREAM_PSEUDO_XML_TOOLS = [
+  "web_search",
+  "web_fetch",
+  "live_news",
+  "weather",
+  "stock_market",
+  "sports_score",
+  "bash",
+  "read",
+  "read_file",
+  "write",
+  "edit",
+  "find",
+  "grep",
+  "glob",
+];
+const STREAM_PSEUDO_XML_TOOL_SOURCE = STREAM_PSEUDO_XML_TOOLS
+  .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  .join("|");
+const STREAM_PSEUDO_XML_OPEN_RE = new RegExp(`<(${STREAM_PSEUDO_XML_TOOL_SOURCE})\\b[^>\\n]*(?:>|$)`, "iu");
+
+function closePseudoXmlRe(toolName) {
+  const escaped = String(toolName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`</\\s*${escaped}\\s*>`, "iu");
+}
+
+function stripStreamingPseudoToolBlocks(ss, chunk) {
+  let rest = String(chunk || "");
+  let text = "";
+  let suppressed = false;
+
+  while (rest) {
+    if (ss?.pseudoToolXmlBlock) {
+      suppressed = true;
+      const closeRe = closePseudoXmlRe(ss.pseudoToolXmlBlock);
+      const closeMatch = rest.match(closeRe);
+      if (!closeMatch) return { text, suppressed };
+      rest = rest.slice((closeMatch.index || 0) + closeMatch[0].length);
+      ss.pseudoToolXmlBlock = null;
+      continue;
+    }
+
+    const openMatch = rest.match(STREAM_PSEUDO_XML_OPEN_RE);
+    if (!openMatch) {
+      text += rest;
+      break;
+    }
+
+    const openIndex = openMatch.index || 0;
+    text += rest.slice(0, openIndex);
+    suppressed = true;
+
+    const toolName = String(openMatch[1] || "").toLowerCase();
+    const afterOpen = rest.slice(openIndex + openMatch[0].length);
+    const closeMatch = afterOpen.match(closePseudoXmlRe(toolName));
+    if (!closeMatch) {
+      ss.pseudoToolXmlBlock = toolName;
+      break;
+    }
+    rest = afterOpen.slice((closeMatch.index || 0) + closeMatch[0].length);
+  }
+
+  return { text, suppressed };
+}
+
+function shouldPrefetchReportContext(reportKind, currentModelInfo) {
+  if (!reportKind) return false;
+  if (!currentModelInfo?.isBrain) return true;
+  // 默认模型仍保留自主工具判断；但实时答案类问题必须有本地证据兜底。
+  // 这可以防止远端搜索短暂失败时，用户只看到“未检索到明确证据”或伪工具文本。
+  return new Set([
+    "market_weather_brief",
+    "weather",
+    "sports",
+    "market",
+    "news",
+  ]).has(reportKind);
+}
 
 function rememberSuccessfulTool(ss, toolName, toolSummary, rawArgs) {
   if (!ss || !toolName) return;
@@ -105,6 +184,23 @@ function buildLocalToolSuccessFallback(ss) {
   }
   text += "\n\n你可以在目标文件夹里检查结果；如果需要，我也可以继续帮你核对整理后的文件列表。";
   return text;
+}
+
+function buildToolContinuationRetryPrompt(originalPrompt, visibleText) {
+  const parts = [
+    "【严格执行要求】你已经执行了部分真实工具，但随后只写了“开始/接下来/准备执行”等计划，没有继续调用真实工具完成任务。",
+    "现在请基于刚才工具结果继续调用真实工具完成用户原始任务。",
+    "不要只描述计划；不要输出 <bash>、web_search(...) 或任何伪工具文本；需要创建、移动、复制、读取或查询时，必须直接调用真实工具。",
+    "完成后明确告诉用户实际执行了哪些动作、处理了几个文件/项目，以及目标位置。",
+  ];
+
+  const previous = String(visibleText || "").trim();
+  if (previous) parts.push(`【上一段未完成回复】\n${previous.slice(-800)}`);
+
+  const prompt = String(originalPrompt || "").trim();
+  if (prompt) parts.push(`【用户原始问题】\n${prompt.slice(-1200)}`);
+
+  return parts.join("\n\n");
 }
 
 function resolveEditSnapshotPath(session, engine, rawPath) {
@@ -263,6 +359,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         visibleTextAcc: "",
         rawTextAcc: "",
         pseudoToolSteered: false,
+        pseudoToolXmlBlock: null,
         routeIntent: "chat",
         originalPromptText: "",
         effectivePromptText: "",
@@ -426,6 +523,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.visibleTextAcc = "";
     ss.rawTextAcc = "";
     ss.pseudoToolSteered = false;
+    ss.pseudoToolXmlBlock = null;
     ss.successfulToolCount = 0;
     ss.lastSuccessfulTools = [];
     // [TOOL-FINALIZE-RETRY v1] reset per-turn flag · 每轮都可以 retry 一次
@@ -473,7 +571,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   }
 
   function maybeSteerPseudoToolSimulation(sessionPath, ss, textOverride = null) {
-    if (!sessionPath || !ss || ss.hasToolCall || ss.pseudoToolSteered) return false;
+    if (!sessionPath || !ss || ss.pseudoToolSteered) return false;
     // [FAKE-PROGRESS-GUARD v1] 两路伪造检测：
     //   1. pythonic 风格伪工具调用（老规则 · 基于 visibleTextAcc）
     //   2. <lynn_tool_progress> 幻觉标记（新规则 · 基于 progressMarkerCount）
@@ -507,7 +605,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   }
 
   function emitVisibleTextDelta(sessionPath, ss, delta) {
-    let next = String(delta || "").replace(/\uFFFD+/g, "");
+    const rawNext = String(delta || "").replace(/\uFFFD+/g, "");
+    let next = rawNext;
+    if (!next) return;
+    const strippedBlock = stripStreamingPseudoToolBlocks(ss, next);
+    if (strippedBlock.suppressed) {
+      maybeSteerPseudoToolSimulation(sessionPath, ss, rawNext);
+      next = strippedBlock.text;
+    }
+    if (containsNonProgressPseudoToolSimulation(next)) {
+      maybeSteerPseudoToolSimulation(sessionPath, ss, next);
+      next = stripPseudoToolCallMarkup(next);
+    }
     if (!next) return;
     const combined = ss.visibleTextAcc + next;
     const trimmed = trimDegenerateTail(combined);
@@ -520,7 +629,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
     }
     if (!next) return;
-    if (!ss.hasToolCall && containsNonProgressPseudoToolSimulation(ss.visibleTextAcc + next)) {
+    if (containsNonProgressPseudoToolSimulation(ss.visibleTextAcc + next)) {
       maybeSteerPseudoToolSimulation(sessionPath, ss, ss.visibleTextAcc + next);
       return;
     }
@@ -1085,6 +1194,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         isToolDidNotProduceText &&
         !localToolSuccessFallback &&
         !ss.toolFinalizationRetryAttempted;
+      const shouldRetryToolContinuation =
+        isActive &&
+        !ss.hasError &&
+        ss.hasToolCall &&
+        !ss.pendingToolRetryAttempted &&
+        looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent);
 
       if (localToolSuccessFallback && isActive && !ss.hasError) {
         emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: localToolSuccessFallback });
@@ -1123,6 +1238,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         )).catch((retryErr) => {
           debugLog()?.warn("ws", `pending tool retry failed: ${retryErr?.message || retryErr}`);
         });
+      }
+      // [TOOL-CONTINUATION-RETRY v1] 2026-04-27 · 工具跑了一半后只说“开始/接下来”
+      //   典型例子: ls 成功后正文写“找到 2 个 PDF，开始创建文件夹并移动”，但没有继续 mkdir/mv。
+      //   这不是最终答案，也不是空答；必须再给模型一次机会继续调用真实工具完成原任务。
+      if (shouldRetryToolContinuation) {
+        ss.pendingToolRetryAttempted = true;
+        broadcast({ type: "turn_retry", sessionPath, reason: "tool_continuation" });
+        Promise.resolve().then(() => hub.send(
+          buildToolContinuationRetryPrompt(
+            ss.effectivePromptText || ss.originalPromptText,
+            visibleTextBeforeReset,
+          ),
+          { sessionPath },
+        )).catch((retryErr) => {
+          debugLog()?.warn("ws", `tool continuation retry failed: ${retryErr?.message || retryErr}`);
+        });
+        debugLog()?.warn("ws", `[TOOL-CONTINUATION-RETRY v1] triggered · visibleLen=${visibleLen} · session=${sessionPath}`);
       }
       // [TOOL-FINALIZE-RETRY v1] 2026-04-21 · 工具调完但无 final text 的主动 retry
       //   所有 provider 在 T1 综合工具收尾题都踩这条 · GPT-5.4/Kimi = tool_no_final_text
@@ -1398,6 +1530,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.hasLocalPrefetchEvidence = false;
                 ss.pendingToolRetryAttempted = false;
                 ss.pseudoToolSteered = false;
+                ss.pseudoToolXmlBlock = null;
                 ss.hasOutput = false;
                 ss.hasToolCall = false;
                 ss.hasThinking = false;
@@ -1426,7 +1559,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 // Do not inject local prefetch evidence or scenario contracts into the
                 // user prompt, otherwise the user-visible transcript can leak internal
                 // guidance and the Brain router loses its chance to choose tools itself.
-                if (reportKind && !currentModelInfo.isBrain) {
+                if (shouldPrefetchReportContext(reportKind, currentModelInfo)) {
                   const toolName = prefetchToolNameForKind(reportKind);
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
                   try {
