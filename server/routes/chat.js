@@ -53,6 +53,60 @@ function extractText(content) {
     .join("");
 }
 
+function normalizeToolArgsForSummary(toolName, rawArgs) {
+  if (!rawArgs || typeof rawArgs !== "object" || Array.isArray(rawArgs)) return rawArgs;
+  const args = { ...rawArgs };
+  if (toolName === "bash" && typeof args.command !== "string") {
+    for (const key of ["query", "cmd", "shell", "script"]) {
+      if (typeof args[key] === "string" && args[key].trim()) {
+        args.command = args[key];
+        break;
+      }
+    }
+  }
+  return args;
+}
+
+const LOCAL_COMPLETION_TOOLS = new Set(["bash", "write", "edit", "edit-diff"]);
+
+function rememberSuccessfulTool(ss, toolName, toolSummary, rawArgs) {
+  if (!ss || !toolName) return;
+  ss.successfulToolCount = (ss.successfulToolCount || 0) + 1;
+  const args = normalizeToolArgsForSummary(toolName, rawArgs) || {};
+  const record = {
+    name: toolName,
+    command: typeof args.command === "string" ? args.command : "",
+    filePath: typeof (args.file_path || args.path) === "string" ? (args.file_path || args.path) : "",
+    outputPreview: typeof toolSummary?.outputPreview === "string" ? toolSummary.outputPreview : "",
+  };
+  ss.lastSuccessfulTools = [...(ss.lastSuccessfulTools || []), record].slice(-8);
+}
+
+function buildLocalToolSuccessFallback(ss) {
+  const tools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
+  const localTools = tools.filter((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
+  if (!localTools.length) return "";
+
+  const commandCount = localTools.filter((tool) => tool.name === "bash").length;
+  const fileCount = localTools.filter((tool) => tool.filePath).length;
+  const snippets = localTools
+    .map((tool) => tool.command || tool.filePath || tool.outputPreview)
+    .filter(Boolean)
+    .map((text) => text.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(-3);
+
+  const parts = ["已完成本轮本地操作。"];
+  if (commandCount > 0) parts.push(`已成功执行 ${commandCount} 个命令`);
+  if (fileCount > 0) parts.push(`处理了 ${fileCount} 个文件/路径`);
+  let text = parts.join("，") + "。";
+  if (snippets.length > 0) {
+    text += "\n\n执行摘要：\n" + snippets.map((snippet) => `- ${snippet.slice(0, 160)}`).join("\n");
+  }
+  text += "\n\n你可以在目标文件夹里检查结果；如果需要，我也可以继续帮你核对整理后的文件列表。";
+  return text;
+}
+
 function resolveEditSnapshotPath(session, engine, rawPath) {
   if (typeof rawPath !== "string") return null;
   const trimmed = rawPath.trim();
@@ -214,6 +268,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         effectivePromptText: "",
         hasLocalPrefetchEvidence: false,
         pendingToolRetryAttempted: false,
+        successfulToolCount: 0,
+        lastSuccessfulTools: [],
         // [TOOL-FINALIZE-RETRY v1 · 2026-04-21] 工具真调完但模型没给 final text
         //   (典型:GPT-5.4 / Kimi 在 T1 综合工具题) · 主动触发一次隐式 retry
         //   让模型基于工具结果产出最终答案 · 每轮最多 retry 1 次
@@ -370,6 +426,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.visibleTextAcc = "";
     ss.rawTextAcc = "";
     ss.pseudoToolSteered = false;
+    ss.successfulToolCount = 0;
+    ss.lastSuccessfulTools = [];
     // [TOOL-FINALIZE-RETRY v1] reset per-turn flag · 每轮都可以 retry 一次
     ss.toolFinalizationRetryAttempted = false;
   }
@@ -607,7 +665,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
 
       // 只保留前端 extractToolDetail 需要的字段，避免广播完整文件内容
-      const rawArgs = event.args;
+      const rawArgs = normalizeToolArgsForSummary(event.toolName || "", event.args);
       let args;
       if (rawArgs && typeof rawArgs === "object") {
         args = {};
@@ -621,6 +679,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const rawDetails = event.result?.details || {};
       const toolSummary = {};
       const toolName = event.toolName || "";
+      const normalizedArgs = normalizeToolArgsForSummary(toolName, event.args) || {};
 
       if (toolName === "edit" || toolName === "edit-diff") {
         // edit 工具返回 diff 和 firstChangedLine
@@ -633,10 +692,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           }
           toolSummary.linesAdded = added;
           toolSummary.linesRemoved = removed;
-          toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+          toolSummary.filePath = normalizedArgs.file_path || normalizedArgs.path || "";
         }
       } else if (toolName === "write") {
-        toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+        toolSummary.filePath = normalizedArgs.file_path || normalizedArgs.path || "";
         // 从 result content 中提取写入的字节数信息
         const text = extractText(event.result?.content);
         const bytesMatch = text.match(/(\d+)\s*bytes/i);
@@ -645,7 +704,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         const text = extractText(event.result?.content);
         // 取输出的前 200 字符作为预览
         if (text) toolSummary.outputPreview = text.slice(0, 200);
-        toolSummary.command = (event.args?.command || "").slice(0, 80);
+        toolSummary.command = (normalizedArgs.command || "").slice(0, 80);
         if (rawDetails.truncation) {
           toolSummary.totalLines = rawDetails.truncation.totalLines;
           toolSummary.truncated = true;
@@ -661,7 +720,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         const text = extractText(event.result?.content);
         if (text) toolSummary.outputPreview = text.slice(0, 200);
       } else if (toolName === "read") {
-        toolSummary.filePath = event.args?.file_path || event.args?.path || "";
+        toolSummary.filePath = normalizedArgs.file_path || normalizedArgs.path || "";
         const text = extractText(event.result?.content);
         if (text) {
           const lineCount = text.split("\n").length;
@@ -676,6 +735,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         details: rawDetails,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
+
+      if (!event.isError) {
+        rememberSuccessfulTool(ss, toolName, toolSummary, normalizedArgs);
+      }
 
       if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
         if (event.isError || !rawDetails.diff) {
@@ -991,6 +1054,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
       const isToolDidNotProduceText = ss.hasToolCall && visibleLen < 5;
       const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
+      const hasSuccessfulLocalTool = (ss.lastSuccessfulTools || [])
+        .some((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
+      const localToolSuccessFallback = hasSuccessfulLocalTool && isToolDidNotProduceText
+        ? buildLocalToolSuccessFallback(ss)
+        : "";
 
       // [TOOL-FINALIZE-RETRY v1] 工具真调完但无 final text · 主动 retry
       // 其他两个场景(incomplete_pending / thinking_only)仍走原 fallback msg 路径
@@ -998,9 +1066,15 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         isActive &&
         !ss.hasError &&
         isToolDidNotProduceText &&
+        !localToolSuccessFallback &&
         !ss.toolFinalizationRetryAttempted;
 
-      if (shouldRetryToolFinalize) {
+      if (localToolSuccessFallback && isActive && !ss.hasError) {
+        emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: localToolSuccessFallback });
+        ss.visibleTextAcc += localToolSuccessFallback;
+        ss.hasOutput = true;
+        debugLog()?.warn("ws", `[LOCAL-TOOL-SUCCESS-FALLBACK v1] emitted · tools=${(ss.lastSuccessfulTools || []).map(t => t.name).join(",")} · ${sessionPath}`);
+      } else if (shouldRetryToolFinalize) {
         // 不 emit fallback msg · 让 retry 产生的 turn 承担最终答案
         ss.toolFinalizationRetryAttempted = true;
         debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] will retry · session=${sessionPath}`);
@@ -1330,7 +1404,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   effectivePromptText = `${budgetContext}\n\n【用户原始问题】\n${promptText}`;
                 }
                 let directResearchAnswer = "";
-                if (reportKind) {
+                const currentModelInfo = resolveCurrentModelInfo(engine);
+                // Brain/default model now owns tool routing on the server side.
+                // Do not inject local prefetch evidence or scenario contracts into the
+                // user prompt, otherwise the user-visible transcript can leak internal
+                // guidance and the Brain router loses its chance to choose tools itself.
+                if (reportKind && !currentModelInfo.isBrain) {
                   const toolName = prefetchToolNameForKind(reportKind);
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
                   try {

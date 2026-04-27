@@ -43,6 +43,11 @@ import {
   classifyRouteIntent,
   ROUTE_INTENTS,
 } from "../shared/task-route-intent.js";
+import { buildScenarioContractHintForText } from "../shared/scenario-contracts.js";
+import {
+  isNativeToolCallingDisabled,
+  routeIntentRequiresNativeTools,
+} from "../shared/model-tool-capabilities.js";
 import { containsPseudoToolCallSimulation } from "./llm-utils.js";
 
 const log = createModuleLogger("session");
@@ -64,6 +69,24 @@ export const PATROL_TOOLS_DEFAULT = [
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
+}
+
+function buildRouteAndScenarioHint(text, routeIntent, opts = {}) {
+  const locale = opts.locale || getLocale();
+  return [
+    buildRouteIntentSystemHint(routeIntent, locale),
+    buildScenarioContractHintForText(text, {
+      locale,
+      imagesCount: opts.imagesCount || 0,
+      attachmentsCount: opts.attachmentsCount || 0,
+      audioCount: opts.audioCount || 0,
+    }),
+  ].filter(Boolean).join("\n");
+}
+
+function shouldInjectLocalRoutePromptHints() {
+  const flag = String(process?.env?.LYNN_LOCAL_ROUTE_PROMPT_HINTS || "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
 }
 
 function toSessionPromptOptions(images) {
@@ -110,6 +133,7 @@ const STANDARD_CUSTOM_TOOLS = new Set([
  */
 function filterCustomToolsByTier(customTools, tier) {
   if (!tier || tier === "full") return customTools;
+  if (tier === "none") return [];
   const allowed = tier === "minimal" ? MINIMAL_CUSTOM_TOOLS : STANDARD_CUSTOM_TOOLS;
   return customTools.filter(t => allowed.has(t.name));
 }
@@ -120,11 +144,32 @@ function filterCustomToolsByTier(customTools, tier) {
  */
 function resolveToolTier(model) {
   if (!model) return null;
+  if (isNativeToolCallingDisabled(model)) return "none";
   const tier = lookupToolTier(model.provider, model.id);
   if (tier) return tier;
   // fallback: context < 32K → minimal
   const cw = model.contextWindow;
   if (cw && cw < 32_000) return "minimal";
+  return null;
+}
+
+function findToolCapableFallbackModel(models, agentRole = null, currentModel = null) {
+  const available = models?.availableModels || [];
+  const candidates = [
+    resolveRoleDefaultModel(available, agentRole),
+    models?.defaultModel,
+    findModel(available, "lynn-brain-router", "brain"),
+    ...available.filter((model) => model?.provider === "brain"),
+  ].filter(Boolean);
+
+  const currentKey = currentModel ? `${currentModel.provider || ""}/${currentModel.id || ""}` : "";
+  const seen = new Set();
+  for (const candidate of candidates) {
+    const key = `${candidate.provider || ""}/${candidate.id || ""}`;
+    if (!candidate?.id || seen.has(key) || key === currentKey) continue;
+    seen.add(key);
+    if (!isNativeToolCallingDisabled(candidate)) return candidate;
+  }
   return null;
 }
 const MAX_CACHED_SESSIONS = 20;
@@ -394,7 +439,7 @@ export class SessionCoordinator {
           if (sessionEntry._atInjectionHintContext) {
             extras.push(sessionEntry._atInjectionHintContext);
           }
-          if (sessionEntry._routeIntentHintContext) {
+          if (shouldInjectLocalRoutePromptHints() && sessionEntry._routeIntentHintContext) {
             extras.push(sessionEntry._routeIntentHintContext);
           }
           const providerToolCallHint = buildProviderToolCallHint({
@@ -506,8 +551,8 @@ export class SessionCoordinator {
 
             // P3: 计划模式引导
             extras.push(isZh
-              ? "如果任务需要 3 步以上的操作，先把计划列出来告诉用户，等用户确认后再逐步执行。不要一口气做完所有步骤。"
-              : "If a task requires more than 3 steps, list the plan for the user first and wait for confirmation before executing step by step. Do not complete all steps at once."
+              ? "对于用户已经明确要求的本地整理、移动、创建、读取、安装等任务，在执行模式下应继续使用真实工具完成到可验证结果，不要只列计划或停在第一步。只有路径不明确、可能删除/覆盖重要数据、需要 sudo/系统目录/远程脚本等高风险操作时，才先向用户确认。"
+              : "For clearly requested local organize/move/create/read/install tasks, continue using real tools in execute mode until there is a verifiable result; do not stop after planning or the first step. Ask for confirmation first only when paths are ambiguous, important data may be deleted/overwritten, or the action needs sudo/system paths/remote scripts."
             );
           } else {
             const importancePrompt = isZh
@@ -586,9 +631,15 @@ export class SessionCoordinator {
 
     // P0: 按模型能力裁剪自定义工具集
     const toolTier = resolveToolTier(effectiveModel);
+    const nativeToolsDisabled = isNativeToolCallingDisabled(effectiveModel);
     const filteredCustomTools = filterCustomToolsByTier(sessionCustomTools, toolTier);
+    const effectiveSessionTools = nativeToolsDisabled ? [] : sessionTools;
+    const effectiveCustomTools = nativeToolsDisabled ? [] : filteredCustomTools;
     if (toolTier && toolTier !== "full") {
       log.log(`toolTier=${toolTier}: ${filteredCustomTools.length}/${sessionCustomTools.length} custom tools`);
+    }
+    if (nativeToolsDisabled) {
+      log.warn(`[model-tools] native tool calling disabled for ${effectiveModel?.provider || "?"}/${effectiveModel?.id || effectiveModel?.name || "?"}`);
     }
 
     const clientAgentKey = readClientAgentKeyFromPreferencesFile();
@@ -606,8 +657,8 @@ export class SessionCoordinator {
       model: effectiveModel,
       thinkingLevel: models.resolveThinkingLevel(this._d.getPrefs().getThinkingLevel()),
       resourceLoader,
-      tools: sessionTools,
-      customTools: filteredCustomTools,
+      tools: effectiveSessionTools,
+      customTools: effectiveCustomTools,
       ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
       ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
     });
@@ -715,6 +766,7 @@ export class SessionCoordinator {
       securityMode: initialSecurityMode,
       modelId: effectiveModel?.id || null,
       modelProvider: effectiveModel?.provider || null,
+      nativeToolCallingDisabled: nativeToolsDisabled,
       lastTouchedAt: Date.now(),
       unsub,
       _lastRecallContext: "", // Phase 1: 主动召回上下文（一次性消费）
@@ -844,9 +896,10 @@ export class SessionCoordinator {
           entry._lastRecallContext = "";
         }
         entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
-        entry._routeIntentHintContext = buildRouteIntentSystemHint(
+        entry._routeIntentHintContext = buildRouteAndScenarioHint(
+          text,
           entry._routeIntentValue,
-          getLocale(),
+          { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
         );
         try {
           const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
@@ -857,6 +910,7 @@ export class SessionCoordinator {
           entry._lastSkillHintContext = "";
         }
         entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
+        await this._maybeRouteAroundBrokenToolModel(entry, entry._routeIntentValue, agent, sp);
       }
     }
 
@@ -937,9 +991,10 @@ export class SessionCoordinator {
       entry._lastRecallContext = "";
     }
     entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
-    entry._routeIntentHintContext = buildRouteIntentSystemHint(
+    entry._routeIntentHintContext = buildRouteAndScenarioHint(
+      text,
       entry._routeIntentValue,
-      getLocale(),
+      { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
     );
     try {
       const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
@@ -950,6 +1005,7 @@ export class SessionCoordinator {
       entry._lastSkillHintContext = "";
     }
     entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
+    await this._maybeRouteAroundBrokenToolModel(entry, entry._routeIntentValue, agent, sessionPath);
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     // 非 vision 模型：静默剥离图片（与 bridge-session-manager 保持一致）
@@ -1045,6 +1101,19 @@ export class SessionCoordinator {
     const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
     const config = SECURITY_MODE_CONFIG[effectiveMode];
     const { tools, customTools } = this._buildSessionTools(entry, effectiveMode);
+    const modelRef = entry.session?.model
+      || (entry.modelId ? { id: entry.modelId, provider: entry.modelProvider } : null);
+    const nativeToolsDisabled = isNativeToolCallingDisabled(modelRef);
+    if (nativeToolsDisabled) {
+      entry.nativeToolCallingDisabled = true;
+      entry.securityMode = effectiveMode;
+      entry.planMode = effectiveMode === SecurityMode.PLAN;
+      entry.session._customTools = [];
+      entry.session._baseToolsOverride = {};
+      entry.session._buildRuntime({ activeToolNames: [] });
+      log.warn(`[model-tools] runtime tools disabled for ${modelRef?.provider || "?"}/${modelRef?.id || modelRef?.name || "?"}`);
+      return;
+    }
     const baseToolsOverride = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
     const customNames = (customTools || []).map((tool) => tool.name);
     const activeToolNames = config.toolsRestricted
@@ -1053,6 +1122,7 @@ export class SessionCoordinator {
 
     entry.securityMode = effectiveMode;
     entry.planMode = effectiveMode === SecurityMode.PLAN;
+    entry.nativeToolCallingDisabled = false;
     entry.session._customTools = customTools || [];
     entry.session._baseToolsOverride = baseToolsOverride;
     entry.session._buildRuntime({ activeToolNames });
@@ -1154,9 +1224,45 @@ export class SessionCoordinator {
       entry.modelId = model.id || null;
       entry.modelProvider = model.provider || null;
       entry.lastTouchedAt = Date.now();
+      entry.nativeToolCallingDisabled = isNativeToolCallingDisabled(model);
+      this._applySessionToolRuntime(sp);
     }
 
     return { appliedToSession: true, pendingOnly: false };
+  }
+
+  async _maybeRouteAroundBrokenToolModel(entry, routeIntent, agent, sessionPath) {
+    if (!entry?.session || !routeIntentRequiresNativeTools(routeIntent)) return false;
+    const currentModel = entry.session.model
+      || (entry.modelId ? { id: entry.modelId, provider: entry.modelProvider } : null);
+    if (!isNativeToolCallingDisabled(currentModel)) return false;
+
+    const models = this._d.getModels();
+    const agentRole = agent?.config?.agent?.yuan || agent?.yuan || null;
+    const fallback = findToolCapableFallbackModel(models, agentRole, currentModel);
+    if (!fallback || typeof entry.session.setModel !== "function") {
+      const isZh = getLocale().startsWith("zh");
+      entry._lastRecallContext = [
+        entry._lastRecallContext || "",
+        isZh
+          ? "【系统提示】当前模型的原生工具调用已被关闭，因为该模型在带 tools 参数时会死循环。若本轮需要读取文件、查询行情、天气或运行命令，请切换到默认工作模型或其它工具兼容模型。"
+          : "[System] Native tool calling is disabled for the current model because it loops when tools are provided. Switch to the default work model or another tool-compatible model for files, market data, weather, or commands.",
+      ].filter(Boolean).join("\n");
+      return false;
+    }
+
+    const switched = await entry.session.setModel(fallback);
+    if (switched === false) return false;
+    entry.modelId = fallback.id || null;
+    entry.modelProvider = fallback.provider || null;
+    entry.nativeToolCallingDisabled = false;
+    entry.lastTouchedAt = Date.now();
+    this._applySessionToolRuntime(sessionPath);
+    const from = `${currentModel?.provider || "?"}/${currentModel?.id || currentModel?.name || "?"}`;
+    const to = `${fallback.provider || "?"}/${fallback.id || fallback.name || "?"}`;
+    log.warn(`[model-tools] routed tool-required turn away from ${from} -> ${to}`);
+    this._d.emitDevLog?.(`工具任务已从不兼容模型切换到 ${fallback.name || fallback.id}`, "warn");
+    return true;
   }
 
   /** 中断所有正在 streaming 的 session */
