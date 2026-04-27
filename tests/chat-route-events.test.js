@@ -227,6 +227,144 @@ describe("chat route event forwarding", () => {
     }));
   });
 
+  it("suppresses pseudo bash XML even after a real tool call already ran", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "移动下载文件夹的 pdf 文件到 pdf 文件夹" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_ls",
+      toolName: "bash",
+      args: { command: "ls -la /Users/licheng/Downloads | head" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_ls",
+      toolName: "bash",
+      args: { command: "ls -la /Users/licheng/Downloads | head" },
+      result: { output: "a.pdf\nb.pdf\n" },
+      isError: false,
+    }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: [
+          "好的，我来执行。先创建 PDF 文件夹，然后移动所有 PDF 文件。",
+          "",
+          "<bash>",
+          "mkdir -p \"/Users/licheng/Downloads/pdf\"",
+          "find \"/Users/licheng/Downloads\" -maxdepth 1 -type f -iname \"*.pdf\" -exec mv {} \"/Users/licheng/Downloads/pdf/\" \\;",
+          "</bash>",
+        ].join("\n"),
+      },
+    }, "/sessions/current.jsonl");
+
+    expect(engine.steerSession).toHaveBeenCalled();
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).not.toContain("<bash>");
+    expect(visibleText).not.toContain("mkdir -p");
+  });
+
+  it("suppresses fragmented pseudo web_search XML across streaming chunks", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "明天深圳会下雨吗？" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "<web_search>" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "\n深圳 2026年4月28日 天气预报\n" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "</web_search>" },
+    }, "/sessions/current.jsonl");
+
+    expect(engine.steerSession).toHaveBeenCalled();
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).not.toContain("<web_search>");
+    expect(visibleText).not.toContain("深圳 2026年4月28日 天气预报");
+  });
+
+  it("retries when a real tool ran but the assistant only says it will continue executing", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "把 /tmp/lynn-pdf-move-test 文件夹里的 pdf 文件移动到这个文件夹下新建的 pdf 文件夹里";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_ls",
+      toolName: "bash",
+      args: { command: "ls -la /tmp/lynn-pdf-move-test" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_ls",
+      toolName: "bash",
+      args: { command: "ls -la /tmp/lynn-pdf-move-test" },
+      result: { output: "a.pdf\nb.PDF\nnote.txt\n" },
+      isError: false,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "找到 2 个 PDF 文件（`a.pdf` 和 `b.PDF`），开始创建文件夹并移动。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_continuation",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("继续调用真实工具");
+    expect(retryPrompt).toContain("没有继续调用真实工具完成任务");
+    expect(retryPrompt).toContain(prompt);
+  });
+
   it("aborts the first silent Brain tool turn after the 25s grace window", async () => {
     vi.useFakeTimers();
     let rejectSend;
@@ -258,9 +396,9 @@ describe("chat route event forwarding", () => {
     }
   });
 
-  // [BYOK-EQUALITY · 2026-04-27 night] brain 模式下不再做本地预取 —— 工具决策权全交 brain/模型自己判断,
-  // 跟 BYOK 走同一套自主判断路径。测试反转:验证 brain 模式 prefetch 被 SKIP,事件流里没有 tool_start。
-  it("does NOT inject local prefetch when running on brain (lets brain own tool routing)", async () => {
+  // Brain 默认仍保留自主工具判断；但天气/金价/新闻这类实时直答必须有本地证据兜底，
+  // 否则远端模型一旦输出伪 web_search，用户只能看到“未检索到明确证据”。
+  it("injects local realtime prefetch for brain weather turns", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     let eventsBeforeModelCall = [];
@@ -279,16 +417,41 @@ describe("chat route event forwarding", () => {
 
     await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
 
-    // 关键:brain 模式不该出现本地 prefetch 的 tool_start/tool_end —— 那些应该让 brain 端真实调工具产生
-    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
+    expect(eventsBeforeModelCall).toContainEqual(expect.objectContaining({
       type: "tool_start",
       name: "weather",
+      sessionPath: "/sessions/current.jsonl",
     }));
-    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
+    expect(eventsBeforeModelCall).toContainEqual(expect.objectContaining({
       type: "tool_end",
       name: "weather",
+      success: true,
+      sessionPath: "/sessions/current.jsonl",
     }));
-    // buildReportResearchContext 也不该被调(brain 路径完全跳过本地预取)
+    expect(reportResearchMock.buildReportResearchContext).toHaveBeenCalled();
+  });
+
+  it("does not inject local prefetch for non-realtime brain turns", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    let eventsBeforeModelCall = [];
+    hub.send = vi.fn(async () => {
+      eventsBeforeModelCall = [...clients[0].sent];
+    });
+    reportResearchMock.inferReportResearchKind.mockReturnValue("generic");
+    reportResearchMock.buildReportResearchContext.mockResolvedValue("【系统已完成研究预取】");
+    reportResearchMock.buildReportResearchContext.mockClear();
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "帮我写一个普通研究计划" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+
+    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({ type: "tool_start" }));
     expect(reportResearchMock.buildReportResearchContext).not.toHaveBeenCalled();
   });
 
