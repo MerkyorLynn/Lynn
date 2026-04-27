@@ -112,13 +112,46 @@ describe("task route intent", () => {
     })).toBe("");
   });
 
-  it("adds strict tool-first hints for the default brain router on execution tasks", () => {
-    const hint = buildProviderToolCallHint({
+  it("does not add strict tool-first hints for the default brain router", () => {
+    expect(buildProviderToolCallHint({
       routeIntent: "utility",
       provider: "brain",
       modelId: "lynn-brain-router",
       locale: "zh",
+    })).toBe("");
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // [REGRESSION GUARANTEE · 2026-04-27 night]
+  // 文件管理动词 + "图片"宾语 不能再被 VISION_RE 误判 → 必须 UTILITY
+  // 原 bug:模型只 narrate 不 emit tool_call(因为被注入"按默认推理链路处理"系统提示)
+  // 这组测试通过 = 文件移动/整理图片不再走伪 tool_call 路径
+  // ─────────────────────────────────────────────────────────────────
+  describe("file-move-image regression guarantee (2026-04-27 night)", () => {
+    it("file-create + folder + 图片 noun → utility (not vision)", () => {
+      expect(classifyRouteIntent("桌面新建一个图片文件夹把桌面的图片都挪进去")).toBe("utility");
+      expect(classifyRouteIntent("桌面新建一个图片文件夹把桌面的图片都")).toBe("utility");  // 截断版本也要对
+      expect(classifyRouteIntent("帮我建一个图片目录")).toBe("utility");
     });
-    expect(hint).toContain("第一步就直接调用真实工具");
+
+    it("file-move verb + 图片 + 文件夹 → utility", () => {
+      expect(classifyRouteIntent("把下载文件夹的图片都放到下载图片文件夹里面")).toBe("utility");
+      expect(classifyRouteIntent("移动桌面上的所有图片到新文件夹")).toBe("utility");
+      expect(classifyRouteIntent("把这些图片挪进归档目录")).toBe("utility");
+    });
+
+    it("organize/cleanup verb + 图片 + 桌面/下载 → utility", () => {
+      expect(classifyRouteIntent("整理桌面图片")).toBe("utility");
+      expect(classifyRouteIntent("整理下载文件夹的图片")).toBe("utility");
+      expect(classifyRouteIntent("清理桌面图片文件")).toBe("utility");
+      expect(classifyRouteIntent("把下载里的图片归档到 Pictures")).toBe("utility");
+    });
+
+    it("ensure pure vision (无文件管理动词) still goes to vision", () => {
+      // 反向 sanity check:真正的图像分析不能被 FILE_OPS_RE 误吃
+      expect(classifyRouteIntent("看图说话")).toBe("vision");
+      expect(classifyRouteIntent("识别一下这张截图里的文字")).toBe("vision");
+      expect(classifyRouteIntent("OCR 提取图片内容", { imagesCount: 1 })).toBe("vision");
+    });
   });
 });
