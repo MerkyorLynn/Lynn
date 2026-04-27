@@ -20,7 +20,27 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.76.7</strong> · 2026-04-27 · TTS end-to-end + Voice Phase 1 + CSP media-src fix <em>(latest)</em></summary>
+<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 rollback + file management fix <em>(latest)</em></summary>
+
+- 🚨 **Emergency Spark rollback PRISM-NVFP4 → Qwen3.6-35B-A3B-FP8 + SGLang+MTP**: the heretic safety-removal pipeline broke tool-call decisiveness; curl-verified reasoning deadloop at 2048 tokens with no tool_call emitted. FP8 + "首先" injection + NEXTN MTP restored immediately.
+- 🧠 **BYOK-equality refactor**: Lynn client no longer uses "scenario contracts + prefetch + force tools" to override routing — brain now follows the same autonomous-judgment path as BYOK (GPT/Claude/Kimi direct).
+- 🔧 **File management classification fix**: verbs like "create / move / organize" + folder/directory/image objects always route to UTILITY/local_automation, no longer misclassified as vision/multimedia by the bare "image" keyword.
+- 🛡️ **6 brain server patches**: HYBRID-1 (hasGpuTools→max=32K) / HYBRID-3 (reasoning guardrail) / B1 (`__needsFileTools`) / B2 (tightened `__isFileEditIntent`) / LYNN BYOK-equality / loop-breaker v4 (log-only, no enforcement — allows legitimate multi-step ls→mkdir→mv).
+- 🤖 **New LLM Triage v1**: regex + Spark FP8 hybrid classifier with 5min cache, auto fallback to regex when Spark unreachable.
+- 🛠️ **Bash args normalization**: tool-wrapper auto-coerces query/cmd/shell/script into `command`, recovering from Spark's occasional schema slip.
+- 🎤 **Recording min-size guard**: PressToTalkButton rejects <1KB blob or <0.4s duration to prevent sensevoice 500 EBML header errors.
+- ⌨️ **IME triple-OR**: `isComposing || nativeEvent.isComposing || keyCode === 229` — the last Chinese segment no longer drops on Enter submit.
+- 🔇 **Empty-answer fallback**: when the model only thinks but never produces text → retry button shown (5 locales added).
+- 🔠 **i18n**: Settings page Voice tab now displays "语音" (5 locales were missing the translation).
+- 🚫 **Pseudo tool-call detection & recovery**: when the model writes `<web_search>...` / `web_search(query=...)` as plain text instead of a real tool_call, brain auto-steers back to the real tool flow and the user never sees the broken text.
+- 🧪 **771/771 tests + 30 new regression cases** locking in "file-move-image never again misroutes to vision".
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.8)
+
+</details>
+
+<details>
+<summary><strong>v0.76.7</strong> · 2026-04-27 · TTS end-to-end + Voice Phase 1 + CSP media-src fix</summary>
 
 - 🗣️ **TTS playback wired up**: SenseVoice ASR + CosyVoice 1.0 SFT (7 built-in speakers), beige 🎤 button → ssh tunnel → frp → DGX docker
 - 🎙️ **B-mode press-and-lock**: hold 600ms to lock continuous recording, tap again to stop
