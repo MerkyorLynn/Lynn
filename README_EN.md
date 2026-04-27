@@ -17,6 +17,95 @@
 
 ---
 
+## 🆕 Recent Updates
+
+<details>
+<summary><strong>v0.76.7</strong> · 2026-04-27 · TTS end-to-end + Voice Phase 1 + CSP media-src fix <em>(latest)</em></summary>
+
+- 🗣️ **TTS playback wired up**: SenseVoice ASR + CosyVoice 1.0 SFT (7 built-in speakers), beige 🎤 button → ssh tunnel → frp → DGX docker
+- 🎙️ **B-mode press-and-lock**: hold 600ms to lock continuous recording, tap again to stop
+- 🔌 **Provider Registry framework**: Alibaba stack as default + 4 BYOK fallbacks (Faster Whisper / OpenAI Whisper / Azure / Edge TTS)
+- 🔧 **CSP media-src fix**: vite CSP_PROFILES now allows `blob:` URLs to be loaded by Audio elements (the actual blocker for this release)
+- 🛠️ **vite hono external**: vite.config.server.js fix so plugin dynamic imports resolve correctly
+- 🪟 **IME stability**: Chinese input candidate switching no longer jitters; thinking blocks collapsed by default
+- 📦 **3-platform notarization**: macOS Apple Silicon + Intel + Windows all notarized, mirror site synced
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.7)
+
+</details>
+
+<details>
+<summary><strong>v0.76.6</strong> · 2026-04-21 · Tools enhancement + research path + OAuth + 715 tests green</summary>
+
+- 📈 **stock-market tool overhaul** (+425 lines): multi-source quotes + fault tolerance + 4 new tests
+- 🧠 **Research context expansion** (+428 lines): structured weather/stock data injection, fused research path
+- 🔧 **LLM client refactor** (+188 lines): provider-aware request building, more stable across providers
+- 💭 **ThinkTag/XingParser expansion**: thinking-chain parsing covers 5 more scenarios
+- 🔐 **OAuth path fix**: Lynn OAuth provider id correctly maps to auth.json
+- 🎯 **Turn isolation TURN-FENCE v1**: when previous turn aborts with no output, next turn auto-isolates to avoid reading residue
+- 🧪 **Tests**: 4 new + 7 expanded, `715/715 vitest all green`
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.6)
+
+</details>
+
+<details>
+<summary><strong>v0.76.5</strong> · 2026-04-21 · Encoding cleanup + local office answers + vision arg fix</summary>
+
+- Encoding cleanup: intermittent garbled characters in LLM output now intercepted
+- Local office answers: simple office math handled locally to avoid LLM mental-arithmetic errors
+- Vision argument regression fixed (9 tests)
+- Tool intent narrowing: fewer false-positive tool triggers
+
+</details>
+
+<details>
+<summary><strong>v0.76.4</strong> · 2026-04-20 · ThinkTagParser v2 + FAKE-PROGRESS-GUARD v2 + 25s TTFT timer</summary>
+
+- **ThinkTagParser v2**: thinking-tag parsing rewritten to handle more model formats
+- **FAKE-PROGRESS-GUARD v2**: blocks LLMs from fabricating tool_progress messages
+- **25s TTFT timer**: time-to-first-token timeout fallback for steadier UX
+- **vLLM back to real A3B** (server-side): fixes prior version mistakenly using a dense model
+- QA quality score: 1.3 → 4.42
+
+</details>
+
+<details>
+<summary><strong>v0.76.3</strong> · 2026-04-19/20 · True streaming + Diff view + Brain concurrency 3×</summary>
+
+- 20-hour marathon: true-streaming refactor, 10+ brain patches
+- **vLLM tuning**: KV pool capacity 4×
+- **WritingDiffViewer**: word-level red-strike / green-add, designed for writing
+- **Loop-breaker v2**: detects tool-call infinite loops
+- **Review routing**: cross-session task tracking
+
+</details>
+
+<details>
+<summary><strong>v0.76.2</strong> · 2026-04-18 · Intel crash fix + tool aliases + Chinese thinking</summary>
+
+- Fixed Intel Mac startup crash
+- 6 tool-name aliases (read_file → read, etc.)
+- Chinese thinking hit rate 91%
+- ThinkingBlock R1-style rendering
+
+</details>
+
+<details>
+<summary><strong>v0.76.1</strong> · 2026-04-17 · Task mode switching + on-demand MCP</summary>
+
+- **Task mode chips**: ⚡ Auto / 📖 Fiction / 🖋️ Long-form / 🌶️ Social / ⌘ Code / 💼 Business / 🌐 Translate / 🔬 Research / 📝 Notes
+- 7 social-mode slash commands (`/xhs` `/gzh` `/weibo` `/douyin` `/zhihu` `/hashtags` `/titles`)
+- **On-demand MCP servers**: 0 MCP tools by default, enable per-need so the model isn't slowed down
+- IME bug fix
+- GPU 64K context support
+
+</details>
+
+👉 [Full release history · GitHub Releases](https://github.com/MerkyorLynn/Lynn/releases)
+
+---
+
 ## What is Lynn
 
 Lynn is a personal AI agent that is easier to use than traditional coding agents. It has memory, personality, and can act autonomously. Multiple agents can work together on your machine.
