@@ -24,7 +24,9 @@ const STOCK_ANALYSIS_RE = /(?:股票|股价|个股|A股|a股|科创板|创业板
 const GENERIC_RESEARCH_RE = /(?=.*(?:调研|研究|分析|评估|对比|比较|判断|怎么看|报告|预测|整理|汇总))(?=.*(?:最新|数据|资料|来源|公司|行业|市场|政策|公告|财报|研报|楼盘|房价|成交|竞品|价格|估值|市值|PDF|文档|报表|合同|产品|品牌))/i;
 const WEATHER_LOOKUP_RE = /(?:天气|气温|温度|预报|冷不冷|热不热|下雨|下雪|多少度|几度|紫外线|空气质量|湿度|风力|体感)/i;
 const SPORTS_LOOKUP_RE = /(?:比分|赛程|排名|战绩|湖人|勇士|NBA|CBA|英超|中超|欧冠|世界杯|比赛结果)/i;
-const MARKET_LOOKUP_RE = /(?:金价|黄金|白银|油价|原油|汇率|美元|人民币|指数|基金|ETF|etf|股价|股票|行情|收盘|涨跌|现价|最新价|美股|港股|A股|a股|纳指|道指|标普|AAPL|TSLA|NVDA|MSFT|GOOGL|AMZN|META|\$[A-Z]{1,5}\b)/i;
+const MARKET_LOOKUP_RE = /(?:金价|黄金|白银|油价|原油|汇率|美元|人民币|指数|基金|ETF|etf|股价|股票|行情|收盘|涨跌|现价|最新价|美股|港股|A股|a股|恒生|恒指|纳指|道指|标普|AAPL|TSLA|NVDA|MSFT|GOOGL|AMZN|META|\$[A-Z]{1,5}\b)/i;
+const STOCK_BASKET_LOOKUP_RE = /(?:港股.{0,8}科技股?|科技股?.{0,8}港股|恒生科技(?!指数)|港股互联网|港股.{0,8}互联网|中概科技|(?:美股|纳斯达克|纳指|七巨头|magnificent|mag7).{0,12}(?:科技股?|AI|人工智能|芯片|半导体|互联网)|(?:科技股?|AI|人工智能|芯片|半导体|互联网).{0,12}(?:美股|纳斯达克|纳指|七巨头|magnificent|mag7)|(?:A股|a股|沪深|科创|创业板).{0,12}(?:AI|人工智能|算力|服务器|光模块|CPO|高速连接|科技股?|半导体|芯片|新能源|电动车|锂电|光伏|机器人|人形机器人|券商|证券|白酒|消费)|(?:AI|人工智能|算力|服务器|光模块|CPO|高速连接|科技股?|半导体|芯片|新能源|电动车|锂电|光伏|机器人|人形机器人|券商|证券|白酒|消费).{0,12}(?:A股|a股|沪深|科创|创业板))/i;
+const CONCEPT_STOCK_LOOKUP_RE = /(?:概念股|概念板块|板块|行业|题材|赛道|龙头|成分股|产业链|科技股)/i;
 const MARKET_WEATHER_BRIEF_RE = /(?:机场|出行|着装|穿什么|穿搭|行动建议|浦东|虹桥|登机|航班|明早|早班机|数据快照|行动建议)/i;
 const LIVE_NEWS_LOOKUP_RE = /(?=.*(?:今天|今日|今晚|最新|实时|进展|消息|新闻|报道|发生|了吗|如何|怎么样|快讯|热点))(?=.*(?:AI|人工智能|科技|大模型|模型|Gemini|OpenAI|Anthropic|Claude|芯片|半导体|机器人|美伊|伊朗|美国|中东|巴以|以色列|巴勒斯坦|俄乌|俄罗斯|乌克兰|关税|制裁|冲突|停火|谈判|选举|地震|台风|事故|发布|宣布|外交|战争|袭击|股市|市场|公司|政策))/i;
 const EXTERNAL_RESEARCH_INTENT_RE = /(?:最新|实时|今天|今日|联网|搜索|查询|查一下|找一下|资料|来源|链接|官网|网页|公开信息|公告|财报|研报|新闻|政策|PDF|文档|市场数据|行业数据|竞品)/i;
@@ -118,10 +120,18 @@ export function inferReportResearchKind(text) {
   if (WEATHER_LOOKUP_RE.test(normalized) && MARKET_LOOKUP_RE.test(normalized) && MARKET_WEATHER_BRIEF_RE.test(normalized)) {
     return "market_weather_brief";
   }
+  if ((STOCK_BASKET_LOOKUP_RE.test(normalized) || CONCEPT_STOCK_LOOKUP_RE.test(normalized))
+    && /(?:现在|今日|今天|最新|当前|表现|行情|报价|涨跌幅|涨跌|收盘|盘中|看一下|怎么样|如何)/.test(normalized)
+    && !/(?:深度|报告|长期|未来|预测|估值|基本面|技术面|研报|三种情景|操作计划)/.test(normalized)) {
+    return "market";
+  }
   const promptKind = inferReportPromptKind(normalized);
   if (promptKind) return promptKind;
 
   const target = extractStockTargetForResearch(normalized);
+  const simpleQuoteIntent = /(?:现在|今日|今天|最新|当前|多少|价格|股价|行情|报价|涨跌幅|涨跌|来源)/.test(normalized);
+  const analysisIntent = /(?:支撑位|压力位|K线|k线|均线|成交量|成交额|筹码|止损|止盈|目标价|怎么看|走势|分析|研究|深度|报告|未来|预测|估值|市值|基本面|技术面|资金|财报|研报|公告|解禁|减持|三种情景|操作计划)/.test(normalized);
+  if ((target.name || target.code) && MARKET_LOOKUP_RE.test(normalized) && simpleQuoteIntent && !analysisIntent) return "market";
   if ((target.name || target.code) && STOCK_ANALYSIS_RE.test(normalized)) return "stock";
   if (/支撑位|压力位|K线|k线|均线|成交量|成交额|筹码|止损|止盈|目标价/.test(normalized)
     && /(?:\b[0368]\d{5}\b|股票|股价|个股|A股|a股|科创板|创业板|华丰科技)/.test(normalized)) {
@@ -618,8 +628,8 @@ function parseGoldSummary(context) {
   const bars = findLine(/银行投资金条/);
   const recovery = findLine(/黄金回收/);
   const examples = findLine(/示例品牌/);
-  const sge = findLine(/上海黄金交易所/);
-  const sgeAlt = findLine(/\bAu99\.99\b|\bAu9999\b/);
+  const sge = findLine(/(?:上海黄金交易所|上金所).*\d{3,5}(?:\.\d+)?.*元\/克/);
+  const sgeAlt = findLine(/(?:\bAu99\.99\b|\bAu9999\b).*\d{3,5}(?:\.\d+)?.*元\/克/);
   const shuibei = findLine(/水贝黄金|深圳水贝/);
   const international = findLine(/国际现货黄金|XAU\/USD|伦敦金/);
   if (!jewelry && !bars && !recovery && !sge && !sgeAlt && !shuibei && !international) return null;
@@ -733,7 +743,7 @@ export function buildDirectResearchAnswer(kind, context, userPrompt = "") {
     if (/原油|油价|布伦特|WTI|crude|oil/i.test(prompt)) {
       return buildDirectOilAnswer(context);
     }
-    if (/AAPL|TSLA|股价|行情|报价|最新价|最近可用/i.test(prompt)) {
+    if (/AAPL|TSLA|股票|股价|行情|报价|最新价|最近可用|概念股|概念板块|板块|题材|赛道|成分股|科技股|表现/i.test(prompt)) {
       return buildDirectMarketAnswer(context);
     }
   }
