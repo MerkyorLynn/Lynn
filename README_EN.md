@@ -20,7 +20,14 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 rollback + file management fix <em>(latest)</em></summary>
+<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 rollback + file management fix + bash schema fallback + recording permission UX <em>(latest)</em></summary>
+
+**Hotpatch #3 (2026-04-28 early morning)**:
+- 🛠️ **Bash tool schema consistency**: `extractToolDetail` / `TOOL_ARG_SUMMARY_KEYS` / `normalizeToolArgsForSummary` all accept `cmd/shell/script` aliases; Spark emitting `{cmd:"..."}` no longer renders as empty "执行 命令".
+- 🎤 **Recording permission friendly hint**: when user records ≥0.4s but blob<1KB, recognized as macOS microphone TCC ghost permission; UI tells user to re-authorize Lynn in System Settings + restart app.
+- 🔏 **install:local no longer drops permissions**: `sign-local.cjs` defaults to Developer ID instead of ad-hoc, keeping cdhash consistent with electron-builder so macOS TCC no longer treats Lynn.app as a "new app" requiring re-authorization on every reinstall.
+- 📝 **Brain long-answer stability** (server-side): `max_tokens` simple 1500→4000 / longForm 6000→8000; `__longFormRx` matches Chinese long-answer keywords (介绍/说说/讲讲/写一段/简介/教程...); `temperature` 0.6→0.4 for consistent re-asks.
+
 
 - 🚨 **Emergency Spark rollback PRISM-NVFP4 → Qwen3.6-35B-A3B-FP8 + SGLang+MTP**: the heretic safety-removal pipeline broke tool-call decisiveness; curl-verified reasoning deadloop at 2048 tokens with no tool_call emitted. FP8 + "首先" injection + NEXTN MTP restored immediately.
 - 🧠 **BYOK-equality refactor**: Lynn client no longer uses "scenario contracts + prefetch + force tools" to override routing — brain now follows the same autonomous-judgment path as BYOK (GPT/Claude/Kimi direct).
