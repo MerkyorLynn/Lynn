@@ -173,6 +173,19 @@ export function PressToTalkButton({
     console.log(`[PTT] blob size=${blob.size} bytes, chunks=${chunksRef.current.length}, duration=${duration}s`);
     chunksRef.current = [];
 
+    // [voice-min-size guard · 2026-04-27 night] 防止短按/空 blob 触发 sensevoice 500 EBML header 错位
+    // 实测:< 1KB 的 WebM 是 header-only/不完整,ffmpeg 解码必败,server 返回 500
+    // 改为前端早拦截 + 友好提示,不浪费一次后端调用
+    if (blob.size < 1024 || duration < 0.4) {
+      const reason = blob.size < 1024
+        ? `(blob ${blob.size}B 太小,可能麦克风没拿到音频)`
+        : `(只录了 ${duration.toFixed(2)}s,太短)`;
+      setError(`录音太短,请按住说一句话再松开 ${reason}`);
+      setState("idle");
+      setPartialText("");
+      return;
+    }
+
     try {
       let finalText = "";
       if (mockMode) {
@@ -403,45 +416,4 @@ async function mockTranscribe(
     onPartial(s);
   }
   return segments[segments.length - 1];
-}
-
-// ============ 默认样式 (可自己用 tailwind 覆盖) ============
-// 内联到 <style data-ptt> 节点,组件首次挂载时插入
-const style = `
-.ptt-root { position: relative; display: inline-block; }
-.ptt-btn {
-  width: 48px; height: 48px; border-radius: 50%; border: 1px solid #30363d;
-  background: #21262d; color: #e6edf3; font-size: 22px; cursor: pointer;
-  transition: all 120ms ease; user-select: none;
-}
-.ptt-btn:hover { background: #30363d; }
-.ptt-btn--recording { background: #da3633; transform: scale(1.1); }
-.ptt-btn--busy { opacity: 0.7; cursor: progress; }
-.ptt-overlay {
-  position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
-  background: #161b22; border: 1px solid #30363d; border-radius: 12px;
-  padding: 12px 16px; min-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 100;
-}
-.ptt-waveform { display: block; }
-.ptt-duration { color: #ff7b72; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
-.ptt-hint { color: #8b949e; font-size: 11px; }
-.ptt-spinner {
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid #30363d; border-top-color: #58a6ff;
-  animation: ptt-spin 0.8s linear infinite;
-}
-@keyframes ptt-spin { to { transform: rotate(360deg); } }
-.ptt-partial { color: #e6edf3; font-size: 13px; max-width: 240px; text-align: center; }
-.ptt-error {
-  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-  background: #f85149; color: white; padding: 8px 12px; border-radius: 6px;
-  font-size: 12px; white-space: nowrap;
-}
-`;
-if (typeof document !== "undefined" && !document.querySelector("style[data-ptt]")) {
-  const el = document.createElement("style");
-  el.setAttribute("data-ptt", "");
-  el.textContent = style;
-  document.head.appendChild(el);
 }

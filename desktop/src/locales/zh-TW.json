@@ -167,7 +167,9 @@
     "compacting": "上下文壓縮中",
     "needWsConnection": "與助手連線已中斷，請等待重新連線或點選狀態列「重新連線」",
     "retry": "Retry",
-    "waitingTooLong": "這條回覆仍在處理中。Lynn 會持續接力預設模型的備援鏈路，盡量把這一輪任務完成。"
+    "waitingTooLong": "這條回覆仍在處理中。Lynn 會持續接力預設模型的備援鏈路，盡量把這一輪任務完成。",
+    "emptyAnswerHint": "模型只想了想，沒說出話來。可以點重試再試一次。",
+    "emptyAnswerRetry": "重試"
   },
   "markdown": {
     "runConfirm": {
@@ -584,6 +586,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社群平台",
+      "voice": "語音",
       "mcp": "MCP",
       "plugins": "附加功能",
       "about": "關於"

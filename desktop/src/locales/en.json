@@ -208,7 +208,9 @@
     "browserScreenshot": "Browser screenshot",
     "compacting": "Compacting context",
     "needWsConnection": "Disconnected from the assistant. Wait for reconnect or tap Reconnect in the status bar.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "emptyAnswerHint": "The model thought but didn't say anything. Tap retry to try again.",
+    "emptyAnswerRetry": "Retry"
   },
   "markdown": {
     "runConfirm": {
@@ -717,6 +719,7 @@
       "work": "Work",
       "skills": "Skills",
       "bridge": "Social",
+      "voice": "Voice",
       "mcp": "MCP",
       "plugins": "Add-ons",
       "about": "About"

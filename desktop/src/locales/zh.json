@@ -211,7 +211,9 @@
     "browserScreenshot": "浏览器截图",
     "compacting": "上下文压缩中",
     "needWsConnection": "与助手连接已断开，请等待重连或点击状态栏「重新连接」",
-    "retry": "Retry"
+    "retry": "Retry",
+    "emptyAnswerHint": "模型只想了想，没说出话来。可以点重试再试一次。",
+    "emptyAnswerRetry": "重试"
   },
   "markdown": {
     "runConfirm": {
@@ -730,6 +732,7 @@
       "work": "工作",
       "skills": "技能",
       "bridge": "社交平台",
+      "voice": "语音",
       "mcp": "MCP",
       "plugins": "附加功能",
       "about": "关于"

@@ -20,18 +20,8 @@ async function maybeStartMockSW() {
   }
 }
 
-async function pickRoot() {
-  // ?v077-demo · 显示 v0.77 组件视觉测试页(开发期专用)
-  if (import.meta.env.DEV && new URLSearchParams(location.search).has('v077-demo')) {
-    const { V077Demo } = await import('./components/v077-demo');
-    return <V077Demo />;
-  }
-  return <App />;
-}
-
 void (async () => {
   await maybeStartMockSW();
-  const node = await pickRoot();
   const el = document.getElementById('react-root');
-  if (el) createRoot(el).render(node);
+  if (el) createRoot(el).render(<App />);
 })();
