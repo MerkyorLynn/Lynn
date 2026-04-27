@@ -10,7 +10,20 @@ const path = require("path");
 
 const APP = process.env.LYNN_SIGN_APP || "/Applications/Lynn.app";
 const ENT = path.join(__dirname, "..", "desktop", "entitlements.mac.plist");
-const IDENTITY = process.env.CODESIGN_IDENTITY || "-";
+// 默认走 Developer ID 而不是 ad-hoc(`-`),避免 cdhash 变化后 macOS TCC 把
+// Lynn.app 当成"新 app",导致用户每次 install:local 都要重新授权麦克风/相机/文件等。
+// 找不到 Developer ID 证书时(纯 CI/无 keychain)再 fallback 到 ad-hoc。
+function detectDeveloperId() {
+  try {
+    const out = execSync(`security find-identity -v -p codesigning 2>/dev/null | grep -E "Developer ID Application" | head -1`, { encoding: "utf8" });
+    const m = out.match(/"(Developer ID Application: [^"]+)"/);
+    return m ? m[1] : null;
+  } catch (_) {
+    return null;
+  }
+}
+const DEFAULT_IDENTITY = detectDeveloperId() || "-";
+const IDENTITY = process.env.CODESIGN_IDENTITY || DEFAULT_IDENTITY;
 const TIMESTAMP = IDENTITY === "-" ? "" : "--timestamp=none";
 
 function strip(target) {

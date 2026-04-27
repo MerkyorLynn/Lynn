@@ -177,9 +177,15 @@ export function PressToTalkButton({
     // 实测:< 1KB 的 WebM 是 header-only/不完整,ffmpeg 解码必败,server 返回 500
     // 改为前端早拦截 + 友好提示,不浪费一次后端调用
     if (blob.size < 1024 || duration < 0.4) {
-      const reason = blob.size < 1024
-        ? `(blob ${blob.size}B 太小,可能麦克风没拿到音频)`
-        : `(只录了 ${duration.toFixed(2)}s,太短)`;
+      const isLikelyPermission = blob.size < 1024 && duration >= 0.4;
+      let reason: string;
+      if (isLikelyPermission) {
+        reason = `(录了 ${duration.toFixed(2)}s 但 blob 仅 ${blob.size}B — 麦克风权限没拿到音频。请到 系统设置 → 隐私与安全性 → 麦克风 重新授权 Lynn,或退出后重开 App)`;
+      } else if (blob.size < 1024) {
+        reason = `(blob ${blob.size}B 太小,可能麦克风没拿到音频)`;
+      } else {
+        reason = `(只录了 ${duration.toFixed(2)}s,太短)`;
+      }
       setError(`录音太短,请按住说一句话再松开 ${reason}`);
       setState("idle");
       setPartialText("");

@@ -40,7 +40,7 @@ import { AppError } from "../../shared/errors.js";
 import { errorBus } from "../../shared/error-bus.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
-const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
+const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "cmd", "shell", "script", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
 
 /**
  * 从 Pi SDK 的 content 块中提取纯文本
@@ -57,7 +57,7 @@ function extractText(content) {
 function normalizeToolArgsForSummary(toolName, rawArgs) {
   if (!rawArgs || typeof rawArgs !== "object" || Array.isArray(rawArgs)) return rawArgs;
   const args = { ...rawArgs };
-  if (toolName === "bash" && typeof args.command !== "string") {
+  if (toolName === "bash" && (typeof args.command !== "string" || !args.command.trim())) {
     for (const key of ["query", "cmd", "shell", "script"]) {
       if (typeof args[key] === "string" && args[key].trim()) {
         args.command = args[key];
