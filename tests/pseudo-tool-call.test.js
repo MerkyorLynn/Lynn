@@ -36,6 +36,9 @@ describe("pseudo tool call sanitizer", () => {
 
   it("detects pseudo tool simulation markers", () => {
     expect(containsPseudoToolSimulation('<tool_call>list_dir path="/tmp" limit="10"')).toBe(true);
+    expect(containsPseudoToolSimulation("<web_search>\n今日黄金价格 2026年4月27日\n</web_search>")).toBe(true);
+    expect(containsPseudoToolSimulation("<weather>\n深圳 2026年4月28日 天气预报\n</weather>")).toBe(true);
+    expect(containsPseudoToolSimulation("<stock_market>\n腾讯控股 股价\n</stock_market>")).toBe(true);
     expect(containsPseudoToolSimulation('<invoke name="exec"><parameter name="command">pwd</parameter></invoke>')).toBe(true);
     expect(containsPseudoToolSimulation("<read>\n<路径>/tmp/demo</路径>\n</read>")).toBe(true);
     expect(containsPseudoToolSimulation('stock_market(query="今天金价多少")')).toBe(true);
@@ -64,6 +67,9 @@ describe("pseudo tool call sanitizer", () => {
       "<read>",
       "<路径>/tmp/one</路径>",
       "</read>",
+      "<web_search>",
+      "深圳天气",
+      "</web_search>",
       '<invoke name="exec"><parameter name="command">pwd</parameter></invoke>',
     ].join("\n");
     expect(countPseudoToolMarkers(raw)).toBeGreaterThanOrEqual(4);

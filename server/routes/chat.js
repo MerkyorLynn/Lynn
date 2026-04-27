@@ -472,19 +472,30 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     });
   }
 
-  function maybeSteerPseudoToolSimulation(sessionPath, ss) {
-    if (!sessionPath || !ss || ss.hasToolCall || ss.pseudoToolSteered) return;
-    if (resolveCurrentModelInfo(engine).isBrain) return;
+  function maybeSteerPseudoToolSimulation(sessionPath, ss, textOverride = null) {
+    if (!sessionPath || !ss || ss.hasToolCall || ss.pseudoToolSteered) return false;
     // [FAKE-PROGRESS-GUARD v1] 两路伪造检测：
     //   1. pythonic 风格伪工具调用（老规则 · 基于 visibleTextAcc）
     //   2. <lynn_tool_progress> 幻觉标记（新规则 · 基于 progressMarkerCount）
-    const hasPseudoToolText = containsPseudoToolCallSimulation(ss.visibleTextAcc || ss.rawTextAcc || "");
+    const inspectedText = textOverride != null ? String(textOverride || "") : (ss.visibleTextAcc || ss.rawTextAcc || "");
+    const hasPseudoToolText = containsPseudoToolCallSimulation(inspectedText);
     const hasFakeProgress = ss.progressMarkerCount > 0 && !ss.hasToolCall;
-    if (!hasPseudoToolText && !hasFakeProgress) return;
-    if (!engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText())) return;
+    if (!hasPseudoToolText && !hasFakeProgress) return false;
     ss.pseudoToolSteered = true;
-    broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
-    debugLog()?.warn("ws", `pseudo tool/progress detected (text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount}), steering ${sessionPath}`);
+    const steered = engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText());
+    if (steered) {
+      broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
+    } else {
+      debugLog()?.warn("ws", `pseudo tool/progress detected but steerSession unavailable · session=${sessionPath}`);
+    }
+    debugLog()?.warn("ws", `pseudo tool/progress detected (text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount}), suppressing leaked text · steered=${Boolean(steered)} · session=${sessionPath}`);
+    return true;
+  }
+
+  function containsNonProgressPseudoToolSimulation(text) {
+    const withoutProgressMarkers = String(text || "")
+      .replace(/<lynn_tool_progress\b[\s\S]*?(?:<\/lynn_tool_progress>|$)/gi, "");
+    return containsPseudoToolCallSimulation(withoutProgressMarkers);
   }
 
   function trimDegenerateTail(text) {
@@ -509,6 +520,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
     }
     if (!next) return;
+    if (!ss.hasToolCall && containsNonProgressPseudoToolSimulation(ss.visibleTextAcc + next)) {
+      maybeSteerPseudoToolSimulation(sessionPath, ss, ss.visibleTextAcc + next);
+      return;
+    }
     if (next.trim()) ss.hasOutput = true;
     ss.titlePreview += next;
     ss.visibleTextAcc += next;
@@ -551,7 +566,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
         const delta = event.assistantMessageEvent.delta;
         ss.rawTextAcc += delta || "";
-        maybeSteerPseudoToolSimulation(sessionPath, ss);
+        if (containsNonProgressPseudoToolSimulation(delta) || containsNonProgressPseudoToolSimulation(ss.rawTextAcc)) {
+          if (maybeSteerPseudoToolSimulation(sessionPath, ss, ss.rawTextAcc)) return;
+        }
         // ThinkTagParser（最外层）→ LynnProgressParser → MoodParser → XingParser
         ss.thinkTagParser.feed(delta, (tEvt) => {
           switch (tEvt.type) {

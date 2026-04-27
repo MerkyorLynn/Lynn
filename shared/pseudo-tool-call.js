@@ -3,7 +3,7 @@ const PSEUDO_SHELL_LINE_RE = /^\s*(?:(?:shell|bash|terminal|cmd|powershell)(?:\s
 const BARE_PSEUDO_COMMAND_LINE_RE = /^\s*(?:(?:find|ls|grep|rg|cat|pwd|glob|read|read_file|invoke|exec|bash)\b.*(?:\/Users\/|[A-Za-z]:\\|2>\/dev\/null|\|\||&&|-maxdepth|-name\b|pattern=|path=|command=).*)$/iu;
 const READ_TOOL_LEAK_RE = /^\s*(?:read_tool(?:_missing_error)?(?:>|:)?|read_tool_missing_error)\b/iu;
 const REPEATED_READ_TOOL_ERROR_RE = /(?:read_tool_missing_error\s*){2,}/giu;
-const KNOWN_TOOL_NAMES = new Set([
+const KNOWN_TOOL_NAME_LIST = [
   "apply_patch",
   "ask_agent",
   "bash",
@@ -56,7 +56,14 @@ const KNOWN_TOOL_NAMES = new Set([
   "live_news",
   "write",
   "write_to_file",
-]);
+];
+const KNOWN_TOOL_NAMES = new Set(KNOWN_TOOL_NAME_LIST);
+const KNOWN_TOOL_XML_TAG_SOURCE = KNOWN_TOOL_NAME_LIST
+  .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  .join("|");
+const KNOWN_TOOL_XML_TAG_RE = new RegExp(`<(?:\\/)?(?:${KNOWN_TOOL_XML_TAG_SOURCE})\\b`, "iu");
+const KNOWN_TOOL_XML_TAG_GLOBAL_RE = new RegExp(`<(?:\\/)?(?:${KNOWN_TOOL_XML_TAG_SOURCE})\\b[^>\\n]*(?:>|$)`, "giu");
+const KNOWN_TOOL_XML_BLOCK_RE = new RegExp(`<(${KNOWN_TOOL_XML_TAG_SOURCE})\\b[\\s\\S]*?<\\/\\1>\\s*`, "giu");
 const KNOWN_TOOL_PREFIXES = [
   "web_",
   "search_",
@@ -76,6 +83,7 @@ const KNOWN_TOOL_PREFIXES = [
 
 function stripToolCodeMarkup(raw) {
   return String(raw || "")
+    .replace(KNOWN_TOOL_XML_BLOCK_RE, "")
     .replace(/<tool_code\b[\s\S]*?<\/tool_code>\s*/gi, "")
     .replace(/<tool\b[\s\S]*?<\/tool>\s*/gi, "")
     .replace(/<lynn_tool_progress\b[\s\S]*?<\/lynn_tool_progress>\s*/gi, "")
@@ -126,9 +134,10 @@ function cleanPseudoToolLine(line) {
   if (READ_TOOL_LEAK_RE.test(cleaned)) return "";
   if (PSEUDO_SHELL_LINE_RE.test(cleaned) || BARE_PSEUDO_COMMAND_LINE_RE.test(cleaned)) return "";
   if (looksLikeStandalonePseudoToolCall(cleaned)) return "";
-  if (!PSEUDO_TOOL_TAG_RE.test(cleaned)) return cleaned;
+  if (!PSEUDO_TOOL_TAG_RE.test(cleaned) && !KNOWN_TOOL_XML_TAG_RE.test(cleaned)) return cleaned;
 
   cleaned = cleaned
+    .replace(KNOWN_TOOL_XML_TAG_GLOBAL_RE, "")
     .replace(/<\/?(?:tool[\w:-]*|lynn_tool_progress[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b[^>\n]*(?:>|$)/giu, "")
     .replace(/<(?:function|parameter)=[^>\n]*(?:>|$)/giu, "");
 
@@ -140,6 +149,7 @@ export function countPseudoToolMarkers(raw) {
   if (!text) return 0;
 
   const tagMatches = text.match(/<(?:\/)?(?:tool[\w:-]*|lynn_tool_progress[\w:-]*|execute[\w:-]*|read[\w:-]*|read_file[\w:-]*|invoke[\w:-]*|minimax:[\w:-]*|arg_value[\w:-]*|path[\w:-]*|function[\w:-]*|parameter[\w:-]*|command[\w:-]*|description[\w:-]*|query[\w:-]*|pattern[\w:-]*|limit[\w:-]*|路径|参数|命令|描述|查询|模式|限制)\b|<(?:function|parameter)=/giu) || [];
+  const knownToolTagMatches = text.match(KNOWN_TOOL_XML_TAG_GLOBAL_RE) || [];
   const argLineMatches = text.match(/^\s*(?:list_dir|glob|read|read_file|invoke|exec|bash)\b[\s\S]*?(?:path=|pattern=|command=|limit=)/gim) || [];
   const shellLineMatches = text.match(/^\s*(?:(?:shell|bash|terminal|cmd|powershell)(?:\s*[:：])?\s*(?:[>》〉»›≫$#]+)|(?:\$|#)\s+(?:(?:ls|find|grep|rg|cat|pwd|read|python|node|npm|git|bash|sh)\b)).*$/gimu) || [];
   const bareCommandMatches = text.match(/^\s*(?:(?:find|ls|grep|rg|cat|pwd|glob|read|read_file|invoke|exec|bash)\b.*(?:\/Users\/|[A-Za-z]:\\|2>\/dev\/null|\|\||&&|-maxdepth|-name\b|pattern=|path=|command=).*)$/gimu) || [];
@@ -151,6 +161,7 @@ export function countPseudoToolMarkers(raw) {
     .filter((paragraph) => looksLikeStandalonePseudoToolCall(paragraph));
   return tagMatches.length
     + argLineMatches.length
+    + knownToolTagMatches.length
     + shellLineMatches.length
     + bareCommandMatches.length
     + readToolLeakMatches.length
@@ -161,7 +172,7 @@ export function containsPseudoToolSimulation(raw) {
   const text = String(raw || "");
   if (!text) return false;
   if (READ_TOOL_LEAK_RE.test(text) || REPEATED_READ_TOOL_ERROR_RE.test(text)) return true;
-  if (PSEUDO_TOOL_TAG_RE.test(text)) return true;
+  if (PSEUDO_TOOL_TAG_RE.test(text) || KNOWN_TOOL_XML_TAG_RE.test(text)) return true;
   if (PSEUDO_SHELL_LINE_RE.test(text)) return true;
   if (BARE_PSEUDO_COMMAND_LINE_RE.test(text)) return true;
   const cleaned = stripToolCodeMarkup(text).trim();
