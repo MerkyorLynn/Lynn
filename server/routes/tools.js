@@ -34,7 +34,7 @@ export function createToolsRoute(engine) {
     const toolName = c.req.param("toolName");
     const body = await c.req.json().catch(() => ({}));
 
-    const tools = engine._pluginManager?.getAllTools() || [];
+    const tools = engine.pluginManager?.getAllTools() || [];
     const resolved = resolveToolByName(tools, toolName);
 
     if (resolved.ambiguous) {
