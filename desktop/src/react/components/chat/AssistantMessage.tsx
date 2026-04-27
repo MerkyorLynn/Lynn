@@ -75,40 +75,58 @@ function audioFileNameFromPath(filePath: string): string {
 }
 
 /**
- * 播放 TTS 生成的音频文件。走 IPC readFileBase64 而非 HTTP — 因为:
+ * 播放 TTS 生成的音频文件。走 IPC readFileBase64 + WebAudio 而非 HTTP — 因为:
  *  1) HTMLAudioElement 不会自动带 Bearer token,直接 audio.src = http://... 会被 server 403
  *  2) Hono c.body(fs.createReadStream) 对 Node Readable Stream 兼容性问题,Audio 解码失败
- *  3) IPC + Blob URL 路径稳定,前提是 main.cjs trustedPathPolicy 允许读 ~/.lynn/audio
- *      + index.html CSP 包含 media-src 'self' blob:(否则 blob: URL 被 CSP 拦)
+ *  3) WebAudio 直接解码 ArrayBuffer,绕开 <audio> 对 blob/data source 的兼容性差异
  */
 async function playAudioHttpUrl(audioPath: string): Promise<void> {
   if (!audioPath) throw new Error('音频路径无效');
   const base64 = await window.hana?.readFileBase64?.(audioPath);
   if (!base64) throw new Error('读取音频文件失败（检查路径白名单）');
-  const ext = audioPath.toLowerCase().endsWith('.mp3') ? 'mpeg' : 'wav';
 
-  // base64 → Uint8Array → Blob → ObjectURL（避免 200KB+ data URL 在 Audio 不稳定）
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+  if (AudioContextCtor) {
+    const audioContext = new AudioContextCtor();
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    const buffer = await audioContext.decodeAudioData(bytes.buffer.slice(0));
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.onended = () => {
+      void audioContext.close().catch(() => {});
+    };
+    try {
+      source.start(0);
+    } catch (err) {
+      void audioContext.close().catch(() => {});
+      throw err;
+    }
+    return;
+  }
+
+  // Very old WebViews only: fallback to HTMLAudioElement.
+  const ext = audioPath.toLowerCase().endsWith('.mp3') ? 'mpeg' : audioPath.toLowerCase().endsWith('.aiff') ? 'aiff' : 'wav';
   const blob = new Blob([bytes], { type: `audio/${ext}` });
   const objectUrl = URL.createObjectURL(blob);
-  const audio = new Audio(objectUrl);
-  audio.preload = 'auto';
-  const cleanup = () => URL.revokeObjectURL(objectUrl);
-  audio.onended = cleanup;
-  audio.onerror = () => {
-    const code = audio.error?.code;
-    const codeMap: Record<number, string> = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src-not-supported' };
-    cleanup();
-    throw new Error(`audio error: ${codeMap[code || 0] || code}`);
-  };
-  try {
-    await audio.play();
-  } catch (err) {
-    cleanup();
-    throw err;
-  }
+  await new Promise<void>((resolve, reject) => {
+    const audio = new Audio(objectUrl);
+    const cleanup = () => URL.revokeObjectURL(objectUrl);
+    audio.onended = cleanup;
+    audio.onerror = () => {
+      const code = audio.error?.code;
+      const codeMap: Record<number, string> = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src-not-supported' };
+      cleanup();
+      reject(new Error(`audio error: ${codeMap[code || 0] || code}`));
+    };
+    audio.play().then(() => resolve()).catch((err) => { cleanup(); reject(err); });
+  });
 }
 
 function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number; activeLabel: string } {

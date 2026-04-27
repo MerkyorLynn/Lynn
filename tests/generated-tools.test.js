@@ -99,4 +99,42 @@ describe("generated document tools", () => {
       fs.rmSync(outDir, { recursive: true, force: true });
     }
   });
+
+  it("rejects shallow deep reports instead of generating a shell artifact", async () => {
+    const outDir = makeTempDir("lynn-report-tool-");
+    try {
+      const tool = createReportTool({ getDeskDir: () => outDir });
+      const result = await tool.execute("test-call", {
+        title: "和腾讯控股(206006) 深度分析报告",
+        sections: [
+          { title: "结论", type: "text", content: "数据获取完成，但 AI 分析超时，使用数据直接生成。" },
+        ],
+      });
+
+      expect(result.details.rejected).toBe(true);
+      expect(result.details.reason).toBe("insufficient_deep_report_content");
+      expect(result.content[0].text).toContain("未生成空壳报告");
+      expect(fs.readdirSync(outDir)).toHaveLength(0);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
+  it("still allows concise non-deep one-section reports", async () => {
+    const outDir = makeTempDir("lynn-report-tool-");
+    try {
+      const tool = createReportTool({ getDeskDir: () => outDir });
+      const result = await tool.execute("test-call", {
+        title: "会议纪要",
+        sections: [
+          { title: "摘要", type: "text", content: "本次会议确认了下周交付节奏、负责人和风险项。" },
+        ],
+      });
+
+      expect(result.details.rejected).toBeUndefined();
+      expect(fs.existsSync(result.details.files[0].filePath)).toBe(true);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
 });
