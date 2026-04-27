@@ -70,6 +70,7 @@ function normalizeToolArgsForSummary(toolName, rawArgs) {
 
 const LOCAL_COMPLETION_TOOLS = new Set(["bash", "write", "edit", "edit-diff"]);
 const STREAM_PSEUDO_XML_TOOLS = [
+  // 真工具名(brain 转发的)
   "web_search",
   "web_fetch",
   "live_news",
@@ -84,7 +85,25 @@ const STREAM_PSEUDO_XML_TOOLS = [
   "find",
   "grep",
   "glob",
+  // [HOTPATCH 2026-04-27 night #2] 模型偶发把 markdown/HTML tag 当文本写出来,
+  // 半截 `</code>` 可能在 streaming chunk 边界被切成 "_code>" 之类漏到 UI
+  // 把常见 markdown / 假工具协议 tag 都纳入 strip 范围
+  "code",
+  "pre",
+  "details",
+  "summary",
+  "think",
+  "tool_call",
+  "function",
+  "parameter",
+  "execute",
+  "tool",
 ];
+
+// [HOTPATCH 2026-04-27 night #2] 兜底:扫除任何 orphan 闭合标签
+// 防御 STREAM_PSEUDO_XML_TOOLS 漏掉但仍是 `</xxx>` 形式的零散闭标签
+// 只清纯字母/下划线/破折号 1-20 字符的 tag,避免误伤 `</a` 这种破残的 typo
+const ORPHAN_CLOSE_TAG_RE = /<\/[a-zA-Z][a-zA-Z0-9_-]{0,20}\s*>/g;
 const STREAM_PSEUDO_XML_TOOL_SOURCE = STREAM_PSEUDO_XML_TOOLS
   .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
@@ -129,6 +148,17 @@ function stripStreamingPseudoToolBlocks(ss, chunk) {
       break;
     }
     rest = afterOpen.slice((closeMatch.index || 0) + closeMatch[0].length);
+  }
+
+  // [HOTPATCH 2026-04-27 night #2] 兜底扫除 orphan 闭合标签
+  // 经过上面 open/close 配对处理后,如果仍残留 `</xxx>` 形式的零散闭标签
+  // (例如 STREAM_PSEUDO_XML_TOOLS 没列到的 markdown tag,或 streaming chunk 边界
+  // 切割造成漏过的半截),用通用 regex 干掉。仅作用于 sanitized 输出文本,
+  // 不影响真工具调用流(那条路径走 tool_calls 协议,不经过这里)。
+  if (text && ORPHAN_CLOSE_TAG_RE.test(text)) {
+    ORPHAN_CLOSE_TAG_RE.lastIndex = 0; // reset regex state(g flag)
+    text = text.replace(ORPHAN_CLOSE_TAG_RE, "");
+    suppressed = true;
   }
 
   return { text, suppressed };
