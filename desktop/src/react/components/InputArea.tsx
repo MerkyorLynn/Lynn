@@ -288,6 +288,17 @@ function InputAreaInner() {
     if (!isComposing.current) setComposerText(value);
   }, [setComposerText]);
 
+  const readLatestInputValue = useCallback(() => {
+    return textareaRef.current?.value ?? inputValue;
+  }, [inputValue]);
+
+  const syncLatestInputValue = useCallback(() => {
+    const latest = readLatestInputValue();
+    if (latest !== inputValue) setInputValue(latest);
+    if (latest !== composerText) setComposerText(latest);
+    return latest;
+  }, [composerText, inputValue, readLatestInputValue, setComposerText]);
+
   const markAtDiscoverySeen = useCallback(() => {
     setShowAtDiscovery(false);
     try {
@@ -476,7 +487,7 @@ function InputAreaInner() {
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
-    // [2026-04-17] IME 组合态不要 resize，避免中文输入法候选框飞到左下角
+    // IME 组合态不要 resize，避免中文输入法候选框飞到左下角。
     if (isComposing.current) return;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
@@ -649,17 +660,19 @@ function InputAreaInner() {
   const canSteer = isStreaming && inputValue.trim().length > 0;
 
   const handleSubmitTask = useCallback(async (mode: ComposerTaskMode) => {
+    const latestInputValue = syncLatestInputValue();
+
     if (mode === 'prompt') {
       if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
         useStore.setState({ selectedFolder: useStore.getState().homeFolder });
       }
-      const hasSendable = !!(inputValue.trim() || attachedFiles.length > 0 || quotedSelection);
+      const hasSendable = !!(latestInputValue.trim() || attachedFiles.length > 0 || quotedSelection);
       if (!hasSendable || !connected) {
         if (!connected && hasSendable) showSidebarToast(t('chat.needWsConnection'));
         return;
       }
     } else {
-      if (!inputValue.trim()) return;
+      if (!latestInputValue.trim()) return;
     }
 
     if (sending) return;
@@ -671,7 +684,7 @@ function InputAreaInner() {
       setInlineError(null);
       const prepared = await prepareComposerTask({
         mode,
-        composerText: isComposing.current ? inputValue : composerText,
+        composerText: latestInputValue,
         preferredWorkspace: selectedFolder || deskBasePath || homeFolder || null,
         attachedFiles,
         docContextAttached: false,
@@ -722,7 +735,6 @@ function InputAreaInner() {
     clearComposerState,
     clearQuotedSelection,
     connected,
-    inputValue,
     isStreaming,
     pendingNewSession,
     quotedSelection,
@@ -739,10 +751,11 @@ function InputAreaInner() {
     deskBasePath,
     setInlineError,
     setInlineNotice,
+    syncLatestInputValue,
   ]);
 
   const handleSend = useCallback(async () => {
-    const text = inputValue.trim();
+    const text = readLatestInputValue().trim();
 
     if (text.startsWith('/') && slashMenuOpen && filteredCommands.length > 0) {
       const cmd = filteredCommands[slashSelected] || filteredCommands[0];
@@ -753,7 +766,7 @@ function InputAreaInner() {
     }
 
     await handleSubmitTask('prompt');
-  }, [filteredCommands, handleSubmitTask, inputValue, slashMenuOpen, slashSelected]);
+  }, [filteredCommands, handleSubmitTask, readLatestInputValue, slashMenuOpen, slashSelected]);
 
   const handleAtSelect = useCallback((file: { name: string; path: string; rel: string; isDir: boolean }) => {
     const atMatch = inputValue.match(/@(\S*)$/);
@@ -805,11 +818,16 @@ function InputAreaInner() {
       if (e.key === 'Tab') { e.preventDefault(); const cmd = filteredCommands[slashSelected]; if (cmd) setComposerText('/' + cmd.name); return; }
       if (e.key === 'Escape') { e.preventDefault(); setSlashMenuOpen(false); return; }
     }
-    if (e.key === 'Enter' && !e.shiftKey && !isComposing.current) {
-      e.preventDefault();
-      if (isStreaming && inputValue.trim()) handleSteer(); else handleSend();
+    const nativeEvent = e.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+    const composing = isComposing.current || nativeEvent.isComposing || nativeEvent.keyCode === 229;
+    if (e.key === 'Enter' && composing) {
+      return;
     }
-  }, [handleAtSelect, handleSend, handleSteer, isStreaming, inputValue, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen, atResults, atSelected]);
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (isStreaming && readLatestInputValue().trim()) handleSteer(); else handleSend();
+    }
+  }, [handleAtSelect, handleSend, handleSteer, isStreaming, readLatestInputValue, slashMenuOpen, filteredCommands, slashSelected, setComposerText, atMenuOpen, atResults, atSelected]);
 
   return (
     <>
@@ -941,10 +959,14 @@ function InputAreaInner() {
             const next = e.currentTarget.value;
             setInputValue(next);
             setComposerText(next);
-            // 组合结束后补一次 resize（IME 确认字符时高度可能需要更新）
-            const el = e.target as HTMLTextAreaElement;
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+            // 组合事件结束的同一 tick 里继续改 textarea 布局，macOS IME
+            // 偶发会把候选窗坐标缓存成屏幕左下角。延后一帧再补高度。
+            requestAnimationFrame(() => {
+              const el = textareaRef.current;
+              if (!el || isComposing.current) return;
+              el.style.height = 'auto';
+              el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+            });
           }} />
         <div className={styles['input-bottom-bar']}>
           <div className={styles['input-actions']}>

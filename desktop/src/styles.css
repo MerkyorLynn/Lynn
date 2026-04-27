@@ -2440,7 +2440,13 @@ html[data-platform="darwin"] .main-content::before {
         var(--bg) 100%
     );
     z-index: 5;
-    pointer-events: none; /* 让渐变透明区域不拦截点击 */
+    /*
+     * Keep the composer in the normal hit-testing tree.
+     * Electron/macOS IME can lose the caret rect when a textarea sits under a
+     * pointer-events:none ancestor, which makes Chinese candidate windows jump
+     * to the screen corner.
+     */
+    pointer-events: auto;
 }
 
 /* 子元素恢复点击能力 */

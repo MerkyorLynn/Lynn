@@ -125,7 +125,9 @@
     "compacting": "컨텍스트 압축 중",
     "needWsConnection": "어시스턴트와 연결이 끊겼어요. 재연결을 기다리거나 상태 표시줄에서 다시 연결을 눌러 주세요",
     "retry": "Retry",
-    "waitingTooLong": "이 응답은 아직 처리 중입니다. Lynn이 기본 모델의 보조 경로로 계속 넘겨 가며 이번 턴을 끝내려고 하고 있어요."
+    "waitingTooLong": "이 응답은 아직 처리 중입니다. Lynn이 기본 모델의 보조 경로로 계속 넘겨 가며 이번 턴을 끝내려고 하고 있어요.",
+    "emptyAnswerHint": "모델이 생각만 하고 아무 말도 하지 않았어요. 재시도를 눌러 다시 시도할 수 있어요.",
+    "emptyAnswerRetry": "재시도"
   },
   "time": {
     "justNow": "방금",
@@ -515,6 +517,7 @@
       "work": "업무",
       "skills": "스킬",
       "bridge": "소셜",
+      "voice": "음성",
       "plugins": "부가 기능",
       "about": "소개"
     },

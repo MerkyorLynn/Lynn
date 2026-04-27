@@ -238,6 +238,18 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
     return () => clearTimeout(timer);
   }, [showWaitingHint]);
 
+  // ── 空回复兜底：模型只产了 thinking 但没给正文 / 工具调用 ──
+  // 流已结束 + 至少有一个 thinking block + 没有任何正文 / 工具 / 授权卡片
+  // → 用户看到的是"两个折叠的思考完成 chip"然后没了，给个重试入口。
+  const isEmptyAnswerAfterThinking = useMemo(() => {
+    if (isStreamMsg) return false;
+    if (blocks.length === 0) return false;
+    if (toolGroups.length > 0) return false;
+    if (plainText.length > 0) return false;
+    return blocks.some((b) => b.type === 'thinking')
+      && blocks.every((b) => b.type === 'thinking' || b.type === 'mood');
+  }, [isStreamMsg, blocks, toolGroups, plainText]);
+
   // ── 模型表现评估：回复质量不佳时提示用户切换模型 ──
   const modelHintDismissKey = 'lynn-model-hint-dismissed';
   const showModelHint = false; // disabled: short response does not mean the model is weak
@@ -603,6 +615,16 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               {t('chat.modelHintAction') || '去设置'}
             </button>
             <button className={styles.modelHintDismiss} onClick={dismissModelHint}>×</button>
+          </div>
+        )}
+        {isEmptyAnswerAfterThinking && (
+          <div className={styles.modelHintBar}>
+            <span className={styles.modelHintText}>
+              {t('chat.emptyAnswerHint') || '模型只想了想，没说出话来。可以点重试再试一次。'}
+            </span>
+            <button className={styles.modelHintBtn} onClick={handleRetry}>
+              {t('chat.emptyAnswerRetry') || '重试'}
+            </button>
           </div>
         )}
       </div>

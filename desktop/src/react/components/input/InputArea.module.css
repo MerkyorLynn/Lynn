@@ -984,6 +984,7 @@
 }
 
 .input-box {
+    position: relative;
     width: 100%;
     font-family: inherit;
     font-size: 0.95rem;
@@ -998,6 +999,10 @@
     overflow-y: auto;
     scrollbar-width: none;
     -webkit-app-region: no-drag;
+    transform: none !important;
+    -webkit-transform: none !important;
+    will-change: auto;
+    contain: none;
 }
 
 .input-box::-webkit-scrollbar {

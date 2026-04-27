@@ -125,7 +125,9 @@
     "compacting": "コンテキスト圧縮中",
     "needWsConnection": "アシスタントとの接続が切れています。再接続を待つか、ステータスバーの「再接続」をタップしてください",
     "retry": "Retry",
-    "waitingTooLong": "この返信はまだ処理中です。Lynn は既定モデルの予備経路へ順次引き継ぎながら、このターンの完了を試みます。"
+    "waitingTooLong": "この返信はまだ処理中です。Lynn は既定モデルの予備経路へ順次引き継ぎながら、このターンの完了を試みます。",
+    "emptyAnswerHint": "モデルは考えただけで、何も話してくれませんでした。再試行をタップしてもう一度試せます。",
+    "emptyAnswerRetry": "再試行"
   },
   "time": {
     "justNow": "たった今",
@@ -515,6 +517,7 @@
       "work": "ワーク",
       "skills": "スキル",
       "bridge": "ソーシャル",
+      "voice": "音声",
       "about": "概要"
     },
     "appearance": {
