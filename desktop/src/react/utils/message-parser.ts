@@ -327,8 +327,10 @@ export function extractToolDetail(name: string, args: Record<string, unknown> | 
     case 'edit':
     case 'edit-diff':
       return truncatePath((args.file_path || args.path || '') as string);
-    case 'bash':
-      return truncateHead((args.command || '') as string, 40);
+    case 'bash': {
+      const raw = (args.command ?? args.cmd ?? args.query ?? args.shell ?? args.script ?? '') as string;
+      return truncateHead(raw, 40);
+    }
     case 'glob':
     case 'find':
       return (args.pattern || '') as string;
