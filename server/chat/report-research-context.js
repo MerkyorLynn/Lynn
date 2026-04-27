@@ -268,15 +268,17 @@ function extractToolText(result) {
 
 function parseStooqItems(context) {
   const items = [];
-  const re = /\n\d+\.\s+([A-Z]{1,6})\s+最近可用行情\n来源：([^\n]+)\n(https?:\/\/\S+)\n-\s+价格:\s*([^\n]+)\n-\s+时间戳:\s*([^\n]+)(?:\n-\s+开盘\/最高\/最低:\s*([^\n]+))?/g;
+  const re = /\n\d+\.\s+([A-Z0-9.]{1,12})\s+最近可用行情\n来源：([^\n]+)\n(https?:\/\/\S+)(?:\n-\s+名称:\s*([^\n]+))?\n-\s+价格:\s*([^\n]+)(?:\n-\s+涨跌\/涨跌幅:\s*([^\n]+))?\n-\s+时间戳:\s*([^\n]+)(?:\n-\s+开盘\/最高\/最低:\s*([^\n]+))?/g;
   for (const match of String(context || "").matchAll(re)) {
     items.push({
       symbol: match[1],
       source: match[2],
       url: match[3],
-      price: match[4],
-      timestamp: match[5],
-      range: match[6] || "",
+      name: match[4] || "",
+      price: match[5],
+      change: match[6] || "",
+      timestamp: match[7],
+      range: match[8] || "",
     });
   }
   return items;
@@ -533,7 +535,9 @@ function buildDirectMarketAnswer(context) {
   const rows = items.map((item) => {
     return [
       `**${item.symbol}**`,
-      `- 最新价：$${item.price}`,
+      item.name ? `- 名称：${item.name}` : "",
+      `- 最新价：${item.price}`,
+      item.change ? `- 涨跌/涨跌幅：${item.change}` : "",
       `- 时间戳：${item.timestamp}`,
       item.range ? `- 开盘/最高/最低：${item.range}` : "",
       `- 来源：[${item.source}](${item.url})`,
@@ -548,6 +552,61 @@ function buildDirectMarketAnswer(context) {
     "",
     "以上信息仅作行情展示，不构成任何投资建议、买卖建议或收益承诺。",
   ].join("\n");
+}
+
+function buildDirectOilAnswer(context) {
+  const text = String(context || "");
+  const rows = Array.from(text.matchAll(/-\s*(布伦特原油|纽约原油|WTI原油|原油[^：\n]*)[:：]\s*([0-9]+(?:\.[0-9]+)?)\s*美元\/桶(?:，涨跌幅\s*([+-]?\d+(?:\.\d+)?%))?(?:，涨跌\s*([+-]?\d+(?:\.\d+)?))?/g))
+    .map((match) => ({
+      name: match[1],
+      price: match[2],
+      pct: match[3] || "",
+      change: match[4] || "",
+    }));
+  if (!rows.length) return "";
+  return [
+    "根据刚刚获取到的原油行情：",
+    "",
+    ...rows.map((item) => {
+      const bits = [`${item.name}：${item.price} 美元/桶`];
+      if (item.pct) bits.push(`涨跌幅 ${item.pct}`);
+      if (item.change) bits.push(`涨跌 ${item.change}`);
+      return `- ${bits.join("；")}`;
+    }),
+    "",
+    "说明：这是最近可用行情快照，盘中价格会变动；交易或下单前请再用期货/券商行情终端核验。",
+  ].join("\n");
+}
+
+function buildDirectWeatherAnswer(context, userPrompt = "") {
+  const text = String(context || "");
+  const rows = parseWeatherForecastRows(text);
+  if (!rows.length) return "";
+  let picked = rows[0];
+  if (/后天/.test(userPrompt) && rows[2]) picked = rows[2];
+  else if (/明天/.test(userPrompt) && rows[1]) picked = rows[1];
+  const location = extractWeatherLocation(userPrompt, "")
+    || text.match(/\n\n([^\n]+?)\s+当前天气/)?.[1]?.trim()
+    || text.match(/资料。\n\n([^\n]+?)\s+当前天气/)?.[1]?.trim()
+    || "";
+  const rainy = weatherLooksRainy(picked.desc);
+  const desc = String(picked.desc || "")
+    .replace(/Patchy rain nearby/i, "附近有零星小雨")
+    .replace(/Partly Cloudy/i, "局部多云")
+    .replace(/Sunny/i, "晴")
+    .replace(/Cloudy/i, "多云")
+    .replace(/Overcast/i, "阴")
+    .replace(/Light rain/i, "小雨")
+    .replace(/Moderate rain/i, "中雨")
+    .replace(/Heavy rain/i, "大雨");
+  const rainText = /下雨|降雨|降水/.test(userPrompt)
+    ? `降雨判断：${rainy ? "有降雨可能" : "未显示明显降雨"}。`
+    : "";
+  return [
+    `${[location, picked.date].filter(Boolean).join(" ")}天气：${desc}，${picked.min}-${picked.max}°C。`,
+    rainText,
+    "说明：这是刚刚通过天气工具拿到的预报快照，出门前建议再看一次实时雷达或本地天气 App。",
+  ].filter(Boolean).join("\n");
 }
 
 function parseGoldSummary(context) {
@@ -671,9 +730,15 @@ export function buildDirectResearchAnswer(kind, context, userPrompt = "") {
     if (/金价|黄金|白银|金交所|金店|回收价|Au99\.99|Au9999|XAU|金条/i.test(prompt)) {
       return buildDirectGoldAnswer(context);
     }
+    if (/原油|油价|布伦特|WTI|crude|oil/i.test(prompt)) {
+      return buildDirectOilAnswer(context);
+    }
     if (/AAPL|TSLA|股价|行情|报价|最新价|最近可用/i.test(prompt)) {
       return buildDirectMarketAnswer(context);
     }
+  }
+  if (kind === "weather") {
+    return buildDirectWeatherAnswer(context, prompt);
   }
   if (kind === "news" && /新闻|消息|今日|今天|最新/.test(prompt)) {
     return buildDirectNewsAnswer(context);
