@@ -18,11 +18,52 @@ vi.mock("../lib/tools/web-fetch.js", () => ({
 
 import { createStockMarketTool } from "../lib/tools/stock-market.js";
 
+// [v0.76.7] stock-market.js 加了 gold-api.com / open.er-api.com 兜底网络请求,
+// test 必须 stub global fetch 拦截这些 URL,否则会真打外网拿实时价格,
+// 测试 expectation 跟实时价格不匹配 → 失败。
+function makeGlobalFetchStub() {
+  return vi.fn(async (url) => {
+    const u = String(url);
+    if (u.includes("api.gold-api.com/price/XAU")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ price: 3386.4, currency: "USD", priceGram24k: 108.84 }),
+        text: async () => "",
+      };
+    }
+    if (u.includes("api.gold-api.com/price/XAG")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ price: 31.2, currency: "USD" }),
+        text: async () => "",
+      };
+    }
+    if (u.includes("open.er-api.com")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ rates: { CNY: 7.20, EUR: 0.92, JPY: 156.0 } }),
+        text: async () => "",
+      };
+    }
+    // 其他 URL fail-fast,确保测试不依赖意外真实网络
+    return {
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+      text: async () => "",
+    };
+  });
+}
+
 describe("stock market tool", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     webSearchMock.runSearchQuery.mockReset();
     webFetchMock.fetchWebContent.mockReset();
+    vi.stubGlobal("fetch", makeGlobalFetchStub());
   });
 
   afterEach(() => {
@@ -109,7 +150,10 @@ describe("stock market tool", () => {
     expect(text).toContain("上海黄金交易所 Au99.99 789.12 元/克");
     expect(text).toContain("上海黄金交易所 Au9999 789.58 元/克");
     expect(text).toContain("深圳水贝黄金 756.5-768.8 元/克");
-    expect(text).toContain("国际现货黄金（XAU/USD） 3386.4 美元/盎司");
+    // [v0.76.7] production 输出从 "XXX 美元/盎司" 改为 "YYY 元/克（约 XXX 美元/盎司, USD/CNY Z.Z）"
+    // 主报价单位变成元/克更符合中国用户习惯; 美元/盎司变成括号内换算说明
+    expect(text).toMatch(/国际现货黄金（XAU\/USD）\s*[\d.]+\s*元\/克/);
+    expect(text).toContain("3386.4 美元/盎司");
   });
 
   it("falls back to targeted gold searches when the first broad query has no usable gold evidence", async () => {
