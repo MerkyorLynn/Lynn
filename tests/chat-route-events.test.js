@@ -169,26 +169,35 @@ describe("chat route event forwarding", () => {
     expect(clients[0].sent).toContainEqual({ type: "security_mode", mode: "safe" });
   });
 
-  it("does not trigger pseudo-tool recovery for Brain default model text", async () => {
+  it("suppresses pseudo-tool XML and recovers for Brain default model text", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => new Promise(() => {}));
 
     const res = await app.request("/ws");
     expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "明天深圳天气如何" }),
+    }, connections[0].client);
 
     subscribed({
       type: "message_update",
       assistantMessageEvent: {
         type: "text_delta",
-        delta: 'web_search(query="深圳天气")',
+        delta: '<web_search>\n深圳 2026年4月28日 天气预报\n</web_search>',
       },
     }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).not.toHaveBeenCalled();
-    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+    expect(engine.steerSession).toHaveBeenCalled();
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
       noticeKey: "status.defaultModelRecoveringToolExecution",
     }));
+    expect(clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("")).not.toContain("<web_search>");
   });
 
   it("still triggers pseudo-tool recovery for non-Brain model text", async () => {

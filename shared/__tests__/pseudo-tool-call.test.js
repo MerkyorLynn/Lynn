@@ -18,6 +18,9 @@ describe("pseudo tool detection", () => {
 
   it("detects xml-style pseudo tool tags before cleanup", () => {
     expect(containsPseudoToolSimulation('<tool_call name="web_search">x</tool_call>')).toBe(true);
+    expect(containsPseudoToolSimulation('<web_search>\n深圳天气\n</web_search>')).toBe(true);
+    expect(containsPseudoToolSimulation('<weather location="深圳"></weather>')).toBe(true);
+    expect(containsPseudoToolSimulation('<stock_market>\n今日金价\n</stock_market>')).toBe(true);
     expect(containsPseudoToolSimulation('<invoke name="read_file">x</invoke>')).toBe(true);
     expect(containsPseudoToolSimulation('<execute>\n\n</execute>')).toBe(true);
     expect(containsPseudoToolSimulation('<lynn_tool_progress event="start" name="web_search"></lynn_tool_progress>')).toBe(true);
@@ -46,6 +49,8 @@ describe("pseudo tool detection", () => {
       'web_search(querys=["今日金价"])',
       "",
       "<execute>\n\n</execute>",
+      "",
+      "<web_search>\n今日金价\n</web_search>",
       "",
       "<tool_call name=\"web_search\">x</tool_call>",
       "",
