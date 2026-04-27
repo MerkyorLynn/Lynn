@@ -27,7 +27,22 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.76.6</strong> · 2026-04-21 · 工具增强 + 研究路径 + OAuth + 715 测试全绿 <em>(最新)</em></summary>
+<summary><strong>v0.76.7</strong> · 2026-04-27 · TTS 端到端 + 语音 Phase 1 + CSP media-src 修复 <em>(最新)</em></summary>
+
+- 🗣️ **TTS 播放打通**: SenseVoice ASR + CosyVoice 1.0 SFT(7 个内置 speakers),米色 🎤 按钮 → ssh tunnel → frp → DGX docker
+- 🎙️ **B 模式长按锁定**: 长按 600ms 锁定连续录音,再点结束
+- 🔌 **Provider Registry 框架**: 阿里全家桶默认 + 4 个 BYOK 备选(Faster Whisper / OpenAI Whisper / Azure / Edge TTS)
+- 🔧 **CSP media-src 修复**: vite CSP_PROFILES 让 `blob:` URL 能被 Audio 元素加载(本次 release 真凶)
+- 🛠️ **vite hono external**: vite.config.server.js 让 plugin 动态 import 解析正常
+- 🪟 **IME 不抖**: 中文输入候选切换稳定;thinking block 默认折叠
+- 📦 **3 平台公证**: macOS Apple Silicon + Intel + Windows 全打公证,镜像站同步
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.7)
+
+</details>
+
+<details>
+<summary><strong>v0.76.6</strong> · 2026-04-21 · 工具增强 + 研究路径 + OAuth + 715 测试全绿</summary>
 
 - 📈 **stock-market 工具大改** (+425 行): 多数据源行情 + 容错 + 4 个新测试
 - 🧠 **研究上下文扩展** (+428 行): 天气/股票数据结构化注入, 融合研究路径
