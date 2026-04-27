@@ -249,8 +249,44 @@ describe("chat route event forwarding", () => {
     }
   });
 
-  it("shows local prefetch as a real tool stage before asking the model to summarize", async () => {
+  // [BYOK-EQUALITY · 2026-04-27 night] brain 模式下不再做本地预取 —— 工具决策权全交 brain/模型自己判断,
+  // 跟 BYOK 走同一套自主判断路径。测试反转:验证 brain 模式 prefetch 被 SKIP,事件流里没有 tool_start。
+  it("does NOT inject local prefetch when running on brain (lets brain own tool routing)", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    let eventsBeforeModelCall = [];
+    hub.send = vi.fn(async () => {
+      eventsBeforeModelCall = [...clients[0].sent];
+    });
+    reportResearchMock.inferReportResearchKind.mockReturnValue("weather");
+    reportResearchMock.buildReportResearchContext.mockResolvedValue("【系统已完成天气工具预取】\n深圳今日天气晴。");
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "今天深圳天气如何" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+
+    // 关键:brain 模式不该出现本地 prefetch 的 tool_start/tool_end —— 那些应该让 brain 端真实调工具产生
+    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
+      type: "tool_start",
+      name: "weather",
+    }));
+    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
+      type: "tool_end",
+      name: "weather",
+    }));
+    // buildReportResearchContext 也不该被调(brain 路径完全跳过本地预取)
+    expect(reportResearchMock.buildReportResearchContext).not.toHaveBeenCalled();
+  });
+
+  // 保留对非 brain (BYOK) 路径的 prefetch 覆盖 —— 当前实现 chat.js:1338 仅 gate 在 isBrain,
+  // 非 brain provider 仍走 prefetch。后续如果决定全 provider 都移除,这条改成 .skip 即可。
+  it("still injects local prefetch as a tool stage for non-brain providers (BYOK path)", async () => {
+    engine.currentModel = { id: "gpt-4o", provider: "openai", name: "GPT-4o" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     let eventsBeforeModelCall = [];
     hub.send = vi.fn(async () => {
@@ -375,8 +411,10 @@ describe("chat route event forwarding", () => {
     }
   });
 
-  it("still retries pending-tool text after local prefetch evidence", async () => {
-    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+  // [BYOK-EQUALITY · 2026-04-27 night] retry-after-prefetch 仅适用于 prefetch 还在的路径(非 brain)。
+  // 改 provider=openai 来保留这条覆盖。后续若全 provider 都移除 prefetch,这条改 .skip 即可。
+  it("still retries pending-tool text after local prefetch evidence (non-brain path)", async () => {
+    engine.currentModel = { id: "gpt-4o", provider: "openai", name: "GPT-4o" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     let modelCallCount = 0;
     hub.send = vi.fn(async () => {

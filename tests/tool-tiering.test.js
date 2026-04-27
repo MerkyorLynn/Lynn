@@ -16,6 +16,7 @@ const STANDARD_CUSTOM_TOOLS = new Set([
 
 function filterCustomToolsByTier(customTools, tier) {
   if (!tier || tier === "full") return customTools;
+  if (tier === "none") return [];
   const allowed = tier === "minimal" ? MINIMAL_CUSTOM_TOOLS : STANDARD_CUSTOM_TOOLS;
   return customTools.filter(t => allowed.has(t.name));
 }
@@ -59,6 +60,10 @@ describe("filterCustomToolsByTier", () => {
     const result = filterCustomToolsByTier(ALL_TOOLS, "minimal");
     const names = result.map(t => t.name);
     expect(names).toEqual(["web_search", "web_fetch", "stock_market"]);
+  });
+
+  it("none tier 不暴露任何自定义工具", () => {
+    expect(filterCustomToolsByTier(ALL_TOOLS, "none")).toEqual([]);
   });
 });
 
