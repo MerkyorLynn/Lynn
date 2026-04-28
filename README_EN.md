@@ -20,7 +20,19 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 rollback + file management fix + bash schema fallback + recording permission UX <em>(latest)</em></summary>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek API upgrade to v4-flash/v4-pro + thinking field alignment <em>(latest)</em></summary>
+
+- 🚀 **DeepSeek API model upgrade**: `deepseek-chat` → `deepseek-v4-flash` (non-thinking mode), `deepseek-reasoner` → `deepseek-v4-flash` (thinking mode with `thinking:{type:"enabled",reasoning_effort:"high"}`), new `deepseek-v4-pro` as the stronger sibling.
+- 🧠 **`thinking` field must be explicit**: v4-flash defaults to thinking mode and burns tokens before producing visible content; brain now injects `thinking:{type:"disabled"}` in the chat chain and `enabled+high` in the reasoner chain — no more "empty content + finish=length".
+- 📦 **Client BYOK compatibility**: `lib/known-models.json` + `lib/default-models.json` add `deepseek-v4-flash` / `deepseek-v4-pro`; old names `deepseek-chat` / `deepseek-reasoner` marked `deprecated:true` + `alias:"deepseek-v4-flash"` (DeepSeek upstream still accepts old names too).
+- 🔧 **Inherits all v0.76.8 hotpatch #3 fixes** (bash schema fallback + recording permission UX + sign-local Developer ID + brain long-answer stability).
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
+
+</details>
+
+<details>
+<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 rollback + file management fix + bash schema fallback + recording permission UX</summary>
 
 **Hotpatch #3 (2026-04-28 early morning)**:
 - 🛠️ **Bash tool schema consistency**: `extractToolDetail` / `TOOL_ARG_SUMMARY_KEYS` / `normalizeToolArgsForSummary` all accept `cmd/shell/script` aliases; Spark emitting `{cmd:"..."}` no longer renders as empty "执行 命令".
