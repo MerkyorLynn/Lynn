@@ -22,6 +22,10 @@
 <details>
 <summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + route reshape + brain tool fallback + UI stream fix <em>(latest)</em></summary>
 
+**Hotpatch #1 (2026-04-28 PM)**:
+- 🛡️ **TOOL-FAILED-FALLBACK v1**: when a tool call fails AND the model only emitted a preparatory lead-in ("let me check…") before turn_end (typical: live_news / stock_market failure), automatically inject a system prompt that forces the model to retry **without** calling tools — give a cautious answer clearly labeled "general knowledge / not verified live", or honestly tell the user the data couldn't be retrieved. Fixes the "Lynn only answers half a sentence then stops" dogfood bug.
+- 🧪 **+262 lines of tests** (`tests/chat-route-events.test.js`) covering TOOL-FAILED-FALLBACK trigger conditions, retry path, and locale.
+
 **Model / routing ABD reshape**:
 - 🚀 **DeepSeek API upgrade**: `deepseek-chat` → `deepseek-v4-flash` (non-thinking), `deepseek-reasoner` → `deepseek-v4-flash` (thinking mode with `thinking:{type:"enabled",reasoning_effort:"high"}`), new `deepseek-v4-pro` provider for routing.
 - 🧠 **Explicit `thinking` field**: v4-flash defaults to thinking mode and burns tokens; brain injects `thinking:{type:"disabled"}` in chat chain and `enabled+high` in reasoner chain — no more empty `finish=length`.

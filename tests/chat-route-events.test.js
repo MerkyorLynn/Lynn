@@ -365,6 +365,268 @@ describe("chat route event forwarding", () => {
     expect(retryPrompt).toContain(prompt);
   });
 
+  // [TOOL-FAILED-FALLBACK v1 · 2026-04-28] 工具失败 + 短开场句:必须再给一轮机会让模型给"基于常识/无法核实"的兜底答
+  // 复现 V8 T08 case:live_news 工具失败,模型只回 "两个任务一起处理。" 9c → 用户拿到无意义短答
+  it("retries when a tool failed and the assistant only produced a short throat-clearing lead-in", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "【T08】给今天科技/AI 领域 2 条重要新闻,每条含发生日期、来源链接、为什么重要。";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_news",
+      toolName: "live_news",
+      args: { query: "今日科技 AI 新闻" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_news",
+      toolName: "live_news",
+      args: { query: "今日科技 AI 新闻" },
+      result: { error: "fetch failed" },
+      isError: true,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "两个任务一起处理。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_failed_fallback",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("工具失败");
+    expect(retryPrompt).toContain("不要再次调用工具");
+    expect(retryPrompt).toContain("live_news");
+    expect(retryPrompt).toContain(prompt);
+  });
+
+  // 同源 case:工具调用成功但模型只回 "好的" 这种 < 30c 短句也兜底
+  it("retries when a tool failed and the assistant produced a sub-30-char generic answer", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "今日金价多少?";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_stock",
+      toolName: "stock_market",
+      args: { query: "今日金价" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_stock",
+      toolName: "stock_market",
+      args: { query: "今日金价" },
+      result: { error: "rate limit" },
+      isError: true,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "好的。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_failed_fallback",
+    }));
+  });
+
+  // [TOOL-FAILED-FALLBACK v1.1 · 2026-04-28] 0c case (V8 v7 T08):工具失败 + 模型 0 文本
+  it("retries when a tool failed and the assistant produced ZERO text (T08 case)", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "【T08】今日科技 AI 新闻 2 条";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_news",
+      toolName: "live_news",
+      args: { query: "今日科技 AI" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_news",
+      toolName: "live_news",
+      args: { query: "今日科技 AI" },
+      result: { error: "fetch failed" },
+      isError: true,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+    // 模型产 0 文本 → 直接 turn_end 第二次(deferred 后)
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_failed_fallback",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("工具失败");
+    expect(retryPrompt).toContain("live_news");
+  });
+
+  // 反向 case:工具成功 + 短答应该 NOT 触发 fallback (避免误伤)
+  it("does NOT trigger tool_failed_fallback when the tool succeeded with a short answer", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "今天上海天气?" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_w",
+      toolName: "weather",
+      args: { city: "shanghai" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_w",
+      toolName: "weather",
+      args: { city: "shanghai" },
+      result: { output: "晴 22°C" },
+      isError: false,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "上海今天晴 22°C。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    const retryEvents = clients[0].sent.filter((e) => e.type === "turn_retry" && e.reason === "tool_failed_fallback");
+    expect(retryEvents).toHaveLength(0);
+  });
+
+  // [INTERNAL-RETRY-CROSS-PROMPT-FENCE v1 · 2026-04-28] V8 v6 T05/T06 跨测污染修复
+  // 旧行为:T05 空答 → 调度 internal retry → T05 ws 关闭 → T06 ws 连同 session 时 retry 还在跑
+  //         → "Lynn 还在说话" 错误 + retry 的 text_delta 仍 broadcast 到 T06 → T05 答案串到 T06
+  // 新行为:T06 进来时检测到 streamSource==='internal_retry' → 视为可释放 → 中止旧 retry → T06 走新流
+  it("aborts an in-flight internal retry when a new user prompt arrives mid-retry", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.abortSessionByPath = vi.fn(async () => true);
+    // 关键:让 hub.send 的第一次调用挂起(模拟 retry 仍在跑)
+    let firstCallResolve;
+    const sends = [];
+    hub.send = vi.fn((prompt, ctx) => {
+      sends.push({ prompt, ctx });
+      if (sends.length === 1) {
+        // 第 1 次发送:用户 T05 prompt,挂起让我们手工触发 empty_reply
+        return Promise.resolve();
+      }
+      if (sends.length === 2) {
+        // 第 2 次:internal retry 触发,挂起模拟它在跑
+        return new Promise((resolve) => { firstCallResolve = resolve; });
+      }
+      // 第 3 次:T06 新 prompt 应能正常 send 出去
+      return Promise.resolve();
+    });
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    // T05 prompt
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "T05 在上海做晚餐" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(1));
+
+    // T05 模型给 turn_end 但没有任何文本 → empty_reply 路径触发 internal retry
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // 应该已发起 retry(第 2 次 hub.send)
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(2), { timeout: 1000 });
+
+    // 验证 turn_retry 事件被 broadcast
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "empty_reply",
+    }));
+
+    // 此时 retry 还在跑,模拟 isSessionStreaming=true(第 2 个 hub.send 还没 resolve)
+    engine.isSessionStreaming = vi.fn(() => true);
+
+    // T06 进来发新 prompt
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "T06 推荐电影" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(engine.abortSessionByPath).toHaveBeenCalled(), { timeout: 1000 });
+
+    // 关键断言:旧 retry 被中止 → 没收到 "Lynn 还在说话" 错误
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "error",
+      message: expect.stringContaining("还在说话"),
+    }));
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "error",
+      message: expect.stringContaining("still"),
+    }));
+
+    // 让旧 retry 的 hub.send promise 解掉,清理悬挂
+    firstCallResolve?.();
+  });
+
   it("aborts the first silent Brain tool turn after the 25s grace window", async () => {
     vi.useFakeTimers();
     let rejectSend;
