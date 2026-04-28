@@ -1,5 +1,5 @@
 /**
- * PressToTalkButton · 按住说话 · v0.77
+ * PressToTalkButton · 点击录音 · v0.77
  *
  * 用法:
  *   <PressToTalkButton
@@ -10,9 +10,8 @@
  *   />
  *
  * 行为:
- *   • 按下: 启动 MediaRecorder + 显示波形动画 + 计时
- *   • 松开: 停录 → 上传 → 显示转写 → 完成回调
- *   • 取消: 拖出按钮范围松开 = 丢弃录音
+ *   • 点击一次: 启动 MediaRecorder + 显示波形动画 + 计时
+ *   • 再点击一次: 停录 → 上传 → 显示转写 → 完成回调
  *
  * 接口对齐 /api/v1/audio/transcribe (JSON 一次性返回):
  *   POST /api/v1/audio/transcribe
@@ -60,13 +59,26 @@ export function PressToTalkButton({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const recordingStartedAtRef = useRef(0);
+  const durationRef = useRef(0);
+  const stopRequestedRef = useRef(false);
+  const recordedBytesRef = useRef(0);
+  const audioPeakRef = useRef(0);
+  const trackStatusRef = useRef("unknown");
+  const recorderMimeRef = useRef("audio/webm");
 
   // ============ 录音控制 ============
   const startRecording = useCallback(async () => {
     setError(null);
     setState("starting");
     cancelledRef.current = false;
+    stopRequestedRef.current = false;
     chunksRef.current = [];
+    recordedBytesRef.current = 0;
+    audioPeakRef.current = 0;
+    durationRef.current = 0;
+    recordingStartedAtRef.current = 0;
+    trackStatusRef.current = "unknown";
     setDuration(0);
     setPartialText("");
 
@@ -80,16 +92,37 @@ export function PressToTalkButton({
         },
       });
       streamRef.current = stream;
+      const track = stream.getAudioTracks()[0];
+      if (track) {
+        trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}${track.muted ? " · muted" : ""}`;
+        track.onmute = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState} · muted`;
+        };
+        track.onunmute = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}`;
+        };
+        track.onended = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ended`;
+        };
+      }
 
       // MediaRecorder
       const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
+      recorderMimeRef.current = mime;
       const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 64000 });
       mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+          recordedBytesRef.current += e.data.size;
+        }
+      };
+      recorder.onerror = (event) => {
+        const error = (event as unknown as { error?: Error }).error;
+        setError(`录音器异常: ${error?.message || "MediaRecorder error"}`);
       };
       recorder.onstop = () => {
         if (cancelledRef.current) {
@@ -111,15 +144,16 @@ export function PressToTalkButton({
         src.connect(analyser);
         audioContextRef.current = ac;
         analyserRef.current = analyser;
-        drawWaveform();
       } catch {
         // 波形不是关键功能,失败不影响录音
       }
 
       // 计时
       const startTs = Date.now();
+      recordingStartedAtRef.current = startTs;
       timerRef.current = window.setInterval(() => {
         const sec = (Date.now() - startTs) / 1000;
+        durationRef.current = sec;
         setDuration(sec);
         if (sec >= maxDurationSec) stopRecording();
       }, 100);
@@ -134,9 +168,20 @@ export function PressToTalkButton({
   }, [maxDurationSec]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive" || stopRequestedRef.current) return;
+    stopRequestedRef.current = true;
+    // Chromium/Electron 偶发只在 stop() 后给一个 header-only WebM。
+    // 先 requestData(),稍等一个 tick,能显著降低 700B 空 blob。
+    try {
+      if (recorder.state === "recording") recorder.requestData();
+    } catch {
+      // requestData 不是关键路径,失败后继续 stop。
     }
+    window.setTimeout(() => {
+      const latest = mediaRecorderRef.current;
+      if (latest && latest.state !== "inactive") latest.stop();
+    }, 80);
   }, []);
 
   const cancelRecording = useCallback(() => {
@@ -159,6 +204,7 @@ export function PressToTalkButton({
     audioContextRef.current?.close();
     audioContextRef.current = null;
     analyserRef.current = null;
+    mediaRecorderRef.current = null;
   }, []);
 
   useEffect(() => () => cleanup(), [cleanup]);
@@ -168,25 +214,32 @@ export function PressToTalkButton({
     setState("uploading");
     cleanup();
 
-    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const actualDuration = Math.max(
+      durationRef.current,
+      recordingStartedAtRef.current ? (Date.now() - recordingStartedAtRef.current) / 1000 : 0,
+    );
+    const blob = new Blob(chunksRef.current, { type: recorderMimeRef.current || "audio/webm" });
     // DEBUG: 让用户能看到 blob size 判断 MediaRecorder 是否真录到音
-    console.log(`[PTT] blob size=${blob.size} bytes, chunks=${chunksRef.current.length}, duration=${duration}s`);
+    console.log(
+      `[PTT] blob size=${blob.size} bytes, chunks=${chunksRef.current.length}, duration=${actualDuration.toFixed(2)}s, peak=${audioPeakRef.current}, track=${trackStatusRef.current}`,
+    );
     chunksRef.current = [];
 
     // [voice-min-size guard · 2026-04-27 night] 防止短按/空 blob 触发 sensevoice 500 EBML header 错位
     // 实测:< 1KB 的 WebM 是 header-only/不完整,ffmpeg 解码必败,server 返回 500
     // 改为前端早拦截 + 友好提示,不浪费一次后端调用
-    if (blob.size < 1024 || duration < 0.4) {
-      const isLikelyPermission = blob.size < 1024 && duration >= 0.4;
+    if (blob.size < 1024 || actualDuration < 0.4) {
+      const isLikelyPermission = blob.size < 1024 && actualDuration >= 0.4;
       let reason: string;
       if (isLikelyPermission) {
-        reason = `(录了 ${duration.toFixed(2)}s 但 blob 仅 ${blob.size}B — 麦克风权限没拿到音频。请到 系统设置 → 隐私与安全性 → 麦克风 重新授权 Lynn,或退出后重开 App)`;
+        const heardHint = audioPeakRef.current > 0 ? `检测到音量峰值 ${audioPeakRef.current},但编码器没有产出音频帧` : "没有检测到可用音量";
+        reason = `(录了 ${actualDuration.toFixed(2)}s 但 blob 仅 ${blob.size}B；${heardHint}；设备状态: ${trackStatusRef.current}。请到 系统设置 → 隐私与安全性 → 麦克风 重新授权 Lynn,或退出后重开 App)`;
       } else if (blob.size < 1024) {
-        reason = `(blob ${blob.size}B 太小,可能麦克风没拿到音频)`;
+        reason = `(blob ${blob.size}B 太小,可能麦克风没拿到音频；设备状态: ${trackStatusRef.current})`;
       } else {
-        reason = `(只录了 ${duration.toFixed(2)}s,太短)`;
+        reason = `(只录了 ${actualDuration.toFixed(2)}s,太短)`;
       }
-      setError(`录音太短,请按住说一句话再松开 ${reason}`);
+        setError(`录音太短,请录完一句话后再点一次结束 ${reason}`);
       setState("idle");
       setPartialText("");
       return;
@@ -226,23 +279,58 @@ export function PressToTalkButton({
 
     const w = canvas.width;
     const h = canvas.height;
-    const bins = analyser.frequencyBinCount;
+    const bins = analyser.fftSize;
     const data = new Uint8Array(bins);
 
     const tick = () => {
-      analyser.getByteFrequencyData(data);
+      analyser.getByteTimeDomainData(data);
       ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(250, 244, 233, 0.96)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(83, 125, 150, 0.16)";
+      ctx.fillRect(8, Math.floor(h / 2), w - 16, 1);
 
-      const barCount = 28;
-      const barWidth = (w - barCount * 2) / barCount;
-      const step = Math.floor(bins / barCount);
+      const barCount = 32;
+      const gap = 2;
+      const barWidth = (w - gap * (barCount - 1)) / barCount;
+      const step = Math.max(1, Math.floor(bins / barCount));
+      const now = performance.now();
+
       for (let i = 0; i < barCount; i++) {
-        const v = data[i * step] / 255;
-        const barH = Math.max(3, v * h);
-        const x = i * (barWidth + 2);
+        let peak = 0;
+        const start = i * step;
+        const end = Math.min(start + step, bins);
+        for (let j = start; j < end; j++) {
+          const amp = Math.abs(data[j] - 128);
+          if (amp > peak) peak = amp;
+        }
+        if (peak > audioPeakRef.current) audioPeakRef.current = peak;
+
+        const normalized = peak / 128;
+        // 环境很安静时也给一点呼吸动画,避免用户看到一整块空白误以为没在录。
+        const breath = (Math.sin(now / 170 + i * 0.7) + 1) / 2;
+        const visible = Math.max(normalized, 0.08 + breath * 0.08);
+        const barH = Math.max(4, visible * h * 0.92);
+        const x = i * (barWidth + gap);
         const y = (h - barH) / 2;
-        ctx.fillStyle = `rgba(255, 90, 90, ${0.5 + v * 0.5})`;
-        ctx.fillRect(x, y, barWidth, barH);
+        const alpha = Math.min(1, 0.45 + visible * 1.3);
+        ctx.fillStyle = normalized > 0.08
+          ? `rgba(83, 125, 150, ${alpha})`
+          : `rgba(196, 143, 72, ${0.30 + breath * 0.22})`;
+        const radius = Math.min(barWidth / 2, 3);
+        const right = x + barWidth;
+        const bottom = y + barH;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(right - radius, y);
+        ctx.quadraticCurveTo(right, y, right, y + radius);
+        ctx.lineTo(right, bottom - radius);
+        ctx.quadraticCurveTo(right, bottom, right - radius, bottom);
+        ctx.lineTo(x + radius, bottom);
+        ctx.quadraticCurveTo(x, bottom, x, bottom - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.fill();
       }
 
       animFrameRef.current = requestAnimationFrame(tick);
@@ -250,38 +338,25 @@ export function PressToTalkButton({
     tick();
   }, []);
 
-  // ============ 鼠标/触摸事件 ============
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    // 已锁定状态 → 第二次点击 = 结束录音并发送
-    if (lockedRef.current && state === "recording") {
+  useEffect(() => {
+    if (state !== "recording" || !analyserRef.current || !canvasRef.current) return;
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
+    drawWaveform();
+  }, [drawWaveform, state]);
+
+  // ============ 点击录音事件 ============
+  const handleToggleRecording = () => {
+    if (isBusy || state === "starting") return;
+    if (state === "recording") {
       lockedRef.current = false;
       setLocked(false);
       stopRecording();
       return;
     }
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    lockedRef.current = false;
+    setLocked(false);
     startRecording();
-    // 长按 600ms 自动锁定连续录音
-    longPressTimerRef.current = setTimeout(() => {
-      lockedRef.current = true;
-      setLocked(true);
-    }, 600);
-  };
-  const handlePointerUp = (e: React.PointerEvent) => {
-    e.preventDefault();
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    // 锁定状态 → 不停止,等下次点击
-    if (lockedRef.current) return;
-    stopRecording();
-  };
-  const handlePointerLeave = () => {
-    // 锁定状态下离开 button 不取消(继续录)
-    if (lockedRef.current) return;
-    if (state === "recording") cancelRecording();
   };
 
   // ============ Render ============
@@ -295,15 +370,19 @@ export function PressToTalkButton({
         <div className="ptt-overlay" role="status" aria-live="polite">
           {isRecording && (
             <>
+              <div className="ptt-status">
+                <span className="ptt-live-dot" aria-hidden />
+                <span>录音中</span>
+              </div>
               <canvas
                 ref={canvasRef}
-                width={240}
-                height={40}
+                width={180}
+                height={30}
                 className="ptt-waveform"
                 aria-hidden
               />
               <div className="ptt-duration">{duration.toFixed(1)}s</div>
-              <div className="ptt-hint">松开发送 · 移开取消</div>
+              <div className="ptt-hint">再点结束</div>
             </>
           )}
           {isBusy && (
@@ -332,19 +411,19 @@ export function PressToTalkButton({
           fontFamily: "inherit",
           fontSize: 14,
           lineHeight: 1,
-          color: locked && isRecording ? "#8B3A3A" : isRecording ? "#EC8F8D" : isBusy ? "#537D96" : "#8E9196",
+          color: locked && isRecording ? "#7A4E18" : isRecording ? "#B67A2A" : isBusy ? "#537D96" : "#8E9196",
           background: locked && isRecording
-            ? "rgba(139, 58, 58, 0.18)"
+            ? "rgba(196, 143, 72, 0.18)"
             : isRecording
-            ? "rgba(236, 143, 141, 0.12)"
+            ? "rgba(196, 143, 72, 0.10)"
             : isBusy
             ? "rgba(83, 125, 150, 0.08)"
             : "transparent",
           border: `1px solid ${
             locked && isRecording
-              ? "rgba(139, 58, 58, 0.55)"
+              ? "rgba(196, 143, 72, 0.48)"
               : isRecording
-              ? "rgba(236, 143, 141, 0.45)"
+              ? "rgba(196, 143, 72, 0.34)"
               : isBusy
               ? "rgba(83, 125, 150, 0.30)"
               : "rgba(83, 125, 150, 0.18)"
@@ -357,11 +436,9 @@ export function PressToTalkButton({
           WebkitUserSelect: "none",
           userSelect: "none",
         } as CSSProperties & { WebkitAppRegion?: string }}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
+        onClick={handleToggleRecording}
         disabled={isBusy}
-        aria-label={isRecording ? "录音中,松开发送" : "按住说话"}
+        aria-label={isRecording ? "录音中,再次点击结束" : "点击开始录音"}
       >
         {state === "idle" && "🎤"}
         {state === "starting" && "..."}

@@ -114,8 +114,15 @@ function closePseudoXmlRe(toolName) {
   return new RegExp(`</\\s*${escaped}\\s*>`, "iu");
 }
 
+// [HOTPATCH 2026-04-28 v0.76.9] streaming chunk 边界 buffering
+// 检测 text 末尾是否有半截 `</...` (open `<` 但无 `>` 收尾),buffer 等下一 chunk 拼接
+// 防御 `</user>` 被 SSE 切成 `</us` + `er>` 两 chunk 各自漏 ORPHAN_CLOSE_TAG_RE 的死角
+const PARTIAL_CLOSE_TAG_TAIL_RE = /<\/?[a-zA-Z][a-zA-Z0-9_-]{0,20}\s*$/;
+
 function stripStreamingPseudoToolBlocks(ss, chunk) {
-  let rest = String(chunk || "");
+  // 拼上上一 chunk 末尾留下的半截 tag(若有)
+  let rest = String((ss?.pseudoCloseTagBuffer || "") + (chunk || ""));
+  if (ss) ss.pseudoCloseTagBuffer = "";
   let text = "";
   let suppressed = false;
 
@@ -159,6 +166,16 @@ function stripStreamingPseudoToolBlocks(ss, chunk) {
     ORPHAN_CLOSE_TAG_RE.lastIndex = 0; // reset regex state(g flag)
     text = text.replace(ORPHAN_CLOSE_TAG_RE, "");
     suppressed = true;
+  }
+
+  // [HOTPATCH 2026-04-28 v0.76.9] 末尾半截 `</...` 缓冲到下一 chunk
+  // 防御 chunk 边界切割漏过 `</user>` `</assistant>` 等 chat-template role tag
+  if (ss && text) {
+    const tailMatch = text.match(PARTIAL_CLOSE_TAG_TAIL_RE);
+    if (tailMatch) {
+      ss.pseudoCloseTagBuffer = tailMatch[0];
+      text = text.slice(0, text.length - tailMatch[0].length);
+    }
   }
 
   return { text, suppressed };
@@ -361,6 +378,79 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   }
 
   const MAX_SESSION_STATES = 20;
+  const STALE_EMPTY_STREAM_MS = Number(process.env.LYNN_STALE_EMPTY_STREAM_MS || 90_000);
+  const STALE_THINKING_STREAM_MS = Number(process.env.LYNN_STALE_THINKING_STREAM_MS || 120_000);
+
+  function isStaleEmptySessionStream(ss, now = Date.now()) {
+    if (!ss) return false;
+    const elapsed = now - (ss.startedAt || 0);
+    const hasUserVisibleProgress = !!(ss.hasOutput || ss.hasToolCall);
+    if (hasUserVisibleProgress) return false;
+    if (elapsed > STALE_THINKING_STREAM_MS) return true;
+    return elapsed > STALE_EMPTY_STREAM_MS && !ss.hasThinking && !ss.hasError;
+  }
+
+  async function releaseStaleSessionStream(sessionPath, ss) {
+    if (!sessionPath || !ss) return false;
+    clearSilentBrainAbortTimer(ss);
+    try {
+      await engine.abortSessionByPath?.(sessionPath);
+    } catch {}
+    if (ss.isStreaming) {
+      closeStreamAfterError(sessionPath, ss);
+    } else {
+      finishSessionStream(ss);
+      resetCompletedTurnState(ss);
+      broadcast({ type: "status", isStreaming: false, sessionPath });
+    }
+    debugLog()?.warn("ws", `[STALE-STREAM-RELEASE v1] released stale stream · elapsed=${Date.now() - (ss.startedAt || Date.now())}ms · ${sessionPath}`);
+    return true;
+  }
+
+  function buildEmptyReplyFallbackText(ss) {
+    const isZh = getLocale().startsWith("zh");
+    const kind = ss?.pseudoToolSteered ? "pseudo_tool_after_retry" : ss?.routeIntent || "empty_reply";
+    return isZh
+      ? `本轮模型没有生成可见答案，Lynn 已结束这次空转以免卡住会话。你可以直接重试一次，或把任务说得更具体一点。类型：${kind}`
+      : `The model did not produce a visible answer. Lynn ended this empty turn to avoid locking the conversation. Please retry or make the task more specific. Kind: ${kind}`;
+  }
+
+  function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
+    const userPrompt = String(originalPromptText || "").trim();
+    return getLocale().startsWith("zh")
+      ? [
+          "[系统提示] 上一轮模型没有生成任何可见答案。本轮请不要调用工具，不要输出思考占位或准备语句，直接用纯文本完成用户任务。",
+          `任务类型：${routeIntent || "chat"}`,
+          "如果用户要求长文/研究/创作，请直接展开完整正文；如果信息不足，也要先给出可用的最小答案和缺口。",
+          "【用户原始问题】",
+          userPrompt,
+        ].filter(Boolean).join("\n")
+      : [
+          "[System] The previous model turn produced no visible answer. Do not call tools; do not output planning placeholders. Complete the user's task directly in plain text.",
+          `Route: ${routeIntent || "chat"}`,
+          "If the user asked for long-form analysis or writing, produce the full answer now. If information is missing, provide the best minimal answer and state the gap.",
+          "Original user request:",
+          userPrompt,
+        ].filter(Boolean).join("\n");
+  }
+
+  function buildShortLeadInRetryPrompt(originalPromptText, partialText) {
+    return getLocale().startsWith("zh")
+      ? [
+          "[系统提示] 上一轮只输出了准备/开场句，没有完成用户任务。请不要再说“我先/接下来/准备”，也不要调用工具，直接完成最终内容。",
+          "【上一轮可见文本】",
+          String(partialText || "").trim(),
+          "【用户原始问题】",
+          String(originalPromptText || "").trim(),
+        ].join("\n")
+      : [
+          "[System] The previous turn only produced a preparatory lead-in and did not complete the user task. Do not say you will do it; do not call tools. Produce the final content now.",
+          "Previous visible text:",
+          String(partialText || "").trim(),
+          "Original user request:",
+          String(originalPromptText || "").trim(),
+        ].join("\n");
+  }
 
   function getState(sessionPath) {
     if (!sessionPath) return null;
@@ -395,6 +485,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         effectivePromptText: "",
         hasLocalPrefetchEvidence: false,
         pendingToolRetryAttempted: false,
+        internalRetryCounts: {},
         successfulToolCount: 0,
         lastSuccessfulTools: [],
         // [TOOL-FINALIZE-RETRY v1 · 2026-04-21] 工具真调完但模型没给 final text
@@ -556,8 +647,107 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.pseudoToolXmlBlock = null;
     ss.successfulToolCount = 0;
     ss.lastSuccessfulTools = [];
+    if (ss.__slowToolTimers?.size) {
+      for (const timer of ss.__slowToolTimers.values()) {
+        try { clearTimeout(timer); } catch {}
+      }
+      ss.__slowToolTimers.clear();
+    }
     // [TOOL-FINALIZE-RETRY v1] reset per-turn flag · 每轮都可以 retry 一次
     ss.toolFinalizationRetryAttempted = false;
+  }
+
+  function internalRetryCount(ss, reason) {
+    if (!ss || !reason) return 0;
+    const counts = ss.internalRetryCounts || {};
+    return Number(counts[reason] || 0);
+  }
+
+  function canScheduleInternalRetry(ss, reason) {
+    return !!ss && !!reason && internalRetryCount(ss, reason) < 1;
+  }
+
+  function markInternalRetry(ss, reason) {
+    if (!ss || !reason) return false;
+    if (!ss.internalRetryCounts || typeof ss.internalRetryCounts !== "object") {
+      ss.internalRetryCounts = {};
+    }
+    ss.internalRetryCounts[reason] = internalRetryCount(ss, reason) + 1;
+    return true;
+  }
+
+  function prepareInternalRetryStream(sessionPath, ss, reason) {
+    clearSilentBrainAbortTimer(ss);
+    ss.thinkTagParser.reset();
+    ss.progressParser.reset();
+    ss.moodParser.reset();
+    ss.xingParser.reset();
+    ss.titleRequested = true; // 避免内部 retry 反复重命名会话
+    ss.titlePreview = "";
+    ss.visibleTextAcc = "";
+    ss.rawTextAcc = "";
+    ss.hasOutput = false;
+    ss.hasToolCall = false;
+    ss.hasThinking = false;
+    ss.hasError = false;
+    ss.isThinking = false;
+    ss.pseudoToolSteered = false;
+    ss.pseudoToolXmlBlock = null;
+    ss.successfulToolCount = 0;
+    ss.lastSuccessfulTools = [];
+    ss.progressMarkerCount = 0;
+    ss.degenerationAbortRequested = false;
+    ss._turnEndDeferred = false;
+    const streamToken = beginSessionStream(ss);
+    ss.activeStreamToken = streamToken;
+    debugLog()?.log("ws", `[INTERNAL-RETRY v1] opened retry stream · reason=${reason} · session=${sessionPath}`);
+    return streamToken;
+  }
+
+  function scheduleInternalRetry(sessionPath, reason, retryPrompt) {
+    if (!sessionPath || !reason || !String(retryPrompt || "").trim()) return false;
+    const ss = getState(sessionPath);
+    if (!ss || !canScheduleInternalRetry(ss, reason)) {
+      debugLog()?.warn("ws", `[INTERNAL-RETRY v1] skipped · reason=${reason} count=${internalRetryCount(ss, reason)} · session=${sessionPath}`);
+      return false;
+    }
+    markInternalRetry(ss, reason);
+    broadcast({ type: "turn_retry", sessionPath, reason });
+    const startRetry = async (attempt = 0) => {
+      const currentSs = getState(sessionPath);
+      if (!currentSs) return;
+      if (currentSs.isStreaming || engine.isSessionStreaming(sessionPath)) {
+        if (attempt < 20) {
+          setTimeout(() => startRetry(attempt + 1), 50);
+          return;
+        }
+        debugLog()?.warn("ws", `[INTERNAL-RETRY v1] abandoned because session stayed streaming · reason=${reason} · session=${sessionPath}`);
+        broadcast({ type: "status", isStreaming: false, sessionPath });
+        return;
+      }
+      const streamToken = prepareInternalRetryStream(sessionPath, currentSs, reason);
+      broadcast({ type: "status", isStreaming: true, sessionPath });
+      scheduleSilentBrainAbort(sessionPath, currentSs);
+      try {
+        await hub.send(retryPrompt, { sessionPath, streamToken });
+        clearSilentBrainAbortTimer(currentSs);
+        if (!currentSs.isStreaming) {
+          broadcast({ type: "status", isStreaming: false, sessionPath });
+        }
+      } catch (retryErr) {
+        clearSilentBrainAbortTimer(currentSs);
+        currentSs.hasError = true;
+        debugLog()?.warn("ws", `[INTERNAL-RETRY v1] failed · reason=${reason}: ${retryErr?.message || retryErr}`);
+        if (currentSs.isStreaming) {
+          closeStreamAfterError(sessionPath, currentSs);
+        } else {
+          broadcast({ type: "error", message: retryErr?.message || String(retryErr), sessionPath });
+          broadcast({ type: "status", isStreaming: false, sessionPath });
+        }
+      }
+    };
+    Promise.resolve().then(() => startRetry());
+    return true;
   }
 
   function closeStreamAfterError(sessionPath, ss) {
@@ -828,8 +1018,24 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         for (const k of TOOL_ARG_SUMMARY_KEYS) { if (rawArgs[k] !== undefined) args[k] = rawArgs[k]; }
       }
       emitStreamEvent(sessionPath, ss, { type: "tool_start", name: event.toolName || "", args });
+      // [HOTPATCH 2026-04-28 v0.76.9 E] slow tool warning at 15s -- 给用户进度反馈,不再"卡死"感
+      try {
+        const __slowName = event.toolName || "";
+        const __slowToolCallId = event.toolCallId || null;
+        const __slowTimer = setTimeout(() => {
+          try { emitStreamEvent(sessionPath, ss, { type: "tool_progress", name: __slowName, event: "slow_warning", elapsedMs: 15000, toolCallId: __slowToolCallId }); } catch (_) {}
+        }, 15000);
+        ss.__slowToolTimers = ss.__slowToolTimers || new Map();
+        ss.__slowToolTimers.set(__slowToolCallId || __slowName, __slowTimer);
+      } catch (_) {}
     } else if (event.type === "tool_execution_end") {
       if (!ss) return;
+      // [HOTPATCH 2026-04-28 v0.76.9 E] clear slow_warning timer for this tool
+      try {
+        const __key = event.toolCallId || event.toolName || "";
+        const __t = ss.__slowToolTimers?.get(__key);
+        if (__t) { clearTimeout(__t); ss.__slowToolTimers.delete(__key); }
+      } catch (_) {}
 
       // 构建前端友好的工具结果摘要
       const rawDetails = event.result?.details || {};
@@ -1181,15 +1387,33 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
 
       const visibleTextBeforeReset = ss.visibleTextAcc || "";
+      const visibleTrimmed = visibleTextBeforeReset.trim();
+      const visibleLen = visibleTrimmed.length;
+      let internalRetry = null;
       const shouldRetryPendingToolText =
         ss.hasLocalPrefetchEvidence &&
         !ss.pendingToolRetryAttempted &&
+        canScheduleInternalRetry(ss, "pending_tool_text") &&
         !ss.hasToolCall &&
         looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent);
 
-      // 空回复检测：本轮没有文本输出也没有工具调用，提示用户检查配置
+      // 空回复检测：本轮没有文本输出也没有工具调用时，不再只弹 toast。
+      // 伪工具二次失败 / provider 空答如果没有可见文本，会让用户以为任务还在卡住；
+      // 这里写入一条明确的可见兜底，并释放会话。
       if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
-        broadcast({ type: "error", message: t("error.modelNoResponse") });
+        if (canScheduleInternalRetry(ss, "empty_reply")) {
+          internalRetry = {
+            reason: "empty_reply",
+            prompt: buildEmptyReplyRetryPrompt(ss.effectivePromptText || ss.originalPromptText, ss.routeIntent),
+          };
+          debugLog()?.warn("ws", `[EMPTY-REPLY-RETRY v1] scheduled · session=${sessionPath}`);
+        } else {
+          const fallbackMsg = buildEmptyReplyFallbackText(ss);
+          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: fallbackMsg });
+          ss.visibleTextAcc += fallbackMsg;
+          ss.hasOutput = true;
+          debugLog()?.warn("ws", `[EMPTY-REPLY-FALLBACK v2] emitted visible fallback · session=${sessionPath}`);
+        }
       }
 
       // [EMPTY-REPLY-FALLBACK v1 + TOOL-FINALIZE-RETRY v1] 2026-04-20/21 · P1→P0 升级
@@ -1204,10 +1428,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       //     · 条件: hasToolCall && 文本几乎空 && 本轮未 retry 过
       //     · 实现: emit turn_end 后 · 发一条"基于工具结果给最终答案"的隐式 prompt
       //     · 限制: 每轮最多 retry 1 次 · 防止无限循环
-      const visibleTrimmed = visibleTextBeforeReset.trim();
-      const visibleLen = visibleTrimmed.length;
       const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
+      const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先检查|先确认|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
       const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
+      const isShortLeadInOnly = visibleLen > 0 && visibleLen < 120 && !ss.hasToolCall && SHORT_LEADIN_RE.test(visibleTrimmed);
       const isToolDidNotProduceText = ss.hasToolCall && visibleLen < 5;
       const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
       const hasSuccessfulLocalTool = (ss.lastSuccessfulTools || [])
@@ -1223,12 +1447,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         !ss.hasError &&
         isToolDidNotProduceText &&
         !localToolSuccessFallback &&
-        !ss.toolFinalizationRetryAttempted;
+        !ss.toolFinalizationRetryAttempted &&
+        canScheduleInternalRetry(ss, "tool_finalization");
       const shouldRetryToolContinuation =
         isActive &&
         !ss.hasError &&
         ss.hasToolCall &&
         !ss.pendingToolRetryAttempted &&
+        canScheduleInternalRetry(ss, "tool_continuation") &&
         looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent);
 
       if (localToolSuccessFallback && isActive && !ss.hasError) {
@@ -1240,6 +1466,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         // 不 emit fallback msg · 让 retry 产生的 turn 承担最终答案
         ss.toolFinalizationRetryAttempted = true;
         debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] will retry · session=${sessionPath}`);
+      } else if (!internalRetry && isActive && !ss.hasError && isShortLeadInOnly && canScheduleInternalRetry(ss, "short_leadin")) {
+        internalRetry = {
+          reason: "short_leadin",
+          prompt: buildShortLeadInRetryPrompt(ss.effectivePromptText || ss.originalPromptText, visibleTextBeforeReset),
+        };
+        debugLog()?.warn("ws", `[SHORT-LEADIN-RETRY v1] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
       } else if (isActive && !ss.hasError && (isIncompletePending || isThinkingOnlyNoOutput || (isToolDidNotProduceText && ss.toolFinalizationRetryAttempted))) {
         // 其他两场景 · 或已 retry 过一次仍无 final text → emit fallback msg
         const kind = isToolDidNotProduceText ? "tool_no_final_text_after_retry"
@@ -1259,48 +1491,39 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       // Subscribe callback is sync — cannot await here.
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       broadcast({ type: "status", isStreaming: false, sessionPath });
-      if (shouldRetryPendingToolText) {
+      if (!internalRetry && shouldRetryPendingToolText) {
         ss.pendingToolRetryAttempted = true;
-        broadcast({ type: "turn_retry", sessionPath });
-        Promise.resolve().then(() => hub.send(
-          buildPseudoToolRetryPrompt(ss.effectivePromptText || ss.originalPromptText),
-          { sessionPath },
-        )).catch((retryErr) => {
-          debugLog()?.warn("ws", `pending tool retry failed: ${retryErr?.message || retryErr}`);
-        });
+        internalRetry = {
+          reason: "pending_tool_text",
+          prompt: buildPseudoToolRetryPrompt(ss.effectivePromptText || ss.originalPromptText),
+        };
       }
       // [TOOL-CONTINUATION-RETRY v1] 2026-04-27 · 工具跑了一半后只说“开始/接下来”
       //   典型例子: ls 成功后正文写“找到 2 个 PDF，开始创建文件夹并移动”，但没有继续 mkdir/mv。
       //   这不是最终答案，也不是空答；必须再给模型一次机会继续调用真实工具完成原任务。
-      if (shouldRetryToolContinuation) {
+      if (!internalRetry && shouldRetryToolContinuation) {
         ss.pendingToolRetryAttempted = true;
-        broadcast({ type: "turn_retry", sessionPath, reason: "tool_continuation" });
-        Promise.resolve().then(() => hub.send(
-          buildToolContinuationRetryPrompt(
+        internalRetry = {
+          reason: "tool_continuation",
+          prompt: buildToolContinuationRetryPrompt(
             ss.effectivePromptText || ss.originalPromptText,
             visibleTextBeforeReset,
           ),
-          { sessionPath },
-        )).catch((retryErr) => {
-          debugLog()?.warn("ws", `tool continuation retry failed: ${retryErr?.message || retryErr}`);
-        });
+        };
         debugLog()?.warn("ws", `[TOOL-CONTINUATION-RETRY v1] triggered · visibleLen=${visibleLen} · session=${sessionPath}`);
       }
       // [TOOL-FINALIZE-RETRY v1] 2026-04-21 · 工具调完但无 final text 的主动 retry
       //   所有 provider 在 T1 综合工具收尾题都踩这条 · GPT-5.4/Kimi = tool_no_final_text
       //   默认模型/DeepSeek/MiniMax = empty response · 这里统一 retry
       //   retry prompt 明确告知: 工具结果已在对话历史 · 不要再调工具 · 直接综合给答案
-      if (shouldRetryToolFinalize) {
-        broadcast({ type: "turn_retry", sessionPath, reason: "tool_finalization" });
+      if (!internalRetry && shouldRetryToolFinalize) {
         const retryPrompt = getLocale().startsWith("zh")
           ? "[系统提示] 上面工具已经执行成功并拿到真实结果(在本次对话历史中)。请基于这些工具结果直接给用户最终答案 · 综合推理和结论。不要再调用任何工具 · 不要重复工具 raw output 的数据 · 直接给简洁可读的最终回答。"
           : "[System] The tools above executed successfully and returned real results (in this conversation history). Use those results to give the user the final answer directly — synthesize and conclude. Do not call any more tools. Do not restate raw tool output; produce a concise, readable final answer.";
-        Promise.resolve().then(() => hub.send(
-          retryPrompt,
-          { sessionPath },
-        )).catch((retryErr) => {
-          debugLog()?.warn("ws", `tool finalization retry failed: ${retryErr?.message || retryErr}`);
-        });
+        internalRetry = {
+          reason: "tool_finalization",
+          prompt: retryPrompt,
+        };
         debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] triggered · session=${sessionPath}`);
       }
       (async () => {
@@ -1327,6 +1550,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         debugLog()?.warn("ws", `observed ${ss.progressMarkerCount} hallucinated <lynn_tool_progress> markers (no real tool_call) · session=${sessionPath}`);
       }
       resetCompletedTurnState(ss);
+      if (internalRetry) {
+        scheduleInternalRetry(sessionPath, internalRetry.reason, internalRetry.prompt);
+      }
 
       if (isActive) debugLog()?.log("ws", "assistant reply done");
       maybeGenerateFirstTurnTitle(sessionPath, ss);
@@ -1541,9 +1767,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 wsSend(ws, { type: "error", message: t("error.noActiveSession") });
                 return;
               }
-              if (engine.isSessionStreaming(promptSessionPath) || ss?.isStreaming) {
-                wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
-                return;
+              const engineStreaming = engine.isSessionStreaming(promptSessionPath);
+              if (engineStreaming || ss?.isStreaming) {
+                const shouldReleaseStale = isStaleEmptySessionStream(ss) || (engineStreaming && !ss?.isStreaming);
+                const releasedStale = shouldReleaseStale
+                  ? await releaseStaleSessionStream(promptSessionPath, ss)
+                  : false;
+                if (!releasedStale) {
+                  wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
+                  return;
+                }
               }
               try {
                 ss.thinkTagParser.reset();
@@ -1559,6 +1792,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.effectivePromptText = promptText;
                 ss.hasLocalPrefetchEvidence = false;
                 ss.pendingToolRetryAttempted = false;
+                ss.internalRetryCounts = {};
                 ss.pseudoToolSteered = false;
                 ss.pseudoToolXmlBlock = null;
                 ss.hasOutput = false;
