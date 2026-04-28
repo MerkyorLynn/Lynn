@@ -452,6 +452,36 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ].join("\n");
   }
 
+  // [TOOL-FAILED-FALLBACK v1] 2026-04-28 · 工具失败 + 文本太短(典型: live_news 失败后只回 "两个任务一起处理。")
+  //   该工具(查询类: stock_market / weather / live_news / web_search 等)失败后, 模型不应静默 turn_end。
+  //   若没数据可基于上下文给审慎估计 + 标注"估计/未联网核实", 否则诚实说"未能查到 X 的最新数据"。
+  //   依据 memory feedback_brain_patch_blast_radius.md 规则 2: 工具失败必须有备用源 / 兜底文案。
+  function buildToolFailedRetryPrompt(originalPromptText, partialText, failedToolNames) {
+    const isZh = getLocale().startsWith("zh");
+    const failed = Array.isArray(failedToolNames) && failedToolNames.length
+      ? failedToolNames.join(", ")
+      : "";
+    return isZh
+      ? [
+          "[系统提示] 上一轮调用的工具失败了，且模型只输出了开场句没有完成任务。",
+          failed ? `失败的工具：${failed}` : "",
+          "本轮请：(1) 不要再次调用工具；(2) 如果你有相关常识或上下文可推断，给出审慎答案并明确标注「基于公开常识/未实时核实」；(3) 否则诚实告知用户「未能查到 X 的最新数据」，并给出 1-2 条用户可以自己验证的来源建议（如官网/搜索关键词）。不要再写「我来查/我先/接下来」。",
+          "【上一轮可见文本】",
+          String(partialText || "").trim(),
+          "【用户原始问题】",
+          String(originalPromptText || "").trim(),
+        ].filter(Boolean).join("\n")
+      : [
+          "[System] The tool call in the previous turn failed and the model only produced a preparatory lead-in.",
+          failed ? `Failed tools: ${failed}` : "",
+          "This turn: (1) do not call any tools again; (2) if you have relevant common knowledge or context, give a cautious answer clearly labeled as 'based on general knowledge / not verified live'; (3) otherwise honestly tell the user the latest data could not be retrieved and suggest 1-2 sources they can check themselves. Do not write 'let me check / I will / next'.",
+          "Previous visible text:",
+          String(partialText || "").trim(),
+          "Original user request:",
+          String(originalPromptText || "").trim(),
+        ].filter(Boolean).join("\n");
+  }
+
   function getState(sessionPath) {
     if (!sessionPath) return null;
     if (!sessionState.has(sessionPath)) {
@@ -488,12 +518,21 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         internalRetryCounts: {},
         successfulToolCount: 0,
         lastSuccessfulTools: [],
+        // [TOOL-FAILED-FALLBACK v1 · 2026-04-28] 工具失败 + 短开场句兜底
+        hasFailedTool: false,
+        lastFailedTools: [],
+        toolFailedFallbackRetryAttempted: false,
         // [TOOL-FINALIZE-RETRY v1 · 2026-04-21] 工具真调完但模型没给 final text
         //   (典型:GPT-5.4 / Kimi 在 T1 综合工具题) · 主动触发一次隐式 retry
         //   让模型基于工具结果产出最终答案 · 每轮最多 retry 1 次
         toolFinalizationRetryAttempted: false,
         silentBrainAbortTimer: null,
         activeStreamToken: null,
+        // [INTERNAL-RETRY-CROSS-PROMPT-FENCE v1 · 2026-04-28] 标记当前流是哪种来源
+        //   'user' = 用户 WS prompt 触发;'internal_retry' = empty_reply / lead_in / tool_failed_fallback 等
+        //   新 prompt 进来如果 isStreaming 且 streamSource==='internal_retry' → 视为可释放(旧 retry 已过时)
+        //   修 V8 v6 T05/T06 跨测污染:T05 retry 异步运行,文本流到了后连进来的 T06 WS
+        streamSource: null,
         degenerationAbortRequested: false,
         // [TURN-FENCE v1 · 2026-04-20] 上一轮因超时/错误 abort 且未产出内容 → 下一轮 prompt 前加
         // 【系统注意】提示,防 A3B 把上一个未答问题一起回答产生串轮(Round 7 T14→T15 观察)
@@ -647,6 +686,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.pseudoToolXmlBlock = null;
     ss.successfulToolCount = 0;
     ss.lastSuccessfulTools = [];
+    ss.hasFailedTool = false;
+    ss.lastFailedTools = [];
     if (ss.__slowToolTimers?.size) {
       for (const timer of ss.__slowToolTimers.values()) {
         try { clearTimeout(timer); } catch {}
@@ -655,6 +696,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     }
     // [TOOL-FINALIZE-RETRY v1] reset per-turn flag · 每轮都可以 retry 一次
     ss.toolFinalizationRetryAttempted = false;
+    // [TOOL-FAILED-FALLBACK v1] reset per-turn flag
+    ss.toolFailedFallbackRetryAttempted = false;
   }
 
   function internalRetryCount(ss, reason) {
@@ -695,11 +738,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.pseudoToolXmlBlock = null;
     ss.successfulToolCount = 0;
     ss.lastSuccessfulTools = [];
+    ss.hasFailedTool = false;
+    ss.lastFailedTools = [];
     ss.progressMarkerCount = 0;
     ss.degenerationAbortRequested = false;
     ss._turnEndDeferred = false;
     const streamToken = beginSessionStream(ss);
     ss.activeStreamToken = streamToken;
+    ss.streamSource = "internal_retry";
     debugLog()?.log("ws", `[INTERNAL-RETRY v1] opened retry stream · reason=${reason} · session=${sessionPath}`);
     return streamToken;
   }
@@ -1100,6 +1146,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
       if (!event.isError) {
         rememberSuccessfulTool(ss, toolName, toolSummary, normalizedArgs);
+      } else {
+        // [TOOL-FAILED-FALLBACK v1 · 2026-04-28]
+        ss.hasFailedTool = true;
+        ss.lastFailedTools = [...(ss.lastFailedTools || []), toolName].slice(-8);
       }
 
       if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
@@ -1400,7 +1450,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       // 空回复检测：本轮没有文本输出也没有工具调用时，不再只弹 toast。
       // 伪工具二次失败 / provider 空答如果没有可见文本，会让用户以为任务还在卡住；
       // 这里写入一条明确的可见兜底，并释放会话。
-      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && isActive) {
+      // [TOOL-FAILED-FALLBACK v1.1 · 2026-04-28] 工具失败时不走 empty_reply,后面 isToolFailedShortAnswer 会处理
+      if (!ss.hasOutput && !ss.hasToolCall && !ss.hasThinking && !ss.hasError && !ss.hasFailedTool && isActive) {
         if (canScheduleInternalRetry(ss, "empty_reply")) {
           internalRetry = {
             reason: "empty_reply",
@@ -1430,9 +1481,21 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       //     · 限制: 每轮最多 retry 1 次 · 防止无限循环
       const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
       const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先检查|先确认|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
+      // [TOOL-FAILED-FALLBACK v1 · 2026-04-28] 工具失败后用户拿到无意义短句的检测器
+      //   T08 案例:"两个任务一起处理。" 9c 短开场,SHORT_LEADIN_RE 漏掉
+      //   覆盖更宽的 throat-clearing 文案,只在工具失败时触发(避免误伤工具成功的短答)
+      const TOOL_FAILED_LEADIN_RE = /(?:两个任务|多个任务|一起处理|同时处理|我来搜索|让我搜索|开始搜索|开始查|开始处理|来查找|来找|来看|来分析|来帮你|马上来|稍等|let me (?:search|fetch|find|look)|i'?ll (?:search|check|look|fetch))/i;
       const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
       const isShortLeadInOnly = visibleLen > 0 && visibleLen < 120 && !ss.hasToolCall && SHORT_LEADIN_RE.test(visibleTrimmed);
       const isToolDidNotProduceText = ss.hasToolCall && visibleLen < 5;
+      // [TOOL-FAILED-FALLBACK v1.1 · 2026-04-28] 工具失败 + 文本太短或为空(80c 阈值)
+      //   v1.1 升级:取消 visibleLen>0 限制,允许 visibleLen=0 也走 fallback
+      //   覆盖 V8 v7 T08 case (live_news fail + 模型 0 文本 + 50s 干等)
+      //   触发条件:工具失败 + 文本 < 80c(包括 0c) + (短到 < 30c 或 命中 lead-in 正则)
+      const isToolFailedShortAnswer =
+        ss.hasFailedTool &&
+        visibleLen < 80 &&
+        (visibleLen < 30 || SHORT_LEADIN_RE.test(visibleTrimmed) || TOOL_FAILED_LEADIN_RE.test(visibleTrimmed));
       const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
       const hasSuccessfulLocalTool = (ss.lastSuccessfulTools || [])
         .some((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
@@ -1442,10 +1505,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
       // [TOOL-FINALIZE-RETRY v1] 工具真调完但无 final text · 主动 retry
       // 其他两个场景(incomplete_pending / thinking_only)仍走原 fallback msg 路径
+      // [TOOL-FAILED-FALLBACK v1 · 2026-04-28] 工具失败时不走 finalization (那是给工具成功但无文本的)
+      //   工具失败应该走 tool_failed_fallback,告诉模型不要再调工具,给基于常识/诚实声明的兜底
       const shouldRetryToolFinalize =
         isActive &&
         !ss.hasError &&
         isToolDidNotProduceText &&
+        !ss.hasFailedTool &&
         !localToolSuccessFallback &&
         !ss.toolFinalizationRetryAttempted &&
         canScheduleInternalRetry(ss, "tool_finalization");
@@ -1472,6 +1538,21 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           prompt: buildShortLeadInRetryPrompt(ss.effectivePromptText || ss.originalPromptText, visibleTextBeforeReset),
         };
         debugLog()?.warn("ws", `[SHORT-LEADIN-RETRY v1] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
+      } else if (
+        !internalRetry && isActive && !ss.hasError && isToolFailedShortAnswer &&
+        !ss.toolFailedFallbackRetryAttempted && canScheduleInternalRetry(ss, "tool_failed_fallback")
+      ) {
+        // [TOOL-FAILED-FALLBACK v1 · 2026-04-28]
+        ss.toolFailedFallbackRetryAttempted = true;
+        internalRetry = {
+          reason: "tool_failed_fallback",
+          prompt: buildToolFailedRetryPrompt(
+            ss.effectivePromptText || ss.originalPromptText,
+            visibleTextBeforeReset,
+            ss.lastFailedTools || [],
+          ),
+        };
+        debugLog()?.warn("ws", `[TOOL-FAILED-FALLBACK v1] scheduled · visibleLen=${visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`);
       } else if (isActive && !ss.hasError && (isIncompletePending || isThinkingOnlyNoOutput || (isToolDidNotProduceText && ss.toolFinalizationRetryAttempted))) {
         // 其他两场景 · 或已 retry 过一次仍无 final text → emit fallback msg
         const kind = isToolDidNotProduceText ? "tool_no_final_text_after_retry"
@@ -1769,10 +1850,19 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               }
               const engineStreaming = engine.isSessionStreaming(promptSessionPath);
               if (engineStreaming || ss?.isStreaming) {
-                const shouldReleaseStale = isStaleEmptySessionStream(ss) || (engineStreaming && !ss?.isStreaming);
+                // [INTERNAL-RETRY-CROSS-PROMPT-FENCE v1 · 2026-04-28] 新 prompt 进来如果是 internal_retry 在跑
+                //   → 视为过时 retry,强制释放;不让旧 retry 的 text_delta 流到新 prompt 的 WS
+                //   修 V8 v6 T05/T06 跨测污染
+                const isInternalRetryStream = ss?.streamSource === "internal_retry";
+                const shouldReleaseStale = isStaleEmptySessionStream(ss)
+                  || (engineStreaming && !ss?.isStreaming)
+                  || isInternalRetryStream;
                 const releasedStale = shouldReleaseStale
                   ? await releaseStaleSessionStream(promptSessionPath, ss)
                   : false;
+                if (releasedStale && isInternalRetryStream) {
+                  debugLog()?.warn("ws", `[INTERNAL-RETRY-FENCE v1] aborted stale internal retry on new user prompt · session=${promptSessionPath}`);
+                }
                 if (!releasedStale) {
                   wsSend(ws, { type: "error", message: t("error.stillStreaming", { name: engine.agentName }) });
                   return;
@@ -1801,6 +1891,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.hasError = false;
                 const streamToken = beginSessionStream(ss);
                 ss.activeStreamToken = streamToken;
+                ss.streamSource = "user";
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
                 const localOfficeAnswer = buildLocalOfficeDirectAnswer(promptText);
                 if (localOfficeAnswer) {

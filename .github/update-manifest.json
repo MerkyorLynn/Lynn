@@ -1,12 +1,12 @@
 {
   "stable": {
-    "version": "0.76.8",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.8",
+    "version": "0.76.9",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9",
     "notes": "",
     "assets": {
-      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.8-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.8-macOS-Intel.dmg",
-      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.8-Windows-Setup.exe",
+      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-macOS-Intel.dmg",
+      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-Windows-Setup.exe",
       "default": "https://download.merkyorlynn.com/download.html"
     }
   }
