@@ -1,0 +1,29 @@
+[
+  {
+    "qid": "gpqa_chemistry_00",
+    "subset": "chemistry",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Chemistry",
+    "raw_subdomain": "Chemistry",
+    "problem": "A methanol solution of (R)-(+)-Limonene is stirred with Pd/C under a Hydrogen atmosphere. After 1 equivalent of hydrogen is consumed, product 1 is isolated as the major product.\n\n1 is treated with 3-chloroperbenzoic acid, forming product 2.\n\nProduct 2 is treated with sodium methoxide, forming product 3.\n\nProduct 3 is treated with propanoic acid, dicyclohexylcarbodiimide. and a catalytic amount of  4-dimethylaminopyridine, forming product 4.\n\nwhat is a valid structure of product 4? (product 4 exists as a mixture of isomers. the correct answer is one of them).\n\nA. (1S,2S,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate\nB. 1-methoxy-2-((S)-4-methylcyclohex-3-en-1-yl)propan-2-yl propionate\nC. (1S,2R,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate\nD. (1S,2S,5R)-5-isopropyl-2-methoxy-2-methylcyclohexyl propionate\n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "A"
+  },
+  {
+    "qid": "gpqa_chemistry_01",
+    "subset": "chemistry",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Chemistry",
+    "raw_subdomain": "Chemistry",
+    "problem": "toluene is treated with nitric acid and sulfuric acid, forming product 1.\n\n1 is treated with MnO2 and H2SO4, forming product 2.\n\n2 is treated with acetone and aqueous sodium hydroxide, forming product 3.\n\nwhat is the molecular symmetry group of 3?\n\nA. d2h\nB. c3\nC. cs\nD. c2h\n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "D"
+  },
+  {
+    "qid": "gpqa_chemistry_02",
+    "subset": "chemistry",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Chemistry",
+    "raw_subdomain": "Chemistry",
+    "problem": "S)-4-hydroxycyclohex-2-en-1-one is treated with tert-Butyldimethylsilyl chloride and triethylamine, forming product 1.\n\n1 is treated with Ph2CuLi at low temperature, followed by benzyl bromide, forming product 2.\n\n2 is treated with LDA and iodomethane at low temperature, forming product 3.\n\nProduct 3 is treatd with aqueous HCl, forming final product 4. what is the structure of product 4?\n\nA. (2R,3R,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one\nB. (1S,2S,4S)-1-(benzyloxy)-2-methyl-1,2,3,4-tetrahydro-[1,1'-biphenyl]-4-ol\nC. (2S,3R,4S,6S)-2-benzyl-4-hydroxy-6-methyl-3-phenylcyclohexan-1-one\nD. (2S,3S,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one\n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "C"
+  }
+]
