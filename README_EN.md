@@ -20,12 +20,33 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek API upgrade to v4-flash/v4-pro + thinking field alignment <em>(latest)</em></summary>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + route reshape + brain tool fallback + UI stream fix <em>(latest)</em></summary>
 
-- 🚀 **DeepSeek API model upgrade**: `deepseek-chat` → `deepseek-v4-flash` (non-thinking mode), `deepseek-reasoner` → `deepseek-v4-flash` (thinking mode with `thinking:{type:"enabled",reasoning_effort:"high"}`), new `deepseek-v4-pro` as the stronger sibling.
-- 🧠 **`thinking` field must be explicit**: v4-flash defaults to thinking mode and burns tokens before producing visible content; brain now injects `thinking:{type:"disabled"}` in the chat chain and `enabled+high` in the reasoner chain — no more "empty content + finish=length".
-- 📦 **Client BYOK compatibility**: `lib/known-models.json` + `lib/default-models.json` add `deepseek-v4-flash` / `deepseek-v4-pro`; old names `deepseek-chat` / `deepseek-reasoner` marked `deprecated:true` + `alias:"deepseek-v4-flash"` (DeepSeek upstream still accepts old names too).
-- 🔧 **Inherits all v0.76.8 hotpatch #3 fixes** (bash schema fallback + recording permission UX + sign-local Developer ID + brain long-answer stability).
+**Model / routing ABD reshape**:
+- 🚀 **DeepSeek API upgrade**: `deepseek-chat` → `deepseek-v4-flash` (non-thinking), `deepseek-reasoner` → `deepseek-v4-flash` (thinking mode with `thinking:{type:"enabled",reasoning_effort:"high"}`), new `deepseek-v4-pro` provider for routing.
+- 🧠 **Explicit `thinking` field**: v4-flash defaults to thinking mode and burns tokens; brain injects `thinking:{type:"disabled"}` in chat chain and `enabled+high` in reasoner chain — no more empty `finish=length`.
+- 🛣️ **chatOrder reshape**: Spark FP8 first (light tasks local-first) → 4090 D-wrapper → DeepSeek V4-flash → GLM/MiniMax/Step → K2.6 second-to-last → K2.5 last.
+- 📚 **New creativeOrder** (novel/chapter/poetry/literary translation/style rewrite) → DeepSeek V4-pro first + K2.6 second + GLM-5-Turbo.
+- 📜 **complexLongOrder K2.6 first** (200K+ context only K2.6 supports) → V4-pro → V4-flash → fallback chain.
+- 📦 **Client BYOK compat**: `lib/known-models.json` + `lib/default-models.json` add v4-flash/v4-pro, old names marked `deprecated:true + alias`.
+
+**Brain tool chain & timeout fallback**:
+- 🛠 **stock_research NaN sanitize**: Tushare occasionally returns illegal JSON `:NaN/:Infinity`; auto-replace with `:null` before parse — no more 90s LLM fallback chain triggered by tool crash.
+- ⏱ **web_search 25s total budget**: multi-source race (DDG+Zhipu) + WeChat+SearXNG fallback total capped at 25s; on timeout returns empty so model answers from context.
+- 🚫 **HK bail v2 strict A-share whitelist**: tsCode must match `60/00/30/68/8X/92.SH/SZ/BJ`; rest (89xxxx fund / 4-digit HK / US tickers) bail to stock_market — **fixes "HK 700 → 890001 pseudo-report" bug**.
+- 📊 **dataChunks guard**: deep research context aborts the report-template flow if zero real data chunks were fetched; tells the model to fall back instead of misleading the user.
+- 🌐 **realtime-info multi-source enhancement**: gold / oil / market quote sources expanded with clearer failure messages.
+
+**UI / client stream fixes**:
+- 🔤 **\</user> chat-template tag no longer leaks to UI**: when streaming chunk boundary cuts `</user>` into `</us` + `er>`, buffer the partial close tag to next chunk so ORPHAN_CLOSE_TAG_RE catches it correctly.
+- 🛎 **Slow-tool progress hint**: tools running >15s auto-emit `tool_progress slow_warning` event so UI doesn't feel frozen.
+- 🧰 **Bash schema 3-layer fallback**: `extractToolDetail` + `TOOL_ARG_SUMMARY_KEYS` + `normalizeToolArgsForSummary` all accept `cmd/shell/script` aliases; Spark emitting `{cmd:"..."}` no longer renders as empty "Ran command".
+- 🎤 **Recording permission ghost detection**: ≥0.4s + blob<1KB recognized as macOS TCC ghost permission; UI tells user to re-authorize Lynn in System Settings + restart app.
+- 🔏 **install:local no longer drops permissions**: sign-local.cjs defaults to Developer ID instead of ad-hoc, cdhash consistent with electron-builder so macOS TCC no longer treats Lynn.app as a "new app".
+- 🎙️ **PressToTalk UI polish**: button styles + state machine refactor; press-and-lock + recording feedback more stable.
+- 🧱 **brain report-research-context boost**: `server/chat/report-research-context.js` injects more structured data so the model's report generation is more accurate.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 

@@ -976,7 +976,10 @@ function InputAreaInner() {
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileInputChange} />
             <PressToTalkButton
               onTranscribed={(text) => {
-                setComposerText((composerText ? composerText + '\n' : '') + text);
+                const current = readLatestInputValue() || composerText;
+                const next = current ? `${current}\n${text}` : text;
+                setInputValue(next);
+                setComposerText(next);
                 requestInputFocus();
               }}
               mockMode={import.meta.env.DEV}

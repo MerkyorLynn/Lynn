@@ -782,10 +782,12 @@ function parseNewsRssItems(context) {
     const title = block.match(/^\d+\.\s+([^\n]+)/)?.[1]?.trim() || "";
     const source = block.match(/\n来源:\s*([^\n]+)/)?.[1]?.trim() || "";
     const sourceUrl = block.match(/\n来源站点:\s*(https?:\/\/\S+)/)?.[1]?.trim() || "";
+    const windowLabel = block.match(/\n检索窗口:\s*([^\n]+)/)?.[1]?.trim() || "";
+    const freshness = block.match(/\n新鲜度:\s*([^\n]+)/)?.[1]?.trim() || "";
     const link = block.match(/\n(https?:\/\/\S+)/)?.[1]?.trim() || "";
     const published = block.match(/\n发布时间:\s*([^\n]+)/)?.[1]?.trim() || "";
     if (title && (link || sourceUrl) && published) {
-      items.push({ title, source, sourceUrl, link, published });
+      items.push({ title, source, sourceUrl, link, published, windowLabel, freshness });
     }
   }
   return items;
@@ -799,16 +801,18 @@ function parseNewsSearchItems(context) {
     const title = block.match(/^\d+\.\s+([^\n]+)/)?.[1]?.trim() || "";
     const source = block.match(/\n来源:\s*([^\n]+)/)?.[1]?.trim() || "";
     const sourceUrl = block.match(/\n来源站点:\s*(https?:\/\/\S+)/)?.[1]?.trim() || "";
+    const windowLabel = block.match(/\n检索窗口:\s*([^\n]+)/)?.[1]?.trim() || "";
+    const freshness = block.match(/\n新鲜度:\s*([^\n]+)/)?.[1]?.trim() || "";
     const explicitUrl = block.match(/\n\s*URL:\s*(https?:\/\/\S+)/i)?.[1]?.trim() || "";
     const firstUrl = block.match(/\n(https?:\/\/\S+)/)?.[1]?.trim() || "";
     const link = explicitUrl || sourceUrl || firstUrl;
-    const snippet = block.match(/\n\s*(?:摘要|正文摘录):\s*([^\n]+)/)?.[1]?.trim() || "";
+    const snippet = block.match(/\n\s*-?\s*(?:摘要|正文摘录):\s*([^\n]+)/)?.[1]?.trim() || "";
     const published = block.match(/\n发布时间:\s*([^\n]+)/)?.[1]?.trim() || "";
     if (!title || !link) continue;
     const key = `${title}\n${link}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    items.push({ title, source, sourceUrl, link, snippet, published });
+    items.push({ title, source, sourceUrl, link, snippet, published, windowLabel, freshness });
   }
   return items;
 }
@@ -834,10 +838,11 @@ function newsImportance(title) {
 }
 
 function scoreNewsItem(item) {
-  const text = `${item.title} ${item.source}`;
+  const text = `${item.title} ${item.source} ${item.snippet || ""}`;
   let score = 0;
   if (/AI|人工智能|大模型|科技/i.test(text)) score += 2;
   if (/金融科技|券商|AI PC|芯片|半导体|机器人|成立|认证|聆讯|上市|融资|人才|薪酬|重塑|增长/.test(text)) score += 3;
+  if (/干细胞|细胞治疗|再生医学|临床|医疗|医药|药企|医院|备案|监管|产业|大会/.test(text)) score += 4;
   if (/新浪|中证|中国科技|东方财富|同花顺|澎湃|DoNews|36氪|证券/.test(text)) score += 1;
   if (/直播|挑战|艺术|漫剧|培训|结课/.test(text)) score -= 2;
   return score;
@@ -850,26 +855,50 @@ function buildDirectNewsAnswer(context) {
     .filter((item, index, arr) => arr.findIndex((other) => other.title === item.title && other.link === item.link) === index);
   const picked = merged
     .sort((a, b) => scoreNewsItem(b) - scoreNewsItem(a))
-    .slice(0, 5);
+    .slice(0, 8);
   if (picked.length < 1) return "";
-  const rows = picked.map((item, index) => {
+  const isTodayEvidence = (item) => {
+    if (item.published && /今日|36/.test(item.windowLabel || "")) return true;
+    const ts = Date.parse(item.published || "");
+    return Number.isFinite(ts) && Date.now() - ts <= 36 * 60 * 60 * 1000;
+  };
+  const formatItem = (item, index) => {
+    const snippet = item.snippet ? `${String(item.snippet).replace(/\s+/g, " ").trim().slice(0, 220)}${String(item.snippet).length > 220 ? "..." : ""}` : "";
     return [
       `**${index + 1}. ${item.title}**`,
       item.published ? `- 发生/发布时间：${item.published}` : "",
+      item.windowLabel ? `- 检索窗口：${item.windowLabel}` : "",
+      item.freshness ? `- 新鲜度：${item.freshness}` : "",
       `- 来源：${item.source || item.sourceUrl || "搜索结果"}`,
       `- 链接：${item.link || item.sourceUrl}`,
-      item.snippet ? `- 摘要：${item.snippet}` : "",
+      snippet ? `- 摘要：${snippet}` : "",
       `- 为什么重要：${newsImportance(item.title)}`,
     ].filter(Boolean).join("\n");
-  }).join("\n\n");
+  };
+  const todayItems = picked.filter(isTodayEvidence).slice(0, 5);
+  const recentItems = picked.filter((item) => !isTodayEvidence(item)).slice(0, 5);
+  const sections = [];
+  if (todayItems.length) {
+    sections.push([
+      "## 今日可核验",
+      todayItems.map(formatItem).join("\n\n"),
+    ].join("\n\n"));
+  }
+  if (recentItems.length) {
+    sections.push([
+      todayItems.length ? "## 近7日相关 / 搜索候选" : "## 搜索候选（需打开原文核验日期）",
+      recentItems.map(formatItem).join("\n\n"),
+    ].join("\n\n"));
+  }
+  const expanded = recentItems.length > 0 && todayItems.length < 3;
   return [
-    rssItems.length >= 2
-      ? "以下是我刚刚按最近 36 小时 RSS 候选筛出的科技/AI 新闻："
-      : "最近 36 小时 RSS 没有足够候选；普通搜索里找到这些相关结果：",
+    expanded
+      ? "今天可核验新闻较少，我已自动扩展到最近 7 天，并按新鲜度分组："
+      : "以下是刚刚检索到的最新相关新闻：",
     "",
-    rows,
+    sections.join("\n\n"),
     "",
-    "说明：若要做正式引用，建议继续打开原站核验全文；我这里优先给出可追溯链接和简要判断。",
+    "说明：我按检索窗口区分“今日”和“近7日”，不把旧结果冒充今日新闻；正式引用前建议继续打开原站核验全文。",
   ].join("\n");
 }
 

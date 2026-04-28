@@ -27,12 +27,33 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek API 升级 v4-flash/v4-pro + thinking 字段对齐 <em>(最新)</em></summary>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + 路由重排 + brain 工具兜底 + UI 流式修复 <em>(最新)</em></summary>
 
-- 🚀 **DeepSeek API 模型升级**:`deepseek-chat` → `deepseek-v4-flash`(非思考模式),`deepseek-reasoner` → `deepseek-v4-flash`(思考模式,带 `thinking:{type:"enabled",reasoning_effort:"high"}` 字段),新增 `deepseek-v4-pro` 备选(更强能力)。
-- 🧠 **thinking 字段必须显式声明**:v4-flash 默认会进 thinking 模式烧 token,brain 在 chat 链路自动注入 `thinking:{type:"disabled"}`,reasoner 链路注入 `enabled+high`,不再出现"返回空内容 finish=length"的现象。
-- 📦 **客户端 BYOK 兼容**:`lib/known-models.json` + `lib/default-models.json` 加 `deepseek-v4-flash` / `deepseek-v4-pro` 条目;旧名 `deepseek-chat` / `deepseek-reasoner` 标 `deprecated:true`+`alias:"deepseek-v4-flash"`(保留 BYOK 老用户兼容,DeepSeek 上游也仍兼容旧名)。
-- 🔧 **承接 v0.76.8 hotpatch #3 全部修复**(bash schema 兜底 + 录音权限提示 + sign-local Developer ID + brain 长答稳定)。
+**模型 / 路由 ABD 重排**:
+- 🚀 **DeepSeek API 升级**:`deepseek-chat` → `deepseek-v4-flash`(非思考),`deepseek-reasoner` → `deepseek-v4-flash`(思考模式,带 `thinking:{type:"enabled",reasoning_effort:"high"}`),新增 `deepseek-v4-pro` provider(brain 可路由)。
+- 🧠 **thinking 字段强制声明**:v4-flash 默认会进 thinking 烧 token,brain chat 链路注入 `thinking:{type:"disabled"}`,reasoner 链路注入 `enabled+high`,不再返回空内容 finish=length。
+- 🛣️ **chatOrder 重排**:Spark FP8 第 1(轻任务本地优先) → 4090 by D-wrapper → DeepSeek V4-flash → GLM/MiniMax/Step → K2.6 倒数第 2 → K2.5 末位。
+- 📚 **新 creativeOrder**(小说/章节/古风/散文/诗歌/文学翻译/润色/文风/写一篇)→ DeepSeek V4-pro 第 1 + K2.6 第 2 + GLM-5-Turbo。
+- 📜 **complexLongOrder K2.6 第 1**(超长上下文 200K+ 唯 K2.6 支持)→ V4-pro → V4-flash → 兜底链。
+- 📦 **客户端 BYOK 兼容**:`lib/known-models.json` + `lib/default-models.json` 加 v4-flash/v4-pro 条目,旧名标 `deprecated:true + alias`。
+
+**brain 工具链与超时兜底**:
+- 🛠 **stock_research NaN sanitize**:Tushare 偶发输出非法 JSON `:NaN/:Infinity`,parse 前自动替换为 `:null`,不再触发 90s LLM fallback chain。
+- ⏱ **web_search 25s 总 budget**:多源 race(DDG+Zhipu)+ WeChat+SearXNG fallback 全程不超过 25s,超时返回空让模型基于上下文回答。
+- 🚫 **HK bail v2 严格 A 股代码白名单**:tsCode 必须 `60/00/30/68/8X/92.SH/SZ/BJ`,其余(89xxxx 基金 / 4 位 HK code / 美股)直接 bail 到 stock_market,**修"HK 700 → 890001 伪报告" bug**。
+- 📊 **dataChunks guard**:深度研究上下文如果实测拿到 0 段真数据,**不再硬撑专业报告模板**误导用户,直接告知"未拿到真实数据,请改用普通查询"。
+- 🌐 **realtime-info 多源补强**:金价 / 油价 / 行情等查询源补足,失败时清晰告知。
+
+**UI / 客户端流式修复**:
+- 🔤 **\</user> chat-template tag 不再漏到 UI**:streaming chunk 边界把 `</user>` 切成 `</us` + `er>` 时,加 buffer 缓冲到下一 chunk 拼接,ORPHAN_CLOSE_TAG_RE 才能正确命中 strip。
+- 🛎 **慢工具进度提示**:工具调用 > 15s 自动 emit `tool_progress slow_warning` event,UI 不再"卡死"感。
+- 🧰 **bash schema 三层兜底**:`extractToolDetail` + `TOOL_ARG_SUMMARY_KEYS` + `normalizeToolArgsForSummary` 全部加 `cmd/shell/script` 别名,Spark emit `{cmd:"..."}` 不再渲染成空 "执行 命令"。
+- 🎤 **录音权限 ghost 检测**:录够 0.4s+ 但 blob<1KB 时识别为 macOS TCC 失效,提示用户去系统设置重授权 + 重启 app。
+- 🔏 **install:local 不再丢权限**:sign-local.cjs 默认 Developer ID 而不是 ad-hoc,cdhash 跟 electron-builder 一致,**以后 install:local 不再让 macOS TCC 把 Lynn.app 当新 app**。
+- 🎙️ **PressToTalk UI 优化**:按钮样式 + 状态机重构,长按锁定 + 录音中视觉反馈更稳。
+- 🧱 **brain server 报告上下文增强**:`server/chat/report-research-context.js` 注入更结构化数据,模型生成报告更准确。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 
