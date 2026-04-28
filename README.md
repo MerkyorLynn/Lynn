@@ -27,7 +27,19 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 回退 + 文件管理修复 + bash schema 兜底 + 录音权限提示 <em>(最新)</em></summary>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek API 升级 v4-flash/v4-pro + thinking 字段对齐 <em>(最新)</em></summary>
+
+- 🚀 **DeepSeek API 模型升级**:`deepseek-chat` → `deepseek-v4-flash`(非思考模式),`deepseek-reasoner` → `deepseek-v4-flash`(思考模式,带 `thinking:{type:"enabled",reasoning_effort:"high"}` 字段),新增 `deepseek-v4-pro` 备选(更强能力)。
+- 🧠 **thinking 字段必须显式声明**:v4-flash 默认会进 thinking 模式烧 token,brain 在 chat 链路自动注入 `thinking:{type:"disabled"}`,reasoner 链路注入 `enabled+high`,不再出现"返回空内容 finish=length"的现象。
+- 📦 **客户端 BYOK 兼容**:`lib/known-models.json` + `lib/default-models.json` 加 `deepseek-v4-flash` / `deepseek-v4-pro` 条目;旧名 `deepseek-chat` / `deepseek-reasoner` 标 `deprecated:true`+`alias:"deepseek-v4-flash"`(保留 BYOK 老用户兼容,DeepSeek 上游也仍兼容旧名)。
+- 🔧 **承接 v0.76.8 hotpatch #3 全部修复**(bash schema 兜底 + 录音权限提示 + sign-local Developer ID + brain 长答稳定)。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
+
+</details>
+
+<details>
+<summary><strong>v0.76.8</strong> · 2026-04-27 · BYOK-equality + Spark FP8 回退 + 文件管理修复 + bash schema 兜底 + 录音权限提示</summary>
 
 **Hotpatch #3 (2026-04-28 凌晨)**:
 - 🛠️ **bash 工具 schema 一致**:`extractToolDetail` / `TOOL_ARG_SUMMARY_KEYS` / `normalizeToolArgsForSummary` 全部加 `cmd/shell/script` 别名兜底,Spark emit `{cmd:"..."}` 不再渲染成空 "执行 命令"。

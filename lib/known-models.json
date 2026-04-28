@@ -302,16 +302,32 @@
     }
   },
   "deepseek": {
-    "deepseek-chat": {
-      "name": "DeepSeek Chat",
+    "deepseek-v4-flash": {
+      "name": "DeepSeek V4 Flash",
       "context": 128000,
-      "maxOutput": 8192
+      "maxOutput": 8192,
+      "note": "Chat + reasoning unified — set thinking:{type:'enabled'|'disabled'} per-call"
+    },
+    "deepseek-v4-pro": {
+      "name": "DeepSeek V4 Pro",
+      "context": 128000,
+      "maxOutput": 8192,
+      "note": "Stronger sibling of v4-flash; same thinking-toggle API"
+    },
+    "deepseek-chat": {
+      "name": "DeepSeek Chat (deprecated → v4-flash non-thinking)",
+      "context": 128000,
+      "maxOutput": 8192,
+      "deprecated": true,
+      "alias": "deepseek-v4-flash"
     },
     "deepseek-reasoner": {
-      "name": "DeepSeek Reasoner",
+      "name": "DeepSeek Reasoner (deprecated → v4-flash thinking)",
       "context": 128000,
       "maxOutput": 64000,
-      "reasoning": true
+      "reasoning": true,
+      "deprecated": true,
+      "alias": "deepseek-v4-flash"
     },
     "deepseek-v3.2": {
       "name": "DeepSeek V3.2",
