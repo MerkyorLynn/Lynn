@@ -70,7 +70,13 @@ export function VoiceTab() {
   const needsTtsKey = ttsProvider === 'openai';
 
   const handleSave = async () => {
-    const payload: Record<string, any> = {
+    const payload: {
+      voice: {
+        language: string;
+        asr: { provider: string; api_key?: string; base_url?: string };
+        tts: { provider: string; default_voice: string; api_key?: string; base_url?: string };
+      };
+    } = {
       voice: {
         language,
         asr: {

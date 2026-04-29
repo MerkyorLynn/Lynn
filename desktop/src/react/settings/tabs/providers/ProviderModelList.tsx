@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSettingsStore, type ProviderSummary } from '../../store';
 import { hanaFetch } from '../../api';
 import { t, formatContext, lookupModelMeta } from '../../helpers';
@@ -31,7 +31,7 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
   const [customInput, setCustomInput] = useState('');
   const [discoveredModels, setDiscoveredModels] = useState<DiscoveredModel[]>([]);
 
-  const loadDiscoveredModels = async () => {
+  const loadDiscoveredModels = useCallback(async () => {
     if (isBrainProvider) {
       setDiscoveredModels([]);
       return;
@@ -43,9 +43,9 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
     } catch {
       // cache miss is fine
     }
-  };
+  }, [isBrainProvider, providerId]);
 
-  useEffect(() => { void loadDiscoveredModels(); }, [isBrainProvider, providerId]);
+  useEffect(() => { void loadDiscoveredModels(); }, [loadDiscoveredModels]);
 
   const currentModels = summary.models || [];
   // Merge: discovered model IDs + custom_models, deduplicated, with currentModels included for display

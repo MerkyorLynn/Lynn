@@ -43,25 +43,28 @@ export function SkillViewerOverlay() {
     useStore.setState({ skillViewerData: null });
   }, []);
 
-  // 加载文件树
-  useEffect(() => {
-    if (!data) return;
-    (async () => {
-      const hana = window.hana;
-      const items = await hana?.listSkillFiles?.(data.baseDir) as TreeItem[] | undefined;
-      setFiles(items || []);
-      const mdPath = data.filePath || (data.baseDir + '/SKILL.md');
-      loadFile(mdPath, 'SKILL.md');
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-like：仅在 baseDir 变化时重新加载文件树，loadFile 是组件内函数不需追踪
-  }, [data?.baseDir]);
-
-  async function loadFile(filePath: string, name: string) {
+  const loadFile = useCallback(async (filePath: string, name: string) => {
     setActiveFile(filePath);
     setFileName(name);
     const text = await window.hana?.readSkillFile?.(filePath);
     setContent(text ?? null);
-  }
+  }, []);
+
+  // 加载文件树
+  useEffect(() => {
+    if (!data?.baseDir) return;
+    let cancelled = false;
+    (async () => {
+      const hana = window.hana;
+      const items = await hana?.listSkillFiles?.(data.baseDir) as TreeItem[] | undefined;
+      if (cancelled) return;
+      setFiles(items || []);
+      const mdPath = data.filePath || (data.baseDir + '/SKILL.md');
+      const name = mdPath.split('/').pop() || 'SKILL.md';
+      await loadFile(mdPath, name);
+    })();
+    return () => { cancelled = true; };
+  }, [data?.baseDir, data?.filePath, loadFile]);
 
   async function onCopy() {
     if (!data?.baseDir) return;
@@ -74,8 +77,8 @@ export function SkillViewerOverlay() {
       const result = await res.json();
       if (result.error) throw new Error(result.error);
       showToast(t('skillViewer.copied'));
-    } catch (e: any) {
-      showToast(`${t('skillViewer.installFailed')}${e.message}`);
+    } catch (e: unknown) {
+      showToast(`${t('skillViewer.installFailed')}${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

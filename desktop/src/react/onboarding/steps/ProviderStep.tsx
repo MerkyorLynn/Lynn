@@ -220,7 +220,7 @@ export function ProviderStep({
       console.error('[onboarding] save provider failed:', err);
       showError(t('onboarding.provider.testFailed'));
     }
-  }, [preview, connectionTested, isQuickTrack, usesBuiltInDefault, runConnectionTest, onboardingFetch, providerName, providerUrl, apiKey, providerApi, goToStep, showError, onProviderReady, activePreset]);
+  }, [activePreset, apiKey, goToStep, isQuickTrack, onboardingFetch, onProviderReady, preview, providerApi, providerName, providerUrl, showError, usesBuiltInDefault]);
 
   return (
     <StepContainer>

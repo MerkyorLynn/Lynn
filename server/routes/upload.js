@@ -49,9 +49,13 @@ function cleanOldUploads(uploadsDir) {
         if (stat.mtimeMs < cutoff) {
           fs.rmSync(fullPath, { recursive: true, force: true });
         }
-      } catch {}
+      } catch {
+        // Ignore files that disappeared during cleanup.
+      }
     }
-  } catch {}
+  } catch {
+    // Missing upload directory is not an error during cleanup.
+  }
 }
 
 export function createUploadRoute(engine) {

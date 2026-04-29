@@ -166,7 +166,9 @@ export function createAgentsRoute(engine) {
           c.header("Content-Type", mimeMap[ext]);
           c.header("Cache-Control", "no-cache");
           return c.body(buf);
-        } catch {}
+        } catch {
+          // Try the next supported avatar filename/extension.
+        }
       }
     }
     return c.json({ error: "no avatar" }, 404);
@@ -191,7 +193,7 @@ export function createAgentsRoute(engine) {
     const dir = path.join(agentDir(engine, id), "avatars");
     await fs.mkdir(dir, { recursive: true });
     for (const oldExt of ["png", "jpg", "jpeg", "webp"]) {
-      try { await fs.unlink(path.join(dir, `agent.${oldExt}`)); } catch {}
+      try { await fs.unlink(path.join(dir, `agent.${oldExt}`)); } catch { /* old avatar may not exist */ }
     }
     await fs.writeFile(path.join(dir, `agent.${ext}`), buf);
     engine.invalidateAgentListCache();
@@ -205,7 +207,7 @@ export function createAgentsRoute(engine) {
     }
     const dir = path.join(agentDir(engine, id), "avatars");
     for (const ext of ["png", "jpg", "jpeg", "webp"]) {
-      try { await fs.unlink(path.join(dir, `agent.${ext}`)); } catch {}
+      try { await fs.unlink(path.join(dir, `agent.${ext}`)); } catch { /* avatar may not exist */ }
     }
     engine.invalidateAgentListCache();
     return c.json({ ok: true });
@@ -615,7 +617,9 @@ export function createAgentsRoute(engine) {
             await fs.unlink(path.join(expDir, f));
           }
         }
-      } catch {}
+      } catch {
+        // A missing external skill directory should not block config updates.
+      }
 
       // 重建索引
       rebuildIndex(expDir, indexPath);

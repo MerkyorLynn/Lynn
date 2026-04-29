@@ -1,12 +1,12 @@
 {
   "stable": {
-    "version": "0.76.9",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9",
-    "notes": "",
+    "version": "0.77.0",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0",
+    "notes": "# Lynn v0.77.0 Release Notes\n\n> 发布日期: 2026-04-29 · 代号: \"Regression Gate\"\n\nv0.77.0 是一次以稳定性、回归门禁和发版可靠性为核心的版本。重点不是继续堆新功能,而是把这几天 dogfood 暴露出的 UI、工具调用、空答、回退路径和发版流程问题系统性收口,降低\"刚发版就热更新\"的概率。\n\n## 重点更新\n\n- 新增发布级回归门禁: 覆盖工具调用、文件操作、设置页、模型路由、流式事件、空答兜底和 UI smoke。\n- 新增 V8 持久 WebSocket 基准测试: 单连接串行跑完整题集,避免每题重连导致 retry/stream 状态丢失。\n- 强化工具调用后处理: 工具成功但模型不给最终文本时,自动生成可见兜底回答;工具失败且只有开场白时,强制转入无工具重答。\n- 修复内容过滤误伤: 短英文敏感词不再命中普通英文单词内部,例如 `sm` 不会再拦截 `small`。\n- 拆分 `server/routes/chat.js`: 把流式清洗、stream state、内部 retry、预取上下文拆到独立模块,降低后续改动风险。\n- 统一 WebSocket 协议定义: ServerEvent / ClientEvent 有共享协议源和 contract test,减少事件改名后 UI 静默退化。\n- 增强启动和 UI 初始化状态: 更早提供 health/readiness 信号,减少冷启动时\"像打不开\"的体感。\n- 优化渲染端加载路径: Markdown、Mermaid、编辑器等重模块继续按需加载,降低首屏压力。\n- 收敛 React Hook 依赖告警: 核心 UI stale closure 风险已大幅降低。\n- 自动化发版辅助: 更新 manifest、DMG 命名、preflight 检查和镜像站同步流程。\n\n## 回归结果\n\n- Unit/Integration: 803/803 pass\n- TypeScript: 0 errors\n- ESLint: 0 errors\n- Release Regression: 13/13 pass\n- V8 Persistent Gate: 34/34 pass\n- 内容过滤性能: 100000 次短输入检查约 115.7ms,平均约 0.0012ms/次\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.0-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.0-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.0-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0\n\n## 升级建议\n\n桌面客户端可以直接安装覆盖。v0.77.0 没有破坏性配置迁移;如果你已经在使用 v0.76.x,升级后原有会话、模型配置和本地数据会继续沿用。",
     "assets": {
-      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-macOS-Intel.dmg",
-      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.76.9-Windows-Setup.exe",
+      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-macOS-Intel.dmg",
+      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-Windows-Setup.exe",
       "default": "https://download.merkyorlynn.com/download.html"
     }
   }

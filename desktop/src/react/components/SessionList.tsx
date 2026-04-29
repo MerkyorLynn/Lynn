@@ -191,7 +191,9 @@ function SessionListInner() {
   useEffect(() => {
     try {
       window.localStorage.setItem('hana-session-workspace-groups', JSON.stringify(collapsedGroups));
-    } catch {}
+    } catch {
+      // Persisting collapsed sidebar groups is best effort.
+    }
   }, [collapsedGroups]);
 
   // Cmd+K event from SidebarLayout

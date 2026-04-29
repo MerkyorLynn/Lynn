@@ -186,7 +186,9 @@ export function createBridgeRoute(engine, bridgeManager) {
       try {
         const stat = fs.statSync(fp);
         lastActive = stat.mtimeMs;
-      } catch {}
+      } catch {
+        // Missing or unreadable bridge files are treated as inactive metadata.
+      }
 
       // isOwner 运行时计算：entry.userId 匹配 prefs.bridge.owner[platform]
       const ownerUserId = owner[plat] || null;

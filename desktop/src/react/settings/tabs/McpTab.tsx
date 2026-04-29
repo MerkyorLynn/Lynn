@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
 import { useSettingsStore } from '../store';
@@ -485,27 +485,30 @@ export function McpTab() {
       .filter((section) => section.servers.length > 0);
   }, [builtinServers]);
 
-  const scheduleServerRetry = () => {
+  const loadServersRef = useRef<() => Promise<void>>(async () => {});
+  const loadBuiltinServersRef = useRef<() => Promise<void>>(async () => {});
+
+  const scheduleServerRetry = useCallback(() => {
     if (serverRetryTimerRef.current || serverRetryCountRef.current >= 4) return;
     serverRetryCountRef.current += 1;
     const delay = Math.min(1200 * serverRetryCountRef.current, 4000);
     serverRetryTimerRef.current = setTimeout(() => {
       serverRetryTimerRef.current = null;
-      void loadServers();
+      void loadServersRef.current();
     }, delay);
-  };
+  }, []);
 
-  const scheduleBuiltinRetry = () => {
+  const scheduleBuiltinRetry = useCallback(() => {
     if (builtinRetryTimerRef.current || builtinRetryCountRef.current >= 4) return;
     builtinRetryCountRef.current += 1;
     const delay = Math.min(1200 * builtinRetryCountRef.current, 4000);
     builtinRetryTimerRef.current = setTimeout(() => {
       builtinRetryTimerRef.current = null;
-      void loadBuiltinServers();
+      void loadBuiltinServersRef.current();
     }, delay);
-  };
+  }, []);
 
-  const loadServers = async () => {
+  const loadServers = useCallback(async () => {
     if (!ready || !serverPort || !serverToken) return;
     setLoading(true);
     try {
@@ -532,9 +535,9 @@ export function McpTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ready, scheduleServerRetry, serverPort, serverToken, showToast]);
 
-  const loadBuiltinServers = async () => {
+  const loadBuiltinServers = useCallback(async () => {
     if (!ready || !serverPort || !serverToken) return;
     try {
       const res = await hanaFetch('/api/mcp/builtin');
@@ -569,7 +572,10 @@ export function McpTab() {
       }
       showToast(message, 'error');
     }
-  };
+  }, [ready, scheduleBuiltinRetry, serverPort, serverToken, showToast]);
+
+  loadServersRef.current = loadServers;
+  loadBuiltinServersRef.current = loadBuiltinServers;
 
   useEffect(() => {
     if (!ready || !serverPort || !serverToken) return;
@@ -579,7 +585,7 @@ export function McpTab() {
       if (serverRetryTimerRef.current) clearTimeout(serverRetryTimerRef.current);
       if (builtinRetryTimerRef.current) clearTimeout(builtinRetryTimerRef.current);
     };
-  }, [ready, serverPort, serverToken]);
+  }, [loadBuiltinServers, loadServers, ready, serverPort, serverToken]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -588,7 +594,7 @@ export function McpTab() {
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [builtinServers.length, servers.length]);
+  }, [builtinServers.length, loadBuiltinServers, loadServers, servers.length]);
 
   useEffect(() => {
     setDraft(draftFromServer(selectedServer));

@@ -95,7 +95,7 @@ export const DiffViewer = memo(function DiffViewer({ filePath, diff, linesAdded,
     } finally {
       setIsRejecting(false);
     }
-  }, [isRejecting, rollbackId]);
+  }, [isRejecting, isZh, rollbackId]);
 
   const fileName = getFileName(filePath);
   const rejectDisabled = !rollbackId || isRejecting;

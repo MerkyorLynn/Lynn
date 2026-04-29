@@ -23,7 +23,7 @@ function folderLabel(folderPath: string | null): string {
 
 export function DeskWorkspaceButton() {
   const deskBasePath = useStore(state => state.deskBasePath || state.selectedFolder || state.homeFolder || null);
-  const t = window.t ?? ((key: string) => key);
+  const t = (key: string) => window.t ? window.t(key) : key;
 
   const handlePick = useCallback(async () => {
     const folder = await window.platform?.selectFolder?.();
@@ -37,7 +37,7 @@ export function DeskWorkspaceButton() {
       return;
     }
     window.platform?.showInFinder?.(deskBasePath);
-  }, [deskBasePath, t]);
+  }, [deskBasePath]);
 
   return (
     <div className={s.workspaceBar}>

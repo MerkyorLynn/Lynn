@@ -4,8 +4,8 @@
 
 import { memo, useRef, useEffect, useCallback } from 'react';
 import styles from './Chat.module.css';
-import { renderMarkdown } from '../../utils/markdown';
 import { injectCopyButtons } from '../../utils/format';
+import { AsyncMarkdownContent } from './AsyncMarkdownContent';
 
 interface Props {
   title: string;
@@ -26,19 +26,15 @@ export const XingCard = memo(function XingCard({ title, content, sealed, agentNa
     navigator.clipboard.writeText(content).catch(() => {}); // clipboard may reject without focus/permission — non-critical
   }, [content]);
 
-  const html = sealed ? renderMarkdown(content) : '';
-
   return (
     <div className={`${styles.xingCard}${sealed ? '' : ` ${styles.xingCardLoading}`}`}>
       <div className={styles.xingCardTitle}>{title}</div>
       <hr className={styles.xingCardDivider} />
       {sealed ? (
         <>
-          <div
-            ref={bodyRef}
-            className={styles.xingCardBody}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div ref={bodyRef}>
+            <AsyncMarkdownContent markdown={content} className={styles.xingCardBody} stateKey={`xing:${title}`} />
+          </div>
           <button className={styles.xingCardCopy} onClick={handleCopy}>{t('common.copy')}</button>
         </>
       ) : (

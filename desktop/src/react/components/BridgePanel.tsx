@@ -52,7 +52,9 @@ export function BridgePanel() {
       const data = await res.json();
       setStatusData(data);
       updateSidebarDot(data);
-    } catch {}
+    } catch (err) {
+      console.warn('[bridge] failed to load status:', err);
+    }
   }, []);
 
   // 加载平台数据

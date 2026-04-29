@@ -422,9 +422,13 @@ export function createDeskRoute(engine, hub) {
                 filePath: skillFile,
                 baseDir: path.join(skillsDir, entry.name),
               });
-            } catch {}
+            } catch {
+              // Ignore malformed external skill entries.
+            }
           }
-        } catch {}
+        } catch {
+          // Missing external skill roots are skipped.
+        }
       }
     }
 
@@ -465,7 +469,7 @@ export function createDeskRoute(engine, hub) {
       // macOS: 隐藏 .agents 目录（chflags hidden）
       if (process.platform === "darwin") {
         const agentsDir = path.join(cwd, ".agents");
-        try { execFileSync("chflags", ["hidden", agentsDir]); } catch {}
+        try { execFileSync("chflags", ["hidden", agentsDir]); } catch { /* chflags is cosmetic */ }
       }
 
       if (stat.isDirectory()) {

@@ -83,7 +83,7 @@ export function createModelsRoute(engine) {
 
       let apiKey = creds.api_key;
       if (!apiKey) {
-        try { apiKey = await engine.authStorage.getApiKey(model.provider); } catch {}
+        try { apiKey = await engine.authStorage.getApiKey(model.provider); } catch { /* provider can still allow missing keys */ }
       }
       const providerEntry = engine.providerRegistry?.get(model.provider);
       const allowMissingApiKey = providerEntry?.authType === "none";

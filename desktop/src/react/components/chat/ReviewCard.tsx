@@ -4,8 +4,7 @@
 
 import { memo, useMemo, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
-import { MarkdownContent } from './MarkdownContent';
-import { renderMarkdown } from '../../utils/markdown';
+import { AsyncMarkdownContent } from './AsyncMarkdownContent';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { useStore } from '../../stores';
@@ -835,7 +834,7 @@ export const ReviewCard = memo(function ReviewCard({
               )}
             </>
           ) : (
-            <MarkdownContent html={renderMarkdown(effectiveSummary)} stateKey={`review:${reviewId}`} />
+            <AsyncMarkdownContent markdown={effectiveSummary} stateKey={`review:${reviewId}`} />
           )}
         </div>
       )}

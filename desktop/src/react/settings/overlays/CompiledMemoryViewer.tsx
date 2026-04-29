@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
-import { renderMarkdown } from '../../utils/markdown';
+import { AsyncMarkdownContent } from '../../components/chat/AsyncMarkdownContent';
 import styles from '../Settings.module.css';
 
 export function CompiledMemoryViewer() {
@@ -23,8 +23,8 @@ export function CompiledMemoryViewer() {
       const res = await hanaFetch(`/api/memories/compiled?agentId=${aid}`);
       const data = await res.json();
       setContent(data.content || '');
-    } catch (err: any) {
-      setContent(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      setContent(`Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -36,8 +36,8 @@ export function CompiledMemoryViewer() {
       await hanaFetch(`/api/memories/compiled?agentId=${aid}`, { method: 'DELETE' });
       setContent('');
       useSettingsStore.getState().showToast(t('settings.memory.compiledCleared'), 'success');
-    } catch (err: any) {
-      useSettingsStore.getState().showToast(err.message, 'error');
+    } catch (err: unknown) {
+      useSettingsStore.getState().showToast(err instanceof Error ? err.message : String(err), 'error');
     }
   };
 
@@ -61,7 +61,7 @@ export function CompiledMemoryViewer() {
           {loading ? (
             <div className="memory-viewer-empty">Loading...</div>
           ) : content.trim() ? (
-            <div className={`${styles['compiled-memory-md']} ${'md-content'}`} dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+            <AsyncMarkdownContent markdown={content} className={`${styles['compiled-memory-md']} ${'md-content'}`} />
           ) : (
             <div className="memory-viewer-empty">{t('settings.memory.compiledEmpty')}</div>
           )}

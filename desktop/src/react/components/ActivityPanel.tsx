@@ -50,7 +50,7 @@ export function ActivityPanel() {
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [hbEnabled, setHbEnabled] = useState(true);
   const [auditLog, setAuditLog] = useState<Array<{ operation: string; path: string; ts: string }> | null>(null);
-  const t = window.t ?? ((p: string) => p);
+  const translate = useCallback((p: string) => (window.t ? window.t(p) : p), []);
 
   // 打开面板时加载活动 + 巡检状态
   useEffect(() => {
@@ -88,11 +88,11 @@ export function ActivityPanel() {
       if (data.error) return;
 
       const { activity, messages } = data;
-      const typeText = activity.type === 'heartbeat' ? t('activity.heartbeat')
-        : activity.type === 'delegate' ? t('activity.delegate')
-        : activity.type === 'plan' ? t('activity.plan')
-        : activity.type === 'review_follow_up' ? t('activity.reviewFollowUp')
-        : (activity.label || t('activity.cron'));
+      const typeText = activity.type === 'heartbeat' ? translate('activity.heartbeat')
+        : activity.type === 'delegate' ? translate('activity.delegate')
+        : activity.type === 'plan' ? translate('activity.plan')
+        : activity.type === 'review_follow_up' ? translate('activity.reviewFollowUp')
+        : (activity.label || translate('activity.cron'));
       const timeStr = activity.startedAt
         ? formatSessionDate(new Date(activity.startedAt).toISOString())
         : '';
@@ -102,8 +102,10 @@ export function ActivityPanel() {
         agentName: activity.agentName || agentName,
         messages: messages || [],
       });
-    } catch {}
-  }, []);
+    } catch (err) {
+      console.warn('[activity] failed to open activity detail:', err);
+    }
+  }, [agentName, currentAgentId, translate]);
 
   useEffect(() => {
     const onOpenActivity = (event: Event) => {

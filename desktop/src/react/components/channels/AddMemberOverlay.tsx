@@ -75,7 +75,10 @@ export function AddMemberOverlay() {
   const [selectedModelValue, setSelectedModelValue] = useState('');
 
   const currentChannelData = channels.find(ch => ch.id === targetChannel);
-  const existingMembers = currentChannelData?.members || channelMembers || [];
+  const existingMembers = useMemo(
+    () => currentChannelData?.members || channelMembers || [],
+    [channelMembers, currentChannelData?.members],
+  );
   const availableAgents = useMemo(
     () => agents.filter(a => !existingMembers.includes(a.id)),
     [agents, existingMembers],

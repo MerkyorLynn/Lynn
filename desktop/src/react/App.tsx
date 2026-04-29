@@ -10,13 +10,13 @@ import { useStore } from './stores';
 import type { ActivePanel, Session } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RegionalErrorBoundary } from './components/RegionalErrorBoundary';
-import { ActivityPanel } from './components/ActivityPanel';
-import { AutomationPanel } from './components/AutomationPanel';
-import { BridgePanel } from './components/BridgePanel';
-import { ChangesPanel } from './components/ChangesPanel';
 
+const ActivityPanel = lazy(() => import('./components/ActivityPanel').then(m => ({ default: m.ActivityPanel })));
+const AutomationPanel = lazy(() => import('./components/AutomationPanel').then(m => ({ default: m.AutomationPanel })));
+const BridgePanel = lazy(() => import('./components/BridgePanel').then(m => ({ default: m.BridgePanel })));
+const ChangesPanel = lazy(() => import('./components/ChangesPanel').then(m => ({ default: m.ChangesPanel })));
+const PreviewPanel = lazy(() => import('./components/PreviewPanel').then(m => ({ default: m.PreviewPanel })));
 const SkillViewerOverlay = lazy(() => import('./components/SkillViewerOverlay').then(m => ({ default: m.SkillViewerOverlay })));
-import { PreviewPanel } from './components/PreviewPanel';
 import { DiagnosticsPanel } from './components/debug/DiagnosticsPanel';
 import { DeskSection } from './components/DeskSection';
 import { DeskSkillsSection } from './components/desk/DeskSkillsSection';
@@ -47,6 +47,14 @@ initDragPrevention();
 function togglePanel(panel: ActivePanel) {
   const s = useStore.getState();
   s.setActivePanel(s.activePanel === panel ? null : panel);
+}
+
+function isUiSmokeMode(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('uiSmoke') === '1';
+  } catch {
+    return false;
+  }
 }
 
 function WelcomeContainer() {
@@ -153,7 +161,9 @@ function App() {
   const welcomeVisible = useStore(s => s.welcomeVisible);
   const currentSessionPath = useStore(s => s.currentSessionPath);
   const currentAgentId = useStore(s => s.currentAgentId);
+  const activePanel = useStore(s => s.activePanel);
   const sessions = useStore(s => s.sessions);
+  const artifacts = useStore(s => s.artifacts);
   const deskBasePath = useStore(s => s.deskBasePath || s.selectedFolder || s.homeFolder || null);
   const agentName = useStore(s => s.agentName) || 'Lynn';
   const pendingNewSession = useStore(s => s.pendingNewSession);
@@ -164,6 +174,7 @@ function App() {
   const deskPatrolStatus = useStore(s => s.deskPatrolStatus);
   const currentActivity = useStore(s => s.currentActivity);
   const isWorking = isStreaming || deskPatrolStatus?.state === 'running';
+  const hasPreviewArtifact = artifacts.length > 0;
   const jianHasContent = !!jianContent && jianContent.trim().length > 0;
   const jianPendingCount = countPendingJianTodos(jianContent);
   const { floatCard, show: showFloat, scheduleHide: scheduleFloatHide, cancelHide: cancelFloatHide, hide: hideFloat } = useFloatCard();
@@ -244,6 +255,10 @@ function App() {
   }, [cancelTitleRename, commitTitleRename]);
 
   useEffect(() => {
+    if (isUiSmokeMode()) {
+      void import('./smoke-fixture').then((module) => module.installUiSmokeFixture('home'));
+      return;
+    }
     initApp().catch((err: unknown) => {
       console.error('[init] 初始化异常:', err);
       window.platform?.appReady?.();
@@ -430,13 +445,19 @@ function App() {
             </RegionalErrorBoundary>
           </div>
 
-          <ActivityPanel />
-          <ChangesPanel />
-          <AutomationPanel />
-          <BridgePanel />
+          <Suspense fallback={null}>
+            {activePanel === 'activity' && <ActivityPanel />}
+            {activePanel === 'changes' && <ChangesPanel />}
+            {activePanel === 'automation' && <AutomationPanel />}
+            {activePanel === 'bridge' && <BridgePanel />}
+          </Suspense>
         </MainContent>
 
-        <PreviewPanel />
+        {hasPreviewArtifact && (
+          <Suspense fallback={null}>
+            <PreviewPanel />
+          </Suspense>
+        )}
 
         <aside className={`jian-sidebar${jianOpen ? '' : ' collapsed'}`} id="jianSidebar">
           <div className="resize-handle resize-handle-left" id="jianResizeHandle"></div>

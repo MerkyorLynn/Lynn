@@ -124,6 +124,8 @@ function InputAreaInner() {
 
   const isStreaming = useStore(s => s.isStreaming);
   const connected = useStore(s => s.connected);
+  const serverReady = useStore(s => s.serverReady);
+  const serverStartupStage = useStore(s => s.serverStartupStage);
   const pendingNewSession = useStore(s => s.pendingNewSession);
   const selectedFolder = useStore(s => s.selectedFolder);
   const homeFolder = useStore(s => s.homeFolder);
@@ -242,30 +244,30 @@ function InputAreaInner() {
     setTimeout(() => setSlashResult(null), 3000);
   }, []);
 
-  const diaryFn = useCallback(
-    executeDiary(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
-    [t, showSlashResult, setComposerText],
+  const diaryFn = useMemo(
+    () => executeDiary(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText, showSlashResult, t],
   );
   const xingFn = useCallback(async () => {
     setComposerText('');
     setSlashMenuOpen(false);
     await sendAsUser(XING_PROMPT);
   }, [sendAsUser, setComposerText]);
-  const compactFn = useCallback(
-    executeCompact(setSlashBusy, setComposerText, setSlashMenuOpen),
+  const compactFn = useMemo(
+    () => executeCompact(setSlashBusy, setComposerText, setSlashMenuOpen),
     [setComposerText],
   );
-  const clearFn = useCallback(
-    executeClear(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
-    [setComposerText, t],
+  const clearFn = useMemo(
+    () => executeClear(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText, showSlashResult, t],
   );
-  const planFn = useCallback(
-    executePlan(setSlashBusy, setComposerText, setSlashMenuOpen),
+  const planFn = useMemo(
+    () => executePlan(setSlashBusy, setComposerText, setSlashMenuOpen),
     [setComposerText],
   );
-  const saveFn = useCallback(
-    executeSave(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
-    [setComposerText, t],
+  const saveFn = useMemo(
+    () => executeSave(t, showSlashResult, setSlashBusy, setComposerText, setSlashMenuOpen),
+    [setComposerText, showSlashResult, t],
   );
 
   const slashCommands = useMemo(
@@ -404,7 +406,13 @@ function InputAreaInner() {
 
   const securityMode = useStore(s => s.securityMode);
   const hasContent = inputValue.trim().length > 0 || attachedFiles.length > 0 || !!quotedSelection;
-  const canSend = hasContent && connected && !isStreaming;
+  const canSend = hasContent && connected && serverReady && !isStreaming;
+  const serverStartingLabel = t('chat.serverStarting');
+  const sendDisabledTitle = !serverReady
+    ? (serverStartingLabel === 'chat.serverStarting'
+      ? `Assistant is still starting (${serverStartupStage || 'starting'})`
+      : serverStartingLabel)
+    : undefined;
 
   const insertTextIntoComposer = useCallback((text: string) => {
     const incoming = String(text || '');
@@ -1008,7 +1016,7 @@ function InputAreaInner() {
                 </span>
               </button>
             )}
-            <SendButton isStreaming={isStreaming} canSteer={canSteer} disabled={isStreaming ? false : !canSend} onSend={handleSend} onSteer={handleSteer} onStop={handleStop} />
+            <SendButton isStreaming={isStreaming} canSteer={canSteer} disabled={isStreaming ? false : !canSend} title={sendDisabledTitle} onSend={handleSend} onSteer={handleSteer} onStop={handleStop} />
           </div>
         </div>
       </div>

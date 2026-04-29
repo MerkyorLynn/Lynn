@@ -61,6 +61,66 @@ describe("report research context intent", () => {
     expect(answer).toContain("1046 元/克");
   });
 
+  it("builds a direct market answer with multiple US tickers instead of only the first quote", () => {
+    const context = [
+      "【系统已完成行情工具预取】",
+      "财经/行情快照（via Stooq）",
+      "查询：查最近可用的 AAPL 和 TSLA 行情，给时间戳和来源，并明确这不构成投资建议。",
+      "类型：stock",
+      "",
+      "1. AAPL 最近可用行情",
+      "来源：Stooq",
+      "https://stooq.com/q/?s=aapl.us",
+      "- 价格: 269.5501 USD",
+      "- 时间戳: 2026-04-28 17:54:35",
+      "- 开盘/最高/最低: 272.335 / 273.22 / 268.66",
+      "",
+      "2. TSLA 最近可用行情",
+      "来源：Stooq",
+      "https://stooq.com/q/?s=tsla.us",
+      "- 价格: 374.66 USD",
+      "- 时间戳: 2026-04-28 17:54:37",
+      "- 开盘/最高/最低: 374.675 / 382.29 / 372.5508",
+    ].join("\n");
+
+    const answer = buildDirectResearchAnswer(
+      "market",
+      context,
+      "查最近可用的 AAPL 和 TSLA 行情，给时间戳和来源，并明确这不构成投资建议。",
+    );
+
+    expect(answer).toContain("**AAPL**");
+    expect(answer).toContain("**TSLA**");
+    expect(answer).toContain("269.5501 USD");
+    expect(answer).toContain("374.66 USD");
+  });
+
+  it("keeps explicitly requested US tickers visible when one quote is missing", () => {
+    const context = [
+      "【系统已完成行情工具预取】",
+      "财经/行情快照（via Stooq）",
+      "查询：查最近可用的 AAPL 和 TSLA 行情，给时间戳和来源，并明确这不构成投资建议。",
+      "类型：stock",
+      "",
+      "1. TSLA 最近可用行情",
+      "来源：Stooq",
+      "https://stooq.com/q/?s=tsla.us",
+      "- 价格: 374.66 USD",
+      "- 时间戳: 2026-04-28 17:54:37",
+    ].join("\n");
+
+    const answer = buildDirectResearchAnswer(
+      "market",
+      context,
+      "【TOOL-02】查最近可用的 AAPL 和 TSLA 行情，给时间戳和来源，并明确这不构成投资建议。",
+    );
+
+    expect(answer).toContain("**TSLA**");
+    expect(answer).toContain("374.66 USD");
+    expect(answer).toContain("**AAPL**");
+    expect(answer).toContain("未检索到明确");
+  });
+
   it("builds a direct composite answer for market plus weather commute prompts", () => {
     const context = [
       "【系统已完成综合工具预取】",

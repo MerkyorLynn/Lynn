@@ -152,7 +152,7 @@ function WelcomeAvatar({ agentId, hasAvatar, agentAvatarUrl, yuan, name }: {
     } else {
       setSrc(yuanFallbackAvatar(yuan));
     }
-  }, [agentId, agentAvatarUrl, yuan]);
+  }, [agentId, agentAvatarUrl, hasAvatar, yuan]);
 
   const handleError = useCallback(() => {
     setSrc(yuanFallbackAvatar(yuan));

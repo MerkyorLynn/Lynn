@@ -16,7 +16,7 @@ interface PluginInfo {
 interface ConfigSchema {
   pluginId: string;
   schema?: {
-    properties?: Record<string, any>;
+    properties?: Record<string, { title?: string; description?: string; type?: string; default?: unknown }>;
   } | null;
 }
 
@@ -53,18 +53,18 @@ function ContributionBadges({ contributions }: { contributions?: string[] }) {
   );
 }
 
-function ConfigTable({ schema }: { schema?: Record<string, any> | null }) {
+function ConfigTable({ schema }: { schema?: ConfigSchema['schema'] | null }) {
   if (!schema || !schema.properties) return null;
   const entries = Object.entries(schema.properties);
   return (
     <table style={{ width: '100%', fontSize: '12px', marginTop: '8px', borderCollapse: 'collapse' }}>
       <tbody>
-        {entries.map(([key, prop]: [string, any]) => (
+        {entries.map(([key, prop]) => (
           <tr key={key}>
             <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{prop.title || key}</td>
             <td style={{ padding: '4px 0', color: 'var(--text-secondary)' }}>
               {prop.type === 'boolean' ? (prop.default ? '✅ 开启' : '❌ 关闭') :
-               prop.type === 'array' ? `[${prop.default?.join?.(', ') || ''}]` :
+               prop.type === 'array' ? `[${Array.isArray(prop.default) ? prop.default.join(', ') : ''}]` :
                String(prop.default ?? '')}
             </td>
           </tr>

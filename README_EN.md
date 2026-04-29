@@ -20,7 +20,24 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + route reshape + brain tool fallback + UI stream fix <em>(latest)</em></summary>
+<summary><strong>v0.77.0</strong> · 2026-04-29 · regression gates + persistent V8 tests + tool fallback + release hardening <em>(latest)</em></summary>
+
+**Reliability and release gates**:
+- 🧪 **Release Regression Gate**: covers tool calling, file operations, settings, model routing, stream events, empty-answer fallback, and UI smoke before release.
+- 🔌 **Persistent V8 WebSocket benchmark**: runs the full suite through one serial WS connection so retry and stream state are not lost between prompts.
+- 🛡️ **Successful-tool empty-answer fallback**: if a tool succeeds but the model does not emit final prose, Lynn now surfaces a visible result summary instead of an empty reply.
+- 🧰 **Failed-tool retry fallback**: if a tool fails and the model only emitted a preparatory lead-in, Lynn forces a no-tool retry answer.
+- 🧼 **Content-filter false-positive fix**: short English sensitive tokens no longer match inside ordinary words, e.g. `sm` no longer blocks `small`.
+- 🧱 **Chat route modularization**: stream sanitizer, stream state, internal retry, and prefetch context were split out of `server/routes/chat.js`.
+- 📡 **WebSocket protocol contract tests**: ServerEvent / ClientEvent now share a protocol source and regression coverage.
+- ⚡ **Startup and renderer optimization**: readiness is exposed earlier, and heavy Markdown / Mermaid / editor modules remain lazy-loaded.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0)
+
+</details>
+
+<details>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + route reshape + brain tool fallback + UI stream fix</summary>
 
 **Hotpatch #1 (2026-04-28 PM)**:
 - 🛡️ **TOOL-FAILED-FALLBACK v1**: when a tool call fails AND the model only emitted a preparatory lead-in ("let me check…") before turn_end (typical: live_news / stock_market failure), automatically inject a system prompt that forces the model to retry **without** calling tools — give a cautious answer clearly labeled "general knowledge / not verified live", or honestly tell the user the data couldn't be retrieved. Fixes the "Lynn only answers half a sentence then stops" dogfood bug.
@@ -49,8 +66,6 @@
 - 🔏 **install:local no longer drops permissions**: sign-local.cjs defaults to Developer ID instead of ad-hoc, cdhash consistent with electron-builder so macOS TCC no longer treats Lynn.app as a "new app".
 - 🎙️ **PressToTalk UI polish**: button styles + state machine refactor; press-and-lock + recording feedback more stable.
 - 🧱 **brain report-research-context boost**: `server/chat/report-research-context.js` injects more structured data so the model's report generation is more accurate.
-
-[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 

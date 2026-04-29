@@ -189,12 +189,13 @@ export function SettingsApp() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe: (() => void) | void = platform?.onSettingsChanged?.((type: string, data: any) => {
+    const unsubscribe: (() => void) | void = platform?.onSettingsChanged?.((type: string, data: unknown) => {
+      const payload = data as { agentId?: string } | null;
       switch (type) {
         case 'agent-switched':
           useSettingsStore.setState({
             settingsAgentId: null,
-            currentAgentId: data?.agentId || null,
+            currentAgentId: payload?.agentId || null,
           });
           void refreshSettingsSurface({ avatars: true });
           break;

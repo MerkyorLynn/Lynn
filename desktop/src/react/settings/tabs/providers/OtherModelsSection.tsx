@@ -16,7 +16,7 @@ function ToolModelTestBtn({ modelRef }: { modelRef: unknown }) {
 
   // 判断是否有有效模型引用（对象取 id，字符串取自身）
   const hasRef = typeof modelRef === 'object' && modelRef !== null
-    ? !!(modelRef as any).id
+    ? typeof (modelRef as { id?: unknown }).id === 'string'
     : !!modelRef;
 
   const test = async () => {
@@ -112,7 +112,7 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
   // 工具模型配置可能是 {id, provider} 对象或裸字符串，提取 model ID 供 ModelWidget 使用
   const toModelId = (raw: unknown): string => {
     if (!raw) return '';
-    if (typeof raw === 'object' && (raw as any).id) return (raw as { id: string }).id;
+    if (typeof raw === 'object' && typeof (raw as { id?: unknown }).id === 'string') return (raw as { id: string }).id;
     return String(raw);
   };
 
@@ -130,10 +130,10 @@ export function OtherModelsSection({ providers }: { providers: Record<string, { 
   const utilityVal = toModelId(globalModelsConfig?.models?.utility);
   const utilityLargeVal = toModelId(globalModelsConfig?.models?.utility_large);
   const utilityProvider = typeof globalModelsConfig?.models?.utility === 'object' && globalModelsConfig?.models?.utility
-    ? (globalModelsConfig.models.utility as any).provider || null
+    ? (globalModelsConfig.models.utility as { provider?: string }).provider || null
     : null;
   const utilityLargeProvider = typeof globalModelsConfig?.models?.utility_large === 'object' && globalModelsConfig?.models?.utility_large
-    ? (globalModelsConfig.models.utility_large as any).provider || null
+    ? (globalModelsConfig.models.utility_large as { provider?: string }).provider || null
     : null;
 
   return (

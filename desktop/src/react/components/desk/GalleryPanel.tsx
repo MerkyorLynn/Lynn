@@ -29,7 +29,9 @@ export function GalleryPanel() {
       // Use desk API to list gallery folder
       const res = await hanaFetch(`/api/desk/files?path=${encodeURIComponent(deskBasePath + '/gallery')}`);
       const data = await res.json();
-      const list = Array.isArray(data.files) ? data.files.filter((f: any) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name)) : [];
+      const list = Array.isArray(data.files)
+        ? data.files.filter((f: { name?: string }) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name || ''))
+        : [];
       setImages(list);
     } catch {
       setImages([]);

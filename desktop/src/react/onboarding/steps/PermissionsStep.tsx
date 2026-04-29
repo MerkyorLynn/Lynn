@@ -142,7 +142,7 @@ export function PermissionsStep({
     }
 
     setSaving(false);
-  }, [continueToTutorial, notificationStatus, onboardingFetch, preview, showError, workspacePath]);
+  }, [continueToTutorial, notificationStatus, onboardingFetch, preview, showError, trustedRoots, workspacePath]);
 
   const notificationStatusKey = getNotificationStatusKey(notificationStatus, loadingStatus);
   const notificationStatusTone = getNotificationStatusTone(notificationStatus, loadingStatus);

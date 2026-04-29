@@ -36,7 +36,7 @@ export function InterfaceTab() {
   const tzOptions = commonTz.map(tz => {
     try {
       const offset = new Intl.DateTimeFormat('en', { timeZone: tz, timeZoneName: 'shortOffset' })
-        .formatToParts(new Date()).find((p: any) => p.type === 'timeZoneName')?.value || '';
+        .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value || '';
       return { value: tz, label: `${tz.replace(/_/g, ' ')}  (${offset})` };
     } catch { return { value: tz, label: tz.replace(/_/g, ' ') }; }
   });

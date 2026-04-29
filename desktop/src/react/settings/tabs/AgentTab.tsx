@@ -59,7 +59,7 @@ export function AgentTab() {
     () => new Set(agents.filter((agent) => builtInAgentIds.has(agent.id)).map((agent) => agent.id)),
     [agents, builtInAgentIds],
   );
-  const currentRuntimeModel = useStore((s: any) => s.currentModel);
+  const currentRuntimeModel = useStore((s) => s.currentModel);
   const configReady = !!settingsConfig && settingsConfigAgentId === effectiveAgentId;
   const activeSettingsConfig = configReady ? settingsConfig : null;
   const hasUtilityModel = useMemo(() => {
@@ -135,8 +135,12 @@ export function AgentTab() {
   const currentYuan = activeSettingsConfig?.agent?.yuan || selectedAgent?.yuan || 'hanako';
 
   const chatRaw = activeSettingsConfig?.models?.chat;
-  const currentModel = typeof chatRaw === 'object' && chatRaw?.id ? chatRaw.id : (chatRaw || '');
-  const currentProvider = typeof chatRaw === 'object' && chatRaw?.provider ? chatRaw.provider : (activeSettingsConfig?.api?.provider || '');
+  const currentModel = typeof chatRaw === 'object' && typeof chatRaw?.id === 'string'
+    ? chatRaw.id
+    : (typeof chatRaw === 'string' ? chatRaw : '');
+  const currentProvider = typeof chatRaw === 'object' && typeof chatRaw?.provider === 'string'
+    ? chatRaw.provider
+    : (activeSettingsConfig?.api?.provider || '');
   const selectedAgentId = selectedAgent?.id || effectiveAgentId || '';
 
   // 从唯一信源 /api/models 获取模型列表（和聊天页一致）
@@ -155,7 +159,7 @@ export function AgentTab() {
         provider: currentRuntimeModel.provider || '',
       };
     }
-    const fallback = resolveRoleDefaultModel(availableModels as any, currentYuan);
+    const fallback = resolveRoleDefaultModel(availableModels, currentYuan);
     return fallback ? { id: fallback.id, provider: fallback.provider || '' } : null;
   }, [availableModels, currentAgentId, currentModel, currentRuntimeModel, currentYuan, effectiveAgentId]);
 

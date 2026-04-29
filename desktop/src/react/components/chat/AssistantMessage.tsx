@@ -2,18 +2,14 @@
  * AssistantMessage — 助手消息，遍历 ContentBlock 按类型渲染
  */
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
 import { ImageBlock } from './ImageBlock';
 import { MoodBlock } from './MoodBlock';
 import { ThinkingBlock } from './ThinkingBlock';
 import { ExecutionTraceBlock } from './ExecutionTraceBlock';
-import { XingCard } from './XingCard';
 import { SettingsConfirmCard } from './SettingsConfirmCard';
 import { AuthorizationCard } from './AuthorizationCard';
-import { DiffViewer } from './DiffViewer';
-import { WritingDiffViewer } from './WritingDiffViewer';
-import { ReviewCard } from './ReviewCard';
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { useStore } from '../../stores';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
@@ -27,6 +23,11 @@ import { resendPromptRequest } from '../../stores/prompt-actions';
 import styles from './Chat.module.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+const XingCard = lazy(() => import('./XingCard').then((m) => ({ default: m.XingCard })));
+const DiffViewer = lazy(() => import('./DiffViewer').then((m) => ({ default: m.DiffViewer })));
+const WritingDiffViewer = lazy(() => import('./WritingDiffViewer').then((m) => ({ default: m.WritingDiffViewer })));
+const ReviewCard = lazy(() => import('./ReviewCard').then((m) => ({ default: m.ReviewCard })));
 
 interface Props {
   message: ChatMessage;
@@ -152,6 +153,7 @@ function extractPlainTextFromBlocks(blocks: ContentBlock[]): string {
   const parser = new DOMParser();
   return textBlocks
     .map((block) => {
+      if (typeof block.plainText === 'string') return block.plainText.trim();
       const doc = parser.parseFromString(block.html, 'text/html');
       return (doc.body.innerText || doc.body.textContent || '').trim();
     })
@@ -254,7 +256,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const modelHintDismissKey = 'lynn-model-hint-dismissed';
   const showModelHint = false; // disabled: short response does not mean the model is weak
   const dismissModelHint = useCallback(() => {
-    try { localStorage.setItem(modelHintDismissKey, String(Date.now())); } catch {}
+    try { localStorage.setItem(modelHintDismissKey, String(Date.now())); } catch { /* localStorage may be unavailable */ }
   }, []);
   const openProvidersFromHint = useCallback(() => {
     dismissModelHint();
@@ -651,15 +653,23 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, agen
     case 'text':
       return <MarkdownContent html={block.html} stateKey={stateKey} />;
     case 'xing':
-      return <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />;
+      return (
+        <Suspense fallback={null}>
+          <XingCard title={block.title} content={block.content} sealed={block.sealed} agentName={agentName} />
+        </Suspense>
+      );
     case 'file_output':
       return <FileOutputCard filePath={block.filePath} label={block.label} ext={block.ext} openLabel={openLabel} />;
     case 'file_diff': {
       const ext = (block.filePath.split('.').pop() || '').toLowerCase();
       const isProse = ext === 'md' || ext === 'markdown' || ext === 'txt';
-      return isProse
-        ? <WritingDiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />
-        : <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />;
+      return (
+        <Suspense fallback={null}>
+          {isProse
+            ? <WritingDiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />
+            : <DiffViewer filePath={block.filePath} diff={block.diff} linesAdded={block.linesAdded} linesRemoved={block.linesRemoved} rollbackId={block.rollbackId} />}
+        </Suspense>
+      );
     }
     case 'artifact':
       return <ArtifactCard title={block.title} artifactType={block.artifactType} artifactId={block.artifactId} content={block.content} language={block.language} />;
@@ -683,34 +693,38 @@ const ContentBlockView = memo(function ContentBlockView({ block, agentName, agen
         status={(block as any).status}
       />;
     case 'review':
-      return <ReviewCard
-        reviewId={(block as any).reviewId}
-        reviewerName={(block as any).reviewerName}
-        reviewerAgent={(block as any).reviewerAgent}
-        reviewerAgentName={(block as any).reviewerAgentName}
-        reviewerYuan={(block as any).reviewerYuan}
-        reviewerHasAvatar={(block as any).reviewerHasAvatar}
-        reviewerModelLabel={(block as any).reviewerModelLabel}
-        executorName={agentName}
-        executorYuan={agentYuan}
-        executorAvatarUrl={agentAvatarUrl}
-        executorModelLabel={agentModelLabel}
-        content={(block as any).content}
-        error={(block as any).error}
-        errorCode={(block as any).errorCode}
-        status={(block as any).status}
-        stage={(block as any).stage}
-        findingsCount={(block as any).findingsCount}
-        verdict={(block as any).verdict}
-        workflowGate={(block as any).workflowGate}
-        structured={(block as any).structured}
-        contextPack={(block as any).contextPack}
-        followUpPrompt={(block as any).followUpPrompt}
-        followUpTask={(block as any).followUpTask}
-        sourceResponse={sourceResponse}
-        fallbackNote={(block as any).fallbackNote}
-        onFollowUpTaskCreated={onReviewTaskCreated}
-      />;
+      return (
+        <Suspense fallback={null}>
+          <ReviewCard
+            reviewId={(block as any).reviewId}
+            reviewerName={(block as any).reviewerName}
+            reviewerAgent={(block as any).reviewerAgent}
+            reviewerAgentName={(block as any).reviewerAgentName}
+            reviewerYuan={(block as any).reviewerYuan}
+            reviewerHasAvatar={(block as any).reviewerHasAvatar}
+            reviewerModelLabel={(block as any).reviewerModelLabel}
+            executorName={agentName}
+            executorYuan={agentYuan}
+            executorAvatarUrl={agentAvatarUrl}
+            executorModelLabel={agentModelLabel}
+            content={(block as any).content}
+            error={(block as any).error}
+            errorCode={(block as any).errorCode}
+            status={(block as any).status}
+            stage={(block as any).stage}
+            findingsCount={(block as any).findingsCount}
+            verdict={(block as any).verdict}
+            workflowGate={(block as any).workflowGate}
+            structured={(block as any).structured}
+            contextPack={(block as any).contextPack}
+            followUpPrompt={(block as any).followUpPrompt}
+            followUpTask={(block as any).followUpTask}
+            sourceResponse={sourceResponse}
+            fallbackNote={(block as any).fallbackNote}
+            onFollowUpTaskCreated={onReviewTaskCreated}
+          />
+        </Suspense>
+      );
     default:
       return null;
   }
@@ -851,13 +865,15 @@ function FileOutputCard({
       )}
       {externalDiff && (
         <div style={{ marginTop: 8 }}>
-          <WritingDiffViewer
-            filePath={filePath}
-            diff={externalDiff.diff}
-            linesAdded={externalDiff.linesAdded}
-            linesRemoved={externalDiff.linesRemoved}
-            rollbackId={externalDiff.rollbackId}
-          />
+          <Suspense fallback={null}>
+            <WritingDiffViewer
+              filePath={filePath}
+              diff={externalDiff.diff}
+              linesAdded={externalDiff.linesAdded}
+              linesRemoved={externalDiff.linesRemoved}
+              rollbackId={externalDiff.rollbackId}
+            />
+          </Suspense>
         </div>
       )}
       {isMd && mdHtml && !collapsed && (

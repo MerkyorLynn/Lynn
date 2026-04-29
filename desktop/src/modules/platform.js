@@ -29,7 +29,9 @@
         const nextUrl = `${location.pathname}${nextQuery ? `?${nextQuery}` : ''}${location.hash}`;
         window.history.replaceState({}, '', nextUrl);
       }
-    } catch {}
+    } catch {
+      // Storage/cookie writes can fail in restricted browser contexts.
+    }
   }
 
   const baseUrl = `${location.protocol}//${location.host}`;
@@ -74,8 +76,8 @@
     // OS 集成 → 静默降级
     openFolder: () => {},
     openFile: () => {},
-    openHtmlInBrowser: async (html) => { try { const b = new Blob([html], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); } catch {} },
-    openExternal: (url) => { try { window.open(url, '_blank'); } catch {} },
+    openHtmlInBrowser: async (html) => { try { const b = new Blob([html], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); } catch { /* web fallback only */ } },
+    openExternal: (url) => { try { window.open(url, '_blank'); } catch { /* popup blocked */ } },
     showInFinder: () => {},
     startDrag: () => {},
     confirmAction: async (opts = {}) => window.confirm(opts.message || 'Confirm'),

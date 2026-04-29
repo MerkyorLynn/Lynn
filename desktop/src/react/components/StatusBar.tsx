@@ -37,7 +37,7 @@ export function StatusBar() {
   const currentModel = useStore((s) => s.currentModel);
   const utilityModel = useStore((s) => s.utilityModel);
   const utilityLargeModel = useStore((s) => s.utilityLargeModel);
-  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
+  const agentYuan = useStore((s) => s.agentYuan) || 'lynn';
 
   const meta = useMemo(() => {
     const parts: string[] = [];

@@ -7,7 +7,7 @@
 import { EditorView, EditorState, createBaseEditorExtensions, SAVE_DELAY } from './editor/codemirror-presets';
 import { ensureFileChangeBridge, subscribeFileChanges, syncExternalFileChange } from './editor/file-sync';
 
-const hana = (window as any).hana;
+const hana = window.hana;
 const titleEl = document.getElementById('editorTitle')!;
 const bodyEl = document.getElementById('editorBody')!;
 const btnDock = document.getElementById('btnDock')!;
@@ -77,7 +77,7 @@ async function loadContent(data: { filePath: string; title: string; type: string
   });
 }
 
-hana?.onEditorLoad((data: any) => loadContent(data));
+hana?.onEditorLoad?.((data) => loadContent(data));
 btnDock.addEventListener('click', () => hana?.editorDock?.());
 btnClose.addEventListener('click', () => hana?.editorClose?.());
 

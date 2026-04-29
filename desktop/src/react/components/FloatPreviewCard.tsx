@@ -5,7 +5,7 @@
  * 右侧：desk 文件列表 + 笺编辑区
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../stores';
 import { hanaUrl } from '../hooks/use-hana-fetch';
 import { createNewSession, switchSession } from '../stores/session-actions';
@@ -169,7 +169,7 @@ function DeskListCard() {
   const deskFiles = useStore(s => s.deskFiles);
   const deskJianContent = useStore(s => s.deskJianContent);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const hiddenNames = new Set(['__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', 'dist', 'build']);
+  const hiddenNames = useMemo(() => new Set(['__pycache__', 'node_modules', '.venv', 'venv', '.pytest_cache', 'dist', 'build']), []);
   const isHiddenFile = useCallback((file: any) => {
     const rawName = String(file?.name || '').trim().replace(/\/+$/, '');
     if (!rawName) return true;
@@ -177,7 +177,7 @@ function DeskListCard() {
     if (rawName.startsWith('.DS_Store')) return true;
     if (rawName.endsWith('.pyc') || rawName.endsWith('.pyo')) return true;
     return false;
-  }, []);
+  }, [hiddenNames]);
 
   const handleJianInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;

@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useSettingsStore, type ProviderSummary } from '../store';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useSettingsStore, type ProviderSummary, type SettingsConfig } from '../store';
 import { hanaFetch } from '../api';
 import { t, PROVIDER_PRESETS } from '../helpers';
 import { loadSettingsConfig } from '../actions';
@@ -53,7 +53,7 @@ function sortByPriority(ids: string[], order: string[]) {
   });
 }
 
-function resolvePreferredProviderId(settingsConfig: Record<string, any> | null): string | null {
+function resolvePreferredProviderId(settingsConfig: SettingsConfig | null): string | null {
   if (!settingsConfig) return null;
 
   const chatRaw = settingsConfig.models?.chat;
@@ -72,7 +72,7 @@ function resolvePreferredProviderId(settingsConfig: Record<string, any> | null):
   if (!chatModelId) return null;
 
   const providers = settingsConfig.providers || {};
-  for (const [providerId, providerConfig] of Object.entries(providers) as [string, any][]) {
+  for (const [providerId, providerConfig] of Object.entries(providers)) {
     if ((providerConfig?.models || []).includes(chatModelId)) return providerId;
   }
 
@@ -133,22 +133,25 @@ export function ProvidersTab() {
     }
   }, [selectedProviderId]);
 
-  const providerIds = Object.keys(providersSummary);
+  const providerIds = useMemo(() => Object.keys(providersSummary), [providersSummary]);
   const summaryLoaded = providerIds.length > 0;
-  const visibleOauthProviderIds = sortByPriority(
+  const visibleOauthProviderIds = useMemo(() => sortByPriority(
     providerIds.filter((id) => providersSummary[id].supports_oauth && OAUTH_PROVIDER_ORDER.includes(id)),
     OAUTH_PROVIDER_ORDER,
-  );
-  const visibleCodingProviderIds = sortByPriority(
+  ), [providerIds, providersSummary]);
+  const visibleCodingProviderIds = useMemo(() => sortByPriority(
     providerIds.filter((id) => !providersSummary[id].supports_oauth && providersSummary[id].is_coding_plan),
     CODING_PROVIDER_ORDER,
+  ), [providerIds, providersSummary]);
+  const visibleRegisteredApiIds = useMemo(
+    () => providerIds.filter((id) => !providersSummary[id].supports_oauth && !providersSummary[id].is_coding_plan),
+    [providerIds, providersSummary],
   );
-  const visibleRegisteredApiIds = providerIds.filter((id) => !providersSummary[id].supports_oauth && !providersSummary[id].is_coding_plan);
-  const visibleProviderIds = [
+  const visibleProviderIds = useMemo(() => [
     ...visibleOauthProviderIds,
     ...visibleCodingProviderIds,
     ...visibleRegisteredApiIds,
-  ];
+  ], [visibleCodingProviderIds, visibleOauthProviderIds, visibleRegisteredApiIds]);
   const resolvedPreferredProviderId = resolvePreferredProviderId(settingsConfig) || preferredProviderId;
 
   useEffect(() => {

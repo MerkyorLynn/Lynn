@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSettingsStore } from '../store';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
@@ -79,17 +79,18 @@ export function SkillsTab() {
     return () => window.removeEventListener('settings-skills-changed', handleSkillsChanged);
   }, [loadExternalPaths, loadSkills]);
 
-  const visible = skillsList.filter(s => !s.hidden);
-  const userSkills = visible.filter(s => s.source !== 'learned' && s.source !== 'external');
-  const learnedSkills = visible.filter(s => s.source === 'learned');
-  const externalSkills = visible.filter(s => s.source === 'external');
+  const visible = useMemo(() => skillsList.filter(s => !s.hidden), [skillsList]);
+  const visibleSkillNames = useMemo(() => visible.map(s => s.name), [visible]);
+  const userSkills = useMemo(() => visible.filter(s => s.source !== 'learned' && s.source !== 'external'), [visible]);
+  const learnedSkills = useMemo(() => visible.filter(s => s.source === 'learned'), [visible]);
+  const externalSkills = useMemo(() => visible.filter(s => s.source === 'external'), [visible]);
+  const locale = window.i18n?.locale || 'zh';
 
   // 后台翻译技能名
   const [nameHints, setNameHints] = useState<Record<string, string>>({});
   useEffect(() => {
-    const locale = window.i18n?.locale || 'zh';
-    if (locale === 'en' || visible.length === 0) return;
-    const names = visible.map(s => s.name).filter(n => !nameHints[n]);
+    if (locale === 'en' || visibleSkillNames.length === 0) return;
+    const names = visibleSkillNames.filter(n => !nameHints[n]);
     if (names.length === 0) return;
     hanaFetch('/api/skills/translate', {
       method: 'POST',
@@ -99,7 +100,7 @@ export function SkillsTab() {
       .then(r => r.json())
       .then(map => { if (map && typeof map === 'object') setNameHints(prev => ({ ...prev, ...map })); })
       .catch(err => console.warn('[skills] translate failed:', err));
-  }, [visible.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [locale, nameHints, visibleSkillNames]);
 
   const installSkillFromPath = async (filePath: string) => {
     try {
