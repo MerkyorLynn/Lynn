@@ -6,6 +6,13 @@ import {
 } from "../server/chat/stream-sanitizer.js";
 
 describe("stream sanitizer", () => {
+  it("returns plain text without invoking pseudo XML state", () => {
+    expect(stripStreamingPseudoToolBlocks({}, "普通回答，没有内部标签。")).toEqual({
+      text: "普通回答，没有内部标签。",
+      suppressed: false,
+    });
+  });
+
   it("suppresses shared-registry pseudo XML blocks across chunk boundaries", () => {
     const ss = {};
 

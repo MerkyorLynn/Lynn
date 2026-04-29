@@ -10,12 +10,15 @@ const path = require("path");
 
 const APP = process.env.LYNN_SIGN_APP || "/Applications/Lynn.app";
 const ENT = path.join(__dirname, "..", "desktop", "entitlements.mac.plist");
+const DEFAULT_KEYCHAIN = path.join(process.env.HOME || "", "Library", "Keychains", "lynn-build.keychain-db");
+const CODESIGN_KEYCHAIN = process.env.CODESIGN_KEYCHAIN || (fs.existsSync(DEFAULT_KEYCHAIN) ? DEFAULT_KEYCHAIN : "");
 // 默认走 Developer ID 而不是 ad-hoc(`-`),避免 cdhash 变化后 macOS TCC 把
 // Lynn.app 当成"新 app",导致用户每次 install:local 都要重新授权麦克风/相机/文件等。
 // 找不到 Developer ID 证书时(纯 CI/无 keychain)再 fallback 到 ad-hoc。
 function detectDeveloperId() {
   try {
-    const out = execSync(`security find-identity -v -p codesigning 2>/dev/null | grep -E "Developer ID Application" | head -1`, { encoding: "utf8" });
+    const keychainArg = CODESIGN_KEYCHAIN ? ` "${CODESIGN_KEYCHAIN}"` : "";
+    const out = execSync(`security find-identity -v -p codesigning${keychainArg} 2>/dev/null | grep -E "Developer ID Application" | head -1`, { encoding: "utf8" });
     const m = out.match(/"(Developer ID Application: [^"]+)"/);
     return m ? m[1] : null;
   } catch (_) {
@@ -24,7 +27,9 @@ function detectDeveloperId() {
 }
 const DEFAULT_IDENTITY = detectDeveloperId() || "-";
 const IDENTITY = process.env.CODESIGN_IDENTITY || DEFAULT_IDENTITY;
-const TIMESTAMP = IDENTITY === "-" ? "" : "--timestamp=none";
+const TIMESTAMP = IDENTITY === "-" ? "" : "--timestamp";
+const KEYCHAIN_FLAG = CODESIGN_KEYCHAIN && IDENTITY !== "-" ? `--keychain "${CODESIGN_KEYCHAIN}"` : "";
+const RUNTIME_FLAG = IDENTITY === "-" ? "" : "--options runtime";
 
 function strip(target) {
   try {
@@ -35,7 +40,7 @@ function strip(target) {
 }
 
 function sign(target, opts = "") {
-  execSync(`codesign --sign "${IDENTITY}" --force ${TIMESTAMP} ${opts} "${target}"`, { stdio: "inherit" });
+  execSync(`codesign ${KEYCHAIN_FLAG} --sign "${IDENTITY}" --force ${TIMESTAMP} ${RUNTIME_FLAG} ${opts} "${target}"`, { stdio: "inherit" });
 }
 
 function walkFiles(root) {
@@ -81,6 +86,20 @@ if (!fs.existsSync(APP)) {
 
 console.log(`[sign-local] app=${APP}`);
 console.log(`[sign-local] identity=${IDENTITY}`);
+if (CODESIGN_KEYCHAIN) {
+  console.log(`[sign-local] keychain=${CODESIGN_KEYCHAIN}`);
+  try {
+    execFileSync("security", ["unlock-keychain", "-p", "", CODESIGN_KEYCHAIN], { stdio: "ignore" });
+  } catch (err) {
+    console.warn(`[sign-local] warning: failed to unlock keychain ${CODESIGN_KEYCHAIN}: ${err.message}`);
+  }
+}
+
+try {
+  execFileSync("xattr", ["-cr", APP], { stdio: "inherit" });
+} catch (err) {
+  console.warn(`[sign-local] warning: failed to clear extended attributes: ${err.message}`);
+}
 
 // ============================================================
 // 收集所有需要签名的 Mach-O 文件
@@ -212,18 +231,18 @@ sign(APP, `--entitlements "${ENT}"`);
 console.log("[sign-local] Phase 3: Verifying...");
 execSync(`codesign --verify --deep --strict "${APP}"`, { stdio: "inherit" });
 
-// 额外检查：确保没有残留的旧 Team ID
+// 额外检查：Developer ID 签名时确保可执行代码都归属目标 Team ID。
 try {
   const mismatched = [];
   for (const target of allTargets) {
     const result = spawnSync("codesign", ["-dvvv", target], { encoding: "utf8" });
     const detail = `${result.stdout || ""}\n${result.stderr || ""}`;
-    if (detail.includes("TeamIdentifier=KYB8UN3JP3")) {
-      mismatched.push(`${target} → TeamIdentifier=KYB8UN3JP3`);
+    if (IDENTITY !== "-" && !detail.includes("TeamIdentifier=KYB8UN3JP3")) {
+      mismatched.push(`${target} → missing TeamIdentifier=KYB8UN3JP3`);
     }
   }
   if (mismatched.length > 0) {
-    console.error("WARNING: Some binaries still have old Team ID:");
+    console.error("WARNING: Some binaries are not signed with expected Team ID:");
     mismatched.forEach(l => console.error("  " + l));
   }
 } catch (_) {}

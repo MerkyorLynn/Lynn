@@ -211,6 +211,24 @@ export class TaskRuntime {
     return runnerPromise;
   }
 
+  _runTaskDetached(taskId, source = "background") {
+    void this.runTask(taskId).catch((err) => {
+      const message = err?.message || String(err);
+      console.error(`[task-runtime] detached runTask failed (${source}) ${taskId}:`, message);
+      try {
+        this._store.appendEvent(taskId, {
+          type: "task.detached_error",
+          level: "error",
+          message,
+          data: { source },
+        });
+        this._emitTaskUpdate(taskId);
+      } catch {
+        // The task may have been deleted while the detached runner was failing.
+      }
+    });
+  }
+
   resumePendingTasks() {
     const resumable = this._store.list().filter((task) =>
       [TASK_STATUS.PENDING, TASK_STATUS.RUNNING, TASK_STATUS.WAITING_APPROVAL].includes(task.status),
@@ -231,7 +249,7 @@ export class TaskRuntime {
         progress: this._withProgress(task.id, { currentLabel: isZh() ? "恢复中" : "Resuming" }),
       });
       this._emitTaskUpdate(task.id);
-      void this.runTask(task.id);
+      this._runTaskDetached(task.id, "resume");
     }
   }
 
@@ -733,7 +751,7 @@ export class TaskRuntime {
         currentLabel: taskQueuedLabel({ runner: { kind: "delegate" } }),
       },
     });
-    if (autoRun) void this.runTask(task.id);
+    if (autoRun) this._runTaskDetached(task.id, "delegate:autoRun");
     return task;
   }
 
@@ -778,7 +796,7 @@ export class TaskRuntime {
         currentLabel: taskQueuedLabel({ runner: { kind: "plan" } }),
       },
     });
-    if (autoRun) void this.runTask(task.id);
+    if (autoRun) this._runTaskDetached(task.id, "plan:autoRun");
     return task;
   }
 
@@ -852,7 +870,7 @@ export class TaskRuntime {
         currentLabel: taskQueuedLabel({ runner: { kind: "review" } }),
       },
     });
-    void this.runTask(task.id);
+    this._runTaskDetached(task.id, "review:autoRun");
     return task;
   }
 

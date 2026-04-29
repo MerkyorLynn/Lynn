@@ -90,10 +90,46 @@ export function isStaleEmptySessionStream(ss, now = Date.now()) {
 }
 
 export function resetCompletedTurnState(ss) {
+  if (ss.silentBrainAbortTimer) {
+    try { clearTimeout(ss.silentBrainAbortTimer); } catch { /* timer may already be cleared */ }
+    ss.silentBrainAbortTimer = null;
+  }
+  if (ss.turnHardAbortTimer) {
+    try { clearTimeout(ss.turnHardAbortTimer); } catch { /* timer may already be cleared */ }
+    ss.turnHardAbortTimer = null;
+  }
+  if (ss.toolFinalizationTimer) {
+    try { clearTimeout(ss.toolFinalizationTimer); } catch { /* timer may already be cleared */ }
+    ss.toolFinalizationTimer = null;
+  }
+  if (ss.deferredTurnEndSafetyTimer) {
+    try { clearTimeout(ss.deferredTurnEndSafetyTimer); } catch { /* timer may already be cleared */ }
+    ss.deferredTurnEndSafetyTimer = null;
+  }
+  if (ss.toolAuthorizationTimer) {
+    try { clearTimeout(ss.toolAuthorizationTimer); } catch { /* timer may already be cleared */ }
+    ss.toolAuthorizationTimer = null;
+  }
+  if (ss.toolAuthorizationPollTimer) {
+    try { clearInterval(ss.toolAuthorizationPollTimer); } catch { /* timer may already be cleared */ }
+    ss.toolAuthorizationPollTimer = null;
+  }
+  if (ss.returnedTurnFinalizationTimer) {
+    try { clearTimeout(ss.returnedTurnFinalizationTimer); } catch { /* timer may already be cleared */ }
+    ss.returnedTurnFinalizationTimer = null;
+  }
+  if (ss.persistedFinalAnswerPollTimer) {
+    try { clearInterval(ss.persistedFinalAnswerPollTimer); } catch { /* timer may already be cleared */ }
+    ss.persistedFinalAnswerPollTimer = null;
+  }
   ss.activeStreamToken = null;
   ss.degenerationAbortRequested = false;
   ss.progressMarkerCount = 0;
   ss._turnEndDeferred = false;
+  ss._turnClosed = false;
+  ss.internalRetryPending = false;
+  ss.internalRetryInFlight = false;
+  ss.internalRetryReason = "";
   ss.hasOutput = false;
   ss.hasToolCall = false;
   ss.hasPrefetchToolCall = false;
@@ -106,6 +142,8 @@ export function resetCompletedTurnState(ss) {
   ss.visibleTextAcc = "";
   ss.rawTextAcc = "";
   ss.pseudoToolSteered = false;
+  ss.pseudoToolRecoveryHandled = false;
+  ss.pseudoToolCommandRecoveryAttempted = false;
   ss.pseudoToolXmlBlock = null;
   ss.successfulToolCount = 0;
   ss.lastSuccessfulTools = [];
@@ -119,4 +157,5 @@ export function resetCompletedTurnState(ss) {
   }
   ss.toolFinalizationRetryAttempted = false;
   ss.toolFailedFallbackRetryAttempted = false;
+  ss.persistedAssistantTextBaseline = 0;
 }

@@ -1,4 +1,5 @@
 import { hanaFetch } from '../hooks/use-hana-fetch';
+import { syncTaskWakeLockFromSnapshot } from '../services/wake-lock';
 import { useStore } from '../stores';
 import type { CapabilitySnapshot, TaskRuntimeSnapshot } from '../types';
 
@@ -54,6 +55,8 @@ export async function syncRuntimeSnapshot(opts: { announceRecovery?: boolean } =
     if (Object.keys(patch).length > 0) {
       useStore.setState(patch);
     }
+
+    syncTaskWakeLockFromSnapshot((data?.tasks || null) as TaskRuntimeSnapshot | null);
 
     if (opts.announceRecovery) {
       maybeAnnounceRecoveredTasks((data?.tasks || null) as TaskRuntimeSnapshot | null);

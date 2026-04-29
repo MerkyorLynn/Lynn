@@ -35,6 +35,8 @@ describe("TaskRuntime", () => {
   let hub;
 
   beforeEach(() => {
+    runAgentSession.mockReset();
+    runAgentSession.mockResolvedValue("background result");
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-task-runtime-"));
     hub = makeHub();
     runtime = new TaskRuntime({
@@ -67,6 +69,28 @@ describe("TaskRuntime", () => {
       expect.objectContaining({ type: "task_update" }),
       "/sessions/current.jsonl",
     );
+  });
+
+  it("captures detached autorun failures instead of leaking unhandled rejections", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    runAgentSession.mockRejectedValueOnce(new Error("detached boom"));
+
+    const task = runtime.createDelegateTask({
+      title: "Detached failure",
+      prompt: "This will fail",
+      autoRun: true,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const stored = runtime.getTask(task.id);
+    expect(stored?.status).toBe(TASK_STATUS.FAILED);
+    expect(stored?.events?.some((event) => event.type === "task.detached_error")).toBe(true);
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining("[task-runtime] detached runTask failed"),
+      "detached boom",
+    );
+    spy.mockRestore();
   });
 
   it("creates and completes a plan task", async () => {

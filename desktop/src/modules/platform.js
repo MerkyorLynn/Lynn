@@ -77,6 +77,7 @@
     openFolder: () => {},
     openFile: () => {},
     openHtmlInBrowser: async (html) => { try { const b = new Blob([html], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); } catch { /* web fallback only */ } },
+    exportHtmlToPng: async () => null,  // Web 环境无离屏渲染能力,降级 null;调用方应判断后给提示
     openExternal: (url) => { try { window.open(url, '_blank'); } catch { /* popup blocked */ } },
     showInFinder: () => {},
     startDrag: () => {},

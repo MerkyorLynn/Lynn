@@ -14,7 +14,7 @@ vi.mock("../lib/tools/web-fetch.js", () => fetchContentMock);
 
 import { createStockMarketTool } from "../lib/tools/stock-market.js";
 import { createWeatherTool } from "../lib/tools/realtime-info.js";
-import { inferReportResearchKind } from "../server/chat/report-research-context.js";
+import { buildDirectResearchAnswer, inferReportResearchKind } from "../server/chat/report-research-context.js";
 
 function jsonResponse(data) {
   return new Response(JSON.stringify(data), {
@@ -659,5 +659,35 @@ describe("realtime market/weather tools", () => {
 
     expect(result.details.location).toBe("和田");
     expect(result.content[0].text).toContain("和田 · 新疆");
+  });
+
+  it("does not treat weather site navigation pages as concrete weather evidence", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("network unavailable");
+    }));
+    searchMock.runSearchQuery.mockResolvedValue({
+      provider: "mock-search",
+      results: [{
+        title: "上海天气预报 - 首页",
+        url: "https://www.weather.com.cn/weather/101020100.shtml",
+        snippet: "天气首页 生活指数 城市导航 空气质量 旅游 景点 天气新闻",
+      }],
+    });
+    fetchContentMock.fetchWebContent.mockResolvedValue({
+      text: "天气首页 生活指数 城市导航 空气质量 旅游 景点 天气新闻 上海天气预报",
+    });
+
+    const result = await createWeatherTool().execute("test", {
+      query: "今天上海天气如何",
+    });
+    const text = result.content[0].text;
+
+    expect(result.details.fallback).toBe(true);
+    expect(text).toContain("未检索到明确天气数据");
+    expect(text).not.toContain("生活指数 城市导航");
+
+    const direct = buildDirectResearchAnswer("weather", text, "今天上海天气如何");
+    expect(direct).toContain("不会把天气网站首页或导航菜单当成有效结果");
+    expect(direct).toContain("中国天气网");
   });
 });

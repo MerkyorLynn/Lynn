@@ -114,6 +114,7 @@ export class PluginManager {
       dataDir: path.join(this._dataDir, entry.id),
       bus: this._bus,
       engine: this._engine || null,
+      disposables: entry._disposables,
     });
     instance.register = (disposable) => {
       if (typeof disposable === "function") entry._disposables.push(disposable);
@@ -223,6 +224,7 @@ export class PluginManager {
       dataDir: path.join(this._dataDir, entry.id),
       bus: this._bus,
       engine: this._engine || null,
+      disposables: entry._disposables,
     });
     for (const file of files) {
       const filePath = path.join(routesDir, file);
@@ -388,6 +390,21 @@ export class PluginManager {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
+  _removePluginContributions(pluginId) {
+    this._tools = this._tools.filter((item) => item?._pluginId !== pluginId);
+    this._commands = this._commands.filter((item) => item?._pluginId !== pluginId);
+    this._skillPaths = this._skillPaths.filter((item) => item?.label !== `plugin:${pluginId}`);
+    this._agentTemplates = this._agentTemplates.filter((item) => item?._pluginId !== pluginId);
+    this._providerPlugins = this._providerPlugins.filter((item) => item?._pluginId !== pluginId);
+    this._configSchemas = this._configSchemas.filter((item) => item?.pluginId !== pluginId);
+
+    for (const [eventType, handlers] of this._hookRegistry.entries()) {
+      const kept = handlers.filter((item) => item?.pluginId !== pluginId);
+      if (kept.length > 0) this._hookRegistry.set(eventType, kept);
+      else this._hookRegistry.delete(eventType);
+    }
+  }
+
   async unloadPlugin(pluginId) {
     const entry = this._plugins.get(pluginId);
     if (!entry) return;
@@ -405,6 +422,7 @@ export class PluginManager {
       entry._disposables = [];
     }
     this.routeRegistry.delete(pluginId);
+    this._removePluginContributions(pluginId);
     entry.status = "unloaded";
   }
 

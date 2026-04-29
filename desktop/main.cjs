@@ -8,7 +8,7 @@
  * 4. 关闭 splash，显示主窗口
  * 5. 优雅关闭
  */
-const { app, BrowserWindow, WebContentsView, globalShortcut, ipcMain, dialog, session, shell, nativeTheme, Tray, Menu, nativeImage, systemPreferences, Notification } = require("electron");
+const { app, BrowserWindow, WebContentsView, globalShortcut, ipcMain, dialog, session, shell, nativeTheme, Tray, Menu, nativeImage, systemPreferences, Notification, powerSaveBlocker } = require("electron");
 const os = require("os");
 const path = require("path");
 const { spawn, execFileSync } = require("child_process");
@@ -68,6 +68,48 @@ let browserViewerWindow = null;
 let _browserWebView = null;        // 当前活跃的 WebContentsView
 const _browserViews = new Map();   // sessionPath → WebContentsView（挂起的浏览器）
 let _currentBrowserSession = null; // 当前浏览器绑定的 sessionPath
+
+// 有任务进行时禁止系统挂起。使用 prevent-app-suspension 保持任务执行，
+// 但不强制点亮屏幕，避免长任务时额外耗电或打扰用户。
+const wakeLockReasons = new Set();
+let wakeLockId = null;
+
+function wakeLockState() {
+  return {
+    active: wakeLockId != null && powerSaveBlocker.isStarted(wakeLockId),
+    blockerId: wakeLockId,
+    reasons: Array.from(wakeLockReasons),
+  };
+}
+
+function refreshWakeLock() {
+  if (wakeLockReasons.size > 0) {
+    if (wakeLockId == null || !powerSaveBlocker.isStarted(wakeLockId)) {
+      wakeLockId = powerSaveBlocker.start("prevent-app-suspension");
+      console.log(`[desktop] wake lock enabled: ${Array.from(wakeLockReasons).join(", ")}`);
+    }
+    return wakeLockState();
+  }
+
+  if (wakeLockId != null) {
+    try {
+      if (powerSaveBlocker.isStarted(wakeLockId)) powerSaveBlocker.stop(wakeLockId);
+    } catch (err) {
+      console.warn(`[desktop] wake lock stop failed: ${err?.message || err}`);
+    }
+    console.log("[desktop] wake lock released");
+    wakeLockId = null;
+  }
+  return wakeLockState();
+}
+
+function setWakeLockReason(reason, active) {
+  const key = String(reason || "").trim();
+  if (!key) return wakeLockState();
+  if (active) wakeLockReasons.add(key);
+  else wakeLockReasons.delete(key);
+  return refreshWakeLock();
+}
 
 /** Vite 入口页面统一加载（dev → Vite dev server，prod → dist-renderer，fallback → src） */
 const _isDev = process.argv.includes("--dev");
@@ -2272,6 +2314,10 @@ async function checkForUpdates() {
 wrapIpcHandler("get-server-port", () => serverPort);
 wrapIpcHandler("get-server-token", () => serverToken);
 wrapIpcHandler("get-app-version", () => app.getVersion());
+wrapIpcHandler("wake-lock-set", (_event, payload = {}) => (
+  setWakeLockReason(payload.reason, !!payload.active)
+));
+wrapIpcHandler("wake-lock-state", () => wakeLockState());
 // 旧版兼容：check-update 返回 auto-updater 状态中的可用版本信息
 const { getState: getUpdateState } = require("./auto-updater.cjs");
 wrapIpcHandler("check-update", () => {
@@ -2711,6 +2757,97 @@ wrapIpcHandler("open-html-in-browser", async (_event, html, title) => {
     await shell.openPath(tmpFile);
   } catch (err) {
     log.error("[open-html-in-browser]", err.message || err);
+  }
+});
+
+/**
+ * export-html-to-png — 用离屏 BrowserWindow 把 HTML 渲染为 PNG。
+ *
+ * 流程:
+ *   1. sanitizeStandaloneHtml(html) 注入 CSP, 去 script / on* / iframe
+ *   2. 写到 tmpFile, file:// 加载(支持长 HTML, 避开 data: URL 长度限制)
+ *   3. 等 document.fonts.ready + 1.5s buffer (Google Fonts CDN)
+ *   4. 测全文档高度, resize 离屏窗口
+ *   5. capturePage() → PNG → 写到 ~/Downloads/<title>-<ts>.png
+ *   6. 可选自动 showInFinder
+ *
+ * 安全: BrowserWindow webPreferences 关 nodeIntegration / contextIsolation,
+ *       sandbox: true, 不加载 preload, 等价于普通浏览器 tab 的隔离。
+ *       CSP script-src 'none' 阻止 HTML 内 inline script 执行。
+ */
+wrapIpcHandler("export-html-to-png", async (_event, html, title, opts = {}) => {
+  if (typeof html !== "string" || !html) return null;
+  const safeTitle = String(title || "lynn-export").replace(/[\\/:*?"<>|]/g, "-").slice(0, 80);
+  const width = Math.max(320, Math.min(opts.width || 1180, 4096));
+  const tmpFile = path.join(os.tmpdir(), `lynn-png-${Date.now()}.html`);
+  let win = null;
+  try {
+    fs.writeFileSync(tmpFile, sanitizeStandaloneHtml(html), "utf-8");
+
+    win = new BrowserWindow({
+      show: false,
+      width,
+      height: 800,
+      useContentSize: true,
+      backgroundColor: opts.background || "#ffffff",
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        javascript: true, // 仅用于 main → renderer 的 executeJavaScript 测高
+        webSecurity: true,
+      },
+    });
+
+    await win.loadFile(tmpFile);
+
+    // 等字体加载(Google Fonts) + 短 buffer 给 layout 收敛
+    try {
+      await win.webContents.executeJavaScript(
+        "(async () => { if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch {} } return true; })()",
+        true,
+      );
+    } catch { /* fonts API 不可用就 fallback 到 timeout */ }
+    await new Promise((r) => setTimeout(r, 1500));
+
+    // 测全文档高度
+    let fullHeight = 800;
+    try {
+      fullHeight = await win.webContents.executeJavaScript(
+        "Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0, 800)",
+        true,
+      );
+    } catch { /* 测不到就用默认 800 */ }
+    fullHeight = Math.min(Math.max(800, fullHeight), 32000); // 32k 像素上限
+
+    win.setContentSize(width, fullHeight);
+    await new Promise((r) => setTimeout(r, 300)); // 让 resize 后 reflow 收敛
+
+    const image = await win.webContents.capturePage();
+    const png = image.toPNG();
+
+    const outDir = app.getPath("downloads") || os.tmpdir();
+    fs.mkdirSync(outDir, { recursive: true });
+    const filePath = path.join(outDir, `${safeTitle}-${Date.now()}.png`);
+    fs.writeFileSync(filePath, png);
+
+    if (opts.revealAfter !== false) {
+      try { shell.showItemInFolder(filePath); } catch { /* finder 失败不致命 */ }
+    }
+
+    const size = image.getSize();
+    return {
+      filePath,
+      bytes: png.length,
+      width: size.width,
+      height: size.height,
+    };
+  } catch (err) {
+    log.error("[export-html-to-png]", err.message || err);
+    return null;
+  } finally {
+    try { if (win && !win.isDestroyed()) win.destroy(); } catch { /* destroy 失败忽略 */ }
+    try { fs.unlinkSync(tmpFile); } catch { /* tmp 清理失败忽略 */ }
   }
 });
 
@@ -3165,6 +3302,8 @@ function registerGlobalSummon() {
 
 // ── 优雅关闭 ──
 app.on("will-quit", () => {
+  wakeLockReasons.clear();
+  refreshWakeLock();
   globalShortcut.unregisterAll();
   // 销毁托盘图标
   if (tray && !tray.isDestroyed()) {

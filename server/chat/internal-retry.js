@@ -11,6 +11,7 @@ import {
 import { resetCompletedTurnState } from "./stream-state.js";
 
 const INTERNAL_RETRY_HARD_TIMEOUT_MS = Number(process.env.LYNN_INTERNAL_RETRY_HARD_TIMEOUT_MS || 60_000);
+const INTERNAL_RETRY_START_WAIT_ATTEMPTS = Number(process.env.LYNN_INTERNAL_RETRY_START_WAIT_ATTEMPTS || 300);
 
 export function internalRetryCount(ss, reason) {
   if (!ss || !reason) return 0;
@@ -55,6 +56,9 @@ export function prepareInternalRetryStream(sessionPath, ss, reason) {
   ss.progressMarkerCount = 0;
   ss.degenerationAbortRequested = false;
   ss._turnEndDeferred = false;
+  ss.internalRetryPending = false;
+  ss.internalRetryInFlight = true;
+  ss.internalRetryReason = reason;
   const streamToken = beginSessionStream(ss);
   ss.activeStreamToken = streamToken;
   ss.streamSource = "internal_retry";
@@ -62,11 +66,67 @@ export function prepareInternalRetryStream(sessionPath, ss, reason) {
   return streamToken;
 }
 
+function clearRetryLifecycle(ss, reason = "") {
+  if (!ss) return;
+  if (!reason || ss.internalRetryReason === reason) {
+    ss.internalRetryPending = false;
+    ss.internalRetryInFlight = false;
+    ss.internalRetryReason = "";
+  }
+}
+
+function retryFallbackText(reason) {
+  return reason === "empty_reply" || reason === "pseudo_tool_text"
+    ? "本轮模型没有生成可用回复，Lynn 已结束这次空转以免卡住会话。请重试一次，或把任务说得更具体一点。"
+    : "本轮补写回答没有稳定完成，Lynn 已结束这次空转以免卡住会话。上方已有内容已保留，你可以让我继续核对。";
+}
+
+function closeRetryWithFallback({
+  sessionPath,
+  ss,
+  reason,
+  streamToken = null,
+  broadcast,
+  engine,
+  clearSilentBrainAbort,
+  emitStreamEvent,
+  cleanupPendingEdits,
+  logReason,
+}) {
+  if (!sessionPath || !ss) return false;
+  try {
+    engine.abortSessionByPath?.(sessionPath).catch(() => {});
+  } catch {
+    // Abort is best-effort; local stream closure below is authoritative.
+  }
+  clearSilentBrainAbort(ss);
+  clearRetryLifecycle(ss, reason);
+  if (ss.isThinking) {
+    ss.isThinking = false;
+    emitStreamEvent?.(sessionPath, ss, { type: "thinking_end" });
+  }
+  if (!ss.hasOutput) {
+    const fallback = retryFallbackText(reason);
+    emitStreamEvent?.(sessionPath, ss, { type: "text_delta", delta: fallback });
+    ss.visibleTextAcc += fallback;
+    ss.hasOutput = true;
+  }
+  emitStreamEvent?.(sessionPath, ss, { type: "turn_end" });
+  broadcast({ type: "status", isStreaming: false, sessionPath });
+  cleanupPendingEdits?.(sessionPath, streamToken || ss.activeStreamToken || null);
+  finishSessionStream(ss);
+  resetCompletedTurnState(ss);
+  debugLog()?.warn("ws", `[INTERNAL-RETRY-CLOSE v1] closed retry stream · reason=${reason} close=${logReason} · session=${sessionPath}`);
+  return true;
+}
+
 export function scheduleInternalRetry({
   sessionPath, reason, retryPrompt,
   getState, broadcast, hub, engine,
   scheduleSilentBrainAbort, clearSilentBrainAbort,
   closeStreamAfterError, emitStreamEvent,
+  finalizeReturnedTurnWithoutStream,
+  cleanupPendingEdits,
 }) {
   if (!sessionPath || !reason || !String(retryPrompt || "").trim()) return false;
   const ss = getState(sessionPath);
@@ -75,17 +135,30 @@ export function scheduleInternalRetry({
     return false;
   }
   markInternalRetry(ss, reason);
+  ss.internalRetryPending = true;
+  ss.internalRetryInFlight = false;
+  ss.internalRetryReason = reason;
   broadcast({ type: "turn_retry", sessionPath, reason });
   const startRetry = async (attempt = 0) => {
     const currentSs = getState(sessionPath);
     if (!currentSs) return;
     if (currentSs.isStreaming || engine.isSessionStreaming(sessionPath)) {
-      if (attempt < 100) {
+      if (attempt < INTERNAL_RETRY_START_WAIT_ATTEMPTS) {
         setTimeout(() => startRetry(attempt + 1), 50);
         return;
       }
       debugLog()?.warn("ws", `[INTERNAL-RETRY v1] abandoned because session stayed streaming · reason=${reason} · session=${sessionPath}`);
-      broadcast({ type: "status", isStreaming: false, sessionPath });
+      closeRetryWithFallback({
+        sessionPath,
+        ss: currentSs,
+        reason,
+        broadcast,
+        engine,
+        clearSilentBrainAbort,
+        emitStreamEvent,
+        cleanupPendingEdits,
+        logReason: "session_stayed_streaming",
+      });
       return;
     }
     const streamToken = prepareInternalRetryStream(sessionPath, currentSs, reason);
@@ -94,31 +167,25 @@ export function scheduleInternalRetry({
     let hardTimedOut = false;
     const hardTimeout = setTimeout(() => {
       const timeoutSs = getState(sessionPath);
-      if (!timeoutSs || timeoutSs.activeStreamToken !== streamToken || timeoutSs.streamSource !== "internal_retry") return;
+      if (
+        !timeoutSs ||
+        (timeoutSs.activeStreamToken && timeoutSs.activeStreamToken !== streamToken) ||
+        timeoutSs.streamSource !== "internal_retry"
+      ) return;
       hardTimedOut = true;
       debugLog()?.warn("ws", `[INTERNAL-RETRY-TIMEOUT v1] closing retry stream · reason=${reason} timeout=${INTERNAL_RETRY_HARD_TIMEOUT_MS}ms · session=${sessionPath}`);
-      try {
-        engine.abortSessionByPath?.(sessionPath).catch(() => {});
-      } catch {
-        // Abort is best-effort; the stream is closed locally below.
-      }
-      clearSilentBrainAbort(timeoutSs);
-      if (timeoutSs.isThinking) {
-        timeoutSs.isThinking = false;
-        emitStreamEvent?.(sessionPath, timeoutSs, { type: "thinking_end" });
-      }
-      if (!timeoutSs.hasOutput) {
-        const fallback = reason === "empty_reply"
-          ? "本轮回答生成超时，未能拿到稳定文本。请重试一次或换个说法。"
-          : "补写回答超时，已保留上方已有内容；如果需要，我可以继续展开或重新整理。";
-        emitStreamEvent?.(sessionPath, timeoutSs, { type: "text_delta", delta: fallback });
-        timeoutSs.visibleTextAcc += fallback;
-        timeoutSs.hasOutput = true;
-      }
-      emitStreamEvent?.(sessionPath, timeoutSs, { type: "turn_end" });
-      broadcast({ type: "status", isStreaming: false, sessionPath });
-      finishSessionStream(timeoutSs);
-      resetCompletedTurnState(timeoutSs);
+      closeRetryWithFallback({
+        sessionPath,
+        ss: timeoutSs,
+        reason,
+        streamToken,
+        broadcast,
+        engine,
+        clearSilentBrainAbort,
+        emitStreamEvent,
+        cleanupPendingEdits,
+        logReason: "hard_timeout",
+      });
     }, INTERNAL_RETRY_HARD_TIMEOUT_MS);
     if (hardTimeout.unref) hardTimeout.unref();
     try {
@@ -127,6 +194,10 @@ export function scheduleInternalRetry({
       if (!currentSs.isStreaming) {
         clearTimeout(hardTimeout);
         clearSilentBrainAbort(currentSs);
+        clearRetryLifecycle(currentSs, reason);
+        if (finalizeReturnedTurnWithoutStream?.(sessionPath, currentSs, `internal_retry_returned_without_turn_end:${reason}`, { ignoreInternalRetry: true })) {
+          return;
+        }
         broadcast({ type: "status", isStreaming: false, sessionPath });
       } else {
         debugLog()?.warn("ws", `[INTERNAL-RETRY v1] hub.send returned while retry stream remains open; keeping hard timeout armed · reason=${reason} · session=${sessionPath}`);
@@ -135,6 +206,7 @@ export function scheduleInternalRetry({
       clearTimeout(hardTimeout);
       if (hardTimedOut) return;
       clearSilentBrainAbort(currentSs);
+      clearRetryLifecycle(currentSs, reason);
       currentSs.hasError = true;
       debugLog()?.warn("ws", `[INTERNAL-RETRY v1] failed · reason=${reason}: ${retryErr?.message || retryErr}`);
       if (currentSs.isStreaming) {

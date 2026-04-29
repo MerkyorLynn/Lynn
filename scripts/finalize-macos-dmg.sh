@@ -18,6 +18,7 @@ cd "$(dirname "$0")/.."
 IDENTITY="${APPLE_SIGN_IDENTITY:-Developer ID Application: Yubo Xu (KYB8UN3JP3)}"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-${NOTARY_KEYCHAIN_PROFILE:-}}"
 APP_BUILDER="${APP_BUILDER_BIN:-node_modules/app-builder-bin/mac/app-builder_arm64}"
+CODESIGN_KEYCHAIN="${CODESIGN_KEYCHAIN:-$HOME/Library/Keychains/lynn-build.keychain-db}"
 
 if [[ -z "$NOTARY_PROFILE" ]]; then
   echo "Set APPLE_NOTARY_PROFILE or NOTARY_KEYCHAIN_PROFILE before finalizing DMGs." >&2
@@ -41,11 +42,20 @@ for dmg in "$@"; do
   fi
 
   echo "==> Signing final DMG: $dmg"
-  codesign --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
+  if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
+    security unlock-keychain -p "" "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
+    codesign --keychain "$CODESIGN_KEYCHAIN" --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
+  else
+    codesign --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
+  fi
   codesign --verify --verbose "$dmg"
 
   echo "==> Notarizing final DMG with profile: $NOTARY_PROFILE"
-  xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
+  if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
+    xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --keychain "$CODESIGN_KEYCHAIN" --wait
+  else
+    xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
+  fi
 
   echo "==> Stapling final DMG: $dmg"
   xcrun stapler staple "$dmg"

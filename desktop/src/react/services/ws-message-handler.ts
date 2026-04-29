@@ -16,6 +16,7 @@ import { showError } from '../utils/ui-helpers';
 import { loadRenderMarkdown } from '../utils/markdown-loader';
 import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
 import { getWebSocket } from './websocket';
+import { setStreamingWakeLock, updateTaskWakeLockFromTask } from './wake-lock';
 import {
   replayStreamResume,
   isStreamResumeRebuilding,
@@ -106,6 +107,7 @@ function hasOptimisticCurrentSession(): boolean {
 
 export function applyStreamingStatus(isStreaming: boolean): void {
   useStore.setState({ isStreaming: !!isStreaming });
+  setStreamingWakeLock(!!isStreaming);
   if (isStreaming) {
     ensureCurrentSessionVisible();
   } else {
@@ -266,6 +268,7 @@ export function handleServerMessage(msg: ServerEvent | any): void {
       requestRuntimeSnapshotRefresh();
       window.dispatchEvent(new CustomEvent('hana-task-updated'));
       const task = msg.task;
+      updateTaskWakeLockFromTask(task);
       if (!task || task.source !== 'review_follow_up') break;
       const taskReviewId = task.metadata?.reviewId;
       const taskSessionPath = task.sessionPath || state.currentSessionPath;

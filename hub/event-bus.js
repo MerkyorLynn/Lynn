@@ -64,7 +64,14 @@ export class EventBus {
     for (const [, { callback, filter }] of this._subscribers) {
       if (filter.sessionPath && filter.sessionPath !== sessionPath) continue;
       if (filter.types && !filter.types.includes(eventWithContext.type)) continue;
-      try { callback(eventWithContext, sessionPath); } catch (err) {
+      try {
+        const result = callback(eventWithContext, sessionPath);
+        if (result && typeof result.then === "function") {
+          result.catch((err) => {
+            console.error("[EventBus] subscriber async error:", err?.message || err);
+          });
+        }
+      } catch (err) {
         console.error("[EventBus] subscriber error:", err.message);
       }
     }

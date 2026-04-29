@@ -239,7 +239,8 @@
     "copied": "コピーしました ✓"
   },
   "preview": {
-    "openInBrowser": "ブラウザで開く"
+    "openInBrowser": "ブラウザで開く",
+    "exportPng": "PNG エクスポート"
   },
   "cron": {
     "typeAt": "一回のみ",
@@ -1593,6 +1594,20 @@
       "titleDesc": "表示タイトル、コンテンツの簡単な説明",
       "contentDesc": "完全なコンテンツ（HTML ソース / コード / Markdown テキスト）",
       "languageDesc": "プログラミング言語（type=code の場合のみ有効）、例：javascript, python, css"
+    },
+    "report": {
+      "label": "HTML レポート生成",
+      "description": "チャット内プレビュー、ブラウザ表示、PNG 書き出しに対応したプロ品質の HTML レポートを生成します。深掘り調査、市場分析、業界レポート、プロジェクト振り返り、公開用ブリーフィングに適しています。実質的な章立てを先に提供し、空のレポートは生成しないでください。stylePreset は editorial-paper（紙の雑誌風の深掘りレポート、推奨既定）、finance-dark（ダーク金融ダッシュボード）、magazine（大胆な雑誌レイアウト）、clean-briefing（すっきりしたビジネスブリーフ）から選べます。",
+      "titleDesc": "レポートタイトル",
+      "tagDesc": "レポート分類または短いタグ。例：株式調査、業界ウォッチ",
+      "subtitleDesc": "副題または一文要約",
+      "dateDesc": "レポート日付",
+      "stylePresetDesc": "視覚スタイル：editorial-paper は Claude 風の美しい深掘り HTML レポート向け、finance-dark は金融ダッシュボード向け、magazine は公開用/ポスター風ページ向け、clean-briefing は簡潔なビジネスブリーフ向け。未指定時は深掘りレポートが editorial-paper、通常レポートが finance-dark になります。",
+      "secTitleDesc": "章タイトル",
+      "secTypeDesc": "章タイプ：metrics 指標カード、text 本文、table 表、verdict 見通し/シナリオ、warning リスク注記",
+      "sectionsDesc": "レポートの章。深掘りレポートには最低 3 つの実質的な章と、データ根拠、分析判断、リスクまたはシナリオ推論が必要です。",
+      "disclaimerDesc": "免責事項または前提条件",
+      "created": "HTML レポート「{title}」を生成しました。{count} 章、保存先: {path}"
     },
     "pptx": {
       "label": "PPT 作成",
