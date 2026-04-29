@@ -1,22 +1,36 @@
 .card {
   margin: var(--space-sm) 0;
-  padding: 0.85rem;
-  background: linear-gradient(180deg, rgba(253, 249, 239, 0.98), rgba(247, 241, 228, 0.98));
-  border: 1px solid rgba(152, 131, 102, 0.18);
-  border-radius: 0.85rem;
-  box-shadow: 0 12px 28px rgba(120, 101, 76, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.58);
-  color: #3b352c;
+  padding: 0.9rem;
+  position: relative;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 247, 228, 0.94), rgba(255, 247, 228, 0) 38%),
+    linear-gradient(180deg, rgba(255, 252, 243, 0.98), rgba(248, 241, 226, 0.98));
+  border: 1px solid rgba(176, 136, 76, 0.24);
+  border-left: 3px solid rgba(198, 139, 62, 0.62);
+  border-radius: 1rem;
+  box-shadow:
+    0 14px 32px rgba(119, 94, 58, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.72) inset;
+  color: #3e3529;
   max-width: 560px;
   width: min(560px, 100%);
   animation: authCardIn 160ms ease-out;
 }
 
 .cardConfirmed {
-  border-color: rgba(89, 148, 104, 0.34);
+  border-color: rgba(130, 157, 116, 0.34);
+  border-left-color: rgba(122, 154, 105, 0.72);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(245, 250, 233, 0.94), rgba(245, 250, 233, 0) 38%),
+    linear-gradient(180deg, rgba(255, 253, 244, 0.98), rgba(244, 242, 226, 0.98));
 }
 
 .cardRejected {
-  border-color: rgba(183, 105, 97, 0.34);
+  border-color: rgba(191, 116, 94, 0.34);
+  border-left-color: rgba(190, 101, 76, 0.72);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 239, 231, 0.94), rgba(255, 239, 231, 0) 38%),
+    linear-gradient(180deg, rgba(255, 251, 243, 0.98), rgba(248, 238, 226, 0.98));
 }
 
 .header {
@@ -30,7 +44,7 @@
 .headerText {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #2f2a24;
+  color: #3a2f23;
 }
 
 .scopeTag {
@@ -40,9 +54,9 @@
   border-radius: 999px;
   font-size: 0.69rem;
   letter-spacing: 0.02em;
-  border: 1px solid rgba(103, 128, 150, 0.24);
-  color: #5f7990;
-  background: rgba(110, 140, 168, 0.08);
+  border: 1px solid rgba(174, 130, 72, 0.24);
+  color: #8a6434;
+  background: rgba(239, 215, 174, 0.28);
 }
 
 .statusBadge {
@@ -51,18 +65,19 @@
   padding: 0.15rem 0.48rem;
   border-radius: 999px;
   font-size: 0.69rem;
-  border: 1px solid rgba(124, 160, 128, 0.26);
-  color: #4e7757;
-  background: rgba(124, 160, 128, 0.1);
+  border: 1px solid rgba(137, 160, 113, 0.28);
+  color: #657a52;
+  background: rgba(225, 235, 205, 0.46);
 }
 
 .commandBlock {
   margin: 0;
   padding: 0.62rem 0.68rem;
   border-radius: 0.68rem;
-  border: 1px solid rgba(144, 128, 106, 0.18);
-  background: rgba(255, 251, 243, 0.9);
-  color: #4a4034;
+  border: 1px solid rgba(166, 133, 86, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 247, 0.95), rgba(250, 245, 235, 0.95));
+  color: #4c3f30;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.4;
@@ -75,27 +90,27 @@
   margin: 0 0 0.38rem;
   font-size: 0.82rem;
   line-height: 1.5;
-  color: #3c352d;
+  color: #44392d;
 }
 
 .summary {
   margin: 0 0 0.48rem;
   font-size: 0.79rem;
   line-height: 1.5;
-  color: #677f93;
+  color: #7b6345;
 }
 
 .reason {
   margin: 0 0 0.6rem;
   font-size: 0.72rem;
   line-height: 1.35;
-  color: #7d7468;
+  color: #817365;
 }
 
 .reasonLabel {
   display: inline-block;
   margin-right: 0.36rem;
-  color: #536f84;
+  color: #8c6235;
   font-weight: 600;
 }
 
@@ -107,14 +122,14 @@
 
 .commandLabel {
   font-size: 0.7rem;
-  color: #857664;
+  color: #8f7a5f;
   letter-spacing: 0.02em;
 }
 
 .rootHint {
   margin: 0.46rem 0 0;
   font-size: 0.71rem;
-  color: #5f7e96;
+  color: #7f715e;
 }
 
 .actions {
@@ -134,17 +149,22 @@
 .decisionItem {
   font-size: 0.69rem;
   line-height: 1.35;
-  color: #7d7468;
+  color: #857768;
 }
 
 .btn {
   border: 1px solid transparent;
-  border-radius: 0.58rem;
+  border-radius: 999px;
   font-size: 0.74rem;
   line-height: 1;
-  padding: 0.45rem 0.64rem;
+  padding: 0.48rem 0.72rem;
   cursor: pointer;
-  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .btn:disabled {
@@ -153,10 +173,11 @@
 }
 
 .btnPrimary {
-  color: #1f2d36;
+  color: #34412e;
   font-weight: 600;
-  background: linear-gradient(135deg, #9cc6e5, #b8dcc6);
-  box-shadow: 0 8px 16px rgba(111, 142, 166, 0.18);
+  border-color: rgba(139, 166, 118, 0.38);
+  background: linear-gradient(135deg, #e6efd4, #cddfba);
+  box-shadow: 0 9px 18px rgba(126, 151, 98, 0.16);
 }
 
 .btnPrimary:hover:not(:disabled) {
@@ -165,26 +186,38 @@
 }
 
 .btnSecondary {
-  color: #54697a;
-  border-color: rgba(124, 144, 160, 0.24);
-  background: rgba(255, 252, 246, 0.72);
+  color: #74624b;
+  border-color: rgba(165, 132, 88, 0.26);
+  background: rgba(255, 252, 246, 0.78);
 }
 
 .btnSecondary:hover:not(:disabled) {
-  border-color: rgba(124, 144, 160, 0.34);
-  background: rgba(249, 245, 235, 0.98);
+  border-color: rgba(165, 132, 88, 0.38);
+  background: rgba(250, 245, 235, 0.98);
 }
 
 .btnGhost {
-  color: #7b6a66;
-  border-color: rgba(158, 129, 122, 0.24);
-  background: rgba(255, 249, 243, 0.7);
+  color: #8f6a5c;
+  border-color: rgba(183, 117, 92, 0.24);
+  background: rgba(255, 249, 243, 0.76);
 }
 
 .btnGhost:hover:not(:disabled) {
   color: #b06161;
   border-color: rgba(176, 97, 97, 0.36);
   background: rgba(255, 239, 235, 0.95);
+}
+
+.btnLink {
+  color: #8c7a62;
+  border-color: rgba(166, 135, 91, 0.16);
+  background: rgba(255, 252, 246, 0.36);
+}
+
+.btnLink:hover:not(:disabled) {
+  color: #725934;
+  border-color: rgba(166, 135, 91, 0.28);
+  background: rgba(252, 246, 235, 0.72);
 }
 
 @keyframes authCardIn {

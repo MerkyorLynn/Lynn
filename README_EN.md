@@ -20,19 +20,18 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.0</strong> · 2026-04-29 · regression gates + persistent V8 tests + tool fallback + release hardening <em>(latest)</em></summary>
+<summary><strong>v0.77.1</strong> · 2026-04-29 · guarded operations + pseudo-tool fallback + local task feedback <em>(latest)</em></summary>
 
-**Reliability and release gates**:
-- 🧪 **Release Regression Gate**: covers tool calling, file operations, settings, model routing, stream events, empty-answer fallback, and UI smoke before release.
-- 🔌 **Persistent V8 WebSocket benchmark**: runs the full suite through one serial WS connection so retry and stream state are not lost between prompts.
-- 🛡️ **Successful-tool empty-answer fallback**: if a tool succeeds but the model does not emit final prose, Lynn now surfaces a visible result summary instead of an empty reply.
-- 🧰 **Failed-tool retry fallback**: if a tool fails and the model only emitted a preparatory lead-in, Lynn forces a no-tool retry answer.
-- 🧼 **Content-filter false-positive fix**: short English sensitive tokens no longer match inside ordinary words, e.g. `sm` no longer blocks `small`.
-- 🧱 **Chat route modularization**: stream sanitizer, stream state, internal retry, and prefetch context were split out of `server/routes/chat.js`.
-- 📡 **WebSocket protocol contract tests**: ServerEvent / ClientEvent now share a protocol source and regression coverage.
-- ⚡ **Startup and renderer optimization**: readiness is exposed earlier, and heavy Markdown / Mermaid / editor modules remain lazy-loaded.
+**Execution and safety UX**:
+- 🛡️ **Dangerous-operation authorization cards**: delete, sudo, bulk move, overwrite, and similar high-risk commands now require confirmation in execute mode.
+- 🎨 **Beige Lynn-style authorization UI**: the confirmation card now fits the app instead of using the old dark Codex look.
+- 🧰 **Local task feedback hardening**: file organization, deletion, and move tasks must surface a visible final result after commands run.
+- 🧼 **Pseudo-tool leak guard**: fake `<web_search>` / `<bash>` style text is detected and recovered instead of being shown to users.
+- 🔁 **Empty-answer and retry fallback**: failed tools, preparatory lead-ins, and no-content retries now end with recoverable feedback.
+- 📁 **File task recognition improvements**: better aliases for Desktop/Downloads and safer handling of zip/excel/pdf cleanup tasks.
+- 🧪 **Release Regression Gate**: continues covering tool calls, file operations, pseudo-tool leaks, thinking leaks, and UI smoke.
 
-[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0)
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.1)
 
 </details>
 

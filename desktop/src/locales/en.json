@@ -2010,6 +2010,9 @@
     "noFormat": "Formatting disks is not allowed",
     "noBcdedit": "Modifying boot configuration is not allowed",
     "noWmic": "WMI commands are not allowed",
+    "noDeleteFiles": "Deleting files requires confirmation",
+    "noFindDelete": "find -delete requires confirmation",
+    "noTrashFiles": "Moving files to Trash requires confirmation",
     "restrictedPath": "Command accessed a restricted path: {path}",
     "writeRestricted": "[Security] File system writes are currently limited to approved workspaces. This action was blocked. Ask the user to broaden approval or work inside the current workspace.",
     "osRequired": "[Protected execution environment] This execution boundary is not supported on the current platform ({platform}). Switch to Execute mode or continue on a supported platform.",
@@ -2034,6 +2037,9 @@
       "format": "Format disk — will erase ALL data on the disk, irreversible",
       "bcdedit": "Modify boot configuration — change how the system starts",
       "wmic": "Execute WMI management command — access and modify system management information",
+      "deleteFiles": "Delete files or folders — confirm the matched scope, count, and target paths to avoid accidental deletion",
+      "findDelete": "Batch-delete files matched by find — confirm the matched file list and count first",
+      "trashFiles": "Move files to Trash — usually recoverable, but still changes the user's files",
       "pathOp": "{op} path {path} — this path is in a protected area"
     }
   },

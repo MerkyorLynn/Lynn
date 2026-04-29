@@ -53,6 +53,17 @@ import { containsPseudoToolCallSimulation } from "./llm-utils.js";
 
 const log = createModuleLogger("session");
 
+function warnMemoryNotifySessionEnd(context, sessionPath, err) {
+  const message = err?.message || String(err || "unknown error");
+  log.warn(`memory notifySessionEnd failed during ${context} · session=${sessionPath} · ${message}`);
+}
+
+function notifyMemorySessionEnd(agent, sessionPath, context) {
+  const promise = agent?._memoryTicker?.notifySessionEnd(sessionPath);
+  if (!promise?.catch) return promise;
+  return promise.catch((err) => warnMemoryNotifySessionEnd(context, sessionPath, err));
+}
+
 function shouldExposeVerboseModelRouting() {
   const flag = String(process?.env?.LYNN_DEBUG_MODELS || process?.env?.DEBUG_MODEL_ROUTING || "").trim().toLowerCase();
   return flag === "1" || flag === "true" || process?.env?.NODE_ENV === "development";
@@ -70,6 +81,26 @@ export const PATROL_TOOLS_DEFAULT = [
 function getSteerPrefix() {
   const isZh = getLocale().startsWith("zh");
   return isZh ? "（插话，无需 MOOD）\n" : "(Interjection, no MOOD needed)\n";
+}
+
+function buildKnownFolderAliasPrompt(isZh) {
+  const home = os.homedir();
+  const downloads = path.join(home, "Downloads");
+  const desktop = path.join(home, "Desktop");
+  const documents = path.join(home, "Documents");
+  return isZh
+    ? [
+        "【本机常用目录别名】",
+        `用户说「下载文件夹」「下载目录」「Downloads」时，默认指 ${downloads}，不是当前代码目录或 ${path.join(downloads, "Lynn")}。`,
+        `用户说「桌面」时，默认指 ${desktop}；用户说「文稿」或「Documents」时，默认指 ${documents}。`,
+        "涉及删除/清理文件时，先列出匹配文件和数量；除非用户已经二次确认，或系统弹出确认卡并得到确认，否则不要直接删除。",
+      ].join(" ")
+    : [
+        "[Known local folder aliases]",
+        `When the user says "Downloads" or the download folder, use ${downloads}, not the current repo or ${path.join(downloads, "Lynn")}.`,
+        `When the user says Desktop, use ${desktop}. When the user says Documents, use ${documents}.`,
+        "For delete/cleanup requests, list matching files and counts first; do not delete until the user confirms or the system confirmation card is accepted.",
+      ].join(" ");
 }
 
 function buildRouteAndScenarioHint(text, routeIntent, opts = {}) {
@@ -501,6 +532,7 @@ export class SessionCoordinator {
                   : `[Desk workspace] When the user says "desk" or "current workspace", it refers to ${preferredDeskPath}.`);
             extras.push(deskHint);
           }
+          extras.push(buildKnownFolderAliasPrompt(isZh));
           if (sessionCwd) {
             try {
               const projectCtx = formatProjectInstructions(sessionCwd, isZh);
@@ -792,7 +824,7 @@ export class SessionCoordinator {
       for (const [key, entry] of candidates) {
         // 记忆收尾（fire-and-forget，淘汰场景不阻塞）
         const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
-        agent?._memoryTicker?.notifySessionEnd(key).catch(() => {});
+        notifyMemorySessionEnd(agent, key, "cache eviction");
         entry.unsub();
         this._sessions.delete(key);
         if (this._sessions.size <= MAX_CACHED_SESSIONS) break;
@@ -841,7 +873,7 @@ export class SessionCoordinator {
         if (oldSp) {
           const oldEntry = this._sessions.get(oldSp);
           const oldAgent = oldEntry ? this._d.getAgentById(oldEntry.agentId) : this._d.getAgent();
-          await oldAgent?._memoryTicker?.notifySessionEnd(oldSp).catch(() => {});
+          await notifyMemorySessionEnd(oldAgent, oldSp, "session switch");
         }
       }
       this._session = existing.session;
@@ -857,7 +889,7 @@ export class SessionCoordinator {
       if (oldSp) {
         const oldEntry = this._sessions.get(oldSp);
         const oldAgent = oldEntry ? this._d.getAgentById(oldEntry.agentId) : this._d.getAgent();
-        await oldAgent?._memoryTicker?.notifySessionEnd(oldSp).catch(() => {});
+        await notifyMemorySessionEnd(oldAgent, oldSp, "cold session switch");
       }
     }
     // 冷启动恢复：从 session-meta.json 解析 model，传给 createSession
@@ -1321,7 +1353,7 @@ export class SessionCoordinator {
     const entry = this._sessions.get(sessionPath);
     if (entry) {
       const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
-      agent?._memoryTicker?.notifySessionEnd(sessionPath).catch(() => {});
+      notifyMemorySessionEnd(agent, sessionPath, "close session");
       if (entry.session.isStreaming) {
         try { await entry.session.abort(); } catch {}
       }

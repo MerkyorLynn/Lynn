@@ -314,6 +314,43 @@ describe("chat route event forwarding", () => {
     expect(visibleText).not.toContain("深圳 2026年4月28日 天气预报");
   });
 
+  it("retries once when pseudo-tool XML leaves a thinking-only empty turn", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => Promise.resolve());
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "请检查下载文件夹里有哪些后缀为 zip 的文件，只列出文件名和数量，不要删除任何文件。" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "thinking_delta",
+      delta: "我需要使用工具检查下载文件夹。",
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "<bash>\nfind ~/Downloads -maxdepth 1 -type f -iname '*.zip'\n</bash>",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(2), { timeout: 1000 });
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "pseudo_tool_text",
+    }));
+    const retryPrompt = hub.send.mock.calls[1]?.[0] || "";
+    expect(retryPrompt).toContain("不要输出任何");
+    expect(retryPrompt).toContain("伪工具文本");
+    expect(retryPrompt).toContain("下载文件夹");
+  });
+
   it("suppresses backend tool-template XML fragments across streaming chunks", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
@@ -349,6 +386,39 @@ describe("chat route event forwarding", () => {
     expect(visibleText).toContain("最终答案");
     expect(visibleText).not.toMatch(/tavily|_calls|<\/?inv/i);
     expect(visibleText).not.toContain("深圳天气");
+  });
+
+  it("defers turn_end when pre-turn quality schedules an internal retry", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "详细介绍宋朝科举制度的演变、影响、对比，输出结构化长文。" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "## 宋朝科举制度\n\n| 阶段 | 特点 |\n|------|------|",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(2));
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "truncated_structured_answer",
+    }));
+    expect(clients[0].sent.some((evt) => evt.type === "turn_end")).toBe(false);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("结构化答案开头就中断");
+    expect(retryPrompt).toContain("宋朝科举");
   });
 
   it("retries when a real tool ran but the assistant only says it will continue executing", async () => {
@@ -455,6 +525,59 @@ describe("chat route event forwarding", () => {
     const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
     expect(retryPrompt).toContain("只看到扫描/列出类命令");
     expect(retryPrompt).toContain("不要把“找到文件”当成“已经移动/整理完成”");
+    expect(retryPrompt).toContain("find ~/Downloads");
+    expect(retryPrompt).toContain(prompt);
+  });
+
+  it("retries safely when a download-folder delete task only scanned zip files", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "请把下载文件夹的所有后缀 zip 的文件都删除";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    const scanCommand = "find ~/Downloads -maxdepth 1 -type f -iname '*.zip'";
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_find_zip",
+      toolName: "bash",
+      args: { command: scanCommand },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_find_zip",
+      toolName: "bash",
+      args: { command: scanCommand },
+      result: { output: "/Users/lynn/Downloads/a.zip\n/Users/lynn/Downloads/b.zip\n" },
+      isError: false,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "找到2个 zip 文件，现在删除。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_continuation",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("删除任务安全要求");
+    expect(retryPrompt).toContain("下载文件夹 / Downloads");
     expect(retryPrompt).toContain("find ~/Downloads");
     expect(retryPrompt).toContain(prompt);
   });

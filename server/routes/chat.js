@@ -22,13 +22,9 @@ import {
 import { buildLocalOfficeDirectAnswer } from "../chat/local-office-answer.js";
 import {
   buildPseudoToolRecoveryNotice,
-  buildPseudoToolRetryPrompt,
   resolveCurrentModelInfo,
 } from "../chat/chat-recovery.js";
-import {
-  classifyRouteIntent,
-  looksLikePendingToolExecutionText,
-} from "../../shared/task-route-intent.js";
+import { classifyRouteIntent } from "../../shared/task-route-intent.js";
 import {
   beginSessionStream,
   finishSessionStream,
@@ -38,20 +34,10 @@ import {
 import { AppError } from "../../shared/errors.js";
 import { errorBus } from "../../shared/error-bus.js";
 import {
-  LOCAL_COMPLETION_TOOLS,
-  buildEmptyReplyFallbackText,
-  buildEmptyReplyRetryPrompt,
-  buildLocalMutationContinuationRetryPrompt,
-  buildLocalToolSuccessFallback,
-  buildSuccessfulToolNoTextFallback,
-  buildShortLeadInRetryPrompt,
-  buildToolContinuationRetryPrompt,
-  buildToolFailedRetryPrompt,
-  buildTruncatedStructuredRetryPrompt,
-  classifyRequestedLocalMutation,
-  looksLikeTruncatedStructuredAnswer,
-  shouldRetryUnverifiedLocalMutation,
-} from "../chat/turn-retry-policy.js";
+  createTurnQualitySnapshot,
+  evaluatePostTurnEndQuality,
+  evaluatePreTurnEndQuality,
+} from "../chat/turn-quality-gate.js";
 import {
   stripStreamingPseudoToolBlocks,
   containsNonProgressPseudoToolSimulation,
@@ -62,7 +48,6 @@ import {
   resetCompletedTurnState,
 } from "../chat/stream-state.js";
 import {
-  canScheduleInternalRetry,
   scheduleInternalRetry,
 } from "../chat/internal-retry.js";
 import {
@@ -74,11 +59,6 @@ import {
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "cmd", "shell", "script", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
-
-const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
-const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先查一下|先搜索|先检索|先检查|先确认|我先.{0,12}(?:查|搜|看|确认|获取|检索)|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
-const TOOL_FAILED_LEADIN_RE = /(?:两个任务|多个任务|一起处理|同时处理|我来搜索|让我搜索|开始搜索|开始查|开始处理|来查找|来找|来看|来分析|来帮你|马上来|稍等|let me (?:search|fetch|find|look)|i'?ll (?:search|check|look|fetch))/i;
-const LOCAL_MUTATION_LEADIN_RE = /(?:我来帮你|我来处理|我来执行|让我先|让我再|先查找|先检查|先列出|先确认|先创建|先执行|开始处理|搜索到的信息|查找当前|查看当前|接下来会|准备(?:创建|移动|整理|处理)|let me (?:check|list|find|handle)|i'?ll (?:check|list|find|handle))/i;
 
 /**
  * 从 Pi SDK 的 content 块中提取纯文本
@@ -264,11 +244,26 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     const timeoutMs = ss?.routeIntent === "reasoning" || ss?.routeIntent === "coding"
       ? 45_000
       : 25_000;
+    const streamToken = ss?.activeStreamToken || null;
     ss.silentBrainAbortTimer = setTimeout(() => {
       ss.silentBrainAbortTimer = null;
+      if (streamToken && ss.activeStreamToken !== streamToken) return;
       if (!ss.isStreaming || ss.hasOutput || ss.hasToolCall || ss.hasThinking || ss.hasError) return;
       ss._lastTurnAborted = true;
-      engine.abortSessionByPath?.(sessionPath).catch(() => {});
+      Promise.resolve(engine.abortSessionByPath?.(sessionPath))
+        .catch(() => {})
+        .finally(() => {
+          if (
+            ss.isStreaming &&
+            (!streamToken || ss.activeStreamToken === streamToken) &&
+            !ss.hasOutput &&
+            !ss.hasToolCall &&
+            !ss.hasThinking &&
+            !ss.hasError
+          ) {
+            closeStreamAfterError(sessionPath, ss);
+          }
+        });
     }, timeoutMs);
     if (ss.silentBrainAbortTimer.unref) ss.silentBrainAbortTimer.unref();
   }
@@ -961,182 +956,57 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
 
       const visibleTextBeforeReset = ss.visibleTextAcc || "";
-      const visibleTrimmed = visibleTextBeforeReset.trim();
-      const visibleLen = visibleTrimmed.length;
       let internalRetry = null;
-      const successfulTools = ss.lastSuccessfulTools || [];
-      const hasAnyToolCall = ss.hasToolCall || ss.hasPrefetchToolCall || successfulTools.length > 0 || ss.hasFailedTool;
-      const shouldRetryPendingToolText =
-        !ss.pendingToolRetryAttempted &&
-        canScheduleInternalRetry(ss, "pending_tool_text") &&
-        !ss.hasToolCall &&
-        looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent);
-
-      if (!ss.hasOutput && !hasAnyToolCall && !ss.hasThinking && !ss.hasError && !ss.hasFailedTool && isActive) {
-        if (canScheduleInternalRetry(ss, "empty_reply")) {
-          internalRetry = {
-            reason: "empty_reply",
-            prompt: buildEmptyReplyRetryPrompt(ss.effectivePromptText || ss.originalPromptText, ss.routeIntent),
-          };
-          debugLog()?.warn("ws", `[EMPTY-REPLY-RETRY v1] scheduled · session=${sessionPath}`);
-        } else {
-          const fallbackMsg = buildEmptyReplyFallbackText(ss);
-          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: fallbackMsg });
-          ss.visibleTextAcc += fallbackMsg;
+      const qualitySnapshot = createTurnQualitySnapshot(ss, visibleTextBeforeReset);
+      const applyTurnQualityDecision = (decision) => {
+        if (!decision) return null;
+        if (decision.markPendingToolRetryAttempted) ss.pendingToolRetryAttempted = true;
+        if (decision.markToolFailedFallbackRetryAttempted) ss.toolFailedFallbackRetryAttempted = true;
+        if (decision.flag === "toolFinalizationRetryAttempted") ss.toolFinalizationRetryAttempted = true;
+        if (decision.type === "fallback") {
+          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: decision.text });
+          ss.visibleTextAcc += decision.text;
           ss.hasOutput = true;
-          debugLog()?.warn("ws", `[EMPTY-REPLY-FALLBACK v2] emitted visible fallback · session=${sessionPath}`);
         }
-      }
+        if (decision.logMessage) {
+          const logger = debugLog();
+          const level = decision.logLevel === "log" ? "log" : "warn";
+          const logFn = logger?.[level];
+          if (typeof logFn === "function") logFn.call(logger, "ws", decision.logMessage);
+        }
+        if (decision.type === "retry") {
+          return { reason: decision.reason, prompt: decision.prompt };
+        }
+        return null;
+      };
 
-      const isIncompletePending = visibleLen > 0 && visibleLen < 80 && PENDING_LANGUAGE_RE.test(visibleTrimmed);
-      const isShortLeadInOnly = visibleLen > 0 && visibleLen < 120 && !ss.hasToolCall && SHORT_LEADIN_RE.test(visibleTrimmed);
-      const isTruncatedStructuredAnswer =
-        visibleLen > 0 &&
-        !ss.hasToolCall &&
-        looksLikeTruncatedStructuredAnswer(visibleTextBeforeReset, ss.rawTextAcc);
-      const isLocalMutationLeadInOnly =
-        visibleLen > 0 &&
-        visibleLen < 220 &&
-        !ss.hasToolCall &&
-        Boolean(classifyRequestedLocalMutation(ss.originalPromptText || ss.effectivePromptText || "")) &&
-        LOCAL_MUTATION_LEADIN_RE.test(visibleTrimmed);
-      const isToolDidNotProduceText = hasAnyToolCall && visibleLen < 5;
-      const isToolFailedShortAnswer =
-        ss.hasFailedTool &&
-        visibleLen < 80 &&
-        (visibleLen < 30 || SHORT_LEADIN_RE.test(visibleTrimmed) || TOOL_FAILED_LEADIN_RE.test(visibleTrimmed));
-      const isThinkingOnlyNoOutput = ss.hasThinking && !ss.hasOutput && !ss.hasError;
-      const hasSuccessfulLocalTool = successfulTools
-        .some((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
-      const localToolSuccessFallback = hasSuccessfulLocalTool && isToolDidNotProduceText
-        ? buildLocalToolSuccessFallback(ss)
-        : "";
-      const successfulToolNoTextFallback = !localToolSuccessFallback && isToolDidNotProduceText && successfulTools.length > 0
-        ? buildSuccessfulToolNoTextFallback(ss)
-        : "";
-      const toolSuccessFallback = localToolSuccessFallback || successfulToolNoTextFallback;
+      internalRetry = applyTurnQualityDecision(evaluatePreTurnEndQuality(ss, qualitySnapshot, {
+        isActive,
+        sessionPath,
+        visibleTextBeforeReset,
+      }));
 
-      const shouldRetryToolFinalize =
-        isActive &&
-        !ss.hasError &&
-        isToolDidNotProduceText &&
-        !ss.hasFailedTool &&
-        !toolSuccessFallback &&
-        !ss.toolFinalizationRetryAttempted &&
-        canScheduleInternalRetry(ss, "tool_finalization");
-      const canRetryToolContinuation =
-        isActive &&
-        !ss.hasError &&
-        ss.hasToolCall &&
-        !ss.pendingToolRetryAttempted &&
-        canScheduleInternalRetry(ss, "tool_continuation");
-      const shouldRetryLocalMutationContinuation =
-        canRetryToolContinuation &&
-        shouldRetryUnverifiedLocalMutation(ss, visibleTextBeforeReset);
-      const shouldRetryToolContinuation =
-        canRetryToolContinuation &&
-        (looksLikePendingToolExecutionText(visibleTextBeforeReset, ss.routeIntent) || shouldRetryLocalMutationContinuation);
-
-      if (toolSuccessFallback && isActive && !ss.hasError) {
-        emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: toolSuccessFallback });
-        ss.visibleTextAcc += toolSuccessFallback;
-        ss.hasOutput = true;
-        debugLog()?.warn("ws", `[TOOL-SUCCESS-FALLBACK v2] emitted · local=${localToolSuccessFallback ? "true" : "false"} tools=${(ss.lastSuccessfulTools || []).map(t => t.name).join(",")} · ${sessionPath}`);
-      } else if (shouldRetryToolFinalize) {
-        ss.toolFinalizationRetryAttempted = true;
-        debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] will retry · session=${sessionPath}`);
-      } else if (!internalRetry && isActive && !ss.hasError && isLocalMutationLeadInOnly && canScheduleInternalRetry(ss, "local_mutation_leadin")) {
-        internalRetry = {
-          reason: "local_mutation_leadin",
-          prompt: buildLocalMutationContinuationRetryPrompt(
-            ss.effectivePromptText || ss.originalPromptText,
-            visibleTextBeforeReset,
-            ss.lastSuccessfulTools || [],
-          ),
-        };
-        debugLog()?.warn("ws", `[LOCAL-MUTATION-LEADIN-RETRY v1] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
-      } else if (!internalRetry && isActive && !ss.hasError && shouldRetryPendingToolText) {
-        ss.pendingToolRetryAttempted = true;
-        internalRetry = {
-          reason: "pending_tool_text",
-          prompt: buildPseudoToolRetryPrompt(ss.effectivePromptText || ss.originalPromptText),
-        };
-        debugLog()?.warn("ws", `[PENDING-TOOL-TEXT-RETRY v2] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
-      } else if (!internalRetry && isActive && !ss.hasError && isShortLeadInOnly && !isLocalMutationLeadInOnly && canScheduleInternalRetry(ss, "short_leadin")) {
-        internalRetry = {
-          reason: "short_leadin",
-          prompt: buildShortLeadInRetryPrompt(ss.effectivePromptText || ss.originalPromptText, visibleTextBeforeReset),
-        };
-        debugLog()?.warn("ws", `[SHORT-LEADIN-RETRY v1] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
-      } else if (!internalRetry && isActive && !ss.hasError && isTruncatedStructuredAnswer && canScheduleInternalRetry(ss, "truncated_structured_answer")) {
-        internalRetry = {
-          reason: "truncated_structured_answer",
-          prompt: buildTruncatedStructuredRetryPrompt(ss.effectivePromptText || ss.originalPromptText, visibleTextBeforeReset),
-        };
-        debugLog()?.warn("ws", `[TRUNCATED-STRUCTURED-RETRY v1] scheduled · visibleLen=${visibleLen} · session=${sessionPath}`);
-      } else if (
-        !internalRetry && isActive && !ss.hasError && isToolFailedShortAnswer &&
-        !ss.toolFailedFallbackRetryAttempted && canScheduleInternalRetry(ss, "tool_failed_fallback")
-      ) {
-        ss.toolFailedFallbackRetryAttempted = true;
-        internalRetry = {
-          reason: "tool_failed_fallback",
-          prompt: buildToolFailedRetryPrompt(
-            ss.effectivePromptText || ss.originalPromptText,
-            visibleTextBeforeReset,
-            ss.lastFailedTools || [],
-          ),
-        };
-        debugLog()?.warn("ws", `[TOOL-FAILED-FALLBACK v1] scheduled · visibleLen=${visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`);
-      } else if (isActive && !ss.hasError && (isIncompletePending || isThinkingOnlyNoOutput || (isToolDidNotProduceText && ss.toolFinalizationRetryAttempted))) {
-        const kind = isToolDidNotProduceText ? "tool_no_final_text_after_retry"
-          : isIncompletePending ? "incomplete_pending"
-          : "thinking_only";
-        const fallbackMsg = getLocale().startsWith("zh")
-          ? "本轮工具已执行，但未能整合出明确答案（原因：流程提前结束）。建议重新提问或换个说法 · 类型：" + kind
-          : "Tools executed but the final answer could not be assembled (flow ended early). Please rephrase or try again · kind: " + kind;
-        emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: fallbackMsg });
-        ss.visibleTextAcc += fallbackMsg;
-        ss.hasOutput = true;
-        debugLog()?.warn("ws", `[EMPTY-REPLY-FALLBACK v1] emitted (${kind}) · visibleLen=${visibleLen} hasToolCall=${ss.hasToolCall} hasThinking=${ss.hasThinking} · ${sessionPath}`);
+      if (internalRetry) {
+        // Keep the user-visible turn open while the internal retry runs. Emitting
+        // turn_end here makes the UI/test harness treat the failed draft as final
+        // and can drop the repaired answer that follows.
+        clearSilentBrainAbortTimer(ss);
+        finishSessionStream(ss);
+        if (ss.progressMarkerCount > 0 && !ss.hasToolCall) {
+          debugLog()?.warn("ws", `observed ${ss.progressMarkerCount} hallucinated <lynn_tool_progress> markers before internal retry · session=${sessionPath}`);
+        }
+        doScheduleInternalRetry(sessionPath, internalRetry.reason, internalRetry.prompt);
+        if (isActive) debugLog()?.log("ws", `assistant reply deferred for internal retry · reason=${internalRetry.reason}`);
+        return;
       }
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       broadcast({ type: "status", isStreaming: false, sessionPath });
-      if (!internalRetry && shouldRetryPendingToolText) {
-        ss.pendingToolRetryAttempted = true;
-        internalRetry = {
-          reason: "pending_tool_text",
-          prompt: buildPseudoToolRetryPrompt(ss.effectivePromptText || ss.originalPromptText),
-        };
-      }
-      if (!internalRetry && shouldRetryToolContinuation) {
-        ss.pendingToolRetryAttempted = true;
-        internalRetry = {
-          reason: "tool_continuation",
-          prompt: shouldRetryLocalMutationContinuation
-            ? buildLocalMutationContinuationRetryPrompt(
-              ss.effectivePromptText || ss.originalPromptText,
-              visibleTextBeforeReset,
-              ss.lastSuccessfulTools || [],
-            )
-            : buildToolContinuationRetryPrompt(
-              ss.effectivePromptText || ss.originalPromptText,
-              visibleTextBeforeReset,
-            ),
-        };
-        debugLog()?.warn("ws", `[TOOL-CONTINUATION-RETRY v1] triggered · localMutation=${shouldRetryLocalMutationContinuation ? "true" : "false"} · visibleLen=${visibleLen} · session=${sessionPath}`);
-      }
-      if (!internalRetry && shouldRetryToolFinalize) {
-        const retryPrompt = getLocale().startsWith("zh")
-          ? "[系统提示] 上面工具已经执行成功并拿到真实结果(在本次对话历史中)。请基于这些工具结果直接给用户最终答案 · 综合推理和结论。不要再调用任何工具 · 不要重复工具 raw output 的数据 · 直接给简洁可读的最终回答。"
-          : "[System] The tools above executed successfully and returned real results (in this conversation history). Use those results to give the user the final answer directly — synthesize and conclude. Do not call any more tools. Do not restate raw tool output; produce a concise, readable final answer.";
-        internalRetry = {
-          reason: "tool_finalization",
-          prompt: retryPrompt,
-        };
-        debugLog()?.log("ws", `[TOOL-FINALIZE-RETRY v1] triggered · session=${sessionPath}`);
-      }
+      internalRetry = internalRetry || applyTurnQualityDecision(evaluatePostTurnEndQuality(ss, qualitySnapshot, {
+        internalRetry,
+        sessionPath,
+        visibleTextBeforeReset,
+      }));
       (async () => {
         try {
           const raw = await readFile(sessionPath, "utf-8").catch(() => "");
@@ -1487,8 +1357,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                         ? { images: msg.images, sessionPath: promptSessionPath, streamToken: activeStreamToken }
                         : { sessionPath: promptSessionPath, streamToken: activeStreamToken },
                     );
-                    clearSilentBrainAbortTimer(ss);
                     if (!ss.isStreaming) {
+                      clearSilentBrainAbortTimer(ss);
                       broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
                     } else {
                       debugLog()?.log("ws", `hub.send returned while server stream remains open · ${promptSessionPath}`);

@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { renderMarkdown } from '../../utils/markdown';
-import { sanitizeHtml } from '../../utils/sanitize';
+import { sanitizeHtml, sanitizeHtmlArtifact } from '../../utils/sanitize';
 import { parseCSV, injectCopyButtons } from '../../utils/format';
 import { fileIconSvg } from '../../utils/icons';
 import type { Artifact } from '../../types';
@@ -125,7 +125,7 @@ export function ArtifactRenderer({ artifact }: ArtifactRendererProps) {
       return (
         <iframe
           sandbox="allow-scripts"
-          srcDoc={sanitizeHtml(artifact.content)}
+          srcDoc={sanitizeHtmlArtifact(artifact.content)}
         />
       );
 

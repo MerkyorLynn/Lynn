@@ -8,7 +8,7 @@ import {
 } from "../../shared/task-route-intent.js";
 
 const LOCAL_WORKSPACE_RE = /(?:\b(?:workspace|working directory|folder|directory|files?|desk|note|notes|todo|task list|current project)\b|工作空间|工作区|当前目录|桌面|文件夹|目录|文件|文档|笺|便签|工作清单|优先事项|待办|项目)/i;
-const LOCAL_ACTION_RE = /(?:\b(?:read|scan|inspect|look at|list|summarize|organize|review|check)\b|读一下|读取|看看|看一下|查看|检查|扫描|列出|整理|总结|汇总|分析|打开)/i;
+const LOCAL_ACTION_RE = /(?:\b(?:read|scan|inspect|look at|list|summarize|organize|review|check|delete|remove|clean)\b|读一下|读取|看看|看一下|查看|检查|扫描|列出|整理|总结|汇总|分析|打开|删除|删掉|移除|清理)/i;
 const ABSOLUTE_PATH_RE = /((?:\/(?:Users|Volumes|Applications|opt|var|tmp|private|home|srv|mnt|etc)[^\s"'`“”‘’）),，。；;]*)|(?:[A-Za-z]:\\[^\s"'`“”‘’）),，。；;]*))/g;
 const SKIP_DIRS = new Set([
   ".git",
@@ -44,6 +44,9 @@ function extractExplicitWorkspacePath(promptText) {
     const resolved = path.resolve(candidate);
     const stat = safeStat(resolved);
     if (stat?.isDirectory()) return resolved;
+  }
+  if (/(?:下载文件夹|下载目录|Downloads(?:\s+folder)?)/i.test(text)) {
+    return path.join(process.env.HOME || "", "Downloads");
   }
   return matches[0] ? path.resolve(matches[0]) : "";
 }

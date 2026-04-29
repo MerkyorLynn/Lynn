@@ -123,11 +123,13 @@ export function scheduleInternalRetry({
     if (hardTimeout.unref) hardTimeout.unref();
     try {
       await hub.send(retryPrompt, { sessionPath, streamToken });
-      clearTimeout(hardTimeout);
       if (hardTimedOut) return;
-      clearSilentBrainAbort(currentSs);
       if (!currentSs.isStreaming) {
+        clearTimeout(hardTimeout);
+        clearSilentBrainAbort(currentSs);
         broadcast({ type: "status", isStreaming: false, sessionPath });
+      } else {
+        debugLog()?.warn("ws", `[INTERNAL-RETRY v1] hub.send returned while retry stream remains open; keeping hard timeout armed · reason=${reason} · session=${sessionPath}`);
       }
     } catch (retryErr) {
       clearTimeout(hardTimeout);

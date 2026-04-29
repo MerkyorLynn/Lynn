@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+
 import {
+  buildEmptyReplyFallbackText,
+  buildLocalMutationContinuationRetryPrompt,
   buildSuccessfulToolNoTextFallback,
   buildTruncatedStructuredRetryPrompt,
   looksLikeTruncatedStructuredAnswer,
@@ -51,5 +54,33 @@ describe("turn retry policy", () => {
     expect(fallback).toContain("工具已成功执行");
     expect(fallback).toContain("weather");
     expect(fallback).toContain("上海");
+  });
+
+  it("adds known folder aliases and delete safety to local mutation retry prompts", () => {
+    const prompt = "请把下载文件夹的所有后缀 zip 的文件都删除";
+    const retryPrompt = buildLocalMutationContinuationRetryPrompt(prompt, "找到2个 zip 文件，现在删除。", [
+      {
+        name: "bash",
+        command: "find ~/Downloads -maxdepth 1 -type f -iname '*.zip'",
+      },
+    ]);
+
+    expect(retryPrompt).toContain("下载文件夹 / Downloads");
+    expect(retryPrompt).toContain("删除任务安全要求");
+    expect(retryPrompt).toContain("find ~/Downloads");
+    expect(retryPrompt).toContain(prompt);
+  });
+
+  it("does not show pseudo_tool_after_retry for local delete task fallback", () => {
+    const fallback = buildEmptyReplyFallbackText({
+      pseudoToolSteered: true,
+      originalPromptText: "请把下载文件夹的所有后缀 zip 的文件都删除",
+      effectivePromptText: "请把下载文件夹的所有后缀 zip 的文件都删除",
+    });
+
+    expect(fallback).toContain("本地文件任务没有真正完成");
+    expect(fallback).toContain("下载文件夹 / Downloads");
+    expect(fallback).toContain("确认删除");
+    expect(fallback).not.toContain("pseudo_tool_after_retry");
   });
 });
