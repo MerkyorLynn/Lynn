@@ -1,12 +1,12 @@
 {
   "stable": {
-    "version": "0.77.0",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0",
-    "notes": "# Lynn v0.77.0 Release Notes\n\n> 发布日期: 2026-04-29 · 代号: \"Regression Gate\"\n\nv0.77.0 是一次以稳定性、回归门禁和发版可靠性为核心的版本。重点不是继续堆新功能,而是把这几天 dogfood 暴露出的 UI、工具调用、空答、回退路径和发版流程问题系统性收口,降低\"刚发版就热更新\"的概率。\n\n## 重点更新\n\n- 新增发布级回归门禁: 覆盖工具调用、文件操作、设置页、模型路由、流式事件、空答兜底和 UI smoke。\n- 新增 V8 持久 WebSocket 基准测试: 单连接串行跑完整题集,避免每题重连导致 retry/stream 状态丢失。\n- 强化工具调用后处理: 工具成功但模型不给最终文本时,自动生成可见兜底回答;工具失败且只有开场白时,强制转入无工具重答。\n- 增加 internal retry 硬超时: retry 卡住时会自动 abort、发 `turn_end/status:false`,避免后续 prompt 被 \"Lynn 还在说话\" 污染。\n- 修复内容过滤误伤: 短英文敏感词不再命中普通英文单词内部,例如 `sm` 不会再拦截 `small`。\n- 拆分 `server/routes/chat.js`: 把流式清洗、stream state、内部 retry、预取上下文拆到独立模块,降低后续改动风险。\n- 统一 WebSocket 协议定义: ServerEvent / ClientEvent 有共享协议源和 contract test,减少事件改名后 UI 静默退化。\n- 增强启动和 UI 初始化状态: 更早提供 health/readiness 信号,减少冷启动时\"像打不开\"的体感。\n- 优化渲染端加载路径: Markdown、Mermaid、编辑器等重模块继续按需加载,降低首屏压力。\n- 收敛 React Hook 依赖告警: 核心 UI stale closure 风险已大幅降低。\n- 自动化发版辅助: 更新 manifest、DMG 命名、preflight 检查和镜像站同步流程。\n\n## 回归结果\n\n- Unit/Integration: 808/808 pass\n- TypeScript: 0 errors\n- ESLint: 0 errors\n- Release Regression: 13/13 pass\n- V8 Persistent Gate: 34/34 pass\n- V8 慢响应 warning: 6 个,主要集中在 retry/实时工具链路;不阻塞发版,后续继续优化 TTFT。\n- 内容过滤性能: 100000 次短输入检查约 115.7ms,平均约 0.0012ms/次\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.0-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.0-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.0-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0\n\n## 升级建议\n\n桌面客户端可以直接安装覆盖。v0.77.0 没有破坏性配置迁移;如果你已经在使用 v0.76.x,升级后原有会话、模型配置和本地数据会继续沿用。",
+    "version": "0.77.1",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.1",
+    "notes": "# Lynn v0.77.1 Release Notes\n\n> 发布日期: 2026-04-29 · 代号: \"Guarded Hands\"\n\nv0.77.1 是一次围绕真实 dogfood 反馈的稳定性修复版:重点修工具执行、危险操作授权、伪工具泄漏、空答兜底和本地文件任务反馈,让 Lynn 在执行模式下更像一个可靠助手,而不是只会解释步骤。\n\n## 重点更新\n\n- 危险操作授权卡回归:执行模式下涉及删除、sudo、批量移动、覆盖等高风险命令会弹出授权卡确认。\n- 授权卡 UI 改为 Lynn 米色风格,避免之前 Codex 深色卡片和整体界面割裂。\n- 修复伪工具文本泄漏:模型输出 `<web_search>` / `<bash>` 这类假工具标签时会被识别并兜底处理,不再直接展示给用户。\n- 强化工具成功后的最终反馈:文件整理、删除、移动等任务执行后必须给用户可见结果,避免\"命令跑了但没回复\"。\n- 修复工具失败和空答兜底:工具失败、模型只输出开场白、或 retry 后仍无正文时,会给出明确可恢复提示。\n- 本地文件任务更稳:优化下载/桌面目录别名、zip/excel/pdf 等文件识别和安全删除路径。\n- 流式状态清理增强:降低跨轮污染、\"Lynn 还在说话\"、上一题工具结果串到下一题的概率。\n- Release regression gate 保持在线,覆盖工具调用、文件操作、伪工具泄漏、thinking 泄漏和 UI smoke。\n\n## 回归结果\n\n- Unit/Integration: 826/826 pass\n- TypeScript: 0 errors\n- Static Release Smoke: pass\n- Security/guard tests: pass\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.1-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.1-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.1-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.1\n\n## 升级建议\n\n桌面客户端可以直接安装覆盖。v0.77.1 没有破坏性配置迁移;如果你已经在使用 v0.76.x 或 v0.77.0,升级后原有会话、模型配置和本地数据会继续沿用。",
     "assets": {
-      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-macOS-Intel.dmg",
-      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.0-Windows-Setup.exe",
+      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.1-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.1-macOS-Intel.dmg",
+      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.1-Windows-Setup.exe",
       "default": "https://download.merkyorlynn.com/download.html"
     }
   }

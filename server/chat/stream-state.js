@@ -13,22 +13,44 @@ const STALE_THINKING_STREAM_MS = Number(process.env.LYNN_STALE_THINKING_STREAM_M
 
 export function createSessionStateStore() {
   const sessionState = new Map();
+  let accessSeq = 0;
+
+  function touchState(ss) {
+    const now = Date.now();
+    ss.lastActivity = now;
+    ss.lastAccessTime = now;
+    ss.lastAccessSeq = ++accessSeq;
+  }
+
+  function evictLeastRecentlyUsed(excludePath) {
+    let evictPath = null;
+    let evictSeq = Infinity;
+    let evictActivity = Infinity;
+    for (const [sp, ss] of sessionState) {
+      if (sp === excludePath || ss.isStreaming) continue;
+      const seq = Number.isFinite(ss.lastAccessSeq) ? ss.lastAccessSeq : 0;
+      const activity = Number.isFinite(ss.lastActivity) ? ss.lastActivity : 0;
+      if (seq < evictSeq || (seq === evictSeq && activity < evictActivity)) {
+        evictPath = sp;
+        evictSeq = seq;
+        evictActivity = activity;
+      }
+    }
+    if (!evictPath) return false;
+    sessionState.delete(evictPath);
+    return true;
+  }
 
   function getState(sessionPath) {
     if (!sessionPath) return null;
     if (!sessionState.has(sessionPath)) {
       if (sessionState.size >= MAX_SESSION_STATES) {
-        for (const [sp, ss] of sessionState) {
-          if (!ss.isStreaming && sp !== sessionPath) {
-            sessionState.delete(sp);
-            if (sessionState.size < MAX_SESSION_STATES) break;
-          }
-        }
+        evictLeastRecentlyUsed(sessionPath);
       }
       sessionState.set(sessionPath, createChatTurnState());
     }
     const ss = sessionState.get(sessionPath);
-    if (ss) ss.lastActivity = Date.now();
+    if (ss) touchState(ss);
     return ss;
   }
 

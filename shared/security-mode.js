@@ -2,7 +2,7 @@
  * security-mode.js — 三模式安全策略常量 + 配置
  *
  * 三个模式：
- *   authorized — 默认，无沙盒限制（等同原 full-access），危险命令仅日志记录
+ *   authorized — 默认，普通操作直通；sudo / 删除 / 安装 / 外传等危险 bash 命令弹授权确认
  *   plan       — 只读规划，不执行任何工具
  *   safe       — 严格沙盒，危险操作直接拒绝
  *
@@ -39,6 +39,7 @@ export function normalizeSecurityMode(mode) {
  *
  * sandboxMode: 对应底层沙盒策略
  *   - "full-access"  — 不启用 OS 沙盒，PathGuard 仅日志
+ *   - "authorized"   — 不启用 OS 沙盒，但危险 bash 命令弹确认卡片
  *   - "standard"     — OS 沙盒 + PathGuard 严格拦截
  *
  * toolsRestricted: 是否限制为只读工具
@@ -46,9 +47,9 @@ export function normalizeSecurityMode(mode) {
  */
 export const SECURITY_MODE_CONFIG = {
   [SecurityMode.AUTHORIZED]: {
-    sandboxMode: "full-access",
+    sandboxMode: "authorized",
     toolsRestricted: false,
-    allowConfirmation: false,
+    allowConfirmation: true,
   },
   [SecurityMode.PLAN]: {
     sandboxMode: "standard",

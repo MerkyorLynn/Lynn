@@ -1,3 +1,6 @@
+import os from "os";
+import path from "path";
+
 import { getLocale } from "../i18n.js";
 
 export const LOCAL_COMPLETION_TOOLS = new Set(["bash", "write", "edit", "edit-diff"]);
@@ -108,6 +111,15 @@ function commandLooksLikeDelete(command = "") {
     || /\b(?:shutil\.rmtree|os\.(?:remove|unlink|rmdir)|fs\.(?:rm|rmSync|unlink|unlinkSync))\b/.test(text);
 }
 
+function buildKnownFolderAliasLines() {
+  const home = os.homedir();
+  return [
+    `下载文件夹 / Downloads = ${path.join(home, "Downloads")}`,
+    `桌面 / Desktop = ${path.join(home, "Desktop")}`,
+    `文稿 / Documents = ${path.join(home, "Documents")}`,
+  ];
+}
+
 export function classifyRequestedLocalMutation(prompt = "") {
   const text = String(prompt || "");
   const requiresDelete = /(?:删除|删掉|移除|清理掉|trash|delete|remove)/i.test(text);
@@ -145,24 +157,65 @@ export function shouldRetryUnverifiedLocalMutation(ss, visibleText = "") {
 }
 
 export function buildLocalMutationContinuationRetryPrompt(originalPrompt, visibleText, successfulTools = []) {
+  const requirement = classifyRequestedLocalMutation(originalPrompt);
   const commands = (Array.isArray(successfulTools) ? successfulTools : [])
     .filter((tool) => tool?.name === "bash" && tool.command)
     .map((tool) => `- ${String(tool.command).replace(/\s+/g, " ").trim().slice(0, 240)}`)
     .slice(-6);
-  return [
+  const lines = [
     "【严格执行要求】用户要求的是本地文件变更任务，但目前没有看到对应的 mkdir / mv / cp / rm / 写入等真实变更命令；如果上一轮只是在计划、说明、搜索或扫描文件，也不能算完成。",
     "如果目前只看到扫描/列出类命令，说明没有继续调用真实工具完成任务，不能宣称已经完成。",
     "不要把“找到文件”当成“已经移动/整理完成”。现在必须继续调用真实工具完成变更，并在变更后再用 ls/find 验证目标文件夹内容。",
     "完成后明确告诉用户：实际移动/复制/创建/删除了多少个文件、目标路径是什么、是否有跳过或失败的文件。",
+    `【常用目录别名】\n${buildKnownFolderAliasLines().map((line) => `- ${line}`).join("\n")}`,
+    requirement?.requiresDelete
+      ? "【删除任务安全要求】这是删除类任务。必须先用 find/ls 列出匹配文件和数量；除非用户已经二次确认，或系统弹出删除确认卡并得到确认，否则不要直接执行 rm/trash。若没有匹配项，必须贴出实际检查的目录、匹配模式和空结果，不能空口说“没有文件”。"
+      : "",
     commands.length ? `【已执行命令】\n${commands.join("\n")}` : "",
     String(visibleText || "").trim() ? `【上一段可见文本】\n${String(visibleText || "").trim().slice(-800)}` : "",
     String(originalPrompt || "").trim() ? `【用户原始问题】\n${String(originalPrompt || "").trim().slice(-1200)}` : "",
-  ].filter(Boolean).join("\n\n");
+  ];
+  return lines.filter(Boolean).join("\n\n");
+}
+
+function buildLocalMutationEmptyFallbackText(ss) {
+  const originalPrompt = ss?.originalPromptText || ss?.effectivePromptText || "";
+  const requirement = classifyRequestedLocalMutation(originalPrompt);
+  if (!requirement) return "";
+  const isZh = getLocale().startsWith("zh");
+  const aliases = buildKnownFolderAliasLines();
+  if (isZh) {
+    const parts = [
+      "这轮本地文件任务没有真正完成，我也不能确认已经移动/删除了任何文件。",
+      requirement.requiresDelete
+        ? "这是删除类操作，不能在没有真实列出匹配文件并确认前继续假装执行。"
+        : "模型在工具调用上空转了，Lynn 已停止这次尝试，避免误操作。",
+      "请直接重试一次；我会先按下面的真实路径检查文件，再继续执行或请求确认：",
+      aliases.map((line) => `- ${line}`).join("\n"),
+    ];
+    if (requirement.requiresDelete) {
+      parts.push("如果你确认要删除，请回复“确认删除”，我会先列出匹配文件数量和文件名，再触发安全确认或执行删除。");
+    }
+    return parts.join("\n\n");
+  }
+  const parts = [
+    "This local file task did not actually complete, and I cannot confirm that any files were moved or deleted.",
+    requirement.requiresDelete
+      ? "Because this is a delete operation, Lynn must list matching files and get confirmation before deleting."
+      : "The model got stuck around tool execution, so Lynn stopped this attempt to avoid unsafe changes.",
+    "Please retry; Lynn should use these concrete paths:",
+    aliases.map((line) => `- ${line}`).join("\n"),
+  ];
+  return parts.join("\n\n");
 }
 
 export function buildEmptyReplyFallbackText(ss) {
   const isZh = getLocale().startsWith("zh");
   const kind = ss?.pseudoToolSteered ? "pseudo_tool_after_retry" : ss?.routeIntent || "empty_reply";
+  if (ss?.pseudoToolSteered) {
+    const localFallback = buildLocalMutationEmptyFallbackText(ss);
+    if (localFallback) return localFallback;
+  }
   return isZh
     ? `本轮模型没有生成可见答案，Lynn 已结束这次空转以免卡住会话。你可以直接重试一次，或把任务说得更具体一点。类型：${kind}`
     : `The model did not produce a visible answer. Lynn ended this empty turn to avoid locking the conversation. Please retry or make the task more specific. Kind: ${kind}`;

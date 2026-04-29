@@ -28,6 +28,7 @@ describe("local workspace context", () => {
     expect(shouldAttachLocalWorkspaceContext("读一下桌面Lynn文件夹", "utility")).toBe(true);
     expect(shouldAttachLocalWorkspaceContext("读一下这个项目/Users/lynn/DEV/Lynn", "utility")).toBe(true);
     expect(shouldAttachLocalWorkspaceContext("请先看看当前工作空间和笺", "utility")).toBe(true);
+    expect(shouldAttachLocalWorkspaceContext("请把下载文件夹的所有后缀 zip 文件都删除", "utility")).toBe(true);
     expect(shouldAttachLocalWorkspaceContext("今天深圳天气如何", "utility")).toBe(false);
     expect(shouldAttachLocalWorkspaceContext("随便聊两句", "chat")).toBe(false);
   });

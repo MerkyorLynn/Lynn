@@ -5,7 +5,7 @@
 openapi: 3.0.3
 info:
   title: Lynn Brain API
-  version: "0.77.0"
+  version: "0.77.1"
   description: |
     新增能力:
       • 永久语义记忆 (bge-m3 + bge-reranker)

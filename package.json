@@ -1,6 +1,6 @@
 {
   "name": "lynn",
-  "version": "0.77.0",
+  "version": "0.77.1",
   "type": "module",
   "description": "Lynn - a personal AI agent with memory and soul",
   "license": "Apache-2.0",
@@ -43,6 +43,7 @@
     "release:preflight": "npm test && npm run typecheck && npm run build:server && npm run build:main && npm run build:renderer && npm run test:release && npm run test:release:ui",
     "build:server": "node scripts/build-server.mjs",
     "release:manifest": "node scripts/generate-update-manifest.mjs",
+    "release:finalize-mac": "APPLE_NOTARY_PROFILE=${APPLE_NOTARY_PROFILE:-hanako-notary} scripts/finalize-macos-dmg.sh dist/Lynn-${npm_package_version}-macOS-Apple-Silicon.dmg dist/Lynn-${npm_package_version}-macOS-Intel.dmg",
     "lint": "eslint desktop/src/ server/",
     "test:watch": "vitest",
     "postinstall": "node scripts/patch-pi-sdk.cjs"
@@ -103,6 +104,7 @@
     "esbuild": "^0.27.4",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "jsdom": "^29.1.0",
     "msw": "^2.13.4",
     "patch-package": "^8.0.1",
     "typescript": "^5.9.3",

@@ -1,8 +1,13 @@
 /**
  * security-guard.test.js — ClawAegis 安全检测测试
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { detectPromptInjection, formatInjectionWarning } from "../lib/sandbox/prompt-injection-detector.js";
+import { wrapBashTool } from "../lib/sandbox/tool-wrapper.js";
+import { loadLocale } from "../server/i18n.js";
+import { SECURITY_MODE_CONFIG, SecurityMode } from "../shared/security-mode.js";
+
+loadLocale("zh-CN");
 
 // ── Prompt Injection 检测 ──
 
@@ -217,5 +222,136 @@ describe("data exfiltration patterns", () => {
     expect(testExfil("scp file.txt user@localhost:/tmp/")).toBeNull();
     expect(testExfil("python3 app.py")).toBeNull();
     expect(testExfil("npm install express")).toBeNull();
+  });
+});
+
+describe("authorized execution safety confirmations", () => {
+  it("keeps execute mode as authorized with confirmation enabled", () => {
+    expect(SECURITY_MODE_CONFIG[SecurityMode.AUTHORIZED]).toMatchObject({
+      sandboxMode: "authorized",
+      allowConfirmation: true,
+      toolsRestricted: false,
+    });
+  });
+
+  it("asks for authorization before running rm in execute mode", async () => {
+    const executed = vi.fn(async () => ({ content: [{ type: "text", text: "deleted" }] }));
+    const confirmStore = {
+      create: vi.fn(() => ({
+        confirmId: "confirm-delete",
+        promise: Promise.resolve({ action: "confirmed_once" }),
+      })),
+    };
+    const emitEvent = vi.fn();
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      {
+        mode: "authorized",
+        allowlist: { check: vi.fn(() => false), add: vi.fn() },
+        sessionAllowlist: { check: vi.fn(() => false), add: vi.fn() },
+        confirmStore,
+        emitEvent,
+        getSessionPath: () => "/sessions/current.jsonl",
+      },
+    );
+
+    await wrapped.execute("call-delete", { command: "rm /tmp/old.zip" });
+
+    expect(confirmStore.create).toHaveBeenCalledWith(
+      "tool_authorization",
+      expect.objectContaining({
+        category: "delete_files",
+        identifier: "rm",
+        command: "rm /tmp/old.zip",
+      }),
+      "/sessions/current.jsonl",
+    );
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "tool_authorization",
+        confirmId: "confirm-delete",
+        category: "delete_files",
+      }),
+      "/sessions/current.jsonl",
+    );
+    expect(executed).toHaveBeenCalled();
+  });
+
+  it("asks for authorization before running sudo in execute mode", async () => {
+    const executed = vi.fn(async () => ({ content: [{ type: "text", text: "root" }] }));
+    const confirmStore = {
+      create: vi.fn(() => ({
+        confirmId: "confirm-sudo",
+        promise: Promise.resolve({ action: "confirmed_once" }),
+      })),
+    };
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      {
+        mode: "authorized",
+        allowlist: { check: vi.fn(() => false), add: vi.fn() },
+        sessionAllowlist: { check: vi.fn(() => false), add: vi.fn() },
+        confirmStore,
+        emitEvent: vi.fn(),
+        getSessionPath: () => "/sessions/current.jsonl",
+      },
+    );
+
+    await wrapped.execute("call-sudo", { command: "sudo ls /tmp" });
+
+    expect(confirmStore.create).toHaveBeenCalledWith(
+      "tool_authorization",
+      expect.objectContaining({
+        category: "elevated_command",
+        identifier: "sudo",
+        command: "sudo ls /tmp",
+      }),
+      "/sessions/current.jsonl",
+    );
+    expect(executed).toHaveBeenCalled();
+  });
+
+  it("does not ask for authorization for harmless bash commands", async () => {
+    const executed = vi.fn(async () => ({ content: [{ type: "text", text: "ok" }] }));
+    const confirmStore = {
+      create: vi.fn(() => ({
+        confirmId: "confirm-unexpected",
+        promise: Promise.resolve({ action: "confirmed_once" }),
+      })),
+    };
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      {
+        mode: "authorized",
+        allowlist: { check: vi.fn(() => false), add: vi.fn() },
+        sessionAllowlist: { check: vi.fn(() => false), add: vi.fn() },
+        confirmStore,
+        emitEvent: vi.fn(),
+        getSessionPath: () => "/sessions/current.jsonl",
+      },
+    );
+
+    await wrapped.execute("call-ls", { command: "ls -la /tmp | head" });
+
+    expect(confirmStore.create).not.toHaveBeenCalled();
+    expect(executed).toHaveBeenCalled();
   });
 });

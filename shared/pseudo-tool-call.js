@@ -60,6 +60,39 @@ const KNOWN_TOOL_PREFIXES = [
   "create_", "message_", "request_", "spawn_", "send_", "wait_", "close_", "resume_",
 ];
 
+function escapeRegExpSource(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const STREAMING_PSEUDO_XML_EXTRA_TAG_NAMES = [
+  "code", "pre", "details", "summary", "think",
+  "tool", "function", "parameter", "execute",
+];
+
+export const STREAMING_PSEUDO_XML_TAG_NAMES = Object.freeze([
+  ...new Set([
+    ...KNOWN_TOOL_NAME_LIST,
+    ...TEMPLATE_TOOL_TAG_NAMES,
+    ...STREAMING_PSEUDO_XML_EXTRA_TAG_NAMES,
+  ]),
+]);
+
+export const STREAMING_PSEUDO_XML_TAG_SOURCE = STREAMING_PSEUDO_XML_TAG_NAMES
+  .map(escapeRegExpSource)
+  .join("|");
+
+export function createStreamingPseudoXmlOpenRegex() {
+  return new RegExp(`<(${STREAMING_PSEUDO_XML_TAG_SOURCE})\\b[^>\\n]*(?:>|$)`, "iu");
+}
+
+export function createStreamingPseudoXmlOrphanCloseRegex() {
+  return new RegExp(`</_?(?:${STREAMING_PSEUDO_XML_TAG_SOURCE})\\s*>`, "giu");
+}
+
+export function createStreamingPseudoXmlOrphanFragmentRegex() {
+  return /(?:^|[\s>])(?:t?avily|_?calls?|inv)>\s*/giu;
+}
+
 const KNOWN_TOOL_XML_TAG_SOURCE = KNOWN_TOOL_NAME_LIST
   .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
   .join("|");
