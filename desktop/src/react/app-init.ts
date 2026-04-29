@@ -33,6 +33,54 @@ declare function t(key: string, vars?: Record<string, string | number>): string;
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 全局 bootstrap：platform/IPC callback 签名含 any */
 
+interface ServerStartupHealth {
+  stage?: string | null;
+  ready?: boolean;
+  error?: string | null;
+  elapsedMs?: number;
+}
+
+function syncServerStartup(startup: ServerStartupHealth | null | undefined): void {
+  const state = startup || {};
+  useStore.getState().setServerStartup({
+    ready: !!state.ready,
+    stage: state.stage || null,
+    error: state.error || null,
+  });
+
+  const label = '服务初始化';
+  if (state.ready) {
+    useStore.getState().markStartupStep('server-ready', label, 'success', 'ready', { ...state });
+  } else if (state.error) {
+    useStore.getState().markStartupStep('server-ready', label, 'error', state.error, { ...state });
+  } else {
+    useStore.getState().markStartupStep('server-ready', label, 'running', state.stage || 'starting', { ...state });
+  }
+}
+
+function startServerReadinessPolling(): void {
+  const poll = async () => {
+    if (useStore.getState().serverReady) return;
+    try {
+      const res = await hanaFetch('/api/health', { timeout: 4000 });
+      const data = await res.json();
+      syncServerStartup(data?.startup);
+      if (!data?.startup?.ready && !data?.startup?.error) {
+        setTimeout(poll, 1000);
+      }
+    } catch (err) {
+      useStore.getState().markStartupStep(
+        'server-ready',
+        '服务初始化',
+        'warning',
+        err instanceof Error ? err.message : String(err),
+      );
+      setTimeout(poll, 1500);
+    }
+  };
+  setTimeout(poll, 1000);
+}
+
 // ── __hanaLog：前端日志上报 ──
 window.__hanaLog = function (level: string, module: string, message: string) {
   const { serverPort } = useStore.getState();
@@ -97,6 +145,8 @@ export async function initApp(): Promise<void> {
     const healthData = await healthRes.json();
     const configData = await configRes.json();
     const appStateData = await appStateRes.json();
+    syncServerStartup(healthData?.startup);
+    if (!healthData?.startup?.ready) startServerReadinessPolling();
 
     // 3. 加载 i18n
     useStore.getState().markStartupStep('locale', '加载语言资源', 'running');

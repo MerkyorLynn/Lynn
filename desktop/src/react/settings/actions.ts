@@ -2,6 +2,7 @@
  * Settings shared actions — extracted from SettingsApp to avoid circular imports
  */
 import { useSettingsStore } from './store';
+import type { Agent } from './store';
 import { hanaFetch, hanaUrl } from './api';
 import { t } from './helpers';
 
@@ -22,14 +23,14 @@ export async function loadAgents() {
     const res = await hanaFetch('/api/agents');
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    const allAgents = data.agents || [];
+    const allAgents = (data.agents || []) as Agent[];
     const requestedSettingsAgentId = store.settingsAgentId;
     const effectiveSettingsAgentId = requestedSettingsAgentId
-      && allAgents.some((agent: any) => agent.id === requestedSettingsAgentId)
+      && allAgents.some((agent) => agent.id === requestedSettingsAgentId)
       ? requestedSettingsAgentId
       : null;
     // 设置页默认只显示普通助手；内部 reviewer 仅在被显式导航时保留。
-    const agents = allAgents.filter((a: any) => {
+    const agents = allAgents.filter((a) => {
       if (a.tier === 'expert') return false;
       if (a.tier === 'reviewer') {
         if (BUILT_IN_AGENT_IDS.has(a.id)) return true;
@@ -39,12 +40,12 @@ export async function loadAgents() {
     });
     let currentAgentId = store.currentAgentId;
     const hasCurrentAgent = currentAgentId
-      && allAgents.some((agent: any) => agent.id === currentAgentId);
+      && allAgents.some((agent) => agent.id === currentAgentId);
     if (!hasCurrentAgent) {
-      const primary = agents.find((a: any) => a.isPrimary) || agents[0];
+      const primary = agents.find((a) => a.isPrimary) || agents[0];
       currentAgentId = primary?.id || null;
     }
-    const currentAgent = allAgents.find((a: any) => a.id === currentAgentId) || agents.find((a: any) => a.id === currentAgentId);
+    const currentAgent = allAgents.find((a) => a.id === currentAgentId) || agents.find((a) => a.id === currentAgentId);
     store.set({
       agents,
       currentAgentId,
@@ -99,7 +100,9 @@ export async function loadAvatars() {
         else store.set({ userAvatarUrl: null });
       }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[settings] load avatars failed:', err);
+  }
 }
 
 export async function loadSettingsConfig() {
@@ -207,7 +210,7 @@ export async function switchToAgent(agentId: string) {
     await loadSettingsConfig();
     await loadAgents();
     store.showToast(t('settings.agent.switched', { name: data.agent.name }), 'success');
-  } catch (err: any) {
-    store.showToast(t('settings.agent.switchFailed') + ': ' + err.message, 'error');
+  } catch (err: unknown) {
+    store.showToast(t('settings.agent.switchFailed') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
   }
 }

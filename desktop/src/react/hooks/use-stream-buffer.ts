@@ -10,7 +10,7 @@
 
 import type { ChatMessage, ContentBlock } from '../stores/chat-types';
 import { useStore } from '../stores';
-import { renderMarkdown } from '../utils/markdown';
+import { getCachedRenderMarkdown, loadRenderMarkdown } from '../utils/markdown-loader';
 import { cleanMoodText, sanitizeAssistantDisplayText } from '../utils/message-parser';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- 流式消息 handle(msg) 接收动态 JSON */
@@ -126,6 +126,7 @@ class StreamBufferManager {
     }
 
     const store = useStore.getState();
+    let finalMarkdownRefresh: { sessionPath: string; text: string } | null = null;
     store.updateLastMessage(buf.sessionPath, (msg) => {
       const blocks = [...(msg.blocks || [])];
 
@@ -163,15 +164,21 @@ class StreamBufferManager {
         if (displayText !== buf.lastRenderedText || finalizeText !== buf.lastRenderedFinalized) {
           buf.lastRenderedText = displayText;
           buf.lastRenderedFinalized = finalizeText;
-          buf.lastRenderedHtml = finalizeText
-            ? renderMarkdown(displayText)
-            : renderStreamingTextHtml(displayText);
+          const renderMarkdown = getCachedRenderMarkdown();
+          if (finalizeText && renderMarkdown) {
+            buf.lastRenderedHtml = renderMarkdown(displayText);
+          } else {
+            buf.lastRenderedHtml = renderStreamingTextHtml(displayText);
+            if (finalizeText) {
+              finalMarkdownRefresh = { sessionPath: buf.sessionPath, text: displayText };
+            }
+          }
         }
         const idx = blocks.findIndex(b => b.type === 'text');
         if (idx >= 0) {
-          blocks[idx] = { type: 'text', html: buf.lastRenderedHtml };
+          blocks[idx] = { type: 'text', html: buf.lastRenderedHtml, plainText: displayText };
         } else {
-          blocks.push({ type: 'text', html: buf.lastRenderedHtml });
+          blocks.push({ type: 'text', html: buf.lastRenderedHtml, plainText: displayText });
         }
       }
 
@@ -190,6 +197,28 @@ class StreamBufferManager {
 
       return { ...msg, blocks };
     });
+
+    if (finalMarkdownRefresh) {
+      const { sessionPath, text } = finalMarkdownRefresh;
+      void loadRenderMarkdown()
+        .then((renderMarkdown) => {
+          const latestBuf = this.buffers.get(sessionPath);
+          if (!latestBuf || sanitizeAssistantDisplayText(latestBuf.textAcc) !== text) return;
+          const html = renderMarkdown(text);
+          latestBuf.lastRenderedHtml = html;
+          useStore.getState().updateLastMessage(sessionPath, (msg) => ({
+            ...msg,
+            blocks: (msg.blocks || []).map((block) => (
+              block.type === 'text' && block.plainText === text
+                ? { ...block, html }
+                : block
+            )),
+          }));
+        })
+        .catch((err) => {
+          console.warn('[stream] final markdown render failed:', err);
+        });
+    }
   }
 
   // ── 公开事件处理器 ──

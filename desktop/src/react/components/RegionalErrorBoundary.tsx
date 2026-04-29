@@ -7,11 +7,15 @@ function tr(key: string, fallback: string): string {
   try {
     const translated = window.t?.(key);
     if (translated && translated !== key) return String(translated);
-  } catch {}
+  } catch {
+    // Fall through to the declared global translator.
+  }
   try {
     const translated = t(key);
     if (translated && translated !== key) return String(translated);
-  } catch {}
+  } catch {
+    // Fall through to the provided fallback text.
+  }
   return fallback;
 }
 

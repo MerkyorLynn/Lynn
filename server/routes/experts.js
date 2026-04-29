@@ -42,7 +42,9 @@ export function createExpertsRoute(engine) {
           c.header("Content-Type", mimeMap[ext] || "image/png");
           c.header("Cache-Control", "no-cache");
           return c.body(buf);
-        } catch {}
+        } catch {
+          // Try the next supported avatar extension.
+        }
       }
     }
 

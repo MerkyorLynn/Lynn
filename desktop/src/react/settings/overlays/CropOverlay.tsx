@@ -221,7 +221,7 @@ async function uploadCroppedAvatar(role: string, dataUrl: string) {
       store.set({ userAvatarUrl: url });
     }
     store.showToast(t('settings.crop.updated'), 'success');
-  } catch (err: any) {
-    store.showToast(err.message, 'error');
+  } catch (err: unknown) {
+    store.showToast(err instanceof Error ? err.message : String(err), 'error');
   }
 }

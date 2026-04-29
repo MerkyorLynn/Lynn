@@ -64,7 +64,7 @@ const mockDocuments = [
 ];
 
 // ============ SSE helper ============
-function sseStream(events: any[], delayMs = 80) {
+function sseStream(events: unknown[], delayMs = 80) {
   return new ReadableStream({
     async start(controller) {
       const enc = new TextEncoder();
@@ -104,7 +104,7 @@ export const handlers = [
 
   // ---- memory/write_batch ----
   http.post("/api/v1/memory/write_batch", async ({ request }) => {
-    const body = (await request.json()) as { items: any[] };
+    const body = (await request.json()) as { items: unknown[] };
     await delay(80);
     return HttpResponse.json({
       ids: body.items.map(() => Date.now() + Math.random()),
@@ -177,8 +177,8 @@ export const handlers = [
 
   // ---- chat/completions (在首帧塞 memory_used) ----
   http.post("/api/v1/chat/completions", async ({ request }) => {
-    const body = (await request.json()) as any;
-    const events: any[] = [];
+    const body = (await request.json()) as { memory?: { enabled?: boolean; top_k?: number } };
+    const events: unknown[] = [];
     if (body.memory?.enabled) {
       events.push({
         type: "memory_used",

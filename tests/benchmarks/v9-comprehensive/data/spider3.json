@@ -1,0 +1,29 @@
+[
+  {
+    "qid": "sql_000",
+    "subset": "sql",
+    "source": "xlangai/spider:validation",
+    "db_id": "car_1",
+    "problem": "Which distinctive models are produced by maker with the full name General Motors or weighing more than 3500?\n\nDatabase ID: car_1\nWrite a SQLite SQL query to answer.",
+    "gold_query": "SELECT DISTINCT T2.Model FROM CAR_NAMES AS T1 JOIN MODEL_LIST AS T2 ON T1.Model  =  T2.Model JOIN CAR_MAKERS AS T3 ON T2.Maker  =  T3.Id JOIN CARS_DATA AS T4 ON T1.MakeId  =  T4.Id WHERE T3.FullName  =  'General Motors' OR T4.weight  >  3500;",
+    "complexity": 11
+  },
+  {
+    "qid": "sql_001",
+    "subset": "sql",
+    "source": "xlangai/spider:validation",
+    "db_id": "museum_visit",
+    "problem": "What is the name of the visitor who visited both a museum opened before 2009 and a museum opened after 2011?\n\nDatabase ID: museum_visit\nWrite a SQLite SQL query to answer.",
+    "gold_query": "SELECT t1.name FROM visitor AS t1 JOIN visit AS t2 ON t1.id  =  t2.visitor_id JOIN museum AS t3 ON t3.Museum_ID  =  t2.Museum_ID WHERE t3.open_year  <  2009 INTERSECT SELECT t1.name FROM visitor AS t1 JOIN visit AS t2 ON t1.id  =  t2.visitor_id JOIN museum AS t3 ON t3.Museum_ID  =  t2.Museum_ID WHERE t3.open_year  >  2011",
+    "complexity": 19
+  },
+  {
+    "qid": "sql_002",
+    "subset": "sql",
+    "source": "xlangai/spider:validation",
+    "db_id": "car_1",
+    "problem": "What are the ids and makers of all car makers that produce at least 2 models and make more than 3 cars?\n\nDatabase ID: car_1\nWrite a SQLite SQL query to answer.",
+    "gold_query": "SELECT T1.Id ,  T1.Maker FROM CAR_MAKERS AS T1 JOIN MODEL_LIST AS T2 ON T1.Id  =  T2.Maker GROUP BY T1.Id HAVING count(*)  >=  2 INTERSECT SELECT T1.Id ,  T1.Maker FROM CAR_MAKERS AS T1 JOIN MODEL_LIST AS T2 ON T1.Id  =  T2.Maker JOIN CAR_NAMES AS T3 ON T2.model  =  T3.model GROUP BY T1.Id HAVING count(*)  >  3;",
+    "complexity": 26
+  }
+]

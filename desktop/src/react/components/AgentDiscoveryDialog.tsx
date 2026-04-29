@@ -10,13 +10,18 @@ import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
 import { useDialogA11y } from '../hooks/use-dialog-a11y';
 
+interface DiscoveredAgent {
+  dirPath: string;
+  label?: string;
+}
+
 export function AgentDiscoveryDialog() {
   const { t } = useI18n();
   const visible = useStore(s => s.agentDiscoveryVisible);
   const agents = useStore(s => s.discoveredAgents);
 
   const dismiss = () => {
-    try { localStorage.setItem('agent-discovery-seen', 'true'); } catch {}
+    try { localStorage.setItem('agent-discovery-seen', 'true'); } catch { /* localStorage may be unavailable */ }
     useStore.setState({ agentDiscoveryVisible: false });
   };
 
@@ -26,7 +31,7 @@ export function AgentDiscoveryDialog() {
 
   const enableAll = async () => {
     try {
-      const paths = agents.map((a: any) => a.dirPath);
+      const paths = (agents as DiscoveredAgent[]).map((a) => a.dirPath);
       await hanaFetch('/api/skills/external-paths', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -57,7 +62,7 @@ export function AgentDiscoveryDialog() {
         <div className="hana-warning-body">
           <p>{t('agentDiscovery.body')}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '10px 0', justifyContent: 'center' }}>
-            {shown.map((agent: any) => (
+            {(shown as DiscoveredAgent[]).map((agent) => (
               <span
                 key={agent.dirPath}
                 style={{

@@ -30,7 +30,7 @@ export async function loadModels(): Promise<void> {
   try {
     const res = await hanaFetch('/api/models');
     const data = await res.json();
-    const currentModelObj = (data.models || []).find((m: any) => m.isCurrent);
+    const currentModelObj = (data.models || []).find((m: { isCurrent?: boolean }) => m.isCurrent);
     const utilityRef = parseSharedModelRef(data.utilityModel || null);
     const utilityLargeRef = parseSharedModelRef(data.utilityLargeModel || null);
     useStore.setState({

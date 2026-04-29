@@ -28,7 +28,7 @@ function buildRegionalGrowthAnswer(raw) {
   if (!/(?:经营分析|环比|增长率)/.test(text)) return "";
 
   const rows = [];
-  const re = /([\u4e00-\u9fa5]{2,8})\s*Q1\s*([0-9]+(?:\.[0-9]+)?)\s*万[、，,;\s]*Q2\s*([0-9]+(?:\.[0-9]+)?)\s*万/g;
+  const re = /([\u4e00-\u9fa5]{2,8})\s*Q1\s*([0-9]+(?:\.[0-9]+)?)\s*(?:万|万元)?[、，,;\s]*Q2\s*([0-9]+(?:\.[0-9]+)?)\s*(?:万|万元)?/g;
   for (const match of text.matchAll(re)) {
     const region = match[1];
     const q1 = Number(match[2]);

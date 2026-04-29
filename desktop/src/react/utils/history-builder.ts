@@ -168,7 +168,8 @@ export function buildItemsFromHistory(data: HistoryApiResponse): ChatListItem[] 
       // 4. 主文本（去掉 mood 和 xing 后的内容）
       const { xingBlocks, text: mainText } = parseXingFromContent(afterMood);
       if (mainText) {
-        blocks.push({ type: 'text', html: renderMarkdown(normalizeReportResponseText(mainText)) });
+        const plainText = normalizeReportResponseText(mainText);
+        blocks.push({ type: 'text', html: renderMarkdown(plainText), plainText });
       }
 
       // 5. Xing

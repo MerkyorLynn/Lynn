@@ -48,14 +48,13 @@ function getJianPendingPreviews(content: string | null, max = 3): string[] {
 }
 
 export function SidebarCapabilityBar() {
-  const t = window.t ?? ((key: string) => key);
   const tt = useCallback((key: string, fallback: string) => {
-    const value = t(key);
+    const value = window.t ? window.t(key) : key;
     return !value || value === key ? fallback : value;
-  }, [t]);
+  }, []);
   const currentAgentId = useStore((s) => s.currentAgentId);
   const agentName = useStore((s) => s.agentName) || 'Lynn';
-  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
+  const agentYuan = useStore((s) => s.agentYuan) || 'lynn';
   const [expanded, setExpanded] = useState(false);
   const deskJianContent = useStore((s) => s.deskJianContent);
   const automationCount = useStore((s) => s.automationCount);
@@ -67,7 +66,10 @@ export function SidebarCapabilityBar() {
   const chatSessions = useStore((s) => s.chatSessions);
 
   // 改动摘要 chip
-  const sessionItems = currentSessionPath ? chatSessions[currentSessionPath]?.items || [] : [];
+  const sessionItems = useMemo(
+    () => (currentSessionPath ? chatSessions[currentSessionPath]?.items || [] : []),
+    [chatSessions, currentSessionPath],
+  );
   const changesSummary = useMemo(() => collectSessionDiffs(sessionItems), [sessionItems]);
   const models = useStore((s) => s.models);
   const currentModel = useStore((s) => s.currentModel);

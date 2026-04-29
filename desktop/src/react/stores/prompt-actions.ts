@@ -73,6 +73,12 @@ export async function submitPromptTask(options: SendPromptOptions): Promise<bool
   }
 
   const initialState = useStore.getState();
+  if (!initialState.serverReady && mode === 'prompt') {
+    const stage = initialState.serverStartupStage || 'starting';
+    showSidebarToast(window.t?.('chat.serverStarting') ?? `Assistant is still starting (${stage})`, 5000);
+    return false;
+  }
+
   if (initialState.isStreaming && mode === 'prompt') {
     return false;
   }

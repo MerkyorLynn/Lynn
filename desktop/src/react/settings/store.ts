@@ -41,6 +41,82 @@ export interface ProviderSummary {
   can_delete: boolean;
 }
 
+export interface ProviderConfig extends Record<string, unknown> {
+  models?: string[];
+  base_url?: string;
+  api_key?: string;
+  api?: string;
+  provider?: string;
+}
+
+export interface ModelRefConfig extends Record<string, unknown> {
+  id?: string;
+  provider?: string;
+}
+
+export interface AgentConfig extends Record<string, unknown> {
+  name?: string;
+  yuan?: string;
+  tier?: string;
+  enabled?: boolean;
+}
+
+export interface VoiceProviderConfig extends Record<string, unknown> {
+  provider?: string;
+  api_key?: string;
+  base_url?: string;
+  default_voice?: string;
+}
+
+export interface SettingsConfig extends Record<string, unknown> {
+  locale?: string;
+  agent?: AgentConfig;
+  _identity?: string;
+  _ishiki?: string;
+  _experience?: string;
+  _userProfile?: string;
+  appearance?: Record<string, unknown> & {
+    theme?: string;
+    font_serif?: boolean;
+  };
+  providers?: Record<string, ProviderConfig>;
+  models?: Record<string, unknown> & {
+    overrides?: Record<string, Record<string, unknown>>;
+    chat?: string | ModelRefConfig;
+    utility?: string | ModelRefConfig;
+    utility_large?: string | ModelRefConfig;
+  };
+  api?: Record<string, unknown> & { provider?: string };
+  desk?: Record<string, unknown> & {
+    home_folder?: string | null;
+    trusted_roots?: string[];
+    heartbeat_enabled?: boolean;
+    heartbeat_interval?: number;
+    cron_auto_approve?: boolean;
+  };
+  memory?: Record<string, unknown> & { enabled?: boolean };
+  skills?: Record<string, unknown> & { learn_skills?: boolean };
+  capabilities?: Record<string, unknown> & {
+    learn_skills?: {
+      enabled?: boolean;
+      allow_github_fetch?: boolean;
+      safety_review?: boolean;
+    };
+  };
+  user?: { name?: string };
+  timezone?: string;
+  voice?: Record<string, unknown> & {
+    language?: string;
+    asr?: VoiceProviderConfig;
+    tts?: VoiceProviderConfig;
+  };
+}
+
+export interface GlobalModelsConfig extends Record<string, unknown> {
+  models?: Record<string, string | ModelRefConfig | undefined>;
+  search?: ProviderConfig;
+}
+
 export interface SettingsState {
   // connection
   serverPort: number | null;
@@ -57,9 +133,9 @@ export interface SettingsState {
   userAvatarUrl: string | null;
 
   // config
-  settingsConfig: Record<string, any> | null;
+  settingsConfig: SettingsConfig | null;
   settingsConfigAgentId: string | null;
-  globalModelsConfig: Record<string, any> | null;
+  globalModelsConfig: GlobalModelsConfig | null;
   homeFolder: string | null;
   trustedRoots: string[];
 

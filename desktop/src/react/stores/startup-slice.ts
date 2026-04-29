@@ -1,4 +1,15 @@
 export type StartupStepStatus = 'pending' | 'running' | 'success' | 'error' | 'warning';
+export type ServerStartupStage =
+  | 'first_run'
+  | 'engine'
+  | 'routes'
+  | 'listening'
+  | 'plugins'
+  | 'schedulers'
+  | 'pending_tasks'
+  | 'bridge'
+  | 'ready'
+  | 'error';
 
 export type StartupStep = {
   id: string;
@@ -14,6 +25,9 @@ export interface StartupSlice {
   startupPhase: 'idle' | 'running' | 'ready' | 'degraded';
   startupStartedAt: string | null;
   startupFinishedAt: string | null;
+  serverReady: boolean;
+  serverStartupStage: ServerStartupStage | null;
+  serverStartupError: string | null;
   resetStartupDiagnostics: () => void;
   markStartupStep: (
     id: string,
@@ -23,6 +37,11 @@ export interface StartupSlice {
     meta?: Record<string, unknown> | null
   ) => void;
   setStartupPhase: (phase: StartupSlice['startupPhase']) => void;
+  setServerStartup: (state: {
+    ready?: boolean;
+    stage?: ServerStartupStage | string | null;
+    error?: string | null;
+  }) => void;
 }
 
 function nowIso(): string {
@@ -40,6 +59,9 @@ export const createStartupSlice = (
   startupPhase: 'idle',
   startupStartedAt: null,
   startupFinishedAt: null,
+  serverReady: false,
+  serverStartupStage: null,
+  serverStartupError: null,
 
   resetStartupDiagnostics: () =>
     set({
@@ -85,5 +107,12 @@ export const createStartupSlice = (
     set({
       startupPhase: phase,
       startupFinishedAt: phase === 'ready' || phase === 'degraded' ? nowIso() : null,
+    }),
+
+  setServerStartup: (state) =>
+    set({
+      serverReady: !!state.ready,
+      serverStartupStage: (state.stage || null) as ServerStartupStage | null,
+      serverStartupError: state.error || null,
     }),
 });

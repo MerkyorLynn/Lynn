@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockState: Record<string, any> = {
+interface MockState extends Record<string, unknown> {
+  appended: Array<{ sessionPath: string; item: { data: Record<string, unknown> } }>;
+  appendItem: ((sessionPath: string, item: unknown) => void) & { mockClear: () => void };
+  addToast: ((...args: unknown[]) => void) & { mockClear: () => void };
+}
+
+const mockState: MockState = {
   isStreaming: false,
   pendingNewSession: false,
   sessionCreationPending: false,
@@ -11,12 +17,13 @@ const mockState: Record<string, any> = {
   agentName: 'Lynn',
   currentModel: null,
   sessions: [],
+  serverReady: true,
   welcomeVisible: true,
   appended: [],
   appendItem: vi.fn((sessionPath: string, item: unknown) => {
-    mockState.appended.push({ sessionPath, item });
+    mockState.appended.push({ sessionPath, item: item as { data: Record<string, unknown> } });
   }),
-  addToast: vi.fn(),
+  addToast: vi.fn((..._args: unknown[]) => undefined) as unknown as MockState['addToast'],
 };
 
 const setState = vi.fn((patch: Record<string, unknown>) => {

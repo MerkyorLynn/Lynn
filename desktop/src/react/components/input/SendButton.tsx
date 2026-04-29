@@ -1,10 +1,11 @@
 import { useI18n } from '../../hooks/use-i18n';
 import styles from './InputArea.module.css';
 
-export function SendButton({ isStreaming, canSteer, disabled, onSend, onSteer, onStop }: {
+export function SendButton({ isStreaming, canSteer, disabled, title, onSend, onSteer, onStop }: {
   isStreaming: boolean;
   canSteer: boolean;
   disabled: boolean;
+  title?: string;
   onSend: () => void;
   onSteer: () => void;
   onStop: () => void;
@@ -18,6 +19,7 @@ export function SendButton({ isStreaming, canSteer, disabled, onSend, onSteer, o
       <button
         className={styles['send-btn']}
         disabled={disabled}
+        title={title}
         onClick={onSend}
       >
         <span className={styles['send-label']}>

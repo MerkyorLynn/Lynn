@@ -56,7 +56,10 @@ export function ChangesPanel() {
   const [revertingAll, setRevertingAll] = useState(false);
   const zh = String(document?.documentElement?.lang || '').startsWith('zh');
 
-  const sessionItems = currentSessionPath ? chatSessions[currentSessionPath]?.items || [] : [];
+  const sessionItems = useMemo(
+    () => (currentSessionPath ? chatSessions[currentSessionPath]?.items || [] : []),
+    [chatSessions, currentSessionPath],
+  );
   const diffSummary = useMemo(() => collectSessionDiffs(sessionItems), [sessionItems]);
   const currentSession = useMemo(
     () => sessions.find((session) => session.path === currentSessionPath) || null,
@@ -188,7 +191,9 @@ export function ChangesPanel() {
           body: JSON.stringify({ rollbackId }),
         });
         success++;
-      } catch {}
+      } catch (err) {
+        console.warn('[changes] revert failed:', rollbackId, err);
+      }
     }
     setRevertingAll(false);
   }, [revertingAll, rollbackIds]);

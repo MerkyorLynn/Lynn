@@ -378,7 +378,9 @@ export function createProvidersRoute(engine) {
     if (!key && name) {
       try {
         key = await engine.authStorage.getApiKey(name) || "";
-      } catch {}
+      } catch {
+        // Missing stored credentials simply fall through to unauthenticated model listing.
+      }
     }
 
     // Anthropic 格式没有 /models 端点，从 Pi SDK registry 或 default-models.json 返回
@@ -489,7 +491,9 @@ export function createProvidersRoute(engine) {
       if (!effectiveApiKey && name) {
         try {
           effectiveApiKey = await engine.authStorage.getApiKey(name) || "";
-        } catch {}
+        } catch {
+          // Missing stored credentials simply fall through to explicit credentials.
+        }
       }
       const probe = buildProbeUrl(effectiveBaseUrl, effectiveApi);
       const pathname = (() => {

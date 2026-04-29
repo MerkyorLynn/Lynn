@@ -14,8 +14,10 @@ export function BridgeTutorial() {
 
   if (!visible) return null;
 
-  const tgSteps: string[] = t('settings.bridge.tutorialTgSteps') || [];
-  const fsSteps: string[] = t('settings.bridge.tutorialFsSteps') || [];
+  const tgRaw = t('settings.bridge.tutorialTgSteps') as unknown;
+  const fsRaw = t('settings.bridge.tutorialFsSteps') as unknown;
+  const tgSteps: string[] = Array.isArray(tgRaw) ? tgRaw : [];
+  const fsSteps: string[] = Array.isArray(fsRaw) ? fsRaw : [];
 
   return (
     <div className="bridge-tutorial-overlay" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>

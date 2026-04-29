@@ -107,7 +107,7 @@ describe('history-builder', () => {
         tools: [{ name: 'edit', args: { path: 'src/app.ts' }, done: true, success: true }],
         collapsed: false,
       },
-      { type: 'text', html: '<p>已修改文件</p>\n' },
+      { type: 'text', html: '<p>已修改文件</p>\n', plainText: '已修改文件' },
       {
         type: 'file_diff',
         filePath: 'src/app.ts',
@@ -143,7 +143,7 @@ describe('history-builder', () => {
     if (second.type !== 'message' || second.data.role !== 'assistant') throw new Error('expected assistant message');
 
     expect(second.data.blocks).toEqual([
-      { type: 'text', html: '<p>第二条回复</p>\n' },
+      { type: 'text', html: '<p>第二条回复</p>\n', plainText: '第二条回复' },
       { type: 'file_output', filePath: '/repo/out.txt', label: 'out.txt', ext: 'txt' },
       { type: 'artifact', artifactId: 'art-1', artifactType: 'markdown', title: 'Spec', content: '# spec', language: undefined },
     ]);
@@ -188,7 +188,7 @@ describe('history-builder', () => {
         tools: [{ name: 'read', args: { file_path: '/repo/src/app.ts' }, done: true, success: true }],
         collapsed: false,
       },
-      { type: 'text', html: '<p>已处理</p>\n' },
+      { type: 'text', html: '<p>已处理</p>\n', plainText: '已处理' },
     ]);
   });
 });

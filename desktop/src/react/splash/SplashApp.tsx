@@ -64,7 +64,9 @@ export function SplashApp() {
 
         setSymbol(YUAN_SYMBOLS[yuan] || YUAN_SYMBOLS.hanako);
         setAccentColor(YUAN_COLORS[yuan] || YUAN_COLORS.hanako);
-      } catch {}
+      } catch (err) {
+        console.warn('[splash] failed to load splash info:', err);
+      }
 
       // 加载语言包
       let lines: string[];

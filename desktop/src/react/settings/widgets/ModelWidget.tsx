@@ -26,7 +26,7 @@ interface ModelWidgetProps {
   valueProvider?: string | null;
   onSelect: (modelId: string) => void;
   placeholder?: string;
-  lookupModelMeta?: (id: string) => any;
+  lookupModelMeta?: (id: string) => Record<string, unknown> | null;
   formatContext?: (n: number) => string;
 }
 

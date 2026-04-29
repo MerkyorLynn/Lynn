@@ -1,0 +1,29 @@
+[
+  {
+    "qid": "gpqa_physics_00",
+    "subset": "physics",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Physics",
+    "raw_subdomain": "Physics",
+    "problem": "Consider the extension of the Standard Model given by the following Lagrangian\n\n\\mathcal{L}\\subset i\\bar{N}_{R}\\gamma^{\\mu}\\partial_{\\mu}N_{R}+\\frac{1}{2}\\left(\\partial^{\\mu}\\phi\\right)^{2}+\\left|D^{\\mu}S\\right|^{2}-\\frac{y_{i}}{2}\\phi\\bar{N}_{iR}^{c}N_{iR}^{c}-g_{i\\alpha}\\bar{N}_{iR}L_{\\alpha}S-V\\left(\\phi,S,H\\right)\nwith singlet fermions,$N{iR}\\sim\\left(1,1,0\\right)$, scalar-doublet $S\\sim\\left(1,2,1\\right)$, and singlet scalar $\\phi\\sim\\left(1,1,0\\right)$. We give $\\left\\langle \\phi\\right\\rangle ^{2}=\\left(x^{2}+\\upsilon^{2}\\right)$, where $\\left\\langle \\phi\\right\\rangle =x$ and $\\left\\langle h\\right\\rangle =v$.\n\nWhat is the approximation of the mass of the pseudo-Goldostone boson $H_{2}$ through radiative corrections? \n\nA. M_{h_{2}}^{2}=\\frac{1}{8\\pi^{2}\\left(x^{2}+v^{2}\\right)}\\left\\{ \\alpha_{1}M_{h_{1}}^{4}+\\alpha_{2}M_{W}^{4}+\\alpha_{3}M_{Z}^{4}-\\alpha_{4}M_{t}^{4}+\\alpha_{5}M_{H^{\\pm}}^{4}+\\alpha_{6}M_{H^{0}}^{4}-\\alpha_{7}\\sum M_{N_{i}}^{4}\\right\\} \nB. M_{h_{2}}^{2}=\\frac{\\left(x^{2}+v^{2}\\right)}{8\\pi^{2}}\\left\\{ \\alpha_{1}M_{h_{1}}^{4}+\\alpha_{2}M_{W}^{4}+\\alpha_{3}M_{Z}^{4}-\\alpha_{4}M_{t}^{4}+\\alpha_{5}M_{H^{\\pm}}^{4}+\\alpha_{6}M_{H^{0}}^{4}+\\alpha_{7}M_{A^{0}}^{4}-\\alpha_{8}\\sum M_{N_{i}}^{4}\\right\\} \nC. M_{h_{2}}^{2}=\\frac{1}{8\\pi^{2}\\left(x^{2}+v^{2}\\right)}\\left\\{ \\alpha_{1}M_{h_{1}}^{4}+\\alpha_{2}M_{W}^{4}+\\alpha_{3}M_{Z}^{4}+\\alpha_{4}M_{H^{\\pm}}^{4}+\\alpha_{5}M_{H^{0}}^{4}+\\alpha_{6}M_{A^{0}}^{4}-\\alpha_{7}\\sum M_{N_{i}}^{4}\\right\\} \nD. M_{h_{2}}^{2}=\\frac{1}{8\\pi^{2}\\left(x^{2}+v^{2}\\right)}\\left\\{ \\alpha_{1}M_{h_{1}}^{4}+\\alpha_{2}M_{W}^{4}+\\alpha_{3}M_{Z}^{4}-\\alpha_{4}M_{t}^{4}+\\alpha_{5}M_{H^{\\pm}}^{4}+\\alpha_{6}M_{H^{0}}^{4}+\\alpha_{7}M_{A^{0}}^{4}-\\alpha_{8}\\sum M_{N_{i}}^{4}\\right\\} \n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "D"
+  },
+  {
+    "qid": "gpqa_physics_01",
+    "subset": "physics",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Physics",
+    "raw_subdomain": "Physics",
+    "problem": "Consider an aperture, which shapes like a N-sided polygon. All the apothems are of the same length a. When a monochromatic light (of wavelength \\lambda), travelling along z-axis, falls vertically on this aperture, it creates a series of intensity maxima and minima in the far field region. What is the angular distance between the first two minima when N is infinitely large ? Assume that the related angles are small so that tan theta = theta approximation can be taken.\n\nA. 0.500 \\lambda / a\nB. 0.610 \\lambda / a\nC. 1.220 \\lambda /a \nD. 0.506 \\lambda / a\n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "D"
+  },
+  {
+    "qid": "gpqa_physics_02",
+    "subset": "physics",
+    "source": "Idavidrein/gpqa:gpqa_diamond",
+    "domain": "Physics",
+    "raw_subdomain": "Physics",
+    "problem": "For a magnetic field \\vec{B}, parallel to Oz, with small values of m (orbital magnetic quantum number) and B=1T, compare the order of magnitude of the paramagnetic coupling term with transition energy \\Delta E of Hydrogen atom with wavelength \\lambda=0.4861\\mu m.\n\nPS: for the maths use an online LaTeX editor.\n\nA. \\left\\langle H\\right\\rangle \\gg\\Delta E\nB. \\left\\langle H\\right\\rangle \\ll\\Delta E\nC. \\left\\langle H\\right\\rangle =\\Delta E\nD. \\left\\langle H\\right\\rangle >\\Delta E\n\nAnswer with only the letter (A/B/C/D).",
+    "answer": "B"
+  }
+]

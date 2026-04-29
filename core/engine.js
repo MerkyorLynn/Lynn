@@ -25,27 +25,8 @@ import {
 import { PluginManager } from "./plugin-manager.js";
 import {
   DefaultResourceLoader,
-  codingTools,
-  grepTool,
-  findTool,
-  lsTool,
 } from "@mariozechner/pi-coding-agent";
-
-/** 已知的外部 AI 工具技能目录（相对 $HOME） */
-const WELL_KNOWN_SKILL_PATHS = [
-  { suffix: ".claude/skills",     label: "Claude Code" },
-  { suffix: ".codex/skills",      label: "Codex" },
-  { suffix: ".openclaw/skills",   label: "OpenClaw" },
-  { suffix: ".pi/agent/skills",   label: "Pi" },
-  { suffix: ".agents/skills",     label: "Agents" },
-  { suffix: ".codebuddy/skills",  label: "CodeBuddy" },
-  { suffix: ".workbuddy/skills-marketplace/skills", label: "WorkBuddy" },
-  { suffix: ".skillhub/skills",   label: "Tencent SkillHub" },
-  { suffix: "Downloads/SkillHub", label: "Tencent SkillHub" },
-  { suffix: "Downloads/skillhub", label: "Tencent SkillHub" },
-];
-
-const allBuiltInTools = [...codingTools, grepTool, findTool, lsTool];
+import { WELL_KNOWN_SKILL_PATHS, allBuiltInTools } from "./constants.js";
 
 import { PreferencesManager } from "./preferences-manager.js";
 import { ModelManager } from "./model-manager.js";
@@ -67,10 +48,8 @@ import { debugLog } from "../lib/debug-log.js";
 import { createSandboxedTools } from "../lib/sandbox/index.js";
 import { t } from "../server/i18n.js";
 import {
-  SecurityMode,
   SECURITY_MODE_CONFIG,
   normalizeSecurityMode,
-  DEFAULT_SECURITY_MODE,
 } from "../shared/security-mode.js";
 import {
   BRAIN_PROVIDER_ID,

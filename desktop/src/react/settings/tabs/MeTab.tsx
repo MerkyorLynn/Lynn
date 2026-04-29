@@ -22,7 +22,7 @@ export function MeTab() {
   const save = async () => {
     const store = useSettingsStore.getState();
     try {
-      const partial: Record<string, any> = {};
+      const partial: { user?: { name: string } } = {};
       if (userName && userName !== (settingsConfig?.user?.name || '')) {
         partial.user = { name: userName };
       }
@@ -59,8 +59,8 @@ export function MeTab() {
       if (partial?.user?.name) store.set({ userName: partial.user.name });
 
       await loadSettingsConfig();
-    } catch (err: any) {
-      showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast(t('settings.saveFailed') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
     }
   };
 

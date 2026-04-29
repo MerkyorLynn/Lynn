@@ -314,6 +314,43 @@ describe("chat route event forwarding", () => {
     expect(visibleText).not.toContain("深圳 2026年4月28日 天气预报");
   });
 
+  it("suppresses backend tool-template XML fragments across streaming chunks", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "明天深圳会下雨吗？" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "<t" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "avily>\n深圳天气\n</tavily>\n" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: { type: "text_delta", delta: "_calls></inv> </_calls>\n最终答案：建议带伞。" },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    expect(engine.steerSession).toHaveBeenCalled();
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).toContain("最终答案");
+    expect(visibleText).not.toMatch(/tavily|_calls|<\/?inv/i);
+    expect(visibleText).not.toContain("深圳天气");
+  });
+
   it("retries when a real tool ran but the assistant only says it will continue executing", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
@@ -362,6 +399,98 @@ describe("chat route event forwarding", () => {
     const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
     expect(retryPrompt).toContain("继续调用真实工具");
     expect(retryPrompt).toContain("没有继续调用真实工具完成任务");
+    expect(retryPrompt).toContain(prompt);
+  });
+
+  it("retries when a local file mutation task only scanned files but claimed completion", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "请把下载文件夹的所有 Excel 都放进表格的文件夹";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    const scanCommand = [
+      "find ~/Downloads -maxdepth 1 -type f \\(",
+      "-iname '*.xlsx' -o -iname '*.xls' -o -iname '*.csv'",
+      "\\)",
+    ].join(" ");
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_find_excel",
+      toolName: "bash",
+      args: { command: scanCommand },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_find_excel",
+      toolName: "bash",
+      args: { command: scanCommand },
+      result: { output: Array.from({ length: 33 }, (_, idx) => `/Users/lynn/Downloads/file-${idx + 1}.xlsx`).join("\n") },
+      isError: false,
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "找到33个Excel文件，现在全部移动到“表格”文件夹。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "tool_continuation",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("只看到扫描/列出类命令");
+    expect(retryPrompt).toContain("不要把“找到文件”当成“已经移动/整理完成”");
+    expect(retryPrompt).toContain("find ~/Downloads");
+    expect(retryPrompt).toContain(prompt);
+  });
+
+  it("retries when a local file mutation task only produces a preparatory lead-in without tools", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    const prompt = "把当前目录下所有 Excel 和 CSV 表格文件都移动到一个新建的“表格”文件夹里";
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: prompt }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "我来帮你把当前目录下的 Excel 和 CSV 文件移动到新建的“表格”文件夹中。",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "local_mutation_leadin",
+    }));
+    expect(hub.send).toHaveBeenCalledTimes(2);
+    const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
+    expect(retryPrompt).toContain("本地文件变更任务");
+    expect(retryPrompt).toContain("必须继续调用真实工具完成变更");
     expect(retryPrompt).toContain(prompt);
   });
 
@@ -691,6 +820,46 @@ describe("chat route event forwarding", () => {
       sessionPath: "/sessions/current.jsonl",
     }));
     expect(reportResearchMock.buildReportResearchContext).toHaveBeenCalled();
+  });
+
+  it("emits a visible prefetch fallback when the model only leaks pseudo tool text", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    hub.send = vi.fn(async () => {});
+    reportResearchMock.inferReportResearchKind.mockReturnValue("weather");
+    reportResearchMock.buildReportResearchContext.mockResolvedValue("【系统已完成天气工具预取】\n深圳明天小雨，18-22°C，建议带伞。");
+    reportResearchMock.buildDirectResearchAnswer.mockReturnValue("");
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "明天深圳天气如何" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "<web_search>\n深圳天气\n</web_search>",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).toContain("工具已成功执行");
+    expect(visibleText).toContain("深圳明天小雨");
+    expect(visibleText).not.toContain("<web_search>");
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+      reason: "empty_reply",
+    }));
   });
 
   it("does not inject local prefetch for non-realtime brain turns", async () => {

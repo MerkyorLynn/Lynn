@@ -69,7 +69,9 @@ export function JianEditor() {
           setLocalValue(prefill);
           // 不自动保存——等用户编辑时再保存，避免覆盖服务端空文件
         }
-      } catch {}
+      } catch {
+        // localStorage is only used to suppress the prefill hint.
+      }
     }
   }, [deskJianContent, deskOpenDoc]);
 
@@ -139,7 +141,7 @@ export function JianEditor() {
     useStore.setState({ deskJianContent: newValue });
     prevContentRef.current = newValue;
     // 标记预填已使用（用户开始编辑后不再显示预填）
-    try { localStorage.setItem(JIAN_PREFILL_KEY, '1'); } catch {}
+    try { localStorage.setItem(JIAN_PREFILL_KEY, '1'); } catch { /* localStorage may be unavailable */ }
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       void saveJianContent(newValue);

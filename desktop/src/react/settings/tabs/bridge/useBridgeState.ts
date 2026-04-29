@@ -39,8 +39,9 @@ export interface BridgeTestResult {
 }
 
 export function useBridgeState() {
-  const store = useSettingsStore();
-  const { showToast } = store;
+  const showToast = useSettingsStore(s => s.showToast);
+  const settingsConfig = useSettingsStore(s => s.settingsConfig);
+  const getSettingsAgentId = useSettingsStore(s => s.getSettingsAgentId);
   const [status, setStatus] = useState<BridgeStatus | null>(null);
   const [testingPlatform, setTestingPlatform] = useState<BridgePlatform | null>(null);
   const [testResults, setTestResults] = useState<Partial<Record<BridgePlatform, BridgeTestResult>>>({});
@@ -57,16 +58,16 @@ export function useBridgeState() {
   const [qqAppSecret, setQqAppSecret] = useState('');
 
   useEffect(() => {
-    const agentId = store.getSettingsAgentId();
+    const agentId = getSettingsAgentId();
     if (!agentId) return;
     hanaFetch(`/api/agents/${agentId}/public-ishiki`)
       .then(r => r.json())
       .then(data => { setPublicIshiki(data.content || ''); setPublicIshikiOriginal(data.content || ''); })
       .catch(err => console.warn('[bridge] fetch public-ishiki failed:', err));
-  }, [store.settingsConfig]);
+  }, [getSettingsAgentId, settingsConfig]);
 
   const savePublicIshiki = async () => {
-    const agentId = store.getSettingsAgentId();
+    const agentId = getSettingsAgentId();
     if (!agentId || publicIshiki === publicIshikiOriginal) return;
     try {
       await hanaFetch(`/api/agents/${agentId}/public-ishiki`, {

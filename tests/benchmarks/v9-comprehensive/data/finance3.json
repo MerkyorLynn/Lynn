@@ -1,0 +1,26 @@
+[
+  {
+    "qid": "fin_000",
+    "subset": "finance",
+    "source": "custom · public 2024 Q4 reports",
+    "problem": "阿里巴巴 (BABA) 2024 财年 Q3 (calendar 2024 Q4 · ending Dec 31, 2024) 公司报告:\n- Total revenue: 280,154 million RMB\n- Net income attributable to ordinary shareholders: 48,945 million RMB\n- Weighted average ordinary shares outstanding (diluted): 19,250 million shares\n\nCalculate Diluted EPS for the quarter, in RMB. Round to 2 decimal places.\n\nEnd your answer with the numeric value in \\boxed{}, no currency symbol or unit.",
+    "answer": "2.54",
+    "tolerance": 0.05
+  },
+  {
+    "qid": "fin_001",
+    "subset": "finance",
+    "source": "custom · public 2024 Q4 reports",
+    "problem": "A US company's 2024 income statement:\n- Revenue: $1,200 million\n- Operating expenses: $850 million\n- Interest expense: $30 million\n- Tax rate: 25%\n\nCalculate Net Income (in million USD). Round to 1 decimal place.\n\nEnd your answer in \\boxed{}.",
+    "answer": "240.0",
+    "tolerance": 0.5
+  },
+  {
+    "qid": "fin_002",
+    "subset": "finance",
+    "source": "custom · DCF",
+    "problem": "A company has projected free cash flows for next 3 years: $100M, $115M, $130M.\nAfter year 3, FCF grows at terminal rate g = 3% perpetually.\nUse WACC = 10% as discount rate.\n\nCalculate the present value of the company today (in $M, rounded to nearest integer).\n\nEnd your answer in \\boxed{}.",
+    "answer": "1721",
+    "tolerance": 5
+  }
+]

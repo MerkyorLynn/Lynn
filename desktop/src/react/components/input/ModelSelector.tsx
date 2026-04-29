@@ -58,7 +58,7 @@ function modelMetaLine(model?: SelectorModel, role?: string | null): string {
 
 export function ModelSelector({ models, disabled }: { models: SelectorModel[]; disabled?: boolean }) {
   const { t } = useI18n();
-  const agentYuan = useStore((s: any) => s.agentYuan) || 'lynn';
+  const agentYuan = useStore((s) => s.agentYuan) || 'lynn';
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const visibleModels = useMemo(() => collapseBrainModelChoices(models), [models]);

@@ -245,6 +245,9 @@ export interface PlatformApi {
   readDocxHtml(path: string): Promise<string | null>;
   readXlsxHtml(path: string): Promise<string | null>;
   openEditorWindow(data: { filePath: string; title: string; type: string; language?: string | null }): void;
+  onEditorLoad?(callback: (data: { filePath: string; title: string; type: string; language?: string | null }) => void): void;
+  editorDock?(): void;
+  editorClose?(): void;
   onEditorDockFile?(callback: (data: { filePath: string; title: string; type: string; language?: string | null }) => void): void;
   onEditorDetached?(callback: (detached: boolean) => void): void;
   openFolder(path: string): void;

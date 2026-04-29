@@ -234,7 +234,9 @@ function buildReviewFallbackCandidates(engine, reviewer) {
     for (const candidate of utilityConfig?.utility_fallbacks || []) {
       pushCandidate(getAvailableModel(engine, candidate?.model, candidate?.provider));
     }
-  } catch {}
+  } catch {
+    // Fallback to the current model when utility config is unavailable.
+  }
 
   pushCandidate(engine.currentModel);
   return candidates;
@@ -427,7 +429,9 @@ async function ensureDefaultReviewerAgents(engine) {
         ensureReviewerAgentShape(engine, kind, created.id);
         nextBindings[kind === "butter" ? "butterReviewerId" : "hanakoReviewerId"] = created.id;
       }
-    } catch {}
+    } catch (err) {
+      console.warn("[review] failed to create reviewer agent:", err?.message || err);
+    }
   }
 
   config = Object.keys(nextBindings).length > 0

@@ -49,8 +49,8 @@ export function AgentDeleteOverlay() {
       await loadAgents();
       await loadSettingsConfig();
       platform?.settingsChanged?.('agent-deleted', { agentId: targetId });
-    } catch (err: any) {
-      showToast(t('settings.agent.deleteFailed') + ': ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast(t('settings.agent.deleteFailed') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
     }
   };
 

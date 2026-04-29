@@ -68,104 +68,20 @@ export function PressToTalkButton({
   const recorderMimeRef = useRef("audio/webm");
 
   // ============ 录音控制 ============
-  const startRecording = useCallback(async () => {
-    setError(null);
-    setState("starting");
-    cancelledRef.current = false;
-    stopRequestedRef.current = false;
-    chunksRef.current = [];
-    recordedBytesRef.current = 0;
-    audioPeakRef.current = 0;
-    durationRef.current = 0;
-    recordingStartedAtRef.current = 0;
-    trackStatusRef.current = "unknown";
-    setDuration(0);
-    setPartialText("");
+  const cleanup = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    mediaRecorderRef.current = null;
+  }, []);
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({  /* enhanced audio constraints */
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      });
-      streamRef.current = stream;
-      const track = stream.getAudioTracks()[0];
-      if (track) {
-        trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}${track.muted ? " · muted" : ""}`;
-        track.onmute = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState} · muted`;
-        };
-        track.onunmute = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}`;
-        };
-        track.onended = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ended`;
-        };
-      }
-
-      // MediaRecorder
-      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
-      recorderMimeRef.current = mime;
-      const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 64000 });
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-          recordedBytesRef.current += e.data.size;
-        }
-      };
-      recorder.onerror = (event) => {
-        const error = (event as unknown as { error?: Error }).error;
-        setError(`录音器异常: ${error?.message || "MediaRecorder error"}`);
-      };
-      recorder.onstop = () => {
-        if (cancelledRef.current) {
-          cleanup();
-          setState("idle");
-          return;
-        }
-        finalize();
-      };
-      // 不传 timeslice → 整个录音单 WebM blob,EBML header 完整(chunked 模式 ffmpeg 解码会失败)
-      recorder.start();
-
-      // 波形分析
-      try {
-        const ac = new AudioContext({ sampleRate: 16000 });
-        const src = ac.createMediaStreamSource(stream);
-        const analyser = ac.createAnalyser();
-        analyser.fftSize = 256;
-        src.connect(analyser);
-        audioContextRef.current = ac;
-        analyserRef.current = analyser;
-      } catch {
-        // 波形不是关键功能,失败不影响录音
-      }
-
-      // 计时
-      const startTs = Date.now();
-      recordingStartedAtRef.current = startTs;
-      timerRef.current = window.setInterval(() => {
-        const sec = (Date.now() - startTs) / 1000;
-        durationRef.current = sec;
-        setDuration(sec);
-        if (sec >= maxDurationSec) stopRecording();
-      }, 100);
-
-      setState("recording");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(`麦克风启动失败: ${msg}`);
-      setState("idle");
-      cleanup();
-    }
-  }, [maxDurationSec]);
+  useEffect(() => () => cleanup(), [cleanup]);
 
   const stopRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
@@ -183,31 +99,6 @@ export function PressToTalkButton({
       if (latest && latest.state !== "inactive") latest.stop();
     }, 80);
   }, []);
-
-  const cancelRecording = useCallback(() => {
-    cancelledRef.current = true;
-    stopRecording();
-  }, [stopRecording]);
-
-  // ============ B 模式:长按锁定连续录音 ============
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lockedRef = useRef(false);
-  const [locked, setLocked] = useState(false);
-
-  const cleanup = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    audioContextRef.current?.close();
-    audioContextRef.current = null;
-    analyserRef.current = null;
-    mediaRecorderRef.current = null;
-  }, []);
-
-  useEffect(() => () => cleanup(), [cleanup]);
 
   // ============ 发送到后端 ============
   const finalize = useCallback(async () => {
@@ -268,6 +159,112 @@ export function PressToTalkButton({
       setPartialText("");
     }
   }, [apiBase, cleanup, directSendToChat, language, mockMode, onSent, onTranscribed]);
+
+  const startRecording = useCallback(async () => {
+    setError(null);
+    setState("starting");
+    cancelledRef.current = false;
+    stopRequestedRef.current = false;
+    chunksRef.current = [];
+    recordedBytesRef.current = 0;
+    audioPeakRef.current = 0;
+    durationRef.current = 0;
+    recordingStartedAtRef.current = 0;
+    trackStatusRef.current = "unknown";
+    setDuration(0);
+    setPartialText("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({  /* enhanced audio constraints */
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+      streamRef.current = stream;
+      const track = stream.getAudioTracks()[0];
+      if (track) {
+        trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}${track.muted ? " · muted" : ""}`;
+        track.onmute = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState} · muted`;
+        };
+        track.onunmute = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}`;
+        };
+        track.onended = () => {
+          trackStatusRef.current = `${track.label || "默认麦克风"} · ended`;
+        };
+      }
+
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      recorderMimeRef.current = mime;
+      const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 64000 });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+          recordedBytesRef.current += e.data.size;
+        }
+      };
+      recorder.onerror = (event) => {
+        const error = (event as unknown as { error?: Error }).error;
+        setError(`录音器异常: ${error?.message || "MediaRecorder error"}`);
+      };
+      recorder.onstop = () => {
+        if (cancelledRef.current) {
+          cleanup();
+          setState("idle");
+          return;
+        }
+        void finalize();
+      };
+      // 不传 timeslice → 整个录音单 WebM blob,EBML header 完整(chunked 模式 ffmpeg 解码会失败)
+      recorder.start();
+
+      try {
+        const ac = new AudioContext({ sampleRate: 16000 });
+        const src = ac.createMediaStreamSource(stream);
+        const analyser = ac.createAnalyser();
+        analyser.fftSize = 256;
+        src.connect(analyser);
+        audioContextRef.current = ac;
+        analyserRef.current = analyser;
+      } catch {
+        // 波形不是关键功能,失败不影响录音
+      }
+
+      const startTs = Date.now();
+      recordingStartedAtRef.current = startTs;
+      timerRef.current = window.setInterval(() => {
+        const sec = (Date.now() - startTs) / 1000;
+        durationRef.current = sec;
+        setDuration(sec);
+        if (sec >= maxDurationSec) stopRecording();
+      }, 100);
+
+      setState("recording");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`麦克风启动失败: ${msg}`);
+      setState("idle");
+      cleanup();
+    }
+  }, [cleanup, finalize, maxDurationSec, stopRecording]);
+
+  const cancelRecording = useCallback(() => {
+    cancelledRef.current = true;
+    stopRecording();
+  }, [stopRecording]);
+
+  // ============ B 模式:长按锁定连续录音 ============
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockedRef = useRef(false);
+  const [locked, setLocked] = useState(false);
 
   // ============ 波形绘制 ============
   const drawWaveform = useCallback(() => {

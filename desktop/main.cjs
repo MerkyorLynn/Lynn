@@ -1272,7 +1272,7 @@ function createMainWindow() {
     mainWindow.maximize();
   }
 
-  loadWindowURL(mainWindow, "index");
+  loadWindowURL(mainWindow, "index", process.env.LYNN_UI_SMOKE === "1" ? { query: { uiSmoke: "1" } } : undefined);
 
   // 前端初始化超时保护：30 秒内没收到 app-ready 就强制显示（防止用户卡在空白）
   const initTimeout = setTimeout(() => {
@@ -3049,6 +3049,11 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(appMenu);
 
   try {
+    if (process.env.LYNN_UI_SMOKE === "1") {
+      createMainWindow();
+      return;
+    }
+
     // 1. 立刻显示启动窗口
     createSplashWindow();
     const splashShownAt = Date.now();

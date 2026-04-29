@@ -382,7 +382,9 @@ export function createSessionsRoute(engine) {
         const logDir = path.join(homedir(), ".lynn");
         mkdirSync(logDir, { recursive: true });
         appendFileSync(path.join(logDir, "switch-error.log"), `${new Date().toISOString()}\n${errDetail}\n---\n`);
-      } catch {}
+      } catch {
+        // Logging failures should not mask the original switch error.
+      }
       return c.json({ error: err.message }, 500);
     }
   });
@@ -491,7 +493,9 @@ export function createSessionsRoute(engine) {
               await fs.unlink(fp);
               deleted++;
             }
-          } catch {}
+          } catch {
+            // Ignore files that disappeared during cleanup.
+          }
         }
       }
 

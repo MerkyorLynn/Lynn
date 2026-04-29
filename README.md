@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.76.6-brightgreen" alt="Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.77.0-brightgreen" alt="Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -27,7 +27,24 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + 路由重排 + brain 工具兜底 + UI 流式修复 <em>(最新)</em></summary>
+<summary><strong>v0.77.0</strong> · 2026-04-29 · 回归门禁 + V8 持久测试 + 工具兜底 + 发版流程加固 <em>(最新)</em></summary>
+
+**稳定性与发布门禁**:
+- 🧪 **Release Regression Gate**: 覆盖工具调用、文件操作、设置页、模型路由、流式事件、空答兜底和 UI smoke,发布前必须通过。
+- 🔌 **V8 持久 WebSocket 测试**: 单 WS 串行跑完整题集,避免每题重连导致 retry / stream 状态丢失。
+- 🛡️ **工具成功空答兜底**: 工具调用成功但模型不给最终文本时,自动输出可见结果摘要,不再让用户看到空回复。
+- 🧰 **工具失败重答兜底**: 工具失败且模型只说"我来查一下"这类开场白时,强制进入无工具重答路径。
+- 🧼 **内容过滤误伤修复**: 短英文敏感词不再命中普通单词内部,例如 `sm` 不会再拦截 `small`。
+- 🧱 **chat 路由模块化**: `server/routes/chat.js` 拆分出 stream sanitizer / stream state / internal retry / prefetch context,降低后续改动风险。
+- 📡 **WebSocket 协议 contract test**: ServerEvent / ClientEvent 有共享协议源和快照测试,减少事件改名后 UI 静默退化。
+- ⚡ **启动与渲染优化**: readiness 更早暴露,Markdown / Mermaid / 编辑器等重模块继续按需加载。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.0)
+
+</details>
+
+<details>
+<summary><strong>v0.76.9</strong> · 2026-04-28 · DeepSeek v4 + 路由重排 + brain 工具兜底 + UI 流式修复</summary>
 
 **Hotpatch #1 (2026-04-28 下午)**:
 - 🛡️ **TOOL-FAILED-FALLBACK v1**:工具调用失败 + 模型只输出"我来查一下"开场句就 turn_end 时(典型 live_news / stock_market 失败),自动 inject 系统提示**强制重答**——禁止再调工具 / 给审慎估计 + 明确标注「基于公开常识/未实时核实」/ 否则诚实告知未查到。修复"问完了 Lynn 只回半句话不完成任务"的 dogfood bug。
@@ -56,8 +73,6 @@
 - 🔏 **install:local 不再丢权限**:sign-local.cjs 默认 Developer ID 而不是 ad-hoc,cdhash 跟 electron-builder 一致,**以后 install:local 不再让 macOS TCC 把 Lynn.app 当新 app**。
 - 🎙️ **PressToTalk UI 优化**:按钮样式 + 状态机重构,长按锁定 + 录音中视觉反馈更稳。
 - 🧱 **brain server 报告上下文增强**:`server/chat/report-research-context.js` 注入更结构化数据,模型生成报告更准确。
-
-[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.76.9)
 

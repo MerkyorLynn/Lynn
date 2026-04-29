@@ -37,7 +37,9 @@ export function createAvatarRoute(engine) {
       try {
         await fs.access(p);
         return { path: p, ext };
-      } catch {}
+      } catch {
+        // Try the next supported avatar extension.
+      }
     }
     return null;
   }
@@ -85,7 +87,7 @@ export function createAvatarRoute(engine) {
 
     // 删除旧头像（可能是不同格式）
     for (const oldExt of ["png", "jpg", "jpeg", "webp"]) {
-      try { await fs.unlink(path.join(dir, `${role}.${oldExt}`)); } catch {}
+      try { await fs.unlink(path.join(dir, `${role}.${oldExt}`)); } catch { /* old avatar may not exist */ }
     }
 
     // 写入新头像
@@ -102,7 +104,7 @@ export function createAvatarRoute(engine) {
 
     const dir = avatarDirFor(role);
     for (const ext of ["png", "jpg", "jpeg", "webp"]) {
-      try { await fs.unlink(path.join(dir, `${role}.${ext}`)); } catch {}
+      try { await fs.unlink(path.join(dir, `${role}.${ext}`)); } catch { /* avatar may not exist */ }
     }
     return c.json({ ok: true });
   });

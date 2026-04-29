@@ -139,7 +139,7 @@ export function DeskCwdSkillsPanel() {
       }, 80);
       return () => clearTimeout(timer);
     }
-  }, [open, visible]);
+  }, [open, skills.length, visible]);
 
   useEffect(() => {
     if (!cmPos) return;

@@ -104,7 +104,7 @@ export type ContentBlock =
   | { type: 'thinking'; content: string; sealed: boolean }
   | { type: 'mood'; yuan: string; text: string }
   | { type: 'tool_group'; tools: ToolCall[]; collapsed: boolean }
-  | { type: 'text'; html: string }
+  | { type: 'text'; html: string; plainText?: string }
   | { type: 'xing'; title: string; content: string; sealed: boolean }
   | { type: 'file_output'; filePath: string; label: string; ext: string }
   | { type: 'file_diff'; filePath: string; diff: string; linesAdded: number; linesRemoved: number; rollbackId?: string }

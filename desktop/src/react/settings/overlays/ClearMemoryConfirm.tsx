@@ -26,8 +26,8 @@ export function ClearMemoryConfirm() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       showToast(t('settings.memory.actions.clearSuccess'), 'success');
-    } catch (err: any) {
-      showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast(t('settings.saveFailed') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
     }
   };
 

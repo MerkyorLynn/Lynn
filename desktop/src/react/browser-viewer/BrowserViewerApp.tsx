@@ -22,12 +22,13 @@ export function BrowserViewerApp() {
     const hana = window.hana;
 
     // 监听主题切换
-    hana?.onSettingsChanged?.((type: string, data: any) => {
-      if (type === 'theme-changed' && data?.theme) setTheme(data.theme);
+    hana?.onSettingsChanged?.((type: string, data: unknown) => {
+      const payload = data as { theme?: string } | null;
+      if (type === 'theme-changed' && payload?.theme) setTheme(payload.theme);
     });
 
     // 接收浏览器状态更新
-    hana?.onBrowserUpdate?.((data: any) => {
+    hana?.onBrowserUpdate?.((data) => {
       if (data.title) setTitle(data.title);
       if (data.canGoBack !== undefined) setCanBack(data.canGoBack);
       if (data.canGoForward !== undefined) setCanForward(data.canGoForward);

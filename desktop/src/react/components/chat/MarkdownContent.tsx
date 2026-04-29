@@ -16,7 +16,7 @@ interface Props {
 }
 
 // 懒加载 mermaid（首次使用时才 import，约 200KB）
-let _mermaidReady: Promise<typeof import('mermaid')> | null = null;
+let _mermaidReady: Promise<typeof import('mermaid') | null> | null = null;
 function getMermaid() {
   if (!_mermaidReady) {
     _mermaidReady = import('mermaid').then((mod) => {
@@ -26,7 +26,7 @@ function getMermaid() {
         securityLevel: 'strict',
       });
       return mod;
-    }).catch(() => null as any);
+    }).catch(() => null);
   }
   return _mermaidReady;
 }

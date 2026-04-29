@@ -9,12 +9,31 @@ import {
   BRAIN_DEFAULT_MODEL_ID,
 } from '../../../../shared/brain-provider.js';
 import { useSettingsStore } from './store';
+import type { ProviderConfig } from './store';
 import { hanaFetch } from './api';
 import knownModels from '../../../../lib/known-models.json';
 
 const platform = window.platform;
 
-export function t(key: string, params?: Record<string, any>): any {
+type ModelMeta = Record<string, unknown> & {
+  _source?: string | null;
+  displayName?: string;
+  name?: string;
+  context?: number;
+  maxOutput?: number;
+  vision?: boolean;
+  reasoning?: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function t(key: string, params?: Record<string, string | number>): string {
   return window.t?.(key, params) ?? key;
 }
 
@@ -40,15 +59,15 @@ export function resolveProviderForModel(modelId: string): string | null {
   const config = useSettingsStore.getState().settingsConfig;
   if (!modelId || !config) return null;
   const providers = config.providers || {};
-  for (const [name, p] of Object.entries(providers) as [string, any][]) {
+  for (const [name, p] of Object.entries(providers) as [string, ProviderConfig][]) {
     if ((p.models || []).includes(modelId)) return name;
   }
   return null;
 }
 
-function lookupReferenceModelMeta(modelId: string): any {
+function lookupReferenceModelMeta(modelId: string): ModelMeta | null {
   if (!modelId) return null;
-  const dict = knownModels as Record<string, any>;
+  const dict = knownModels as unknown as Record<string, ModelMeta>;
 
   if (dict[modelId]) {
     return { ...dict[modelId], _source: 'reference' };
@@ -63,16 +82,17 @@ function lookupReferenceModelMeta(modelId: string): any {
   return { ...candidates[0][1], _source: 'reference' };
 }
 
-export function lookupModelMeta(modelId: string): any {
+export function lookupModelMeta(modelId: string): ModelMeta | null {
   const { settingsConfig } = useSettingsStore.getState();
   if (!modelId) return null;
   const reference = lookupReferenceModelMeta(modelId);
   const override = settingsConfig?.models?.overrides?.[modelId];
+  const overrideRecord = isRecord(override) ? override : null;
   if (!reference && !override) return null;
   return {
     ...(reference || {}),
-    ...(override || {}),
-    _source: override ? 'override' : reference?._source || null,
+    ...(overrideRecord || {}),
+    _source: overrideRecord ? 'override' : reference?._source || null,
   };
 }
 
@@ -85,7 +105,7 @@ function resolveSettingsTargetAgentId(store: ReturnType<typeof useSettingsStore.
 
 /** 通用 per-agent 自动保存 */
 export async function autoSaveConfig(
-  partial: Record<string, any>,
+  partial: Record<string, unknown>,
   opts: { silent?: boolean; refreshModels?: boolean } = {},
 ) {
   const store = useSettingsStore.getState();
@@ -105,7 +125,7 @@ export async function autoSaveConfig(
     const newConfig = await cfgRes.json();
     const prev = useSettingsStore.getState().settingsConfig || {};
     for (const k of ['_identity', '_ishiki', '_userProfile']) {
-      if (k in prev && !(k in newConfig)) newConfig[k] = (prev as any)[k];
+      if (k in prev && !(k in newConfig)) newConfig[k] = prev[k];
     }
     useSettingsStore.setState({ settingsConfig: newConfig, settingsConfigAgentId: agentId });
     const nextAgentId = agentId;
@@ -118,14 +138,14 @@ export async function autoSaveConfig(
         trustedRoots: Array.isArray(newConfig?.desk?.trusted_roots) ? newConfig.desk.trusted_roots : [],
       });
     }
-  } catch (err: any) {
-    store.showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
+  } catch (err: unknown) {
+    store.showToast(t('settings.saveFailed') + ': ' + errorMessage(err), 'error');
   }
 }
 
 /** 全局模型自动保存 */
 export async function autoSaveGlobalModels(
-  partial: Record<string, any>,
+  partial: Record<string, unknown>,
   opts: { silent?: boolean } = {},
 ) {
   const store = useSettingsStore.getState();
@@ -142,8 +162,8 @@ export async function autoSaveGlobalModels(
     const newGlobal = await refreshRes.json();
     useSettingsStore.setState({ globalModelsConfig: newGlobal });
     platform?.settingsChanged?.('models-changed', { scope: 'global-model-preferences' });
-  } catch (err: any) {
-    store.showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
+  } catch (err: unknown) {
+    store.showToast(t('settings.saveFailed') + ': ' + errorMessage(err), 'error');
   }
 }
 
@@ -163,8 +183,8 @@ export function savePins() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       store.showToast(t('settings.autoSaved'), 'success');
-    } catch (err: any) {
-      store.showToast(t('settings.saveFailed') + ': ' + err.message, 'error');
+    } catch (err: unknown) {
+      store.showToast(t('settings.saveFailed') + ': ' + errorMessage(err), 'error');
     }
   }, 300);
 }

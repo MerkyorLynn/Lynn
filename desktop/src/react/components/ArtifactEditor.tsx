@@ -35,6 +35,8 @@ export const ArtifactEditor = forwardRef<ArtifactEditorHandle, ArtifactEditorPro
     const selfSaveRef = useRef(false);
     const filePathRef = useRef(filePath);
     filePathRef.current = filePath;
+    const latestContentRef = useRef(content);
+    latestContentRef.current = content;
     const selectionCbRef = useRef(onSelectionChange);
     selectionCbRef.current = onSelectionChange;
 
@@ -69,7 +71,7 @@ export const ArtifactEditor = forwardRef<ArtifactEditorHandle, ArtifactEditorPro
         onSelectionChange: (view) => selectionCbRef.current?.(view),
       });
 
-      const state = EditorState.create({ doc: content, extensions });
+      const state = EditorState.create({ doc: latestContentRef.current, extensions });
       const view = new EditorView({ state, parent: containerRef.current });
       viewRef.current = view;
 

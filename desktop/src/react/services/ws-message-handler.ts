@@ -4,7 +4,7 @@
  * 纯逻辑模块，不依赖 ctx 注入。通过 Zustand store 访问状态。
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- WS 消息分发，msg 结构由服务端动态决定 */
+/* eslint-disable @typescript-eslint/no-explicit-any -- WS 消息分发仍需兼容历史 payload 细节 */
 
 import { streamBufferManager } from '../hooks/use-stream-buffer';
 import { useStore } from '../stores';
@@ -13,7 +13,7 @@ import { handleArtifact } from '../stores/artifact-actions';
 import { loadDeskFiles } from '../stores/desk-actions';
 import { loadChannels as loadChannelsAction, openChannel as openChannelAction } from '../stores/channel-actions';
 import { showError } from '../utils/ui-helpers';
-import { renderMarkdown } from '../utils/markdown';
+import { loadRenderMarkdown } from '../utils/markdown-loader';
 import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
 import { getWebSocket } from './websocket';
 import {
@@ -22,22 +22,21 @@ import {
   isStreamScopedMessage,
   updateSessionStreamMeta,
 } from './stream-resume';
+import {
+  isKnownServerEventType,
+  isReactChatEventType,
+  validateServerEvent,
+  type ServerEvent,
+} from '../../../../shared/ws-events.js';
 
-declare function t(key: string, vars?: Record<string, string>): any;
+const warnedProtocolEvents = new Set<string>();
 
-// ── 聊天事件集合（走 StreamBufferManager） ──
-
-const REACT_CHAT_EVENTS = new Set([
-  'text_delta', 'thinking_start', 'thinking_delta', 'thinking_end',
-  'mood_start', 'mood_text', 'mood_end',
-  'xing_start', 'xing_text', 'xing_end',
-  'tool_start', 'tool_end', 'tool_progress', 'turn_end',
-  'file_diff',
-  'file_output', 'skill_activated', 'artifact',
-  'browser_screenshot', 'cron_confirmation', 'settings_confirmation',
-  'tool_authorization',
-  'compaction_start', 'compaction_end',
-]);
+function warnProtocolIssue(type: string, errors: string[]): void {
+  const key = `${type}:${errors.join('|')}`;
+  if (warnedProtocolEvents.has(key)) return;
+  warnedProtocolEvents.add(key);
+  console.warn(`[ws] protocol issue: ${errors.join('; ')}`);
+}
 
 function patchReviewBlock(sessionPath: string, reviewId: string, patch: Record<string, unknown>): void {
   const nextPatch = Object.fromEntries(
@@ -119,7 +118,18 @@ export function applyStreamingStatus(isStreaming: boolean): void {
 
 // ── 消息分发（大 switch） ──
 
-export function handleServerMessage(msg: any): void {
+export function handleServerMessage(msg: ServerEvent | any): void {
+  if (!msg || typeof msg.type !== 'string') {
+    warnProtocolIssue('(missing)', ['server event type missing']);
+    return;
+  }
+  if (!isKnownServerEventType(msg.type)) {
+    warnProtocolIssue(msg.type, [`unknown server event type: ${msg.type}`]);
+  } else {
+    const validation = validateServerEvent(msg);
+    if (!validation.ok) warnProtocolIssue(msg.type, validation.errors);
+  }
+
   const state = useStore.getState();
 
   const rebuildingFor = isStreamResumeRebuilding();
@@ -143,7 +153,7 @@ export function handleServerMessage(msg: any): void {
   }
 
   // ── React 聊天渲染路径：聊天相关事件走 StreamBufferManager ──
-  if (REACT_CHAT_EVENTS.has(msg.type)) {
+  if (isReactChatEventType(msg.type)) {
     streamBufferManager.handle(msg);
     // turn_end 后仍需执行部分通用逻辑（loadSessions、context_usage）
     if (msg.type === 'turn_end') {
@@ -296,12 +306,13 @@ export function handleServerMessage(msg: any): void {
           const relayText = summary
             ? `**对话已自动接力。**\n\n${summary}`
             : '**对话已自动接力。**';
+          const renderMarkdown = await loadRenderMarkdown();
           const relayItem = {
             type: 'message' as const,
             data: {
               id: `relay-${Date.now()}`,
               role: 'assistant' as const,
-              blocks: [{ type: 'text' as const, html: renderMarkdown(relayText) }],
+              blocks: [{ type: 'text' as const, html: renderMarkdown(relayText), plainText: relayText }],
             },
           };
           const existing = nextState.chatSessions[newSessionPath];

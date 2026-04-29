@@ -48,8 +48,8 @@ export function AgentCreateOverlay() {
       showToast(t('settings.agent.created', { name: data.name }), 'success');
       platform?.settingsChanged?.('agent-created', { agentId: data.id, name: data.name });
       await switchToAgent(data.id);
-    } catch (err: any) {
-      showToast(t('settings.agent.createFailed') + ': ' + err.message, 'error');
+    } catch (err: unknown) {
+      showToast(t('settings.agent.createFailed') + ': ' + (err instanceof Error ? err.message : String(err)), 'error');
     } finally {
       setCreating(false);
     }

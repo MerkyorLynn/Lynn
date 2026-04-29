@@ -88,13 +88,29 @@ let appVersion = "?";
 try {
   const pkg = JSON.parse(fs.readFileSync(fromRoot("package.json"), "utf-8"));
   appVersion = pkg.version || "?";
-} catch {}
+} catch {
+  // Version is informational; keep startup moving if package metadata is unavailable.
+}
+
+const startupState = {
+  stage: "engine",
+  engineReady: false,
+  routeReady: false,
+  ready: false,
+  pluginsReady: false,
+  schedulersReady: false,
+  pendingTasksResumed: false,
+  bridgeReady: false,
+  error: null,
+  startedAt: Date.now(),
+};
 
 // ── 初始化引擎 ──
 console.log("[server] ② 创建 HanaEngine...");
 const engine = new HanaEngine({ lynnHome, productDir });
 console.log("[server] ② HanaEngine 构造完成，开始 init...");
 await engine.init((msg) => console.log(`[server] ${msg}`));
+startupState.engineReady = true;
 console.log("[server] ② engine.init 完成");
 dlog.log("server", "engine initialized");
 
@@ -124,12 +140,6 @@ const hub = new Hub({ engine });
 
 // ── 后台任务运行器（review findings -> execute 等异步任务） ──
 const taskRuntime = new TaskRuntime({ hub, engine, lynnHome });
-
-// ── 初始化插件系统 ──
-await engine.initPlugins(hub.eventBus);
-
-// 启动 Hub 调度器（Scheduler + ChannelRouter）
-hub.initSchedulers();
 
 // 加载 i18n
 loadLocale(engine.config?.locale);
@@ -184,7 +194,6 @@ app.onError((err, c) => {
 const confirmStore = new ConfirmStore();
 engine.setConfirmStore(confirmStore);
 taskRuntime.bindConfirmStore(confirmStore);
-taskRuntime.resumePendingTasks();
 
 // ── 外部平台接入管理器 ──
 const bridgeManager = new BridgeManager({ engine, hub });
@@ -225,6 +234,7 @@ app.route("/api", createPluginsRoute(engine));
 app.route("/api/tools", createToolsRoute(engine));
 app.route("/api/v1/audio", createAudioRoute(engine));
 app.route("/api", createExpertsRoute(engine));
+startupState.routeReady = true;
 // internal-browser WS — see unified upgrade handler in server startup below
 
 // 健康检查 + 身份信息
@@ -237,7 +247,9 @@ app.get("/api/health", async (c) => {
     try {
       const files = fs.readdirSync(dir);
       avatars[role] = files.some(f => /\.(png|jpe?g|webp)$/i.test(f));
-    } catch {}
+    } catch {
+      // Missing avatar directories are represented as avatars[role] = false.
+    }
   }
   return c.json({
     status: "ok",
@@ -247,6 +259,18 @@ app.get("/api/health", async (c) => {
     avatars,
     brainRegistered: engine._brainRegistered ?? false,
     brainRegistering: engine._brainRegistrationPending ?? false,
+    startup: {
+      stage: startupState.stage,
+      engineReady: startupState.engineReady,
+      routeReady: startupState.routeReady,
+      ready: startupState.ready,
+      pluginsReady: startupState.pluginsReady,
+      schedulersReady: startupState.schedulersReady,
+      pendingTasksResumed: startupState.pendingTasksResumed,
+      bridgeReady: startupState.bridgeReady,
+      error: startupState.error,
+      elapsedMs: Date.now() - startupState.startedAt,
+    },
   });
 });
 
@@ -360,6 +384,37 @@ try {
     if (server.listening) resolve();
     else server.on("listening", resolve);
   });
+  startupState.stage = "listening";
+
+  void (async () => {
+    try {
+      startupState.stage = "plugins";
+      await engine.initPlugins(hub.eventBus);
+      startupState.pluginsReady = true;
+
+      startupState.stage = "schedulers";
+      hub.initSchedulers();
+      startupState.schedulersReady = true;
+
+      startupState.stage = "pending_tasks";
+      taskRuntime.resumePendingTasks();
+      startupState.pendingTasksResumed = true;
+
+      startupState.stage = "bridge";
+      bridgeManager.autoStart();
+      startupState.bridgeReady = true;
+      dlog.log("server", "bridge autoStart done");
+
+      startupState.stage = "ready";
+      startupState.ready = true;
+      dlog.log("server", "background startup initialized");
+    } catch (err) {
+      startupState.stage = "error";
+      startupState.error = err?.message || String(err);
+      dlog.error("server", `background startup failed: ${startupState.error}`);
+      console.error("[server] background startup failed:", err);
+    }
+  })();
 
   // ── Internal browser control WS (raw ws) ──
   // WsTransport requires raw ws .on()/.off() event methods that Hono's WSContext
@@ -396,16 +451,16 @@ try {
     // 调试：记录浏览器 WS 消息往返
     const _bwsLogPath = path.join(os.homedir(), ".lynn", "browser-ws.log");
     let _bwsStream;
-    try { _bwsStream = fs.createWriteStream(_bwsLogPath, { flags: "a" }); } catch {}
-    const _bwsLog = (line) => { try { _bwsStream?.write(`${new Date().toISOString()} ${line}\n`); } catch {} };
+    try { _bwsStream = fs.createWriteStream(_bwsLogPath, { flags: "a" }); } catch { /* debug log is best effort */ }
+    const _bwsLog = (line) => { try { _bwsStream?.write(`${new Date().toISOString()} ${line}\n`); } catch { /* debug log is best effort */ } };
     _bwsLog("browser WS connected");
     const origSend = ws.send.bind(ws);
     ws.send = function(data, ...args) {
-      try { const m = JSON.parse(data); _bwsLog(`→ cmd=${m.cmd || m.type} id=${m.id || "?"}`); } catch {}
+      try { const m = JSON.parse(data); _bwsLog(`→ cmd=${m.cmd || m.type} id=${m.id || "?"}`); } catch { /* binary/non-JSON frame */ }
       return origSend(data, ...args);
     };
     ws.on("message", (data) => {
-      try { const m = JSON.parse(data); _bwsLog(`← type=${m.type} id=${m.id || "?"} error=${m.error || "none"}`); } catch {}
+      try { const m = JSON.parse(data); _bwsLog(`← type=${m.type} id=${m.id || "?"} error=${m.error || "none"}`); } catch { /* binary/non-JSON frame */ }
     });
 
     ws.on("close", () => {
@@ -448,10 +503,6 @@ try {
   } catch (e) {
     console.error("[server] 写入 server-info.json 失败:", e.message);
   }
-
-  // 自动启动已配置的外部平台
-  bridgeManager.autoStart();
-  dlog.log("server", "bridge autoStart done");
 
   // 通知就绪（server-info.json 已在上方写入，无需额外动作）
   console.log(`[server] ready: port=${actualPort}`);
@@ -519,7 +570,7 @@ async function gracefulShutdown() {
   }
 
   clearTimeout(forceTimer);
-  try { fs.unlinkSync(path.join(lynnHome, "server-info.json")); } catch {}
+  try { fs.unlinkSync(path.join(lynnHome, "server-info.json")); } catch { /* server-info may already be gone */ }
   process.exit(0);
 }
 
