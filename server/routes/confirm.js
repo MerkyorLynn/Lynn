@@ -29,6 +29,7 @@ export function createConfirmRoute(confirmStore, engine) {
       }, 400);
     }
 
+    const pendingEntry = typeof confirmStore.peek === "function" ? confirmStore.peek(confirmId) : null;
     const found = confirmStore.resolve(confirmId, action, value);
     if (!found) {
       return c.json({ error: "confirmation not found or already resolved" }, 404);
@@ -40,7 +41,7 @@ export function createConfirmRoute(confirmStore, engine) {
       confirmId,
       action,
       value,
-    }, null);
+    }, pendingEntry?.sessionPath || null);
 
     return c.json({ ok: true });
   });

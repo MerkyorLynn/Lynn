@@ -60,6 +60,7 @@ describe("chat route event forwarding", () => {
       resolveModelOverrides: vi.fn((model) => model),
       abortAllStreaming: vi.fn(async () => 0),
       getSessionByPath: vi.fn(() => ({ messages: [] })),
+      listSessions: vi.fn(async () => []),
       isSessionStreaming: vi.fn(() => false),
       promptSession: vi.fn(),
       steerSession: vi.fn(() => false),
@@ -806,6 +807,283 @@ describe("chat route event forwarding", () => {
     expect(retryEvents).toHaveLength(0);
   });
 
+  it("closes a successful tool turn with a visible summary when the model never sends final text", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "把当前目录下所有 Excel 移到表格文件夹" }),
+      }, connections[0].client);
+
+      subscribed({
+        type: "tool_execution_start",
+        toolCallId: "call_move",
+        toolName: "bash",
+        args: { command: "mkdir -p 表格 && mv *.xlsx 表格/" },
+      }, "/sessions/current.jsonl");
+      subscribed({
+        type: "tool_execution_end",
+        toolCallId: "call_move",
+        toolName: "bash",
+        args: { command: "mkdir -p 表格 && mv *.xlsx 表格/" },
+        result: { content: [{ type: "text", text: "moved\n" }] },
+        isError: false,
+      }, "/sessions/current.jsonl");
+
+      await vi.advanceTimersByTimeAsync(8000);
+
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("已完成本轮本地操作");
+      expect(visibleText).toContain("mkdir -p 表格");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes a tool authorization turn when no final event arrives after confirmation flow", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "删除当前目录下 delete-me.txt，保留 keep.txt" }),
+      }, connections[0].client);
+
+      subscribed({
+        type: "tool_authorization",
+        confirmId: "confirm-delete",
+        command: "rm /tmp/lynn-delete-fileops/delete-me.txt",
+        reason: "删除文件需要确认",
+        description: "删除文件或目录",
+        category: "delete_files",
+        identifier: "rm",
+      }, "/sessions/current.jsonl");
+
+      await vi.advanceTimersByTimeAsync(45_000);
+
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("工具授权后没有收到最终回复");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("recovers a persisted final answer after tool authorization when no stream deltas arrive", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+      engine.getSessionByPath = vi.fn(() => ({
+        messages: [
+          { role: "assistant", content: [{ type: "toolCall", name: "bash", arguments: { command: "rm delete-me.txt" } }] },
+          { role: "assistant", content: [{ type: "text", text: "当前目录现在只剩：keep.txt。delete-me.txt 已删除。" }] },
+        ],
+      }));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "删除当前目录下 delete-me.txt，保留 keep.txt" }),
+      }, connections[0].client);
+
+      subscribed({
+        type: "tool_authorization",
+        confirmId: "confirm-delete",
+        command: "rm /tmp/lynn-delete-fileops/delete-me.txt",
+        reason: "删除文件需要确认",
+        description: "删除文件或目录",
+        category: "delete_files",
+        identifier: "rm",
+      }, "/sessions/current.jsonl");
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("delete-me.txt 已删除");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("emits a persisted assistant reply when hub.send completes without stream deltas", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    hub.send = vi.fn(async () => {});
+    engine.getSessionByPath = vi.fn(() => ({
+      messages: [
+        { role: "user", content: [{ type: "text", text: "删除当前目录下 delete-me.txt，保留 keep.txt" }] },
+        { role: "assistant", content: [{ type: "text", text: "已完成：delete-me.txt 已删除，keep.txt 已保留。" }] },
+      ],
+    }));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "删除当前目录下 delete-me.txt，保留 keep.txt" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => {
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("delete-me.txt 已删除");
+    });
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+  });
+
+  it("closes a returned pseudo-tool-only turn with fallback text", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      hub.send = vi.fn(async () => {});
+      engine.getSessionByPath = vi.fn(() => ({
+        messages: [
+          { role: "assistant", content: [{ type: "text", text: "<tool_call>bash\nrm delete-me.txt && ls\n" }] },
+        ],
+      }));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "删除当前目录下 delete-me.txt，保留 keep.txt" }),
+      }, connections[0].client);
+
+      await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(3000);
+
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("本轮模型没有生成可见答案");
+      expect(visibleText).not.toContain("rm delete-me.txt");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rolls tool finalization after partial text and closes if the model stops", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "把当前目录下所有 Excel 移到表格文件夹" }),
+      }, connections[0].client);
+
+      subscribed({
+        type: "tool_execution_start",
+        toolCallId: "call_move",
+        toolName: "bash",
+        args: { command: "mkdir -p 表格 && mv *.xlsx 表格/" },
+      }, "/sessions/current.jsonl");
+      subscribed({
+        type: "tool_execution_end",
+        toolCallId: "call_move",
+        toolName: "bash",
+        args: { command: "mkdir -p 表格 && mv *.xlsx 表格/" },
+        result: { content: [{ type: "text", text: "moved\n" }] },
+        isError: false,
+      }, "/sessions/current.jsonl");
+      subscribed({
+        type: "message_update",
+        assistantMessageEvent: { type: "text_delta", delta: "已完成，" },
+      }, "/sessions/current.jsonl");
+
+      await vi.advanceTimersByTimeAsync(7999);
+      expect(clients[0].sent.filter((evt) => evt.type === "turn_end")).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears pending edit snapshots when a turn is force-closed", async () => {
+    vi.useFakeTimers();
+    const tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), "lynn-edit-pending-"));
+    const filePath = path.join(tmpDir, "sample.txt");
+    try {
+      await fsPromises.writeFile(filePath, "before\n", "utf8");
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      engine.getSessionByPath = vi.fn(() => ({
+        sessionManager: { getCwd: () => tmpDir },
+        messages: [],
+      }));
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "编辑 sample.txt" }),
+      }, connections[0].client);
+
+      subscribed({
+        type: "tool_execution_start",
+        toolCallId: "edit-1",
+        toolName: "edit",
+        args: { file_path: filePath },
+      }, "/sessions/current.jsonl");
+
+      expect(editRollbackStore.pendingCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(editRollbackStore.pendingCount()).toBe(0);
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
+    } finally {
+      vi.useRealTimers();
+      await fsPromises.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   // [INTERNAL-RETRY-CROSS-PROMPT-FENCE v1 · 2026-04-28] V8 v6 T05/T06 跨测污染修复
   // 旧行为:T05 空答 → 调度 internal retry → T05 ws 关闭 → T06 ws 连同 session 时 retry 还在跑
   //         → "Lynn 还在说话" 错误 + retry 的 text_delta 仍 broadcast 到 T06 → T05 答案串到 T06
@@ -905,6 +1183,125 @@ describe("chat route event forwarding", () => {
 
       rejectSend?.(new Error("aborted"));
       await vi.runOnlyPendingTimersAsync();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hard-aborts a Brain turn that streams thinking but never visible text", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "详细推理一道复杂逻辑题" }),
+      }, connections[0].client);
+
+      await Promise.resolve();
+      expect(hub.send).toHaveBeenCalled();
+
+      subscribed({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "thinking_delta",
+          delta: "我需要仔细推理，但一直没有形成可见答案。",
+        },
+      }, "/sessions/current.jsonl");
+
+      await vi.advanceTimersByTimeAsync(119_999);
+      expect(engine.abortSessionByPath).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(engine.abortSessionByPath).toHaveBeenCalledWith("/sessions/current.jsonl");
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("长时间没有生成可见答案");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({
+        type: "turn_end",
+        sessionPath: "/sessions/current.jsonl",
+      }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({
+        type: "status",
+        isStreaming: false,
+        sessionPath: "/sessions/current.jsonl",
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("emits a local-operation summary when tools succeeded but the model never finalizes", async () => {
+    vi.useFakeTimers();
+    try {
+      engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+      engine.resolveModelOverrides = vi.fn((model) => model);
+      engine.abortSessionByPath = vi.fn(async () => true);
+      hub.send = vi.fn(() => new Promise(() => {}));
+
+      const res = await app.request("/ws");
+      expect(res.status).toBe(200);
+
+      connections[0].handlers.onMessage({
+        data: JSON.stringify({ type: "prompt", text: "把桌面的图片整理到一个新的文件夹里" }),
+      }, connections[0].client);
+
+      await Promise.resolve();
+      expect(hub.send).toHaveBeenCalled();
+
+      subscribed({
+        type: "tool_execution_start",
+        toolCallId: "call_move_images",
+        toolName: "bash",
+        args: { command: "mkdir -p /Users/lynn/Desktop/图片 && mv /Users/lynn/Desktop/*.png /Users/lynn/Desktop/图片/" },
+      }, "/sessions/current.jsonl");
+      subscribed({
+        type: "tool_execution_end",
+        toolCallId: "call_move_images",
+        toolName: "bash",
+        args: { command: "mkdir -p /Users/lynn/Desktop/图片 && mv /Users/lynn/Desktop/*.png /Users/lynn/Desktop/图片/" },
+        result: {
+          content: [
+            { type: "text", text: "moved 3 image files" },
+          ],
+        },
+        isError: false,
+      }, "/sessions/current.jsonl");
+
+      subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+      expect(clients[0].sent.filter((evt) => evt.type === "turn_end")).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(7_999);
+      expect(clients[0].sent.filter((evt) => evt.type === "turn_end")).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(engine.abortSessionByPath).toHaveBeenCalledWith("/sessions/current.jsonl");
+      const visibleText = clients[0].sent
+        .filter((evt) => evt.type === "text_delta")
+        .map((evt) => evt.delta)
+        .join("");
+      expect(visibleText).toContain("已完成本轮本地操作");
+      expect(visibleText).toContain("已成功执行 1 个命令");
+      expect(visibleText).toContain("mkdir -p /Users/lynn/Desktop/图片");
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({
+        type: "turn_end",
+        sessionPath: "/sessions/current.jsonl",
+      }));
+      expect(clients[0].sent).toContainEqual(expect.objectContaining({
+        type: "status",
+        isStreaming: false,
+        sessionPath: "/sessions/current.jsonl",
+      }));
     } finally {
       vi.useRealTimers();
     }

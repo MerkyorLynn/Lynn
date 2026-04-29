@@ -1,35 +1,36 @@
-# Lynn v0.77.1 Release Notes
+# Lynn v0.77.2 Release Notes
 
-> 发布日期: 2026-04-29 · 代号: "Guarded Hands"
+> 发布日期: 2026-04-29 · 代号: "Editorial Compass"
 
-v0.77.1 是一次围绕真实 dogfood 反馈的稳定性修复版:重点修工具执行、危险操作授权、伪工具泄漏、空答兜底和本地文件任务反馈,让 Lynn 在执行模式下更像一个可靠助手,而不是只会解释步骤。
+v0.77.2 是一次发版前稳定性与报告体验补丁：重点修复天气证据不足时的错误回答，补齐漂亮 HTML 报告/PNG 导出链路，并继续加固 turn quality gate、流式状态、插件卸载和后台任务稳定性。
 
 ## 重点更新
 
-- 危险操作授权卡回归:执行模式下涉及删除、sudo、批量移动、覆盖等高风险命令会弹出授权卡确认。
-- 授权卡 UI 改为 Lynn 米色风格,避免之前 Codex 深色卡片和整体界面割裂。
-- 修复伪工具文本泄漏:模型输出 `<web_search>` / `<bash>` 这类假工具标签时会被识别并兜底处理,不再直接展示给用户。
-- 强化工具成功后的最终反馈:文件整理、删除、移动等任务执行后必须给用户可见结果,避免"命令跑了但没回复"。
-- 修复工具失败和空答兜底:工具失败、模型只输出开场白、或 retry 后仍无正文时,会给出明确可恢复提示。
-- 本地文件任务更稳:优化下载/桌面目录别名、zip/excel/pdf 等文件识别和安全删除路径。
-- 流式状态清理增强:降低跨轮污染、"Lynn 还在说话"、上一题工具结果串到下一题的概率。
-- Release regression gate 保持在线,覆盖工具调用、文件操作、伪工具泄漏、thinking 泄漏和 UI smoke。
+- 天气查询证据门禁：wttr.in、Open-Meteo 和搜索兜底都失败时，不再把天气网站首页、导航菜单或空网页框架当成天气结果；必须有天气状态、温度/降雨等字段才算有效证据。
+- HTML 报告体验升级：`create_report` 新增 `stylePreset`，支持 `editorial-paper`、`finance-dark`、`magazine`、`clean-briefing`；深度报告默认使用 editorial-paper 风格。
+- Artifact 闭环增强：HTML Artifact 支持聊天内预览、浏览器打开与 PNG 导出，便于把深度报告直接发到微信、知乎、小红书或文档里。
+- 引入 `frontend-design` skill：保留 Apache 2.0 LICENSE / NOTICE，随 server bundle 一起分发，用于指导模型生成更有设计感的 HTML 报告。
+- Turn quality gate 加固：后台或空答场景也会给出可恢复提示，降低“模型没生成可见答案”“Lynn 还在说话”的卡死概率。
+- 流式伪工具清理继续增强：统一伪 XML 工具标签注册表，减少 `<web_search>` / `<weather>` / `<bash>` 等假工具内容漏到 UI。
+- 运行时稳定性补丁：修复 stream session LRU 新会话淘汰顺序、EventBus 异步异常捕获、ChannelRouter 同频道并发写入、TaskRuntime 会话索引清理。
+- Plugin 卸载更干净：补齐工具、命令、hook、skill、provider、config schema 等 registry 清理，并支持插件订阅自动解绑。
 
 ## 回归结果
 
-- Unit/Integration: 826/826 pass
-- TypeScript: 0 errors
-- Static Release Smoke: pass
-- Security/guard tests: pass
+- 天气/行情/报告专项测试：通过，已覆盖“天气网站首页/导航菜单不能当作有效天气证据”
+- Unit/Integration：119 files / 849 tests passed
+- TypeScript / Main / Renderer / Server build：通过
+- Release Regression Gate：static 38/38 passed，live release 0 failed / 0 blocker / 0 critical
+- Electron UI Smoke：home / short / tools / long-code 全部通过
 
 ## 下载
 
-- macOS Apple Silicon: `Lynn-0.77.1-macOS-Apple-Silicon.dmg`
-- macOS Intel: `Lynn-0.77.1-macOS-Intel.dmg`
-- Windows x64: `Lynn-0.77.1-Windows-Setup.exe`
+- macOS Apple Silicon: `Lynn-0.77.2-macOS-Apple-Silicon.dmg`
+- macOS Intel: `Lynn-0.77.2-macOS-Intel.dmg`
+- Windows x64: `Lynn-0.77.2-Windows-Setup.exe`
 - 镜像站: https://download.merkyorlynn.com/download
-- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.1
+- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.2
 
 ## 升级建议
 
-桌面客户端可以直接安装覆盖。v0.77.1 没有破坏性配置迁移;如果你已经在使用 v0.76.x 或 v0.77.0,升级后原有会话、模型配置和本地数据会继续沿用。
+桌面客户端可以直接安装覆盖。v0.77.2 没有破坏性配置迁移；如果你已经在使用 v0.76.x、v0.77.0 或 v0.77.1，升级后原有会话、模型配置和本地数据会继续沿用。

@@ -5,6 +5,7 @@ import {
   LOCAL_COMPLETION_TOOLS,
   buildEmptyReplyFallbackText,
   buildEmptyReplyRetryPrompt,
+  buildFailedToolFallbackText,
   buildLocalMutationContinuationRetryPrompt,
   buildLocalToolSuccessFallback,
   buildShortLeadInRetryPrompt,
@@ -22,6 +23,7 @@ const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|s
 const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先查一下|先搜索|先检索|先检查|先确认|我先.{0,12}(?:查|搜|看|确认|获取|检索)|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
 const TOOL_FAILED_LEADIN_RE = /(?:两个任务|多个任务|一起处理|同时处理|我来搜索|让我搜索|开始搜索|开始查|开始处理|来查找|来找|来看|来分析|来帮你|马上来|稍等|let me (?:search|fetch|find|look)|i'?ll (?:search|check|look|fetch))/i;
 const LOCAL_MUTATION_LEADIN_RE = /(?:我来帮你|我来处理|我来执行|让我先|让我再|先查找|先检查|先列出|先确认|先创建|先执行|开始处理|搜索到的信息|查找当前|查看当前|接下来会|准备(?:创建|移动|整理|处理)|let me (?:check|list|find|handle)|i'?ll (?:check|list|find|handle))/i;
+const GENERIC_ACK_RE = /^(?:好(?:的|了)?|收到|明白|可以|ok(?:ay)?|sure|done)[。.!！\s]*$/i;
 
 function promptText(ss) {
   return ss?.effectivePromptText || ss?.originalPromptText || "";
@@ -80,6 +82,10 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     Boolean(classifyRequestedLocalMutation(original)) &&
     LOCAL_MUTATION_LEADIN_RE.test(visibleTrimmed);
   const isToolDidNotProduceText = hasAnyToolCall && visibleLen < 5;
+  const isToolSuccessMissingAnswer =
+    successfulTools.length > 0 &&
+    !ss?.hasFailedTool &&
+    (visibleLen < 5 || (visibleLen < 30 && GENERIC_ACK_RE.test(visibleTrimmed)));
   const isPseudoToolNoOutput =
     ss?.pseudoToolSteered &&
     visibleLen < 5 &&
@@ -91,10 +97,10 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     (visibleLen < 30 || SHORT_LEADIN_RE.test(visibleTrimmed) || TOOL_FAILED_LEADIN_RE.test(visibleTrimmed));
   const isThinkingOnlyNoOutput = ss?.hasThinking && !ss?.hasOutput && !ss?.hasError;
   const hasSuccessfulLocalTool = successfulTools.some((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
-  const localToolSuccessFallback = hasSuccessfulLocalTool && isToolDidNotProduceText
+  const localToolSuccessFallback = hasSuccessfulLocalTool && isToolSuccessMissingAnswer
     ? buildLocalToolSuccessFallback(ss)
     : "";
-  const successfulToolNoTextFallback = !localToolSuccessFallback && isToolDidNotProduceText && successfulTools.length > 0
+  const successfulToolNoTextFallback = !localToolSuccessFallback && isToolSuccessMissingAnswer
     ? buildSuccessfulToolNoTextFallback(ss)
     : "";
   const toolSuccessFallback = localToolSuccessFallback || successfulToolNoTextFallback;
@@ -133,6 +139,7 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     isTruncatedStructuredAnswer,
     isLocalMutationLeadInOnly,
     isToolDidNotProduceText,
+    isToolSuccessMissingAnswer,
     isPseudoToolNoOutput,
     isToolFailedShortAnswer,
     isThinkingOnlyNoOutput,
@@ -149,22 +156,22 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
 const PRE_TURN_END_RULES = [
   {
     name: "empty_reply",
-    guard: ({ ss, snapshot, isActive }) =>
-      isActive &&
+    priority: 100,
+    guard: ({ ss, snapshot }) =>
       !ss.hasOutput &&
       !snapshot.hasAnyToolCall &&
       !ss.hasThinking &&
       !ss.hasError &&
       !ss.hasFailedTool,
-    action: ({ ss, sessionPath }) => {
-      if (ss.pseudoToolSteered && canScheduleInternalRetry(ss, "pseudo_tool_text")) {
+    action: ({ ss, isActive, sessionPath }) => {
+      if (isActive && ss.pseudoToolSteered && canScheduleInternalRetry(ss, "pseudo_tool_text")) {
         return retryDecision({
           reason: "pseudo_tool_text",
           prompt: buildPseudoToolRetryPrompt(promptText(ss)),
           logMessage: `[PSEUDO-TOOL-EMPTY-RETRY v1] scheduled · session=${sessionPath}`,
         });
       }
-      if (canScheduleInternalRetry(ss, "empty_reply")) {
+      if (isActive && canScheduleInternalRetry(ss, "empty_reply")) {
         return retryDecision({
           reason: "empty_reply",
           prompt: buildEmptyReplyRetryPrompt(promptText(ss), ss.routeIntent),
@@ -179,7 +186,8 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "tool_success_fallback",
-    guard: ({ ss, snapshot, isActive }) => isActive && !ss.hasError && Boolean(snapshot.toolSuccessFallback),
+    priority: 200,
+    guard: ({ ss, snapshot }) => !ss.hasError && Boolean(snapshot.toolSuccessFallback),
     action: ({ ss, snapshot, sessionPath }) => fallbackDecision({
       text: snapshot.toolSuccessFallback,
       logMessage: `[TOOL-SUCCESS-FALLBACK v2] emitted · local=${snapshot.localToolSuccessFallback ? "true" : "false"} tools=${(ss.lastSuccessfulTools || []).map(t => t.name).join(",")} · ${sessionPath}`,
@@ -187,6 +195,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "tool_finalize_retry_marker",
+    priority: 300,
     guard: ({ snapshot, isActive }) => isActive && snapshot.shouldRetryToolFinalize,
     action: ({ sessionPath }) => markDecision({
       flag: "toolFinalizationRetryAttempted",
@@ -196,6 +205,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "pseudo_tool_no_output",
+    priority: 400,
     guard: ({ ss, snapshot, isActive }) =>
       isActive &&
       !ss.hasError &&
@@ -209,6 +219,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "local_mutation_leadin",
+    priority: 500,
     guard: ({ ss, snapshot, isActive }) =>
       isActive &&
       !ss.hasError &&
@@ -226,6 +237,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "pending_tool_text",
+    priority: 600,
     guard: ({ ss, snapshot, isActive }) => isActive && !ss.hasError && snapshot.shouldRetryPendingToolText,
     action: ({ ss, snapshot, sessionPath }) => retryDecision({
       reason: "pending_tool_text",
@@ -236,6 +248,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "short_leadin",
+    priority: 700,
     guard: ({ ss, snapshot, isActive }) =>
       isActive &&
       !ss.hasError &&
@@ -250,6 +263,7 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "truncated_structured_answer",
+    priority: 800,
     guard: ({ ss, snapshot, isActive }) =>
       isActive &&
       !ss.hasError &&
@@ -263,27 +277,33 @@ const PRE_TURN_END_RULES = [
   },
   {
     name: "tool_failed_fallback",
-    guard: ({ ss, snapshot, isActive }) =>
-      isActive &&
+    priority: 900,
+    guard: ({ ss, snapshot }) =>
       !ss.hasError &&
-      snapshot.isToolFailedShortAnswer &&
-      !ss.toolFailedFallbackRetryAttempted &&
-      canScheduleInternalRetry(ss, "tool_failed_fallback"),
-    action: ({ ss, snapshot, visibleTextBeforeReset, sessionPath }) => retryDecision({
-      reason: "tool_failed_fallback",
-      prompt: buildToolFailedRetryPrompt(
-        promptText(ss),
-        visibleTextBeforeReset,
-        ss.lastFailedTools || [],
-      ),
-      markToolFailedFallbackRetryAttempted: true,
-      logMessage: `[TOOL-FAILED-FALLBACK v1] scheduled · visibleLen=${snapshot.visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`,
-    }),
+      snapshot.isToolFailedShortAnswer,
+    action: ({ ss, snapshot, isActive, visibleTextBeforeReset, sessionPath }) => {
+      if (isActive && !ss.toolFailedFallbackRetryAttempted && canScheduleInternalRetry(ss, "tool_failed_fallback")) {
+        return retryDecision({
+          reason: "tool_failed_fallback",
+          prompt: buildToolFailedRetryPrompt(
+            promptText(ss),
+            visibleTextBeforeReset,
+            ss.lastFailedTools || [],
+          ),
+          markToolFailedFallbackRetryAttempted: true,
+          logMessage: `[TOOL-FAILED-FALLBACK v1] scheduled · visibleLen=${snapshot.visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`,
+        });
+      }
+      return fallbackDecision({
+        text: buildFailedToolFallbackText(ss),
+        logMessage: `[TOOL-FAILED-FALLBACK v2] emitted visible fallback · visibleLen=${snapshot.visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`,
+      });
+    },
   },
   {
     name: "flow_fallback",
-    guard: ({ ss, snapshot, isActive }) =>
-      isActive &&
+    priority: 1000,
+    guard: ({ ss, snapshot }) =>
       !ss.hasError &&
       (snapshot.isIncompletePending ||
         snapshot.isThinkingOnlyNoOutput ||
@@ -300,6 +320,8 @@ const PRE_TURN_END_RULES = [
     },
   },
 ];
+
+export const __turnQualityRulesForTest = PRE_TURN_END_RULES.map(({ name, priority }) => ({ name, priority }));
 
 export function evaluatePreTurnEndQuality(ss, snapshot, { isActive = false, sessionPath = "", visibleTextBeforeReset = "" } = {}) {
   for (const rule of PRE_TURN_END_RULES) {
@@ -352,4 +374,31 @@ export function evaluatePostTurnEndQuality(ss, snapshot, { internalRetry = null,
   }
 
   return null;
+}
+
+export function evaluateForcedTurnFallback(ss, snapshot, { sessionPath = "" } = {}) {
+  if (!ss || ss.hasOutput) return null;
+
+  if (!snapshot) {
+    snapshot = createTurnQualitySnapshot(ss, ss.visibleTextAcc || "");
+  }
+
+  if (!ss.hasError && snapshot.toolSuccessFallback) {
+    return fallbackDecision({
+      text: snapshot.toolSuccessFallback,
+      logMessage: `[FORCED-TOOL-SUCCESS-FALLBACK v1] emitted · tools=${(ss.lastSuccessfulTools || []).map(t => t.name).join(",")} · ${sessionPath}`,
+    });
+  }
+
+  if (!ss.hasError && (ss.hasFailedTool || snapshot.isToolFailedShortAnswer)) {
+    return fallbackDecision({
+      text: buildFailedToolFallbackText(ss),
+      logMessage: `[FORCED-TOOL-FAILED-FALLBACK v1] emitted · failedTools=${(ss.lastFailedTools || []).join(",")} · ${sessionPath}`,
+    });
+  }
+
+  return fallbackDecision({
+    text: buildEmptyReplyFallbackText(ss),
+    logMessage: `[FORCED-EMPTY-FALLBACK v1] emitted · session=${sessionPath}`,
+  });
 }

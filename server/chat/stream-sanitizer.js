@@ -26,7 +26,17 @@ function closePseudoXmlRe(toolName) {
  * 处理 chunk 边界切割：末尾半截 `</...` 计入 ss.pseudoCloseTagBuffer 等下个 chunk 拼接。
  */
 export function stripStreamingPseudoToolBlocks(ss, chunk) {
-  let rest = String((ss?.pseudoCloseTagBuffer || "") + (chunk || ""));
+  const rawChunk = String(chunk || "");
+  if (
+    !ss?.pseudoToolXmlBlock &&
+    !ss?.pseudoCloseTagBuffer &&
+    rawChunk.indexOf("<") === -1 &&
+    rawChunk.indexOf("_calls") === -1
+  ) {
+    return { text: rawChunk, suppressed: false };
+  }
+
+  let rest = String((ss?.pseudoCloseTagBuffer || "") + rawChunk);
   if (ss) ss.pseudoCloseTagBuffer = "";
   let text = "";
   let suppressed = false;

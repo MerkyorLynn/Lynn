@@ -239,7 +239,8 @@
     "copied": "복사됨 ✓"
   },
   "preview": {
-    "openInBrowser": "브라우저에서 열기"
+    "openInBrowser": "브라우저에서 열기",
+    "exportPng": "PNG 내보내기"
   },
   "cron": {
     "typeAt": "1회",
@@ -1603,6 +1604,20 @@
       "titleDesc": "표시 제목, 콘텐츠에 대한 간단한 설명",
       "contentDesc": "전체 콘텐츠 (HTML 소스 / 코드 / Markdown 텍스트)",
       "languageDesc": "프로그래밍 언어 (type=code일 때만 유효), 예: javascript, python, css"
+    },
+    "report": {
+      "label": "HTML 리포트 생성",
+      "description": "채팅에서 미리 보고, 브라우저로 열고, PNG로 내보낼 수 있는 전문 HTML 리포트를 생성해요. 심층 리서치, 시장 분석, 산업 리포트, 프로젝트 회고, 게시용 브리핑에 적합해요. 반드시 실제 내용 섹션을 먼저 제공하고 빈 껍데기 리포트는 만들지 마세요. stylePreset 옵션: editorial-paper(종이 잡지 느낌의 심층 리포트, 권장 기본값), finance-dark(다크 금융 대시보드), magazine(강한 잡지형 레이아웃), clean-briefing(깔끔한 비즈니스 브리핑).",
+      "titleDesc": "리포트 제목",
+      "tagDesc": "리포트 분류 또는 짧은 태그, 예: 주식 리서치, 산업 관찰",
+      "subtitleDesc": "부제 또는 한 줄 요약",
+      "dateDesc": "리포트 날짜",
+      "stylePresetDesc": "시각 스타일: editorial-paper는 Claude 스타일의 아름다운 심층 HTML 리포트에, finance-dark는 금융 시세 대시보드에, magazine은 게시글/포스터 느낌 페이지에, clean-briefing은 간결한 비즈니스 브리핑에 적합해요. 비워 두면 심층 리포트는 editorial-paper, 일반 리포트는 finance-dark가 기본값이에요.",
+      "secTitleDesc": "섹션 제목",
+      "secTypeDesc": "섹션 유형: metrics 지표 카드, text 본문, table 표, verdict 전망/시나리오 판단, warning 리스크 안내",
+      "sectionsDesc": "리포트 섹션. 심층 리포트는 최소 3개의 유효 섹션과 데이터 근거, 분석 판단, 리스크 또는 시나리오 추론이 필요해요.",
+      "disclaimerDesc": "면책 조항 또는 범위 설명",
+      "created": "HTML 리포트 \"{title}\" 생성 완료, {count}개 섹션, 저장 위치: {path}"
     },
     "pptx": {
       "label": "PPT 만들기",

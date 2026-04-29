@@ -461,6 +461,10 @@
     "copy": "复制",
     "copied": "已复制 ✓"
   },
+  "preview": {
+    "openInBrowser": "在浏览器打开",
+    "exportPng": "导出 PNG"
+  },
   "cron": {
     "typeAt": "单次",
     "typeEvery": "间隔",
@@ -1850,6 +1854,20 @@
       "titleDesc": "展示标题，简短描述内容",
       "contentDesc": "完整内容（HTML 源码 / 代码 / Markdown 文本）",
       "languageDesc": "编程语言（仅 type=code 时有效），如 javascript, python, css"
+    },
+    "report": {
+      "label": "生成 HTML 报告",
+      "description": "生成可在聊天框预览、浏览器打开并导出 PNG 的专业 HTML 报告。适合深度研究、行情分析、行业报告、项目复盘、发布稿。必须先提供真实内容章节，不要生成空壳报告。stylePreset 可选：editorial-paper（纸质杂志感深度报告，推荐默认）、finance-dark（深色金融看板）、magazine（大胆杂志版式）、clean-briefing（清爽简报）。",
+      "titleDesc": "报告标题",
+      "tagDesc": "报告分类或短标签，如 A股研究、行业观察",
+      "subtitleDesc": "副标题或一句话摘要",
+      "dateDesc": "报告日期",
+      "stylePresetDesc": "视觉风格：editorial-paper 适合 Claude 风格漂亮深度 HTML 报告；finance-dark 适合金融行情看板；magazine 适合发布稿/海报感页面；clean-briefing 适合简洁商务简报。不填时深度报告默认 editorial-paper，普通报告默认 finance-dark。",
+      "secTitleDesc": "章节标题",
+      "secTypeDesc": "章节类型：metrics 指标卡、text 正文、table 表格、verdict 走势/情景判断、warning 风险提示",
+      "sectionsDesc": "报告章节。深度报告至少 3 个有效章节，并包含数据底稿、分析判断、风险或情景推演。",
+      "disclaimerDesc": "免责声明或边界说明",
+      "created": "已生成 HTML 报告「{title}」，共 {count} 个章节，保存至 {path}"
     },
     "askAgent": {
       "label": "跨 Agent 调用",

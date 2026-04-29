@@ -117,6 +117,7 @@ export function buildPseudoToolRecoverySteerText() {
     "你刚才在正文里输出了伪工具调用标记（如 <tool_call>、<invoke>、XML 标签、web_search(...) 这种函数调用样式），这不会真正执行工具。",
     "不要再输出 Premise / Conduct / Reflection / Act、'我来查询'、'让我搜索' 这类计划文本。",
     "立即停止输出任何伪工具调用文本，改为使用真实工具接口继续完成当前任务；只有拿到工具结果后再向用户汇报。",
+    "如果当前任务需要本地文件操作，必须调用真实 bash 工具；删除/覆盖类命令会由系统弹出确认卡，不要把 rm/mv/cp 命令打印成正文。",
     "Do not simulate tool calls in plain text. Stop outputting pseudo tool-call markup or function-call-style tool text and use the real tool interface now. Continue the current task and only reply after real tool results arrive.",
   ].join("\n");
 }
@@ -126,6 +127,7 @@ export function buildPseudoToolRetryPrompt(promptText) {
     "【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。",
     "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 一类的伪工具文本，也不要先输出 Premise / Conduct / Reflection / Act 或“我来查询”“让我搜索”这种计划句。",
     "请直接调用真实工具完成当前任务，拿到工具结果后再回复用户。",
+    "如果这是本地文件任务，请调用真实 bash 工具；删除/覆盖类命令会由系统确认卡拦截，不要把命令写成普通回复。",
     String(promptText || ""),
   ].filter(Boolean).join("\n\n");
 }

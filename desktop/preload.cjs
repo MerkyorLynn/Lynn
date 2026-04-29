@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("hana", {
   getServerPort: () => ipcRenderer.invoke("get-server-port"),
   getServerToken: () => ipcRenderer.invoke("get-server-token"),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+  setWakeLock: (reason, active) => ipcRenderer.invoke("wake-lock-set", { reason, active: !!active }),
+  getWakeLockState: () => ipcRenderer.invoke("wake-lock-state"),
   checkUpdate: () => ipcRenderer.invoke("check-update"),
   // Auto-update (Windows)
   autoUpdateCheck: () => ipcRenderer.invoke("auto-update-check"),
@@ -35,6 +37,7 @@ contextBridge.exposeInMainWorld("hana", {
   openFolder: (path) => ipcRenderer.invoke("open-folder", path),
   openFile: (path) => ipcRenderer.invoke("open-file", path),
   openHtmlInBrowser: (html, title) => ipcRenderer.invoke("open-html-in-browser", html, title),
+  exportHtmlToPng: (html, title, opts) => ipcRenderer.invoke("export-html-to-png", html, title, opts || {}),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
   showInFinder: (path) => ipcRenderer.invoke("show-in-finder", path),
   saveFileDialog: (opts) => ipcRenderer.invoke("save-file-dialog", opts),

@@ -935,6 +935,22 @@ function ArtifactCard({ title, artifactType, artifactId, content, language }: {
             >
               {t('preview.openInBrowser')}
             </button>
+            <button
+              type="button"
+              className={styles.fileOutputOpen}
+              onClick={async (e) => {
+                e.stopPropagation();
+                if (!window.platform?.exportHtmlToPng) return;
+                const result = await window.platform.exportHtmlToPng(content, title);
+                if (!result?.filePath) {
+                  // Web 降级或失败 — 静默,等后续可加 toast
+                  return;
+                }
+                // 已自动 showItemInFolder 在 main 侧
+              }}
+            >
+              {t('preview.exportPng')}
+            </button>
           </div>
         )}
       </div>

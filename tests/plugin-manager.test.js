@@ -109,6 +109,75 @@ describe("loadAll", () => {
     delete globalThis.__regTestCleanup;
   });
 
+  it("unload removes plugin contributions and tracked bus subscriptions", async () => {
+    const bus = await makeBus();
+    const dir = path.join(pluginsDir, "full-cleanup");
+    fs.mkdirSync(path.join(dir, "tools"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "commands"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "skills", "demo"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "hooks"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "agents"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "providers"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify({
+      id: "full-cleanup",
+      name: "Full Cleanup",
+      version: "1.0.0",
+      contributes: { configuration: { properties: { enabled: { type: "boolean" } } } },
+    }));
+    fs.writeFileSync(path.join(dir, "tools", "hello.js"), `
+      export const name = "hello";
+      export const description = "hello";
+      export async function execute() { return "hi"; }
+    `);
+    fs.writeFileSync(path.join(dir, "commands", "hello.js"), `
+      export const name = "hello";
+      export async function execute() { return "hi"; }
+    `);
+    fs.writeFileSync(path.join(dir, "skills", "demo", "SKILL.md"), "# Demo");
+    fs.writeFileSync(path.join(dir, "hooks.json"), JSON.stringify({
+      "test:event": "./hooks/handler.js",
+    }));
+    fs.writeFileSync(path.join(dir, "hooks", "handler.js"), `
+      export default async function(event) { return { ...event, hooked: true }; }
+    `);
+    fs.writeFileSync(path.join(dir, "agents", "demo.json"), JSON.stringify({ name: "Demo" }));
+    fs.writeFileSync(path.join(dir, "providers", "demo.js"), `
+      export const id = "demo";
+      export const displayName = "Demo";
+    `);
+    fs.writeFileSync(path.join(dir, "index.js"), `
+      export default class CleanupPlugin {
+        async onload() {
+          this.ctx.subscribe(() => { globalThis.__pluginCleanupEventCount = (globalThis.__pluginCleanupEventCount || 0) + 1; });
+        }
+      }
+    `);
+
+    const pm = new PluginManager({ pluginsDir, dataDir, bus });
+    pm.scan();
+    await pm.loadAll();
+
+    expect(pm.getAllTools()).toHaveLength(1);
+    expect(pm.getAllCommands()).toHaveLength(1);
+    expect(pm.getSkillPaths()).toHaveLength(1);
+    expect(pm.getAgentTemplates()).toHaveLength(1);
+    expect(pm.getProviderPlugins()).toHaveLength(1);
+    expect(pm.getAllConfigSchemas()).toHaveLength(1);
+    expect(await pm.executeHook("test:event", { ok: true })).toEqual({ ok: true, hooked: true });
+
+    await pm.unloadPlugin("full-cleanup");
+    bus.emit({ type: "after-unload" });
+
+    expect(pm.getAllTools()).toHaveLength(0);
+    expect(pm.getAllCommands()).toHaveLength(0);
+    expect(pm.getSkillPaths()).toHaveLength(0);
+    expect(pm.getAgentTemplates()).toHaveLength(0);
+    expect(pm.getProviderPlugins()).toHaveLength(0);
+    expect(pm.getAllConfigSchemas()).toHaveLength(0);
+    expect(await pm.executeHook("test:event", { ok: true })).toEqual({ ok: true });
+    expect(globalThis.__pluginCleanupEventCount).toBeUndefined();
+  });
+
   it("failed onload marks plugin as failed, does not block others", async () => {
     const bad = path.join(pluginsDir, "bad-plugin");
     fs.mkdirSync(bad, { recursive: true });

@@ -47,6 +47,7 @@ describe("report tool editorial HTML artifacts", () => {
         title: "华丰科技 editorial-paper 深度分析报告",
         tag: "A股研究",
         subtitle: "<img src=x onerror=alert(1)> 不应执行",
+        stylePreset: "editorial-paper",
         sections: [
           {
             title: "核心数据底稿",
@@ -83,11 +84,16 @@ describe("report tool editorial HTML artifacts", () => {
 
       expect(result.details.rejected).toBeUndefined();
       expect(result.details.type).toBe("html");
+      expect(result.details.stylePreset).toBe("editorial-paper");
       expect(fs.existsSync(result.details.files[0].filePath)).toBe(true);
 
       const html = result.details.content;
       expect(html).toMatch(/<!DOCTYPE html>/i);
+      expect(html).toContain('name="lynn-report-style"');
+      expect(html).toContain('content="editorial-paper"');
+      expect(html).toContain('report-editorial-paper');
       expect(html).toContain("<style>");
+      expect(html).toContain("Noto Serif SC");
       expect(html).toContain("editorial-paper");
       expect(html).not.toContain("<script>alert");
 
@@ -102,6 +108,41 @@ describe("report tool editorial HTML artifacts", () => {
         .some((link) => String(link.getAttribute("href") || "").startsWith("javascript:"))).toBe(false);
       expect([...parsed.window.document.querySelectorAll("img")]
         .some((img) => img.hasAttribute("onerror"))).toBe(false);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults deep reports to the editorial-paper preset", async () => {
+    const outDir = makeTempDir("lynn-report-editorial-default-");
+    try {
+      const tool = createReportTool({ getDeskDir: () => outDir });
+      const result = await tool.execute("test-call-default", {
+        title: "新能源行业深度研究报告",
+        tag: "行业研究",
+        subtitle: "验证未显式传入 stylePreset 时的深度报告默认样式",
+        sections: [
+          {
+            title: "数据底稿",
+            type: "text",
+            content: longText("数据底稿") + "\n" + longText("行业供需"),
+          },
+          {
+            title: "分析判断",
+            type: "text",
+            content: longText("分析判断") + "\n" + longText("竞争格局"),
+          },
+          {
+            title: "风险与情景",
+            type: "warning",
+            content: longText("风险情景") + "\n" + longText("估值约束"),
+          },
+        ],
+      });
+
+      expect(result.details.rejected).toBeUndefined();
+      expect(result.details.stylePreset).toBe("editorial-paper");
+      expect(result.details.content).toContain('content="editorial-paper"');
     } finally {
       fs.rmSync(outDir, { recursive: true, force: true });
     }

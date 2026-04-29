@@ -732,6 +732,13 @@ function buildDirectOilAnswer(context) {
 
 function buildDirectWeatherAnswer(context, userPrompt = "") {
   const text = String(context || "");
+  if (/未检索到明确天气数据|No concrete weather data was found/i.test(text)) {
+    return [
+      "未检索到明确天气数据。",
+      "天气工具已尝试主源和搜索兜底，但没有拿到同时包含天气状态、温度/降雨等字段的可用预报；我不会把天气网站首页或导航菜单当成有效结果。",
+      "建议直接核验：中国天气网 https://www.weather.com.cn/ 或中央气象台 https://www.nmc.cn/ 。",
+    ].join("\n");
+  }
   const rows = parseWeatherForecastRows(text);
   if (!rows.length) return "";
   let picked = rows[0];

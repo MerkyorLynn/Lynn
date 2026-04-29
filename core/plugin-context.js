@@ -3,9 +3,9 @@ import path from "path";
 
 /**
  * Create a PluginContext for a plugin.
- * @param {{ pluginId: string, pluginDir: string, dataDir: string, bus: object, engine?: object }} opts
+ * @param {{ pluginId: string, pluginDir: string, dataDir: string, bus: object, engine?: object, disposables?: Function[] }} opts
  */
-export function createPluginContext({ pluginId, pluginDir, dataDir, bus, engine = null }) {
+export function createPluginContext({ pluginId, pluginDir, dataDir, bus, engine = null, disposables = null }) {
   const configPath = path.join(dataDir, "config.json");
 
   const config = {
@@ -33,5 +33,21 @@ export function createPluginContext({ pluginId, pluginDir, dataDir, bus, engine 
     debug: (...args) => console.debug(prefix, ...args),
   };
 
-  return { pluginId, pluginDir, dataDir, bus, engine, config, log };
+  const trackDisposable = (disposable) => {
+    if (typeof disposable === "function" && Array.isArray(disposables)) {
+      disposables.push(disposable);
+    }
+    return disposable;
+  };
+
+  const subscribe = (...args) => {
+    if (!bus || typeof bus.subscribe !== "function") return () => {};
+    return trackDisposable(bus.subscribe(...args));
+  };
+  const handle = (...args) => {
+    if (!bus || typeof bus.handle !== "function") return () => {};
+    return trackDisposable(bus.handle(...args));
+  };
+
+  return { pluginId, pluginDir, dataDir, bus, engine, config, log, subscribe, handle };
 }

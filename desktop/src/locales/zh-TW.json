@@ -375,7 +375,8 @@
     "copied": "已複製 ✓"
   },
   "preview": {
-    "openInBrowser": "在瀏覽器中開啟"
+    "openInBrowser": "在瀏覽器中開啟",
+    "exportPng": "匯出 PNG"
   },
   "cron": {
     "typeAt": "單次",
@@ -1695,6 +1696,20 @@
       "titleDesc": "展示標題，簡短描述內容",
       "contentDesc": "完整內容（HTML 原始碼 / 程式碼 / Markdown 文字）",
       "languageDesc": "程式語言（僅 type=code 時有效），如 javascript, python, css"
+    },
+    "report": {
+      "label": "產生 HTML 報告",
+      "description": "產生可在聊天框預覽、瀏覽器開啟並匯出 PNG 的專業 HTML 報告。適合深度研究、行情分析、產業報告、專案復盤、發布稿。必須先提供真實內容章節，不要產生空殼報告。stylePreset 可選：editorial-paper（紙本雜誌感深度報告，推薦預設）、finance-dark（深色金融看板）、magazine（大膽雜誌版式）、clean-briefing（清爽簡報）。",
+      "titleDesc": "報告標題",
+      "tagDesc": "報告分類或短標籤，如 A股研究、產業觀察",
+      "subtitleDesc": "副標題或一句話摘要",
+      "dateDesc": "報告日期",
+      "stylePresetDesc": "視覺風格：editorial-paper 適合 Claude 風格漂亮深度 HTML 報告；finance-dark 適合金融行情看板；magazine 適合發布稿/海報感頁面；clean-briefing 適合簡潔商務簡報。不填時深度報告預設 editorial-paper，普通報告預設 finance-dark。",
+      "secTitleDesc": "章節標題",
+      "secTypeDesc": "章節類型：metrics 指標卡、text 正文、table 表格、verdict 走勢/情境判斷、warning 風險提示",
+      "sectionsDesc": "報告章節。深度報告至少 3 個有效章節，並包含資料底稿、分析判斷、風險或情境推演。",
+      "disclaimerDesc": "免責聲明或邊界說明",
+      "created": "已產生 HTML 報告「{title}」，共 {count} 個章節，儲存至 {path}"
     },
     "pptx": {
       "label": "建立 PPT",

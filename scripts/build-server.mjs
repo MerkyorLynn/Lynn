@@ -528,6 +528,16 @@ if (platform !== "win32") {
   }
 }
 
+// ── 8c. 清理外部依赖里的示例/测试资源 ──
+// @mariozechner/pi-coding-agent 的 examples 里包含 doom.wasm 等演示资源。
+// 这些文件不参与 Lynn 运行时，却会被 macOS codesign 当作资源逐个签名，
+// 在 Developer ID timestamp 阶段可能卡住整个 DMG 构建。
+const piCodingAgentExamples = path.join(nmDir, "@mariozechner", "pi-coding-agent", "examples");
+if (fs.existsSync(piCodingAgentExamples)) {
+  fs.rmSync(piCodingAgentExamples, { recursive: true, force: true });
+  console.log("[build-server] pi-coding-agent: removed examples from distributable package");
+}
+
 // ── 9. 更新 package.json ──
 // npm ci 之后 package.json 仍在，确保它包含 version 字段
 // fromRoot("package.json") 在运行时读取版本号

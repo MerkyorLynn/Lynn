@@ -105,15 +105,16 @@ function buildKnownFolderAliasPrompt(isZh) {
 
 function buildRouteAndScenarioHint(text, routeIntent, opts = {}) {
   const locale = opts.locale || getLocale();
-  return [
-    buildRouteIntentSystemHint(routeIntent, locale),
-    buildScenarioContractHintForText(text, {
-      locale,
-      imagesCount: opts.imagesCount || 0,
-      attachmentsCount: opts.attachmentsCount || 0,
-      audioCount: opts.audioCount || 0,
-    }),
-  ].filter(Boolean).join("\n");
+  return buildRouteIntentSystemHint(routeIntent, locale);
+}
+
+function buildScenarioHintContext(text, opts = {}) {
+  return buildScenarioContractHintForText(text, {
+    locale: opts.locale || getLocale(),
+    imagesCount: opts.imagesCount || 0,
+    attachmentsCount: opts.attachmentsCount || 0,
+    audioCount: opts.audioCount || 0,
+  });
 }
 
 function shouldInjectLocalRoutePromptHints() {
@@ -275,6 +276,9 @@ function buildPseudoToolRetryPrompt(prompt) {
     isZh
       ? "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 之类的伪工具文本。请直接调用真实工具完成当前任务，拿到结果后再回复。"
       : "Do not output any pseudo tool text such as <tool_call>, XML, shell commands, or web_search(...). Use the real tool interface, finish the task, and only then reply.",
+    isZh
+      ? "如果这是本地文件任务，请调用真实 bash 工具；删除/覆盖类命令会由系统确认卡拦截，不要把命令写成普通回复。"
+      : "For local file tasks, call the real bash tool. Delete/overwrite commands are intercepted by the system confirmation card; do not print commands as plain text.",
     String(prompt || ""),
   ].filter(Boolean).join("\n\n");
 }
@@ -474,6 +478,9 @@ export class SessionCoordinator {
           }
           if (shouldInjectLocalRoutePromptHints() && sessionEntry._routeIntentHintContext) {
             extras.push(sessionEntry._routeIntentHintContext);
+          }
+          if (sessionEntry._scenarioContractHintContext) {
+            extras.push(sessionEntry._scenarioContractHintContext);
           }
           const providerToolCallHint = buildProviderToolCallHint({
             routeIntent: sessionEntry._routeIntentValue,
@@ -807,6 +814,7 @@ export class SessionCoordinator {
       _lastSkillHintContext: "",
       _atInjectionHintContext: "",
       _routeIntentHintContext: "",
+      _scenarioContractHintContext: "",
       _routeIntentValue: ROUTE_INTENTS.CHAT,
       _relaySummaryContext: "",
       compactionCount: 0,
@@ -935,6 +943,10 @@ export class SessionCoordinator {
           entry._routeIntentValue,
           { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
         );
+        entry._scenarioContractHintContext = buildScenarioHintContext(
+          text,
+          { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
+        );
         try {
           const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
           entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
@@ -995,6 +1007,7 @@ export class SessionCoordinator {
           entry._lastSkillHintContext = "";
           entry._atInjectionHintContext = "";
           entry._routeIntentHintContext = "";
+          entry._scenarioContractHintContext = "";
           entry._routeIntentValue = ROUTE_INTENTS.CHAT;
         }
       }
@@ -1048,6 +1061,10 @@ export class SessionCoordinator {
       entry._routeIntentValue,
       { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
     );
+    entry._scenarioContractHintContext = buildScenarioHintContext(
+      text,
+      { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
+    );
     try {
       const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
       entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
@@ -1099,6 +1116,7 @@ export class SessionCoordinator {
       entry._lastSkillHintContext = "";
       entry._atInjectionHintContext = "";
       entry._routeIntentHintContext = "";
+      entry._scenarioContractHintContext = "";
       entry._routeIntentValue = ROUTE_INTENTS.CHAT;
     }
   }

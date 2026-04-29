@@ -380,6 +380,10 @@
     "copy": "Copy",
     "copied": "Copied ✓"
   },
+  "preview": {
+    "openInBrowser": "Open in Browser",
+    "exportPng": "Export PNG"
+  },
   "cron": {
     "typeAt": "Once",
     "typeEvery": "Interval",
@@ -1831,6 +1835,20 @@
       "titleDesc": "Display title, a short description of the content",
       "contentDesc": "Full content (HTML source / code / Markdown text)",
       "languageDesc": "Programming language (only for type=code), e.g. javascript, python, css"
+    },
+    "report": {
+      "label": "Generate HTML Report",
+      "description": "Generate a professional HTML report that can be previewed in chat, opened in a browser, and exported as PNG. Use for deep research, market analysis, industry reports, project retrospectives, and publishable briefings. Provide real content sections first; do not generate shell reports. stylePreset options: editorial-paper (paper-magazine deep report, recommended default), finance-dark (dark finance dashboard), magazine (bold magazine layout), clean-briefing (clean business briefing).",
+      "titleDesc": "Report title",
+      "tagDesc": "Report category or short tag, e.g. Equity Research, Industry Watch",
+      "subtitleDesc": "Subtitle or one-sentence summary",
+      "dateDesc": "Report date",
+      "stylePresetDesc": "Visual style: editorial-paper for polished Claude-like deep HTML reports; finance-dark for market dashboards; magazine for publishable magazine/poster pages; clean-briefing for concise business briefs. If omitted, deep reports default to editorial-paper and regular reports default to finance-dark.",
+      "secTitleDesc": "Section title",
+      "secTypeDesc": "Section type: metrics cards, text body, table, verdict/scenarios, or warning/risk notes",
+      "sectionsDesc": "Report sections. Deep reports need at least 3 substantive sections with data basis, analysis, and risk or scenario reasoning.",
+      "disclaimerDesc": "Disclaimer or boundary note",
+      "created": "Generated HTML report \"{title}\" with {count} sections, saved to {path}"
     },
     "askAgent": {
       "label": "Cross-Agent Call",

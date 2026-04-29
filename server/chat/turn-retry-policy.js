@@ -64,6 +64,27 @@ export function buildSuccessfulToolNoTextFallback(ss) {
   return parts.join("\n\n");
 }
 
+export function buildFailedToolFallbackText(ss) {
+  const failedTools = Array.isArray(ss?.lastFailedTools) ? ss.lastFailedTools : [];
+  const names = [...new Set(failedTools.filter(Boolean))].slice(-4);
+  const isZh = getLocale().startsWith("zh");
+  const originalPrompt = String(ss?.originalPromptText || ss?.effectivePromptText || "").trim();
+
+  if (isZh) {
+    return [
+      `这轮工具调用失败${names.length ? `（${names.join("、")}）` : ""}，没有拿到可靠实时结果。`,
+      "我不会把未核验的数据当成事实。你可以稍后重试，或改用官方来源/交易所/天气源/新闻源核验。",
+      originalPrompt ? `原始任务：${originalPrompt.slice(0, 180)}` : "",
+    ].filter(Boolean).join("\n\n");
+  }
+
+  return [
+    `The tool call failed${names.length ? ` (${names.join(", ")})` : ""}, so I do not have reliable live evidence for this turn.`,
+    "I will not present unverified data as fact. Please retry later or verify against an official source.",
+    originalPrompt ? `Original task: ${originalPrompt.slice(0, 180)}` : "",
+  ].filter(Boolean).join("\n\n");
+}
+
 export function buildToolContinuationRetryPrompt(originalPrompt, visibleText) {
   const parts = [
     "【严格执行要求】你已经执行了部分真实工具，但随后只写了“开始/接下来/准备执行”等计划，没有继续调用真实工具完成任务。",
@@ -169,7 +190,7 @@ export function buildLocalMutationContinuationRetryPrompt(originalPrompt, visibl
     "完成后明确告诉用户：实际移动/复制/创建/删除了多少个文件、目标路径是什么、是否有跳过或失败的文件。",
     `【常用目录别名】\n${buildKnownFolderAliasLines().map((line) => `- ${line}`).join("\n")}`,
     requirement?.requiresDelete
-      ? "【删除任务安全要求】这是删除类任务。必须先用 find/ls 列出匹配文件和数量；除非用户已经二次确认，或系统弹出删除确认卡并得到确认，否则不要直接执行 rm/trash。若没有匹配项，必须贴出实际检查的目录、匹配模式和空结果，不能空口说“没有文件”。"
+      ? "【删除任务安全要求】这是删除类任务。必须先用 find/ls 列出匹配文件和数量；如果用户已经明确点名当前工作目录内的具体文件，可以继续调用真实 bash 工具触发 rm/trash，系统会弹出确认卡并等待确认。若没有匹配项，必须贴出实际检查的目录、匹配模式和空结果，不能空口说“没有文件”。"
       : "",
     commands.length ? `【已执行命令】\n${commands.join("\n")}` : "",
     String(visibleText || "").trim() ? `【上一段可见文本】\n${String(visibleText || "").trim().slice(-800)}` : "",
@@ -223,6 +244,9 @@ export function buildEmptyReplyFallbackText(ss) {
 
 export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
   const userPrompt = String(originalPromptText || "").trim();
+  if (classifyRequestedLocalMutation(userPrompt)) {
+    return buildLocalMutationContinuationRetryPrompt(userPrompt, "", []);
+  }
   return getLocale().startsWith("zh")
     ? [
         "[系统提示] 上一轮模型没有生成任何可见答案。本轮请不要调用工具，不要输出思考占位或准备语句，直接用纯文本完成用户任务。",

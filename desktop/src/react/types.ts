@@ -229,10 +229,13 @@ export type NotificationPermissionStatus = 'granted' | 'denied' | 'not-determine
 export interface PlatformApi {
   getServerPort(): Promise<string>;
   getServerToken(): Promise<string>;
+  setWakeLock?(reason: string, active: boolean): Promise<{ active: boolean; blockerId: number | null; reasons: string[] }>;
+  getWakeLockState?(): Promise<{ active: boolean; blockerId: number | null; reasons: string[] }>;
   openSettings(target?: string | SettingsNavigationTarget): void;
   getInitialSettingsNavigationTarget?(): Promise<SettingsNavigationTarget | null>;
   openBrowserViewer(url?: string, theme?: string): void;
   openHtmlInBrowser(html: string, title?: string): Promise<void>;
+  exportHtmlToPng?(html: string, title?: string, opts?: { width?: number; background?: string; revealAfter?: boolean }): Promise<{ filePath: string; bytes: number; width: number; height: number } | null>;
   selectFolder(): Promise<string | null>;
   getOnboardingDefaults?(): Promise<{ workspacePath: string; trustedRoots: string[]; installRoot?: string | null; desktopRoot?: string | null }>;
   selectSkill(): Promise<string | null>;

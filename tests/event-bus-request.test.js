@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { EventBus } from "../hub/event-bus.js";
 
 let bus;
@@ -71,6 +71,19 @@ describe("existing emit/subscribe unchanged", () => {
     bus.subscribe((e) => events.push(e), { types: ["ping"] });
     bus.emit({ type: "ping", data: 1 });
     expect(events).toHaveLength(1);
+  });
+
+  it("emit catches asynchronous subscriber failures", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    bus.subscribe(async () => {
+      throw new Error("async boom");
+    }, { types: ["ping"] });
+
+    expect(() => bus.emit({ type: "ping" })).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(spy).toHaveBeenCalledWith("[EventBus] subscriber async error:", "async boom");
+    spy.mockRestore();
   });
 });
 

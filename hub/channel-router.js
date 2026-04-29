@@ -56,6 +56,7 @@ export class ChannelRouter {
     this._hub = hub;
     this._ticker = null;
     this._agentOrderCache = null; // { list: string[], ts: number }
+    this._channelLocks = new Map();
   }
 
   /** @returns {import('../core/engine.js').HanaEngine} */
@@ -72,7 +73,7 @@ export class ChannelRouter {
       agentsDir: engine.agentsDir,
       getAgentOrder: () => this.getAgentOrder(),
       executeCheck: (agentId, channelName, newMessages, allUpdates, opts) =>
-        this._executeCheck(agentId, channelName, newMessages, allUpdates, opts),
+        this._executeCheckLocked(agentId, channelName, newMessages, allUpdates, opts),
       onMemorySummarize: (agentId, channelName, contextText) =>
         this._memorySummarize(agentId, channelName, contextText),
       onAllReplied: (channelName, opts) =>
@@ -318,6 +319,24 @@ export class ChannelRouter {
   }
 
   // ──────────── Triage + Reply ────────────
+
+  async _executeCheckLocked(agentId, channelName, newMessages, allUpdates, opts) {
+    const lockKey = channelName || "__unknown__";
+    const previous = this._channelLocks.get(lockKey);
+    if (previous) {
+      try { await previous; } catch { /* previous failure should not block the next check */ }
+    }
+
+    const current = this._executeCheck(agentId, channelName, newMessages, allUpdates, opts);
+    this._channelLocks.set(lockKey, current);
+    try {
+      return await current;
+    } finally {
+      if (this._channelLocks.get(lockKey) === current) {
+        this._channelLocks.delete(lockKey);
+      }
+    }
+  }
 
   /**
    * 频道检查回调：triage → 两轮 Agent Session → 写入回复
