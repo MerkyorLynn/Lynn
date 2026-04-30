@@ -17,13 +17,12 @@ import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import {
   buildDirectResearchAnswer,
   buildReportResearchContext,
-  inferReportResearchKind,
 } from "../chat/report-research-context.js";
-import { buildLocalOfficeDirectAnswer } from "../chat/local-office-answer.js";
 import {
   buildPseudoToolRecoveryNotice,
   resolveCurrentModelInfo,
 } from "../chat/chat-recovery.js";
+import { createLifecycleHooks } from "../chat/lifecycle-hooks.js";
 import { classifyRouteIntent } from "../../shared/task-route-intent.js";
 import {
   beginSessionStream,
@@ -52,11 +51,10 @@ import {
   scheduleInternalRetry,
 } from "../chat/internal-retry.js";
 import {
-  shouldPrefetchReportContext,
-  shouldSuppressLocalToolPrefetch,
-  prefetchToolNameForKind,
-  buildBudgetCalculationContext,
-} from "../chat/prefetch-context.js";
+  TOOL_USE_BEHAVIOR,
+  buildPrefetchAugmentedPrompt,
+  resolveInitialToolUseBehavior,
+} from "../chat/tool-use-behavior.js";
 import {
   buildLocalToolSuccessFallback,
   classifyRequestedLocalMutation,
@@ -306,6 +304,26 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   const RETURNED_TURN_FINALIZATION_GRACE_MS = Number(process.env.LYNN_RETURNED_TURN_FINALIZATION_GRACE_MS || 3_000);
 
   const { sessionState, getState } = createSessionStateStore();
+  const lifecycleHooks = createLifecycleHooks({
+    onError: (err, meta) => {
+      debugLog()?.warn("ws", `lifecycle hook failed · event=${meta?.eventName || "unknown"} · ${err?.message || err}`);
+    },
+  });
+  lifecycleHooks.tap("prompt_start", ({ sessionPath, routeIntent, streamToken }) => {
+    debugLog()?.span("prompt_start", { sessionPath, routeIntent, streamToken }, { module: "ws", level: "DEBUG" });
+  });
+  lifecycleHooks.tap("tool_start", ({ sessionPath, toolName }) => {
+    debugLog()?.span("tool_start", { sessionPath, toolName }, { module: "ws", level: "DEBUG" });
+  });
+  lifecycleHooks.tap("tool_end", ({ sessionPath, toolName, success }) => {
+    debugLog()?.span("tool_end", { sessionPath, toolName, success }, { module: "ws", level: "DEBUG" });
+  });
+  lifecycleHooks.tap("turn_end", ({ sessionPath, hasOutput, hasToolCall }) => {
+    debugLog()?.span("turn_end", { sessionPath, hasOutput, hasToolCall }, { module: "ws", level: "DEBUG" });
+  });
+  lifecycleHooks.tap("turn_close", ({ sessionPath, reason }) => {
+    debugLog()?.span("turn_close", { sessionPath, reason }, { module: "ws", level: "INFO" });
+  });
 
   // ── Per-client rate limiting (token bucket) ──
   const _wsRateLimits = new WeakMap();
@@ -477,6 +495,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       applyVisibleFallbackDecision(sessionPath, ss, evaluateForcedTurnFallback(ss, snapshot, { sessionPath }));
     }
     emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+    lifecycleHooks.run("turn_close", { sessionPath, ss, reason, forced: true });
     broadcast({ type: "status", isStreaming: false, sessionPath });
     finishSessionStream(ss);
     resetCompletedTurnState(ss);
@@ -1068,6 +1087,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         for (const k of TOOL_ARG_SUMMARY_KEYS) { if (rawArgs[k] !== undefined) args[k] = rawArgs[k]; }
       }
       emitStreamEvent(sessionPath, ss, { type: "tool_start", name: event.toolName || "", args });
+      lifecycleHooks.run("tool_start", {
+        event,
+        ss,
+        sessionPath,
+        toolName: event.toolName || "",
+        args,
+      });
       try {
         const __slowName = event.toolName || "";
         const __slowToolCallId = event.toolCallId || null;
@@ -1146,6 +1172,14 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         name: toolName,
         success: !event.isError,
         details: rawDetails,
+        summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
+      });
+      lifecycleHooks.run("tool_end", {
+        event,
+        ss,
+        sessionPath,
+        toolName,
+        success: !event.isError,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
 
@@ -1338,6 +1372,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       if (ss._turnEndDeferred) {
         debugLog()?.log("ws", `[TURN-END v1] resuming deferred turn_end · hasOutput=${ss.hasOutput} hasToolCall=${ss.hasToolCall} · ${sessionPath}`);
       }
+      lifecycleHooks.run("turn_end", {
+        event,
+        ss,
+        sessionPath,
+        hasOutput: ss.hasOutput,
+        hasToolCall: ss.hasToolCall,
+      });
       clearTurnTimers(ss);
       if (ss.streamSource === "internal_retry") {
         ss.internalRetryPending = false;
@@ -1768,48 +1809,76 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 scheduleTurnHardAbort(promptSessionPath, ss);
                 schedulePersistedFinalAnswerPoll(promptSessionPath, ss);
                 broadcast({ type: "status", isStreaming: true, sessionPath: promptSessionPath });
-                const localOfficeAnswer = buildLocalOfficeDirectAnswer(promptText);
-                if (localOfficeAnswer) {
-                  emitVisibleTextDelta(promptSessionPath, ss, localOfficeAnswer);
+                lifecycleHooks.run("prompt_start", {
+                  ss,
+                  sessionPath: promptSessionPath,
+                  routeIntent: ss.routeIntent,
+                  streamToken,
+                });
+                const currentModelInfo = resolveCurrentModelInfo(engine);
+                const initialToolUse = resolveInitialToolUseBehavior(promptText, { modelInfo: currentModelInfo });
+                if (initialToolUse.behavior === TOOL_USE_BEHAVIOR.STOP_WITH_DIRECT_ANSWER) {
+                  emitVisibleTextDelta(promptSessionPath, ss, initialToolUse.directAnswer);
                   emitStreamEvent(promptSessionPath, ss, { type: "turn_end" });
+                  lifecycleHooks.run("turn_end", {
+                    ss,
+                    sessionPath: promptSessionPath,
+                    hasOutput: ss.hasOutput,
+                    hasToolCall: ss.hasToolCall,
+                    direct: true,
+                  });
                   broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
                   finishSessionStream(ss);
                   resetCompletedTurnState(ss);
                   return;
                 }
-                const reportKind = inferReportResearchKind(promptText);
-                let effectivePromptText = promptText;
-                const budgetContext = buildBudgetCalculationContext(promptText);
-                if (budgetContext) {
-                  effectivePromptText = `${budgetContext}\n\n【用户原始问题】\n${promptText}`;
-                }
+                const reportKind = initialToolUse.reportKind;
+                const budgetContext = initialToolUse.budgetContext || "";
+                let effectivePromptText = initialToolUse.effectivePromptText || promptText;
                 let directResearchAnswer = "";
-                const currentModelInfo = resolveCurrentModelInfo(engine);
-                const suppressLocalPrefetch = shouldSuppressLocalToolPrefetch(promptText);
-                if (!suppressLocalPrefetch && shouldPrefetchReportContext(reportKind, currentModelInfo)) {
-                  const toolName = prefetchToolNameForKind(reportKind);
+                if (initialToolUse.behavior === TOOL_USE_BEHAVIOR.PREFETCH_THEN_RUN_OR_STOP) {
+                  const toolName = initialToolUse.toolName;
                   ss.hasPrefetchToolCall = true;
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
+                  lifecycleHooks.run("tool_start", {
+                    ss,
+                    sessionPath: promptSessionPath,
+                    toolName,
+                    args: { query: promptText },
+                    localPrefetch: true,
+                  });
                   try {
                     const reportContext = await buildReportResearchContext(promptText, { userPrompt: promptText });
                     if (reportContext && reportContext.trim()) {
                       const toolSummary = buildPrefetchToolSummary(reportContext);
                       ss.hasLocalPrefetchEvidence = true;
                       directResearchAnswer = buildDirectResearchAnswer(reportKind, reportContext, promptText);
-                      effectivePromptText = [
-                        reportContext.trim(),
-                        budgetContext,
-                        `【用户原始问题】\n${promptText}`,
-                      ].filter(Boolean).join("\n\n");
+                      effectivePromptText = buildPrefetchAugmentedPrompt(promptText, reportContext, budgetContext);
                       emitStreamEvent(promptSessionPath, ss, {
                         type: "tool_end",
                         name: toolName,
                         success: true,
                         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
                       });
+                      lifecycleHooks.run("tool_end", {
+                        ss,
+                        sessionPath: promptSessionPath,
+                        toolName,
+                        success: true,
+                        summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
+                        localPrefetch: true,
+                      });
                       rememberSuccessfulTool(ss, toolName, toolSummary, { query: promptText });
                     } else {
                       emitStreamEvent(promptSessionPath, ss, { type: "tool_end", name: toolName, success: false, error: "no evidence returned" });
+                      lifecycleHooks.run("tool_end", {
+                        ss,
+                        sessionPath: promptSessionPath,
+                        toolName,
+                        success: false,
+                        error: "no evidence returned",
+                        localPrefetch: true,
+                      });
                       rememberFailedTool(ss, toolName);
                     }
                   } catch (prefetchErr) {
@@ -1819,12 +1888,27 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                       success: false,
                       error: prefetchErr?.message || "prefetch failed",
                     });
+                    lifecycleHooks.run("tool_end", {
+                      ss,
+                      sessionPath: promptSessionPath,
+                      toolName,
+                      success: false,
+                      error: prefetchErr?.message || "prefetch failed",
+                      localPrefetch: true,
+                    });
                     rememberFailedTool(ss, toolName);
                   }
                 }
                 if (directResearchAnswer) {
                   emitVisibleTextDelta(promptSessionPath, ss, directResearchAnswer);
                   emitStreamEvent(promptSessionPath, ss, { type: "turn_end" });
+                  lifecycleHooks.run("turn_end", {
+                    ss,
+                    sessionPath: promptSessionPath,
+                    hasOutput: ss.hasOutput,
+                    hasToolCall: ss.hasToolCall,
+                    direct: true,
+                  });
                   broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
                   finishSessionStream(ss);
                   resetCompletedTurnState(ss);
@@ -1926,7 +2010,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     })
   );
 
-  return { restRoute, wsRoute, broadcast, editRollbackStore };
+  return { restRoute, wsRoute, broadcast, editRollbackStore, lifecycleHooks };
 }
 
 /**
