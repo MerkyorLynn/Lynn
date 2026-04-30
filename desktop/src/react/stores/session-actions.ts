@@ -74,10 +74,13 @@ export async function loadSessions(): Promise<void> {
     const data = await res.json();
     const sessions = data || [];
 
-    const s = useStore.getState();
     useStore.setState({ sessions });
 
-    if (sessions.length > 0 && !s.currentSessionPath && !s.pendingNewSession) {
+    // Re-read state after the async fetch. A pending/new session may have been
+    // selected while the request was in flight, especially on slower Windows
+    // machines; using a stale snapshot can switch the user back to an old chat.
+    const latest = useStore.getState();
+    if (sessions.length > 0 && !latest.currentSessionPath && !latest.pendingNewSession) {
       // 首次加载：走完整的 switchSession 确保后端同步 + 消息加载
       await switchSession(sessions[0].path);
     }
@@ -393,6 +396,16 @@ export async function ensureSession(): Promise<boolean> {
     window.dispatchEvent(new CustomEvent('hana-plan-mode', { detail: { enabled: data.planMode ?? false } }));
 
     await loadSessions();
+    if (data.path && useStore.getState().currentSessionPath !== data.path) {
+      // The freshly created session must win over any concurrent session-list
+      // refresh. Otherwise the first prompt can be appended to a previous chat.
+      useStore.setState({
+        currentSessionPath: data.path,
+        pendingNewSession: false,
+        activeBridgeSessionKey: null,
+        activeBridgeMessages: [],
+      });
+    }
 
     // updateFolderButton — no-op (React-driven)
 

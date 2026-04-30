@@ -25,6 +25,10 @@ import {
 import { createLifecycleHooks } from "../chat/lifecycle-hooks.js";
 import { classifyRouteIntent } from "../../shared/task-route-intent.js";
 import {
+  buildVisionUnsupportedMessage,
+  normalizeVisionPromptText,
+} from "../../shared/vision-prompt.js";
+import {
   beginSessionStream,
   finishSessionStream,
   appendSessionStreamEvent,
@@ -1739,12 +1743,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
               }
               const _resolved = engine.resolveModelOverrides(engine.currentModel);
               if (msg.images?.length && _resolved?.vision === false) {
-                msg.images = undefined;
+                wsSend(ws, { type: "error", message: buildVisionUnsupportedMessage({ locale: getLocale() }) });
+                return;
               }
-              let promptText = msg.text || "";
-              if (!promptText.trim() && msg.images?.length) {
-                promptText = t("error.viewImage");
-              }
+              const promptText = normalizeVisionPromptText(msg.text || "", msg.images, { locale: getLocale() });
               debugLog()?.log("ws", `user message (${promptText.length} chars, ${msg.images?.length || 0} images)`);
               let promptSessionPath = msg.sessionPath || engine.currentSessionPath;
               if (!promptSessionPath) {

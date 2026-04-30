@@ -83,4 +83,28 @@ describe("turn retry policy", () => {
     expect(fallback).toContain("确认删除");
     expect(fallback).not.toContain("pseudo_tool_after_retry");
   });
+
+  it("does not expose internal route intent labels in generic empty-reply fallback", () => {
+    const fallback = buildEmptyReplyFallbackText({
+      routeIntent: "chat",
+      originalPromptText: "时间",
+      effectivePromptText: "时间",
+    });
+
+    expect(fallback).toContain("本轮模型没有生成可见答案");
+    expect(fallback).not.toContain("类型：");
+    expect(fallback).not.toContain("Kind:");
+    expect(fallback).not.toContain("chat");
+  });
+
+  it("uses a specific fallback for vision empty replies", () => {
+    const fallback = buildEmptyReplyFallbackText({
+      routeIntent: "vision",
+      originalPromptText: "请看图",
+      effectivePromptText: "请看图",
+    });
+
+    expect(fallback).toContain("图片没有被模型可靠识别到");
+    expect(fallback).not.toContain("类型：");
+  });
 });

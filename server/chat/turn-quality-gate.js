@@ -311,8 +311,8 @@ const PRE_TURN_END_RULES = [
     action: ({ ss, snapshot, sessionPath }) => {
       const localFallbackMsg = ss.pseudoToolSteered ? buildEmptyReplyFallbackText(ss) : "";
       const text = localFallbackMsg || (getLocale().startsWith("zh")
-        ? "本轮工具已执行，但未能整合出明确答案（原因：流程提前结束）。建议重新提问或换个说法 · 类型：" + snapshot.fallbackKind
-        : "Tools executed but the final answer could not be assembled (flow ended early). Please rephrase or try again · kind: " + snapshot.fallbackKind);
+        ? "本轮工具已执行，但未能整合出明确答案（原因：流程提前结束）。建议重新提问或换个说法。"
+        : "Tools executed but the final answer could not be assembled because the flow ended early. Please rephrase or try again.");
       return fallbackDecision({
         text,
         logMessage: `[EMPTY-REPLY-FALLBACK v1] emitted (${snapshot.fallbackKind}) · visibleLen=${snapshot.visibleLen} hasToolCall=${ss.hasToolCall} hasThinking=${ss.hasThinking} · ${sessionPath}`,

@@ -136,6 +136,27 @@ describe('prompt-actions', () => {
     expect(ensureSession).toHaveBeenCalledOnce();
   });
 
+  it('pending new session 创建完成后使用最新 sessionPath 发送，避免落到旧会话', async () => {
+    mockState.pendingNewSession = true;
+    mockState.currentSessionPath = '/sessions/old';
+    ensureSession.mockImplementationOnce(async () => {
+      mockState.pendingNewSession = false;
+      mockState.currentSessionPath = '/sessions/new';
+      return true;
+    });
+    const { submitPromptTask } = await import('../../stores/prompt-actions');
+
+    const sent = await submitPromptTask({ mode: 'prompt', text: '广州天气' });
+
+    expect(sent).toBe(true);
+    expect(mockState.appended[0].sessionPath).toBe('/sessions/new');
+    expect(websocketRef?.send).toHaveBeenCalledWith(JSON.stringify({
+      type: 'prompt',
+      text: '广州天气',
+      sessionPath: '/sessions/new',
+    }));
+  });
+
   it('append user message 时保留 gitContext 摘要', async () => {
     const { submitPromptTask } = await import('../../stores/prompt-actions');
 
