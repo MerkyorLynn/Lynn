@@ -17,6 +17,18 @@ import { t, getLocale } from "../server/i18n.js";
 import { safeReadJSON } from "../shared/safe-fs.js";
 import { findModel } from "../shared/model-ref.js";
 import {
+  classifyRouteIntent,
+} from "../shared/task-route-intent.js";
+import {
+  buildVisionUnsupportedMessage,
+  hasVisionImages,
+  normalizeVisionPromptText,
+} from "../shared/vision-prompt.js";
+import {
+  buildEmptyReplyFallbackText,
+  buildEmptyReplyRetryPrompt,
+} from "../server/chat/turn-retry-policy.js";
+import {
   buildClientAgentMetadata,
   readClientAgentKeyFromPreferencesFile,
   readSignedClientAgentHeaders,
@@ -321,14 +333,18 @@ export class BridgeSessionManager {
         ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       });
 
-      this._activeSessions.set(sessionKey, session);
-
+      const promptImages = opts.images;
       const _resolved = this._deps.resolveModelOverrides?.(session.model, agent.config?.models?.overrides);
-      if (opts.images?.length && _resolved?.vision === false) {
-        opts.images = undefined;
+      if (hasVisionImages(promptImages) && _resolved?.vision === false) {
+        const unsupported = buildVisionUnsupportedMessage({ locale: getLocale() });
+        try { opts.onDelta?.(unsupported, unsupported); } catch {}
+        return unsupported;
       }
+      this._activeSessions.set(sessionKey, session);
+      const effectivePrompt = normalizeVisionPromptText(prompt, promptImages, { locale: getLocale() });
+      const routeIntent = classifyRouteIntent(effectivePrompt, { imagesCount: promptImages?.length || 0 });
       // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
-      const _promptOpts = toSessionPromptOptions(opts.images);
+      const _promptOpts = toSessionPromptOptions(promptImages);
 
       const runBridgeAttempt = async (attemptPrompt, { streamDeltas = true } = {}) => {
         let capturedText = "";
@@ -361,16 +377,21 @@ export class BridgeSessionManager {
       try {
         // 非 vision 模型：静默剥离图片，只发文字
         // 注意：bridge session 可能不属于 focus agent，必须传入该 session 对应 agent 的 overrides
-        const first = await runBridgeAttempt(prompt);
+        const first = await runBridgeAttempt(effectivePrompt);
         capturedText = first.capturedText;
         if (!first.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
           debugLog()?.warn("bridge", "pseudo tool simulation detected, retrying once");
-          const retry = await runBridgeAttempt(buildPseudoToolRetryPrompt(prompt), { streamDeltas: false });
+          const retry = await runBridgeAttempt(buildPseudoToolRetryPrompt(effectivePrompt), { streamDeltas: false });
           capturedText = retry.capturedText || capturedText;
           if (!retry.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
             debugLog()?.warn("bridge", "pseudo tool simulation persisted after retry; sanitizing final text");
             capturedText = stripPseudoToolCallMarkup(capturedText);
           }
+        }
+        if (!String(capturedText || "").trim()) {
+          debugLog()?.warn("bridge", `empty bridge reply detected, retrying once as plain text · route=${routeIntent}`);
+          const retry = await runBridgeAttempt(buildEmptyReplyRetryPrompt(effectivePrompt, routeIntent), { streamDeltas: false });
+          capturedText = retry.capturedText || capturedText;
         }
       } finally {
         this._activeSessions.delete(sessionKey);
@@ -392,7 +413,13 @@ export class BridgeSessionManager {
         this.writeIndex(index, agent);
       }
 
-      return sanitizeAssistantTextContent(capturedText).trim() || null;
+      const finalText = sanitizeAssistantTextContent(capturedText).trim();
+      if (finalText) return finalText;
+      return buildEmptyReplyFallbackText({
+        routeIntent,
+        originalPromptText: effectivePrompt,
+        effectivePromptText: effectivePrompt,
+      });
     } catch (err) {
       console.error(`[bridge-session] external message failed (${sessionKey}):`, err.message);
       return { __bridgeError: true, message: err.message };

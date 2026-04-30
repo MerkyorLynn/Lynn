@@ -61,6 +61,26 @@ describe("turn quality gate", () => {
     expect(decision.text).toContain("mkdir -p 表格");
   });
 
+  it("does not expose internal fallback kind labels in flow fallback", () => {
+    const ss = {
+      hasOutput: false,
+      hasToolCall: false,
+      hasThinking: true,
+      hasError: false,
+      hasFailedTool: false,
+      routeIntent: "chat",
+      originalPromptText: "时间",
+      effectivePromptText: "时间",
+    };
+    const snapshot = createTurnQualitySnapshot(ss, "");
+    const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: false, sessionPath: "/sessions/bg.jsonl" });
+
+    expect(decision).toMatchObject({ type: "fallback" });
+    expect(decision.text).toContain("本轮工具已执行");
+    expect(decision.text).not.toContain("类型：");
+    expect(decision.text).not.toContain("thinking_only");
+  });
+
   it("forces a failed-tool fallback when a stream is closed by a watchdog", () => {
     const ss = {
       hasOutput: false,

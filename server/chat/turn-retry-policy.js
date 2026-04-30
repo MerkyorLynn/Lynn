@@ -2,6 +2,7 @@ import os from "os";
 import path from "path";
 
 import { getLocale } from "../i18n.js";
+import { buildVisionEmptyFallbackText } from "../../shared/vision-prompt.js";
 
 export const LOCAL_COMPLETION_TOOLS = new Set(["bash", "write", "edit", "edit-diff"]);
 
@@ -237,9 +238,12 @@ export function buildEmptyReplyFallbackText(ss) {
     const localFallback = buildLocalMutationEmptyFallbackText(ss);
     if (localFallback) return localFallback;
   }
+  if (kind === "vision") {
+    return buildVisionEmptyFallbackText({ locale: getLocale() });
+  }
   return isZh
-    ? `本轮模型没有生成可见答案，Lynn 已结束这次空转以免卡住会话。你可以直接重试一次，或把任务说得更具体一点。类型：${kind}`
-    : `The model did not produce a visible answer. Lynn ended this empty turn to avoid locking the conversation. Please retry or make the task more specific. Kind: ${kind}`;
+    ? "本轮模型没有生成可见答案，Lynn 已结束这次空转以免卡住会话。你可以直接重试一次，或把任务说得更具体一点。"
+    : "The model did not produce a visible answer. Lynn ended this empty turn to avoid locking the conversation. Please retry or make the task more specific.";
 }
 
 export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {

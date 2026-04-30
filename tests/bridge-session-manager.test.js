@@ -31,7 +31,7 @@ vi.mock("../lib/debug-log.js", () => ({
 
 import { BridgeSessionManager } from "../core/bridge-session-manager.js";
 
-function buildManager(tempDir, publicIshiki = "") {
+function buildManager(tempDir, publicIshiki = "", overrides = {}) {
   return new BridgeSessionManager({
     getAgent: () => ({
       sessionDir: tempDir,
@@ -61,6 +61,7 @@ function buildManager(tempDir, publicIshiki = "") {
     buildTools: () => ({ tools: [{ name: "bash" }], customTools: [{ name: "danger-tool" }] }),
     getHomeCwd: () => tempDir,
     resolveModelOverrides: () => ({ vision: false }),
+    ...overrides,
   });
 }
 
@@ -170,5 +171,108 @@ describe("BridgeSessionManager guest safety prompt", () => {
 
     expect(promptMock).toHaveBeenCalledTimes(2);
     expect(result).toBe("今天金价偏强。");
+  });
+
+  it("normalizes image-only bridge prompts and passes images to vision models", async () => {
+    let handler = null;
+    const promptMock = vi.fn(async () => {
+      handler?.({
+        type: "message_update",
+        assistantMessageEvent: {
+          type: "text_delta",
+          delta: "图片里是一张终端截图。",
+        },
+      });
+    });
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        model: { id: "vision-model", provider: "test-provider" },
+        subscribe: vi.fn((fn) => {
+          handler = fn;
+          return vi.fn();
+        }),
+        prompt: promptMock,
+        sessionManager: {
+          getSessionFile: () => sessionFile,
+        },
+      },
+    });
+
+    const manager = buildManager(tempDir, "", {
+      resolveModelOverrides: () => ({ vision: true }),
+    });
+    const result = await manager.executeExternalMessage("[来自 Harvino] ", "tg_dm_img", { name: "Harvino" }, {
+      guest: false,
+      images: [{ type: "image", data: "abc123", mimeType: "image/png" }],
+    });
+
+    expect(result).toBe("图片里是一张终端截图。");
+    expect(promptMock).toHaveBeenCalledOnce();
+    expect(promptMock.mock.calls[0][0]).toContain("请分析这张图片");
+    expect(promptMock.mock.calls[0][1]).toMatchObject({
+      images: [
+        {
+          type: "image",
+          data: "abc123",
+          mimeType: "image/png",
+          source: {
+            type: "base64",
+            data: "abc123",
+            mediaType: "image/png",
+          },
+        },
+      ],
+    });
+  });
+
+  it("returns a clear message instead of silently dropping bridge images for non-vision models", async () => {
+    const promptMock = vi.fn();
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        model: { id: "text-model", provider: "test-provider" },
+        subscribe: vi.fn(() => vi.fn()),
+        prompt: promptMock,
+        sessionManager: {
+          getSessionFile: () => sessionFile,
+        },
+      },
+    });
+
+    const manager = buildManager(tempDir, "", {
+      resolveModelOverrides: () => ({ vision: false }),
+    });
+    const result = await manager.executeExternalMessage("[来自 Harvino] ", "tg_dm_img_no_vision", { name: "Harvino" }, {
+      guest: false,
+      images: [{ type: "image", data: "abc123", mimeType: "image/png" }],
+    });
+
+    expect(result).toContain("当前模型不支持视觉输入");
+    expect(promptMock).not.toHaveBeenCalled();
+    expect(manager.activeSessions.size).toBe(0);
+  });
+
+  it("uses a clean empty-reply fallback when a bridge chat returns no visible text", async () => {
+    const promptMock = vi.fn(async () => undefined);
+    createAgentSessionMock.mockResolvedValueOnce({
+      session: {
+        model: { id: "chat-model", provider: "test-provider" },
+        subscribe: vi.fn(() => vi.fn()),
+        prompt: promptMock,
+        sessionManager: {
+          getSessionFile: () => sessionFile,
+        },
+      },
+    });
+
+    const manager = buildManager(tempDir, "", {
+      resolveModelOverrides: () => ({ vision: true }),
+    });
+    const result = await manager.executeExternalMessage("时间", "tg_dm_empty", { name: "Harvino" }, {
+      guest: false,
+    });
+
+    expect(promptMock).toHaveBeenCalledTimes(2);
+    expect(result).toContain("本轮模型没有生成可见答案");
+    expect(result).not.toContain("类型：");
   });
 });
