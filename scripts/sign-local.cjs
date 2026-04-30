@@ -1,8 +1,9 @@
 /**
- * sign-local.cjs — 本地安装后的 ad-hoc 重签
+ * sign-local.cjs — 本地安装 / 打包后的统一重签
  *
- * 策略：先用 --remove-signature 剥掉 electron-builder 的 Developer ID 签名，
- * 再统一用 ad-hoc 重签，确保所有 Mach-O 的 Team ID 完全一致。
+ * 策略：先用 --remove-signature 剥掉 electron-builder 的初始签名，
+ * 再统一用同一个身份重签，确保所有 Mach-O 的 Team ID 完全一致。
+ * 本地调试可用 ad-hoc；正式发版使用 Developer ID + 现有 build keychain。
  */
 const { execFileSync, execSync, spawnSync } = require("child_process");
 const fs = require("fs");
@@ -90,8 +91,19 @@ if (CODESIGN_KEYCHAIN) {
   console.log(`[sign-local] keychain=${CODESIGN_KEYCHAIN}`);
   try {
     execFileSync("security", ["unlock-keychain", "-p", "", CODESIGN_KEYCHAIN], { stdio: "ignore" });
+    if (IDENTITY !== "-") {
+      execFileSync("security", [
+        "set-key-partition-list",
+        "-S",
+        "apple-tool:,apple:,codesign:",
+        "-s",
+        "-k",
+        "",
+        CODESIGN_KEYCHAIN,
+      ], { stdio: "ignore" });
+    }
   } catch (err) {
-    console.warn(`[sign-local] warning: failed to unlock keychain ${CODESIGN_KEYCHAIN}: ${err.message}`);
+    console.warn(`[sign-local] warning: failed to prepare keychain ${CODESIGN_KEYCHAIN}: ${err.message}`);
   }
 }
 
@@ -181,10 +193,19 @@ if (fs.existsSync(mainMacosDir)) {
   }
 }
 
+// The bundled server uses a standalone Node binary. Under Hardened Runtime, V8
+// needs JIT entitlements or macOS kills it during startup with SIGTRAP.
+const bundledServerNode = path.join(APP, "Contents", "Resources", "server", "node");
+const bundledServerNodeResolved = path.resolve(bundledServerNode);
+
 // 签独立二进制（不在 bundle 主二进制列表中的）
 for (const t of allTargets) {
   if (!bundleBins.has(t)) {
-    sign(t);
+    if (path.resolve(t) === bundledServerNodeResolved) {
+      sign(t, `--entitlements "${ENT}"`);
+    } else {
+      sign(t);
+    }
   }
 }
 
