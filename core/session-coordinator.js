@@ -21,7 +21,8 @@ import { t, getLocale } from "../server/i18n.js";
 import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { findModel } from "../shared/model-ref.js";
 import { lookupToolTier } from "../shared/known-models.js";
-import { detectPromptInjection, formatInjectionWarning } from "../lib/sandbox/prompt-injection-detector.js";
+import { runReadToolPromptInjectionGuardrail } from "./claw-aegis-guardrails.js";
+import { refreshSessionIndex } from "./session-index.js";
 import {
   SecurityMode,
   DEFAULT_SECURITY_MODE,
@@ -755,22 +756,9 @@ export class SessionCoordinator {
 
         // ── ClawAegis 输入层：read 工具返回内容 prompt injection 扫描 ──
         const toolName = event.toolName || event.toolCall?.name || "";
-        if ((toolName === "read" || toolName === "read_file") && !event.isError) {
-          try {
-            const text = event.result?.content?.[0]?.text || "";
-            if (text.length > 50) {
-              const scan = detectPromptInjection(text);
-              if (scan.detected) {
-                const warning = formatInjectionWarning(scan.matches);
-                console.warn(`[ClawAegis] prompt injection 检测: ${scan.matches.length} 个模式命中 (tool=${toolName})`);
-                // 在 tool_result 末尾追加 warning 给 AI
-                if (event.result?.content?.[0]?.type === "text") {
-                  event.result.content[0].text += warning;
-                }
-              }
-            }
-          } catch { /* 检测失败不影响正常流程 */ }
-        }
+        runReadToolPromptInjectionGuardrail(event, {
+          logger: (message) => console.warn(message),
+        });
 
         // ── ClawAegis 输出层：输出验证（AI 声称 vs 实际结果） ──
         if (event.isError && entryForEvent) {
@@ -1440,6 +1428,7 @@ export class SessionCoordinator {
         try {
           sessionMeta = JSON.parse(fs.readFileSync(path.join(sessionDir, "session-meta.json"), "utf-8"));
         } catch {}
+        const indexedSessions = [];
         for (const s of sessions) {
           if (titles[s.path]) s.title = titles[s.path];
           s.agentId = agent.id;
@@ -1458,8 +1447,12 @@ export class SessionCoordinator {
           const pinMeta = sessionMeta[s.path] || {};
           s.pinned = !!pinMeta.pinned;
           s.labels = Array.isArray(pinMeta.labels) ? pinMeta.labels.filter(Boolean) : [];
+          indexedSessions.push(s);
           allSessions.push(s);
         }
+        await refreshSessionIndex(sessionDir, indexedSessions, { agent }).catch((err) => {
+          log.warn(`session index refresh failed · agent=${agent.id} · ${err?.message || err}`);
+        });
       } catch {}
     }
 
