@@ -35,6 +35,15 @@ if [[ ! -x "$APP_BUILDER" ]]; then
   exit 1
 fi
 
+if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
+  # Keep release signing on the dedicated empty-password build keychain.
+  # This prevents macOS from falling back to the user's login keychain and
+  # popping the "security wants to use login keychain" dialog mid-release.
+  security unlock-keychain -p "" "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
+  security set-keychain-settings -lut 21600 "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
+fi
+
 for dmg in "$@"; do
   if [[ ! -f "$dmg" ]]; then
     echo "Missing DMG: $dmg" >&2
@@ -43,7 +52,6 @@ for dmg in "$@"; do
 
   echo "==> Signing final DMG: $dmg"
   if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
-    security unlock-keychain -p "" "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
     codesign --keychain "$CODESIGN_KEYCHAIN" --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
   else
     codesign --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
