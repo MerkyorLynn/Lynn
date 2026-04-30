@@ -220,6 +220,24 @@ for (const dir of LIB_TEMPLATE_DIRS) {
   }
 }
 
+// Plugin runtime helpers. Some plugins are intentionally loaded from the
+// unpacked server resources at runtime, so dynamic imports from plugins cannot
+// rely on Vite-bundled modules only.
+const LIB_RUNTIME_FILES = [
+  path.join("memory", "vector-interface.js"),
+];
+for (const rel of LIB_RUNTIME_FILES) {
+  const src = path.join(ROOT, "lib", rel);
+  const dest = path.join(libOutDir, rel);
+  if (fs.existsSync(src)) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+    console.log(`[build-server]   lib/${rel}`);
+  } else {
+    console.warn(`[build-server] ⚠ lib/${rel} not found, skipping`);
+  }
+}
+
 // skills2set（运行时复制到用户数据目录）
 const skillsSrc = path.join(ROOT, "skills2set");
 if (fs.existsSync(skillsSrc)) {
