@@ -1,12 +1,12 @@
 {
   "stable": {
-    "version": "0.77.3",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.3",
-    "notes": "# Lynn v0.77.3 Release Notes\n\n> 发布日期: 2026-05-01 · 代号: \"Lynn Voice Runtime\"\n\nv0.77.3 是一次语音运行时稳定性补丁：把 V0.79 Lynn Runtime 的最小可用闭环提前落到当前稳定版，修复启动白屏、语音主链、聊天记录同步、默认女声和长回复朗读中断问题。\n\n## 重点更新\n\n- Lynn 语音浮窗正式改名为 Lynn，不再显示 Jarvis。\n- 新语音入口接入正常聊天链路：录音转写后进入当前聊天框，工具调用、记忆、历史记录和反思都沿用打字聊天路径。\n- 回复语音接入 CosyVoice 默认中文女声，并修复 22.05kHz WAV 到 16kHz PCM 播放链路。\n- 中文 TTS 文本规范化：日期、温度、百分比、股票代码等数字不再被中文女声读成英文 five/two。\n- 长回复朗读改为小块队列：Markdown 会先清洗，长段按句号/逗号切成短块，单块失败会自动再拆小块继续播。\n- 修复启动白屏/卡 splash：React selector 不再返回新数组导致 update depth 爆炸；主窗口 app-ready 丢失时会自动显示并关闭 splash。\n- 修复插件独立加载：`tts-bridge` 在测试/临时插件目录里不再因为跨目录 import shared normalizer 失败。\n- 打包链路加固：`build:server` 遇到 npm 镜像 tarball 损坏时自动切官方 registry 重试。\n\n## 回归结果\n\n- Unit/Integration：138 files / 1001 tests passed\n- Voice Runtime 专项：70 tests passed\n- TypeScript / syntax checks：通过\n- Main / Renderer / Server build：通过\n- 本地安装冷启动：通过，主窗口可进入 `index.html`\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.3-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.3-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.3-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.3\n\n## 升级建议\n\n桌面客户端可以直接安装覆盖。v0.77.3 不包含破坏性配置迁移；已使用 v0.76.x 或 v0.77.x 的用户升级后，会继续沿用原有会话、模型配置和本地数据。",
+    "version": "0.77.4",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.4",
+    "notes": "# Lynn v0.77.4 Release Notes\n\n> 发布日期: 2026-05-01 · 代号: \"Compact Voice & Tool Stability\"\n\nv0.77.4 是一次语音交互与工具执行稳定性补丁。重点修复语音浮层过大、语音中断状态机、ASR 兼容、伪工具/坏 bash 兜底、文件任务反馈和实时数据证据不足等问题。\n\n## 重点更新\n\n- 语音浮层改成轻量小波形卡片：不再显示大块转写/回复卡片，减少闪动和对输入区的遮挡。\n- 修复语音中断状态：THINKING/SPEAKING 阶段中断不再崩溃，旧 turn 不会继续阻塞下一轮录音。\n- 修复 ASR 链路兼容：Qwen3-ASR 增加语言归一、WAV MIME 识别和请求超时，失败时会清理“理解中…”占位。\n- 加固本地工具执行：继续修复伪工具标签、坏 bash 片段、文件移动/删除后无反馈、危险操作授权和结果收尾。\n- 加固实时数据：天气、行情、金价等场景必须基于有效字段输出，避免把首页导航或空搜索结果当证据。\n- 翻译与报告体验：补齐聊天内翻译入口、HTML artifact 安全渲染与 PNG 导出链路。\n- 运行时稳定性：补齐 voice websocket、fallback orchestrator、self-interrupt tracker、release regression 等测试覆盖。\n\n## 回归结果\n\n- Unit / Integration：已通过\n- Voice Runtime 专项：已通过\n- TypeScript / Lint：已通过\n- Renderer / Main / Server build：已通过\n- 本地 DMG 冷启动：已通过\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.4-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.4-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.4-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.4\n\n## 升级建议\n\n桌面客户端可以直接安装覆盖。v0.77.4 不包含破坏性配置迁移；已使用 v0.76.x 或 v0.77.x 的用户升级后，会继续沿用原有会话、模型配置和本地数据。",
     "assets": {
-      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.3-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.3-macOS-Intel.dmg",
-      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.3-Windows-Setup.exe",
+      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.4-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.4-macOS-Intel.dmg",
+      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.4-Windows-Setup.exe",
       "default": "https://download.merkyorlynn.com/download.html"
     }
   }

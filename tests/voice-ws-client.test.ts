@@ -297,6 +297,39 @@ describe('VoiceWsClient', () => {
     expect(decodeVoiceText(frame.payload)).toBe('这是聊天框的最终回复。');
   });
 
+  it('reconnects a stale websocket before speaking a chat reply', async () => {
+    FakeWebSocket.instances = [];
+    const client = new VoiceWsClient({
+      url: 'ws://unit.test/voice-ws',
+      websocketCtor: FakeWebSocket,
+    });
+    const firstWs = await openClient(client);
+    firstWs.close();
+
+    const speak = client.speakText('重连后继续朗读。');
+    const secondWs = FakeWebSocket.instances.at(-1)!;
+    secondWs.open();
+    await speak;
+
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    const frame = parseVoiceFrame(secondWs.sent[0] as ArrayBuffer)!;
+    expect(frame.type).toBe(VOICE_FRAME.SPEAK_TEXT);
+    expect(decodeVoiceText(frame.payload)).toBe('重连后继续朗读。');
+  });
+
+  it('drops PCM frames quietly after the websocket closes', async () => {
+    FakeWebSocket.instances = [];
+    const client = new VoiceWsClient({
+      url: 'ws://unit.test/voice-ws',
+      websocketCtor: FakeWebSocket,
+    });
+    const ws = await openClient(client);
+    ws.close();
+
+    expect(() => client.sendPcm(new Int16Array(1600))).not.toThrow();
+    expect(client.getStats().pcmFramesOut).toBe(0);
+  });
+
   it('interrupts current speech before starting half-duplex capture', async () => {
     FakeWebSocket.instances = [];
     const stream = new FakePcmStream();

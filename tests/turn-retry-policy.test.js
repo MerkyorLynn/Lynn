@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildEmptyReplyFallbackText,
+  buildEmptyReplyRetryPrompt,
+  buildShortLeadInRetryPrompt,
   buildLocalMutationContinuationRetryPrompt,
   buildSuccessfulToolNoTextFallback,
   buildTruncatedStructuredRetryPrompt,
@@ -39,6 +41,26 @@ describe("turn retry policy", () => {
     expect(prompt).toContain("结构化答案");
     expect(prompt).toContain("完整最终答案");
     expect(prompt).toContain("算增长率");
+  });
+
+  it("builds an empty-reply recovery prompt that forces a visible answer", () => {
+    const prompt = buildEmptyReplyRetryPrompt("你知道 Qwen-Image-Layered 吗？", "chat");
+
+    expect(prompt).toContain("补救回答");
+    expect(prompt).toContain("必须产出用户可见的最终答案");
+    expect(prompt).toContain("不要调用工具");
+    expect(prompt).toContain("你知道 X");
+    expect(prompt).toContain("Qwen-Image-Layered");
+    expect(prompt).not.toContain("本轮模型没有生成可见答案");
+  });
+
+  it("builds a lead-in recovery prompt that blocks another lookup-only answer", () => {
+    const prompt = buildShortLeadInRetryPrompt("你知道 Qwen-Image-Layered 吗？", "让我查一下这个最新的信息。");
+
+    expect(prompt).toContain("补救回答");
+    expect(prompt).toContain("必须产出用户可见的最终内容");
+    expect(prompt).toContain("不要再说");
+    expect(prompt).toContain("让我查一下");
   });
 
   it("builds visible fallback text when a successful non-local tool produced no final answer", () => {

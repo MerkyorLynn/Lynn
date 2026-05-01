@@ -10,7 +10,7 @@ import { createSERProvider, EMOTION_LLM_HINT } from "../server/clients/ser/index
 import { createEmotion2VecProvider } from "../server/clients/ser/emotion2vec-plus.js";
 import { createCosyVoice2TtsProvider } from "../server/clients/tts/cosyvoice2.js";
 import { createEdgeTtsProvider, createTTSFallbackProvider } from "../server/clients/tts/index.js";
-import { normalizeChineseTtsText } from "../shared/tts-text-normalizer.js";
+import { normalizeChineseTtsText, stripEmojiForTts } from "../shared/tts-text-normalizer.js";
 
 describe("Qwen3-ASR provider", () => {
   let originalFetch;
@@ -45,6 +45,27 @@ describe("Qwen3-ASR provider", () => {
     expect(captured.url).toContain("/transcribe");
     expect(captured.init.method).toBe("POST");
     expect(captured.init.body).toBeInstanceOf(FormData);
+    expect(captured.init.signal).toBeInstanceOf(AbortSignal);
+    expect(captured.init.body.get("language")).toBe("Chinese");
+    const file = captured.init.body.get("file");
+    expect(file.type).toBe("audio/wav");
+    expect(file.name).toBe("audio.wav");
+  });
+
+  it("omits language for auto and maps English aliases", async () => {
+    const requests = [];
+    global.fetch = vi.fn(async (url, init) => {
+      requests.push({ url, init });
+      return new Response(JSON.stringify({ text: "ok", language: "en" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const p = createQwen3AsrProvider({ timeoutMs: 1234 });
+    await p.transcribe(Buffer.from("wav"), { language: "auto", filename: "clip.wav" });
+    await p.transcribe(Buffer.from("wav"), { language: "en-US", filename: "clip.wav" });
+    expect(requests[0].init.body.get("language")).toBeNull();
+    expect(requests[1].init.body.get("language")).toBe("English");
   });
 
   it("transcribe throws on non-200", async () => {
@@ -260,6 +281,11 @@ describe("normalizeChineseTtsText", () => {
 
   it("keeps long identifiers digit-by-digit instead of English tokens", () => {
     expect(normalizeChineseTtsText("600176 今天上涨 3.5%")).toBe("六零零一七六 今天上涨 百分之三点五");
+  });
+
+  it("strips emoji before text is sent to TTS", () => {
+    expect(stripEmojiForTts("在呢在呢！😁 有什么需要帮忙的？")).toBe("在呢在呢！ 有什么需要帮忙的？");
+    expect(normalizeChineseTtsText("明天 5 月 1 日可以去 😊")).toBe("明天 五月一日可以去");
   });
 });
 

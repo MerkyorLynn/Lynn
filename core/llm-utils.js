@@ -213,6 +213,49 @@ export async function translateSkillNames(utilConfig, names, lang) {
   }
 }
 
+export async function translateText(utilConfig, text, targetLanguage = "中文", opts = {}) {
+  const source = String(text || "").trim();
+  const target = String(targetLanguage || "中文").trim() || "中文";
+  if (!source) return "";
+
+  const {
+    utility: model,
+    api_key,
+    base_url,
+    api,
+    utility_fallbacks = [],
+  } = utilConfig || {};
+  if (!model || !api || !base_url) {
+    throw new Error("utility model is not configured");
+  }
+
+  const maxTokens = Math.max(300, Math.min(4096, Math.ceil(source.length * 1.8)));
+  return await callLlm({
+    model,
+    api,
+    api_key,
+    base_url,
+    fallbacks: utility_fallbacks,
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are Lynn's internal translation engine.",
+          `Translate the user's text into ${target}.`,
+          "Output only the translation.",
+          "Do not explain, summarize, add notes, or call tools.",
+          "Preserve Markdown, paragraph breaks, lists, code blocks, names, product names, and technical terms where appropriate.",
+        ].join("\n"),
+      },
+      { role: "user", content: source },
+    ],
+    temperature: 0.1,
+    max_tokens: maxTokens,
+    timeoutMs: opts.timeoutMs ?? 45_000,
+    signal: opts.signal,
+  });
+}
+
 /**
  * 为活动 session 生成摘要（用 utility_large 模型）
  * @param {object} utilConfig - resolveUtilityConfig() 结果

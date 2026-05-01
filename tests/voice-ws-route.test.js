@@ -19,6 +19,8 @@ import {
   pcm16ToWav,
   pcm16Rms,
   normalizeTtsAudioToPcm16Mono16k,
+  normalizeVoiceTranscript,
+  resolveVoiceRuntimeAsrConfig,
   splitTextForTts,
 } from "../server/routes/voice-ws.js";
 
@@ -85,6 +87,21 @@ describe("voice-ws route — createVoiceWsRoute", () => {
     const { wsRoute } = createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket });
     expect(wsRoute).toBeDefined();
     expect(typeof wsRoute.get).toBe("function");
+  });
+
+  it("defaults Jarvis Runtime ASR to Qwen3-ASR with SenseVoice fallback", () => {
+    expect(resolveVoiceRuntimeAsrConfig({})).toMatchObject({
+      provider: "qwen3-asr",
+      fallback_provider: "sensevoice",
+    });
+    expect(resolveVoiceRuntimeAsrConfig({ provider: "sensevoice" })).toMatchObject({
+      provider: "qwen3-asr",
+      fallback_provider: "sensevoice",
+    });
+    expect(resolveVoiceRuntimeAsrConfig({ provider: "openai", base_url: "https://example.test" })).toMatchObject({
+      provider: "openai",
+      base_url: "https://example.test",
+    });
   });
 });
 
@@ -166,6 +183,28 @@ describe("voice-ws route — VoiceSession state machine", () => {
     expect(ttsFrames[0].payload.length).toBeLessThanOrEqual(3200);
   });
 
+  it("normalizes spoken restart artifacts before emitting transcript_final", async () => {
+    const deps = makeHealthyDeps({
+      asrProvider: {
+        transcribe: vi.fn(async () => ({ text: "嗯，我要查的是什我要查的是深圳天气。", language: "zh" })),
+        health: vi.fn(async () => true),
+      },
+    });
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket, ...deps });
+    hooks = upg.invoke({ req: { query: (key) => (key === "mode" ? "chat" : "") } });
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+
+    hooks.onMessage({ data: makeFrame(FRAME.PCM_AUDIO, 0, 0, Buffer.alloc(3200, 0)) }, ws);
+    hooks.onMessage({ data: makeFrame(FRAME.END_OF_TURN, 0, 1, Buffer.alloc(0)) }, ws);
+    await vi.waitFor(() => expect(deps.asrProvider.transcribe).toHaveBeenCalledTimes(1));
+
+    expect(normalizeVoiceTranscript("嗯，我要查的是什我要查的是深圳天气。")).toBe("我要查的是深圳天气。");
+    const transcripts = ws.sent.filter((b) => b[0] === FRAME.TRANSCRIPT_FINAL);
+    expect(transcripts.at(-1).subarray(4).toString("utf-8")).toBe("我要查的是深圳天气。");
+  });
+
   it("chat mode only transcribes, leaving Brain/tool execution to the normal chat pipeline", async () => {
     const deps = makeHealthyDeps();
     upg = makeMockUpgrade();
@@ -199,6 +238,54 @@ describe("voice-ws route — VoiceSession state machine", () => {
     expect(deps.brainRunner).not.toHaveBeenCalled();
     expect(ws.sent.some((b) => b[0] === FRAME.ASSISTANT_REPLY)).toBe(true);
     expect(ws.sent.some((b) => b[0] === FRAME.PCM_TTS)).toBe(true);
+  });
+
+  it("does not let a late on-open health probe override active speaking state", async () => {
+    let resolveHealth;
+    let resolveSynth;
+    const ttsHealth = new Promise((resolve) => { resolveHealth = resolve; });
+    const synthResult = new Promise((resolve) => {
+      resolveSynth = () => resolve({ audio: Buffer.alloc(3200, 1), mimeType: "audio/pcm" });
+    });
+    const deps = makeHealthyDeps({
+      healthOnOpen: true,
+      ttsProvider: {
+        synthesize: vi.fn(async () => synthResult),
+        health: vi.fn(async () => ttsHealth),
+      },
+    });
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket, ...deps });
+    hooks = upg.invoke({ req: { query: (key) => (key === "mode" ? "chat" : "") } });
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+
+    hooks.onMessage({
+      data: makeFrame(FRAME.SPEAK_TEXT, 0, 0, Buffer.from("这是聊天框的回复。", "utf-8")),
+    }, ws);
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.SPEAKING);
+    });
+
+    resolveHealth({ ok: false, fallbackOk: false, degraded: true });
+    await vi.waitFor(() => {
+      const health = ws.sent.find((b) => b[0] === FRAME.HEALTH_STATUS);
+      expect(health).toBeTruthy();
+      expect(JSON.parse(health.subarray(4).toString("utf-8"))).toMatchObject({
+        ok: false,
+        providers: { tts: { ok: false, degraded: true } },
+      });
+    });
+    let states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+    expect(states).toContain(STATE.SPEAKING);
+    expect(states).not.toContain(STATE.DEGRADED);
+
+    resolveSynth();
+    await vi.waitFor(() => {
+      states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states.at(-1)).toBe(STATE.IDLE);
+    });
   });
 
   it("SPEAK_TEXT splits long markdown replies into small sustained TTS chunks", async () => {
@@ -403,6 +490,58 @@ describe("voice-ws route — VoiceSession state machine", () => {
     });
   });
 
+  it("accepts new audio from degraded state instead of bricking VAD", async () => {
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, {
+      upgradeWebSocket: upg.upgradeWebSocket,
+      ...makeHealthyDeps({
+        healthOnOpen: true,
+        ttsProvider: {
+          synthesize: vi.fn(),
+          health: vi.fn(async () => false),
+        },
+      }),
+    });
+    hooks = upg.invoke({});
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.DEGRADED);
+    });
+    ws.sent = [];
+    hooks.onMessage({ data: makeFrame(FRAME.PCM_AUDIO, 0, 0, Buffer.alloc(3200, 0)) }, ws);
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.LISTENING);
+    });
+  });
+
+  it("clears the thinking partial and degrades cleanly when ASR fails", async () => {
+    const deps = makeHealthyDeps({
+      asrProvider: {
+        transcribe: vi.fn(async () => { throw new Error("asr timeout"); }),
+        health: vi.fn(async () => true),
+      },
+    });
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket, ...deps });
+    hooks = upg.invoke({});
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+
+    hooks.onMessage({ data: makeFrame(FRAME.PCM_AUDIO, 0, 0, Buffer.alloc(3200, 0)) }, ws);
+    hooks.onMessage({ data: makeFrame(FRAME.END_OF_TURN, 0, 1, Buffer.alloc(0)) }, ws);
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.DEGRADED);
+    });
+    const partials = ws.sent.filter((b) => b[0] === FRAME.TRANSCRIPT_PARTIAL);
+    const finals = ws.sent.filter((b) => b[0] === FRAME.TRANSCRIPT_FINAL);
+    expect(partials.at(-1).subarray(4).toString("utf-8")).toBe("理解中…");
+    expect(finals.at(-1).subarray(4).toString("utf-8")).toBe("");
+  });
+
   it("does not degrade when optional SER health is down", async () => {
     upg = makeMockUpgrade();
     createVoiceWsRoute({}, {}, {
@@ -461,6 +600,48 @@ describe("voice-ws route — VoiceSession state machine", () => {
     expect(states).toContain(STATE.DEGRADED);
     expect(deps.ttsProvider.synthesize).toHaveBeenCalledTimes(1);
     expect(deps.ttsProvider.synthesize.mock.calls[0][1]).toEqual(expect.objectContaining({ speed: 1.0 }));
+  });
+
+  it("interrupt during THINKING does not throw and allows the next utterance", async () => {
+    let brainCall = 0;
+    const deps = makeHealthyDeps({
+      brainRunner: vi.fn(({ signal }) => {
+        brainCall += 1;
+        if (brainCall === 1) {
+          return new Promise((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              const err = new Error("aborted");
+              err.name = "AbortError";
+              reject(err);
+            }, { once: true });
+          });
+        }
+        return "第二轮回复。";
+      }),
+    });
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket, ...deps });
+    hooks = upg.invoke({});
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+
+    hooks.onMessage({ data: makeFrame(FRAME.TEXT_TURN, 0, 0, Buffer.from("第一轮", "utf-8")) }, ws);
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.THINKING);
+    });
+    expect(() => hooks.onMessage({ data: makeFrame(FRAME.INTERRUPT, 0, 1, Buffer.alloc(0)) }, ws)).not.toThrow();
+    const interruptStates = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+    expect(interruptStates).toContain(STATE.LISTENING);
+    ws.sent = [];
+    hooks.onMessage({ data: makeFrame(FRAME.PCM_AUDIO, 0, 2, Buffer.alloc(3200, 0)) }, ws);
+    hooks.onMessage({ data: makeFrame(FRAME.END_OF_TURN, 0, 3, Buffer.alloc(0)) }, ws);
+    await vi.waitFor(() => expect(deps.asrProvider.transcribe).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(deps.ttsProvider.synthesize).toHaveBeenCalled());
+    expect(deps.brainRunner).toHaveBeenCalledTimes(2);
+    const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+    expect(states).toContain(STATE.IDLE);
+    expect(states).not.toContain(STATE.DEGRADED);
   });
 
   it("extracts PCM data from WAV TTS responses before PCM_TTS", async () => {
@@ -535,6 +716,12 @@ describe("voice-ws route — TTS text splitting", () => {
     expect(chunks.every((chunk) => chunk.length <= 40)).toBe(true);
     expect(chunks.join("")).not.toContain("**");
     expect(chunks.join("")).not.toContain("```");
+  });
+
+  it("removes emoji from TTS chunks while keeping the spoken text", () => {
+    const chunks = splitTextForTts("在呢在呢！😁 有什么需要帮忙的？", { maxChars: 40 });
+    expect(chunks).toEqual(["在呢在呢！", "有什么需要帮忙的？"]);
+    expect(chunks.join("")).not.toContain("😁");
   });
 });
 

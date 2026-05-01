@@ -1084,7 +1084,7 @@ describe("chat route event forwarding", () => {
     expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
   });
 
-  it("closes a returned pseudo-tool-only turn with fallback text", async () => {
+  it("closes a returned pseudo-tool-only turn without leaking generic fallback text", async () => {
     vi.useFakeTimers();
     try {
       engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
@@ -1110,7 +1110,8 @@ describe("chat route event forwarding", () => {
         .filter((evt) => evt.type === "text_delta")
         .map((evt) => evt.delta)
         .join("");
-      expect(visibleText).toContain("本轮模型没有生成可见答案");
+      expect(visibleText).not.toContain("本轮模型没有生成可见答案");
+      expect(visibleText).not.toContain("空转");
       expect(visibleText).not.toContain("rm delete-me.txt");
       expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "turn_end" }));
       expect(clients[0].sent).toContainEqual(expect.objectContaining({ type: "status", isStreaming: false }));
@@ -1271,6 +1272,12 @@ describe("chat route event forwarding", () => {
       type: "error",
       message: expect.stringContaining("still"),
     }));
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "text_delta",
+      delta: expect.stringMatching(/没有生成可用回复|空转/),
+    }));
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(3), { timeout: 1000 });
+    expect(hub.send.mock.calls[2]?.[0]).toContain("T06 推荐电影");
 
     // 让旧 retry 的 hub.send promise 解掉,清理悬挂
     firstCallResolve?.();
@@ -1343,7 +1350,8 @@ describe("chat route event forwarding", () => {
         .filter((evt) => evt.type === "text_delta")
         .map((evt) => evt.delta)
         .join("");
-      expect(visibleText).toContain("长时间没有生成可见答案");
+      expect(visibleText).not.toContain("长时间没有生成可见答案");
+      expect(visibleText).not.toContain("空转");
       expect(clients[0].sent).toContainEqual(expect.objectContaining({
         type: "turn_end",
         sessionPath: "/sessions/current.jsonl",

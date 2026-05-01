@@ -68,6 +68,10 @@ export interface VoiceHealthStatus {
     ser?: VoiceProviderHealth;
     tts?: VoiceProviderHealth;
   };
+  // DS V4 Pro 反馈 #5 · Phase 2.5 降级编排附加字段(2026-05-01)
+  tier?: 1 | 2 | 3 | 4 | 5 | 6;
+  orbColor?: 'green' | 'yellow' | 'red';
+  tierLabel?: string;
 }
 
 export interface VoiceWsClientEvents {
@@ -190,6 +194,7 @@ function normalizeError(err: unknown): Error {
 export class VoiceWsClient {
   private opts: VoiceWsClientOptions;
   private ws: WebSocketLike | null = null;
+  private connectPromise: Promise<void> | null = null;
   private stream: PcmStreamLike | null = null;
   private player: PcmPlayerLike | null = null;
   private seq = 0;
@@ -211,8 +216,10 @@ export class VoiceWsClient {
 
   async connect(): Promise<void> {
     if (this.isConnected()) return;
+    if (this.connectPromise) return this.connectPromise;
     const WebSocketImpl = this.opts.websocketCtor || globalThis.WebSocket;
     if (!WebSocketImpl) throw new Error('WebSocket is unavailable in this environment');
+    this.dropStaleSocket();
 
     const url = this.opts.url || resolveVoiceWsUrl(this.opts.port, this.opts.mode);
     const protocols = this.opts.token ? ['hana-v1', `token.${this.opts.token}`] : ['hana-v1'];
@@ -220,23 +227,42 @@ export class VoiceWsClient {
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
 
-    await new Promise<void>((resolve, reject) => {
+    const promise = new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const settleResolve = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const settleReject = (err: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(err);
+      };
       ws.onopen = () => {
         this.opts.onOpen?.();
-        resolve();
+        settleResolve();
       };
       ws.onerror = () => {
         const err = new Error('Voice WS connection failed');
         this.opts.onError?.(err);
-        reject(err);
+        settleReject(err);
       };
       ws.onclose = () => {
+        if (this.ws === ws) this.ws = null;
         this.opts.onClose?.();
+        settleReject(new Error('Voice WS connection closed'));
       };
       ws.onmessage = (event) => {
         void this.handleMessage(event).catch((err) => this.opts.onError?.(normalizeError(err)));
       };
     });
+    this.connectPromise = promise;
+    try {
+      await promise;
+    } finally {
+      if (this.connectPromise === promise) this.connectPromise = null;
+    }
   }
 
   async startListening(): Promise<void> {
@@ -259,11 +285,12 @@ export class VoiceWsClient {
     if (!this.stream.isRunning()) await this.stream.start();
   }
 
-  async endTurn(): Promise<void> {
-    this.sendFrame(VOICE_FRAME.END_OF_TURN);
+  async endTurn(): Promise<boolean> {
+    const sent = this.sendFrame(VOICE_FRAME.END_OF_TURN);
     if (this.opts.stopCaptureOnEndTurn !== false) {
       this.stream?.stop();
     }
+    return sent;
   }
 
   async sendTextTurn(text: string): Promise<void> {
@@ -275,16 +302,19 @@ export class VoiceWsClient {
   async speakText(text: string): Promise<void> {
     await this.connect();
     const payload = new TextEncoder().encode(String(text || '').trim());
-    this.sendFrame(VOICE_FRAME.SPEAK_TEXT, payload);
+    if (!this.sendFrame(VOICE_FRAME.SPEAK_TEXT, payload)) {
+      throw new Error('Voice WS connection closed before speech request');
+    }
   }
 
-  async interrupt(): Promise<void> {
-    this.sendFrame(VOICE_FRAME.INTERRUPT);
+  async interrupt(): Promise<boolean> {
+    const sent = this.sendFrame(VOICE_FRAME.INTERRUPT);
     await this.player?.flush();
+    return sent;
   }
 
   sendPcm(pcm: Int16Array): void {
-    this.sendFrame(VOICE_FRAME.PCM_AUDIO, pcm);
+    if (!this.sendFrame(VOICE_FRAME.PCM_AUDIO, pcm)) return;
     this.stats.pcmFramesOut++;
     this.stats.pcmBytesOut += pcm.byteLength;
     this.emitStats();
@@ -293,7 +323,9 @@ export class VoiceWsClient {
   ping(): void {
     const seq = this.nextSeq();
     this.pingSentAt.set(seq, performance.now());
-    this.sendRaw(makeVoiceFrame(VOICE_FRAME.PING, seq));
+    if (!this.sendRaw(makeVoiceFrame(VOICE_FRAME.PING, seq))) {
+      this.pingSentAt.delete(seq);
+    }
   }
 
   stopCapture(): void {
@@ -305,6 +337,7 @@ export class VoiceWsClient {
     await this.player?.flush();
     this.ws?.close();
     this.ws = null;
+    this.connectPromise = null;
   }
 
   destroy(): void {
@@ -314,6 +347,7 @@ export class VoiceWsClient {
     this.stream = null;
     this.player = null;
     this.ws = null;
+    this.connectPromise = null;
   }
 
   isConnected(): boolean {
@@ -339,13 +373,30 @@ export class VoiceWsClient {
     return this.player;
   }
 
-  private sendFrame(type: VoiceFrameType, payload?: Uint8Array | Int16Array | ArrayBuffer): void {
-    this.sendRaw(makeVoiceFrame(type, this.nextSeq(), payload));
+  private sendFrame(type: VoiceFrameType, payload?: Uint8Array | Int16Array | ArrayBuffer): boolean {
+    return this.sendRaw(makeVoiceFrame(type, this.nextSeq(), payload));
   }
 
-  private sendRaw(frame: ArrayBuffer): void {
-    if (!this.isConnected()) throw new Error('Voice WS is not connected');
-    this.ws!.send(frame);
+  private sendRaw(frame: ArrayBuffer): boolean {
+    if (!this.isConnected()) return false;
+    try {
+      this.ws!.send(frame);
+      return true;
+    } catch (err) {
+      this.opts.onError?.(normalizeError(err));
+      return false;
+    }
+  }
+
+  private dropStaleSocket(): void {
+    if (!this.ws || this.isConnected()) return;
+    const stale = this.ws;
+    this.ws = null;
+    try {
+      stale.close();
+    } catch {
+      // ignored: closing a stale browser WebSocket is best-effort.
+    }
   }
 
   private nextSeq(): number {

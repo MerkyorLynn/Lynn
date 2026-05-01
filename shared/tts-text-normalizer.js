@@ -71,7 +71,7 @@ function normalizeDateSeparators(text) {
       `${digitByDigit(y)}年${numberToChinese(Number(mo))}月${numberToChinese(Number(d))}日`
     ))
     .replace(/\b(20\d{2})年/g, (_m, y) => `${digitByDigit(y)}年`)
-    .replace(/\b(\d{1,2})月(\d{1,2})(日|号)?/g, (_m, mo, d, suffix = "日") => (
+    .replace(/\b(\d{1,2})\s*月\s*(\d{1,2})\s*(日|号)?/g, (_m, mo, d, suffix = "日") => (
       `${numberToChinese(mo)}月${numberToChinese(d)}${suffix || "日"}`
     ));
 }
@@ -111,8 +111,17 @@ function normalizeRemainingNumbers(text) {
   });
 }
 
+const EMOJI_SEQUENCE_RE = /(?:[\u{1F1E6}-\u{1F1FF}]{2})|(?:[#*0-9]\uFE0F?\u20E3)|(?:\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*)/gu;
+
+export function stripEmojiForTts(value) {
+  return String(value || "")
+    .replace(EMOJI_SEQUENCE_RE, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function normalizeChineseTtsText(value) {
-  const input = String(value || "");
+  const input = stripEmojiForTts(value);
   if (!input.trim()) return "";
   return normalizeRemainingNumbers(
     normalizeCurrencyAndSymbols(

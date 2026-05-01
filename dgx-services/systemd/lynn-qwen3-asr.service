@@ -1,0 +1,39 @@
+[Unit]
+Description=Lynn V0.79 Qwen3-ASR-0.6B HTTP Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=merkyor
+Group=merkyor
+WorkingDirectory=/home/merkyor/voice-services/qwen3-asr-spike
+
+# 镜像与 hf-xet workaround(reference_dgx_stability_bugs.md)
+Environment="HF_ENDPOINT=https://hf-mirror.com"
+Environment="HF_HUB_DISABLE_XET=1"
+Environment="MODELSCOPE_CACHE=/home/merkyor/.cache/modelscope"
+Environment="LYNN_ASR_MODEL_ID=Qwen/Qwen3-ASR-0.6B"
+Environment="LYNN_ASR_DEVICE=cuda:0"
+# 60s 音频上限
+Environment="LYNN_ASR_MAX_AUDIO_SECONDS=60"
+
+# 启动(venv 里的 uvicorn)
+ExecStart=/home/merkyor/voice-services/qwen3-asr-spike/.venv/bin/uvicorn \
+    asr_server:app --host 0.0.0.0 --port 18007 --workers 1 --log-level info
+
+# 启动超时给 transformers backend 首次加载留 10 分钟
+TimeoutStartSec=600
+Restart=always
+RestartSec=10
+
+# DGX 铁律 #13:本服务不吃 LLM mem-fraction,但要求 LLM 上限 0.70
+# 本 unit 不做硬性隔离,依赖 systemd earlyoom + 运维纪律
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lynn-qwen3-asr
+
+[Install]
+WantedBy=multi-user.target

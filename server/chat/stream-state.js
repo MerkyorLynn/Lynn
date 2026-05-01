@@ -130,6 +130,8 @@ export function resetCompletedTurnState(ss) {
   ss.internalRetryPending = false;
   ss.internalRetryInFlight = false;
   ss.internalRetryReason = "";
+  ss.internalRetryOriginalVisibleLen = 0;
+  ss.internalRetryHadVisibleBeforeReset = false;
   ss.hasOutput = false;
   ss.hasToolCall = false;
   ss.hasPrefetchToolCall = false;

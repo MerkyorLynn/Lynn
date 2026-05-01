@@ -13,7 +13,7 @@ vi.mock("../lib/tools/web-search.js", () => searchMock);
 vi.mock("../lib/tools/web-fetch.js", () => fetchContentMock);
 
 import { createStockMarketTool } from "../lib/tools/stock-market.js";
-import { createWeatherTool } from "../lib/tools/realtime-info.js";
+import { createWeatherTool, extractWeatherLocation } from "../lib/tools/realtime-info.js";
 import { buildDirectResearchAnswer, inferReportResearchKind } from "../server/chat/report-research-context.js";
 
 function jsonResponse(data) {
@@ -527,6 +527,54 @@ describe("realtime market/weather tools", () => {
     expect(text).toContain("深圳 · 广东");
     expect(text).toContain("20.1~26.6°C");
     expect(text).toContain("降雨概率 25%");
+  });
+
+  it("extracts the city from spoken ASR filler before weather lookup", async () => {
+    expect(extractWeatherLocation("嗯，我要查的是什我要查的是深圳天气。")).toBe("深圳");
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      const href = String(url);
+      if (href.includes("wttr.in")) throw new Error("wttr unavailable");
+      if (href.includes("geocoding-api.open-meteo.com")) {
+        expect(decodeURIComponent(href)).toContain("深圳");
+        expect(decodeURIComponent(href)).not.toContain("我要查的是");
+        return jsonResponse({
+          results: [{
+            name: "深圳",
+            admin1: "广东",
+            latitude: 22.54554,
+            longitude: 114.0683,
+            timezone: "Asia/Shanghai",
+          }],
+        });
+      }
+      if (href.includes("api.open-meteo.com")) {
+        return jsonResponse({
+          current: {
+            temperature_2m: 24,
+            relative_humidity_2m: 70,
+            precipitation: 0,
+            weather_code: 2,
+            wind_speed_10m: 8,
+          },
+          daily: {
+            time: ["2026-05-01", "2026-05-02"],
+            weather_code: [2, 61],
+            temperature_2m_min: [21, 22],
+            temperature_2m_max: [27, 26],
+            precipitation_probability_max: [10, 50],
+          },
+        });
+      }
+      throw new Error(`unexpected fetch ${href}`);
+    }));
+
+    const result = await createWeatherTool().execute("test", {
+      query: "嗯，我要查的是什我要查的是深圳天气。",
+    });
+
+    expect(result.details.location).toBe("深圳");
+    expect(result.content[0].text).toContain("深圳 · 广东");
+    expect(result.content[0].text).not.toContain("我要查的是");
   });
 
   it("localizes wttr weather labels for Chinese city queries", async () => {

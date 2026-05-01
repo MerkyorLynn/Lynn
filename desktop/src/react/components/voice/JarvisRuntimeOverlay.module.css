@@ -1,31 +1,32 @@
 .shell {
   position: fixed;
-  right: 24px;
-  bottom: 64px;
-  width: min(360px, calc(100vw - 32px));
+  right: 18px;
+  bottom: 72px;
+  width: min(330px, calc(100vw - 28px));
   z-index: 80;
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid var(--border, rgba(120, 110, 90, 0.18));
-  border-radius: var(--radius-md, 8px);
-  background: color-mix(in srgb, var(--bg-card, #fff) 94%, transparent);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.16);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent);
+  box-shadow: 0 12px 30px rgba(96, 78, 48, 0.14);
   color: var(--text-primary, #241f1a);
   backdrop-filter: blur(16px);
+  overflow: hidden;
 }
 
 .header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .orb {
-  width: 30px;
-  height: 30px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1px solid rgba(var(--accent-rgb, 126, 153, 168), 0.35);
   background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(var(--accent-rgb, 126, 153, 168), 0.30));
@@ -52,20 +53,88 @@
   box-shadow: 0 0 0 4px rgba(197, 148, 47, 0.16);
 }
 
+/* DS V4 Pro 反馈 #5 · Phase 2.5 降级编排 Orb 颜色
+   优先级高于 data-state,用于全局 tier 显示.Tier 1/2 默认继承 state,Tier 3-5 黄,Tier 6 红 */
+.orb[data-orb-color="yellow"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(197, 148, 47, 0.64));
+  box-shadow: 0 0 0 4px rgba(197, 148, 47, 0.16);
+}
+
+.orb[data-orb-color="red"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(196, 73, 73, 0.70));
+  box-shadow: 0 0 0 4px rgba(196, 73, 73, 0.18);
+  animation: orb-alert 1.6s ease-in-out infinite;
+}
+
+@keyframes orb-alert {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(196, 73, 73, 0.18); }
+  50%      { box-shadow: 0 0 0 7px rgba(196, 73, 73, 0.28); }
+}
+
+.activityMeter {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 4px;
+  opacity: 0.58;
+  transition: opacity 160ms ease;
+}
+
+.activityMeter span {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb, 126, 153, 168), 0.30);
+  transform-origin: center;
+  transition: height 220ms ease, background 180ms ease;
+}
+
+.activityMeter[data-active="true"] {
+  opacity: 1;
+}
+
+.activityMeter[data-active="true"] span {
+  height: var(--bar-height, 14px);
+  animation: voice-bar 1180ms ease-in-out infinite;
+  animation-delay: var(--bar-delay, 0ms);
+}
+
+.activityMeter[data-state="listening"] span {
+  background: rgba(76, 163, 127, 0.62);
+}
+
+.activityMeter[data-state="speaking"] span {
+  background: rgba(var(--accent-rgb, 126, 153, 168), 0.62);
+  animation-duration: 1080ms;
+}
+
+.activityMeter[data-state="thinking"] span {
+  background: rgba(83, 132, 186, 0.58);
+  animation-duration: 1100ms;
+}
+
+@keyframes voice-bar {
+  0%, 100% { transform: scaleY(0.68); }
+  50%      { transform: scaleY(1); }
+}
+
 .titleBlock {
   min-width: 0;
 }
 
 .title {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.2;
 }
 
 .stateLine {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted, #7a7167);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -76,8 +145,8 @@
 .iconButton {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm, 6px);
   background: transparent;
@@ -154,23 +223,25 @@
   white-space: nowrap;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+.compactActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: max-content;
 }
 
 .primaryButton,
 .secondaryButton {
-  min-height: 36px;
+  min-height: 26px;
   border-radius: var(--radius-sm, 6px);
   border: 1px solid transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
   cursor: pointer;
 }
 
 .primaryButton {
+  padding: 0 10px;
   background: var(--accent, #7e99a8);
   color: #fff;
 }
@@ -186,7 +257,7 @@
 }
 
 .secondaryButton {
-  padding: 0 12px;
+  padding: 0 8px;
   background: transparent;
   border-color: var(--overlay-light, rgba(0, 0, 0, 0.08));
   color: var(--text-muted, #7a7167);
@@ -199,9 +270,9 @@
 
 @media (max-width: 520px) {
   .shell {
-    left: 16px;
-    right: 16px;
-    bottom: 54px;
+    left: 12px;
+    right: 12px;
+    bottom: 58px;
     width: auto;
   }
 }

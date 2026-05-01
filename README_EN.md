@@ -20,7 +20,22 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.3</strong> · 2026-05-01 · Lynn voice runtime + startup white-screen fix + long-reply speech <em>(latest)</em></summary>
+<summary><strong>v0.77.4</strong> · 2026-05-01 · compact voice waveform + interrupt fixes + tool stability <em>(latest)</em></summary>
+
+**Voice, tools, and report UX**:
+- 🎛️ **Compact voice overlay**: the voice runtime now uses a small waveform card instead of a large transcript panel that can cover the input area.
+- 🧯 **Interrupt handling fixes**: fixed THINKING/SPEAKING interrupt crashes, stale turns blocking new recording, and lingering "understanding..." placeholders after ASR failure.
+- 🎙️ **ASR compatibility**: Qwen3-ASR now normalizes language names, infers WAV MIME type, and applies request timeouts.
+- 🧰 **Local toolchain hardening**: more guardrails for pseudo tools, malformed bash, file-operation feedback, and dangerous-operation authorization.
+- 🌦️ **Realtime evidence checks**: weather/market answers require actual evidence fields instead of homepage/navigation snippets.
+- 🌐 **Translation and report artifacts**: chat translation, sanitized HTML artifacts, and PNG export are tightened.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.4)
+
+</details>
+
+<details>
+<summary><strong>v0.77.3</strong> · 2026-05-01 · Lynn voice runtime + startup white-screen fix + long-reply speech</summary>
 
 **Voice and startup stability**:
 - 🎙️ **Lynn voice overlay**: the new voice entry now presents itself as Lynn instead of Jarvis.
