@@ -24,6 +24,8 @@ export const VOICE_FRAME = {
   END_OF_TURN: 0x30,
   TEXT_TURN: 0x31,
   SPEAK_TEXT: 0x32,
+  // 2026-05-01 P0-① 增量 TTS append 帧:SPEAKING 中往 active queue 末尾推新 segments
+  SPEAK_TEXT_APPEND: 0x33,
 } as const;
 
 export const VOICE_STATE = {
@@ -304,6 +306,25 @@ export class VoiceWsClient {
     const payload = new TextEncoder().encode(String(text || '').trim());
     if (!this.sendFrame(VOICE_FRAME.SPEAK_TEXT, payload)) {
       throw new Error('Voice WS connection closed before speech request');
+    }
+  }
+
+  /**
+   * 2026-05-01 P0-① — 增量 TTS append。
+   *
+   * 当前在 SPEAKING 时:把新 segment 推到 server-side activeSpeakingQueue 末尾。
+   * 当前 IDLE/其他态:server 自动当 fresh speakText 处理(向后兼容)。
+   *
+   * 用法(典型):JarvisRuntimeOverlay 订阅 chat WS 的 text_delta,见到句尾标点
+   * 立刻吐一段。第一段调 speakText,后续段调 speakTextAppend。
+   */
+  async speakTextAppend(text: string): Promise<void> {
+    const value = String(text || '').trim();
+    if (!value) return;
+    await this.connect();
+    const payload = new TextEncoder().encode(value);
+    if (!this.sendFrame(VOICE_FRAME.SPEAK_TEXT_APPEND, payload)) {
+      throw new Error('Voice WS connection closed before speech append');
     }
   }
 

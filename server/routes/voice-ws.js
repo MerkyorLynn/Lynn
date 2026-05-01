@@ -34,6 +34,7 @@ import { createASRFallbackProvider } from "../clients/asr/index.js";
 import { createSERProvider, EMOTION_LLM_HINT } from "../clients/ser/index.js";
 import { createTTSFallbackProvider } from "../clients/tts/index.js";
 import { enrichHealthWithTier } from "../chat/voice-fallback-orchestrator.js";
+import { aecAvailable as defaultAecAvailable, createAecProcessor as defaultCreateAecProcessor, aecProcessRender as defaultAecRender, aecProcessCapture as defaultAecCapture } from "../clients/aec/index.js";
 
 // 协议常量
 export const FRAME = {
@@ -51,6 +52,9 @@ export const FRAME = {
   END_OF_TURN: 0x30,
   TEXT_TURN: 0x31,
   SPEAK_TEXT: 0x32,
+  // 2026-05-01 P0-① 增量 TTS:LLM token streaming → incremental sentence splitter →
+  // 已 SPEAKING 时直接 append 新 segments,不创建新 turn,首音节延迟从 ~3s 砍到 ~0.9s。
+  SPEAK_TEXT_APPEND: 0x33,
 };
 
 export const STATE = {
@@ -63,16 +67,21 @@ export const STATE = {
 
 const PCM_SAMPLE_RATE = 16000;
 const PCM_TTS_CHUNK_BYTES = 3200; // 100ms @ 16kHz Int16 mono
+// 2026-05-01 P1-① — native AEC 强制 10ms 帧粒度(WebRTC API 约束,见 lib.rs)
+const AEC_SAMPLES_PER_FRAME = 160;
 const TTS_MAX_SEGMENT_CHARS = 80;
 const TTS_RETRY_MIN_SEGMENT_CHARS = 24;
 const TTS_SEGMENT_TIMEOUT_MS = 45000;
 const EMOTION_CURRENT_TURN_WAIT_MS = 250;
+// 2026-05-01 P0-③ 收紧默认值:对齐 OpenAI Realtime API 默认 silence_duration_ms=500ms
+// (https://developers.openai.com/api/docs/guides/realtime-vad)
+// 旧 800ms / 200ms 偏保守。客户端可仍通过 vadConfig 覆写。
 const DEFAULT_VAD_CONFIG = Object.freeze({
   enabled: true,
   speechRms: 0.012,
   silenceRms: 0.006,
-  minSpeechFrames: 2, // 200ms speech before auto-EOT is armed
-  endSilenceFrames: 8, // 800ms trailing silence
+  minSpeechFrames: 1, // 100ms speech before auto-EOT is armed
+  endSilenceFrames: 5, // 500ms trailing silence
 });
 
 /**
@@ -233,6 +242,125 @@ export function normalizeTtsAudioToPcm16Mono16k(audioBuffer) {
   }
   const mono = downmixPcm16ToMono(decoded.pcm, decoded.channels);
   return resamplePcm16Mono(mono, decoded.sampleRate, PCM_SAMPLE_RATE);
+}
+
+/**
+ * 2026-05-01 P1-① — Int16 LE Buffer 读 N samples → Float32Array(归一到 [-1, 1])
+ * 用于 native AEC 输入(WebRTC ProcessRender/ProcessCapture 接受 Float32)。
+ */
+export function bufferInt16LEToFloat32(buf, sampleCount, byteOffset = 0) {
+  const out = new Float32Array(sampleCount);
+  for (let i = 0; i < sampleCount; i += 1) {
+    const offset = byteOffset + i * 2;
+    if (offset + 1 < buf.length) {
+      const s = buf.readInt16LE(offset);
+      out[i] = s < 0 ? s / 0x8000 : s / 0x7fff;
+    } else {
+      out[i] = 0;
+    }
+  }
+  return out;
+}
+
+export function float32ToInt16LEBuffer(samples) {
+  const out = Buffer.alloc(samples.length * 2);
+  for (let i = 0; i < samples.length; i += 1) {
+    const s = Math.max(-1, Math.min(1, samples[i] || 0));
+    const v = s < 0 ? Math.round(s * 0x8000) : Math.round(s * 0x7fff);
+    out.writeInt16LE(Math.max(-32768, Math.min(32767, v)), i * 2);
+  }
+  return out;
+}
+
+/**
+ * 2026-05-01 P1-① — TTS reference signal queue(Int16 LE 字节流)。
+ *
+ * server 在 send PCM_TTS 时同步 push,onAudio 时取等长 reference 喂 AEC processRender。
+ * 容量上限防 TTS 远长于 mic 时(用户全程不开口)无限增长;头部丢老 sample,
+ * 保留最近 N ms。
+ */
+class TtsReferenceQueue {
+  constructor({ maxSamples = PCM_SAMPLE_RATE * 10 } = {}) {
+    this.maxSamples = maxSamples; // 默认 10s 上限
+    this.bytes = Buffer.alloc(0);
+  }
+  push(int16Bytes) {
+    if (!int16Bytes?.length) return;
+    this.bytes = Buffer.concat([this.bytes, int16Bytes]);
+    const maxBytes = this.maxSamples * 2;
+    if (this.bytes.length > maxBytes) {
+      this.bytes = this.bytes.subarray(this.bytes.length - maxBytes);
+    }
+  }
+  /**
+   * 取 sampleCount samples Int16 字节流;不足用 0 padding。
+   *
+   * 2026-05-01 修 1 — `trimSamples` 用于校准 reference vs mic 时序差。
+   * 链路实际延迟 = 服务端→客户端网络 ~30ms + AudioWorklet jitter ~30ms +
+   * 扬声器→空气→mic ~10-50ms + 客户端→服务端网络 ~30ms,合计约 60-150ms。
+   * WebRTC AEC `EchoCanceller::Full { stream_delay_ms: None }` 信赖 estimator
+   * 自学习 delay,通常足够;但环境抖动严重时可显式 trim 老 reference,
+   * 让 take 出的 reference 时间戳更靠近"对应当前 mic 帧 echo 来源"。
+   *
+   * trimSamples=0 默认:FIFO 队首,reference 与 mic 间相对延迟由 estimator 学。
+   * trimSamples>0:queue 充足时多丢 trimSamples 老 reference,等于"reference 提前
+   * trimMs ms 入 process_render",经验值 60-100ms 适合普通有线/WiFi 环境。
+   */
+  take(sampleCount, trimSamples = 0) {
+    const wantBytes = sampleCount * 2;
+    if (trimSamples > 0) {
+      // 仅在 queue 累积充足时才丢老,避免 take 出全 0 padding
+      const trimBytes = trimSamples * 2;
+      if (this.bytes.length >= wantBytes + trimBytes) {
+        this.bytes = this.bytes.subarray(trimBytes);
+      }
+    }
+    if (this.bytes.length >= wantBytes) {
+      const head = this.bytes.subarray(0, wantBytes);
+      this.bytes = this.bytes.subarray(wantBytes);
+      return head;
+    }
+    // 不足 → 取出所有 + 0 padding
+    const partial = this.bytes;
+    this.bytes = Buffer.alloc(0);
+    const padded = Buffer.alloc(wantBytes);
+    partial.copy(padded, 0);
+    return padded;
+  }
+  size() { return this.bytes.length / 2; }
+  clear() { this.bytes = Buffer.alloc(0); }
+}
+
+/**
+ * 2026-05-01 P1-① — 对单个 100ms PCM 帧跑 AEC。
+ * 入:mic 100ms Int16 LE Buffer + reference 100ms Int16 LE Buffer
+ * 出:cleaned 100ms Int16 LE Buffer
+ *
+ * 内部按 10ms (160 samples) 拆,for each pair:processRender(ref) + processCapture(mic)
+ * 任何步骤抛 → 退化返回原 mic Buffer(不阻塞主链)。
+ */
+export function aecProcessFrame100ms(handle, micBuf, refBuf, deps = {}) {
+  if (!handle) return micBuf;
+  const render = deps.processRender || defaultAecRender;
+  const capture = deps.processCapture || defaultAecCapture;
+  const samplesPerFrame = AEC_SAMPLES_PER_FRAME;
+  const totalSamples = Math.floor(micBuf.length / 2);
+  if (totalSamples % samplesPerFrame !== 0) return micBuf;
+  const cleaned = Buffer.alloc(micBuf.length);
+  try {
+    for (let s = 0; s < totalSamples; s += samplesPerFrame) {
+      const refFrame = bufferInt16LEToFloat32(refBuf, samplesPerFrame, s * 2);
+      const micFrame = bufferInt16LEToFloat32(micBuf, samplesPerFrame, s * 2);
+      render(handle, refFrame);
+      const out = capture(handle, micFrame);
+      const outBytes = float32ToInt16LEBuffer(out);
+      outBytes.copy(cleaned, s * 2);
+    }
+    return cleaned;
+  } catch (err) {
+    debugLog()?.warn("voice-ws", `aec process frame failed: ${err?.message || err}`);
+    return micBuf;
+  }
 }
 
 /**
@@ -457,7 +585,7 @@ async function waitForCurrentTurnEmotion(emotionPromise, timeoutMs = EMOTION_CUR
  * Voice session — 单条 WS 连接的状态封装
  */
 class VoiceSession {
-  constructor(ws, { engine, hub, asrProvider, serProvider, ttsProvider, brainRunner, healthOnOpen = true, vadConfig = {}, mode = "direct", saveInterruptedTurn = null }) {
+  constructor(ws, { engine, hub, asrProvider, serProvider, ttsProvider, brainRunner, healthOnOpen = true, vadConfig = {}, mode = "direct", saveInterruptedTurn = null, aec = null }) {
     this.ws = ws;
     this.engine = engine;
     this.hub = hub;
@@ -489,6 +617,36 @@ class VoiceSession {
     //     咳嗽/拟声/笑声     → 回滚,pendingInterruptedReply 直接丢弃(不污染上下文)
     this.pendingInterruptedReply = null;
     this.currentReplyPlayed = null; // 当前 TTS 正在播放的已完成 segments 文本
+    // 2026-05-01 P0-① 增量 TTS:speakText 进入循环时设此引用,SPEAK_TEXT_APPEND 帧
+    // 直接 push 进同一个 queue,无需新建 turn / 不抢锁。退出 speakText 时清 null。
+    this.activeSpeakingQueue = null;
+
+    // 2026-05-01 P1-① — 服务端 AEC pipeline:
+    //   * aec.available + native processor 创建成功 → 启用,reference signal 在 send PCM_TTS
+    //     时 push,onAudio 时取等长 reference 喂 processRender + processCapture
+    //   * 不可用(平台无 prebuilt / 加载失败 / 创建抛错)→ 退化为 mic 直传(等同现状)
+    //   * deps 注入:测试用 mock createProcessor / processRender / processCapture
+    const aecDeps = aec || null;
+    const aecCreate = aecDeps?.createProcessor || (defaultAecAvailable ? defaultCreateAecProcessor : null);
+    if (aecCreate) {
+      try {
+        this.aecProcessor = aecCreate({ sampleRate: PCM_SAMPLE_RATE, enableNs: true }) || null;
+      } catch (err) {
+        this.aecProcessor = null;
+        debugLog()?.warn("voice-ws", `aec processor init failed: ${err?.message || err}`);
+      }
+    } else {
+      this.aecProcessor = null;
+    }
+    this.aecRender = aecDeps?.processRender || defaultAecRender;
+    this.aecCapture = aecDeps?.processCapture || defaultAecCapture;
+    this.referenceQueue = new TtsReferenceQueue();
+    // 2026-05-01 修 1 — reference vs mic 时序校准,默认 0(信 WebRTC estimator
+    // 自学习 delay);环境抖动严重 ERLE < 15dB 时设 60-100 即可。负值 / NaN → 退 0。
+    const trimMs = Number(process.env.LYNN_AEC_REFERENCE_TRIM_MS);
+    this.aecReferenceTrimSamples = (Number.isFinite(trimMs) && trimMs > 0)
+      ? Math.round(trimMs * PCM_SAMPLE_RATE / 1000)
+      : 0;
     this.vadConfig = normalizeVadConfig(vadConfig);
     this.vadSpeechFrames = 0;
     this.vadSilenceFrames = 0;
@@ -574,22 +732,34 @@ class VoiceSession {
       this.setState(STATE.LISTENING);
     }
 
+    // 2026-05-01 P1-① — server 侧 AEC:取等长 reference(PCM_TTS 已 push),
+    // 跑 processRender + processCapture 清 echo,再走后续 buffer / VAD / ERLE。
+    let micPayload = frame.payload;
+    if (this.aecProcessor && frame.payload.length > 0 && frame.payload.length % (AEC_SAMPLES_PER_FRAME * 2) === 0) {
+      const sampleCount = frame.payload.length / 2;
+      const referenceBuf = this.referenceQueue.take(sampleCount, this.aecReferenceTrimSamples);
+      micPayload = aecProcessFrame100ms(this.aecProcessor, frame.payload, referenceBuf, {
+        processRender: this.aecRender,
+        processCapture: this.aecCapture,
+      });
+    }
+
     // Buffer 累积
     if (this.totalBufferedSamples < this.maxBufferedSamples) {
-      this.utteranceBuffer.push(frame.payload);
-      this.totalBufferedSamples += frame.payload.length / 2; // Int16 = 2 bytes/sample
+      this.utteranceBuffer.push(micPayload);
+      this.totalBufferedSamples += micPayload.length / 2; // Int16 = 2 bytes/sample
     } else {
       // 30s 上限,强制 EOT
       void this.endOfTurn();
       return;
     }
 
-    // ERLE 双轨:mic 入侧即录(无论是否进 VAD 判决)
+    // ERLE 双轨:mic 入侧即录(AEC 后的 cleaned PCM,合 doc spike/05 README 期望)
     if (this.erleRecord) {
-      this.erleRecord.micChunks.push(Buffer.from(frame.payload));
+      this.erleRecord.micChunks.push(Buffer.from(micPayload));
     }
 
-    this.updateEnergyVad(frame.payload);
+    this.updateEnergyVad(micPayload);
   }
 
   updateEnergyVad(pcmPayload) {
@@ -841,59 +1011,167 @@ class VoiceSession {
     // DS 反馈 #3 · 追踪已播放进度,onInterrupt T1 时快照
     this.currentReplyPlayed = {
       fullText: replyText,
-      segments,
+      segments: [...segments],
       playedSegments: [],
       startedAt: Date.now(),
     };
-    const queue = [...segments];
-    for (let i = 0; i < queue.length; i += 1) {
-      if (signal?.aborted) break;
-      const segment = queue[i];
-      let speech;
-      try {
-        speech = await this.ttsProvider.synthesize(segment, {
-          speed: 1.0,
-          signal,
-          timeoutMs: TTS_SEGMENT_TIMEOUT_MS,
-        });
-      } catch (err) {
-        const smallerMax = Math.max(TTS_RETRY_MIN_SEGMENT_CHARS, Math.ceil(segment.length / 2));
-        const smaller = segment.length > TTS_RETRY_MIN_SEGMENT_CHARS
-          ? splitTextForTts(segment, { maxChars: smallerMax }).filter((s) => s && s !== segment)
-          : [];
-        if (smaller.length > 1) {
-          debugLog()?.warn("voice-ws", `tts segment failed, retrying as ${smaller.length} smaller chunks: ${err?.message || err}`);
-          queue.splice(i, 1, ...smaller);
-          i -= 1;
-          continue;
-        }
-        throw err;
-      }
-      if (speech?.fallbackUsed) {
-        this.setState(STATE.DEGRADED);
-        debugLog()?.warn("voice-ws", `tts fallback used: ${speech.primaryError || "primary failed"}`);
-      }
-      const audio = speech?.audio || speech?.audioBuffer || speech?.buffer
-        || (speech?.path ? fs.readFileSync(speech.path) : null);
-      const pcm = normalizeTtsAudioToPcm16Mono16k(audio);
-      for (const chunk of chunkBuffer(pcm)) {
+    // 2026-05-01 P0-① queue 化:while 循环消费 this.activeSpeakingQueue,
+    // SPEAK_TEXT_APPEND 帧可在循环执行中往 queue 末尾 push 新 segment。
+    this.activeSpeakingQueue = [...segments];
+    // 2026-05-01 P0-② TTS 流式:provider 暴露 synthesizeStream 时优先用,首 PCM
+    // 不等整段 WAV 渲染完,首音节延迟 ~400-1200ms → ~200-300ms。
+    const supportsStream = typeof this.ttsProvider.synthesizeStream === "function";
+    try {
+      while (this.activeSpeakingQueue.length > 0) {
         if (signal?.aborted) break;
-        this.send(makeFrame(FRAME.PCM_TTS, 0, this.outSeq++, chunk));
-        // ERLE 双轨:TTS 推客户端的同一帧也写进磁盘侧的 tts.wav
-        if (this.erleRecord) {
-          this.erleRecord.ttsChunks.push(Buffer.from(chunk));
+        const segment = this.activeSpeakingQueue.shift();
+        try {
+          if (supportsStream) {
+            await this.streamSegmentToPcm(segment, signal);
+          } else {
+            await this.batchSegmentToPcm(segment, signal);
+          }
+        } catch (err) {
+          // 2026-05-01 修 3:stream 路径已 yield 部分 PCM 后失败 → 不切小重试
+          //   (会让用户重听该段)。直接抛出让 processSpeakTextTurn catch 进 DEGRADED。
+          //   stream 未 yield / batch 路径失败 → 走切小重试,符合原"安全降级"语义。
+          if (err?.yieldedAny) {
+            this.setState(STATE.DEGRADED);
+            debugLog()?.warn("voice-ws", `tts stream failed mid-segment after yielding PCM, no retry: ${err?.message || err}`);
+            throw err;
+          }
+          const smallerMax = Math.max(TTS_RETRY_MIN_SEGMENT_CHARS, Math.ceil(segment.length / 2));
+          const smaller = segment.length > TTS_RETRY_MIN_SEGMENT_CHARS
+            ? splitTextForTts(segment, { maxChars: smallerMax }).filter((s) => s && s !== segment)
+            : [];
+          if (smaller.length > 1) {
+            debugLog()?.warn("voice-ws", `tts segment failed, retrying as ${smaller.length} smaller chunks: ${err?.message || err}`);
+            this.activeSpeakingQueue.unshift(...smaller);
+            continue;
+          }
+          throw err;
+        }
+        // 推完此 segment 的全部 PCM 且未被打断 → 标记已完整播放
+        if (!signal?.aborted) {
+          this.currentReplyPlayed.playedSegments.push(segment);
         }
       }
-      // 推完此 segment 的全部 PCM 且未被打断 → 标记已完整播放
-      if (!signal?.aborted) {
-        this.currentReplyPlayed.playedSegments.push(segment);
-      }
+    } finally {
+      this.activeSpeakingQueue = null;
     }
     if (!signal?.aborted) {
       // 正常播完 → 清空跟踪,不触发 T2
       this.currentReplyPlayed = null;
       this.setState(STATE.IDLE);
     }
+  }
+
+  /**
+   * 2026-05-01 P0-② — 流式合成单段 segment:逐 WAV chunk 收 → 解 PCM → 推 PCM_TTS
+   * 首块 ~150-300ms 出,显著降低首音节延迟。
+   */
+  /**
+   * 2026-05-01 — 推一个 100ms TTS PCM chunk 到客户端,同时:
+   *   ① ERLE 双轨录 ttsChunks
+   *   ② P1-① reference queue push(供 onAudio 时 AEC processRender 用)
+   */
+  emitTtsPcmChunk(chunk) {
+    this.send(makeFrame(FRAME.PCM_TTS, 0, this.outSeq++, chunk));
+    if (this.erleRecord) {
+      this.erleRecord.ttsChunks.push(Buffer.from(chunk));
+    }
+    if (this.aecProcessor && this.referenceQueue) {
+      this.referenceQueue.push(chunk);
+    }
+  }
+
+  async streamSegmentToPcm(segment, signal) {
+    let yieldedAny = false;
+    let degradedFlagged = false;
+    try {
+      for await (const piece of this.ttsProvider.synthesizeStream(segment, {
+        speed: 1.0,
+        signal,
+        timeoutMs: TTS_SEGMENT_TIMEOUT_MS,
+      })) {
+        if (signal?.aborted) break;
+        // 2026-05-01 修 2:fallback wrapper 在 primary 流式 yield 几段后才挂 → fallback
+        // synthesize 整段当第 N+1 个 chunk yield(`fallbackUsed: true`)。旧逻辑只在 firstChunk
+        // 检测,会漏触发 DEGRADED。改成"任意 chunk 出现 fallbackUsed 就触发,只一次"。
+        if (!degradedFlagged && piece?.fallbackUsed) {
+          this.setState(STATE.DEGRADED);
+          degradedFlagged = true;
+          debugLog()?.warn("voice-ws", `tts stream fallback used: ${piece.primaryError || "primary failed"}`);
+        }
+        const audio = piece?.audio || piece?.audioBuffer || piece?.buffer
+          || (piece?.path ? fs.readFileSync(piece.path) : null);
+        if (!audio) continue;
+        const pcm = normalizeTtsAudioToPcm16Mono16k(audio);
+        for (const chunk of chunkBuffer(pcm)) {
+          if (signal?.aborted) break;
+          this.emitTtsPcmChunk(chunk);
+          yieldedAny = true;
+        }
+      }
+    } catch (err) {
+      // 2026-05-01 修 3:stream 中途失败时已 yield PCM 不能撤回,切小重试会让用户
+      // 重听段落;打 yieldedAny 标记给 caller,caller 决定是否切小重试。
+      err.yieldedAny = yieldedAny;
+      throw err;
+    }
+  }
+
+  /**
+   * 旧 batch 路径(provider 不支持 stream 时):整段 synthesize → 切 PCM 一次性推
+   */
+  async batchSegmentToPcm(segment, signal) {
+    const speech = await this.ttsProvider.synthesize(segment, {
+      speed: 1.0,
+      signal,
+      timeoutMs: TTS_SEGMENT_TIMEOUT_MS,
+    });
+    if (speech?.fallbackUsed) {
+      this.setState(STATE.DEGRADED);
+      debugLog()?.warn("voice-ws", `tts fallback used: ${speech.primaryError || "primary failed"}`);
+    }
+    const audio = speech?.audio || speech?.audioBuffer || speech?.buffer
+      || (speech?.path ? fs.readFileSync(speech.path) : null);
+    const pcm = normalizeTtsAudioToPcm16Mono16k(audio);
+    for (const chunk of chunkBuffer(pcm)) {
+      if (signal?.aborted) break;
+      this.emitTtsPcmChunk(chunk);
+    }
+  }
+
+  /**
+   * 2026-05-01 P0-① — 增量 TTS append
+   *
+   * 状态机决策(2026-05-01 修 6 race fix):
+   *   SPEAKING + activeSpeakingQueue 存在 → push 进 queue 接力(主路径)
+   *   IDLE / THINKING → 作为 fresh speakText(兼容路径,IDLE 首次 / THINKING race)
+   *   LISTENING / DEGRADED → drop。LISTENING 表示用户已开口(onInterrupt 后),
+   *     残段不该让 server 重新发声压过用户输入;DEGRADED 主链异常时也不发幽灵段。
+   */
+  appendSpeakText(text) {
+    const value = String(text || "").trim();
+    if (!value) return;
+    const segments = splitTextForTts(value);
+    if (segments.length === 0) return;
+    if (this.activeSpeakingQueue && this.state === STATE.SPEAKING) {
+      this.activeSpeakingQueue.push(...segments);
+      if (this.currentReplyPlayed) {
+        this.currentReplyPlayed.segments.push(...segments);
+        this.currentReplyPlayed.fullText = `${this.currentReplyPlayed.fullText || ""}${value}`;
+      }
+      debugLog()?.log("voice-ws", `append speak text: +${segments.length} segments (queue=${this.activeSpeakingQueue.length})`);
+      return;
+    }
+    if (this.state === STATE.LISTENING || this.state === STATE.DEGRADED) {
+      debugLog()?.log("voice-ws", `append speak text dropped (state=${this.state}): incremental TTS race after interrupt`);
+      return;
+    }
+    // IDLE / THINKING → fresh speakText
+    void this.processSpeakTextTurn(value);
   }
 
   onPing(frame) {
@@ -1024,6 +1302,9 @@ export function createVoiceWsRoute(engine, hub, { upgradeWebSocket, ...deps }) {
               break;
             case FRAME.SPEAK_TEXT:
               session.processSpeakTextTurn(frame.payload.toString("utf-8"));
+              break;
+            case FRAME.SPEAK_TEXT_APPEND:
+              session.appendSpeakText(frame.payload.toString("utf-8"));
               break;
             default:
               debugLog()?.log("voice-ws", `unknown frame type: 0x${frame.type.toString(16)}`);

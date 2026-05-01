@@ -39,6 +39,10 @@ export function createTTSFallbackProvider(config = {}, deps = {}) {
   };
   const fallback = deps.fallbackProvider || createTTSProvider(fallbackConfig);
 
+  // 2026-05-01 P0-② — primary 支持 synthesizeStream 时透传(优先);否则不暴露,
+  // voice-ws 看到 provider 没 synthesizeStream 自动回退到 synthesize 整段路径
+  const supportsStream = typeof primary.synthesizeStream === "function";
+
   return {
     name: `${primary.name || "tts"}+fallback`,
     label: `${primary.label || primary.name || "TTS"} with fallback`,
@@ -55,6 +59,26 @@ export function createTTSFallbackProvider(config = {}, deps = {}) {
         };
       }
     },
+
+    // 2026-05-01 P0-② 流式接力:首 chunk 出来就吐,fallback 失败时改走 synthesize 整段
+    ...(supportsStream ? {
+      async *synthesizeStream(text, opts = {}) {
+        try {
+          for await (const chunk of primary.synthesizeStream(text, opts)) {
+            yield chunk;
+          }
+          return;
+        } catch (err) {
+          // 主链流式失败 → fallback synthesize 整段 → 包装成单 chunk yield
+          const fallbackResult = await fallback.synthesize(text, opts);
+          yield {
+            ...fallbackResult,
+            fallbackUsed: true,
+            primaryError: err?.message || String(err),
+          };
+        }
+      },
+    } : {}),
 
     async health() {
       const [primaryOk, fallbackOk] = await Promise.all([

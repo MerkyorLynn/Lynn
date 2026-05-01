@@ -7,6 +7,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- WS 消息分发仍需兼容历史 payload 细节 */
 
 import { streamBufferManager } from '../hooks/use-stream-buffer';
+import { voiceTextStreamBus } from './voice-text-stream-bus';
 import { useStore } from '../stores';
 import { loadSessions as loadSessionsAction, switchSession as switchSessionAction } from '../stores/session-actions';
 import { handleArtifact } from '../stores/artifact-actions';
@@ -157,6 +158,10 @@ export function handleServerMessage(msg: ServerEvent | any): void {
   // ── React 聊天渲染路径：聊天相关事件走 StreamBufferManager ──
   if (isReactChatEventType(msg.type)) {
     streamBufferManager.handle(msg);
+    // 2026-05-01 P0-① 增量 TTS bus:把同一份 chat event 透传给 voice runtime,
+    // JarvisRuntimeOverlay 可订阅 text_delta/turn_end 做边出 token 边切句喂 TTS。
+    // bus 内做白名单过滤,不订阅时纯 no-op。
+    voiceTextStreamBus.dispatch(msg);
     // turn_end 后仍需执行部分通用逻辑（loadSessions、context_usage）
     if (msg.type === 'turn_end') {
       loadSessionsAction();
