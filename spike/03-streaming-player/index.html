@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Spike 03 — AudioWorklet 流式播放 + 中途清空</title>
+<style>
+  body { font-family: -apple-system, monospace; max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+  h1 { font-size: 22px; }
+  button { padding: 10px 18px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+  button.danger { background: #dc2626; color: white; border: none; border-radius: 4px; }
+  button.danger:hover { background: #991b1b; }
+  .stats { font-family: 'JetBrains Mono', Menlo, monospace; background: #f4f4f4; padding: 16px; border-radius: 8px; margin-top: 20px; line-height: 1.7; }
+  .stat-line { display: flex; justify-content: space-between; }
+  .ok { color: #1a7f37; }
+  .warn { color: #d97706; }
+  .err { color: #dc2626; }
+  #log { font-size: 11px; max-height: 250px; overflow-y: auto; margin-top: 20px; padding: 10px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Spike 03 — AudioWorklet 流式播放 + 中途清空 + 淡出</h1>
+<p>验收: 1000 次随机打断,音爆率 0,平均淡出时间 < 25ms。</p>
+<p>测试模拟:产生 440Hz/880Hz/1320Hz 正弦波 PCM 流(模拟 TTS),持续推队列,期间随机点"打断"按钮。</p>
+
+<div>
+  <button id="initBtn">⚙️ 初始化 AudioContext</button>
+  <button id="startBtn" disabled>▶ 开始流式播放(440Hz)</button>
+  <button id="changeFreqBtn" disabled>↻ 切换频率</button>
+  <button id="flushBtn" class="danger" disabled>✋ 打断(flush)</button>
+  <button id="autoTestBtn" disabled>🤖 自动 1000 次随机打断测试</button>
+  <button id="stopBtn" disabled>■ 停止</button>
+</div>
+
+<div class="stats">
+  <div class="stat-line"><span>状态</span><span id="status">待初始化</span></div>
+  <div class="stat-line"><span>设备 sampleRate</span><span id="deviceRate">-</span></div>
+  <div class="stat-line"><span>当前频率(Hz)</span><span id="curFreq">-</span></div>
+  <div class="stat-line"><span>已 enqueue chunks</span><span id="enqueued">0</span></div>
+  <div class="stat-line"><span>queue 当前 chunks / samples</span><span id="qSize">-</span></div>
+  <div class="stat-line"><span>已消费 samples</span><span id="consumed">0</span></div>
+  <div class="stat-line"><span>underrun count</span><span id="underruns">0</span></div>
+  <div class="stat-line"><span>flush 次数</span><span id="flushCount">0</span></div>
+  <div class="stat-line"><span>flush 平均耗时(ms,目标 < 25)</span><span id="avgFlushMs">-</span></div>
+  <div class="stat-line"><span>flush 最大耗时</span><span id="maxFlushMs">-</span></div>
+</div>
+
+<div id="log"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let audioCtx = null;
+let workletNode = null;
+let pcmTimer = null;
+let curFreq = 440;
+let enqueued = 0;
+let flushCount = 0;
+const flushDurations = [];
+let pendingFlushStart = 0;
+
+function log(msg, lv = '') {
+  const el = document.createElement('div');
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  if (lv) el.className = lv;
+  $('log').appendChild(el);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+// 生成 16kHz 正弦波 Int16 PCM (1600 samples = 100ms)
+let phase = 0;
+function generateSineChunk(freq) {
+  const samples = 1600;
+  const sampleRate = 16000;
+  const buf = new Int16Array(samples);
+  for (let i = 0; i < samples; i++) {
+    const sample = Math.sin(2 * Math.PI * freq * phase / sampleRate) * 0.4;
+    buf[i] = Math.max(-32768, Math.min(32767, sample * 32767));
+    phase++;
+  }
+  return buf;
+}
+
+async function initAudio() {
+  audioCtx = new AudioContext({ latencyHint: 'interactive' });
+  $('deviceRate').textContent = audioCtx.sampleRate;
+  await audioCtx.audioWorklet.addModule('pcm-player.worklet.js');
+  workletNode = new AudioWorkletNode(audioCtx, 'pcm-player');
+  workletNode.connect(audioCtx.destination);
+
+  workletNode.port.onmessage = (e) => {
+    if (e.data.type === 'flushed') {
+      const elapsed = performance.now() - pendingFlushStart;
+      flushDurations.push(elapsed);
+      $('avgFlushMs').textContent = (flushDurations.reduce((s, n) => s + n, 0) / flushDurations.length).toFixed(2);
+      $('maxFlushMs').textContent = Math.max(...flushDurations).toFixed(2);
+      log(`flush 完成,耗时 ${elapsed.toFixed(1)}ms`, elapsed < 25 ? 'ok' : 'warn');
+    } else if (e.data.type === 'stats') {
+      $('qSize').textContent = `${e.data.queueChunks} / ${e.data.queueSamples}`;
+      $('consumed').textContent = e.data.totalConsumed;
+      $('underruns').textContent = e.data.underruns;
+      $('underruns').className = e.data.underruns > 0 ? 'err' : '';
+    }
+  };
+
+  // 每 500ms 取 stats
+  setInterval(() => workletNode.port.postMessage({ type: 'getStats' }), 500);
+
+  $('status').textContent = '已初始化';
+  $('initBtn').disabled = true;
+  $('startBtn').disabled = false;
+  log('AudioContext + Worklet 初始化 OK', 'ok');
+}
+
+function startStreaming() {
+  if (pcmTimer) return;
+  $('curFreq').textContent = curFreq;
+  pcmTimer = setInterval(() => {
+    const chunk = generateSineChunk(curFreq);
+    workletNode.port.postMessage({ type: 'pcm', payload: chunk }, [chunk.buffer]);
+    enqueued++;
+    $('enqueued').textContent = enqueued;
+  }, 100); // 每 100ms enqueue 一个 100ms chunk
+  $('startBtn').disabled = true;
+  $('changeFreqBtn').disabled = false;
+  $('flushBtn').disabled = false;
+  $('autoTestBtn').disabled = false;
+  $('stopBtn').disabled = false;
+  $('status').textContent = '播放中';
+  log('开始流式生成 440Hz PCM @ 100ms/chunk', 'ok');
+}
+
+function changeFreq() {
+  curFreq = curFreq === 440 ? 880 : (curFreq === 880 ? 1320 : 440);
+  $('curFreq').textContent = curFreq;
+  log(`切换频率 → ${curFreq}Hz(应该听到音高变化)`);
+}
+
+function doFlush() {
+  pendingFlushStart = performance.now();
+  workletNode.port.postMessage({ type: 'flush' });
+  flushCount++;
+  $('flushCount').textContent = flushCount;
+}
+
+async function autoTest() {
+  log('开始自动 1000 次随机打断测试...', 'warn');
+  $('autoTestBtn').disabled = true;
+  for (let i = 0; i < 1000; i++) {
+    // 随机间隔 50-500ms
+    await new Promise(r => setTimeout(r, 50 + Math.random() * 450));
+    doFlush();
+    if (i % 100 === 99) {
+      log(`已完成 ${i + 1}/1000 次 flush`, 'ok');
+    }
+  }
+  log(`自动测试完成 — flush 总数 ${flushCount},avg ${($('avgFlushMs').textContent)}ms,max ${$('maxFlushMs').textContent}ms`, 'ok');
+  $('autoTestBtn').disabled = false;
+}
+
+function stop() {
+  if (pcmTimer) { clearInterval(pcmTimer); pcmTimer = null; }
+  if (workletNode) { workletNode.disconnect(); workletNode = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  $('status').textContent = '已停止';
+  $('initBtn').disabled = false;
+  $('startBtn').disabled = true;
+  $('changeFreqBtn').disabled = true;
+  $('flushBtn').disabled = true;
+  $('autoTestBtn').disabled = true;
+  $('stopBtn').disabled = true;
+}
+
+$('initBtn').addEventListener('click', initAudio);
+$('startBtn').addEventListener('click', startStreaming);
+$('changeFreqBtn').addEventListener('click', changeFreq);
+$('flushBtn').addEventListener('click', doFlush);
+$('autoTestBtn').addEventListener('click', autoTest);
+$('stopBtn').addEventListener('click', stop);
+</script>
+</body>
+</html>

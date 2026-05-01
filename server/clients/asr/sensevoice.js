@@ -8,9 +8,10 @@
  * 环境变量:LYNN_SENSEVOICE_URL(默认 http://localhost:18020)
  */
 
-const ASR_URL = process.env.LYNN_SENSEVOICE_URL || "http://localhost:18020";
+const DEFAULT_ASR_URL = process.env.LYNN_SENSEVOICE_URL || "http://localhost:18020";
 
-export function createSenseVoiceProvider(_config) {
+export function createSenseVoiceProvider(config = {}) {
+  const baseUrl = String(config.base_url || config.baseUrl || DEFAULT_ASR_URL).replace(/\/+$/, "");
   return {
     name: "sensevoice",
     label: "SenseVoice (达摩院・推荐)",
@@ -21,7 +22,7 @@ export function createSenseVoiceProvider(_config) {
       form.append("language", language);
       form.append("response_format", "json");
 
-      const res = await fetch(`${ASR_URL}/v1/audio/transcriptions`, {
+      const res = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
         method: "POST",
         body: form,
       });
@@ -34,7 +35,7 @@ export function createSenseVoiceProvider(_config) {
 
     async health() {
       try {
-        const r = await fetch(`${ASR_URL}/health`, { signal: AbortSignal.timeout(2000) });
+        const r = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(2000) });
         return r.ok;
       } catch {
         return false;

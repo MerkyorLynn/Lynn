@@ -42,6 +42,9 @@ const REPEATED_READ_TOOL_ERROR_RE = /(?:read_tool_missing_error\s*){2,}/giu;
 
 const QWEN_TOOL_CALL_SECTION_RE = /<\|tool_calls_section_begin\|>[\s\S]*?<\|tool_calls_section_end\|>/giu;
 const QWEN_TOOL_CALL_MARKER_RE = /<\|tool_call(?:s_section)?_(?:begin|end)\|>|<\|tool_call_argument_(?:begin|end)\|>/giu;
+const QWEN_TOOL_CODE_BLOCK_RE = /<\|tool_code_begin\|>[\s\S]*?<\|tool_code_end\|>/giu;
+const QWEN_TOOL_CODE_MARKER_RE = /<\|tool_code_(?:begin|end)\|>/giu;
+const THINK_TAG_RE = /<\/?think\b[^>]*>/giu;
 
 const KNOWN_TOOL_NAME_LIST = [
   "apply_patch", "ask_agent", "bash", "browser", "channel", "close_agent",
@@ -53,6 +56,9 @@ const KNOWN_TOOL_NAME_LIST = [
   "search_content", "search_memory", "send_input", "sports_score", "spawn_agent",
   "stock_market", "todo", "unpin_memory", "update_settings", "view_image",
   "wait_agent", "weather", "web_fetch", "web_search", "live_news", "write", "write_to_file",
+  // File-operation aliases emitted by some model/tool templates.
+  "find_files", "list_files", "delete_files", "move_files", "move_file",
+  "fs_delete", "fs_move", "fs_list",
 ];
 const KNOWN_TOOL_NAMES = new Set(KNOWN_TOOL_NAME_LIST);
 const KNOWN_TOOL_PREFIXES = [
@@ -98,6 +104,10 @@ const KNOWN_TOOL_XML_TAG_SOURCE = KNOWN_TOOL_NAME_LIST
   .join("|");
 const KNOWN_TOOL_XML_TAG_GLOBAL_RE = new RegExp(`<(?:\\/)?(?:${KNOWN_TOOL_XML_TAG_SOURCE})\\b[^>\\n]*(?:>|$)`, "giu");
 const KNOWN_TOOL_XML_BLOCK_RE = new RegExp(`<(${KNOWN_TOOL_XML_TAG_SOURCE})\\b[\\s\\S]*?<\\/\\1>\\s*`, "giu");
+const TOOL_NAME_JSON_ARGS_BLOCK_RE = new RegExp(
+  `(?:^|\\n)\\s*(?:${KNOWN_TOOL_XML_TAG_SOURCE})\\s*\\n+\\s*[\\[{][\\s\\S]*?[\\]}]\\s*(?=\\n|$)`,
+  "giu",
+);
 
 function testPattern(re, text) {
   re.lastIndex = 0;
@@ -137,21 +147,37 @@ function looksLikeStandalonePseudoToolCall(paragraph) {
 const PSEUDO_PATTERNS = [
   {
     name: "qwen_tool_call_markup",
-    detect: (t) => testPattern(QWEN_TOOL_CALL_SECTION_RE, t) || testPattern(QWEN_TOOL_CALL_MARKER_RE, t),
+    detect: (t) => (
+      testPattern(QWEN_TOOL_CALL_SECTION_RE, t) ||
+      testPattern(QWEN_TOOL_CALL_MARKER_RE, t) ||
+      testPattern(QWEN_TOOL_CODE_BLOCK_RE, t) ||
+      testPattern(QWEN_TOOL_CODE_MARKER_RE, t)
+    ),
     count: (t) => {
       const sections = t.match(QWEN_TOOL_CALL_SECTION_RE) || [];
       if (sections.length) return sections.length;
-      return (t.match(QWEN_TOOL_CALL_MARKER_RE) || []).length;
+      const codeBlocks = t.match(QWEN_TOOL_CODE_BLOCK_RE) || [];
+      if (codeBlocks.length) return codeBlocks.length;
+      return (t.match(QWEN_TOOL_CALL_MARKER_RE) || []).length +
+        (t.match(QWEN_TOOL_CODE_MARKER_RE) || []).length;
     },
     strip: (t) => t
       .replace(QWEN_TOOL_CALL_SECTION_RE, "")
-      .replace(QWEN_TOOL_CALL_MARKER_RE, ""),
+      .replace(QWEN_TOOL_CODE_BLOCK_RE, "")
+      .replace(QWEN_TOOL_CALL_MARKER_RE, "")
+      .replace(QWEN_TOOL_CODE_MARKER_RE, ""),
   },
   {
     name: "known_tool_xml_tag",
     detect: (t) => testPattern(KNOWN_TOOL_XML_TAG_GLOBAL_RE, t),
     count: (t) => (t.match(KNOWN_TOOL_XML_TAG_GLOBAL_RE) || []).length,
     strip: (t) => t.replace(KNOWN_TOOL_XML_TAG_GLOBAL_RE, ""),
+  },
+  {
+    name: "tool_name_json_args_block",
+    detect: (t) => testPattern(TOOL_NAME_JSON_ARGS_BLOCK_RE, t),
+    count: (t) => (t.match(TOOL_NAME_JSON_ARGS_BLOCK_RE) || []).length,
+    strip: (t) => t.replace(TOOL_NAME_JSON_ARGS_BLOCK_RE, ""),
   },
   {
     name: "known_tool_xml_block",
@@ -249,6 +275,9 @@ const PSEUDO_PATTERNS = [
 function stripToolCodeMarkup(raw) {
   return String(raw || "")
     .replace(TOOL_PARAMS_FENCE_RE, "")
+    .replace(QWEN_TOOL_CODE_BLOCK_RE, "")
+    .replace(QWEN_TOOL_CODE_MARKER_RE, "")
+    .replace(TOOL_NAME_JSON_ARGS_BLOCK_RE, "")
     .replace(KNOWN_TOOL_XML_BLOCK_RE, "")
     .replace(/<tool_call\b[^\n>]*(?:>|$)[^\n]*?<\/arg_value>\s*/giu, "")
     .replace(TEMPLATE_TOOL_BLOCK_RE, "")
@@ -281,9 +310,14 @@ export function stripPseudoToolCallMarkup(raw) {
   let text = stripToolCodeMarkup(raw);
   if (!text) return "";
 
+  // Strip leaked thinking tag boundaries; actual thinking content is handled upstream.
+  text = text.replace(THINK_TAG_RE, "");
+
   // Strip Qwen-style tool call markup
   text = text.replace(QWEN_TOOL_CALL_SECTION_RE, "");
+  text = text.replace(QWEN_TOOL_CODE_BLOCK_RE, "");
   text = text.replace(QWEN_TOOL_CALL_MARKER_RE, "");
+  text = text.replace(QWEN_TOOL_CODE_MARKER_RE, "");
 
   // Strip pipe-numbered
   text = text.replace(PIPE_NUMBERED_PSEUDO_TOOL_RE, "");
@@ -291,6 +325,7 @@ export function stripPseudoToolCallMarkup(raw) {
 
   // Strip tool_params fence
   text = text.replace(TOOL_PARAMS_FENCE_RE, "");
+  text = text.replace(TOOL_NAME_JSON_ARGS_BLOCK_RE, "");
 
   // Strip template tags
   text = text.replace(TEMPLATE_TOOL_TAG_GLOBAL_RE, "");

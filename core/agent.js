@@ -34,6 +34,7 @@ import { createDmTool } from "../lib/tools/dm-tool.js";
 import { createBrowserTool } from "../lib/tools/browser-tool.js";
 import { createPinnedMemoryTools } from "../lib/tools/pinned-memory.js";
 import { createExperienceTools } from "../lib/tools/experience.js";
+import { createActiveTaskTool } from "../lib/tools/active-task.js";
 import { ProactiveRecall } from "../lib/memory/proactive-recall.js";
 import { ProjectMemory } from "../lib/memory/project-memory.js";
 import { UserProfile } from "../lib/memory/user-profile.js";
@@ -41,6 +42,7 @@ import { InferredProfile } from "../lib/memory/inferred-profile.js";
 import { MemoryExclusions } from "../lib/memory/memory-exclusions.js";
 import { SkillDistiller } from "../lib/memory/skill-distiller.js";
 import { HybridRetriever } from "../lib/memory/retriever.js";
+import { ActiveTaskMemory } from "../lib/memory/active-task.js";
 import { createInstallSkillTool } from "../lib/tools/install-skill.js";
 import { createNotifyTool } from "../lib/tools/notify-tool.js";
 import { createUpdateSettingsTool } from "../lib/tools/update-settings-tool.js";
@@ -72,6 +74,7 @@ export class Agent {
     this.weekMdPath     = path.join(agentDir, "memory", "week.md");
     this.longtermMdPath = path.join(agentDir, "memory", "longterm.md");
     this.factsMdPath    = path.join(agentDir, "memory", "facts.md");
+    this.activeTaskPath = path.join(agentDir, "memory", "active-task.json");
     this.summariesDir = path.join(agentDir, "memory", "summaries");
     this.sessionDir = path.join(agentDir, "sessions");
     this.deskDir = path.join(agentDir, "desk");
@@ -99,6 +102,7 @@ export class Agent {
     this._todoTool = null;
     this._pinnedMemoryTools = [];
     this._experienceTools = [];
+    this._activeTaskTool = null;
     this._memoryMasterEnabled = true;   // agent 级别总开关（config.yaml memory.enabled）
     this._memorySessionEnabled = true;  // per-session 开关（WelcomeScreen toggle）
     this._enabledSkills = [];
@@ -111,6 +115,7 @@ export class Agent {
     this._inferredProfile = null;
     this._memoryExclusions = null;
     this._skillDistiller = null;
+    this._activeTaskMemory = null;
 
     // Desk 系统（与 memory 完全独立）
     this._deskManager = null;
@@ -162,6 +167,7 @@ export class Agent {
     // 4. 记忆 v2：FactStore + SessionSummaryManager + ticker
     log(`  [agent] 4. FactStore...`);
     fs.mkdirSync(path.join(this.agentDir, "memory", "summaries"), { recursive: true });
+    this._activeTaskMemory = new ActiveTaskMemory({ filePath: this.activeTaskPath });
     this._factStore = new FactStore(this.factsDbPath, {
       baseImportance: this._config?.memory?.base_importance,
       hitBonus: this._config?.memory?.hit_bonus,
@@ -314,6 +320,11 @@ export class Agent {
     this._restoreSnapshotTool = createRestoreSnapshotTool(path.basename(this.agentDir));
     this._pinnedMemoryTools = createPinnedMemoryTools(this.agentDir);
     this._experienceTools = createExperienceTools(this.agentDir);
+    this._activeTaskTool = createActiveTaskTool(this._activeTaskMemory, {
+      onUpdated: () => {
+        this._systemPrompt = this.buildSystemPrompt();
+      },
+    });
 
     // Phase 1: 主动记忆召回
     this._proactiveRecall = new ProactiveRecall({
@@ -525,9 +536,10 @@ export class Agent {
   get tools() {
     const memTools = this.memoryEnabled ? [
       this._memorySearchTool,
+      this._activeTaskTool,
       ...this._pinnedMemoryTools,
       ...this._experienceTools,
-    ] : [];
+    ].filter(Boolean) : [];
     return [
       ...memTools,
       this._webSearchTool,
@@ -616,7 +628,10 @@ export class Agent {
         }
       }
 
-      const result = await this._proactiveRecall.recall(userMessage, { projectTags });
+      const result = await this._proactiveRecall.recall(userMessage, {
+        projectTags,
+        projectPath: cwd,
+      });
       const isZh = String(this._config.locale || "").startsWith("zh");
       return this._proactiveRecall.formatForInjection(result, isZh);
     } catch (err) {
@@ -629,6 +644,7 @@ export class Agent {
   get projectMemory() { return this._projectMemory; }
   get userProfile() { return this._userProfile; }
   get inferredProfile() { return this._inferredProfile; }
+  get activeTaskMemory() { return this._activeTaskMemory; }
 
   // ════════════════════════════
   //  配置更新
@@ -975,6 +991,13 @@ export class Agent {
       try {
         const inferredCtx = this._inferredProfile.formatForPrompt(isZh);
         if (inferredCtx) parts.push(inferredCtx);
+      } catch {}
+    }
+
+    if (this._activeTaskMemory && this.memoryEnabled) {
+      try {
+        const taskCtx = this._activeTaskMemory.formatForPrompt(isZh);
+        if (taskCtx) parts.push(taskCtx);
       } catch {}
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "lynn",
-  "version": "0.77.2",
+  "version": "0.77.3",
   "type": "module",
   "description": "Lynn - a personal AI agent with memory and soul",
   "license": "Apache-2.0",
@@ -36,6 +36,7 @@
     "dist:local": "export SKIP_NOTARIZE=true && npm run build:server && npm run build:main && npm run build:renderer && electron-builder --mac dmg --publish never",
     "dist:win": "npm run release:preflight && electron-builder --win nsis",
     "test": "vitest run",
+    "voice:smoke": "node scripts/voice-runtime-smoke.mjs",
     "test:release": "node scripts/run-release-regression.mjs --mode all --level release",
     "test:release:smoke": "node scripts/run-release-regression.mjs --mode all --level smoke",
     "test:release:nightly": "node scripts/run-release-regression.mjs --mode all --level nightly",
@@ -116,6 +117,9 @@
     "appId": "com.lynn.app",
     "productName": "Lynn",
     "asar": true,
+    "asarUnpack": [
+      "desktop/native-modules/aec/*.node"
+    ],
     "compression": "maximum",
     "afterPack": "./scripts/fix-modules.cjs",
     "extraMetadata": {
@@ -124,6 +128,8 @@
     "files": [
       "desktop/main.bundle.cjs",
       "desktop/preload.cjs",
+      "desktop/native-modules/aec/index.js",
+      "desktop/native-modules/aec/*.node",
       "desktop/dist-renderer/**",
       "desktop/src/**/*.html",
       "desktop/src/**/*.json",

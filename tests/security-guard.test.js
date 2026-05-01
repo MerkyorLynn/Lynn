@@ -1,9 +1,17 @@
 /**
  * security-guard.test.js — ClawAegis 安全检测测试
  */
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { detectPromptInjection, formatInjectionWarning } from "../lib/sandbox/prompt-injection-detector.js";
-import { wrapBashTool } from "../lib/sandbox/tool-wrapper.js";
+
+const snapshotMock = vi.hoisted(() => ({
+  createSnapshot: vi.fn(() => ({ success: true, snapshotPath: "/tmp/snapshot" })),
+  isDangerousCommand: vi.fn((command) => /\brm\b|\bsudo\b|\bfind\b.*\brm\b/i.test(String(command || ""))),
+}));
+
+vi.mock("../lib/sandbox/snapshot.js", () => snapshotMock);
+
+import { normalizeBashCommandForExecution, wrapBashTool } from "../lib/sandbox/tool-wrapper.js";
 import { loadLocale } from "../server/i18n.js";
 import { SECURITY_MODE_CONFIG, SecurityMode } from "../shared/security-mode.js";
 
@@ -226,6 +234,11 @@ describe("data exfiltration patterns", () => {
 });
 
 describe("authorized execution safety confirmations", () => {
+  beforeEach(() => {
+    snapshotMock.createSnapshot.mockClear();
+    snapshotMock.isDangerousCommand.mockClear();
+  });
+
   it("keeps execute mode as authorized with confirmation enabled", () => {
     expect(SECURITY_MODE_CONFIG[SecurityMode.AUTHORIZED]).toMatchObject({
       sandboxMode: "authorized",
@@ -283,6 +296,48 @@ describe("authorized execution safety confirmations", () => {
     expect(executed).toHaveBeenCalled();
   });
 
+  it("asks for authorization before taking a dangerous-command snapshot", async () => {
+    const order = [];
+    snapshotMock.createSnapshot.mockImplementationOnce(() => {
+      order.push("snapshot");
+      return { success: true, snapshotPath: "/tmp/snapshot" };
+    });
+    const executed = vi.fn(async () => {
+      order.push("execute");
+      return { content: [{ type: "text", text: "deleted" }] };
+    });
+    const confirmStore = {
+      create: vi.fn(() => {
+        order.push("confirm");
+        return {
+          confirmId: "confirm-delete",
+          promise: Promise.resolve({ action: "confirmed_once" }),
+        };
+      }),
+    };
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      {
+        mode: "authorized",
+        allowlist: { check: vi.fn(() => false), add: vi.fn() },
+        sessionAllowlist: { check: vi.fn(() => false), add: vi.fn() },
+        confirmStore,
+        emitEvent: vi.fn(),
+        getSessionPath: () => "/sessions/current.jsonl",
+      },
+    );
+
+    await wrapped.execute("call-delete", { command: "rm /tmp/old.zip" });
+
+    expect(order).toEqual(["confirm", "snapshot", "execute"]);
+  });
+
   it("asks for authorization before running sudo in execute mode", async () => {
     const executed = vi.fn(async () => ({ content: [{ type: "text", text: "root" }] }));
     const confirmStore = {
@@ -323,6 +378,47 @@ describe("authorized execution safety confirmations", () => {
     expect(executed).toHaveBeenCalled();
   });
 
+  it("asks for authorization before running find piped into rm in execute mode", async () => {
+    const executed = vi.fn(async () => ({ content: [{ type: "text", text: "deleted zip files" }] }));
+    const confirmStore = {
+      create: vi.fn(() => ({
+        confirmId: "confirm-delete-find-rm",
+        promise: Promise.resolve({ action: "confirmed_once" }),
+      })),
+    };
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      {
+        mode: "authorized",
+        allowlist: { check: vi.fn(() => false), add: vi.fn() },
+        sessionAllowlist: { check: vi.fn(() => false), add: vi.fn() },
+        confirmStore,
+        emitEvent: vi.fn(),
+        getSessionPath: () => "/sessions/current.jsonl",
+      },
+    );
+
+    const command = "find /tmp -maxdepth 1 -type f -iname '*.zip' -print | while read -r file; do rm -f \"$file\"; done";
+    await wrapped.execute("call-find-rm", { command });
+
+    expect(confirmStore.create).toHaveBeenCalledWith(
+      "tool_authorization",
+      expect.objectContaining({
+        category: "delete_files",
+        identifier: "rm",
+        command,
+      }),
+      "/sessions/current.jsonl",
+    );
+    expect(executed).toHaveBeenCalled();
+  });
+
   it("does not ask for authorization for harmless bash commands", async () => {
     const executed = vi.fn(async () => ({ content: [{ type: "text", text: "ok" }] }));
     const confirmStore = {
@@ -353,5 +449,16 @@ describe("authorized execution safety confirmations", () => {
 
     expect(confirmStore.create).not.toHaveBeenCalled();
     expect(executed).toHaveBeenCalled();
+  });
+});
+
+describe("bash command normalization", () => {
+  it("makes simple mkdir idempotent before execution", () => {
+    expect(normalizeBashCommandForExecution('mkdir "/Users/lynn/Desktop/Claude"'))
+      .toBe('mkdir -p "/Users/lynn/Desktop/Claude"');
+    expect(normalizeBashCommandForExecution("mkdir -p /tmp/demo"))
+      .toBe("mkdir -p /tmp/demo");
+    expect(normalizeBashCommandForExecution("mkdir /tmp/a && mv /tmp/a /tmp/b"))
+      .toBe("mkdir /tmp/a && mv /tmp/a /tmp/b");
   });
 });

@@ -226,6 +226,17 @@ export interface SettingsNavigationTarget {
 
 export type NotificationPermissionStatus = 'granted' | 'denied' | 'not-determined' | 'unsupported';
 
+export interface GlobalShortcutStatus {
+  ok: boolean;
+  accelerator: string | null;
+  fallbackUsed: boolean;
+  attempted: string[];
+  configured?: string | null;
+  defaultAccelerator?: string | null;
+  layer?: string | null;
+  errors?: Record<string, string>;
+}
+
 export interface PlatformApi {
   getServerPort(): Promise<string>;
   getServerToken(): Promise<string>;
@@ -270,11 +281,13 @@ export interface PlatformApi {
 
   // ── Window controls (Windows/Linux) ──
   getPlatform?(): Promise<string>;
+  getGlobalSummonShortcutStatus?(): Promise<GlobalShortcutStatus>;
+  setGlobalSummonShortcut?(accelerator: string | null): Promise<GlobalShortcutStatus>;
   windowMinimize?(): void;
   windowMaximize?(): void;
   windowClose?(): void;
   windowIsMaximized?(): Promise<boolean>;
-  onMaximizeChange?(callback: (maximized: boolean) => void): void;
+  onMaximizeChange?(callback: (maximized: boolean) => void): void | (() => void);
 
   // ── Browser viewer ──
   updateBrowserViewer?(data: { running?: boolean; url?: string | null; thumbnail?: string | null }): void;

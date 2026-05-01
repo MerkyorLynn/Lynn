@@ -117,12 +117,20 @@ contextBridge.exposeInMainWorld("hana", {
   confirmAction: (opts) => ipcRenderer.invoke("confirm-action", opts),
   // 窗口控制（Windows/Linux 自绘标题栏）
   getPlatform: () => ipcRenderer.invoke("get-platform"),
+  getGlobalSummonShortcutStatus: () => ipcRenderer.invoke("get-global-summon-shortcut-status"),
+  setGlobalSummonShortcut: (accelerator) => ipcRenderer.invoke("set-global-summon-shortcut", accelerator),
   windowMinimize: () => ipcRenderer.invoke("window-minimize"),
   windowMaximize: () => ipcRenderer.invoke("window-maximize"),
   windowClose: () => ipcRenderer.invoke("window-close"),
   windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
   onMaximizeChange: (cb) => {
-    ipcRenderer.on("window-maximized", () => cb(true));
-    ipcRenderer.on("window-unmaximized", () => cb(false));
+    const onMaximized = () => cb(true);
+    const onUnmaximized = () => cb(false);
+    ipcRenderer.on("window-maximized", onMaximized);
+    ipcRenderer.on("window-unmaximized", onUnmaximized);
+    return () => {
+      ipcRenderer.removeListener("window-maximized", onMaximized);
+      ipcRenderer.removeListener("window-unmaximized", onUnmaximized);
+    };
   },
 });

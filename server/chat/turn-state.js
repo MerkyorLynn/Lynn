@@ -11,6 +11,8 @@ export function createChatTurnState() {
     hasOutput: false,
     hasToolCall: false,
     hasPrefetchToolCall: false,
+    activeToolCallCount: 0,
+    lastToolExecutionActivity: 0,
     hasThinking: false,
     hasError: false,
     titleRequested: false,

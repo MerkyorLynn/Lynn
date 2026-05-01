@@ -61,6 +61,50 @@ describe("turn quality gate", () => {
     expect(decision.text).toContain("mkdir -p 表格");
   });
 
+  it("continues local mutation tasks before summarizing a partial mkdir as success", () => {
+    const ss = {
+      hasOutput: false,
+      hasToolCall: true,
+      hasThinking: false,
+      hasError: false,
+      hasFailedTool: false,
+      routeIntent: "files",
+      internalRetryCounts: {},
+      lastSuccessfulTools: [{ name: "bash", command: "mkdir -p /Users/lynn/Desktop/Claude" }],
+      originalPromptText: "把我桌面的HTML移动到桌面Claude文件夹",
+      effectivePromptText: "把我桌面的HTML移动到桌面Claude文件夹",
+    };
+    const snapshot = createTurnQualitySnapshot(ss, "");
+    const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: true, sessionPath: "/sessions/current.jsonl" });
+
+    expect(snapshot.shouldRetryLocalMutationContinuation).toBe(true);
+    expect(decision).toMatchObject({ type: "retry", reason: "tool_continuation" });
+    expect(decision.prompt).toContain("不能宣称已经完成");
+    expect(decision.prompt).toContain("把我桌面的HTML移动到桌面Claude文件夹");
+  });
+
+  it("retries local mutation tasks that produced prose without any real tool call", () => {
+    const ss = {
+      hasOutput: true,
+      hasToolCall: false,
+      hasThinking: false,
+      hasError: false,
+      hasFailedTool: false,
+      routeIntent: "files",
+      internalRetryCounts: {},
+      lastSuccessfulTools: [],
+      originalPromptText: "把我桌面的HTML移动到桌面Claude文件夹",
+      effectivePromptText: "把我桌面的HTML移动到桌面Claude文件夹",
+    };
+    const visible = "根据搜索结果，Claude AI 可以通过 Anthropic 的官方网站获取。";
+    const snapshot = createTurnQualitySnapshot(ss, visible);
+    const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: true, sessionPath: "/sessions/current.jsonl", visibleTextBeforeReset: visible });
+
+    expect(snapshot.shouldRetryLocalMutationWithoutTool).toBe(true);
+    expect(decision).toMatchObject({ type: "retry", reason: "local_mutation_no_tool" });
+    expect(decision.prompt).toContain("必须继续调用真实工具完成变更");
+  });
+
   it("does not expose internal fallback kind labels in flow fallback", () => {
     const ss = {
       hasOutput: false,

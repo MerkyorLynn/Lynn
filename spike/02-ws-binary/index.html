@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Spike 02 — WebSocket binary PCM 协议</title>
+<style>
+  body { font-family: -apple-system, monospace; max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+  h1 { font-size: 22px; }
+  button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+  .stats { font-family: 'JetBrains Mono', Menlo, monospace; background: #f4f4f4; padding: 16px; border-radius: 8px; margin-top: 20px; line-height: 1.7; }
+  .stat-line { display: flex; justify-content: space-between; }
+  .stat-label { color: #666; }
+  .ok { color: #1a7f37; }
+  .warn { color: #d97706; }
+  .err { color: #dc2626; }
+  #log { font-size: 11px; color: #666; max-height: 300px; overflow-y: auto; margin-top: 20px; padding: 10px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
+  .histogram { display: flex; align-items: flex-end; height: 80px; gap: 2px; margin-top: 8px; }
+  .histogram .bar { background: #1a7f37; width: 30px; min-height: 2px; position: relative; }
+  .histogram .bar::after { content: attr(data-label); position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #666; white-space: nowrap; }
+</style>
+</head>
+<body>
+<h1>Spike 02 — WebSocket binary PCM 协议(client + RTT)</h1>
+<p>验收: 本机 RTT < 50ms,frame seq 不丢序,5 分钟连续测试零异常。</p>
+
+<div>
+  <button id="connectBtn">▶ 连接 + 开始</button>
+  <button id="pingBtn" disabled>↔ Ping</button>
+  <button id="stopBtn" disabled>■ 停止</button>
+</div>
+
+<div class="stats">
+  <div class="stat-line"><span class="stat-label">WS 状态</span><span id="wsStatus">未连接</span></div>
+  <div class="stat-line"><span class="stat-label">已发 PCM 帧</span><span id="framesOut">0</span></div>
+  <div class="stat-line"><span class="stat-label">已收 echo 帧</span><span id="framesIn">0</span></div>
+  <div class="stat-line"><span class="stat-label">已发 KB</span><span id="kbOut">0</span></div>
+  <div class="stat-line"><span class="stat-label">已收 KB</span><span id="kbIn">0</span></div>
+  <div class="stat-line"><span class="stat-label">seq 错乱</span><span id="seqErrors">0</span></div>
+  <div class="stat-line"><span class="stat-label">RTT count</span><span id="rttCount">0</span></div>
+  <div class="stat-line"><span class="stat-label">RTT min / mean / p50 / p95 / max (ms)</span><span id="rttDist">-</span></div>
+  <div class="stat-line"><span class="stat-label">RTT < 50ms 比例</span><span id="rttUnder50">-</span></div>
+  <div>RTT 分布(10 ms buckets):</div>
+  <div class="histogram" id="histogram"></div>
+</div>
+
+<div id="log"></div>
+
+<script>
+const FRAME = { PCM_AUDIO: 0x01, PCM_TTS: 0x02, PING: 0x10, PONG: 0x11, RESET: 0x20 };
+const $ = id => document.getElementById(id);
+let ws = null;
+let workletNode = null;
+let audioCtx = null;
+let mediaStream = null;
+let outSeq = 0;
+let lastInSeq = -1;
+let framesOut = 0, framesIn = 0;
+let bytesOut = 0, bytesIn = 0;
+let seqErrors = 0;
+const rtts = [];
+let pingTimer = null;
+
+function log(msg, lv = '') {
+  const el = document.createElement('div');
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  if (lv) el.className = lv;
+  $('log').appendChild(el);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+function makeFrame(type, flags, seq, payload) {
+  const buf = new Uint8Array(4 + payload.byteLength);
+  buf[0] = type;
+  buf[1] = flags;
+  new DataView(buf.buffer).setUint16(2, seq & 0xffff, false); // BE
+  buf.set(new Uint8Array(payload), 4);
+  return buf.buffer;
+}
+
+function parseFrame(arrayBuf) {
+  if (arrayBuf.byteLength < 4) return null;
+  const dv = new DataView(arrayBuf);
+  return {
+    type: dv.getUint8(0),
+    flags: dv.getUint8(1),
+    seq: dv.getUint16(2, false),
+    payload: arrayBuf.slice(4),
+  };
+}
+
+function updateRttStats() {
+  if (rtts.length === 0) return;
+  const sorted = [...rtts].sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const mean = sorted.reduce((s, n) => s + n, 0) / sorted.length;
+  const p50 = sorted[Math.floor(sorted.length * 0.5)];
+  const p95 = sorted[Math.floor(sorted.length * 0.95)];
+  $('rttDist').textContent = `${min.toFixed(2)} / ${mean.toFixed(2)} / ${p50.toFixed(2)} / ${p95.toFixed(2)} / ${max.toFixed(2)}`;
+  const under50 = sorted.filter(x => x < 50).length / sorted.length * 100;
+  const u50El = $('rttUnder50');
+  u50El.textContent = under50.toFixed(1) + '%';
+  u50El.className = under50 >= 95 ? 'ok' : (under50 >= 80 ? 'warn' : 'err');
+  $('rttCount').textContent = rtts.length;
+
+  // Histogram (10 ms buckets, 0-100ms)
+  const buckets = new Array(10).fill(0);
+  for (const rtt of rtts) {
+    const idx = Math.min(Math.floor(rtt / 10), 9);
+    buckets[idx]++;
+  }
+  const histo = $('histogram');
+  histo.innerHTML = '';
+  const maxCount = Math.max(...buckets, 1);
+  for (let i = 0; i < buckets.length; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = `${(buckets[i] / maxCount) * 80}px`;
+    bar.dataset.label = i === 9 ? '90+' : `${i * 10}-${(i + 1) * 10}`;
+    bar.title = `${buckets[i]} samples`;
+    histo.appendChild(bar);
+  }
+}
+
+async function connect() {
+  ws = new WebSocket(`ws://${location.host}/voice-ws`);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => {
+    $('wsStatus').textContent = '已连接';
+    $('wsStatus').className = 'ok';
+    log('WS 连接 OK', 'ok');
+    $('pingBtn').disabled = false;
+    $('stopBtn').disabled = false;
+    $('connectBtn').disabled = true;
+
+    // 自动每秒一次 ping(测 RTT 长期稳定性)
+    pingTimer = setInterval(sendPing, 1000);
+
+    startMicCapture();
+  };
+  ws.onmessage = (e) => {
+    const frame = parseFrame(e.data);
+    if (!frame) return;
+    bytesIn += e.data.byteLength;
+    $('kbIn').textContent = (bytesIn / 1024).toFixed(1);
+    if (frame.type === FRAME.PCM_TTS) {
+      // Echo 回来的 PCM
+      framesIn++;
+      $('framesIn').textContent = framesIn;
+      const expected = (lastInSeq + 1) & 0xffff;
+      if (lastInSeq !== -1 && frame.seq !== expected) {
+        seqErrors++;
+        $('seqErrors').textContent = seqErrors;
+        $('seqErrors').className = 'err';
+        log(`seq 错乱: expected=${expected}, got=${frame.seq}`, 'err');
+      }
+      lastInSeq = frame.seq;
+    } else if (frame.type === FRAME.PONG) {
+      const dv = new DataView(frame.payload);
+      const sentTs = Number(dv.getBigUint64(0, false));
+      const rtt = performance.now() + performance.timeOrigin - sentTs;
+      rtts.push(rtt);
+      if (rtts.length > 600) rtts.shift(); // 只保留最近 10 分钟
+      updateRttStats();
+    }
+  };
+  ws.onclose = () => {
+    $('wsStatus').textContent = '断开';
+    $('wsStatus').className = '';
+    log('WS 断开');
+  };
+  ws.onerror = (e) => log('WS 错误: ' + e.message, 'err');
+}
+
+function sendPing() {
+  if (!ws || ws.readyState !== 1) return;
+  const ts = performance.now() + performance.timeOrigin;
+  const buf = new ArrayBuffer(8);
+  new DataView(buf).setBigUint64(0, BigInt(Math.round(ts)), false);
+  ws.send(makeFrame(FRAME.PING, 0, 0, buf));
+}
+
+async function startMicCapture() {
+  mediaStream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+  });
+  audioCtx = new AudioContext({ latencyHint: 'interactive' });
+  await audioCtx.audioWorklet.addModule('/01-audioworklet-pcm/pcm-recorder.worklet.js');
+  workletNode = new AudioWorkletNode(audioCtx, 'pcm-recorder');
+  workletNode.port.onmessage = (e) => {
+    if (e.data.type === 'pcm') {
+      // 发到 WS
+      const frame = makeFrame(FRAME.PCM_AUDIO, 0, outSeq++, e.data.payload.buffer);
+      ws.send(frame);
+      framesOut++;
+      bytesOut += frame.byteLength;
+      $('framesOut').textContent = framesOut;
+      $('kbOut').textContent = (bytesOut / 1024).toFixed(1);
+    }
+  };
+  const source = audioCtx.createMediaStreamSource(mediaStream);
+  source.connect(workletNode);
+  log('麦克风 + WS PCM 流启动', 'ok');
+}
+
+function stop() {
+  if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+  if (workletNode) { workletNode.disconnect(); workletNode = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (ws) { ws.close(); ws = null; }
+  $('connectBtn').disabled = false;
+  $('pingBtn').disabled = true;
+  $('stopBtn').disabled = true;
+}
+
+$('connectBtn').addEventListener('click', connect);
+$('pingBtn').addEventListener('click', sendPing);
+$('stopBtn').addEventListener('click', stop);
+</script>
+</body>
+</html>

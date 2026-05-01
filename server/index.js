@@ -29,6 +29,7 @@ setMaxListeners(50);
 
 import { loadLocale } from "./i18n.js";
 import { createChatRoute } from "./routes/chat.js";
+import { createVoiceWsRoute } from "./routes/voice-ws.js";
 import { createSessionsRoute } from "./routes/sessions.js";
 import { createModelsRoute } from "./routes/models.js";
 import { createConfigRoute } from "./routes/config.js";
@@ -208,6 +209,10 @@ const {
 engine.editRollbackStore = editRollbackStore;
 app.route("/api", chatRestRoute);
 app.route("", chatWsRoute);
+
+// Lynn V0.79 Jarvis Runtime Voice WS (parallel to chat WS)
+const { wsRoute: voiceWsRoute } = createVoiceWsRoute(engine, hub, { upgradeWebSocket });
+app.route("", voiceWsRoute);
 app.route("/api", createReviewRoute(engine, { broadcast: chatBroadcast, taskRuntime }));
 app.route("/api", createTasksRoute(taskRuntime, engine));
 app.route("/api", createAppStateRoute(engine, { taskRuntime }));

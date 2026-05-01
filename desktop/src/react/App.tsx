@@ -35,6 +35,7 @@ import { WindowControls } from './components/WindowControls';
 import { ToastContainer } from './components/ToastContainer';
 import { ConfirmationDialog } from './components/ConfirmationDialog';
 import { StatusBar } from './components/StatusBar';
+import { JarvisRuntimeOverlay } from './components/voice/JarvisRuntimeOverlay';
 import { initTheme, initDragPrevention } from './bootstrap';
 import { initApp } from './app-init';
 import { MainContent } from './MainContent';
@@ -488,6 +489,7 @@ function App() {
       <StatusBar />
       <ConfirmationDialog />
       <ToastContainer />
+      <JarvisRuntimeOverlay />
       <DiagnosticsPanel open={diagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
     </ErrorBoundary>
   );

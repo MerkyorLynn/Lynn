@@ -62,6 +62,7 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
   const successfulTools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
   const hasAnyToolCall = !!(ss?.hasToolCall || ss?.hasPrefetchToolCall || successfulTools.length > 0 || ss?.hasFailedTool);
   const original = ss?.originalPromptText || ss?.effectivePromptText || "";
+  const localMutationRequest = classifyRequestedLocalMutation(original);
 
   const shouldRetryPendingToolText =
     !ss?.pendingToolRetryAttempted &&
@@ -79,8 +80,16 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     visibleLen > 0 &&
     visibleLen < 220 &&
     !ss?.hasToolCall &&
-    Boolean(classifyRequestedLocalMutation(original)) &&
+    Boolean(localMutationRequest) &&
     LOCAL_MUTATION_LEADIN_RE.test(visibleTrimmed);
+  const shouldRetryLocalMutationWithoutTool =
+    visibleLen > 0 &&
+    visibleLen < 2400 &&
+    !ss?.hasToolCall &&
+    !hasAnyToolCall &&
+    !ss?.pendingToolRetryAttempted &&
+    Boolean(localMutationRequest) &&
+    canScheduleInternalRetry(ss, "local_mutation_no_tool");
   const isToolDidNotProduceText = hasAnyToolCall && visibleLen < 5;
   const isToolSuccessMissingAnswer =
     successfulTools.length > 0 &&
@@ -138,6 +147,7 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     isShortLeadInOnly,
     isTruncatedStructuredAnswer,
     isLocalMutationLeadInOnly,
+    shouldRetryLocalMutationWithoutTool,
     isToolDidNotProduceText,
     isToolSuccessMissingAnswer,
     isPseudoToolNoOutput,
@@ -185,9 +195,47 @@ const PRE_TURN_END_RULES = [
     },
   },
   {
+    name: "local_mutation_continuation_after_tool",
+    priority: 180,
+    guard: ({ ss, snapshot, isActive }) =>
+      isActive &&
+      !ss.hasError &&
+      snapshot.shouldRetryLocalMutationContinuation,
+    action: ({ ss, snapshot, visibleTextBeforeReset, sessionPath }) => retryDecision({
+      reason: "tool_continuation",
+      prompt: buildLocalMutationContinuationRetryPrompt(
+        promptText(ss),
+        visibleTextBeforeReset,
+        ss.lastSuccessfulTools || [],
+      ),
+      markPendingToolRetryAttempted: true,
+      logMessage: `[LOCAL-MUTATION-CONTINUATION v1] scheduled · visibleLen=${snapshot.visibleLen} · session=${sessionPath}`,
+    }),
+  },
+  {
+    name: "local_mutation_no_tool",
+    priority: 190,
+    guard: ({ ss, snapshot, isActive }) =>
+      isActive &&
+      !ss.hasError &&
+      snapshot.shouldRetryLocalMutationWithoutTool,
+    action: ({ ss, snapshot, visibleTextBeforeReset, sessionPath }) => retryDecision({
+      reason: "local_mutation_no_tool",
+      prompt: buildLocalMutationContinuationRetryPrompt(
+        promptText(ss),
+        visibleTextBeforeReset,
+        ss.lastSuccessfulTools || [],
+      ),
+      logMessage: `[LOCAL-MUTATION-NO-TOOL v1] scheduled · visibleLen=${snapshot.visibleLen} · session=${sessionPath}`,
+    }),
+  },
+  {
     name: "tool_success_fallback",
     priority: 200,
-    guard: ({ ss, snapshot }) => !ss.hasError && Boolean(snapshot.toolSuccessFallback),
+    guard: ({ ss, snapshot }) =>
+      !ss.hasError &&
+      !snapshot.shouldRetryLocalMutationContinuation &&
+      Boolean(snapshot.toolSuccessFallback),
     action: ({ ss, snapshot, sessionPath }) => fallbackDecision({
       text: snapshot.toolSuccessFallback,
       logMessage: `[TOOL-SUCCESS-FALLBACK v2] emitted · local=${snapshot.localToolSuccessFallback ? "true" : "false"} tools=${(ss.lastSuccessfulTools || []).map(t => t.name).join(",")} · ${sessionPath}`,

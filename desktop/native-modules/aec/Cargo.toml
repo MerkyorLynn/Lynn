@@ -1,0 +1,25 @@
+[package]
+name = "lynn-aec-napi"
+version = "0.0.1"
+edition = "2021"
+description = "napi-rs binding for tonarino/webrtc-audio-processing — Lynn V0.79 AEC spike"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", features = ["napi4"] }
+napi-derive = "2"
+# 关键依赖:tonarino 的 webrtc-audio-processing Rust binding
+# v2.0.4 是 2026-04-16 release,跟 WebRTC M131 对齐
+# https://github.com/tonarino/webrtc-audio-processing
+webrtc-audio-processing = "2.0.4"
+webrtc-audio-processing-config = "2.0.4"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"

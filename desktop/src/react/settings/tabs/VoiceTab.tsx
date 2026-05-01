@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../store';
-import { t, autoSaveConfig } from '../helpers';
+import { autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
 import { KeyInput } from '../widgets/KeyInput';
 import styles from '../Settings.module.css';
@@ -38,6 +38,31 @@ const LANGUAGES = [
   { value: 'ko', label: '한국어' },
 ];
 
+type ShortcutStatus = {
+  ok: boolean;
+  accelerator: string | null;
+  fallbackUsed: boolean;
+  attempted: string[];
+  configured?: string | null;
+  defaultAccelerator?: string | null;
+  layer?: string | null;
+  errors?: Record<string, string>;
+};
+
+function formatShortcutStatus(status: ShortcutStatus | null): string {
+  if (!status) return '正在读取快捷键状态...';
+  const attempted = status.attempted?.join(' / ') || 'Cmd+Shift+L / Ctrl+Shift+L';
+  if (!status.ok) return `快捷键被占用或不可用。已尝试: ${attempted}`;
+  if (status.configured && status.accelerator === status.configured) {
+    return `${status.accelerator} 已注册为自定义快捷键。`;
+  }
+  if (status.configured && status.accelerator !== status.configured) {
+    return `自定义快捷键 ${status.configured} 不可用,已自动改用 ${status.accelerator}。`;
+  }
+  if (status.fallbackUsed) return `默认快捷键被占用,已自动改用 ${status.accelerator}。`;
+  return `${status.accelerator} 已注册。`;
+}
+
 export function VoiceTab() {
   const { settingsConfig } = useSettingsStore();
   const voice = settingsConfig?.voice || {};
@@ -52,6 +77,9 @@ export function VoiceTab() {
   const [ttsVoice, setTtsVoice] = useState(voice.tts?.default_voice || '中文女');
 
   const [language, setLanguage] = useState(voice.language || 'auto');
+  const [shortcutStatus, setShortcutStatus] = useState<ShortcutStatus | null>(null);
+  const [shortcutDraft, setShortcutDraft] = useState('');
+  const [shortcutSaving, setShortcutSaving] = useState(false);
 
   // 当 settingsConfig 从服务端刷新后，同步本地状态
   useEffect(() => {
@@ -65,6 +93,21 @@ export function VoiceTab() {
     setTtsVoice(v.tts?.default_voice || '中文女');
     setLanguage(v.language || 'auto');
   }, [settingsConfig?.voice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.platform?.getGlobalSummonShortcutStatus?.()
+      .then((status) => {
+        if (!cancelled) {
+          setShortcutStatus(status || null);
+          setShortcutDraft(status?.configured || status?.accelerator || '');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setShortcutStatus(null);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const needsAsrKey = asrProvider === 'openai' || asrProvider === 'azure';
   const needsTtsKey = ttsProvider === 'openai';
@@ -98,6 +141,46 @@ export function VoiceTab() {
     if (!payload.voice.tts.api_key) delete payload.voice.tts.api_key;
     if (!payload.voice.tts.base_url) delete payload.voice.tts.base_url;
     await autoSaveConfig(payload);
+  };
+
+  const applyShortcut = async () => {
+    if (!window.platform?.setGlobalSummonShortcut) return;
+    setShortcutSaving(true);
+    try {
+      const status = await window.platform.setGlobalSummonShortcut(shortcutDraft.trim() || null);
+      setShortcutStatus(status || null);
+      setShortcutDraft(status?.configured || status?.accelerator || shortcutDraft.trim());
+    } catch (err) {
+      setShortcutStatus({
+        ok: false,
+        accelerator: null,
+        fallbackUsed: false,
+        attempted: [shortcutDraft.trim()].filter(Boolean),
+        errors: { [shortcutDraft.trim() || 'shortcut']: err instanceof Error ? err.message : String(err) },
+      });
+    } finally {
+      setShortcutSaving(false);
+    }
+  };
+
+  const resetShortcut = async () => {
+    if (!window.platform?.setGlobalSummonShortcut) return;
+    setShortcutSaving(true);
+    try {
+      const status = await window.platform.setGlobalSummonShortcut(null);
+      setShortcutStatus(status || null);
+      setShortcutDraft(status?.accelerator || '');
+    } catch (err) {
+      setShortcutStatus({
+        ok: false,
+        accelerator: null,
+        fallbackUsed: false,
+        attempted: [],
+        errors: { shortcut: err instanceof Error ? err.message : String(err) },
+      });
+    } finally {
+      setShortcutSaving(false);
+    }
   };
 
   return (
@@ -218,6 +301,40 @@ export function VoiceTab() {
             value={language}
             onChange={(v) => setLanguage(v)}
           />
+        </div>
+        <div className={styles['settings-field']}>
+          <label className={styles['settings-field-label']}>Lynn 语音快捷键</label>
+          <div className={styles['settings-input-group']}>
+            <input
+              className={styles['settings-input']}
+              type="text"
+              value={shortcutDraft}
+              onChange={(e) => setShortcutDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void applyShortcut();
+              }}
+              placeholder="Command+Shift+L"
+            />
+            <button
+              type="button"
+              className={styles['settings-btn-primary']}
+              onClick={applyShortcut}
+              disabled={shortcutSaving}
+            >
+              应用
+            </button>
+            <button
+              type="button"
+              className={styles['settings-btn-primary']}
+              onClick={resetShortcut}
+              disabled={shortcutSaving}
+            >
+              默认
+            </button>
+          </div>
+          <span className={styles['settings-field-hint']}>
+            {formatShortcutStatus(shortcutStatus)}
+          </span>
         </div>
       </section>
 

@@ -196,4 +196,31 @@ describe("FactStore structured fields", () => {
 
     store.close();
   });
+
+  it("normalizes high-priority memory category aliases", async () => {
+    const { FactStore } = await import("../lib/memory/fact-store.js");
+    const store = new FactStore("/tmp/facts.db");
+
+    store.add({ fact: "V8 timeout 的历史坑点", tags: ["V8"], category: "bug" });
+    store.add({ fact: "Spark 35B A3B 吞吐基准", tags: ["Spark"], category: "benchmark" });
+
+    expect(store.searchByCategory("pitfall", 10)[0].fact).toContain("timeout");
+    expect(store.searchByCategory("model_benchmark", 10)[0].fact).toContain("吞吐");
+
+    store.close();
+  });
+
+  it("infers pitfall before generic technical categories", async () => {
+    const { FactStore } = await import("../lib/memory/fact-store.js");
+    const store = new FactStore("/tmp/facts.db");
+
+    const { id } = store.add({
+      fact: "Qwen 工具调用在 V8 门禁里曾经因为 timeout 卡死，这是踩坑记录",
+      tags: ["Qwen", "V8"],
+    });
+
+    expect(store.getById(id)?.category).toBe("pitfall");
+
+    store.close();
+  });
 });

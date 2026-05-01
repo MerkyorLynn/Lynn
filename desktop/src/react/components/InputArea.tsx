@@ -25,7 +25,7 @@ import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
 import { TaskModePicker } from './input/TaskModePicker';
-import { PressToTalkButton } from './voice/PressToTalkButton';
+import { JARVIS_RUNTIME_START_EVENT } from '../services/jarvis-runtime-events';
 import {
   XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
   buildTaskModeSlashCommands,
@@ -544,6 +544,10 @@ function InputAreaInner() {
     fileInputRef.current?.click();
   }, []);
 
+  const handleVoiceClick = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(JARVIS_RUNTIME_START_EVENT));
+  }, []);
+
   const handleTryAtInjection = useCallback(() => {
     markAtDiscoverySeen();
     setInputValue('@');
@@ -982,16 +986,20 @@ function InputAreaInner() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileInputChange} />
-            <PressToTalkButton
-              onTranscribed={(text) => {
-                const current = readLatestInputValue() || composerText;
-                const next = current ? `${current}\n${text}` : text;
-                setInputValue(next);
-                setComposerText(next);
-                requestInputFocus();
-              }}
-              mockMode={import.meta.env.DEV}
-            />
+            <button
+              type="button"
+              className={styles['attach-btn']}
+              onClick={handleVoiceClick}
+              title="Lynn 语音"
+              aria-label="打开 Lynn 语音"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <path d="M12 19v3" />
+                <path d="M8 22h8" />
+              </svg>
+            </button>
             <TaskModePicker />
             <SecurityModeSelector />
             <WritingModeToggle />

@@ -105,3 +105,7 @@ output/lynn-targeted-fix-*/
 # v0.77+: output/ 整个目录是本地测试产物,不进 git
 # 需要保留测试结果时放 TEST/ 目录并单独 commit
 output/
+
+# Spike build artifacts
+spike/**/target/
+desktop/native-modules/**/target/
