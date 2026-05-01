@@ -892,6 +892,26 @@ function pollServerInfo(infoPath, { timeout = 60000, interval = 200, process: pr
   });
 }
 
+function isReusableServerHealth(health) {
+  if (!health || health.status !== "ok") return false;
+
+  // Windows 覆盖安装后最容易留下旧版 lynn-server.exe。旧 server 的
+  // /api/health 仍可能返回 200，但缺少新前端依赖的能力（例如
+  // /api/translate、/api/tools/tts-bridge.tts_speak），会表现为 404。
+  const expectedVersion = typeof app.getVersion === "function" ? app.getVersion() : "";
+  const serverVersion = String(health.version || "").trim();
+  if (expectedVersion && serverVersion && serverVersion !== expectedVersion) {
+    return false;
+  }
+
+  const features = health.features || {};
+  if (features.translateRoute !== true || features.toolsRoute !== true) {
+    return false;
+  }
+
+  return true;
+}
+
 async function startServer() {
   const serverInfoPath = path.join(lynnHome, "server-info.json");
 
@@ -914,7 +934,8 @@ async function startServer() {
           headers: { Authorization: `Bearer ${existingInfo.token}` },
           signal: AbortSignal.timeout(2000),
         });
-        if (res.ok) {
+        const health = res.ok ? await res.json().catch(() => null) : null;
+        if (res.ok && isReusableServerHealth(health)) {
           console.log(`[desktop] 复用已运行的 server，端口: ${existingInfo.port}`);
           serverPort = existingInfo.port;
           serverToken = existingInfo.token;
@@ -922,6 +943,8 @@ async function startServer() {
           // 复用现有 server 时也要给本地子资源请求补认证头，避免 avatar/img 等 403。
           ensureLocalAuthHeaderHook();
           reused = true;
+        } else if (res.ok) {
+          console.log(`[desktop] 旧 server 能力不匹配，正在重启: version=${health?.version || "unknown"}`);
         }
       } catch { /* health check 网络抖动，继续 kill 旧 server */ }
 
@@ -3162,6 +3185,50 @@ wrapIpcHandler("window-is-maximized", (event) => {
   return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false;
 });
 
+function isTrustedAppWebContents(webContents) {
+  if (!webContents || webContents.isDestroyed?.()) return false;
+  const owner = BrowserWindow.fromWebContents(webContents);
+  if (
+    owner === mainWindow ||
+    owner === splashWindow ||
+    owner === settingsWindow ||
+    owner === onboardingWindow ||
+    owner === browserViewerWindow ||
+    owner === editorWindow
+  ) {
+    return true;
+  }
+  try {
+    const url = webContents.getURL?.() || "";
+    if (url.startsWith("file://")) return true;
+    if (/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\//.test(url)) return true;
+  } catch {}
+  return false;
+}
+
+function installMediaPermissionHandlers() {
+  try {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+      if (permission === "media") {
+        const mediaTypes = Array.isArray(details?.mediaTypes) ? details.mediaTypes : [];
+        const wantsAudio = mediaTypes.length === 0 || mediaTypes.includes("audio");
+        callback(Boolean(wantsAudio && isTrustedAppWebContents(webContents)));
+        return;
+      }
+      callback(false);
+    });
+
+    session.defaultSession.setPermissionCheckHandler((webContents, permission, _requestingOrigin, details) => {
+      if (permission !== "media") return false;
+      const mediaTypes = Array.isArray(details?.mediaTypes) ? details.mediaTypes : [];
+      const wantsAudio = mediaTypes.length === 0 || mediaTypes.includes("audio");
+      return Boolean(wantsAudio && isTrustedAppWebContents(webContents));
+    });
+  } catch (err) {
+    console.warn("[desktop] install media permission handler failed:", err?.message || err);
+  }
+}
+
 // 前端初始化完成后调用，关闭 splash / onboarding，显示主窗口
 wrapIpcHandler("app-ready", () => {
   revealMainWindowAndCloseStartupShell("app-ready");
@@ -3169,6 +3236,8 @@ wrapIpcHandler("app-ready", () => {
 
 // ── App 生命周期 ──
 app.whenReady().then(async () => {
+  installMediaPermissionHandlers();
+
   // 设置应用菜单（macOS 需要 Edit 菜单才能使用 Cmd+C/V/A 等快捷键）
   const appMenu = Menu.buildFromTemplate([
     ...(process.platform === "darwin" ? [{
