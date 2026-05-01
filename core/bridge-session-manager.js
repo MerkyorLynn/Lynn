@@ -415,6 +415,17 @@ export class BridgeSessionManager {
 
       const finalText = sanitizeAssistantTextContent(capturedText).trim();
       if (finalText) return finalText;
+      // [BRIDGE-OVERSANITIZE-FALLBACK v1 · 2026-05-01] sanitize 剥空但 raw capturedText 有内容时,
+      // 说明 stripPseudoToolCallMarkup 误删(常见于 A3B 长 history wechat 桥接,
+      // 输出含被误判的 markdown / 模板格式)。返回 raw 比触发"本轮没生成可见答案"兜底更可用。
+      const rawCaptured = String(capturedText || "").trim();
+      if (rawCaptured.length >= 50) {
+        debugLog()?.warn(
+          "bridge",
+          `sanitize stripped to empty (raw=${rawCaptured.length}ch · route=${routeIntent}); returning raw to avoid empty fallback`,
+        );
+        return rawCaptured;
+      }
       return buildEmptyReplyFallbackText({
         routeIntent,
         originalPromptText: effectivePrompt,

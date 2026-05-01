@@ -166,6 +166,12 @@ describe("voice-ws route — VoiceSession state machine", () => {
       expect(deps.ttsProvider.synthesize).toHaveBeenCalledTimes(2);
     });
 
+    // 等 speakText 完整跑完(含 B2 race fix 的 grace period 后 setState IDLE)
+    await vi.waitFor(() => {
+      const last = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8")).at(-1);
+      expect(last).toBe(STATE.IDLE);
+    });
+
     const stateMsgs = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
     expect(stateMsgs).toContain(STATE.THINKING);
     expect(stateMsgs).toContain(STATE.SPEAKING);
@@ -643,6 +649,11 @@ describe("voice-ws route — VoiceSession state machine", () => {
     await vi.waitFor(() => expect(deps.asrProvider.transcribe).toHaveBeenCalledTimes(1));
     await vi.waitFor(() => expect(deps.ttsProvider.synthesize).toHaveBeenCalled());
     expect(deps.brainRunner).toHaveBeenCalledTimes(2);
+    // 等 speakText 完整跑完(含 B2 race fix 的 grace period 后 setState IDLE)
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states).toContain(STATE.IDLE);
+    });
     const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
     expect(states).toContain(STATE.IDLE);
     expect(states).not.toContain(STATE.DEGRADED);
@@ -924,6 +935,59 @@ describe("voice-ws route — VoiceSession state machine", () => {
     });
     // 第二段释放后又 send 更多 PCM_TTS
     expect(ws.sent.filter((b) => b[0] === FRAME.PCM_TTS).length).toBeGreaterThan(pcmCountBeforeSecond);
+  });
+
+  it("SPEAK_TEXT_APPEND arriving in 'queue empty + finally not run' grace window is captured (B2 race fix 2026-05-01)", async () => {
+    // 重现"只读首句"bug:server 处理完 seg1 → activeSpeakingQueue 变 [] → finally
+    // 还没跑完 → setState(IDLE) 之前的窗口,client 推 SPEAK_TEXT_APPEND seg2。
+    // 旧实现:appendSpeakText 见 activeSpeakingQueue 空/或 setState=IDLE → fresh
+    // processSpeakTextTurn → 被 processingTurn 锁吞。
+    // 新实现:processingTurn 仍在 → push 到 pendingAppendQueue → speakText grace
+    // period(150ms)拿到,继续合成 seg2。
+    let resolveFirst;
+    const synthesize = vi.fn(async (text) => {
+      if (synthesize.mock.calls.length === 1) {
+        // 第一段 hold,模拟合成时间
+        await new Promise((r) => { resolveFirst = r; });
+      }
+      return { audio: Buffer.alloc(3200, 1), mimeType: "audio/pcm" };
+    });
+    const deps = makeHealthyDeps({
+      ttsProvider: { synthesize, health: vi.fn(async () => true) },
+    });
+    upg = makeMockUpgrade();
+    createVoiceWsRoute({}, {}, { upgradeWebSocket: upg.upgradeWebSocket, ...deps });
+    hooks = upg.invoke({ req: { query: (key) => (key === "mode" ? "chat" : "") } });
+    ws = new MockWs();
+    hooks.onOpen({}, ws);
+
+    // seg1
+    hooks.onMessage({
+      data: makeFrame(FRAME.SPEAK_TEXT, 0, 0, Buffer.from("第一段。", "utf-8")),
+    }, ws);
+    await vi.waitFor(() => expect(synthesize).toHaveBeenCalledTimes(1));
+    // 此时 activeSpeakingQueue 已 shift 走 seg1 → length=0,但 await synthesize 卡住
+
+    // 释放 seg1 → seg1 推完 PCM → while 下次 check length=0 → 进 grace period
+    resolveFirst();
+
+    // 在 grace period 内推 seg2(client appendSpeakText 模拟)
+    setTimeout(() => {
+      hooks.onMessage({
+        data: makeFrame(FRAME.SPEAK_TEXT_APPEND, 0, 1, Buffer.from("第二段。", "utf-8")),
+      }, ws);
+    }, 30);
+
+    // 等 seg2 真合成
+    await vi.waitFor(() => expect(synthesize.mock.calls.length).toBe(2), { timeout: 1000 });
+    expect(synthesize.mock.calls[0][0]).toBe("第一段。");
+    expect(synthesize.mock.calls[1][0]).toBe("第二段。");
+
+    // 等播完 IDLE
+    await vi.waitFor(() => {
+      const states = ws.sent.filter((b) => b[0] === FRAME.STATE_CHANGE).map((b) => b.subarray(4).toString("utf-8"));
+      expect(states.at(-1)).toBe(STATE.IDLE);
+    });
   });
 
   it("SPEAK_TEXT_APPEND immediately after INTERRUPT does not produce phantom TTS audio (修 6 race 2026-05-01)", async () => {
