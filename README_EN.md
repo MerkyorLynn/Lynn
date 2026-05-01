@@ -20,7 +20,25 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.4</strong> · 2026-05-01 · compact voice waveform + interrupt fixes + tool stability <em>(latest)</em></summary>
+<summary><strong>v0.77.5</strong> · 2026-05-02 · stoppable speech + WeChat bridge stability + voice latency <em>(latest)</em></summary>
+
+**Speech & voice**:
+- 🛑 **Speech can be stopped anytime**: the chat "Read aloud" button is now a toggle — press again during a long playback to stop instantly. Switching messages or unmounting also stops audio.
+- ⚡ **Voice first-token latency**: trimmed brain text_delta → TTS first-segment path; quicker first audio.
+- 🧯 **Voice append race fix**: fixed "full text arrived but only the first audio segment played" (B2 race); server now adds a 150ms grace period plus a pendingAppendQueue double buffer.
+
+**Bridge stability**:
+- 🤖 **WeChat/Feishu weather queries no longer "empty answer"**: long conversation history caused A3B output to be over-stripped by the pseudo-tool detector and fall back to the empty-turn copy. The bridge now keeps the raw text when sanitize empties it, so users always see a reply.
+
+**Regression**:
+- Unit / Integration / Voice runtime / TypeScript / Lint / Renderer / Main / Server build all pass
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.5)
+
+</details>
+
+<details>
+<summary><strong>v0.77.4</strong> · 2026-05-01 · compact voice waveform + interrupt fixes + tool stability</summary>
 
 **Voice, tools, and report UX**:
 - 🎛️ **Compact voice overlay**: the voice runtime now uses a small waveform card instead of a large transcript panel that can cover the input area.

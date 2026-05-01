@@ -75,13 +75,20 @@ function audioFileNameFromPath(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).pop() || '';
 }
 
+type TtsPlaybackController = {
+  stop: () => void;
+  finished: Promise<void>;
+};
+
 /**
  * 播放 TTS 生成的音频文件。走 IPC readFileBase64 + WebAudio 而非 HTTP — 因为:
  *  1) HTMLAudioElement 不会自动带 Bearer token,直接 audio.src = http://... 会被 server 403
  *  2) Hono c.body(fs.createReadStream) 对 Node Readable Stream 兼容性问题,Audio 解码失败
  *  3) WebAudio 直接解码 ArrayBuffer,绕开 <audio> 对 blob/data source 的兼容性差异
+ *
+ * [TTS-STOPPABLE v1 · 2026-05-02] 返回 controller{stop, finished} 让 UI 中断长音频播报。
  */
-async function playAudioHttpUrl(audioPath: string): Promise<void> {
+async function playAudioHttpUrl(audioPath: string): Promise<TtsPlaybackController> {
   if (!audioPath) throw new Error('音频路径无效');
   const base64 = await window.hana?.readFileBase64?.(audioPath);
   if (!base64) throw new Error('读取音频文件失败（检查路径白名单）');
@@ -100,34 +107,53 @@ async function playAudioHttpUrl(audioPath: string): Promise<void> {
     const source = audioContext.createBufferSource();
     source.buffer = buffer;
     source.connect(audioContext.destination);
-    source.onended = () => {
-      void audioContext.close().catch(() => {});
-    };
+    let stopped = false;
+    const finished = new Promise<void>((resolve) => {
+      source.onended = () => {
+        void audioContext.close().catch(() => {});
+        resolve();
+      };
+    });
     try {
       source.start(0);
     } catch (err) {
       void audioContext.close().catch(() => {});
       throw err;
     }
-    return;
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      try { source.stop(0); } catch {}
+    };
+    return { stop, finished };
   }
 
   // Very old WebViews only: fallback to HTMLAudioElement.
   const ext = audioPath.toLowerCase().endsWith('.mp3') ? 'mpeg' : audioPath.toLowerCase().endsWith('.aiff') ? 'aiff' : 'wav';
   const blob = new Blob([bytes], { type: `audio/${ext}` });
   const objectUrl = URL.createObjectURL(blob);
-  await new Promise<void>((resolve, reject) => {
-    const audio = new Audio(objectUrl);
-    const cleanup = () => URL.revokeObjectURL(objectUrl);
-    audio.onended = cleanup;
+  const audio = new Audio(objectUrl);
+  let stopped = false;
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+  const finished = new Promise<void>((resolve, reject) => {
+    audio.onended = () => { cleanup(); resolve(); };
     audio.onerror = () => {
       const code = audio.error?.code;
       const codeMap: Record<number, string> = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src-not-supported' };
       cleanup();
-      reject(new Error(`audio error: ${codeMap[code || 0] || code}`));
+      // aborted = user-initiated stop, treat as resolve
+      if (code === 1 || stopped) resolve();
+      else reject(new Error(`audio error: ${codeMap[code || 0] || code}`));
     };
-    audio.play().then(() => resolve()).catch((err) => { cleanup(); reject(err); });
+    audio.play().catch((err) => { cleanup(); reject(err); });
   });
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    try { audio.pause(); audio.currentTime = 0; } catch {}
+    cleanup();
+  };
+  return { stop, finished };
 }
 
 function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number; activeLabel: string } {
@@ -274,6 +300,17 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewConfigLoaded, setReviewConfigLoaded] = useState(false);
   const [ttsAudioPath, setTtsAudioPath] = useState<string | null>(null);
+  // [TTS-STOPPABLE v1 · 2026-05-02] 长音频中断控制
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsControllerRef = useRef<TtsPlaybackController | null>(null);
+  const stopTtsPlayback = useCallback(() => {
+    const ctrl = ttsControllerRef.current;
+    ttsControllerRef.current = null;
+    setTtsPlaying(false);
+    try { ctrl?.stop(); } catch {}
+  }, []);
+  // 卸载时清理:防止用户切换/删除消息时音频还在跑
+  useEffect(() => () => stopTtsPlayback(), [stopTtsPlayback]);
   const [translateTarget, setTranslateTarget] = useState('英文');
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [translateBusy, setTranslateBusy] = useState(false);
@@ -622,11 +659,29 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               <button
                 className={styles.msgCopyBtn}
                 onClick={async () => {
+                  // [TTS-STOPPABLE v1 · 2026-05-02] toggle:正在朗读 → 立即停;否则启动播放
+                  if (ttsPlaying) {
+                    stopTtsPlayback();
+                    addToast('已停止朗读', 'info');
+                    return;
+                  }
+                  const startPlayback = async (audioPath: string, toastText: string) => {
+                    const controller = await playAudioHttpUrl(audioPath);
+                    ttsControllerRef.current = controller;
+                    setTtsPlaying(true);
+                    addToast(toastText, 'success');
+                    controller.finished.finally(() => {
+                      // 播完或被 stop 后清状态(stopTtsPlayback 已先清,此处兜底)
+                      if (ttsControllerRef.current === controller) {
+                        ttsControllerRef.current = null;
+                        setTtsPlaying(false);
+                      }
+                    });
+                  };
                   try {
                     if (ttsAudioPath) {
                       try {
-                        await playAudioHttpUrl(ttsAudioPath);
-                        addToast('正在朗读', 'success');
+                        await startPlayback(ttsAudioPath, '正在朗读 · 再按一次停止');
                         return;
                       } catch {
                         setTtsAudioPath(null);
@@ -650,9 +705,8 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                     }
                     setTtsAudioPath(audioPath);
                     try {
-                      await playAudioHttpUrl(audioPath);
                       const cached = data?.details?.cached || data?.result?.details?.cached;
-                      addToast(cached ? '正在朗读（已缓存）' : '正在朗读 · 右键此按钮换音色', 'success');
+                      await startPlayback(audioPath, cached ? '正在朗读（已缓存）· 再按一次停止' : '正在朗读 · 再按一次停止 · 右键换音色');
                     } catch (err: any) {
                       addToast(`播放失败：${err?.message || err}。音频已保存，可在 Voice 设置里检查服务状态。`, 'error');
                     }
@@ -660,17 +714,24 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                     addToast(String(err), 'error');
                   }
                 }}
-                title={t('chat.speak') || '朗读（右键打开音色设置）'}
-                aria-label={t('chat.speak') || '朗读'}
+                title={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读（右键打开音色设置）')}
+                aria-label={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读')}
+                aria-pressed={ttsPlaying}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   window.hana?.openSettings?.('voice');
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
+                {ttsPlaying ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                )}
               </button>
               {isLastAssistant && (
                 <button className={styles.msgCopyBtn} onClick={handleRetry} title={t('chat.retry') || 'Retry'} aria-label={t('chat.retry') || 'Retry'}>
