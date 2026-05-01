@@ -1,35 +1,38 @@
-# Lynn v0.77.4 Release Notes
+# Lynn v0.77.5 Release Notes
 
-> 发布日期: 2026-05-01 · 代号: "Compact Voice & Tool Stability"
+> 发布日期: 2026-05-02 · 代号: "Stoppable Speech & Bridge Stability"
 
-v0.77.4 是一次语音交互与工具执行稳定性补丁。重点修复语音浮层过大、语音中断状态机、ASR 兼容、伪工具/坏 bash 兜底、文件任务反馈和实时数据证据不足等问题。
+v0.77.5 是一次面向用户体感的稳定性补丁:**长朗读现在可以随时中断**,**微信/飞书桥接的天气查询不再触发"本轮没生成可见答案"兜底**,语音首字延迟和"只播头一段"竞态也一并修掉。
 
 ## 重点更新
 
-- 语音浮层改成轻量小波形卡片：不再显示大块转写/回复卡片，减少闪动和对输入区的遮挡。
-- 修复语音中断状态：THINKING/SPEAKING 阶段中断不再崩溃，旧 turn 不会继续阻塞下一轮录音。
-- 修复 ASR 链路兼容：Qwen3-ASR 增加语言归一、WAV MIME 识别和请求超时，失败时会清理“理解中…”占位。
-- 加固本地工具执行：继续修复伪工具标签、坏 bash 片段、文件移动/删除后无反馈、危险操作授权和结果收尾。
-- 加固实时数据：天气、行情、金价等场景必须基于有效字段输出，避免把首页导航或空搜索结果当证据。
-- 翻译与报告体验：补齐聊天内翻译入口、HTML artifact 安全渲染与 PNG 导出链路。
-- 运行时稳定性：补齐 voice websocket、fallback orchestrator、self-interrupt tracker、release regression 等测试覆盖。
+### 朗读与语音
+- 🛑 **朗读按钮 toggle 化**:聊天页"朗读"按钮支持二次按下立即停止,长回复播报中再按一次直接断音;切换消息或关闭窗口也会自动停。
+- ⚡ **语音首字延迟优化**:Brain `text_delta` → TTS 首段播放路径精简,首字到嘴时间下降。
+- 🧯 **B2 race 双缓冲修复**:修复"完整文字到了但语音只播了头一段"竞态(server speakText 循环 queue 空 grace 期 + pendingAppendQueue 缓冲),覆盖 client SPEAK_TEXT_APPEND 在 server 刚消费完 active queue 的 race window。
+
+### 桥接稳定性
+- 🤖 **微信/飞书天气查询不再"空答"**:长对话历史下,A3B 输出被伪工具检测器误剥成空内容触发"本轮模型没有生成可见答案"兜底文案的问题;`BRIDGE-OVERSANITIZE-FALLBACK v1` 在 sanitize 剥空时回退到原 `capturedText`(≥50 字),保证用户至少看到回复。
+
+### 代码改动汇总
+- `desktop/src/react/components/chat/AssistantMessage.tsx`:`playAudioHttpUrl` 重构返回 `{stop, finished}` controller(WebAudio + HTMLAudio 双路径都支持 stop)+ `ttsPlaying` state + `useEffect` cleanup 防 unmount 后音频泄漏。
+- `core/bridge-session-manager.js`:`BRIDGE-OVERSANITIZE-FALLBACK v1` — sanitize 剥空但 raw capturedText 有内容时返回 raw,避免触发 empty-turn 兜底文案。
+- `server/routes/voice-ws.js`:`speakText` 循环重构,加 `pendingAppendQueue` + 150ms grace 期(`LYNN_VOICE_APPEND_GRACE_MS` 可调),`appendSpeakText` 状态机细化(SPEAKING + active truthy / processingTurn alive / IDLE 三档处理)。
 
 ## 回归结果
 
-- Unit / Integration：已通过
-- Voice Runtime 专项：已通过
-- TypeScript / Lint：已通过
-- Renderer / Main / Server build：已通过
-- 本地 DMG 冷启动：已通过
+- Unit / Integration / Voice runtime / TypeScript / Lint / Renderer build / Main build / Server build:全过
+- 1127+ vitest 通过
+- 本地 DMG 冷启动:已通过
 
 ## 下载
 
-- macOS Apple Silicon: `Lynn-0.77.4-macOS-Apple-Silicon.dmg`
-- macOS Intel: `Lynn-0.77.4-macOS-Intel.dmg`
-- Windows x64: `Lynn-0.77.4-Windows-Setup.exe`
+- macOS Apple Silicon: `Lynn-0.77.5-macOS-Apple-Silicon.dmg`
+- macOS Intel: `Lynn-0.77.5-macOS-Intel.dmg`
+- Windows x64: `Lynn-0.77.5-Windows-Setup.exe`
 - 镜像站: https://download.merkyorlynn.com/download
-- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.4
+- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.5
 
 ## 升级建议
 
-桌面客户端可以直接安装覆盖。v0.77.4 不包含破坏性配置迁移；已使用 v0.76.x 或 v0.77.x 的用户升级后，会继续沿用原有会话、模型配置和本地数据。
+桌面客户端可以直接安装覆盖。v0.77.5 不包含破坏性配置迁移;已使用 v0.76.x / v0.77.x 的用户升级后,会继续沿用原有会话、模型配置和本地数据。
