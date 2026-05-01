@@ -45,7 +45,7 @@ describe("debug log filtering and spans", () => {
       reason: "timeout",
     }, { module: "ws", level: "DEBUG" });
 
-    const content = fs.readFileSync(logger.filePath, "utf-8");
+    const content = fs.readFileSync(logger.filePath, "utf-8").replace(/\\/g, "/");
     expect(content).toContain("[span:turn_end]");
     expect(content).toContain("reason=timeout");
     expect(content).toContain("~/Downloads/session.jsonl");

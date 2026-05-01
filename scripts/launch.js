@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Cross-platform dev launcher
  * 解决 POSIX `VAR=val cmd` 语法和 `~` 在 Windows 上不工作的问题
