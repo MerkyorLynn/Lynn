@@ -213,6 +213,31 @@ function sanitizeCorruption(text) {
   return out;
 }
 
+function planningScaffoldLabels(text) {
+  const head = String(text || "").trimStart();
+  if (!/^Premise\s*:/i.test(head)) return [];
+  return [...head.matchAll(/(?:^|\n)\s*(Premise|Conduct|Reflection|Act)\s*:/gi)]
+    .map((match) => String(match[1] || "").toLowerCase());
+}
+
+function looksLikeLeadingPlanningScaffold(text) {
+  const labels = planningScaffoldLabels(text);
+  return labels.includes("premise") && labels.includes("conduct");
+}
+
+function hasCompletePlanningScaffold(text) {
+  const labels = new Set(planningScaffoldLabels(text));
+  return labels.has("premise") && labels.has("conduct") && labels.has("act");
+}
+
+function stripLeadingPlanningScaffold(text) {
+  if (!looksLikeLeadingPlanningScaffold(text)) return text;
+  // Premise / Conduct / Reflection / Act is an internal planning scaffold.
+  // If it reaches the visible channel, showing it is worse than returning
+  // nothing and letting the turn-quality gate continue/recover the action.
+  return "";
+}
+
 function stripLeadingThinkingPrefixOnce(text) {
   const leadingWs = text.match(/^\s*/)?.[0] || "";
   const head = text.slice(leadingWs.length);
@@ -239,11 +264,12 @@ function stripLeadingThinkingPrefixOnce(text) {
 }
 
 function stripLeadingThinkingPrefixes(text, maxPasses = 2) {
-  let out = text;
+  let out = stripLeadingPlanningScaffold(text);
   for (let i = 0; i < maxPasses; i++) {
     const next = stripLeadingThinkingPrefixOnce(out);
     if (next === out) break;
     out = next;
+    out = stripLeadingPlanningScaffold(out);
   }
   return out;
 }
@@ -281,6 +307,13 @@ export class ThinkTagParser {
     if (!this._decisionMade && !this.inThink) {
       const hasOpenTag = this.buffer.includes("<think>");
       const hasCloseTag = this.buffer.includes("</think>");
+      const pendingPlanningScaffold =
+        looksLikeLeadingPlanningScaffold(this.buffer) &&
+        !hasCompletePlanningScaffold(this.buffer) &&
+        this.buffer.length < 2400;
+      if (pendingPlanningScaffold) {
+        return;
+      }
       if (this.buffer.length < this.DECISION_WINDOW && !hasOpenTag && !hasCloseTag) {
         return; // 继续 buffer
       }

@@ -13,15 +13,35 @@ export function WindowControls() {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | void;
     const p = window.platform;
     if (!p?.getPlatform) return;
-    p.getPlatform().then((plat: string) => {
-      if (plat !== 'darwin' && plat !== 'web') setIsWin(true);
-    });
-    if (p.onMaximizeChange) {
-      p.onMaximizeChange((val: boolean) => setMaximized(val));
-    }
-    p.windowIsMaximized?.().then((val: boolean) => setMaximized(val));
+
+    const setIsWinIfChanged = (next: boolean) => {
+      if (!cancelled) setIsWin((prev) => (prev === next ? prev : next));
+    };
+    const setMaximizedIfChanged = (next: boolean) => {
+      if (!cancelled) setMaximized((prev) => (prev === next ? prev : next));
+    };
+
+    p.getPlatform()
+      .then((plat: string) => {
+        const shouldRenderNativeControls = plat !== 'darwin' && plat !== 'web';
+        setIsWinIfChanged(shouldRenderNativeControls);
+        if (!shouldRenderNativeControls || cancelled) return;
+
+        unsubscribe = p.onMaximizeChange?.((val: boolean) => setMaximizedIfChanged(!!val));
+        p.windowIsMaximized?.()
+          .then((val: boolean) => setMaximizedIfChanged(!!val))
+          .catch(() => {});
+      })
+      .catch(() => setIsWinIfChanged(false));
+
+    return () => {
+      cancelled = true;
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
   const minimize = useCallback(() => window.platform?.windowMinimize?.(), []);

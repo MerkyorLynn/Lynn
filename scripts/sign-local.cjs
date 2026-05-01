@@ -28,7 +28,7 @@ function detectDeveloperId() {
 }
 const DEFAULT_IDENTITY = detectDeveloperId() || "-";
 const IDENTITY = process.env.CODESIGN_IDENTITY || DEFAULT_IDENTITY;
-const TIMESTAMP = IDENTITY === "-" ? "" : "--timestamp";
+const TIMESTAMP = IDENTITY === "-" || process.env.LYNN_CODESIGN_TIMESTAMP === "0" ? "" : "--timestamp";
 const KEYCHAIN_FLAG = CODESIGN_KEYCHAIN && IDENTITY !== "-" ? `--keychain "${CODESIGN_KEYCHAIN}"` : "";
 const RUNTIME_FLAG = IDENTITY === "-" ? "" : "--options runtime";
 
@@ -41,7 +41,29 @@ function strip(target) {
 }
 
 function sign(target, opts = "") {
-  execSync(`codesign ${KEYCHAIN_FLAG} --sign "${IDENTITY}" --force ${TIMESTAMP} ${RUNTIME_FLAG} ${opts} "${target}"`, { stdio: "inherit" });
+  const base = `codesign ${KEYCHAIN_FLAG} --sign "${IDENTITY}" --force`;
+  const suffix = `${RUNTIME_FLAG} ${opts} "${target}"`;
+  const command = `${base} ${TIMESTAMP} ${suffix}`;
+  const fallback = `${base} ${suffix}`;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      execSync(command, { stdio: "pipe" });
+      return;
+    } catch (err) {
+      const detail = `${err.stdout || ""}\n${err.stderr || ""}`;
+      if (!/timestamp service is not available|timestamp/i.test(detail) || !TIMESTAMP || attempt === 3) {
+        if (detail.trim()) process.stderr.write(detail);
+        if (TIMESTAMP && /timestamp/i.test(detail)) {
+          console.warn(`[sign-local] timestamp failed for ${target}; retrying once without timestamp`);
+          execSync(fallback, { stdio: "inherit" });
+          return;
+        }
+        throw err;
+      }
+      console.warn(`[sign-local] timestamp unavailable for ${target}; retry ${attempt}/3`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000);
+    }
+  }
 }
 
 function walkFiles(root) {
@@ -87,21 +109,19 @@ if (!fs.existsSync(APP)) {
 
 console.log(`[sign-local] app=${APP}`);
 console.log(`[sign-local] identity=${IDENTITY}`);
-if (CODESIGN_KEYCHAIN) {
+if (CODESIGN_KEYCHAIN && IDENTITY !== "-") {
   console.log(`[sign-local] keychain=${CODESIGN_KEYCHAIN}`);
   try {
     execFileSync("security", ["unlock-keychain", "-p", "", CODESIGN_KEYCHAIN], { stdio: "ignore" });
-    if (IDENTITY !== "-") {
-      execFileSync("security", [
-        "set-key-partition-list",
-        "-S",
-        "apple-tool:,apple:,codesign:",
-        "-s",
-        "-k",
-        "",
-        CODESIGN_KEYCHAIN,
-      ], { stdio: "ignore" });
-    }
+    execFileSync("security", [
+      "set-key-partition-list",
+      "-S",
+      "apple-tool:,apple:,codesign:",
+      "-s",
+      "-k",
+      "",
+      CODESIGN_KEYCHAIN,
+    ], { stdio: "ignore" });
   } catch (err) {
     console.warn(`[sign-local] warning: failed to prepare keychain ${CODESIGN_KEYCHAIN}: ${err.message}`);
   }

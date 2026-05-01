@@ -66,6 +66,12 @@ export function copyLegacyFiles(rootDir: string): Plugin {
         copyEntry(path.join(srcDir, dir), path.join(outDir, dir), true);
       }
 
+      copyEntry(
+        path.resolve(rootDir, 'desktop/public/workers'),
+        path.join(outDir, 'workers'),
+        true,
+      );
+
       for (const file of files) {
         copyEntry(path.join(srcDir, file), path.join(outDir, file));
       }

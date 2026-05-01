@@ -155,11 +155,14 @@ const targetEnv = {
   } : {}),
 };
 function runWithTargetNode(cmd, opts = {}) {
+  const extraEnv = opts.env || {};
+  const childOpts = { ...opts };
+  delete childOpts.env;
   execSync(`"${hostNodeBin}" ${cmd}`, {
     cwd: outDir,
     stdio: "inherit",
-    env: targetEnv,
-    ...opts,
+    env: { ...targetEnv, ...extraEnv },
+    ...childOpts,
   });
 }
 
@@ -311,7 +314,19 @@ fs.writeFileSync(
 // （prebuild-install 下载正确 ABI 的预编译二进制）
 // 用 npm install 而非 npm ci：lockfile 跟精简 package.json 不匹配
 console.log("[build-server] installing external dependencies...");
-runWithTargetNode(`"${cachedNpmCli}" install --omit=dev`);
+try {
+  runWithTargetNode(`"${cachedNpmCli}" install --omit=dev`);
+} catch (err) {
+  const fallbackRegistry = process.env.LYNN_BUILD_NPM_REGISTRY || "https://registry.npmjs.org";
+  console.warn(`[build-server] npm install failed (${err?.status ?? "unknown"}), retrying with ${fallbackRegistry}`);
+  fs.rmSync(path.join(outDir, "node_modules"), { recursive: true, force: true });
+  runWithTargetNode(`"${cachedNpmCli}" install --omit=dev`, {
+    env: {
+      npm_config_registry: fallbackRegistry,
+      NPM_CONFIG_REGISTRY: fallbackRegistry,
+    },
+  });
+}
 
 // ── 5b. 验证所有 Vite external 在 node_modules 中可达 ──
 // 遍历 string 类型的 external，检查 node_modules 中是否存在。

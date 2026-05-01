@@ -133,6 +133,8 @@ export function resetCompletedTurnState(ss) {
   ss.hasOutput = false;
   ss.hasToolCall = false;
   ss.hasPrefetchToolCall = false;
+  ss.activeToolCallCount = 0;
+  ss.lastToolExecutionActivity = 0;
   ss.hasThinking = false;
   ss.hasError = false;
   ss.thinkTagParser.reset();

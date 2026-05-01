@@ -140,4 +140,40 @@ describe("vector retriever integration", () => {
 
     retriever.close();
   });
+
+  it("boosts high-priority pitfall facts when the query asks about previous failures", async () => {
+    const factStore = createStubFactStore();
+    factStore.add({
+      id: 1,
+      fact: "V8 timeout ordinary benchmark note",
+      tags: ["V8", "timeout"],
+      category: "other",
+      importance_score: 10,
+    });
+    factStore.add({
+      id: 2,
+      fact: "V8 timeout caused a tool-call pitfall in gate tests",
+      tags: ["V8", "timeout"],
+      category: "pitfall",
+      importance_score: 0,
+    });
+
+    const retriever = new HybridRetriever({
+      factStore,
+      vectorRetriever: {
+        get available() { return false; },
+        async search() { return []; },
+        close() {},
+      },
+    });
+
+    const results = await retriever.search(["V8", "timeout"], 5, {
+      preferredCategories: ["pitfall"],
+    });
+
+    expect(results[0].id).toBe(2);
+    expect(results[0].categoryBoost).toBeGreaterThan(results[1].categoryBoost);
+
+    retriever.close();
+  });
 });

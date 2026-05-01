@@ -16,6 +16,7 @@ const fs = require("fs");
 const yaml = require("js-yaml");
 const { initAutoUpdater, checkForUpdatesAuto, setMainWindow: setUpdaterMainWindow, setUpdateChannel } = require("./auto-updater.cjs");
 const { wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
+const { normalizeConfiguredShortcut, registerFirstAvailableGlobalShortcut } = require("./shortcut-policy.cjs");
 
 // macOS/Linux: Electron 从 Dock/Finder 启动时 PATH 只有系统默认值，
 // Homebrew、npm global 等路径全部丢失。用登录 shell 解析完整 PATH。
@@ -323,6 +324,27 @@ function waitForMainWindowReady(timeoutMs = 15000) {
     _mainWindowReadyWaiters.push(finish);
     setTimeout(() => finish(false), timeoutMs);
   });
+}
+
+function revealMainWindowAndCloseStartupShell(reason = "unknown") {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    } catch (err) {
+      console.error(`[desktop] show main window failed (${reason}):`, err?.message || err);
+    }
+  }
+  resolveMainWindowReady(true);
+
+  setTimeout(() => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      try { splashWindow.close(); } catch {}
+    }
+    if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+      try { onboardingWindow.close(); } catch {}
+    }
+  }, 200);
 }
 
 function shouldAttachLocalAuthHeader(urlString) {
@@ -1316,13 +1338,12 @@ function createMainWindow() {
 
   loadWindowURL(mainWindow, "index", process.env.LYNN_UI_SMOKE === "1" ? { query: { uiSmoke: "1" } } : undefined);
 
-  // 前端初始化超时保护：30 秒内没收到 app-ready 就强制显示（防止用户卡在空白）
+  // 前端初始化超时保护：没收到 app-ready 也必须退出 splash。
+  // 否则主窗口已连上 server 时，用户仍会被留在启动页，看起来像白屏。
   const initTimeout = setTimeout(() => {
-    console.warn("[desktop] ⚠ 主窗口初始化超时（30s），强制显示");
-    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-  }, 30000);
+    console.warn("[desktop] ⚠ 主窗口初始化超时，强制显示并关闭 splash");
+    revealMainWindowAndCloseStartupShell("main-init-timeout");
+  }, 8000);
   mainWindow.webContents.once("did-finish-load", () => {
     // did-finish-load 只是 HTML 加载完成，JS init 可能还在跑
     console.log("[desktop] 主窗口 HTML 加载完成，等待前端 init...");
@@ -3122,6 +3143,11 @@ wrapIpcHandler("onboarding-complete", async () => {
 
 // ── 窗口控制 IPC（Windows/Linux 自绘标题栏用）──
 wrapIpcHandler("get-platform", () => process.platform);
+wrapIpcHandler("get-global-summon-shortcut-status", () => globalSummonShortcutStatus);
+wrapIpcHandler("set-global-summon-shortcut", (_event, accelerator) => {
+  const configured = writeGlobalSummonShortcutPreference(accelerator);
+  return registerGlobalSummon(configured);
+});
 wrapIpcHandler("window-minimize", (event) => {
   BrowserWindow.fromWebContents(event.sender)?.minimize();
 });
@@ -3138,20 +3164,7 @@ wrapIpcHandler("window-is-maximized", (event) => {
 
 // 前端初始化完成后调用，关闭 splash / onboarding，显示主窗口
 wrapIpcHandler("app-ready", () => {
-  if (mainWindow) {
-    mainWindow.show();
-  }
-  resolveMainWindowReady(true);
-
-  // 稍微延迟关闭 splash / onboarding，让主窗口先稳定显示
-  setTimeout(() => {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close();
-    }
-    if (onboardingWindow && !onboardingWindow.isDestroyed()) {
-      onboardingWindow.close();
-    }
-  }, 200);
+  revealMainWindowAndCloseStartupShell("app-ready");
 });
 
 // ── App 生命周期 ──
@@ -3224,7 +3237,7 @@ app.whenReady().then(async () => {
       createOnboardingWindow();
     }
 
-    // 5. 注册全局快捷键 ⌥Space 唤醒 Lynn
+    // 5. 注册全局快捷键唤醒 Jarvis Runtime overlay
     registerGlobalSummon();
 
     // 6. 后台检查更新（不阻塞启动）
@@ -3277,27 +3290,77 @@ app.on("activate", () => {
 });
 
 // ── 全局快捷键唤醒 ──
-function registerGlobalSummon() {
-  const SHORTCUT = process.platform === "darwin" ? "Alt+Space" : "Alt+Space";
-  const registered = globalShortcut.register(SHORTCUT, () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isVisible() && mainWindow.isFocused()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
-        // 通知前端聚焦输入框
-        mainWindow.webContents.send("global-summon");
-      }
-    } else {
-      showPrimaryWindow();
-    }
-  });
-  if (registered) {
-    console.log(`[desktop] 全局快捷键 ${SHORTCUT} 已注册`);
+let globalSummonShortcutStatus = {
+  ok: false,
+  accelerator: null,
+  fallbackUsed: false,
+  attempted: [],
+  configured: null,
+  defaultAccelerator: null,
+  layer: null,
+  errors: {},
+};
+let globalSummonRegisteredAccelerators = new Set();
+
+function readGlobalSummonShortcutPreference() {
+  const prefs = readUserPreferences();
+  return normalizeConfiguredShortcut(prefs.jarvis_global_shortcut);
+}
+
+function writeGlobalSummonShortcutPreference(accelerator) {
+  const prefs = readUserPreferences();
+  const normalized = normalizeConfiguredShortcut(accelerator);
+  if (normalized) {
+    prefs.jarvis_global_shortcut = normalized;
   } else {
-    console.warn(`[desktop] 全局快捷键 ${SHORTCUT} 注册失败（可能已被其他应用占用）`);
+    delete prefs.jarvis_global_shortcut;
   }
+  writeUserPreferences(prefs);
+  return normalized;
+}
+
+function unregisterGlobalSummonShortcuts() {
+  for (const accelerator of globalSummonRegisteredAccelerators) {
+    try {
+      globalShortcut.unregister(accelerator);
+    } catch {}
+  }
+  globalSummonRegisteredAccelerators.clear();
+}
+
+function toggleGlobalSummonWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+    mainWindow.focus();
+    // Jarvis Runtime 快捷键只切换 overlay，不再隐藏/最小化主窗口。
+    mainWindow.webContents.send("global-summon");
+  } else {
+    showPrimaryWindow();
+  }
+}
+
+function registerGlobalSummon(configuredAccelerator = readGlobalSummonShortcutPreference()) {
+  unregisterGlobalSummonShortcuts();
+  const result = registerFirstAvailableGlobalShortcut(
+    globalShortcut,
+    toggleGlobalSummonWindow,
+    process.platform,
+    configuredAccelerator
+  );
+  globalSummonShortcutStatus = result;
+  globalSummonRegisteredAccelerators = new Set(result.attempted || []);
+  if (result.ok) {
+    const layer = result.layer === "configured" ? " (custom)" : result.fallbackUsed ? " (fallback)" : "";
+    console.log(`[desktop] 全局快捷键 ${result.accelerator} 已注册${layer}`);
+  } else {
+    console.warn(`[desktop] 全局快捷键注册失败（已尝试: ${result.attempted.join(", ")}）`);
+  }
+  return result;
 }
 
 // ── 优雅关闭 ──

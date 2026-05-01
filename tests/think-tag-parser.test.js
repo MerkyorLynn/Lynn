@@ -42,4 +42,28 @@ describe("ThinkTagParser", () => {
     const text = collectVisibleText("用户要求我分析这个问题。");
     expect(text).toBe("用户要求我分析这个问题。");
   });
+
+  it("suppresses Premise/Conduct/Reflection/Act planning scaffolds", () => {
+    const text = collectVisibleText([
+      "Premise:",
+      " - User wants to move all HTML files.",
+      "Conduct:",
+      " - Check folder.",
+      "Reflection:",
+      " - No confirmation needed.",
+      "Act:",
+      " - Create folder and move files.",
+    ].join("\n"));
+    expect(text).toBe("");
+  });
+
+  it("buffers planning scaffolds across chunks instead of leaking the opening lines", () => {
+    const parser = new ThinkTagParser();
+    const events = [];
+    parser.feed("Premise:\n - User wants files moved.\nConduct:\n - Check", (evt) => events.push(evt));
+    expect(events).toEqual([]);
+    parser.feed("\nReflection:\n - Continue.\nAct:\n - Move files.", (evt) => events.push(evt));
+    parser.flush((evt) => events.push(evt));
+    expect(events.filter((evt) => evt.type === "text")).toEqual([]);
+  });
 });

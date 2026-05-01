@@ -67,4 +67,31 @@ describe("pseudo tool detection", () => {
     ].join("");
     expect(stripPseudoToolCallMarkup(raw)).toBe("正在核对资料。今天金价偏强。");
   });
+
+  it("detects and strips Qwen tool-code blocks plus orphan think close tags", () => {
+    const raw = [
+      "</think>",
+      "",
+      "<|tool_code_begin|>bash",
+      "find ~/Downloads -name '*.zip' -delete",
+      "<|tool_code_end|>",
+    ].join("\n");
+
+    expect(containsPseudoToolSimulation(raw)).toBe(true);
+    expect(countPseudoToolMarkers(raw)).toBeGreaterThan(0);
+    expect(stripPseudoToolCallMarkup(raw)).toBe("");
+  });
+
+  it("detects and strips file-tool XML and bare tool JSON argument blocks", () => {
+    const cases = [
+      "<find_files>\n*.zzzzzztest\n\n/Users/lynn/Downloads\n</find_files>",
+      'bash\n\n{“cmd”: “find /Users/lynn/Downloads -type f -name "*zzzzzztest" 2>/dev/null”}',
+    ];
+
+    for (const raw of cases) {
+      expect(containsPseudoToolSimulation(raw)).toBe(true);
+      expect(countPseudoToolMarkers(raw)).toBeGreaterThan(0);
+      expect(stripPseudoToolCallMarkup(raw)).toBe("");
+    }
+  });
 });

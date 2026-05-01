@@ -19,6 +19,7 @@ IDENTITY="${APPLE_SIGN_IDENTITY:-Developer ID Application: Yubo Xu (KYB8UN3JP3)}
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-${NOTARY_KEYCHAIN_PROFILE:-}}"
 APP_BUILDER="${APP_BUILDER_BIN:-node_modules/app-builder-bin/mac/app-builder_arm64}"
 CODESIGN_KEYCHAIN="${CODESIGN_KEYCHAIN:-$HOME/Library/Keychains/lynn-build.keychain-db}"
+TIMESTAMP_RETRIES="${LYNN_CODESIGN_TIMESTAMP_RETRIES:-3}"
 
 if [[ -z "$NOTARY_PROFILE" ]]; then
   echo "Set APPLE_NOTARY_PROFILE or NOTARY_KEYCHAIN_PROFILE before finalizing DMGs." >&2
@@ -44,6 +45,42 @@ if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$CODESIGN_KEYCHAIN" >/dev/null 2>&1 || true
 fi
 
+sign_dmg() {
+  local dmg="$1"
+  local attempt=1
+  local output
+
+  while (( attempt <= TIMESTAMP_RETRIES )); do
+    if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
+      if output=$(codesign --keychain "$CODESIGN_KEYCHAIN" --force --sign "$IDENTITY" --timestamp --options runtime "$dmg" 2>&1); then
+        return 0
+      fi
+    else
+      if output=$(codesign --force --sign "$IDENTITY" --timestamp --options runtime "$dmg" 2>&1); then
+        return 0
+      fi
+    fi
+
+    echo "$output" >&2
+    if [[ "$output" != *"timestamp service"* && "$output" != *"Timestamp"* ]]; then
+      return 1
+    fi
+
+    if (( attempt < TIMESTAMP_RETRIES )); then
+      echo "codesign timestamp failed for $dmg; retrying ($attempt/$TIMESTAMP_RETRIES)..." >&2
+      sleep 5
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  echo "codesign timestamp failed after $TIMESTAMP_RETRIES attempts; signing $dmg without timestamp as a last resort." >&2
+  if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
+    codesign --keychain "$CODESIGN_KEYCHAIN" --force --sign "$IDENTITY" --options runtime "$dmg"
+  else
+    codesign --force --sign "$IDENTITY" --options runtime "$dmg"
+  fi
+}
+
 for dmg in "$@"; do
   if [[ ! -f "$dmg" ]]; then
     echo "Missing DMG: $dmg" >&2
@@ -51,11 +88,7 @@ for dmg in "$@"; do
   fi
 
   echo "==> Signing final DMG: $dmg"
-  if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
-    codesign --keychain "$CODESIGN_KEYCHAIN" --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
-  else
-    codesign --force --sign "$IDENTITY" --timestamp --options runtime "$dmg"
-  fi
+  sign_dmg "$dmg"
   codesign --verify --verbose "$dmg"
 
   echo "==> Notarizing final DMG with profile: $NOTARY_PROFILE"

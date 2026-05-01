@@ -609,7 +609,7 @@ describe("chat route event forwarding", () => {
 
     expect(clients[0].sent).toContainEqual(expect.objectContaining({
       type: "turn_retry",
-      reason: "local_mutation_leadin",
+      reason: "local_mutation_no_tool",
     }));
     expect(hub.send).toHaveBeenCalledTimes(2);
     const retryPrompt = hub.send.mock.calls.at(-1)?.[0] || "";
@@ -934,6 +934,125 @@ describe("chat route event forwarding", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("recovers a failed probe into an authorized Downloads zip delete command", async () => {
+    const recoveredExecute = vi.fn(async () => ({
+      content: [{ type: "text", text: "下载文件夹中没有 zip 文件。\n" }],
+    }));
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.buildTools = vi.fn(() => ({
+      tools: [{ name: "bash", execute: recoveredExecute }],
+      customTools: [],
+    }));
+    engine.getSessionByPath = vi.fn(() => ({
+      sessionManager: { getCwd: () => "/tmp/lynn-delete-zip-test" },
+      messages: [],
+    }));
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "请把下载文件夹的所有后缀是zip 的文件都删除" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "tool_execution_start",
+      toolCallId: "call_bad_find",
+      toolName: "bash",
+      args: { command: "find" },
+    }, "/sessions/current.jsonl");
+    subscribed({
+      type: "tool_execution_end",
+      toolCallId: "call_bad_find",
+      toolName: "bash",
+      args: { command: "find" },
+      result: { content: [{ type: "text", text: "usage: find [-H | -L | -P] path-list predicate-list" }] },
+      isError: true,
+    }, "/sessions/current.jsonl");
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(recoveredExecute).toHaveBeenCalledTimes(1);
+    const recoveredCommand = recoveredExecute.mock.calls[0]?.[1]?.command || "";
+    expect(recoveredCommand).toContain("Downloads");
+    expect(recoveredCommand).toContain("*.zip");
+    expect(recoveredCommand).toContain("rm -f");
+    expect(recoveredCommand).not.toMatch(/\bthen\s*;/);
+    expect(recoveredCommand).not.toMatch(/\belse\s*;/);
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "tool_start",
+      name: "bash",
+      args: expect.objectContaining({ command: recoveredCommand }),
+    }));
+  });
+
+  it.each([
+    [
+      "Qwen tool-code",
+      "</think>\n\n<|tool_code_begin|>bash\n\n<|tool_code_end|>",
+      /<\/?think|tool_code_begin|tool_code_end|你刚才把工具调用写成了普通文本/,
+    ],
+    [
+      "file-tool XML",
+      "<find_files>\n*.zzzzzztest\n\n/Users/lynn/Downloads\n</find_files>",
+      /<\/?find_files|你刚才把工具调用写成了普通文本/,
+    ],
+    [
+      "bare bash JSON args",
+      'bash\n\n{“cmd”: “find /Users/lynn/Downloads -type f -name "*zzzzzztest" 2>/dev/null”}',
+      /(?:^|\n)\s*bash\s*(?:\n|$)|[“"]cmd[”"]|你刚才把工具调用写成了普通文本/,
+    ],
+  ])("recovers %s pseudo markup for a Downloads delete task without leaking steer text", async (_label, delta, forbiddenRe) => {
+    const recoveredExecute = vi.fn(async () => ({
+      content: [{ type: "text", text: "下载文件夹中没有 zzzzzztest 文件。\n" }],
+    }));
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    engine.steerSession = vi.fn(() => true);
+    engine.buildTools = vi.fn(() => ({
+      tools: [{ name: "bash", execute: recoveredExecute }],
+      customTools: [],
+    }));
+    engine.getSessionByPath = vi.fn(() => ({
+      sessionManager: { getCwd: () => "/tmp/lynn-delete-qwen-test" },
+      messages: [],
+    }));
+    hub.send = vi.fn(() => new Promise(() => {}));
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "请把下载文件夹的所有后缀是zzzzzztest的文件都删除" }),
+    }, connections[0].client);
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta,
+      },
+    }, "/sessions/current.jsonl");
+
+    await vi.waitFor(() => expect(recoveredExecute).toHaveBeenCalledTimes(1));
+
+    const recoveredCommand = recoveredExecute.mock.calls[0]?.[1]?.command || "";
+    expect(recoveredCommand).toContain("Downloads");
+    expect(recoveredCommand).toContain("*.zzzzzztest");
+    expect(recoveredCommand).toContain("rm -f");
+    expect(engine.steerSession).not.toHaveBeenCalled();
+
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).not.toMatch(forbiddenRe);
+    expect(visibleText).toContain("已完成本轮本地操作");
   });
 
   it("emits a persisted assistant reply when hub.send completes without stream deltas", async () => {

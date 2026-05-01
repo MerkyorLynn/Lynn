@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Spike 01 — AudioWorklet 16kHz PCM 采集</title>
+<style>
+  body { font-family: -apple-system, monospace; max-width: 900px; margin: 40px auto; padding: 0 20px; }
+  h1 { font-size: 22px; }
+  button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+  .stats { font-family: 'JetBrains Mono', Menlo, monospace; background: #f4f4f4; padding: 16px; border-radius: 8px; margin-top: 20px; line-height: 1.6; }
+  .stat-line { display: flex; justify-content: space-between; }
+  .stat-label { color: #666; }
+  .stat-value { font-weight: bold; }
+  .ok { color: #1a7f37; }
+  .warn { color: #d97706; }
+  .err { color: #dc2626; }
+  #log { font-size: 12px; color: #666; max-height: 300px; overflow-y: auto; margin-top: 20px; padding: 10px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; }
+  .vu-meter { display: inline-block; height: 8px; background: linear-gradient(to right, #1a7f37, #d97706, #dc2626); border-radius: 4px; transition: width 0.05s; }
+</style>
+</head>
+<body>
+<h1>Spike 01 — AudioWorklet 16kHz PCM 采集</h1>
+<p>验收: 1 小时连续运行,无 underrun,bufferLag 接近 0,内存不泄。</p>
+
+<div>
+  <button id="startBtn">▶ 开始采集</button>
+  <button id="stopBtn" disabled>■ 停止</button>
+</div>
+
+<div class="stats" id="stats">
+  <div class="stat-line"><span class="stat-label">状态</span><span class="stat-value" id="status">未开始</span></div>
+  <div class="stat-line"><span class="stat-label">运行时长</span><span class="stat-value" id="elapsed">00:00:00</span></div>
+  <div class="stat-line"><span class="stat-label">已采集 chunks</span><span class="stat-value" id="chunks">0</span></div>
+  <div class="stat-line"><span class="stat-label">已采集 samples</span><span class="stat-value" id="samples">0</span></div>
+  <div class="stat-line"><span class="stat-label">chunks/sec(目标 10.0)</span><span class="stat-value" id="rate">-</span></div>
+  <div class="stat-line"><span class="stat-label">buffer lag(目标 ≈ 0)</span><span class="stat-value" id="lag">-</span></div>
+  <div class="stat-line"><span class="stat-label">设备 sampleRate</span><span class="stat-value" id="deviceRate">-</span></div>
+  <div class="stat-line"><span class="stat-label">VU(平均振幅)</span><span class="stat-value"><span class="vu-meter" id="vu" style="width: 0px;"></span></span></div>
+  <div class="stat-line"><span class="stat-label">总计 underrun 警告</span><span class="stat-value" id="underrunCount">0</span></div>
+  <div class="stat-line"><span class="stat-label">JS heap (MB)</span><span class="stat-value" id="heap">-</span></div>
+</div>
+
+<div id="log"></div>
+
+<script>
+let audioContext = null;
+let workletNode = null;
+let mediaStream = null;
+let underrunCount = 0;
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const $ = id => document.getElementById(id);
+
+function fmtTime(sec) {
+  const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+  const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+  const s = Math.floor(sec % 60).toString().padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function log(msg, level = 'info') {
+  const el = document.createElement('div');
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  if (level === 'err') el.className = 'err';
+  if (level === 'warn') el.className = 'warn';
+  if (level === 'ok') el.className = 'ok';
+  $('log').appendChild(el);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+async function start() {
+  try {
+    log('请求麦克风权限...');
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        // ⚠️ 注意:浏览器原生 AEC 在 Electron broken (Issue #47043)
+        // Spike 01 只测采集,AEC 由 Spike 04 接 native module
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        channelCount: 1,
+        // 不强求 16000,设备给什么我们重采样
+      },
+    });
+    log('麦克风 OK', 'ok');
+
+    audioContext = new AudioContext({ latencyHint: 'interactive' });
+    $('deviceRate').textContent = audioContext.sampleRate + ' Hz';
+    log(`AudioContext sampleRate = ${audioContext.sampleRate} Hz, latency = ${audioContext.baseLatency * 1000}ms`);
+
+    await audioContext.audioWorklet.addModule('pcm-recorder.worklet.js');
+    log('Worklet module loaded');
+
+    workletNode = new AudioWorkletNode(audioContext, 'pcm-recorder');
+    workletNode.port.onmessage = (e) => {
+      if (e.data.type === 'pcm') {
+        // PCM chunk 收到。Spike 01 不做后续处理,只统计
+        // (Spike 02 会把它送 WebSocket)
+      } else if (e.data.type === 'stats') {
+        const s = e.data;
+        $('elapsed').textContent = fmtTime(s.elapsedSec);
+        $('chunks').textContent = s.totalChunks.toLocaleString();
+        $('samples').textContent = s.totalSamples.toLocaleString();
+        const rate = s.chunksPerSec.toFixed(2);
+        const rateEl = $('rate');
+        rateEl.textContent = rate;
+        if (s.chunksPerSec < 9.5 || s.chunksPerSec > 10.5) {
+          rateEl.className = 'stat-value warn';
+          underrunCount++;
+          $('underrunCount').textContent = underrunCount;
+          log(`⚠ chunks/sec 偏离: ${rate}`, 'warn');
+        } else {
+          rateEl.className = 'stat-value ok';
+        }
+        $('lag').textContent = s.bufferLag;
+        if (s.bufferLag > 1600) {
+          log(`⚠ buffer lag 异常: ${s.bufferLag}`, 'warn');
+        }
+        $('vu').style.width = (s.avgAmplitude * 200) + 'px';
+        if (performance.memory) {
+          $('heap').textContent = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+        }
+      }
+    };
+
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    source.connect(workletNode);
+    // 不接到 destination,避免 monitor loopback
+
+    $('status').textContent = '采集中';
+    $('status').className = 'stat-value ok';
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    log('开始采集 16kHz Int16 PCM,每秒一次 stats', 'ok');
+  } catch (err) {
+    log('启动失败: ' + err.message, 'err');
+    $('status').textContent = '失败';
+    $('status').className = 'stat-value err';
+  }
+}
+
+function stop() {
+  if (workletNode) { workletNode.disconnect(); workletNode = null; }
+  if (audioContext) { audioContext.close(); audioContext = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  $('status').textContent = '已停止';
+  $('status').className = 'stat-value';
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  log('停止采集', 'ok');
+}
+
+startBtn.addEventListener('click', start);
+stopBtn.addEventListener('click', stop);
+</script>
+</body>
+</html>

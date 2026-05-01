@@ -10,6 +10,7 @@ export function buildLocalToolSuccessFallback(ss) {
   const tools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
   const localTools = tools.filter((tool) => LOCAL_COMPLETION_TOOLS.has(tool.name));
   if (!localTools.length) return "";
+  if (!hasRequiredLocalMutationForFallback(ss, localTools)) return "";
 
   const commandCount = localTools.filter((tool) => tool.name === "bash").length;
   const fileCount = localTools.filter((tool) => tool.filePath).length;
@@ -20,7 +21,7 @@ export function buildLocalToolSuccessFallback(ss) {
     .filter(Boolean)
     .slice(-3);
 
-  const parts = ["已完成本轮本地操作。"];
+  const parts = ["已完成本轮本地操作"];
   if (commandCount > 0) parts.push(`已成功执行 ${commandCount} 个命令`);
   if (fileCount > 0) parts.push(`处理了 ${fileCount} 个文件/路径`);
   let text = parts.join("，") + "。";
@@ -29,6 +30,22 @@ export function buildLocalToolSuccessFallback(ss) {
   }
   text += "\n\n你可以在目标文件夹里检查结果；如果需要，我也可以继续帮你核对整理后的文件列表。";
   return text;
+}
+
+function hasRequiredLocalMutationForFallback(ss, localTools) {
+  const requirement = classifyRequestedLocalMutation(ss?.originalPromptText || ss?.effectivePromptText || "");
+  if (!requirement) return true;
+
+  const commands = (Array.isArray(localTools) ? localTools : [])
+    .filter((tool) => tool?.name === "bash")
+    .map((tool) => String(tool.command || "").trim())
+    .filter(Boolean);
+  if (!commands.length) return false;
+
+  if (requirement.requiresDelete && !commands.some(commandLooksLikeDelete)) return false;
+  if (requirement.requiresMove && !commands.some(commandLooksLikeMoveOrCopy)) return false;
+  if (!requirement.requiresMove && requirement.requiresCreate && !commands.some(commandLooksLikeCreate)) return false;
+  return true;
 }
 
 export function buildSuccessfulToolNoTextFallback(ss) {
@@ -70,12 +87,29 @@ export function buildFailedToolFallbackText(ss) {
   const names = [...new Set(failedTools.filter(Boolean))].slice(-4);
   const isZh = getLocale().startsWith("zh");
   const originalPrompt = String(ss?.originalPromptText || ss?.effectivePromptText || "").trim();
+  const looksLocalOperation = names.some((name) => LOCAL_COMPLETION_TOOLS.has(name))
+    || /(?:删除|移动|整理|新建|创建|复制|改名|重命名|写入|下载文件夹|桌面|文件夹|文件|delete|remove|move|copy|rename|write|mkdir|folder|file)/i.test(originalPrompt);
 
   if (isZh) {
+    if (looksLocalOperation) {
+      return [
+        `这轮本地操作没有执行成功${names.length ? `（${names.join("、")}）` : ""}。`,
+        "我没有确认任何文件已被删除、移动或修改；如果你刚才拒绝了授权，那本轮就是安全取消。",
+        originalPrompt ? `原始任务：${originalPrompt.slice(0, 180)}` : "",
+      ].filter(Boolean).join("\n\n");
+    }
     return [
       `这轮工具调用失败${names.length ? `（${names.join("、")}）` : ""}，没有拿到可靠实时结果。`,
       "我不会把未核验的数据当成事实。你可以稍后重试，或改用官方来源/交易所/天气源/新闻源核验。",
       originalPrompt ? `原始任务：${originalPrompt.slice(0, 180)}` : "",
+    ].filter(Boolean).join("\n\n");
+  }
+
+  if (looksLocalOperation) {
+    return [
+      `The local operation did not complete${names.length ? ` (${names.join(", ")})` : ""}.`,
+      "I have not confirmed that any files were deleted, moved, or changed. If authorization was rejected, this turn was safely cancelled.",
+      originalPrompt ? `Original task: ${originalPrompt.slice(0, 180)}` : "",
     ].filter(Boolean).join("\n\n");
   }
 
@@ -146,7 +180,7 @@ export function classifyRequestedLocalMutation(prompt = "") {
   const text = String(prompt || "");
   const requiresDelete = /(?:删除|删掉|移除|清理掉|trash|delete|remove)/i.test(text);
   const requiresMove = /(?:移动|挪到|挪进|挪去|放到|放进|归档|归类|整理|分类|复制|拷贝|\bmove\b|\bcopy\b|\barchive\b|\borganize\b)/i.test(text);
-  const requiresCreate = /(?:新建|创建|建立|建一个|生成|写入|写到|保存到|文件夹|目录|\bmkdir\b|\bcreate\b|\bwrite\b|\bsave\b)/i.test(text);
+  const requiresCreate = !requiresDelete && /(?:新建|创建|建立|建一个|生成|写入|写到|保存到|文件夹|目录|\bmkdir\b|\bcreate\b|\bwrite\b|\bsave\b)/i.test(text);
   if (!requiresDelete && !requiresMove && !requiresCreate) return null;
   return { requiresDelete, requiresMove, requiresCreate };
 }

@@ -6,6 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
 import { containsPseudoToolCallSimulation } from "../../core/llm-utils.js";
@@ -62,6 +63,7 @@ import {
 import {
   buildLocalToolSuccessFallback,
   classifyRequestedLocalMutation,
+  shouldRetryUnverifiedLocalMutation,
 } from "../chat/turn-retry-policy.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
@@ -147,6 +149,10 @@ function hasScheduledInternalRetry(ss) {
   return !!(ss?.internalRetryPending || ss?.internalRetryInFlight);
 }
 
+function hasToolExecutionInFlight(ss) {
+  return !!(ss?.recoveredBashInFlight || Number(ss?.activeToolCallCount || 0) > 0);
+}
+
 function hasDifferentActiveStreamToken(ss, streamToken) {
   return Boolean(streamToken && ss?.activeStreamToken && ss.activeStreamToken !== streamToken);
 }
@@ -169,6 +175,15 @@ function shellQuote(value) {
   return `'${String(value || "").replace(/'/g, "'\\''")}'`;
 }
 
+function isMeaningfulRecoveredBashCommand(command) {
+  const trimmed = String(command || "").trim();
+  if (!trimmed || trimmed.length > 2000) return false;
+  if (/^[<>/\\\s]+$/.test(trimmed)) return false;
+  if (/^<\/?[a-zA-Z0-9_.:-]+\s*\/?>$/.test(trimmed)) return false;
+  if (/^```(?:bash|sh|shell)?$/i.test(trimmed)) return false;
+  return /[A-Za-z0-9_$~/'"`.-]/.test(trimmed);
+}
+
 function isInsidePath(child, parent) {
   const rel = path.relative(parent, child);
   return rel === "" || (!!rel && !rel.startsWith("..") && !path.isAbsolute(rel));
@@ -177,6 +192,7 @@ function isInsidePath(child, parent) {
 function extractPseudoBashCommand(text) {
   const raw = String(text || "");
   const patterns = [
+    /<\|tool_code_begin\|>\s*bash\s*([\s\S]*?)(?:<\|tool_code_end\|>|$)/i,
     /<tool_call>\s*<bash[^>]*>([\s\S]*?)(?:<\/bash>|$)/i,
     /<bash[^>]*>([\s\S]*?)<\/bash>/i,
     /<tool_call>\s*bash\s*\n([\s\S]*?)(?:<\/tool_call>|$)/i,
@@ -184,7 +200,7 @@ function extractPseudoBashCommand(text) {
   for (const pattern of patterns) {
     const match = raw.match(pattern);
     const command = String(match?.[1] || "").replace(/<\/?[^>]+>/g, "").trim();
-    if (command && command.length <= 2000) return command;
+    if (isMeaningfulRecoveredBashCommand(command)) return command;
   }
   return "";
 }
@@ -211,12 +227,155 @@ function extractExplicitDeleteTargetFromPrompt(prompt) {
   return target;
 }
 
+function extractPromptDeleteExtensionRequest(prompt) {
+  const text = String(prompt || "");
+  if (!/(?:删除|删掉|清理|移除|delete|remove)/i.test(text)) return null;
+  const wantsDownloads = /(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(text);
+  if (!wantsDownloads) return null;
+  const extMatch = text.match(/(?:后缀(?:是|为)?|扩展名(?:是|为)?|extension\s*)[：:\s.'"]*([A-Za-z0-9]{1,32})\b/i)
+    || text.match(/(?:所有|全部|all)[\s\S]{0,24}\.([A-Za-z0-9]{1,32})\b/i)
+    || text.match(/\.([A-Za-z0-9]{1,32})\s*(?:文件|files?)/i)
+    || text.match(/\b(zip|rar|7z|xlsx?|csv|pdf|docx?|pptx?)\b/i);
+  const extension = String(extMatch?.[1] || "").toLowerCase();
+  if (!extension || /[^a-z0-9]/i.test(extension)) return null;
+  return {
+    folder: path.join(os.homedir(), "Downloads"),
+    extension,
+  };
+}
+
+function buildDeleteExtensionCommand(request) {
+  if (!request?.folder || !request?.extension) return "";
+  const quotedFolder = shellQuote(request.folder);
+  const pattern = `*.${request.extension}`;
+  return [
+    `dir=${quotedFolder}`,
+    `matches=$(find "$dir" -maxdepth 1 -type f -iname ${shellQuote(pattern)} -print)`,
+    `if [ -z "$matches" ]; then echo '下载文件夹中没有 ${request.extension} 文件。'`,
+    `else printf '%s\\n' "$matches"; printf '%s\\n' "$matches" | while IFS= read -r file; do rm -f "$file"; done; echo '=== 删除完成 ==='`,
+    `fi`,
+  ].join("; ");
+}
+
+function normalizeMoveExtensionToken(token = "") {
+  const raw = String(token || "").trim().toLowerCase();
+  if (!raw) return [];
+  if (/^(?:html?|网页)$/.test(raw)) return ["html", "htm"];
+  if (/^(?:excel|表格|xlsx?|xlsm|csv)$/.test(raw)) return ["xlsx", "xls", "xlsm", "csv"];
+  if (/^(?:pdf)$/.test(raw)) return ["pdf"];
+  if (/^(?:图片|image|images?|照片|photo|photos?)$/.test(raw)) {
+    return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "tiff", "svg"];
+  }
+  if (/^[a-z0-9]{1,32}$/i.test(raw)) return [raw];
+  return [];
+}
+
+function resolveKnownFolderFromText(text = "", fallback = "") {
+  const raw = String(text || "");
+  if (/(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(raw)) return path.join(os.homedir(), "Downloads");
+  if (/(?:桌面|Desktop)/i.test(raw)) return path.join(os.homedir(), "Desktop");
+  if (/(?:文稿|文档|Documents?)/i.test(raw)) return path.join(os.homedir(), "Documents");
+  return fallback || "";
+}
+
+function sanitizeFolderName(name = "") {
+  return String(name || "")
+    .replace(/["“”'`]/g, "")
+    .replace(/(?:的)?(?:文件夹|目录|folder)$/i, "")
+    .replace(/^(?:到|至|进|进入|放进|放到|移动到|移到|挪到|拷贝到|复制到)\s*/i, "")
+    .trim()
+    .replace(/[\/\\:*?"<>|]/g, "")
+    .slice(0, 80);
+}
+
+function extractTargetFolderName(text = "") {
+  const raw = String(text || "");
+  const patterns = [
+    /(?:移动到|移到|挪到|放到|放进|放入|归档到|整理到|复制到|拷贝到)\s*([^\n，。；;,.!?！？]{1,80})/i,
+    /(?:都|全部|所有)[\s\S]{0,30}(?:放进|放到|移动到|移到|挪到)\s*([^\n，。；;,.!?！？]{1,80})/i,
+  ];
+  for (const pattern of patterns) {
+    const match = raw.match(pattern);
+    const name = sanitizeFolderName(match?.[1] || "");
+    if (name) return name;
+  }
+  return "";
+}
+
+function extractPromptMoveExtensionRequest(prompt) {
+  const text = String(prompt || "");
+  const requirement = classifyRequestedLocalMutation(text);
+  if (!requirement?.requiresMove) return null;
+
+  const sourceFolder = resolveKnownFolderFromText(text);
+  if (!sourceFolder) return null;
+
+  const extMatch = text.match(/(?:后缀(?:是|为)?|扩展名(?:是|为)?|extension\s*)[：:\s.'"]*([A-Za-z0-9]{1,32})\b/i)
+    || text.match(/(?:所有|全部|all)[\s\S]{0,28}\.([A-Za-z0-9]{1,32})\b/i)
+    || text.match(/\b(html?|xlsx?|xlsm|csv|pdf|png|jpe?g|gif|webp|bmp|heic|svg)\b/i)
+    || text.match(/(HTML?|Excel|表格|PDF|图片|照片)/i);
+  const extensions = normalizeMoveExtensionToken(extMatch?.[1] || "");
+  if (!extensions.length) return null;
+
+  let targetName = extractTargetFolderName(text);
+  if (!targetName) {
+    targetName = extensions[0] === "pdf" ? "pdf"
+      : extensions.includes("xlsx") ? "表格"
+      : extensions.includes("html") ? "HTML"
+      : extensions.includes("png") ? "图片"
+      : `${extensions[0]}文件`;
+  }
+
+  let targetBase = sourceFolder;
+  if (/^(?:桌面|Desktop)/i.test(targetName)) {
+    targetBase = path.join(os.homedir(), "Desktop");
+    targetName = sanitizeFolderName(targetName.replace(/^(?:桌面|Desktop)\s*/i, ""));
+  } else if (/^(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(targetName)) {
+    targetBase = path.join(os.homedir(), "Downloads");
+    targetName = sanitizeFolderName(targetName.replace(/^(?:下载文件夹|下载目录|Downloads?|download folder)\s*/i, ""));
+  }
+  if (!targetName) return null;
+
+  return {
+    sourceFolder,
+    targetFolder: path.join(targetBase, targetName),
+    extensions,
+  };
+}
+
+function buildMoveExtensionCommand(request) {
+  if (!request?.sourceFolder || !request?.targetFolder || !Array.isArray(request.extensions) || !request.extensions.length) {
+    return "";
+  }
+  const quotedSource = shellQuote(request.sourceFolder);
+  const quotedTarget = shellQuote(request.targetFolder);
+  const findPatterns = request.extensions
+    .map((ext) => `-iname ${shellQuote(`*.${ext}`)}`)
+    .join(" -o ");
+  const label = request.extensions.join("/");
+  return [
+    `src=${quotedSource}`,
+    `dst=${quotedTarget}`,
+    `mkdir -p "$dst"`,
+    `matches=$(find "$src" -maxdepth 1 -type f \\( ${findPatterns} \\) -print)`,
+    `if [ -z "$matches" ]; then echo '源文件夹中没有 ${label} 文件。'; else printf '%s\\n' "$matches"; printf '%s\\n' "$matches" | while IFS= read -r file; do [ -n "$file" ] || continue; mv -n "$file" "$dst/"; done; echo '=== 移动命令已执行 ==='; find "$dst" -maxdepth 1 -type f \\( ${findPatterns} \\) -print`,
+    `fi`,
+  ].join("; ");
+}
+
 function extractRecoverablePseudoBashCommand(text, ss, session, engine) {
   const requirement = classifyRequestedLocalMutation(ss?.originalPromptText || ss?.effectivePromptText || "");
   if (!requirement) return "";
 
+  // For local mutation requests, the model often leaks a fake probe such as
+  // "find matching files" while the user asked us to actually move/delete.
+  // Prefer the deterministic command derived from the original user prompt so
+  // pseudo-tool recovery still completes the task instead of only inspecting.
+  const explicitPromptCommand = buildExplicitPromptMutationCommand(ss, session, engine);
+  if (explicitPromptCommand) return explicitPromptCommand;
+
   const bashCommand = extractPseudoBashCommand(text);
-  if (bashCommand) return bashCommand;
+  if (isMeaningfulRecoveredBashCommand(bashCommand)) return bashCommand;
 
   if (!requirement.requiresDelete) return "";
   const removePath = extractPseudoRemovePath(text);
@@ -231,12 +390,49 @@ function extractRecoverablePseudoBashCommand(text, ss, session, engine) {
 function buildExplicitPromptDeleteCommand(ss, session, engine) {
   const requirement = classifyRequestedLocalMutation(ss?.originalPromptText || ss?.effectivePromptText || "");
   if (!requirement?.requiresDelete) return "";
-  const target = extractExplicitDeleteTargetFromPrompt(ss?.originalPromptText || ss?.effectivePromptText || "");
+  const prompt = ss?.originalPromptText || ss?.effectivePromptText || "";
+  const extensionRequest = extractPromptDeleteExtensionRequest(prompt);
+  if (extensionRequest) return buildDeleteExtensionCommand(extensionRequest);
+  const target = extractExplicitDeleteTargetFromPrompt(prompt);
   if (!target) return "";
   const cwd = session?.sessionManager?.getCwd?.() || engine?.cwd || process.cwd();
   const resolved = path.resolve(cwd, target);
   if (!isInsidePath(resolved, cwd)) return "";
-  return `rm -f ${shellQuote(resolved)} && ls -la ${shellQuote(cwd)}`;
+  const command = `rm -f ${shellQuote(resolved)} && ls -la ${shellQuote(cwd)}`;
+  return isMeaningfulRecoveredBashCommand(command) ? command : "";
+}
+
+function buildExplicitPromptMoveCommand(ss) {
+  const prompt = ss?.originalPromptText || ss?.effectivePromptText || "";
+  const request = extractPromptMoveExtensionRequest(prompt);
+  if (!request) return "";
+  return buildMoveExtensionCommand(request);
+}
+
+function buildExplicitPromptMutationCommand(ss, session, engine) {
+  return buildExplicitPromptDeleteCommand(ss, session, engine)
+    || buildExplicitPromptMoveCommand(ss, session, engine);
+}
+
+function looksLikeIncompleteLocalMutationProbe(toolName, args, resultText = "") {
+  const name = String(toolName || "");
+  if (name !== "bash" && name !== "find" && name !== "ls") return false;
+  const command = String(args?.command || args?.query || args?.cmd || "").trim();
+  if (!command) return true;
+  if (/^(?:find|ls|pwd)\s*$/i.test(command)) return true;
+  if (/^[<>/\\\s]+$/.test(command)) return true;
+  const output = String(resultText || "");
+  return /(?:usage:|illegal option|missing argument|unknown primary|No such file or directory|参数缺失)/i.test(output)
+    && !/(?:\brm\b|\bmv\b|\bcp\b|\bmkdir\b|\b-delete\b)/i.test(command);
+}
+
+function looksLikeLocalMutationProbeCommand(toolRecord) {
+  const name = String(toolRecord?.name || "");
+  const command = String(toolRecord?.command || "").trim();
+  if (name !== "bash" && name !== "find" && name !== "ls") return false;
+  if (!command) return true;
+  if (/\b(?:rm|mv|cp|trash|unlink|rmdir)\b|(?:^|\s)-delete(?:\s|$)/i.test(command)) return false;
+  return /^(?:find|ls|pwd|mkdir\b)/i.test(command);
 }
 
 function rememberSuccessfulTool(ss, toolName, toolSummary, rawArgs) {
@@ -480,7 +676,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return true;
   }
 
-  function closeStreamWithVisibleFallback(sessionPath, ss, text, reason) {
+  function closeStreamWithVisibleFallback(sessionPath, ss, text, reason, opts = {}) {
     if (!sessionPath || !ss || ss._turnClosed || hasStreamEvent(ss, "turn_end")) return false;
     ss._turnClosed = true;
     ss.internalRetryPending = false;
@@ -492,8 +688,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.isThinking = false;
       emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
     }
-    if (text && !ss.hasOutput) {
-      emitVisibleTextDelta(sessionPath, ss, text);
+    if (text && (!ss.hasOutput || opts.appendEvenIfHasOutput)) {
+      const prefix = ss.hasOutput && opts.appendEvenIfHasOutput ? "\n\n" : "";
+      if (opts.trustedFallback) {
+        emitTrustedVisibleTextDelta(sessionPath, ss, prefix + text);
+      } else {
+        emitVisibleTextDelta(sessionPath, ss, prefix + text);
+      }
     } else if (!ss.hasOutput) {
       const snapshot = createTurnQualitySnapshot(ss, ss.visibleTextAcc || "");
       applyVisibleFallbackDecision(sessionPath, ss, evaluateForcedTurnFallback(ss, snapshot, { sessionPath }));
@@ -507,13 +708,49 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return true;
   }
 
+  function normalizeVisibleForCompare(text) {
+    return String(text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function isMeaningfulPersistedFinalText(finalText, ss) {
+    const final = normalizeVisibleForCompare(finalText);
+    if (!final) return false;
+    const visible = normalizeVisibleForCompare(ss?.visibleTextAcc || "");
+    if (!visible) return true;
+    if (final === visible) return false;
+    if (final.length <= visible.length + 20 && (final.includes(visible) || visible.includes(final))) return false;
+    return true;
+  }
+
+  function visibleTextLooksLikeLocalCompletion(text) {
+    return /(?:已完成|已成功|成功执行|移动完成|删除完成|整理完成|处理了\s*\d+|已删除|已移动|已复制|已创建|目标文件夹|执行摘要)/i.test(String(text || ""));
+  }
+
+  function maybeEmitLocalToolCompletionFallback(sessionPath, ss, opts = {}) {
+    if (!sessionPath || !ss) return false;
+    const text = buildLocalToolSuccessFallback(ss);
+    if (!text) return false;
+    const requirement = classifyRequestedLocalMutation(ss.originalPromptText || ss.effectivePromptText || "");
+    if (!opts.force && ss.hasOutput && (!requirement || visibleTextLooksLikeLocalCompletion(ss.visibleTextAcc))) {
+      return false;
+    }
+    const delta = ss.hasOutput ? `\n\n${text}` : text;
+    emitTrustedVisibleTextDelta(sessionPath, ss, delta);
+    debugLog()?.warn("ws", `[LOCAL-TOOL-COMPLETION-FALLBACK v1] emitted · hasOutput=${ss.hasOutput} · session=${sessionPath}`);
+    return true;
+  }
+
   function finalizeReturnedTurnWithoutStream(sessionPath, ss, reason, opts = {}) {
     if (!sessionPath || !ss || ss._turnClosed || hasStreamEvent(ss, "turn_end")) return false;
+    if (hasToolExecutionInFlight(ss)) return false;
     if (!opts.ignoreInternalRetry && hasScheduledInternalRetry(ss)) return false;
     const finalText = !ss.hasOutput
       ? extractLatestAssistantVisibleText(engine.getSessionByPath(sessionPath), sessionPath)
       : "";
     if (opts.requirePersistedText && !ss.hasOutput && !finalText) return false;
+    if (finalText && shouldRetryUnverifiedLocalMutation(ss, finalText)) {
+      if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, finalText)) return true;
+    }
     return closeStreamWithVisibleFallback(sessionPath, ss, finalText, reason);
   }
 
@@ -528,6 +765,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss.hasError ||
         ss._turnClosed ||
         hasStreamEvent(ss, "turn_end") ||
+        hasToolExecutionInFlight(ss) ||
         hasScheduledInternalRetry(ss)
       ) {
         return;
@@ -554,12 +792,17 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         clearPersistedFinalAnswerPollTimer(ss);
         return;
       }
+      if (hasToolExecutionInFlight(ss)) return;
       const finalText = extractLatestAssistantVisibleTextAfter(
         engine.getSessionByPath(sessionPath),
         sessionPath,
         ss.persistedAssistantTextBaseline || 0,
       );
       if (finalText) {
+        if (shouldRetryUnverifiedLocalMutation(ss, finalText)) {
+          clearPersistedFinalAnswerPollTimer(ss);
+          if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, finalText)) return;
+        }
         closeStreamWithVisibleFallback(sessionPath, ss, finalText, "persisted_final_answer_poll");
       }
     }, 1000);
@@ -598,12 +841,29 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ) {
         return;
       }
+      if (hasToolExecutionInFlight(ss)) {
+        scheduleToolFinalizationFallback(sessionPath, ss);
+        return;
+      }
+      if (shouldRetryUnverifiedLocalMutation(ss, ss.visibleTextAcc || "")) {
+        if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, ss.visibleTextAcc || "")) return;
+      }
       Promise.resolve(engine.abortSessionByPath?.(sessionPath)).catch(() => {});
+      const localToolFallback = buildLocalToolSuccessFallback(ss);
       const snapshot = createTurnQualitySnapshot(ss, ss.visibleTextAcc || "");
-      const fallback = ss.hasOutput ? "" : (evaluateForcedTurnFallback(ss, snapshot, { sessionPath })?.text || (getLocale().startsWith("zh")
+      const fallback = localToolFallback || (ss.hasOutput ? "" : (evaluateForcedTurnFallback(ss, snapshot, { sessionPath })?.text || (getLocale().startsWith("zh")
         ? "工具已执行，但模型没有生成最终回复。Lynn 已结束这轮会话；你可以检查上方工具结果，或让我继续核对。"
-        : "The tool ran, but the model did not produce a final reply. Lynn closed this turn; you can inspect the tool result above or ask me to verify it."));
-      closeStreamWithVisibleFallback(sessionPath, ss, fallback, "tool_finalization_timeout");
+        : "The tool ran, but the model did not produce a final reply. Lynn closed this turn; you can inspect the tool result above or ask me to verify it.")));
+      closeStreamWithVisibleFallback(
+        sessionPath,
+        ss,
+        fallback,
+        "tool_finalization_timeout",
+        {
+          appendEvenIfHasOutput: Boolean(localToolFallback && ss.hasOutput),
+          trustedFallback: Boolean(localToolFallback),
+        },
+      );
     }, TOOL_FINALIZATION_GRACE_MS);
     if (ss.toolFinalizationTimer.unref) ss.toolFinalizationTimer.unref();
   }
@@ -624,7 +884,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         return;
       }
       const finalText = extractLatestAssistantVisibleText(engine.getSessionByPath(sessionPath), sessionPath);
-      if (finalText) {
+      if (isMeaningfulPersistedFinalText(finalText, ss)) {
+        if (hasToolExecutionInFlight(ss)) return;
+        if (shouldRetryUnverifiedLocalMutation(ss, finalText)) {
+          clearToolAuthorizationPollTimer(ss);
+          if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, finalText)) return;
+        }
         closeStreamWithVisibleFallback(sessionPath, ss, finalText, "tool_authorization_persisted_final");
       }
     }, 1000);
@@ -632,12 +897,30 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     ss.toolAuthorizationTimer = setTimeout(() => {
       ss.toolAuthorizationTimer = null;
       if (hasDifferentActiveStreamToken(ss, streamToken) || ss.hasError || hasStreamEvent(ss, "turn_end")) return;
+      if (hasToolExecutionInFlight(ss)) {
+        scheduleToolAuthorizationFallback(sessionPath, ss);
+        return;
+      }
+      if (shouldRetryUnverifiedLocalMutation(ss, ss.visibleTextAcc || "")) {
+        if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, ss.visibleTextAcc || "")) return;
+      }
       Promise.resolve(engine.abortSessionByPath?.(sessionPath)).catch(() => {});
       const finalText = extractLatestAssistantVisibleText(engine.getSessionByPath(sessionPath), sessionPath);
+      const localToolFallback = buildLocalToolSuccessFallback(ss);
+      const meaningfulFinalText = isMeaningfulPersistedFinalText(finalText, ss) ? finalText : "";
       const fallback = getLocale().startsWith("zh")
         ? "工具授权后没有收到最终回复，Lynn 已结束这轮会话以免卡住。请检查目标目录或上方工具状态；如果需要，我可以继续核对结果。"
         : "The tool authorization did not produce a final reply, so Lynn closed this turn to avoid blocking the session. Please inspect the target path or ask me to verify the result.";
-      closeStreamWithVisibleFallback(sessionPath, ss, finalText || fallback, "tool_authorization_timeout");
+      closeStreamWithVisibleFallback(
+        sessionPath,
+        ss,
+        meaningfulFinalText || localToolFallback || fallback,
+        "tool_authorization_timeout",
+        {
+          appendEvenIfHasOutput: Boolean(localToolFallback && !meaningfulFinalText),
+          trustedFallback: Boolean(localToolFallback && !meaningfulFinalText),
+        },
+      );
     }, TOOL_AUTHORIZATION_GRACE_MS);
     if (ss.toolAuthorizationTimer.unref) ss.toolAuthorizationTimer.unref();
   }
@@ -654,6 +937,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.silentBrainAbortTimer = null;
       if (hasDifferentActiveStreamToken(ss, streamToken)) return;
       if (ss.hasOutput || ss.hasToolCall || ss.hasThinking || ss.hasError || hasStreamEvent(ss, "turn_end")) return;
+      if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, ss.visibleTextAcc || "")) {
+        Promise.resolve(engine.abortSessionByPath?.(sessionPath)).catch(() => {});
+        return;
+      }
       ss._lastTurnAborted = true;
       Promise.resolve(engine.abortSessionByPath?.(sessionPath)).catch(() => {});
       if (
@@ -776,6 +1063,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
   function closeStreamAfterError(sessionPath, ss) {
     if (!sessionPath || !ss || hasStreamEvent(ss, "turn_end")) return;
+    if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, ss.visibleTextAcc || "", { ignoreError: true })) {
+      return;
+    }
     if (!ss.hasOutput && !ss.hasToolCall) ss._lastTurnAborted = true;
     closeStreamWithVisibleFallback(sessionPath, ss, "", "model_tool_error");
   }
@@ -818,11 +1108,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     }
     const session = engine.getSessionByPath(sessionPath);
     const command = extractRecoverablePseudoBashCommand(inspectedText, ss, session, engine)
-      || buildExplicitPromptDeleteCommand(ss, session, engine);
+      || buildExplicitPromptMutationCommand(ss, session, engine);
     if (!command) return false;
 
     ss.pseudoToolCommandRecoveryAttempted = true;
+    ss.pseudoToolRecoveryHandled = true;
     ss.hasToolCall = true;
+    ss.recoveredBashInFlight = true;
     const toolCallId = `recovered_pseudo_bash_${Date.now().toString(36)}`;
     emitStreamEvent(sessionPath, ss, { type: "tool_start", name: "bash", args: { command } });
 
@@ -849,12 +1141,21 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         });
         if (result?.isError) {
           rememberFailedTool(ss, "bash");
+          ss.recoveredBashInFlight = false;
           closeStreamWithVisibleFallback(sessionPath, ss, "", "recovered_pseudo_bash_failed");
           return;
         }
         rememberSuccessfulTool(ss, "bash", toolSummary, { command });
-        closeStreamWithVisibleFallback(sessionPath, ss, buildLocalToolSuccessFallback(ss), "recovered_pseudo_bash");
+        ss.recoveredBashInFlight = false;
+        closeStreamWithVisibleFallback(
+          sessionPath,
+          ss,
+          buildLocalToolSuccessFallback(ss),
+          "recovered_pseudo_bash",
+          { appendEvenIfHasOutput: true, trustedFallback: true },
+        );
       } catch (err) {
+        ss.recoveredBashInFlight = false;
         emitStreamEvent(sessionPath, ss, {
           type: "tool_end",
           name: "bash",
@@ -870,13 +1171,124 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return true;
   }
 
+  function executeRecoveredBashCommand(sessionPath, ss, session, command, reason) {
+    if (!sessionPath || !ss || !isMeaningfulRecoveredBashCommand(command) || typeof engine.buildTools !== "function") {
+      return false;
+    }
+    ss.hasToolCall = true;
+    ss.recoveredBashInFlight = true;
+    const toolCallId = `recovered_bash_${Date.now().toString(36)}`;
+    emitStreamEvent(sessionPath, ss, { type: "tool_start", name: "bash", args: { command } });
+
+    Promise.resolve().then(async () => {
+      try {
+        const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
+        const built = engine.buildTools(cwd, null, {
+          workspace: cwd,
+          getSessionPath: () => sessionPath,
+        });
+        const bashTool = [...(built?.tools || []), ...(built?.customTools || [])].find((tool) => tool?.name === "bash");
+        if (!bashTool?.execute) throw new Error("bash tool unavailable");
+        const result = await bashTool.execute(toolCallId, { command });
+        const resultText = extractText(result?.content);
+        const toolSummary = {
+          command: command.slice(0, 160),
+          outputPreview: resultText ? resultText.slice(0, 200) : "",
+        };
+        emitStreamEvent(sessionPath, ss, {
+          type: "tool_end",
+          name: "bash",
+          success: !result?.isError,
+          summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
+        });
+        if (result?.isError) {
+          rememberFailedTool(ss, "bash");
+          ss.recoveredBashInFlight = false;
+          closeStreamWithVisibleFallback(sessionPath, ss, "", `${reason || "recovered_bash"}_failed`);
+          return;
+        }
+        rememberSuccessfulTool(ss, "bash", toolSummary, { command });
+        ss.recoveredBashInFlight = false;
+        closeStreamWithVisibleFallback(
+          sessionPath,
+          ss,
+          buildLocalToolSuccessFallback(ss),
+          reason || "recovered_bash",
+          { appendEvenIfHasOutput: true, trustedFallback: true },
+        );
+      } catch (err) {
+        ss.recoveredBashInFlight = false;
+        emitStreamEvent(sessionPath, ss, {
+          type: "tool_end",
+          name: "bash",
+          success: false,
+          error: err?.message || String(err),
+        });
+        rememberFailedTool(ss, "bash");
+        closeStreamWithVisibleFallback(sessionPath, ss, "", `${reason || "recovered_bash"}_error`);
+      }
+    });
+    debugLog()?.warn("ws", `recovering failed local mutation with real bash · reason=${reason || "unknown"} · session=${sessionPath}`);
+    return true;
+  }
+
+  function maybeRecoverFailedLocalMutationCommand(sessionPath, ss, failedToolName, failedArgs, failedResultText) {
+    if (
+      !sessionPath ||
+      !ss ||
+      ss.failedLocalMutationRecoveryAttempted ||
+      ss._turnClosed ||
+      hasStreamEvent(ss, "turn_end") ||
+      !looksLikeIncompleteLocalMutationProbe(failedToolName, failedArgs, failedResultText)
+    ) {
+      return false;
+    }
+    const session = engine.getSessionByPath(sessionPath);
+    const command = buildExplicitPromptMutationCommand(ss, session, engine);
+    if (!command) return false;
+    const failedCommand = String(failedArgs?.command || failedArgs?.query || failedArgs?.cmd || "").trim();
+    if (failedCommand && failedCommand === command.trim()) return false;
+    ss.failedLocalMutationRecoveryAttempted = true;
+    return executeRecoveredBashCommand(sessionPath, ss, session, command, "failed_local_mutation_recovery");
+  }
+
+  function maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, visibleTextBeforeReset = "", opts = {}) {
+    const successfulTools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
+    const hasOnlyLocalProbeTools =
+      successfulTools.length > 0 &&
+      successfulTools.every((tool) => looksLikeLocalMutationProbeCommand(tool));
+    if (
+      !sessionPath ||
+      !ss ||
+      ss.unexecutedLocalMutationRecoveryAttempted ||
+      (ss.hasToolCall && !hasOnlyLocalProbeTools) ||
+      (ss.hasError && !opts.ignoreError) ||
+      ss._turnClosed ||
+      hasStreamEvent(ss, "turn_end")
+    ) {
+      return false;
+    }
+    const requirement = classifyRequestedLocalMutation(ss.originalPromptText || ss.effectivePromptText || "");
+    if (!requirement) return false;
+    const session = engine.getSessionByPath(sessionPath);
+    const command = buildExplicitPromptMutationCommand(ss, session, engine);
+    if (!command) return false;
+    ss.unexecutedLocalMutationRecoveryAttempted = true;
+    debugLog()?.warn("ws", `recovering unexecuted local mutation with deterministic bash · visibleLen=${String(visibleTextBeforeReset || "").trim().length} · session=${sessionPath}`);
+    return executeRecoveredBashCommand(sessionPath, ss, session, command, "unexecuted_local_mutation_recovery");
+  }
+
   function maybeSteerPseudoToolSimulation(sessionPath, ss, textOverride = null) {
     if (!sessionPath || !ss) return false;
     const inspectedText = textOverride != null ? String(textOverride || "") : (ss.visibleTextAcc || ss.rawTextAcc || "");
     const hasPseudoToolText = containsPseudoToolCallSimulation(inspectedText);
     const hasFakeProgress = ss.progressMarkerCount > 0 && !ss.hasToolCall;
     if (!hasPseudoToolText && !hasFakeProgress) return false;
-    maybeRecoverPseudoToolCommand(sessionPath, ss, inspectedText);
+    const recovered = maybeRecoverPseudoToolCommand(sessionPath, ss, inspectedText);
+    if (recovered) {
+      debugLog()?.warn("ws", `pseudo tool text recovered through real tool; suppressing leaked text without steer · session=${sessionPath}`);
+      return true;
+    }
     if (ss.pseudoToolSteered) return false;
     if (ss.pseudoToolRecoveryHandled) {
       debugLog()?.warn("ws", `pseudo tool/progress detected after recovery already handled; suppressing without steer · session=${sessionPath}`);
@@ -902,8 +1314,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return out;
   }
 
+  function emitTrustedVisibleTextDelta(sessionPath, ss, delta) {
+    const next = trimDegenerateTail(String(delta || "")
+      .replace(/�+/g, "")
+      .replace(/<\|mask_(?:start|end)\|>/gi, ""));
+    if (!next || !next.trim()) return false;
+    ss.hasOutput = true;
+    ss.titlePreview += next;
+    ss.visibleTextAcc += next;
+    emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: next });
+    maybeGenerateFirstTurnTitle(sessionPath, ss);
+    return true;
+  }
+
   function emitVisibleTextDelta(sessionPath, ss, delta) {
-    const rawNext = String(delta || "").replace(/�+/g, "");
+    const rawNext = String(delta || "")
+      .replace(/�+/g, "")
+      .replace(/<\|mask_(?:start|end)\|>/gi, "");
     let next = rawNext;
     if (!next) return;
     const strippedBlock = stripStreamingPseudoToolBlocks(ss, next);
@@ -1058,6 +1485,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     } else if (event.type === "tool_execution_start") {
       if (!ss) return;
       ss.hasToolCall = true;
+      ss.activeToolCallCount = Math.max(0, Number(ss.activeToolCallCount || 0)) + 1;
+      ss.lastToolExecutionActivity = Date.now();
       if (ss.isThinking) {
         ss.isThinking = false;
         emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
@@ -1111,6 +1540,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
     } else if (event.type === "tool_execution_end") {
       if (!ss) return;
+      ss.activeToolCallCount = Math.max(0, Number(ss.activeToolCallCount || 0) - 1);
+      ss.lastToolExecutionActivity = Date.now();
       try {
         const __key = event.toolCallId || event.toolName || "";
         const __t = ss.__slowToolTimers?.get(__key);
@@ -1191,6 +1622,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         rememberSuccessfulTool(ss, toolName, toolSummary, normalizedArgs);
       } else {
         rememberFailedTool(ss, toolName);
+        const failedText = extractText(event.result?.content);
+        if (maybeRecoverFailedLocalMutationCommand(sessionPath, ss, toolName, normalizedArgs, failedText)) {
+          clearToolAuthorizationTimer(ss);
+          return;
+        }
       }
       clearToolAuthorizationTimer(ss);
       scheduleToolFinalizationFallback(sessionPath, ss);
@@ -1367,6 +1803,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       broadcast({ type: "dm_new_message", from: event.from, to: event.to });
     } else if (event.type === "turn_end") {
       if (!ss) return;
+      if (hasToolExecutionInFlight(ss)) {
+        scheduleToolFinalizationFallback(sessionPath, ss);
+        debugLog()?.log("ws", `[TURN-END v4] defer turn_end (tool still in flight count=${ss.activeToolCallCount || 0}, recovered=${!!ss.recoveredBashInFlight}) · hasOutput=${ss.hasOutput} · ${sessionPath}`);
+        return;
+      }
       if (ss.hasToolCall && !ss.hasError && !ss._turnEndDeferred) {
         ss._turnEndDeferred = true;
         scheduleToolFinalizationFallback(sessionPath, ss);
@@ -1480,6 +1921,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       });
 
       const visibleTextBeforeReset = ss.visibleTextAcc || "";
+      if (maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, visibleTextBeforeReset)) {
+        clearTurnTimers(ss);
+        finishSessionStream(ss);
+        return;
+      }
       let internalRetry = null;
       const qualitySnapshot = createTurnQualitySnapshot(ss, visibleTextBeforeReset);
       const applyTurnQualityDecision = (decision) => {
@@ -1523,6 +1969,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         if (isActive) debugLog()?.log("ws", `assistant reply deferred for internal retry · reason=${internalRetry.reason}`);
         return;
       }
+
+      maybeEmitLocalToolCompletionFallback(sessionPath, ss);
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       broadcast({ type: "status", isStreaming: false, sessionPath });
@@ -1934,11 +2382,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                         : { sessionPath: promptSessionPath, streamToken: activeStreamToken },
                     );
                     if (!ss.isStreaming) {
+                      if (hasToolExecutionInFlight(ss)) {
+                        scheduleToolFinalizationFallback(promptSessionPath, ss);
+                        debugLog()?.log("ws", `[HUB-SEND v2] returned while tool is still in flight count=${ss.activeToolCallCount || 0}, recovered=${!!ss.recoveredBashInFlight}; defer close · ${promptSessionPath}`);
+                        break;
+                      }
                       clearTurnTimers(ss);
                       if (!finalizeReturnedTurnWithoutStream(promptSessionPath, ss, "hub_send_returned_closed_without_turn_end")) {
                         broadcast({ type: "status", isStreaming: false, sessionPath: promptSessionPath });
                       }
-                    } else if (finalizeReturnedTurnWithoutStream(promptSessionPath, ss, "hub_send_returned_open_without_turn_end", { requirePersistedText: true })) {
+                    } else if (!hasToolExecutionInFlight(ss) && finalizeReturnedTurnWithoutStream(promptSessionPath, ss, "hub_send_returned_open_without_turn_end", { requirePersistedText: true })) {
                       // finalized from the persisted non-streaming assistant message
                     } else {
                       scheduleReturnedTurnFinalizationFallback(promptSessionPath, ss, "hub_send_returned_open_safety_timeout");

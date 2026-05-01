@@ -1,0 +1,207 @@
+.shell {
+  position: fixed;
+  right: 24px;
+  bottom: 64px;
+  width: min(360px, calc(100vw - 32px));
+  z-index: 80;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border, rgba(120, 110, 90, 0.18));
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--bg-card, #fff) 94%, transparent);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.16);
+  color: var(--text-primary, #241f1a);
+  backdrop-filter: blur(16px);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.orb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--accent-rgb, 126, 153, 168), 0.35);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(var(--accent-rgb, 126, 153, 168), 0.30));
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 126, 153, 168), 0.08);
+}
+
+.orb[data-state="listening"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(76, 163, 127, 0.58));
+  box-shadow: 0 0 0 4px rgba(76, 163, 127, 0.14);
+}
+
+.orb[data-state="thinking"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(83, 132, 186, 0.62));
+  box-shadow: 0 0 0 4px rgba(83, 132, 186, 0.14);
+}
+
+.orb[data-state="speaking"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(var(--accent-rgb, 126, 153, 168), 0.70));
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 126, 153, 168), 0.16);
+}
+
+.orb[data-state="degraded"] {
+  background: radial-gradient(circle at 35% 30%, #fff, rgba(197, 148, 47, 0.64));
+  box-shadow: 0 0 0 4px rgba(197, 148, 47, 0.16);
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.stateLine {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted, #7a7167);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.closeButton,
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--text-muted, #7a7167);
+  cursor: pointer;
+}
+
+.closeButton:hover,
+.iconButton:hover {
+  background: var(--overlay-light, rgba(0, 0, 0, 0.06));
+  color: var(--text-primary, #241f1a);
+}
+
+.transcriptStack {
+  display: grid;
+  gap: 8px;
+}
+
+.transcript {
+  min-height: 42px;
+  max-height: 96px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--overlay-light, rgba(0, 0, 0, 0.06));
+  border-radius: var(--radius-sm, 6px);
+  background: color-mix(in srgb, var(--bg, #fbfaf7) 84%, transparent);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #241f1a);
+  overflow-wrap: anywhere;
+}
+
+.transcriptLabel {
+  margin-bottom: 4px;
+  color: var(--text-muted, #7a7167);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.empty {
+  color: var(--text-muted, #7a7167);
+}
+
+.error {
+  padding: 8px 10px;
+  border: 1px solid rgba(184, 73, 73, 0.25);
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(184, 73, 73, 0.08);
+  color: #9c3838;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 22px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--overlay-light, rgba(0, 0, 0, 0.06));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-muted, #7a7167);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: 36px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: var(--accent, #7e99a8);
+  color: #fff;
+}
+
+.primaryButton:hover {
+  background: var(--accent-hover, #6b8594);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.secondaryButton {
+  padding: 0 12px;
+  background: transparent;
+  border-color: var(--overlay-light, rgba(0, 0, 0, 0.08));
+  color: var(--text-muted, #7a7167);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: var(--overlay-light, rgba(0, 0, 0, 0.06));
+  color: var(--text-primary, #241f1a);
+}
+
+@media (max-width: 520px) {
+  .shell {
+    left: 16px;
+    right: 16px;
+    bottom: 54px;
+    width: auto;
+  }
+}

@@ -28,28 +28,43 @@ function voiceForProvider(provider, requestedVoice, defaultVoice) {
   return requestedVoice || defaultVoice;
 }
 
-function normalizeTextForSpeech(value) {
-  return String(value || "")
-    // Weather and market answers often contain compact machine-readable units.
-    // Expand them before TTS so Chinese voices don't switch into English.
-    .replace(/(\d+(?:\.\d+)?)\s*[~～]\s*(\d+(?:\.\d+)?)\s*(?:°\s*C|℃|摄氏度)/gi, "$1 到 $2 摄氏度")
-    .replace(/(\d+(?:\.\d+)?)\s*(?:°\s*C|℃)/gi, "$1 摄氏度")
-    .replace(/(\d+(?:\.\d+)?)\s*%/g, "百分之 $1")
-    .replace(/(\d+(?:\.\d+)?)\s*(?:km\/h|公里\/小时)/gi, "$1 公里每小时")
-    .replace(/(\d+(?:\.\d+)?)\s*mm\b/gi, "$1 毫米")
-    .replace(/(\d+(?:\.\d+)?)\s*(?:元\/克|元\/g)/gi, "$1 元每克")
-    .replace(/\bXAU\/USD\b/gi, "国际现货黄金")
-    .replace(/\bXAG\/USD\b/gi, "国际现货白银")
-    .replace(/\bHKD\b/g, "港元")
-    .replace(/\bUSD\b/g, "美元")
-    .replace(/\bCNY\b/g, "人民币")
-    .replace(/\bRMB\b/g, "人民币")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function hashSpeechRequest(payload) {
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
+const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+function localNumberToChinese(num) {
+  const n = Number(num);
+  if (!Number.isFinite(n)) return String(num);
+  if (n < 10) return CN_DIGITS[n];
+  if (n < 20) return `十${n % 10 ? CN_DIGITS[n % 10] : ""}`;
+  if (n < 100) return `${CN_DIGITS[Math.floor(n / 10)]}十${n % 10 ? CN_DIGITS[n % 10] : ""}`;
+  return String(num).split("").map((ch) => /\d/.test(ch) ? CN_DIGITS[Number(ch)] : ch).join("");
+}
+
+function localNormalizeChineseTtsText(value) {
+  return String(value ?? "")
+    .replace(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]/g, (_m, month, day) => `${localNumberToChinese(month)}月${localNumberToChinese(day)}日`)
+    .replace(/(\d{1,3})\s*(?:到|至|-|~)\s*(\d{1,3})\s*(摄氏度|度|℃)/g, (_m, a, b, unit) => `${localNumberToChinese(a)}到${localNumberToChinese(b)}${unit === "℃" ? "摄氏度" : unit}`)
+    .replace(/(\d{1,3})\s*(摄氏度|度|℃)/g, (_m, n, unit) => `${localNumberToChinese(n)}${unit === "℃" ? "摄氏度" : unit}`)
+    .replace(/\d+/g, (m) => localNumberToChinese(m));
+}
+
+let normalizeChineseTtsTextImpl = null;
+
+async function normalizeSpeechText(value) {
+  if (!normalizeChineseTtsTextImpl) {
+    try {
+      const mod = await import("../../../shared/tts-text-normalizer.js");
+      normalizeChineseTtsTextImpl = mod.normalizeChineseTtsText;
+    } catch {
+      // Plugins may be copied and loaded standalone in tests or external installs.
+      // Keep a local fallback so the tool can still register and speak readable Chinese.
+      normalizeChineseTtsTextImpl = localNormalizeChineseTtsText;
+    }
+  }
+  return normalizeChineseTtsTextImpl(value);
 }
 
 export async function execute(params, ctx = {}) {
@@ -58,7 +73,7 @@ export async function execute(params, ctx = {}) {
   if (!text || !String(text).trim()) {
     throw new Error("tts_speak: empty text");
   }
-  const speechText = normalizeTextForSpeech(text);
+  const speechText = await normalizeSpeechText(text);
   log.info?.("tts_speak:", speechText.slice(0, 40) + "...", "voice:", voice || "default");
 
   // ctx.dataDir 可能未注入或相对路径 → fallback 到 ~/.lynn/audio

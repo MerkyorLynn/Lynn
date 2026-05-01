@@ -59,6 +59,9 @@ describe("pseudo tool call sanitizer", () => {
   it("keeps detection and stripping aligned for Qwen and tool-arg leak formats", () => {
     const cases = [
       '<|tool_calls_section_begin|><|tool_call_begin|>weather<|tool_call_argument_begin|>{"city":"上海"}<|tool_call_argument_end|><|tool_call_end|><|tool_calls_section_end|>',
+      '</think>\n<|tool_code_begin|>bash\nfind ~/Downloads -name "*.zip"\n<|tool_code_end|>',
+      '<find_files>\n*.zzzzzztest\n\n/Users/lynn/Downloads\n</find_files>',
+      'bash\n\n{“cmd”: “find /Users/lynn/Downloads -type f -name "*zzzzzztest" 2>/dev/null”}',
       "list_dir path=/Users/lynn/Downloads/Lynn limit=20",
       '<bash command="ls">',
     ];

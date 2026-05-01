@@ -19,6 +19,7 @@ import { initEditorEvents } from './stores/artifact-actions';
 import { updateLayout } from './components/SidebarLayout';
 import { initErrorBusBridge } from './errors/error-bus-bridge';
 import { syncRuntimeSnapshot } from './utils/runtime-snapshot';
+import { JARVIS_RUNTIME_TOGGLE_EVENT } from './services/jarvis-runtime-events';
 // @ts-expect-error — shared JS module
 import { errorBus as _errorBus } from '../../../shared/error-bus.js';
 // @ts-expect-error — shared JS module
@@ -343,10 +344,10 @@ export async function initApp(): Promise<void> {
     });
   });
 
-  // 19b. 全局快捷键唤醒 → 自动聚焦输入框
+  // 19b. 全局快捷键唤醒 → Jarvis Runtime overlay
   platform.onGlobalSummon?.(() => {
     useStore.setState({ welcomeVisible: false });
-    useStore.getState().requestInputFocus();
+    window.dispatchEvent(new CustomEvent(JARVIS_RUNTIME_TOGGLE_EVENT));
   });
 
   // 20. 设置变更监听

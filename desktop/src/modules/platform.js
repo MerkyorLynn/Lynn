@@ -89,6 +89,26 @@
 
     // 窗口管理 → 单页降级
     openSettings: () => {},
+    getGlobalSummonShortcutStatus: async () => ({
+      ok: false,
+      accelerator: null,
+      fallbackUsed: false,
+      attempted: [],
+      configured: null,
+      defaultAccelerator: null,
+      layer: null,
+      errors: {},
+    }),
+    setGlobalSummonShortcut: async () => ({
+      ok: false,
+      accelerator: null,
+      fallbackUsed: false,
+      attempted: [],
+      configured: null,
+      defaultAccelerator: null,
+      layer: null,
+      errors: {},
+    }),
     reloadMainWindow: () => location.reload(),
 
     // 设置通信 → Web 环境暂不支持跨窗口

@@ -20,7 +20,39 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.1</strong> · 2026-04-29 · guarded operations + pseudo-tool fallback + local task feedback <em>(latest)</em></summary>
+<summary><strong>v0.77.3</strong> · 2026-05-01 · Lynn voice runtime + startup white-screen fix + long-reply speech <em>(latest)</em></summary>
+
+**Voice and startup stability**:
+- 🎙️ **Lynn voice overlay**: the new voice entry now presents itself as Lynn instead of Jarvis.
+- 💬 **Normal chat pipeline integration**: voice transcripts enter the current chat, so tools, memory, history, and reflection follow the same path as typed messages.
+- 🗣️ **Default Chinese female voice restored**: spoken replies use the CosyVoice default female voice, with 22.05kHz WAV normalized to 16kHz PCM playback.
+- 🔢 **Chinese number speech fix**: dates, temperatures, percentages, and stock codes are normalized before TTS so mixed English number readings do not leak into Chinese speech.
+- 📚 **Sustained long-reply playback**: long answers are cleaned, split into small sentence/comma chunks, queued, and retried as smaller chunks when a segment fails.
+- 🪟 **Startup white-screen fixes**: fixed the React selector update-depth loop and the splash screen path when `app-ready` is missed.
+- 🧩 **Packaging hardening**: plugin standalone loading, `build:server` npm registry retry, and local cold-start verification are covered.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.3)
+
+</details>
+
+<details>
+<summary><strong>v0.77.2</strong> · 2026-04-29 · weather evidence gate + HTML report styles + PNG export</summary>
+
+**Report and realtime data UX**:
+- 🌦️ **Weather evidence gate**: weather tools now require actual conditions, temperature, rain, or similar fields before a weather result is considered valid.
+- 📰 **HTML report styles**: `create_report` supports `editorial-paper`, `finance-dark`, `magazine`, and `clean-briefing`, with deep reports defaulting to editorial-paper.
+- 🖼️ **Artifact PNG export**: HTML artifacts can be previewed, opened in browser, and exported as PNG.
+- 🎨 **frontend-design skill**: ships the Apache 2.0 frontend-design skill to improve generated HTML report quality.
+- 🧯 **Turn quality gate hardening**: background, empty-answer, and fallback paths now recover more reliably.
+- 🧼 **Streaming pseudo-tool cleanup**: unified cleanup of fake `<web_search>` / `<weather>` / `<bash>` tags.
+- 🧩 **Runtime stability patches**: stream LRU, async EventBus errors, ChannelRouter locks, and plugin unload cleanup are hardened.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.2)
+
+</details>
+
+<details>
+<summary><strong>v0.77.1</strong> · 2026-04-29 · guarded operations + pseudo-tool fallback + local task feedback</summary>
 
 **Execution and safety UX**:
 - 🛡️ **Dangerous-operation authorization cards**: delete, sudo, bulk move, overwrite, and similar high-risk commands now require confirmation in execute mode.
