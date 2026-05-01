@@ -140,6 +140,82 @@ const NEW = [
 const allCases = (args.quick ? V5.slice(0, 5) : [...V5, ...V6, ...ROUTE, ...NEW])
   .map(([id, name, needsTools, prompt]) => ({ id, name, needsTools, prompt }));
 
+const FALLBACK_TEXT_RE = /本轮模型没有生成|本轮补写回答没有稳定完成|空转以免卡住会话|没有生成可见答案|没有生成可用回复/;
+const NO_EVIDENCE_RE = /未检索到明确(?:证据|天气数据)|数据时效性问题|导航(?:页面|菜单|框架)|天气网站首页|2019\s*年/;
+const PSEUDO_VISIBLE_RE = /<\s*\/?\s*(?:web_search|bash|tool_code|stock_market|weather|find_files)\b|(?:^|\n)\s*(?:web_search|stock_market|weather|bash)\s*\(/im;
+const WEATHER_TEXT_RE = /(?:-?\d+(?:\.\d+)?\s*(?:°\s*C|°C|℃|度)|\d+\s*~\s*\d+\s*(?:°C|℃|度)|晴|多云|阴|小雨|中雨|大雨|阵雨|雷雨|暴雨|降雨概率|降水)/;
+
+function extractJsonObject(text) {
+  const value = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  try {
+    return JSON.parse(value);
+  } catch {
+    const match = value.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function lastMeaningfulLine(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .at(-1) || "";
+}
+
+function validateCase(testCase, result) {
+  const errors = [];
+  const text = String(result.finalText || "");
+
+  if (FALLBACK_TEXT_RE.test(text)) {
+    errors.push("semantic:fallback_text_visible");
+  }
+  if (PSEUDO_VISIBLE_RE.test(text)) {
+    errors.push("semantic:pseudo_tool_text_visible");
+  }
+  if (testCase.needsTools && NO_EVIDENCE_RE.test(text)) {
+    errors.push("semantic:no_reliable_evidence");
+  }
+
+  if (testCase.id === "T02_10") {
+    if (lastMeaningfulLine(text) !== "银杏-42") {
+      errors.push("semantic:memory_token_last_line_missing");
+    }
+  }
+
+  if (testCase.id === "A9") {
+    const parsed = extractJsonObject(text);
+    const valid = parsed
+      && typeof parsed.name === "string"
+      && Number.isFinite(Number(parsed.score))
+      && Array.isArray(parsed.strengths)
+      && Array.isArray(parsed.weaknesses)
+      && typeof parsed.recommend === "boolean";
+    if (!valid) errors.push("semantic:invalid_json_contract");
+  }
+
+  if (testCase.id === "RT-LONG") {
+    if (result.textChars < 700 || !/宋朝/.test(text) || !/(科举|唐代|演变|影响)/.test(text)) {
+      errors.push("semantic:long_research_too_thin");
+    }
+  }
+
+  if (testCase.id === "RT-CLOUD") {
+    const weatherToolOk = result.tools.some((tool) => tool.name === "weather" && tool.success !== false);
+    if (!weatherToolOk) errors.push("semantic:weather_tool_missing_or_failed");
+    if (!WEATHER_TEXT_RE.test(text) || NO_EVIDENCE_RE.test(text)) {
+      errors.push("semantic:weather_evidence_missing");
+    }
+  }
+
+  return errors;
+}
+
 function connect() {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(
@@ -199,7 +275,7 @@ function waitForTurnDone(ws, timeoutMs = TURN_TIMEOUT_MS) {
           const delta = msg.delta || "";
           if (ttftMs == null && delta.length > 0) ttftMs = Date.now() - startMs;
           textChars += delta.length;
-          if (finalText.length < 2000) finalText += delta;
+          if (finalText.length < 12000) finalText += delta;
         } else if (msg.type === "thinking_delta") {
           thinkingChars += (msg.delta || "").length;
         } else if (msg.type === "tool_start") {
@@ -277,13 +353,14 @@ async function main() {
     const warnings = [];
     if (testCase.needsTools && !result.hadToolCall) warnings.push("expected_tool_missing");
     if (result.ttftMs != null && result.ttftMs > 15_000) warnings.push(`slow_ttft_${result.ttftMs}ms`);
-    const ok = result.turnEndCount > 0 && result.textChars > 0 && result.errors.length === 0 && result.reason !== "timeout";
+    const semanticErrors = validateCase(testCase, result);
+    const ok = result.turnEndCount > 0 && result.textChars > 0 && result.errors.length === 0 && semanticErrors.length === 0 && result.reason !== "timeout";
     const flag = ok ? "PASS" : "FAIL";
     const toolSummary = result.tools.length
       ? ` tools=${result.tools.map((tool) => `${tool.name}:${tool.success === false ? "fail" : tool.success === true ? "ok" : "?"}`).join(",")}`
       : "";
-    console.log(`${flag} chars=${result.textChars} turns=${result.turnEndCount} retry=${result.hadRetry}${toolSummary} ttft=${result.ttftMs ?? "-"}ms total=${result.elapsedMs}ms${warnings.length ? ` WARN:${warnings.join(",")}` : ""}${result.errors.length ? ` ERR:${result.errors.join("|")}` : ""}`);
-    results.push({ ...testCase, ...result, ok, warnings });
+    console.log(`${flag} chars=${result.textChars} turns=${result.turnEndCount} retry=${result.hadRetry}${toolSummary} ttft=${result.ttftMs ?? "-"}ms total=${result.elapsedMs}ms${warnings.length ? ` WARN:${warnings.join(",")}` : ""}${semanticErrors.length ? ` SEM:${semanticErrors.join(",")}` : ""}${result.errors.length ? ` ERR:${result.errors.join("|")}` : ""}`);
+    results.push({ ...testCase, ...result, ok, warnings, semanticErrors });
     if (ok) pass++; else fail++;
     warn += warnings.length;
     await new Promise((resolve) => setTimeout(resolve, TURN_GAP_MS));
@@ -309,8 +386,8 @@ async function main() {
     `- Warnings: ${summary.warnings}`,
     `- Server: ${summary.wsUrl}`,
     ``,
-    `| ID | Name | Result | Chars | Turn Ends | Retry | Tools | TTFT | Total | Warnings |`,
-    `|---|---|---:|---:|---:|---|---|---:|---:|---|`,
+    `| ID | Name | Result | Chars | Turn Ends | Retry | Tools | TTFT | Total | Warnings | Semantic |`,
+    `|---|---|---:|---:|---:|---|---|---:|---:|---|---|`,
     ...results.map((item) => [
       item.id,
       item.name,
@@ -322,6 +399,7 @@ async function main() {
       item.ttftMs ?? "",
       item.elapsedMs,
       item.warnings.join(", "),
+      item.semanticErrors.join(", "),
     ].join(" | ")).map((line) => `| ${line} |`),
     ``,
   ].join("\n"));

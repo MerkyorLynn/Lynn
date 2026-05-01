@@ -438,6 +438,78 @@
 .msgCopyBtn:hover { opacity: 1 !important; color: var(--hana-text); }
 .msgCopyBtnCopied { opacity: 1 !important; color: var(--hana-accent, #4a9); }
 
+.msgTranslateGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 2px 3px;
+    border: 1px solid color-mix(in srgb, var(--hana-border) 78%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--hana-bg) 84%, #fff7eb 16%);
+}
+
+.msgTranslateSelect {
+    border: none;
+    background: transparent;
+    color: var(--hana-text-muted);
+    font-size: 0.72rem;
+    max-width: 76px;
+    outline: none;
+}
+
+.msgTranslateBtn {
+    border: none;
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: color-mix(in srgb, var(--hana-accent, #4a9) 13%, transparent);
+    color: var(--hana-text);
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.msgTranslateBtn:disabled {
+    cursor: wait;
+    opacity: 0.62;
+}
+
+.translationCard {
+    margin-top: 0.45rem;
+    max-width: min(760px, 94%);
+    border: 1px solid color-mix(in srgb, var(--hana-border) 75%, transparent);
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--hana-bg) 88%, #fff8ed 12%), var(--hana-bg));
+    padding: 0.65rem 0.75rem;
+    box-shadow: 0 8px 26px rgba(80, 54, 23, 0.05);
+}
+
+.translationCardHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+    color: var(--hana-text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.translationCardCopy {
+    border: 1px solid var(--hana-border);
+    border-radius: 999px;
+    background: var(--hana-bg);
+    color: var(--hana-text-muted);
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.translationCardBody {
+    white-space: pre-wrap;
+    color: var(--hana-text);
+    font-size: 0.9rem;
+    line-height: 1.68;
+}
+
 .msgPasteBtn {
     padding: 4px 8px;
     min-width: auto;
@@ -1764,6 +1836,22 @@
     letter-spacing: 0.01em;
 }
 
+.thinkingTranslateBtn {
+    border: 1px solid color-mix(in srgb, var(--hana-border) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--hana-bg) 88%, #fff7eb 12%);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    cursor: pointer;
+    font-style: normal;
+}
+
+.thinkingTranslateBtn:disabled {
+    opacity: 0.62;
+    cursor: wait;
+}
+
 .thinkingBlockSummary::-webkit-details-marker {
     display: none;
 }
@@ -1806,6 +1894,16 @@
     white-space: pre-wrap;
     border-left: 2px solid var(--border);
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.thinkingTranslationCard {
+    margin-top: 0.35rem;
+    margin-left: 0.65rem;
+    max-width: min(760px, 94%);
+    border: 1px solid color-mix(in srgb, var(--hana-border) 78%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--hana-bg) 90%, #fff8ed 10%);
+    padding: 0.55rem 0.7rem;
 }
 
 /* ── 执行轨迹折叠块 ── */

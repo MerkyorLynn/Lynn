@@ -567,6 +567,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
 
   async function releaseStaleSessionStream(sessionPath, ss) {
     if (!sessionPath || !ss) return false;
+    const isInternalRetryStream = ss.streamSource === "internal_retry";
     clearTurnTimers(ss);
     try {
       await engine.abortSessionByPath?.(sessionPath);
@@ -574,7 +575,24 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       console.warn("[chat] failed to abort stale session stream:", err?.message || err);
     }
     if (ss.isStreaming) {
-      closeStreamAfterError(sessionPath, ss);
+      if (isInternalRetryStream) {
+        editRollbackStore.discardPendingForSession(sessionPath, ss.activeStreamToken || null);
+        ss.internalRetryPending = false;
+        ss.internalRetryInFlight = false;
+        ss.internalRetryReason = "";
+        if (ss.isThinking) {
+          ss.isThinking = false;
+          emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
+        }
+        if (!hasStreamEvent(ss, "turn_end")) {
+          emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+        }
+        finishSessionStream(ss);
+        resetCompletedTurnState(ss);
+        broadcast({ type: "status", isStreaming: false, sessionPath });
+      } else {
+        closeStreamAfterError(sessionPath, ss);
+      }
     } else {
       editRollbackStore.discardPendingForSession(sessionPath, ss.activeStreamToken || null);
       finishSessionStream(ss);
@@ -664,8 +682,23 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     clearPersistedFinalAnswerPollTimer(ss);
   }
 
+  function isGenericEmptyFallbackText(text) {
+    const value = String(text || "");
+    return /本轮模型没有生成可[见用]回复|本轮模型没有生成可见答案|本轮补写回答没有稳定完成|空转以免卡住会话|The model did not produce (?:a )?visible answer|The model did not produce visible text/i.test(value);
+  }
+
+  function shouldSuppressGenericEmptyFallback(ss, text) {
+    if (!isGenericEmptyFallbackText(text)) return false;
+    if (ss?.routeIntent === "vision") return false;
+    return true;
+  }
+
   function applyVisibleFallbackDecision(sessionPath, ss, decision) {
     if (!decision || decision.type !== "fallback" || !decision.text || ss.hasOutput) return false;
+    if (shouldSuppressGenericEmptyFallback(ss, decision.text)) {
+      debugLog()?.warn("ws", `[EMPTY-FALLBACK-SUPPRESS v1] suppressed generic fallback · route=${ss?.routeIntent || "unknown"} · session=${sessionPath}`);
+      return false;
+    }
     emitVisibleTextDelta(sessionPath, ss, decision.text);
     if (decision.logMessage) {
       const logger = debugLog();
@@ -688,7 +721,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       ss.isThinking = false;
       emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
     }
-    if (text && (!ss.hasOutput || opts.appendEvenIfHasOutput)) {
+    if (text && shouldSuppressGenericEmptyFallback(ss, text)) {
+      debugLog()?.warn("ws", `[TURN-CLOSE-FALLBACK-SUPPRESS v1] suppressed generic fallback · reason=${reason} · route=${ss?.routeIntent || "unknown"} · session=${sessionPath}`);
+    } else if (text && (!ss.hasOutput || opts.appendEvenIfHasOutput)) {
       const prefix = ss.hasOutput && opts.appendEvenIfHasOutput ? "\n\n" : "";
       if (opts.trustedFallback) {
         emitTrustedVisibleTextDelta(sessionPath, ss, prefix + text);
@@ -1934,9 +1969,13 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         if (decision.markToolFailedFallbackRetryAttempted) ss.toolFailedFallbackRetryAttempted = true;
         if (decision.flag === "toolFinalizationRetryAttempted") ss.toolFinalizationRetryAttempted = true;
         if (decision.type === "fallback") {
-          emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: decision.text });
-          ss.visibleTextAcc += decision.text;
-          ss.hasOutput = true;
+          if (decision.text && shouldSuppressGenericEmptyFallback(ss, decision.text)) {
+            debugLog()?.warn("ws", `[TURN-QUALITY-FALLBACK-SUPPRESS v1] suppressed generic fallback · route=${ss?.routeIntent || "unknown"} · session=${sessionPath}`);
+          } else if (decision.text) {
+            emitStreamEvent(sessionPath, ss, { type: "text_delta", delta: decision.text });
+            ss.visibleTextAcc += decision.text;
+            ss.hasOutput = true;
+          }
         }
         if (decision.logMessage) {
           const logger = debugLog();

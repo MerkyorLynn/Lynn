@@ -1,0 +1,31 @@
+[Unit]
+Description=Lynn V0.79 emotion2vec+ base HTTP Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=merkyor
+Group=merkyor
+WorkingDirectory=/home/merkyor/voice-services/emotion2vec-spike
+
+Environment="HF_HUB_DISABLE_XET=1"
+Environment="MODELSCOPE_CACHE=/home/merkyor/.cache/modelscope"
+Environment="LYNN_SER_MODEL_ID=iic/emotion2vec_plus_base"
+Environment="LYNN_SER_DEVICE=cuda:0"
+Environment="LYNN_SER_MAX_AUDIO_SECONDS=10"
+
+ExecStart=/home/merkyor/voice-services/emotion2vec-spike/.venv/bin/uvicorn \
+    emotion_server:app --host 0.0.0.0 --port 18008 --workers 1 --log-level info
+
+# FunASR 加载比 ASR 快,但 1.12GB checkpoint 也给 5 分钟
+TimeoutStartSec=300
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lynn-emotion2vec
+
+[Install]
+WantedBy=multi-user.target

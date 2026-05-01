@@ -287,15 +287,21 @@ export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
   }
   return getLocale().startsWith("zh")
     ? [
-        "[系统提示] 上一轮模型没有生成任何可见答案。本轮请不要调用工具，不要输出思考占位或准备语句，直接用纯文本完成用户任务。",
+        "[系统提示] 这是空回复后的补救回答，不是新的计划阶段。",
+        "本轮必须产出用户可见的最终答案。不要调用工具；不要输出 REFLECT / MOOD / PULSE / Premise / Conduct / Reflection / Act；不要只说“我来查一下”“让我看看”“稍等”后结束。",
         `任务类型：${routeIntent || "chat"}`,
+        "如果用户问“你知道 X 吗 / X 是什么 / 介绍一下 X”，先用 2-5 句话直接说明 X 是什么、主要用途、你当前能确认的来源方向；需要最新资料时，把“仍需联网核验”的部分单独标明，但不能空答。",
+        "如果原任务依赖实时/工具资料但本轮没有可用工具结果：基于已有上下文给出最小可用答案，并明确哪些点未核验；不要把未核验数据说成事实，也不要显示通用兜底话术。",
         "如果用户要求长文/研究/创作，请直接展开完整正文；如果信息不足，也要先给出可用的最小答案和缺口。",
         "【用户原始问题】",
         userPrompt,
       ].filter(Boolean).join("\n")
     : [
-        "[System] The previous model turn produced no visible answer. Do not call tools; do not output planning placeholders. Complete the user's task directly in plain text.",
+        "[System] This is a recovery answer after an empty model turn, not a new planning phase.",
+        "You must produce a user-visible final answer now. Do not call tools; do not output REFLECT / MOOD / PULSE / Premise / Conduct / Reflection / Act; do not only say that you will check or look something up.",
         `Route: ${routeIntent || "chat"}`,
+        "If the user asks whether you know X, what X is, or asks for an introduction to X, first explain what X is, what it is used for, and what sources would verify it in 2-5 sentences. Mark anything that still needs live verification, but do not answer with an empty fallback.",
+        "If the task depends on live/tool data and no tool result is available, provide the best minimal answer from context, clearly label unverified parts, and never present unverified data as fact.",
         "If the user asked for long-form analysis or writing, produce the full answer now. If information is missing, provide the best minimal answer and state the gap.",
         "Original user request:",
         userPrompt,
@@ -305,14 +311,16 @@ export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
 export function buildShortLeadInRetryPrompt(originalPromptText, partialText) {
   return getLocale().startsWith("zh")
     ? [
-        "[系统提示] 上一轮只输出了准备/开场句，没有完成用户任务。请不要再说“我先/接下来/准备”，也不要调用工具，直接完成最终内容。",
+        "[系统提示] 上一轮只输出了准备/开场句，没有完成用户任务。现在是补救回答，必须产出用户可见的最终内容。",
+        "请不要再说“我先/接下来/准备/让我查一下”，也不要调用工具。若需要实时资料但没有工具结果，就先给出最小可用答案并标明未核验点。",
         "【上一轮可见文本】",
         String(partialText || "").trim(),
         "【用户原始问题】",
         String(originalPromptText || "").trim(),
       ].join("\n")
     : [
-        "[System] The previous turn only produced a preparatory lead-in and did not complete the user task. Do not say you will do it; do not call tools. Produce the final content now.",
+        "[System] The previous turn only produced a preparatory lead-in and did not complete the user task. This is a recovery answer and must produce user-visible final content.",
+        "Do not again say that you will check, prepare, or look something up. Do not call tools. If live data is needed but no tool result is available, provide the best minimal answer and mark the unverified gap.",
         "Previous visible text:",
         String(partialText || "").trim(),
         "Original user request:",

@@ -29,9 +29,11 @@
 import { Hono } from "hono";
 import fs from "fs";
 import { debugLog } from "../../lib/debug-log.js";
+import { stripEmojiForTts } from "../../shared/tts-text-normalizer.js";
 import { createASRFallbackProvider } from "../clients/asr/index.js";
 import { createSERProvider, EMOTION_LLM_HINT } from "../clients/ser/index.js";
 import { createTTSFallbackProvider } from "../clients/tts/index.js";
+import { enrichHealthWithTier } from "../chat/voice-fallback-orchestrator.js";
 
 // 协议常量
 export const FRAME = {
@@ -233,8 +235,36 @@ export function normalizeTtsAudioToPcm16Mono16k(audioBuffer) {
   return resamplePcm16Mono(mono, decoded.sampleRate, PCM_SAMPLE_RATE);
 }
 
+/**
+ * DS V4 Pro 反馈 #2 落地:emotion 只跑 4s 短段 = 开头 1s + 结尾 3s
+ * 原因:整段喂 emotion2vec+ 时,长音频(>10s)会让 top1 偏 neutral,
+ *      且 P99 从 < 100ms 拉到 > 300ms,失去"当前轮注入"时间窗口。
+ *
+ * 入参:16kHz mono WAV buffer(pcm16ToWav 产物)
+ * 出参:同格式 WAV buffer,长度 ≤ 4s;如果原长 ≤ 4s 原样返回
+ */
+export function extractEmotionSegment(wavBuffer, {
+  headSeconds = 1,
+  tailSeconds = 3,
+} = {}) {
+  const targetSeconds = headSeconds + tailSeconds;
+  const decoded = decodePcm16Audio(wavBuffer);
+  const sampleRate = decoded.sampleRate || PCM_SAMPLE_RATE;
+  const bytesPerSecond = sampleRate * 2; // Int16 mono
+  const totalSeconds = decoded.pcm.length / bytesPerSecond;
+  if (totalSeconds <= targetSeconds) {
+    return wavBuffer; // 短段直接原样给,emotion server 也能 handle
+  }
+  const headBytes = Math.min(decoded.pcm.length, headSeconds * bytesPerSecond);
+  const tailBytes = Math.min(decoded.pcm.length - headBytes, tailSeconds * bytesPerSecond);
+  const head = decoded.pcm.subarray(0, headBytes);
+  const tail = decoded.pcm.subarray(decoded.pcm.length - tailBytes);
+  const merged = Buffer.concat([head, tail]);
+  return pcm16ToWav(merged, { sampleRate });
+}
+
 export function cleanTextForTts(text) {
-  return String(text || "")
+  return stripEmojiForTts(String(text || "")
     .replace(/```[\s\S]*?```/g, "代码块略过。")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -247,7 +277,7 @@ export function cleanTextForTts(text) {
     .replace(/^\s*\d+[.)、]\s+/gm, "")
     .replace(/\n{2,}/g, "。")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim());
 }
 
 function splitSegmentByLength(text, maxChars = TTS_MAX_SEGMENT_CHARS) {
@@ -342,6 +372,60 @@ function buildVoicePrompt(transcript, emotion = null) {
   ].filter(Boolean).join("\n");
 }
 
+export function resolveVoiceRuntimeAsrConfig(config = {}) {
+  const provider = String(config.provider || "").trim();
+  if (!provider || provider === "sensevoice") {
+    return {
+      ...config,
+      provider: "qwen3-asr",
+      fallback_provider: config.fallback_provider || config.fallbackProvider || "sensevoice",
+    };
+  }
+  return config;
+}
+
+/**
+ * DS V4 Pro 反馈 #3 落地:判定 transcript 是否"有意义"
+ * 用于 interrupted T2 阶段:如果打断后用户只发出咳嗽/笑声/拟声词,
+ * 则回滚 interrupt,不污染对话历史。
+ */
+export function isSemanticTranscript(text) {
+  const value = String(text || "").trim();
+  if (!value) return false;
+  if (value.length < 2) return false;
+  // 过滤:仅由拟声词/笑声/语气助词构成的转写
+  const nonSemantic = /^[\s]*((嗯|啊|哦|哈|喂|呃|嗨|咳|hm|uh|ah|oh|huh|haha|mhm)[\s,，。.!?！？]*)+$/i;
+  if (nonSemantic.test(value)) return false;
+  return true;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function normalizeVoiceTranscript(text) {
+  let value = String(text || "").replace(/\s+/g, " ").trim();
+  if (!value) return "";
+  value = value.replace(/^(?:嗯|呃|啊|那个|就是)[，,。.\s]*/g, "");
+  const spokenRestartMarkers = [
+    "我要查的是",
+    "我想查的是",
+    "我要问的是",
+    "我想问的是",
+    "我问的是",
+    "我查的是",
+    "要查的是",
+    "想查的是",
+    "查的是",
+    "问的是",
+  ];
+  for (const marker of spokenRestartMarkers) {
+    const escaped = escapeRegExp(marker);
+    value = value.replace(new RegExp(`${escaped}[\\u4e00-\\u9fa5]{0,2}${escaped}`, "g"), marker);
+  }
+  return value.trim();
+}
+
 async function defaultBrainRunner({ transcript, emotion, engine, signal }) {
   if (typeof engine?.executeIsolated === "function") {
     const result = await engine.executeIsolated(buildVoicePrompt(transcript, emotion), { signal });
@@ -373,14 +457,15 @@ async function waitForCurrentTurnEmotion(emotionPromise, timeoutMs = EMOTION_CUR
  * Voice session — 单条 WS 连接的状态封装
  */
 class VoiceSession {
-  constructor(ws, { engine, hub, asrProvider, serProvider, ttsProvider, brainRunner, healthOnOpen = true, vadConfig = {}, mode = "direct" }) {
+  constructor(ws, { engine, hub, asrProvider, serProvider, ttsProvider, brainRunner, healthOnOpen = true, vadConfig = {}, mode = "direct", saveInterruptedTurn = null }) {
     this.ws = ws;
     this.engine = engine;
     this.hub = hub;
-    this.asrProvider = asrProvider || createASRFallbackProvider(engine?.config?.voice?.asr || {});
+    this.asrProvider = asrProvider || createASRFallbackProvider(resolveVoiceRuntimeAsrConfig(engine?.config?.voice?.asr || {}));
     this.serProvider = serProvider || createSERProvider(engine?.config?.voice?.ser || {});
     this.ttsProvider = ttsProvider || createTTSFallbackProvider(engine?.config?.voice?.tts || {});
     this.brainRunner = brainRunner || defaultBrainRunner;
+    this.saveInterruptedTurn = saveInterruptedTurn; // DS 反馈 #3 T2 阶段的可注入钩子
     this.mode = mode === "chat" ? "chat" : "direct";
     this.healthOnOpen = healthOnOpen;
     this.state = STATE.IDLE;
@@ -396,10 +481,31 @@ class VoiceSession {
     this.bytesOut = 0;
     this.processingTurn = null;
     this.turnAbort = null;
+    this.turnGeneration = 0;
+    // DS V4 Pro 反馈 #3 — 打断 T1/T2 状态机:
+    //   T1 (onInterrupt):截断 TTS/Brain,把已播放 segments 暂存到 pendingInterruptedReply
+    //   T2 (processTurn 内 ASR final 后):
+    //     有意义 transcript  → 保存已播放部分到历史 interrupted: true
+    //     咳嗽/拟声/笑声     → 回滚,pendingInterruptedReply 直接丢弃(不污染上下文)
+    this.pendingInterruptedReply = null;
+    this.currentReplyPlayed = null; // 当前 TTS 正在播放的已完成 segments 文本
     this.vadConfig = normalizeVadConfig(vadConfig);
     this.vadSpeechFrames = 0;
     this.vadSilenceFrames = 0;
     this.vadArmed = false;
+
+    // ERLE debug 双轨录制(Phase 2 Spike 5 用):
+    //   设 LYNN_ERLE_RECORD_DIR=/path/to/dir 即启用
+    //   session 结束(或 onClose)时产出 <session-id>-mic.wav + <session-id>-tts.wav
+    //   时间对齐:同一 AudioContext 时序,不需额外 sync
+    const erleDir = process.env.LYNN_ERLE_RECORD_DIR;
+    this.erleRecord = erleDir ? {
+      dir: erleDir,
+      sessionId: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      micChunks: [], // Buffer[]
+      ttsChunks: [], // Buffer[]
+      startTs: Date.now(),
+    } : null;
   }
 
   setState(state) {
@@ -424,15 +530,24 @@ class VoiceSession {
     // SER is an optional side chain: emotion failure must not block the voice
     // turn or make Lynn look degraded when ASR/TTS are healthy.
     const ok = asr.ok && tts.ok;
-    const health = {
+    const rawHealth = {
       ok,
       degraded: !ok || asr.degraded || tts.degraded,
       providers: { asr, ser, tts },
     };
+    // DS V4 Pro 反馈 #5 · Phase 2.5 降级编排:附加 tier + Orb 颜色 + 文案
+    const health = enrichHealthWithTier(rawHealth);
     this.send(makeJsonFrame(FRAME.HEALTH_STATUS, this.outSeq++, health));
     if (!ok) {
-      this.setState(STATE.DEGRADED);
-      debugLog()?.warn("voice-ws", `provider health degraded · asr=${asr.ok}/${asr.fallbackOk} ser=${ser.ok}/${ser.fallbackOk} tts=${tts.ok}/${tts.fallbackOk}`);
+      // Health probes can race with an active turn. In particular, CosyVoice
+      // may be busy synthesizing while the on-open health check is still
+      // pending; don't let that late probe visually interrupt a valid
+      // speaking/thinking state. The explicit HEALTH_STATUS frame still carries
+      // the degraded detail for diagnostics.
+      if (![STATE.SPEAKING, STATE.THINKING].includes(this.state)) {
+        this.setState(STATE.DEGRADED);
+      }
+      debugLog()?.warn("voice-ws", `provider health degraded · tier=${health.tier} asr=${asr.ok}/${asr.fallbackOk} ser=${ser.ok}/${ser.fallbackOk} tts=${tts.ok}/${tts.fallbackOk}`);
     }
     return ok;
   }
@@ -455,7 +570,7 @@ class VoiceSession {
     this.bytesIn += frame.payload.length;
 
     // Phase 2B:client-side Silero/TEN 未接入前,server 侧先做保守 energy VAD 兜底。
-    if (this.state === STATE.IDLE) {
+    if (this.state === STATE.IDLE || this.state === STATE.DEGRADED) {
       this.setState(STATE.LISTENING);
     }
 
@@ -467,6 +582,11 @@ class VoiceSession {
       // 30s 上限,强制 EOT
       void this.endOfTurn();
       return;
+    }
+
+    // ERLE 双轨:mic 入侧即录(无论是否进 VAD 判决)
+    if (this.erleRecord) {
+      this.erleRecord.micChunks.push(Buffer.from(frame.payload));
     }
 
     this.updateEnergyVad(frame.payload);
@@ -513,14 +633,22 @@ class VoiceSession {
     this.totalBufferedSamples = 0;
     this.resetVad();
 
+    const generation = ++this.turnGeneration;
     this.processingTurn = this.processTurn(wavAudio)
       .catch((err) => {
+        if (this.isStaleTurn(generation) || this.isIntentionalAbort(err)) {
+          debugLog()?.log("voice-ws", `turn aborted: ${err?.message || err || "stale turn"}`);
+          return;
+        }
         debugLog()?.error("voice-ws", `turn failed: ${err?.message || err}`);
+        this.send(makeTranscriptFrame(FRAME.TRANSCRIPT_FINAL, this.outSeq++, ""));
         this.setState(STATE.DEGRADED);
       })
       .finally(() => {
-        this.turnAbort = null;
-        this.processingTurn = null;
+        if (!this.isStaleTurn(generation)) {
+          this.turnAbort = null;
+          this.processingTurn = null;
+        }
       });
     return this.processingTurn;
   }
@@ -534,8 +662,13 @@ class VoiceSession {
 
     this.setState(STATE.THINKING);
 
+    // 方案 C 微交互(2026-05-01 决策):因为 final ASR 需要整段等收敛(~0.8-1.2s),
+    // 用户会感到"说完一拍停顿"。立刻推一个 PARTIAL "理解中…" 让 Overlay 能显,
+    // 这是零成本心理补偿。Overlay 看到 partial 会显示为灰色占位,收到 final 时替换。
+    this.send(makeTranscriptFrame(FRAME.TRANSCRIPT_PARTIAL, this.outSeq++, "理解中…"));
+
     const emotionPromise = this.serProvider?.classify
-      ? this.serProvider.classify(wavAudio, { filename: "voice.wav" })
+      ? this.serProvider.classify(extractEmotionSegment(wavAudio), { filename: "voice.wav" })
         .then((emotion) => {
           if (!signal.aborted) this.send(makeJsonFrame(FRAME.EMOTION, this.outSeq++, emotion));
           return emotion;
@@ -552,8 +685,12 @@ class VoiceSession {
       this.setState(STATE.DEGRADED);
       debugLog()?.warn("voice-ws", `asr fallback used: ${asrResult.primaryError || "primary failed"}`);
     }
-    const transcript = String(asrResult?.text || "").trim();
+    const transcript = normalizeVoiceTranscript(asrResult?.text);
     this.send(makeTranscriptFrame(FRAME.TRANSCRIPT_FINAL, this.outSeq++, transcript));
+
+    // DS V4 Pro 反馈 #3 · T2 阶段:根据 transcript 语义决定被打断 AI 回复的归宿
+    await this.resolveInterruptedReply(transcript);
+
     if (this.mode === "chat") {
       this.setState(STATE.IDLE);
       return;
@@ -563,21 +700,64 @@ class VoiceSession {
     await this.respondToTranscript(transcript, { emotion: currentTurnEmotion, signal });
   }
 
+  /**
+   * T2 阶段核心:
+   *   pendingInterruptedReply 存在 →
+   *     transcript 有意义       → 保存(interrupted: true)到对话历史
+   *     transcript 咳嗽/无意义  → 回滚丢弃,不污染上下文
+   *   pendingInterruptedReply 不存在 → no-op
+   */
+  async resolveInterruptedReply(transcript) {
+    const pending = this.pendingInterruptedReply;
+    if (!pending) return;
+    this.pendingInterruptedReply = null;
+    if (!isSemanticTranscript(transcript)) {
+      debugLog()?.log("voice-ws", `T2 rollback: interrupted reply discarded (non-semantic transcript: ${JSON.stringify(transcript)})`);
+      return;
+    }
+    if (typeof this.saveInterruptedTurn !== "function") {
+      // engine 未注入钩子不是致命错误,只记日志
+      debugLog()?.log("voice-ws", `T2 pending: saveInterruptedTurn hook absent, reply not persisted (text len=${pending.text.length})`);
+      return;
+    }
+    try {
+      await this.saveInterruptedTurn({
+        text: pending.text,
+        interrupted: true,
+        segmentsPlayed: pending.segmentsPlayed,
+        totalSegments: pending.totalSegments,
+        startedAt: pending.startedAt,
+        interruptedAt: pending.interruptedAt,
+        engine: this.engine,
+      });
+      debugLog()?.log("voice-ws", `T2 saved: interrupted reply persisted (played ${pending.segmentsPlayed}/${pending.totalSegments})`);
+    } catch (err) {
+      debugLog()?.warn("voice-ws", `T2 save failed: ${err?.message || err}`);
+    }
+  }
+
   async processTextTurn(text) {
     if (this.processingTurn) return this.processingTurn;
-    const transcript = String(text || "").trim();
+    const transcript = normalizeVoiceTranscript(text);
     if (!transcript) {
       this.setState(STATE.IDLE);
       return;
     }
+    const generation = ++this.turnGeneration;
     this.processingTurn = this.processDirectTranscript(transcript)
       .catch((err) => {
+        if (this.isStaleTurn(generation) || this.isIntentionalAbort(err)) {
+          debugLog()?.log("voice-ws", `text turn aborted: ${err?.message || err || "stale turn"}`);
+          return;
+        }
         debugLog()?.error("voice-ws", `text turn failed: ${err?.message || err}`);
         this.setState(STATE.DEGRADED);
       })
       .finally(() => {
-        this.turnAbort = null;
-        this.processingTurn = null;
+        if (!this.isStaleTurn(generation)) {
+          this.turnAbort = null;
+          this.processingTurn = null;
+        }
       });
     return this.processingTurn;
   }
@@ -594,6 +774,34 @@ class VoiceSession {
       return;
     }
     await this.respondToTranscript(transcript, { emotion: null, signal });
+  }
+
+  async processSpeakTextTurn(text) {
+    if (this.processingTurn) return this.processingTurn;
+    const value = String(text || "").trim();
+    if (!value) {
+      this.setState(STATE.IDLE);
+      return;
+    }
+    const generation = ++this.turnGeneration;
+    this.turnAbort = new AbortController();
+    const signal = this.turnAbort.signal;
+    this.processingTurn = this.speakText(value, { signal, emitAssistantReply: true })
+      .catch((err) => {
+        if (this.isStaleTurn(generation) || this.isIntentionalAbort(err)) {
+          debugLog()?.log("voice-ws", `speak text aborted: ${err?.message || err || "stale turn"}`);
+          return;
+        }
+        debugLog()?.error("voice-ws", `speak text failed: ${err?.message || err}`);
+        this.setState(STATE.DEGRADED);
+      })
+      .finally(() => {
+        if (!this.isStaleTurn(generation)) {
+          this.turnAbort = null;
+          this.processingTurn = null;
+        }
+      });
+    return this.processingTurn;
   }
 
   async respondToTranscript(transcript, { emotion = null, signal } = {}) {
@@ -630,6 +838,13 @@ class VoiceSession {
     }
     if (emitAssistantReply) this.send(makeTranscriptFrame(FRAME.ASSISTANT_REPLY, this.outSeq++, replyText));
     this.setState(STATE.SPEAKING);
+    // DS 反馈 #3 · 追踪已播放进度,onInterrupt T1 时快照
+    this.currentReplyPlayed = {
+      fullText: replyText,
+      segments,
+      playedSegments: [],
+      startedAt: Date.now(),
+    };
     const queue = [...segments];
     for (let i = 0; i < queue.length; i += 1) {
       if (signal?.aborted) break;
@@ -664,9 +879,21 @@ class VoiceSession {
       for (const chunk of chunkBuffer(pcm)) {
         if (signal?.aborted) break;
         this.send(makeFrame(FRAME.PCM_TTS, 0, this.outSeq++, chunk));
+        // ERLE 双轨:TTS 推客户端的同一帧也写进磁盘侧的 tts.wav
+        if (this.erleRecord) {
+          this.erleRecord.ttsChunks.push(Buffer.from(chunk));
+        }
+      }
+      // 推完此 segment 的全部 PCM 且未被打断 → 标记已完整播放
+      if (!signal?.aborted) {
+        this.currentReplyPlayed.playedSegments.push(segment);
       }
     }
-    if (!signal?.aborted) this.setState(STATE.IDLE);
+    if (!signal?.aborted) {
+      // 正常播完 → 清空跟踪,不触发 T2
+      this.currentReplyPlayed = null;
+      this.setState(STATE.IDLE);
+    }
   }
 
   onPing(frame) {
@@ -674,15 +901,44 @@ class VoiceSession {
     this.send(makeFrame(FRAME.PONG, 0, frame.seq, frame.payload));
   }
 
+  /**
+   * DS V4 Pro 反馈 #3 · T1 阶段(VAD 检测到用户开口):
+   *   仅执行截断 + 快照已播放部分到 pendingInterruptedReply
+   *   不写对话历史 — 等 ASR final 后由 resolveInterruptedReply 决策
+   */
   onInterrupt() {
     if (this.state === STATE.SPEAKING || this.state === STATE.THINKING) {
+      // 快照已播放 segments(仅 SPEAKING 态有意义;THINKING 态 currentReplyPlayed=null)
+      if (this.currentReplyPlayed && Array.isArray(this.currentReplyPlayed.playedSegments) && this.currentReplyPlayed.playedSegments.length > 0) {
+        const played = this.currentReplyPlayed;
+        this.pendingInterruptedReply = {
+          text: played.playedSegments.join(""),
+          segmentsPlayed: played.playedSegments.length,
+          totalSegments: Array.isArray(played.segments) ? played.segments.length : played.playedSegments.length,
+          startedAt: played.startedAt,
+          interruptedAt: Date.now(),
+        };
+        debugLog()?.log("voice-ws", `T1 snapshot: interrupted at ${played.playedSegments.length}/${Array.isArray(played.segments) ? played.segments.length : "?"} segments`);
+      }
+      this.currentReplyPlayed = null;
+      this.turnGeneration += 1;
       this.turnAbort?.abort();
+      this.turnAbort = null;
+      this.processingTurn = null;
       this.utteranceBuffer = [];
       this.totalBufferedSamples = 0;
       this.resetVad();
       debugLog()?.log("voice-ws", "interrupt received");
       this.setState(STATE.LISTENING);
     }
+  }
+
+  isStaleTurn(generation) {
+    return generation !== this.turnGeneration;
+  }
+
+  isIntentionalAbort(err) {
+    return err?.name === "AbortError";
   }
 
   resetVad() {
@@ -697,6 +953,26 @@ class VoiceSession {
       `session closed after ${elapsed.toFixed(1)}s, ` +
       `pcm_frames_in=${this.pcmFramesIn} bytes_in/out=${this.bytesIn}/${this.bytesOut}`,
     );
+    // ERLE 双轨:session 结束落盘 mic.wav + tts.wav
+    if (this.erleRecord) {
+      try {
+        if (!fs.existsSync(this.erleRecord.dir)) {
+          fs.mkdirSync(this.erleRecord.dir, { recursive: true });
+        }
+        const micPath = `${this.erleRecord.dir}/${this.erleRecord.sessionId}-mic.wav`;
+        const ttsPath = `${this.erleRecord.dir}/${this.erleRecord.sessionId}-tts.wav`;
+        const micPcm = Buffer.concat(this.erleRecord.micChunks);
+        const ttsPcm = Buffer.concat(this.erleRecord.ttsChunks);
+        if (micPcm.length) fs.writeFileSync(micPath, pcm16ToWav(micPcm));
+        if (ttsPcm.length) fs.writeFileSync(ttsPath, pcm16ToWav(ttsPcm));
+        debugLog()?.log("voice-ws",
+          `ERLE recorded: mic ${(micPcm.length / 32000).toFixed(1)}s → ${micPath}, ` +
+          `tts ${(ttsPcm.length / 32000).toFixed(1)}s → ${ttsPath}`,
+        );
+      } catch (err) {
+        debugLog()?.warn("voice-ws", `ERLE record write failed: ${err?.message || err}`);
+      }
+    }
   }
 }
 
@@ -747,11 +1023,7 @@ export function createVoiceWsRoute(engine, hub, { upgradeWebSocket, ...deps }) {
               session.processTextTurn(frame.payload.toString("utf-8"));
               break;
             case FRAME.SPEAK_TEXT:
-              session.speakText(frame.payload.toString("utf-8"), { emitAssistantReply: true })
-                .catch((err) => {
-                  debugLog()?.error("voice-ws", `speak text failed: ${err?.message || err}`);
-                  session?.setState?.(STATE.DEGRADED);
-                });
+              session.processSpeakTextTurn(frame.payload.toString("utf-8"));
               break;
             default:
               debugLog()?.log("voice-ws", `unknown frame type: 0x${frame.type.toString(16)}`);

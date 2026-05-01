@@ -32,7 +32,18 @@ export function markInternalRetry(ss, reason) {
   return true;
 }
 
+function rememberVisibleBeforeRetry(ss) {
+  if (!ss) return 0;
+  const previous = Number(ss.internalRetryOriginalVisibleLen || 0);
+  const current = String(ss.visibleTextAcc || "").trim().length;
+  const visibleLen = Math.max(previous, current);
+  ss.internalRetryOriginalVisibleLen = visibleLen;
+  ss.internalRetryHadVisibleBeforeReset = visibleLen > 0;
+  return visibleLen;
+}
+
 export function prepareInternalRetryStream(sessionPath, ss, reason) {
+  rememberVisibleBeforeRetry(ss);
   ss.thinkTagParser.reset();
   ss.progressParser.reset();
   ss.moodParser.reset();
@@ -72,13 +83,9 @@ function clearRetryLifecycle(ss, reason = "") {
     ss.internalRetryPending = false;
     ss.internalRetryInFlight = false;
     ss.internalRetryReason = "";
+    ss.internalRetryOriginalVisibleLen = 0;
+    ss.internalRetryHadVisibleBeforeReset = false;
   }
-}
-
-function retryFallbackText(reason) {
-  return reason === "empty_reply" || reason === "pseudo_tool_text"
-    ? "本轮模型没有生成可用回复，Lynn 已结束这次空转以免卡住会话。请重试一次，或把任务说得更具体一点。"
-    : "本轮补写回答没有稳定完成，Lynn 已结束这次空转以免卡住会话。上方已有内容已保留，你可以让我继续核对。";
 }
 
 function closeRetryWithFallback({
@@ -99,6 +106,8 @@ function closeRetryWithFallback({
   } catch {
     // Abort is best-effort; local stream closure below is authoritative.
   }
+  const hadVisibleBeforeRetry = !!ss.internalRetryHadVisibleBeforeReset
+    || Number(ss.internalRetryOriginalVisibleLen || 0) > 0;
   clearSilentBrainAbort(ss);
   clearRetryLifecycle(ss, reason);
   if (ss.isThinking) {
@@ -106,10 +115,7 @@ function closeRetryWithFallback({
     emitStreamEvent?.(sessionPath, ss, { type: "thinking_end" });
   }
   if (!ss.hasOutput) {
-    const fallback = retryFallbackText(reason);
-    emitStreamEvent?.(sessionPath, ss, { type: "text_delta", delta: fallback });
-    ss.visibleTextAcc += fallback;
-    ss.hasOutput = true;
+    debugLog()?.warn("ws", `[INTERNAL-RETRY-CLOSE v3] suppressed generic retry fallback · hadVisibleBeforeRetry=${hadVisibleBeforeRetry} reason=${reason} · session=${sessionPath}`);
   }
   emitStreamEvent?.(sessionPath, ss, { type: "turn_end" });
   broadcast({ type: "status", isStreaming: false, sessionPath });
@@ -135,6 +141,7 @@ export function scheduleInternalRetry({
     return false;
   }
   markInternalRetry(ss, reason);
+  rememberVisibleBeforeRetry(ss);
   ss.internalRetryPending = true;
   ss.internalRetryInFlight = false;
   ss.internalRetryReason = reason;

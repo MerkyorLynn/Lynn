@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useStore } from '../../stores';
 import { sendPrompt } from '../../stores/prompt-actions';
 import type { ChatListItem, ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { JARVIS_RUNTIME_OPEN_EVENT, JARVIS_RUNTIME_START_EVENT, JARVIS_RUNTIME_TOGGLE_EVENT } from '../../services/jarvis-runtime-events';
 import { VoiceWsClient, VOICE_STATE, type VoiceHealthStatus, type VoiceState, type VoiceWsClientStats } from '../../services/voice-ws-client';
+import type { PcmStats } from '../../services/audio-stream';
+import type { PlaybackStats } from '../../services/audio-playback';
 import styles from './JarvisRuntimeOverlay.module.css';
 
 export const LYNN_RUNTIME_DISPLAY_NAME = 'Lynn';
@@ -20,6 +22,8 @@ interface JarvisStatus {
   health: VoiceHealthStatus | null;
   error: string | null;
   inputMode: 'pcm' | null;
+  captureStats: PcmStats | null;
+  playbackStats: PlaybackStats | null;
 }
 
 const INITIAL_STATUS: JarvisStatus = {
@@ -31,6 +35,8 @@ const INITIAL_STATUS: JarvisStatus = {
   health: null,
   error: null,
   inputMode: null,
+  captureStats: null,
+  playbackStats: null,
 };
 
 export function resolveJarvisPrimaryAction(state: VoiceState | string): JarvisAction {
@@ -86,7 +92,13 @@ function formatStats(stats: VoiceWsClientStats | null): string | null {
 }
 
 function formatHealth(health: VoiceHealthStatus | null): string | null {
-  if (!health?.providers) return null;
+  if (!health) return null;
+  // 2026-05-01 优先用 orchestrator 给的 tierLabel(Tier 1/2 为空字符串 → 不显示)
+  if (typeof health.tierLabel === 'string') {
+    return health.tierLabel || null;
+  }
+  // 向后兼容:旧版 server 没返回 tier 时,按 providers 降级情况拼文案
+  if (!health.providers) return null;
   if (health.ok && !health.degraded) return null;
   const labels: Record<string, string> = {
     asr: '语音识别',
@@ -104,6 +116,11 @@ function textFromAssistantBlock(block: ContentBlock): string {
   if (block.type === 'review') return block.content || '';
   if (block.type === 'file_output') return block.label || '';
   return '';
+}
+
+function clampActivityLevel(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
 }
 
 export function extractAssistantSpeechText(message: ChatMessage | null | undefined): string {
@@ -149,7 +166,10 @@ export function JarvisRuntimeOverlay() {
       token,
       mode: 'chat',
       onOpen: () => setStatus((s) => ({ ...s, error: null })),
-      onClose: () => setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE })),
+      onClose: () => {
+        pendingVoiceTurnRef.current = null;
+        setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE }));
+      },
       onError: (err) => {
         const message = err.message || String(err);
         setStatus((s) => ({ ...s, error: message }));
@@ -192,6 +212,8 @@ export function JarvisRuntimeOverlay() {
       onEmotion: (emotion) => setStatus((s) => ({ ...s, emotion: formatEmotion(emotion) })),
       onHealth: (health) => setStatus((s) => ({ ...s, health })),
       onStats: (stats) => setStatus((s) => ({ ...s, stats })),
+      onCaptureStats: (captureStats) => setStatus((s) => ({ ...s, captureStats })),
+      onPlaybackStats: (playbackStats) => setStatus((s) => ({ ...s, playbackStats })),
       stopCaptureOnEndTurn: true,
     });
     clientRef.current = client;
@@ -211,13 +233,14 @@ export function JarvisRuntimeOverlay() {
     pending.spokenText = speechText;
     pendingVoiceTurnRef.current = null;
     setStatus((s) => ({ ...s, assistantReply: speechText, state: VOICE_STATE.SPEAKING, error: null }));
-    void clientRef.current?.speakText(speechText).catch((err) => {
+    void ensureClient().then((client) => client.speakText(speechText)).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `语音播放失败：${message}` }));
     });
-  }, [currentChatItems, currentSessionPath, isStreaming]);
+  }, [currentChatItems, currentSessionPath, ensureClient, isStreaming]);
 
   const startListening = useCallback(async () => {
+    pendingVoiceTurnRef.current = null;
     setBusy(true);
     setOpen(true);
     setStatus((s) => ({
@@ -246,6 +269,7 @@ export function JarvisRuntimeOverlay() {
   }, [addToast, ensureClient]);
 
   const startListeningAfterInterrupt = useCallback(async () => {
+    pendingVoiceTurnRef.current = null;
     setOpen(true);
     setStatus((s) => ({ ...s, error: null }));
     let client: VoiceWsClient | null = null;
@@ -268,8 +292,12 @@ export function JarvisRuntimeOverlay() {
   const endTurn = useCallback(async () => {
     setBusy(true);
     try {
-      await clientRef.current?.endTurn();
-      setStatus((s) => ({ ...s, state: VOICE_STATE.THINKING }));
+      const sent = await clientRef.current?.endTurn();
+      setStatus((s) => (
+        sent === false
+          ? { ...s, state: VOICE_STATE.IDLE, error: '语音连接已断开，请重新开始。' }
+          : { ...s, state: VOICE_STATE.THINKING }
+      ));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setStatus((s) => ({ ...s, error: message }));
@@ -279,6 +307,7 @@ export function JarvisRuntimeOverlay() {
   }, []);
 
   const interrupt = useCallback(async (listenAfter = false) => {
+    pendingVoiceTurnRef.current = null;
     setBusy(true);
     try {
       if (listenAfter) {
@@ -286,7 +315,7 @@ export function JarvisRuntimeOverlay() {
         return;
       }
       await clientRef.current?.interrupt();
-      setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE }));
+      setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE, error: null }));
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setStatus((s) => ({ ...s, error: message }));
@@ -296,6 +325,7 @@ export function JarvisRuntimeOverlay() {
   }, [startListeningAfterInterrupt]);
 
   const close = useCallback(() => {
+    pendingVoiceTurnRef.current = null;
     clientRef.current?.destroy();
     clientRef.current = null;
     setStatus(INITIAL_STATUS);
@@ -339,23 +369,48 @@ export function JarvisRuntimeOverlay() {
   }, [close, open, startListening]);
 
   useEffect(() => () => {
+    pendingVoiceTurnRef.current = null;
     clientRef.current?.destroy();
     clientRef.current = null;
   }, []);
 
   const primaryAction = useMemo(() => resolveJarvisPrimaryAction(status.state), [status.state]);
-  const statsLabel = useMemo(() => formatStats(status.stats), [status.stats]);
   const healthLabel = useMemo(() => formatHealth(status.health), [status.health]);
+  const activityActive = status.state === VOICE_STATE.LISTENING || status.state === VOICE_STATE.SPEAKING || status.state === VOICE_STATE.THINKING;
+  const activityLevel = status.state === VOICE_STATE.LISTENING
+    ? clampActivityLevel((status.captureStats?.avgAmplitude || 0) * 18)
+    : status.state === VOICE_STATE.SPEAKING
+      ? clampActivityLevel((status.playbackStats?.queueSamples || 0) / 16000)
+      : status.state === VOICE_STATE.THINKING
+        ? 0.45
+        : 0;
+  const meterBars = [0.42, 0.72, 0.92, 0.58, 0.78, 0.48, 0.86, 0.64, 0.74, 0.54, 0.82, 0.46];
 
   if (!open) return null;
 
   return (
     <section className={styles.shell} aria-label={LYNN_RUNTIME_ARIA_LABEL}>
       <div className={styles.header}>
-        <div className={styles.orb} data-state={status.state} aria-hidden="true" />
+        <div
+          className={styles.orb}
+          data-state={status.state}
+          data-orb-color={status.health?.orbColor || 'green'}
+          data-tier={status.health?.tier || 1}
+          aria-hidden="true"
+        />
         <div className={styles.titleBlock}>
           <h2 className={styles.title}>{LYNN_RUNTIME_DISPLAY_NAME}</h2>
-          <div className={styles.stateLine} aria-live="polite">{stateLabel(status.state)}</div>
+          <div className={styles.stateLine} aria-live="polite">
+            {stateLabel(status.state)}{healthLabel ? ` · ${healthLabel}` : ''}
+          </div>
+        </div>
+        <div className={styles.compactActions}>
+          <button className={styles.primaryButton} type="button" onClick={handlePrimary} disabled={busy}>
+            {busy ? '处理中' : jarvisPrimaryLabel(primaryAction)}
+          </button>
+          <button className={styles.secondaryButton} type="button" onClick={() => void interrupt(false)} disabled={busy || status.state === VOICE_STATE.IDLE}>
+            停止
+          </button>
         </div>
         <button className={styles.closeButton} type="button" onClick={close} aria-label={`关闭 ${LYNN_RUNTIME_DISPLAY_NAME}`}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -365,33 +420,24 @@ export function JarvisRuntimeOverlay() {
         </button>
       </div>
 
-      <div className={styles.transcriptStack}>
-        <div className={styles.transcript}>
-          <div className={styles.transcriptLabel}>你</div>
-          {status.transcript ? status.transcript : <span className={styles.empty}>等待语音</span>}
-        </div>
-        <div className={styles.transcript}>
-          <div className={styles.transcriptLabel}>Lynn</div>
-          {status.assistantReply ? status.assistantReply : <span className={styles.empty}>等待回复</span>}
-        </div>
+      <div
+        className={styles.activityMeter}
+        data-state={status.state}
+        data-active={activityActive ? 'true' : 'false'}
+        aria-hidden="true"
+      >
+        {meterBars.map((height, index) => (
+          <span
+            key={index}
+            style={{
+              '--bar-height': `${Math.round(4 + height * 14 + activityLevel * 6)}px`,
+              '--bar-delay': `${index * 64}ms`,
+            } as CSSProperties}
+          />
+        ))}
       </div>
 
       {status.error && <div className={styles.error}>{status.error}</div>}
-
-      <div className={styles.meta}>
-        {status.emotion && <span className={styles.chip}>emotion · {status.emotion}</span>}
-        {healthLabel && <span className={styles.chip}>健康 · {healthLabel}</span>}
-        {statsLabel && <span className={styles.chip}>{statsLabel}</span>}
-      </div>
-
-      <div className={styles.actions}>
-        <button className={styles.primaryButton} type="button" onClick={handlePrimary} disabled={busy}>
-          {busy ? '处理中' : jarvisPrimaryLabel(primaryAction)}
-        </button>
-        <button className={styles.secondaryButton} type="button" onClick={() => void interrupt(false)} disabled={busy || status.state === VOICE_STATE.IDLE}>
-          停止
-        </button>
-      </div>
     </section>
   );
 }

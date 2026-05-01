@@ -1,4 +1,8 @@
 import { buildLocalOfficeDirectAnswer } from "./local-office-answer.js";
+import {
+  buildQuickTranslationPrompt,
+  detectQuickTranslationIntent,
+} from "./translation-intent.js";
 import { inferReportResearchKind } from "./report-research-context.js";
 import {
   buildBudgetCalculationContext,
@@ -24,6 +28,17 @@ export function resolveInitialToolUseBehavior(promptText, opts = {}) {
       reportKind: "",
       budgetContext: "",
       effectivePromptText: text,
+    };
+  }
+
+  const translationIntent = detectQuickTranslationIntent(text);
+  if (translationIntent) {
+    return {
+      behavior: TOOL_USE_BEHAVIOR.RUN_LLM_AGAIN,
+      reason: "quick_translation",
+      reportKind: "",
+      budgetContext: "",
+      effectivePromptText: buildQuickTranslationPrompt(translationIntent),
     };
   }
 

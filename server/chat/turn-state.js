@@ -32,6 +32,8 @@ export function createChatTurnState() {
     internalRetryPending: false,
     internalRetryInFlight: false,
     internalRetryReason: "",
+    internalRetryOriginalVisibleLen: 0,
+    internalRetryHadVisibleBeforeReset: false,
     successfulToolCount: 0,
     lastSuccessfulTools: [],
     hasFailedTool: false,

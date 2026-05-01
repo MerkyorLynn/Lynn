@@ -30,6 +30,16 @@ describe("task route intent", () => {
     expect(classifyRouteIntent("帮我分析这份方案的风险")).toBe("reasoning");
   });
 
+  it("does not route named model knowledge questions to vision just because the name contains Image", () => {
+    expect(classifyRouteIntent("你知道 Qwen-Image-Layered 吗？")).toBe("chat");
+    expect(classifyRouteIntent("什么是 Qwen-Image-Layered")).toBe("chat");
+  });
+
+  it("keeps explicit screenshot and image analysis prompts on the vision path", () => {
+    expect(classifyRouteIntent("帮我看一下这张截图里的问题")).toBe("vision");
+    expect(classifyRouteIntent("识别一下图片里的文字")).toBe("vision");
+  });
+
   it("keeps install requests on the utility path", () => {
     expect(classifyRouteIntent("帮我安装 uv")).toBe("utility");
   });
@@ -66,6 +76,8 @@ describe("task route intent", () => {
     expect(hint).toContain("用户问什么就围绕什么自然延展");
     expect(hint).toContain("临时 Python/Node 脚本");
     expect(hint).toContain("截图、链接、导出文件、PDF");
+    expect(hint).toContain("工具链没有稳定返回");
+    expect(hint).toContain("不要只输出");
   });
 
   it("detects pending tool execution even when reflection text comes first", () => {
@@ -106,6 +118,7 @@ describe("task route intent", () => {
     });
     expect(hint).toContain("第一步就直接调用真实工具");
     expect(hint).toContain("Premise / Conduct / Reflection / Act");
+    expect(hint).toContain("不能空答");
   });
 
   it("does not add strict tool-first hints for zhipu-coding", () => {

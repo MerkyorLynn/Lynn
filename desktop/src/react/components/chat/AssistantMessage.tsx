@@ -170,6 +170,9 @@ function reviewerNameFromKind(kind: 'hanako' | 'butter'): string {
   return kind === 'butter' ? 'Butter' : 'Hanako';
 }
 
+const TRANSLATION_TARGETS = ['英文', '中文', '日文', '韩文', '繁体中文'];
+const MAX_TRANSLATE_CHARS = 3_000;
+
 function findLatestReviewBlock(blocks: ContentBlock[]): Extract<ContentBlock, { type: 'review' }> | null {
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i];
@@ -271,6 +274,10 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewConfigLoaded, setReviewConfigLoaded] = useState(false);
   const [ttsAudioPath, setTtsAudioPath] = useState<string | null>(null);
+  const [translateTarget, setTranslateTarget] = useState('英文');
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [translateBusy, setTranslateBusy] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
   const reviewBusy = reviewRequestPending || !!pendingReviewId || latestReviewBlock?.status === 'loading';
   const canRequestReview = plainText.length > 0 && !showStreamingMeta;
   const showFollowUpAction = shouldShowFollowUpAction(latestReviewBlock);
@@ -380,6 +387,50 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
       setTimeout(() => setCopied(false), 1500);
     }).catch(() => {});
   }, [plainText]);
+
+  const handleTranslate = useCallback(async () => {
+    if (!plainText || translateBusy) return;
+    if (showStreamingMeta) {
+      addToast('回复完成后再翻译', 'info');
+      return;
+    }
+    if (plainText.length > MAX_TRANSLATE_CHARS) {
+      const msg = `文本超过 ${MAX_TRANSLATE_CHARS} 字，请先拆成更短片段再翻译。`;
+      setTranslateError(msg);
+      addToast(msg, 'error');
+      return;
+    }
+    setTranslateBusy(true);
+    setTranslateError(null);
+    try {
+      const res = await hanaFetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: plainText,
+          targetLanguage: translateTarget,
+        }),
+        timeout: 70_000,
+      });
+      const data = await res.json().catch(() => null) as { text?: string; message?: string; error?: string } | null;
+      if (!res.ok || !data?.text) {
+        throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+      }
+      setTranslatedText(data.text);
+      addToast(`已翻译成${translateTarget}`, 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTranslateError(msg);
+      addToast(`翻译失败：${msg}`, 'error');
+    } finally {
+      setTranslateBusy(false);
+    }
+  }, [addToast, plainText, showStreamingMeta, translateBusy, translateTarget]);
+
+  useEffect(() => {
+    setTranslatedText(null);
+    setTranslateError(null);
+  }, [plainText, translateTarget]);
 
 
   const handleRetry = useCallback(() => {
@@ -533,6 +584,30 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               )}
             </div>
             <div className={styles.messageActionRailIcons}>
+              {!!plainText && (
+                <span className={styles.msgTranslateGroup}>
+                  <select
+                    className={styles.msgTranslateSelect}
+                    value={translateTarget}
+                    onChange={(e) => setTranslateTarget(e.target.value)}
+                    title="选择译文语言"
+                    aria-label="选择译文语言"
+                  >
+                    {TRANSLATION_TARGETS.map((target) => (
+                      <option key={target} value={target}>{target}</option>
+                    ))}
+                  </select>
+                  <button
+                    className={styles.msgTranslateBtn}
+                    onClick={handleTranslate}
+                    disabled={translateBusy || showStreamingMeta}
+                    title={`翻译成${translateTarget}`}
+                    aria-label={`翻译成${translateTarget}`}
+                  >
+                    {translateBusy ? '翻译中' : '翻译'}
+                  </button>
+                </span>
+              )}
               <button className={`${styles.msgCopyBtn}${copied ? ` ${styles.msgCopyBtnCopied}` : ''}`} onClick={handleCopy} title={t('common.copyText')} aria-label={t('common.copyText')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   {copied
@@ -605,6 +680,24 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                   </svg>
                 </button>
               )}
+            </div>
+          </div>
+        )}
+        {(translatedText || translateError) && (
+          <div className={styles.translationCard}>
+            <div className={styles.translationCardHead}>
+              <span>{translateError ? '翻译失败' : `译文 · ${translateTarget}`}</span>
+              {translatedText && (
+                <button
+                  className={styles.translationCardCopy}
+                  onClick={() => navigator.clipboard.writeText(translatedText).then(() => addToast('译文已复制', 'success')).catch(() => {})}
+                >
+                  复制
+                </button>
+              )}
+            </div>
+            <div className={styles.translationCardBody}>
+              {translateError || translatedText}
             </div>
           </div>
         )}
