@@ -50,7 +50,7 @@ describe("applyRecurringTaskMarkers", () => {
     const tasks = extractRecurringJianTasks(content, "zh-CN");
     const next = applyRecurringTaskMarkers(content, [{
       ...tasks[0],
-      nextRunAt: "2026-04-06T09:00:00+08:00",
+      nextRunAt: new Date(2026, 3, 6, 9, 0, 0),
     }], "zh-CN");
     expect(next).toContain("每天早上 9 点扫描 A 股异动 ⏰ 自动任务 · 下次 04-06 09:00");
     expect(next).toContain("- [ ] 普通任务");
