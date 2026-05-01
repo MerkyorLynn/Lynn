@@ -260,10 +260,18 @@ app.get("/api/health", async (c) => {
   }
   return c.json({
     status: "ok",
+    version: appVersion,
     agent: engine.agentName,
     user: engine.userName,
     model: engine.currentModel?.name,
     avatars,
+    features: {
+      translateRoute: true,
+      toolsRoute: true,
+      ttsBridgeTool: Boolean(
+        engine.pluginManager?.getAllTools?.()?.some((tool) => tool?.name === "tts-bridge.tts_speak"),
+      ),
+    },
     brainRegistered: engine._brainRegistered ?? false,
     brainRegistering: engine._brainRegistrationPending ?? false,
     startup: {
@@ -506,7 +514,16 @@ try {
   // 写 server-info 文件，供 Electron 检测复用或外部工具查询
   const serverInfoPath = path.join(lynnHome, "server-info.json");
   try {
-    fs.writeFileSync(serverInfoPath, JSON.stringify({ pid: process.pid, port: actualPort, token: SERVER_TOKEN }));
+    fs.writeFileSync(serverInfoPath, JSON.stringify({
+      pid: process.pid,
+      port: actualPort,
+      token: SERVER_TOKEN,
+      version: appVersion,
+      features: {
+        translateRoute: true,
+        toolsRoute: true,
+      },
+    }));
   } catch (e) {
     console.error("[server] 写入 server-info.json 失败:", e.message);
   }
