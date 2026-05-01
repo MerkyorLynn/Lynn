@@ -40,11 +40,15 @@ function parseChannel(content) {
   return { meta: {}, messages };
 }
 
+function slashPath(filePath) {
+  return String(filePath).replace(/\\/g, "/");
+}
+
 vi.mock("../lib/channels/channel-store.js", () => ({
   formatMessagesForLLM: (msgs) => msgs.map((m) => `${m.sender}: ${m.text ?? m.body ?? ""}`).join("\n"),
   appendMessage: vi.fn(),
   getChannelMeta: vi.fn((filePath) => {
-    if (String(filePath).endsWith("/broken.md")) return {};
+    if (slashPath(filePath).endsWith("/broken.md")) return {};
     return { id: "general", members: ["alpha", "beta", "hanako"] };
   }),
   parseChannel,
@@ -76,11 +80,11 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
-      if (String(filePath).endsWith("/general.md")) return true;
+      if (slashPath(filePath).endsWith("/general.md")) return true;
       return realExistsSync(filePath);
     });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
-      if (String(filePath).endsWith("/general.md")) {
+      if (slashPath(filePath).endsWith("/general.md")) {
         return "### user | 2026-04-01 10:00\n\n你好\n";
       }
       return realReadFileSync(filePath, ...args);
@@ -181,11 +185,11 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
-      if (String(filePath).endsWith("/general.md")) return true;
+      if (slashPath(filePath).endsWith("/general.md")) return true;
       return realExistsSync(filePath);
     });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
-      if (String(filePath).endsWith("/general.md")) {
+      if (slashPath(filePath).endsWith("/general.md")) {
         return [
           "### user | 2026-04-01 10:00:00",
           "",
@@ -248,7 +252,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     existsSpy.mockRestore();
     expect(callText).toHaveBeenCalled();
     expect(router._executeReply).toHaveBeenCalledOnce();
-    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Beta", "Beta 来补充一下。");
+    expect(appendMessage).toHaveBeenCalledWith(expect.stringMatching(/[\\/]fake[\\/]channels[\\/]general\.md$/), "Beta", "Beta 来补充一下。");
     expect(result).toEqual({ replied: true, replyContent: "Beta 来补充一下。" });
   });
 
@@ -267,11 +271,11 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
-      if (String(filePath).endsWith("/general.md")) return true;
+      if (slashPath(filePath).endsWith("/general.md")) return true;
       return realExistsSync(filePath);
     });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
-      if (String(filePath).endsWith("/general.md")) {
+      if (slashPath(filePath).endsWith("/general.md")) {
         return [
           "### user | 2026-04-01 10:00:00",
           "",
@@ -322,7 +326,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     existsSpy.mockRestore();
     expect(callText).not.toHaveBeenCalled();
     expect(router._executeReply).toHaveBeenCalledOnce();
-    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Alpha", "我在，可以聊。");
+    expect(appendMessage).toHaveBeenCalledWith(expect.stringMatching(/[\\/]fake[\\/]channels[\\/]general\.md$/), "Alpha", "我在，可以聊。");
     expect(result).toEqual({ replied: true, replyContent: "我在，可以聊。" });
   });
 
@@ -380,7 +384,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     router._executeReply = vi.fn().mockRejectedValue(new Error("error.agentExecNotInit"));
     const realExistsSync = fs.existsSync;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
-      if (String(filePath).endsWith("/general.md")) return true;
+      if (slashPath(filePath).endsWith("/general.md")) return true;
       return realExistsSync(filePath);
     });
 
@@ -393,7 +397,7 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
 
     existsSpy.mockRestore();
     expect(router._executeReply).toHaveBeenCalledOnce();
-    expect(appendMessage).toHaveBeenCalledWith("/fake/channels/general.md", "Hanako", "我来补一句。");
+    expect(appendMessage).toHaveBeenCalledWith(expect.stringMatching(/[\\/]fake[\\/]channels[\\/]general\.md$/), "Hanako", "我来补一句。");
     expect(result).toEqual({ replied: true, replyContent: "我来补一句。" });
   });
 
@@ -413,11 +417,11 @@ describe("ChannelRouter._executeCheck personality 来源", () => {
     const realExistsSync = fs.existsSync;
     const realReadFileSync = fs.readFileSync;
     const existsSpy = vi.spyOn(fs, "existsSync").mockImplementation((filePath) => {
-      if (String(filePath).endsWith("/broken.md")) return true;
+      if (slashPath(filePath).endsWith("/broken.md")) return true;
       return realExistsSync(filePath);
     });
     const readSpy = vi.spyOn(fs, "readFileSync").mockImplementation((filePath, ...args) => {
-      if (String(filePath).endsWith("/broken.md")) {
+      if (slashPath(filePath).endsWith("/broken.md")) {
         return [
           "### user | 2026-04-01 10:00:00",
           "",

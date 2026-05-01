@@ -17,6 +17,10 @@ function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "lynn-git-context-"));
 }
 
+function realpath(target) {
+  return fs.realpathSync.native ? fs.realpathSync.native(target) : fs.realpathSync(target);
+}
+
 const tempDirs = [];
 
 afterEach(() => {
@@ -53,7 +57,7 @@ describe("readGitContext", () => {
     const result = readGitContext(dir);
 
     expect(result.available).toBe(true);
-    expect(fs.realpathSync(result.root)).toBe(fs.realpathSync(dir));
+    expect(realpath(result.root)).toBe(realpath(dir));
     expect(result.repoName).toBe(path.basename(dir));
     expect(typeof result.branch).toBe("string");
     expect(result.detached).toBe(false);

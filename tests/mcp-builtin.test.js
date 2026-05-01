@@ -77,7 +77,9 @@ describe("builtin MCP integrations", () => {
     const credentialsPath = path.join(lynnHome, "user", "mcp-credentials.json");
     const raw = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
     expect(raw["tencent-docs"].credentials.token).toBe("docs_test_token");
-    expect(fs.statSync(credentialsPath).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(fs.statSync(credentialsPath).mode & 0o777).toBe(0o600);
+    }
 
     const initCall = fetchMock.mock.calls.find(([url, init]) => {
       if (url !== "https://docs.qq.com/openapi/mcp") return false;
