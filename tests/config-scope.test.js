@@ -334,8 +334,8 @@ describe("migrateConfigScope", () => {
     expect(store.home_folder).toBe("/tmp/workspace");
     expect(Array.isArray(store.trusted_roots)).toBe(true);
     expect(store.trusted_roots).toEqual(expect.arrayContaining([
-      "/tmp/workspace",
-      "/tmp/extra",
+      path.resolve("/tmp/workspace"),
+      path.resolve("/tmp/extra"),
     ]));
 
     const cfg = YAML.load(

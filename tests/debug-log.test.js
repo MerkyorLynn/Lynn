@@ -29,7 +29,7 @@ describe("debug log filtering and spans", () => {
     logger.debug("api", "skip api debug");
     logger.error("api", "keep api error");
 
-    const content = fs.readFileSync(logger.filePath, "utf-8");
+    const content = fs.readFileSync(logger.filePath, "utf-8").replace(/\\/g, "/");
     expect(content).not.toContain("skip ws info");
     expect(content).not.toContain("skip api debug");
     expect(content).toContain("keep ws warn");
