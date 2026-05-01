@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildVoiceRequestText,
   extractAssistantSpeechText,
   jarvisPrimaryLabel,
   resolveJarvisPrimaryAction,
@@ -39,5 +40,27 @@ describe('JarvisRuntimeOverlay chat integration helpers', () => {
         { type: 'text', html: '<p>气温二十一到二十六度。</p>', plainText: '气温二十一到二十六度。' },
       ],
     })).toBe('深圳明天局部多云。\n\n气温二十一到二十六度。');
+  });
+});
+
+describe('buildVoiceRequestText — P1-② voice context prompt prefix (slim)', () => {
+  it('prepends one-line prefix with short/colloquial/no-markdown/direct-tool signals', () => {
+    const out = buildVoiceRequestText('帮我查深圳明天天气');
+    expect(out).toContain('[语音对话');
+    expect(out).toContain('短答');
+    expect(out).toContain('markdown');
+    expect(out).toMatch(/工具.*直接|直接.*执行/);
+    expect(out).toContain('帮我查深圳明天天气');
+  });
+
+  it('trims surrounding whitespace from transcript', () => {
+    const out = buildVoiceRequestText('  你好啊  ');
+    expect(out).toMatch(/]\s*你好啊$/);
+    expect(out).not.toContain('  你好');
+  });
+
+  it('keeps prefix under 80 chars to avoid per-turn token bloat', () => {
+    const empty = buildVoiceRequestText('');
+    expect(empty.length).toBeLessThan(80);
   });
 });

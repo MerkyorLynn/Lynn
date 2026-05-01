@@ -6,6 +6,8 @@ import { JARVIS_RUNTIME_OPEN_EVENT, JARVIS_RUNTIME_START_EVENT, JARVIS_RUNTIME_T
 import { VoiceWsClient, VOICE_STATE, type VoiceHealthStatus, type VoiceState, type VoiceWsClientStats } from '../../services/voice-ws-client';
 import type { PcmStats } from '../../services/audio-stream';
 import type { PlaybackStats } from '../../services/audio-playback';
+import { voiceTextStreamBus, type VoiceStreamEvent } from '../../services/voice-text-stream-bus';
+import { IncrementalTtsSegmenter } from '../../services/incremental-tts-segmenter';
 import styles from './JarvisRuntimeOverlay.module.css';
 
 export const LYNN_RUNTIME_DISPLAY_NAME = 'Lynn';
@@ -123,6 +125,22 @@ function clampActivityLevel(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+/**
+ * 2026-05-01 P1-② — Voice 上下文 prompt prefix(精简版,2026-05-01 修)。
+ *
+ * 旧版 5 行 ~120 字,每 turn 重复浪费 token。新版 1 行 ~50 字,关键信号给齐:
+ *   ① 短答口语化(限制输出长度)
+ *   ② 无 markdown(防 splitTextForTts 切到 ** 中间)
+ *   ③ 工具直接执行,不展开候选(memory session_0427 FIX-1 反向)
+ *
+ * 只加在 requestText,displayText 仍是原转写(chat history 看到原话)。
+ */
+const VOICE_PROMPT_PREFIX = "[语音对话·短答口语化无markdown·有工具直接执行不展开候选] ";
+
+export function buildVoiceRequestText(transcript: string): string {
+  return `${VOICE_PROMPT_PREFIX}${transcript.trim()}`;
+}
+
 export function extractAssistantSpeechText(message: ChatMessage | null | undefined): string {
   if (!message || message.role !== 'assistant') return '';
   const blocks = message.blocks || [];
@@ -153,7 +171,37 @@ export function JarvisRuntimeOverlay() {
     sessionPath: string | null;
     assistantBaseline: number;
     spokenText: string | null;
+    /**
+     * 2026-05-01 P0-① 增量 TTS:bus + segmenter 路径已在 fire segments 时设 true,
+     * useEffect 兼容路径见到 true 跳过(防同一回复播两遍)。
+     */
+    incrementalActive: boolean;
   } | null>(null);
+  // 2026-05-01 P0-① — 增量 TTS 状态(每个 voice turn 独立)
+  const incrementalRef = useRef<{
+    segmenter: IncrementalTtsSegmenter;
+    unsubscribe: () => void;
+    sessionPath: string | null;
+    firstEmitted: boolean;
+  } | null>(null);
+
+  const tearDownIncremental = useCallback((reason: 'turn_end' | 'error' | 'reset' | 'interrupt') => {
+    const inc = incrementalRef.current;
+    if (!inc) return;
+    incrementalRef.current = null;
+    try { inc.unsubscribe(); } catch { /* ignore */ }
+    if (reason === 'turn_end') {
+      try { inc.segmenter.finish(); } catch { /* ignore */ }
+    } else {
+      // error/reset/interrupt:不再 fire 残段,重置即可
+      try { inc.segmenter.reset(); } catch { /* ignore */ }
+    }
+    // 2026-05-01 修 B1:tearDown 时一并清 pendingVoiceTurnRef,避免下次 turn 复用错乱。
+    // 之前 useEffect 主动清是 race source(第一段 emit 后 ref 立刻 null)。
+    if (reason === 'turn_end' || reason === 'error' || reason === 'interrupt') {
+      pendingVoiceTurnRef.current = null;
+    }
+  }, []);
 
   const ensureClient = useCallback(async () => {
     if (clientRef.current) return clientRef.current;
@@ -193,16 +241,87 @@ export function JarvisRuntimeOverlay() {
           sessionPath,
           assistantBaseline: baseline,
           spokenText: null,
+          incrementalActive: false,
         };
         setStatus((s) => ({ ...s, state: VOICE_STATE.THINKING, assistantReply: '' }));
-        void sendPrompt({ text: transcript, displayText: transcript }).then((ok) => {
+
+        // 2026-05-01 P0-① — 增量 TTS:订阅 chat WS text_delta,见到句子边界
+        // 立刻吐到 voice-ws SPEAK_TEXT_APPEND。首音节延迟从 ~3s 砍到 ~0.9s。
+        // turn_end 时 finish + unsubscribe;失败/重启 voice 时 tearDown。
+        tearDownIncremental('reset'); // 防同 turn 重叠
+        const segmenter = new IncrementalTtsSegmenter({
+          onSegment: (segment) => {
+            // 2026-05-01 修 B1 race fix:
+            //   旧实现依赖 pendingVoiceTurnRef.current 作守护,但 useEffect 在
+            //   incrementalActive=true 时会主动清 ref → 第一段后 ref=null →
+            //   后续 segment onSegment 提前 return → 只读首句 bug。
+            //   新实现仅依赖 incrementalRef(本 turn 局部 ref),tearDown 时清。
+            //   pendingVoiceTurnRef 仅做 useEffect 兜底跳过判断,不参与 fire 决策。
+            const inc = incrementalRef.current;
+            if (!inc || inc.segmenter !== segmenter) return;
+            const isFirst = !inc.firstEmitted;
+            inc.firstEmitted = true;
+            // 同步标记 pending(若仍存在)— 让 useEffect 兜底跳过整段播放
+            const turn = pendingVoiceTurnRef.current;
+            if (turn) {
+              turn.incrementalActive = true;
+              turn.spokenText = (turn.spokenText || '') + segment;
+            }
+            if (isFirst) {
+              setStatus((s) => ({ ...s, state: VOICE_STATE.SPEAKING, assistantReply: segment }));
+            } else {
+              setStatus((s) => ({ ...s, assistantReply: (s.assistantReply || '') + segment }));
+            }
+            void ensureClient().then((client) => {
+              if (isFirst) return client.speakText(segment);
+              return client.speakTextAppend(segment);
+            }).catch((err) => {
+              const message = err instanceof Error ? err.message : String(err);
+              // 增量路径失败 → 不污染主 turn,记 console;最终的"完整 message"仍可走 useEffect 兜底
+              // eslint-disable-next-line no-console
+              console.warn('[jarvis] incremental TTS speak failed:', message);
+            });
+          },
+        });
+        const baselineSessionPath = sessionPath;
+        let lockedSessionPath: string | null = null;
+        const handler = (msg: VoiceStreamEvent) => {
+          // 锁定 sessionPath:第一次 text_delta/thinking_start 时记下 brain 实际的 sessionPath
+          // (sendPrompt 后 currentSessionPath 可能已切到新 session)
+          if (msg.type === 'text_delta' || msg.type === 'thinking_start') {
+            if (lockedSessionPath === null) {
+              lockedSessionPath = (msg.sessionPath as string) || baselineSessionPath || null;
+            }
+          }
+          if (msg.sessionPath && lockedSessionPath && msg.sessionPath !== lockedSessionPath) return;
+          // memory feedback_brain_test_persistent_ws / session_0428 CROSS-PROMPT FENCE:
+          // turn_end 后 retry text_delta 仍可能流进来,segmenter.finished=true 自动 no-op。
+          if (msg.type === 'text_delta' && typeof msg.delta === 'string') {
+            segmenter.feed(msg.delta);
+          } else if (msg.type === 'turn_end') {
+            // finish 会吐剩余 buffer
+            tearDownIncremental('turn_end');
+          } else if (msg.type === 'error' || msg.type === 'stream_event_close') {
+            tearDownIncremental('error');
+          }
+        };
+        const unsubscribe = voiceTextStreamBus.subscribe(handler);
+        incrementalRef.current = { segmenter, unsubscribe, sessionPath: baselineSessionPath, firstEmitted: false };
+
+        void sendPrompt({
+          text: transcript,
+          displayText: transcript,
+          requestText: buildVoiceRequestText(transcript),
+        }).then((ok) => {
           if (!ok) {
+            tearDownIncremental('error');
             pendingVoiceTurnRef.current = null;
             setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE, error: '语音转写已完成，但发送到聊天框失败。' }));
           } else if (pendingVoiceTurnRef.current?.transcript === transcript) {
             pendingVoiceTurnRef.current.sessionPath = useStore.getState().currentSessionPath;
           }
         }).catch((err) => {
+          tearDownIncremental('error');
           pendingVoiceTurnRef.current = null;
           const message = err instanceof Error ? err.message : String(err);
           setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `语音转聊天失败：${message}` }));
@@ -215,14 +334,26 @@ export function JarvisRuntimeOverlay() {
       onCaptureStats: (captureStats) => setStatus((s) => ({ ...s, captureStats })),
       onPlaybackStats: (playbackStats) => setStatus((s) => ({ ...s, playbackStats })),
       stopCaptureOnEndTurn: true,
+      // 2026-05-01 P1-① — Tier 1 全双工:关浏览器原生 AEC/NS/AGC,让 server 端
+      // tonarino webrtc-audio-processing native AEC 接管(reference signal 在 server
+      // 已构造,零 IPC)。平台无 prebuilt → server 自动降级为 mic 直传(等同现状)。
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
     });
     clientRef.current = client;
     return client;
-  }, [addToast]);
+  }, [addToast, tearDownIncremental]);
 
   useEffect(() => {
     const pending = pendingVoiceTurnRef.current;
     if (!pending || isStreaming) return;
+    // 2026-05-01 P0-① + 修 B1:增量路径已 fire → 跳过兜底播放,但 ref 保留
+    //   旧实现这里清 ref,会让 segmenter 后续 onSegment 失去守护对象触发 race;
+    //   ref 由 tearDownIncremental('turn_end' / 'error' / 'interrupt') 统一清。
+    if (pending.incrementalActive) {
+      return;
+    }
     const sessionPath = pending.sessionPath || currentSessionPath;
     if (!sessionPath || sessionPath !== currentSessionPath) return;
     const assistants = assistantMessages(currentChatItems);
@@ -241,6 +372,7 @@ export function JarvisRuntimeOverlay() {
 
   const startListening = useCallback(async () => {
     pendingVoiceTurnRef.current = null;
+    tearDownIncremental('reset');
     setBusy(true);
     setOpen(true);
     setStatus((s) => ({
@@ -266,10 +398,11 @@ export function JarvisRuntimeOverlay() {
     } finally {
       setBusy(false);
     }
-  }, [addToast, ensureClient]);
+  }, [addToast, ensureClient, tearDownIncremental]);
 
   const startListeningAfterInterrupt = useCallback(async () => {
     pendingVoiceTurnRef.current = null;
+    tearDownIncremental('interrupt');
     setOpen(true);
     setStatus((s) => ({ ...s, error: null }));
     let client: VoiceWsClient | null = null;
@@ -287,7 +420,7 @@ export function JarvisRuntimeOverlay() {
       }));
       addToast(`${LYNN_RUNTIME_DISPLAY_NAME} 插话启动失败：${message}`, 'error', 5000, { dedupeKey: 'jarvis-runtime-interrupt-start' });
     }
-  }, [addToast, ensureClient]);
+  }, [addToast, ensureClient, tearDownIncremental]);
 
   const endTurn = useCallback(async () => {
     setBusy(true);
@@ -308,6 +441,7 @@ export function JarvisRuntimeOverlay() {
 
   const interrupt = useCallback(async (listenAfter = false) => {
     pendingVoiceTurnRef.current = null;
+    tearDownIncremental('interrupt');
     setBusy(true);
     try {
       if (listenAfter) {
@@ -322,16 +456,17 @@ export function JarvisRuntimeOverlay() {
     } finally {
       setBusy(false);
     }
-  }, [startListeningAfterInterrupt]);
+  }, [startListeningAfterInterrupt, tearDownIncremental]);
 
   const close = useCallback(() => {
     pendingVoiceTurnRef.current = null;
+    tearDownIncremental('reset');
     clientRef.current?.destroy();
     clientRef.current = null;
     setStatus(INITIAL_STATUS);
     setOpen(false);
     setBusy(false);
-  }, []);
+  }, [tearDownIncremental]);
 
   const handlePrimary = useCallback(async () => {
     const action = resolveJarvisPrimaryAction(status.state);

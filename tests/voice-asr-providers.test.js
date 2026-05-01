@@ -270,6 +270,112 @@ describe("CosyVoice2 TTS provider", () => {
     const p = createCosyVoice2TtsProvider();
     expect(await p.health()).toBe(false);
   });
+
+  // 2026-05-01 P0-② 流式 — DGX /v1/audio/speech/stream chunked WAV stream
+  function makeWavBuffer(seedByte) {
+    const dataLen = 32; // small synthetic WAV body
+    const total = 36 + dataLen;
+    const buf = Buffer.alloc(8 + total);
+    buf.write("RIFF", 0);
+    buf.writeUInt32LE(total, 4);
+    buf.write("WAVE", 8);
+    buf.write("fmt ", 12);
+    buf.writeUInt32LE(16, 16);
+    buf.writeUInt16LE(1, 20);
+    buf.writeUInt16LE(1, 22);
+    buf.writeUInt32LE(16000, 24);
+    buf.writeUInt32LE(32000, 28);
+    buf.writeUInt16LE(2, 32);
+    buf.writeUInt16LE(16, 34);
+    buf.write("data", 36);
+    buf.writeUInt32LE(dataLen, 40);
+    for (let i = 0; i < dataLen; i += 1) {
+      buf.writeUInt8(seedByte, 44 + i);
+    }
+    return buf;
+  }
+
+  function streamFromChunks(chunks) {
+    return new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(new Uint8Array(chunk));
+        controller.close();
+      },
+    });
+  }
+
+  it("synthesizeStream POSTs to /v1/audio/speech/stream and yields each WAV chunk separately", async () => {
+    const wavA = makeWavBuffer(0x11);
+    const wavB = makeWavBuffer(0x22);
+    let capturedUrl;
+    global.fetch = vi.fn(async (url, _init) => {
+      capturedUrl = url;
+      return new Response(streamFromChunks([wavA, wavB]), {
+        status: 200,
+        headers: { "content-type": "audio/wav" },
+      });
+    });
+    const p = createCosyVoice2TtsProvider({ base_url: "http://tts.local", default_voice: "中文女" });
+    const yields = [];
+    for await (const piece of p.synthesizeStream("你好世界")) {
+      yields.push(piece);
+    }
+    expect(capturedUrl).toBe("http://tts.local/v1/audio/speech/stream");
+    expect(yields).toHaveLength(2);
+    expect(yields[0].mimeType).toBe("audio/wav");
+    expect(yields[0].provider).toBe("cosyvoice2");
+    expect(Buffer.compare(yields[0].audio, wavA)).toBe(0);
+    expect(Buffer.compare(yields[1].audio, wavB)).toBe(0);
+  });
+
+  it("synthesizeStream re-frames WAV chunks split mid-buffer across network boundaries", async () => {
+    const wavA = makeWavBuffer(0x33);
+    const wavB = makeWavBuffer(0x44);
+    // 把 wavA 后半 + wavB 前半放进同一个 chunk
+    const cut = 30;
+    const chunkA = wavA.subarray(0, cut);
+    const chunkAB = Buffer.concat([wavA.subarray(cut), wavB.subarray(0, cut)]);
+    const chunkB = wavB.subarray(cut);
+    global.fetch = vi.fn(async () => new Response(streamFromChunks([chunkA, chunkAB, chunkB]), {
+      status: 200,
+      headers: { "content-type": "audio/wav" },
+    }));
+    const p = createCosyVoice2TtsProvider({ base_url: "http://tts.local" });
+    const yields = [];
+    for await (const piece of p.synthesizeStream("跨边界 chunk")) yields.push(piece);
+    expect(yields).toHaveLength(2);
+    expect(Buffer.compare(yields[0].audio, wavA)).toBe(0);
+    expect(Buffer.compare(yields[1].audio, wavB)).toBe(0);
+  });
+
+  it("synthesizeStream throws on non-200 status", async () => {
+    global.fetch = vi.fn(async () => new Response("server boom", { status: 503 }));
+    const p = createCosyVoice2TtsProvider();
+    await expect(async () => {
+      // eslint-disable-next-line no-unused-vars -- iterator is what triggers the throw
+      for await (const _ of p.synthesizeStream("x")) { /* drain */ }
+    }).rejects.toThrow(/HTTP 503/);
+  });
+
+  it("synthesizeStream rejects corrupt RIFF stream rather than emitting bad audio", async () => {
+    global.fetch = vi.fn(async () => new Response(streamFromChunks([Buffer.from("not a wav at all 1234567890123")]), {
+      status: 200,
+      headers: { "content-type": "audio/wav" },
+    }));
+    const p = createCosyVoice2TtsProvider();
+    await expect(async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of p.synthesizeStream("x")) { /* drain */ }
+    }).rejects.toThrow(/corrupt RIFF/);
+  });
+
+  it("synthesizeStream rejects empty input upfront", async () => {
+    const p = createCosyVoice2TtsProvider();
+    await expect(async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of p.synthesizeStream("")) { /* never */ }
+    }).rejects.toThrow(/empty text/);
+  });
 });
 
 describe("normalizeChineseTtsText", () => {

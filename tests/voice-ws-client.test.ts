@@ -297,6 +297,26 @@ describe('VoiceWsClient', () => {
     expect(decodeVoiceText(frame.payload)).toBe('这是聊天框的最终回复。');
   });
 
+  it('sends SPEAK_TEXT_APPEND for incremental TTS deltas (P0-① 2026-05-01)', async () => {
+    FakeWebSocket.instances = [];
+    const client = new VoiceWsClient({
+      url: 'ws://unit.test/voice-ws',
+      websocketCtor: FakeWebSocket,
+    });
+    const ws = await openClient(client);
+
+    await client.speakText('第一段。');
+    await client.speakTextAppend('第二段。');
+    await client.speakTextAppend('  第三段。  '); // trim 验证
+    await client.speakTextAppend(''); // 空 payload 不发
+
+    expect(ws.sent).toHaveLength(3);
+    const types = ws.sent.map((b) => parseVoiceFrame(b as ArrayBuffer)!.type);
+    expect(types).toEqual([VOICE_FRAME.SPEAK_TEXT, VOICE_FRAME.SPEAK_TEXT_APPEND, VOICE_FRAME.SPEAK_TEXT_APPEND]);
+    const texts = ws.sent.map((b) => decodeVoiceText(parseVoiceFrame(b as ArrayBuffer)!.payload));
+    expect(texts).toEqual(['第一段。', '第二段。', '第三段。']);
+  });
+
   it('reconnects a stale websocket before speaking a chat reply', async () => {
     FakeWebSocket.instances = [];
     const client = new VoiceWsClient({

@@ -17,6 +17,7 @@ const yaml = require("js-yaml");
 const { initAutoUpdater, checkForUpdatesAuto, setMainWindow: setUpdaterMainWindow, setUpdateChannel } = require("./auto-updater.cjs");
 const { wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
 const { normalizeConfiguredShortcut, registerFirstAvailableGlobalShortcut } = require("./shortcut-policy.cjs");
+const { VoiceTunnelManager } = require("./voice-tunnel-manager.cjs");
 
 // macOS/Linux: Electron 从 Dock/Finder 启动时 PATH 只有系统默认值，
 // Homebrew、npm global 等路径全部丢失。用登录 shell 解析完整 PATH。
@@ -969,6 +970,28 @@ async function startServer() {
   _serverLogs = [];
 
   const serverEnv = { ...process.env, LYNN_HOME: lynnHome };
+
+  // 2026-05-01 P1-① — 把 native AEC 模块路径注入 server,让 server 端
+  // server/clients/aec/index.js 直接 require .node(零 IPC,reference signal 时序对齐)。
+  //
+  //   dev:  desktop/native-modules/aec
+  //   prod: app.asar.unpacked/desktop/native-modules/aec(asarUnpack 解压出来)
+  //
+  // 平台无 prebuilt(Win/Linux/macOS x64 等)→ server 端 require 抛错被 catch,
+  // VoiceSession 走 mic 直传(等同现状,不阻塞主链)。
+  try {
+    const devAecDir = path.join(__dirname, "native-modules", "aec");
+    const unpackedAecDir = __dirname.includes("app.asar")
+      ? path.join(__dirname.replace("app.asar", "app.asar.unpacked"), "native-modules", "aec")
+      : devAecDir;
+    const aecDir = fs.existsSync(unpackedAecDir) ? unpackedAecDir : devAecDir;
+    if (fs.existsSync(aecDir)) {
+      serverEnv.LYNN_AEC_NATIVE_DIR = aecDir;
+    }
+  } catch (err) {
+    console.warn("[desktop] AEC native dir resolve failed:", err?.message || err);
+  }
+
   const brainRuntime = readBrainRuntimeConfig();
   if (brainRuntime.apiRoot) serverEnv.BRAIN_API_ROOT_URL = brainRuntime.apiRoot;
   if (brainRuntime.host) serverEnv.BRAIN_API_HOST = brainRuntime.host;
@@ -3234,6 +3257,47 @@ wrapIpcHandler("app-ready", () => {
   revealMainWindowAndCloseStartupShell("app-ready");
 });
 
+// ── Voice tunnel manager(2026-05-01)──────────────────────────────────
+// 跨平台 ssh -L 守护(macOS / Windows / Linux 同源)。
+//   macOS:已有 launchd `com.lynn.spark-asr-tunnel` watchdog 时,manager 自动 standby
+//   Win/Linux:Lynn 自己 spawn ssh,跟 Lynn 生命周期绑
+//   ENV LYNN_SKIP_VOICE_TUNNEL=1 → 完全禁用
+let voiceTunnel = null;
+function startVoiceTunnel() {
+  if (voiceTunnel) return;
+  try {
+    voiceTunnel = new VoiceTunnelManager({
+      onLog: (level, msg) => {
+        if (level === "error") console.error(msg);
+        else if (level === "warn") console.warn(msg);
+        else console.log(msg);
+      },
+      onState: (state) => {
+        // 状态广播给 renderer(供 Overlay 显示具体哪个端口断)
+        try {
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) win.webContents.send("voice-tunnel-state", state);
+          }
+        } catch (err) {
+          console.warn("[voice-tunnel] state broadcast failed:", err?.message || err);
+        }
+      },
+    });
+    void voiceTunnel.start();
+  } catch (err) {
+    console.warn("[voice-tunnel] start failed:", err?.message || err);
+    voiceTunnel = null;
+  }
+}
+function stopVoiceTunnel() {
+  if (!voiceTunnel) return;
+  try { voiceTunnel.stop(); } catch (err) {
+    console.warn("[voice-tunnel] stop failed:", err?.message || err);
+  }
+  voiceTunnel = null;
+}
+wrapIpcHandler("voice-tunnel-status", () => (voiceTunnel ? voiceTunnel.getStatus() : { stopped: true }));
+
 // ── App 生命周期 ──
 app.whenReady().then(async () => {
   installMediaPermissionHandlers();
@@ -3284,6 +3348,10 @@ app.whenReady().then(async () => {
     monitorServer();
     setupBrowserCommands();
     createTray();
+
+    // 2b. 2026-05-01 — 启动 voice tunnel manager(跨平台 ssh 隧道守护)
+    //     macOS 已有 launchd watchdog 时自动 standby + 仅监控;Win/Linux 接管 spawn。
+    startVoiceTunnel();
 
     // 3. 控制 splash 最短停留时间。冷启动优化后不再额外卡住 3 秒。
     const elapsed = Date.now() - splashShownAt;
@@ -3447,6 +3515,9 @@ app.on("will-quit", () => {
 app.on("before-quit", async (event) => {
   isQuitting = true;
   isExitingServer = true; // Cmd+Q 走完全退出路径，连 server 一起关
+
+  // 2026-05-01 — 停 voice tunnel manager(kill 子 ssh)
+  stopVoiceTunnel();
 
   // 立刻隐藏所有窗口，让用户感觉已退出，server 清理在后台进行
   for (const win of BrowserWindow.getAllWindows()) {
