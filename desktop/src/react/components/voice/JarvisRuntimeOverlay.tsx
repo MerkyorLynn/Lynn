@@ -440,14 +440,17 @@ export function JarvisRuntimeOverlay() {
   }, []);
 
   const interrupt = useCallback(async (listenAfter = false) => {
+    // 2026-05-02 修:旧版"插话"路径整段 await startListeningAfterInterrupt()
+    // (含 ensureClient + startListening 启 mic,可能 100ms-秒级)期间 busy=true,
+    // 两个按钮全 disabled(变暗灰看似"黑"),用户没法再次中断 → UI 死锁。
+    // 拆成两步:
+    //   ① 永远先 fire client.interrupt() — 几 ms 内真停 PCM 推 + flush worklet,
+    //      不依赖 listenAfter,setBusy 只包这一段
+    //   ② listenAfter=true → fire-and-forget 启 mic,不阻塞 setBusy(false)
     pendingVoiceTurnRef.current = null;
     tearDownIncremental('interrupt');
     setBusy(true);
     try {
-      if (listenAfter) {
-        await startListeningAfterInterrupt();
-        return;
-      }
       await clientRef.current?.interrupt();
       setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE, error: null }));
     } catch (err) {
@@ -455,6 +458,13 @@ export function JarvisRuntimeOverlay() {
       setStatus((s) => ({ ...s, error: message }));
     } finally {
       setBusy(false);
+    }
+    if (listenAfter) {
+      // 不阻塞 busy:用户可在 mic 起来期间继续点别的(再点中断 / 点关闭)
+      void startListeningAfterInterrupt().catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `插话启动失败:${message}` }));
+      });
     }
   }, [startListeningAfterInterrupt, tearDownIncremental]);
 
@@ -543,7 +553,13 @@ export function JarvisRuntimeOverlay() {
           <button className={styles.primaryButton} type="button" onClick={handlePrimary} disabled={busy}>
             {busy ? '处理中' : jarvisPrimaryLabel(primaryAction)}
           </button>
-          <button className={styles.secondaryButton} type="button" onClick={() => void interrupt(false)} disabled={busy || status.state === VOICE_STATE.IDLE}>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onClick={() => void interrupt(false)}
+            disabled={status.state === VOICE_STATE.IDLE}
+            title="强制停止当前播报 / 思考"
+          >
             停止
           </button>
         </div>

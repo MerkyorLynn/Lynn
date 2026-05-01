@@ -2,7 +2,7 @@
  * AssistantMessage — 助手消息，遍历 ContentBlock 按类型渲染
  */
 
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MarkdownContent } from './MarkdownContent';
 import { ImageBlock } from './ImageBlock';
 import { MoodBlock } from './MoodBlock';
