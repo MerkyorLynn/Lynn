@@ -620,6 +620,11 @@ class VoiceSession {
     // 2026-05-01 P0-① 增量 TTS:speakText 进入循环时设此引用,SPEAK_TEXT_APPEND 帧
     // 直接 push 进同一个 queue,无需新建 turn / 不抢锁。退出 speakText 时清 null。
     this.activeSpeakingQueue = null;
+    // 2026-05-01 P0-① B2 race fix:client 后续 SPEAK_TEXT_APPEND 在 server 刚消费
+    // 完 activeSpeakingQueue 但还没退到 IDLE 的"间隙"窗口到达时,不被丢/不被锁吞。
+    // appendSpeakText 在 SPEAKING 期间 activeSpeakingQueue=null/空 时改 push 到这里;
+    // speakText 退出 while 前 grace period 检查这个 queue;若有则继续消费。
+    this.pendingAppendQueue = [];
 
     // 2026-05-01 P1-① — 服务端 AEC pipeline:
     //   * aec.available + native processor 创建成功 → 启用,reference signal 在 send PCM_TTS
@@ -1017,44 +1022,39 @@ class VoiceSession {
     };
     // 2026-05-01 P0-① queue 化:while 循环消费 this.activeSpeakingQueue,
     // SPEAK_TEXT_APPEND 帧可在循环执行中往 queue 末尾 push 新 segment。
+    // B2 race fix(2026-05-01):若 pendingAppendQueue 有早到的 segments(本来就为
+    // SPEAKING 中"queue 刚空但 finally 还没跑"窗口设),merge 进 active。
     this.activeSpeakingQueue = [...segments];
+    if (this.pendingAppendQueue.length > 0) {
+      this.activeSpeakingQueue.push(...this.pendingAppendQueue);
+      this.pendingAppendQueue = [];
+    }
     // 2026-05-01 P0-② TTS 流式:provider 暴露 synthesizeStream 时优先用,首 PCM
     // 不等整段 WAV 渲染完,首音节延迟 ~400-1200ms → ~200-300ms。
     const supportsStream = typeof this.ttsProvider.synthesizeStream === "function";
     try {
-      while (this.activeSpeakingQueue.length > 0) {
+      while (true) {
         if (signal?.aborted) break;
-        const segment = this.activeSpeakingQueue.shift();
-        try {
-          if (supportsStream) {
-            await this.streamSegmentToPcm(segment, signal);
-          } else {
-            await this.batchSegmentToPcm(segment, signal);
-          }
-        } catch (err) {
-          // 2026-05-01 修 3:stream 路径已 yield 部分 PCM 后失败 → 不切小重试
-          //   (会让用户重听该段)。直接抛出让 processSpeakTextTurn catch 进 DEGRADED。
-          //   stream 未 yield / batch 路径失败 → 走切小重试,符合原"安全降级"语义。
-          if (err?.yieldedAny) {
-            this.setState(STATE.DEGRADED);
-            debugLog()?.warn("voice-ws", `tts stream failed mid-segment after yielding PCM, no retry: ${err?.message || err}`);
-            throw err;
-          }
-          const smallerMax = Math.max(TTS_RETRY_MIN_SEGMENT_CHARS, Math.ceil(segment.length / 2));
-          const smaller = segment.length > TTS_RETRY_MIN_SEGMENT_CHARS
-            ? splitTextForTts(segment, { maxChars: smallerMax }).filter((s) => s && s !== segment)
-            : [];
-          if (smaller.length > 1) {
-            debugLog()?.warn("voice-ws", `tts segment failed, retrying as ${smaller.length} smaller chunks: ${err?.message || err}`);
-            this.activeSpeakingQueue.unshift(...smaller);
-            continue;
-          }
-          throw err;
+        // 优先消费 active queue
+        if (this.activeSpeakingQueue.length > 0) {
+          const segment = this.activeSpeakingQueue.shift();
+          await this.processSpeakingSegment(segment, signal, supportsStream);
+          continue;
         }
-        // 推完此 segment 的全部 PCM 且未被打断 → 标记已完整播放
-        if (!signal?.aborted) {
-          this.currentReplyPlayed.playedSegments.push(segment);
+        // active 空 → grace period 等 client SPEAK_TEXT_APPEND(B2 race fix)。
+        // appendSpeakText 在 SPEAKING + queue truthy 时 push 进 active;
+        // 在 processingTurn 仍非 null 但 queue 空/null 时 push 进 pendingAppendQueue。
+        // grace 后两条都要检查。
+        const graceMs = Number(process.env.LYNN_VOICE_APPEND_GRACE_MS) || 150;
+        await new Promise((r) => setTimeout(r, graceMs));
+        if (signal?.aborted) break;
+        if (this.pendingAppendQueue.length > 0) {
+          this.activeSpeakingQueue.push(...this.pendingAppendQueue);
+          this.pendingAppendQueue = [];
+          continue;
         }
+        if (this.activeSpeakingQueue.length > 0) continue; // grace 期间有人 push 进了 active
+        break; // 真空了
       }
     } finally {
       this.activeSpeakingQueue = null;
@@ -1066,10 +1066,36 @@ class VoiceSession {
     }
   }
 
-  /**
-   * 2026-05-01 P0-② — 流式合成单段 segment:逐 WAV chunk 收 → 解 PCM → 推 PCM_TTS
-   * 首块 ~150-300ms 出,显著降低首音节延迟。
-   */
+  async processSpeakingSegment(segment, signal, supportsStream) {
+    try {
+      if (supportsStream) {
+        await this.streamSegmentToPcm(segment, signal);
+      } else {
+        await this.batchSegmentToPcm(segment, signal);
+      }
+    } catch (err) {
+      // 2026-05-01 修 3:stream 路径已 yield 部分 PCM 后失败 → 不切小重试
+      if (err?.yieldedAny) {
+        this.setState(STATE.DEGRADED);
+        debugLog()?.warn("voice-ws", `tts stream failed mid-segment after yielding PCM, no retry: ${err?.message || err}`);
+        throw err;
+      }
+      const smallerMax = Math.max(TTS_RETRY_MIN_SEGMENT_CHARS, Math.ceil(segment.length / 2));
+      const smaller = segment.length > TTS_RETRY_MIN_SEGMENT_CHARS
+        ? splitTextForTts(segment, { maxChars: smallerMax }).filter((s) => s && s !== segment)
+        : [];
+      if (smaller.length > 1) {
+        debugLog()?.warn("voice-ws", `tts segment failed, retrying as ${smaller.length} smaller chunks: ${err?.message || err}`);
+        this.activeSpeakingQueue.unshift(...smaller);
+        return;
+      }
+      throw err;
+    }
+    if (!signal?.aborted) {
+      this.currentReplyPlayed.playedSegments.push(segment);
+    }
+  }
+
   /**
    * 2026-05-01 — 推一个 100ms TTS PCM chunk 到客户端,同时:
    *   ① ERLE 双轨录 ttsChunks
@@ -1146,17 +1172,21 @@ class VoiceSession {
   /**
    * 2026-05-01 P0-① — 增量 TTS append
    *
-   * 状态机决策(2026-05-01 修 6 race fix):
-   *   SPEAKING + activeSpeakingQueue 存在 → push 进 queue 接力(主路径)
-   *   IDLE / THINKING → 作为 fresh speakText(兼容路径,IDLE 首次 / THINKING race)
+   * 状态机决策(B2 race fix 2026-05-01):
+   *   SPEAKING + activeSpeakingQueue 存在 → push 进 active(主路径)
+   *   SPEAKING + 处理中(processingTurn 非空)即使 activeSpeakingQueue 还没创建
+   *     /已被 finally 清 null → push 到 pendingAppendQueue,speakText 的 grace
+   *     period 会取走;避免被 fresh processSpeakTextTurn 锁吞。
    *   LISTENING / DEGRADED → drop。LISTENING 表示用户已开口(onInterrupt 后),
-   *     残段不该让 server 重新发声压过用户输入;DEGRADED 主链异常时也不发幽灵段。
+   *     残段不该让 server 重新发声压过用户输入。
+   *   IDLE 且无 processingTurn → fresh speakText(兼容旧路径)。
    */
   appendSpeakText(text) {
     const value = String(text || "").trim();
     if (!value) return;
     const segments = splitTextForTts(value);
     if (segments.length === 0) return;
+    // 主路径:active queue 存在
     if (this.activeSpeakingQueue && this.state === STATE.SPEAKING) {
       this.activeSpeakingQueue.push(...segments);
       if (this.currentReplyPlayed) {
@@ -1166,11 +1196,23 @@ class VoiceSession {
       debugLog()?.log("voice-ws", `append speak text: +${segments.length} segments (queue=${this.activeSpeakingQueue.length})`);
       return;
     }
+    // 用户已开口 / 主链异常,残段不该播
     if (this.state === STATE.LISTENING || this.state === STATE.DEGRADED) {
-      debugLog()?.log("voice-ws", `append speak text dropped (state=${this.state}): incremental TTS race after interrupt`);
+      debugLog()?.log("voice-ws", `append speak text dropped (state=${this.state}): residual after interrupt/degraded`);
       return;
     }
-    // IDLE / THINKING → fresh speakText
+    // B2 race window:processingTurn 仍在(可能 SPEAKING 间隙 / IDLE 但 finally 还没跑完)
+    // → push 到 pendingAppendQueue,speakText grace period 接收。
+    if (this.processingTurn) {
+      this.pendingAppendQueue.push(...segments);
+      if (this.currentReplyPlayed) {
+        this.currentReplyPlayed.segments.push(...segments);
+        this.currentReplyPlayed.fullText = `${this.currentReplyPlayed.fullText || ""}${value}`;
+      }
+      debugLog()?.log("voice-ws", `append speak text → pending (race window, +${segments.length}, pending=${this.pendingAppendQueue.length})`);
+      return;
+    }
+    // 真正 IDLE → fresh speakText
     void this.processSpeakTextTurn(value);
   }
 
