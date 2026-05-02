@@ -33,6 +33,12 @@
 **Regression**:
 - Unit / Integration / Voice runtime / TypeScript / Lint / Renderer / Main / Server build all pass
 
+**Hotpatch #1 (2026-05-02)** — Windows install ERR_DLOPEN_FAILED
+- ⚠️ **Windows package re-published**: the initial Setup.exe shipped Mach-O `clipboard.darwin-*.node` files inside the win-x64 server bundle. Windows Node tried to dlopen the macOS dylib at startup and crashed with `ERR_DLOPEN_FAILED`.
+- 🔧 Fixed `scripts/build-server.mjs` to sweep `@mariozechner/clipboard-*` for non-target platforms during Windows builds (mirrors the existing koffi platform-sweep block).
+- ✅ Windows Setup.exe re-signed; GitHub Release & Tencent mirror updated. `latest.yml` size/sha512 refreshed.
+- ✅ macOS dmgs are unaffected (only ever shipped darwin variants).
+
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.5)
 
 </details>
