@@ -571,6 +571,33 @@ if (fs.existsSync(piCodingAgentExamples)) {
   console.log("[build-server] pi-coding-agent: removed examples from distributable package");
 }
 
+// ── 8d. 处理 @mariozechner/clipboard-* — 跨平台 optional native(2026-05-02 hotpatch v0.77.5)──
+// pi-tui / pi-agent-core 的 optionalDependencies 包含 clipboard-darwin-universal /
+// clipboard-darwin-arm64,但这些包没声明 `os` 字段,即便 npm_config_platform=win32
+// npm 仍把它们装进 node_modules。nft prune 阶段又被 protectExternal 整树保护,
+// Win 上 require Mach-O dylib → ERR_DLOPEN_FAILED 启动崩(用户 v0.77.5 截图实证)。
+//
+// 处理策略:跟 koffi 同款 — 只保留当前 target platform 的 clipboard 子包,其他直接删。
+const mariozechnerScope = path.join(nmDir, "@mariozechner");
+if (fs.existsSync(mariozechnerScope)) {
+  // 把 platform 名字标准化成 clipboard 包命名(darwin / linux / win32)
+  const platformTag = platform; // darwin / linux / win32
+  let clipboardCleared = 0;
+  for (const entry of fs.readdirSync(mariozechnerScope)) {
+    if (!entry.startsWith("clipboard-")) continue;
+    // 当前平台允许的命名:clipboard-<platform>-<arch> / clipboard-<platform>-universal
+    const isCurrent = entry === `clipboard-${platformTag}-${arch}`
+      || entry === `clipboard-${platformTag}-universal`;
+    if (!isCurrent) {
+      fs.rmSync(path.join(mariozechnerScope, entry), { recursive: true, force: true });
+      clipboardCleared++;
+    }
+  }
+  if (clipboardCleared > 0) {
+    console.log(`[build-server] clipboard: removed ${clipboardCleared} cross-platform variants (kept ${platformTag}-* only)`);
+  }
+}
+
 // ── 9. 更新 package.json ──
 // npm ci 之后 package.json 仍在，确保它包含 version 字段
 // fromRoot("package.json") 在运行时读取版本号
