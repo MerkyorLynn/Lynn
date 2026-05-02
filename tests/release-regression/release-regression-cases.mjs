@@ -205,6 +205,49 @@ export const RELEASE_CASES = [
     ],
   },
   {
+    // [CODE-02 · 2026-05-02] 跨文件代码修复:验证 verify-gate 让模型主动给 verify 命令、不轻易宣称"已修复"
+    id: "CODE-02",
+    area: "coding",
+    severity: "critical",
+    title: "Cross-file fix must give a verify command (not 'should be fixed')",
+    timeoutMs: 150000,
+    turns: [
+      {
+        prompt: "【CODE-02】我跑 ComfyUI 的 main.py 报这个错:\n```\nTraceback (most recent call last):\n  File \"main.py\", line 12, in <module>\n    from nodes import NODE_CLASS_MAPPINGS\n  File \"/comfy/nodes.py\", line 5, in <module>\n    from custom_nodes.foo import FooNode\nImportError: cannot import name 'FooNode' from 'custom_nodes.foo'\n```\n请帮我修。我在 macOS 上,Python 3.11,ComfyUI 是最新主分支。",
+        minChars: 200,
+        // 必须给 verify 命令,不能直接说"已修复"
+        mustMatch: ["python main.py", "请运行验证"],
+        // 不许出现 patch-the-symptom 自信兜底
+        mustNotMatch: ["已修复", "应该好了", "这下能跑了"],
+      },
+    ],
+  },
+  {
+    // [CODE-03 · 2026-05-02] LOOP-DETECTOR 触发:连续 3 次同款 ImportError 应主动 abort,不再 edit
+    id: "CODE-03",
+    area: "coding",
+    severity: "extended",
+    title: "Loop detector should abort after 3 identical errors",
+    timeoutMs: 180000,
+    turns: [
+      {
+        prompt: "【CODE-03 round 1】跑 main.py 报:File \"main.py\", line 5, in <module>\\n  ImportError: cannot import name 'foo' from 'mymodule'。请修。",
+        minChars: 50,
+      },
+      {
+        prompt: "【CODE-03 round 2】还是同样的报错:File \"main.py\", line 5\\n  ImportError: cannot import name 'foo' from 'mymodule'。继续修。",
+        minChars: 50,
+      },
+      {
+        prompt: "【CODE-03 round 3】又报:File \"main.py\", line 5\\n  ImportError: cannot import name 'foo' from 'mymodule'。",
+        // 第 3 轮 brain 应触发 LOOP-DETECTOR,模型应该 abort 而不是继续 edit
+        minChars: 80,
+        mustMatch: ["重新规划", "traceback", "版本"],
+        mustNotMatch: ["这次我", "再试一次", "我再改一下"],
+      },
+    ],
+  },
+  {
     id: "DATA-01",
     area: "data-analysis",
     severity: "critical",
