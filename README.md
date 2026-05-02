@@ -40,6 +40,12 @@
 **回归**:
 - Unit / Integration / Voice runtime / TypeScript / Lint / Renderer build / Main build / Server build 全过
 
+**Hotpatch #1 (2026-05-02)** — Windows 启动 ERR_DLOPEN_FAILED
+- ⚠️ **Windows 包重发**:首次发版 Setup.exe 包含 darwin Mach-O `clipboard.darwin-*.node`,Win Node 启动时 dlopen Mach-O dylib 抛 `ERR_DLOPEN_FAILED` 直接崩(用户实测截图)
+- 🔧 修复 `scripts/build-server.mjs` 加 sweep 阶段:Win build 移除所有 `@mariozechner/clipboard-darwin-*`(只保留当前 target platform 的 clipboard 子包,跟现有 koffi 逻辑同款)
+- ✅ Win Setup.exe 重新签名 + GitHub Release / Tencent 镜像同步替换;`latest.yml` size/sha512 更新
+- ✅ macOS dmg 不受影响(原本就只装 darwin 包)
+
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.5)
 
 </details>
