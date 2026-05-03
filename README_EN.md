@@ -39,6 +39,12 @@
 - ✅ Windows Setup.exe re-signed; GitHub Release & Tencent mirror updated. `latest.yml` size/sha512 refreshed.
 - ✅ macOS dmgs are unaffected (only ever shipped darwin variants).
 
+**Hotpatch #2 (2026-05-04)** — Windows install ERR_DLOPEN_FAILED (continued)
+- ⚠️ **Hotpatch #1 was incomplete**: it cleaned `clipboard-darwin-*` from the server bundle, but desktop's `desktop/native-modules/aec/lynn-aec-napi.darwin-arm64.node` (V0.79 Phase 2 AEC native module, only prebuilt for Mac arm64) was still bundled into Win Setup.exe via electron-builder's `files` glob `*.node`. Win Node attempted to dlopen the Mach-O dylib at startup and crashed.
+- 🔧 Added a native-modules platform-sweep pass to `scripts/fix-modules.cjs` afterPack hook: scans `app.asar.unpacked/desktop/native-modules/**` and removes any napi-rs-pattern `.node` (`*.{darwin|win32|linux}-*.node`) that doesn't match the current build target.
+- ✅ Win Setup.exe size 204.5MB → 204.4MB (removed 132KB darwin-arm64.node); GitHub Release & Tencent mirror updated. `latest.yml` size/sha512 refreshed.
+- ✅ macOS dmgs are unaffected (still ship darwin-arm64 prebuild).
+
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.5)
 
 </details>
