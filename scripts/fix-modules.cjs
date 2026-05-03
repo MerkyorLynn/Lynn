@@ -178,4 +178,59 @@ exports.default = async function (context) {
   if (removedLinks > 0) {
     console.log(`[fix-modules] 清理了 ${removedLinks} 个指向 bundle 外部的 .bin 符号链接`);
   }
+
+  // ── platform-sweep cross-platform native modules(2026-05-04 hotpatch v0.77.5 #2)──
+  // desktop/native-modules/aec 只有 lynn-aec-napi.darwin-arm64.node 一个 prebuild,
+  // 但 electron-builder files glob "desktop/native-modules/aec/*.node" 把它打进所有平台,
+  // Win 启动 dlopen Mach-O → ERR_DLOPEN_FAILED(用户实测 v0.77.5 仍崩)。
+  //
+  // Hotpatch #1 只 sweep 了 server bundle 的 @mariozechner/clipboard-*,这次扩展到 desktop。
+  // 策略:napi-rs 标准命名 (*.{darwin|win32|linux}-{arm64|x64|...}.node),只保留当前 target 平台。
+  const platformTag = platformName === "mac" ? "darwin"
+                    : platformName === "windows" ? "win32"
+                    : "linux";
+  const NATIVE_TAG_RE = /\.(darwin|win32|linux)-(arm64|x64|x86|ia32|universal)\.node$/;
+  const targetTag = `${platformTag}-${arch}`;
+
+  function sweepNativeModules(dir) {
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+    let swept = 0;
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        swept += sweepNativeModules(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".node")) continue;
+      const m = entry.name.match(NATIVE_TAG_RE);
+      if (!m) continue;  // 不带平台 tag 的 .node(如 binding.node)跳过,不动
+      // 接受当前平台 arch + universal 命名
+      const fileTag = `${m[1]}-${m[2]}`;
+      const isCurrent = fileTag === targetTag
+        || fileTag === `${platformTag}-universal`
+        || (platformTag === "darwin" && m[2] === "universal");
+      if (!isCurrent) {
+        try { fs.unlinkSync(full); swept++; } catch (e) { console.warn(`[fix-modules] sweep 失败 ${full}: ${e.message}`); }
+      }
+    }
+    return swept;
+  }
+
+  // 扫两个候选根:resources/app.asar.unpacked/desktop/native-modules + resources/app/desktop/native-modules
+  const sweepRoots = [
+    path.join(resourcesDir, "app.asar.unpacked", "desktop", "native-modules"),
+    path.join(appDir, "desktop", "native-modules"),
+  ];
+  let totalSwept = 0;
+  for (const root of sweepRoots) {
+    if (fs.existsSync(root)) {
+      totalSwept += sweepNativeModules(root);
+    }
+  }
+  if (totalSwept > 0) {
+    console.log(`[fix-modules] platform-sweep: 删除 ${totalSwept} 个跨平台 .node 文件(目标=${targetTag})`);
+  } else {
+    console.log(`[fix-modules] platform-sweep: 无跨平台 .node 残留(目标=${targetTag})`);
+  }
 };
