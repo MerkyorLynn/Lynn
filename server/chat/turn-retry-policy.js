@@ -160,10 +160,11 @@ function commandLooksLikeCreate(command = "") {
     || /\b(?:os\.(?:makedirs|mkdir)|Path\([^)]*\)\.mkdir|fs\.(?:mkdir|mkdirSync|writeFile|writeFileSync))\b/.test(text);
 }
 
-function commandLooksLikeDelete(command = "") {
+export function commandLooksLikeDelete(command = "") {
   const text = String(command || "").trim();
   if (!text) return false;
   return /(^|[;&|()\s])(?:rm|rmdir|trash)\b/i.test(text)
+    || /\bfind\b[^|;&]*\s-delete\b/i.test(text)
     || /\b(?:shutil\.rmtree|os\.(?:remove|unlink|rmdir)|fs\.(?:rm|rmSync|unlink|unlinkSync))\b/.test(text);
 }
 
@@ -251,6 +252,7 @@ function buildLocalMutationEmptyFallbackText(ss) {
     ];
     if (requirement.requiresDelete) {
       parts.push("如果你确认要删除，请回复“确认删除”，我会先列出匹配文件数量和文件名，再触发安全确认或执行删除。");
+      rememberPendingDeleteConfirmation(ss, originalPrompt, requirement);
     }
     return parts.join("\n\n");
   }
@@ -262,7 +264,94 @@ function buildLocalMutationEmptyFallbackText(ss) {
     "Please retry; Lynn should use these concrete paths:",
     aliases.map((line) => `- ${line}`).join("\n"),
   ];
+  if (requirement.requiresDelete) {
+    parts.push("If you want to confirm the deletion, reply \"confirm delete\" and Lynn will list the matching files and trigger the safety confirmation before any rm runs.");
+    rememberPendingDeleteConfirmation(ss, originalPrompt, requirement);
+  }
   return parts.join("\n\n");
+}
+
+const PENDING_MUTATION_CONFIRMATION_TTL_MS = 10 * 60 * 1000;
+
+const MUTATION_CONFIRMATION_PATTERN = /^\s*(?:确认删除|确认执行|确认|执行删除|继续执行|继续|执行|是的|是|对|好的|好|可以|ok|okay|yes|y|confirm(?:\s+delete)?|do\s+it|go\s+ahead|proceed)\s*[。.!！,，]?\s*$/i;
+
+function rememberPendingDeleteConfirmation(ss, originalPrompt, requirement) {
+  if (!ss || !originalPrompt || !requirement?.requiresDelete) return;
+  ss.pendingMutationContext = {
+    originalPrompt: String(originalPrompt).slice(0, 4000),
+    requirement,
+    recordedAt: Date.now(),
+  };
+}
+
+export function recordPendingDeleteRequest(ss, originalPrompt) {
+  if (!ss || !originalPrompt) return false;
+  const requirement = classifyRequestedLocalMutation(originalPrompt);
+  if (!requirement?.requiresDelete) return false;
+  rememberPendingDeleteConfirmation(ss, originalPrompt, requirement);
+  return true;
+}
+
+export function clearPendingMutationOnSuccessfulDelete(ss, command) {
+  if (!ss || !ss.pendingMutationContext) return false;
+  if (!commandLooksLikeDelete(command)) return false;
+  ss.pendingMutationContext = null;
+  return true;
+}
+
+export function buildPostRehydrateEscalationPrompt(originalPrompt) {
+  const isZh = getLocale().startsWith("zh");
+  const prompt = String(originalPrompt || "").trim().slice(0, 1200);
+  const aliasLines = buildKnownFolderAliasLines();
+  if (isZh) {
+    return [
+      "[严重升级] 用户已经明确确认要执行这个本地文件变更任务，但你上一轮再次没有真的调用 bash 工具去做事（只输出了说明、空答、或 placeholder 命令）。",
+      "本轮你只能做一件事：调用 bash 工具，发送一个真实可执行的 shell 命令；不要再输出任何前置说明、思考、伪工具文本。",
+      "如果是删除任务：必须用真实 rm/trash/find -delete 命令，路径要解析成绝对路径。",
+      "如果是移动/复制：必须用真实 mv/cp 命令。",
+      "禁止：① 输出 \"command\" / \"placeholder\" 之类占位字符串作为命令；② 写 <bash>/<web_search> 等伪工具文本；③ 只说 \"明白\"/\"好的\"/\"直接执行\" 等嘴炮；④ 重复列文件而不动。",
+      "",
+      "【常用目录别名】",
+      ...aliasLines.map((line) => `- ${line}`),
+      "",
+      "【用户原始问题(已二次确认要执行)】",
+      prompt,
+    ].join("\n");
+  }
+  return [
+    "[CRITICAL ESCALATION] The user has explicitly confirmed this local file mutation, but the previous turn still failed to actually invoke the bash tool (you only emitted narration, an empty turn, or a placeholder command).",
+    "This turn must do exactly one thing: call the bash tool with a real, runnable shell command. Do not emit any narration, thinking, or pseudo-tool markup.",
+    "Delete tasks: use a real rm / trash / find -delete command; resolve paths to absolute.",
+    "Move / copy tasks: use a real mv / cp command.",
+    "Forbidden: (1) emitting \"command\" / \"placeholder\" as the command argument; (2) writing <bash>/<web_search> pseudo-tool text; (3) only saying \"got it\" / \"understood\" / \"executing now\" without a real tool call; (4) re-listing files without acting.",
+    "",
+    "Known directory aliases:",
+    ...aliasLines.map((line) => `- ${line}`),
+    "",
+    "Original user request (already confirmed twice for execution):",
+    prompt,
+  ].join("\n");
+}
+
+export function consumeMutationConfirmation(ss, userInput, { now = Date.now() } = {}) {
+  if (!ss || !ss.pendingMutationContext) return null;
+  const ctx = ss.pendingMutationContext;
+  const recordedAt = Number(ctx?.recordedAt) || 0;
+  if (!recordedAt || now - recordedAt > PENDING_MUTATION_CONFIRMATION_TTL_MS) {
+    ss.pendingMutationContext = null;
+    return null;
+  }
+  const text = String(userInput || "").trim();
+  if (!text || !MUTATION_CONFIRMATION_PATTERN.test(text)) return null;
+  ss.pendingMutationContext = null;
+  const originalPrompt = String(ctx.originalPrompt || "").slice(0, 4000);
+  if (!originalPrompt) return null;
+  const retryPrompt = buildLocalMutationContinuationRetryPrompt(originalPrompt, "", []);
+  return {
+    originalPrompt,
+    requirement: ctx.requirement || null,
+    retryPrompt,
+  };
 }
 
 export function buildEmptyReplyFallbackText(ss) {
@@ -289,7 +378,7 @@ export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
     ? [
         "[系统提示] 这是空回复后的补救回答，不是新的计划阶段。",
         "本轮必须产出用户可见的最终答案。不要调用工具；不要输出 REFLECT / MOOD / PULSE / Premise / Conduct / Reflection / Act；不要只说“我来查一下”“让我看看”“稍等”后结束。",
-        `任务类型：${routeIntent || "chat"}`,
+        "不要把任何系统/路由元数据当成回答的一部分输出（包括但不限于“任务类型”“类型”“Route”“Kind”这类标签）。",
         "如果用户问“你知道 X 吗 / X 是什么 / 介绍一下 X”，先用 2-5 句话直接说明 X 是什么、主要用途、你当前能确认的来源方向；需要最新资料时，把“仍需联网核验”的部分单独标明，但不能空答。",
         "如果原任务依赖实时/工具资料但本轮没有可用工具结果：基于已有上下文给出最小可用答案，并明确哪些点未核验；不要把未核验数据说成事实，也不要显示通用兜底话术。",
         "如果用户要求长文/研究/创作，请直接展开完整正文；如果信息不足，也要先给出可用的最小答案和缺口。",
@@ -299,13 +388,21 @@ export function buildEmptyReplyRetryPrompt(originalPromptText, routeIntent) {
     : [
         "[System] This is a recovery answer after an empty model turn, not a new planning phase.",
         "You must produce a user-visible final answer now. Do not call tools; do not output REFLECT / MOOD / PULSE / Premise / Conduct / Reflection / Act; do not only say that you will check or look something up.",
-        `Route: ${routeIntent || "chat"}`,
+        "Do not echo any system or routing metadata as part of your answer (including but not limited to labels like \"Route\", \"Kind\", \"任务类型\", \"类型\").",
         "If the user asks whether you know X, what X is, or asks for an introduction to X, first explain what X is, what it is used for, and what sources would verify it in 2-5 sentences. Mark anything that still needs live verification, but do not answer with an empty fallback.",
         "If the task depends on live/tool data and no tool result is available, provide the best minimal answer from context, clearly label unverified parts, and never present unverified data as fact.",
         "If the user asked for long-form analysis or writing, produce the full answer now. If information is missing, provide the best minimal answer and state the gap.",
         "Original user request:",
         userPrompt,
       ].filter(Boolean).join("\n");
+}
+
+const ROUTE_METADATA_LEAK_RE = /(?:^|\n|\s)(?:任务类型|类型|Route|Kind)\s*[：:]\s*(?:chat|utility|utility_large|vision|writing|coding|search|research|tool|empty_reply|pseudo_tool_after_retry|generic|default)\b[\s\S]{0,40}?(?=\n|$)/gi;
+
+export function stripRouteMetadataLeaks(text) {
+  const value = String(text || "");
+  if (!value) return value;
+  return value.replace(ROUTE_METADATA_LEAK_RE, "").replace(/\n{3,}/g, "\n\n");
 }
 
 export function buildShortLeadInRetryPrompt(originalPromptText, partialText) {

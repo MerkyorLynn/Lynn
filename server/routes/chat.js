@@ -62,8 +62,14 @@ import {
 } from "../chat/tool-use-behavior.js";
 import {
   buildLocalToolSuccessFallback,
+  buildPostRehydrateEscalationPrompt,
   classifyRequestedLocalMutation,
+  clearPendingMutationOnSuccessfulDelete,
+  commandLooksLikeDelete,
+  consumeMutationConfirmation,
+  recordPendingDeleteRequest,
   shouldRetryUnverifiedLocalMutation,
+  stripRouteMetadataLeaks,
 } from "../chat/turn-retry-policy.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
@@ -134,7 +140,7 @@ function countPersistedAssistantVisibleTexts(session, sessionPath = "") {
 function extractLatestAssistantVisibleTextAfter(session, sessionPath = "", baselineCount = 0) {
   const texts = readPersistedAssistantVisibleTexts(session, sessionPath);
   if (texts.length <= Math.max(0, baselineCount || 0)) return "";
-  return texts[texts.length - 1] || "";
+  return stripRouteMetadataLeaks(texts[texts.length - 1] || "");
 }
 
 function extractLatestAssistantVisibleText(session, sessionPath = "") {
@@ -446,6 +452,9 @@ function rememberSuccessfulTool(ss, toolName, toolSummary, rawArgs) {
     outputPreview: typeof toolSummary?.outputPreview === "string" ? toolSummary.outputPreview : "",
   };
   ss.lastSuccessfulTools = [...(ss.lastSuccessfulTools || []), record].slice(-8);
+  if (toolName === "bash" && record.command) {
+    clearPendingMutationOnSuccessfulDelete(ss, record.command);
+  }
 }
 
 function rememberFailedTool(ss, toolName) {
@@ -709,8 +718,57 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return true;
   }
 
+  function hasSuccessfulDeleteFromHistory(ss) {
+    const tools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
+    return tools.some((tool) => tool?.name === "bash" && commandLooksLikeDelete(String(tool?.command || "")));
+  }
+
+  function maybePostRehydrateRecover(sessionPath, ss) {
+    if (!sessionPath || !ss || !ss.rehydratedThisTurn) return false;
+    if (hasSuccessfulDeleteFromHistory(ss)) return false;
+    const originalPrompt = ss.originalPromptText || ss.effectivePromptText || "";
+    if (!originalPrompt) return false;
+
+    if (!ss.postRehydrateEscalationAttempted) {
+      ss.postRehydrateEscalationAttempted = true;
+      const retryPrompt = buildPostRehydrateEscalationPrompt(originalPrompt);
+      // Finish the current stream so the internal retry can start a fresh one
+      // (scheduleInternalRetry's startRetry waits while ss.isStreaming is true).
+      clearTurnTimers(ss);
+      if (ss.isThinking) {
+        ss.isThinking = false;
+        emitStreamEvent(sessionPath, ss, { type: "thinking_end" });
+      }
+      finishSessionStream(ss);
+      const ok = doScheduleInternalRetry(sessionPath, "post_rehydrate_escalate", retryPrompt);
+      if (ok) {
+        debugLog()?.warn("ws", `[POST-REHYDRATE-ESCALATE v1] scheduled escalation retry · session=${sessionPath}`);
+        return true;
+      }
+      return false;
+    }
+
+    if (!ss.postRehydrateDeterministicAttempted) {
+      const session = engine.getSessionByPath(sessionPath);
+      const command = buildExplicitPromptMutationCommand(ss, session, engine);
+      if (!command) return false;
+      ss.postRehydrateDeterministicAttempted = true;
+      const ok = executeRecoveredBashCommand(sessionPath, ss, session, command, "post_rehydrate_deterministic");
+      if (ok) {
+        debugLog()?.warn("ws", `[POST-REHYDRATE-DETERMINISTIC v1] forced deterministic delete · cmd=${command.slice(0, 80)} · session=${sessionPath}`);
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
   function closeStreamWithVisibleFallback(sessionPath, ss, text, reason, opts = {}) {
     if (!sessionPath || !ss || ss._turnClosed || hasStreamEvent(ss, "turn_end")) return false;
+    if (!opts.skipPostRehydrateRecover && maybePostRehydrateRecover(sessionPath, ss)) {
+      debugLog()?.warn("ws", `[POST-REHYDRATE-INTERCEPT v1] deferred close · reason=${reason} · session=${sessionPath}`);
+      return true;
+    }
     ss._turnClosed = true;
     ss.internalRetryPending = false;
     ss.internalRetryInFlight = false;
@@ -2284,6 +2342,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.pseudoToolRecoveryHandled = false;
                 ss.pseudoToolCommandRecoveryAttempted = false;
                 ss.pseudoToolXmlBlock = null;
+                ss.rehydratedThisTurn = false;
+                ss.postRehydrateEscalationAttempted = false;
+                ss.postRehydrateDeterministicAttempted = false;
                 ss.hasOutput = false;
                 ss.hasToolCall = false;
                 ss.hasThinking = false;
@@ -2292,6 +2353,16 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                   engine.getSessionByPath(promptSessionPath),
                   promptSessionPath,
                 );
+                const rehydratedMutation = consumeMutationConfirmation(ss, promptText);
+                if (rehydratedMutation) {
+                  ss.originalPromptText = rehydratedMutation.originalPrompt;
+                  ss.routeIntent = classifyRouteIntent(rehydratedMutation.originalPrompt, { imagesCount: msg.images?.length || 0 });
+                  ss._rehydratedEffectivePrompt = rehydratedMutation.retryPrompt;
+                  ss.rehydratedThisTurn = true;
+                  debugLog()?.warn("ws", `[MUTATION-CONFIRM-REHYDRATE v1] rehydrated prior delete request · session=${promptSessionPath}`);
+                } else if (recordPendingDeleteRequest(ss, promptText)) {
+                  debugLog()?.log("ws", `[PENDING-DELETE-REQUEST v1] tracked delete request for confirmation rehydrate · session=${promptSessionPath}`);
+                }
                 const streamToken = beginSessionStream(ss);
                 ss.activeStreamToken = streamToken;
                 ss.streamSource = "user";
@@ -2324,8 +2395,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 const reportKind = initialToolUse.reportKind;
                 const budgetContext = initialToolUse.budgetContext || "";
                 let effectivePromptText = initialToolUse.effectivePromptText || promptText;
+                if (ss._rehydratedEffectivePrompt) {
+                  effectivePromptText = ss._rehydratedEffectivePrompt;
+                  ss._rehydratedEffectivePrompt = null;
+                }
                 let directResearchAnswer = "";
-                if (initialToolUse.behavior === TOOL_USE_BEHAVIOR.PREFETCH_THEN_RUN_OR_STOP) {
+                if (!rehydratedMutation && initialToolUse.behavior === TOOL_USE_BEHAVIOR.PREFETCH_THEN_RUN_OR_STOP) {
                   const toolName = initialToolUse.toolName;
                   ss.hasPrefetchToolCall = true;
                   emitStreamEvent(promptSessionPath, ss, { type: "tool_start", name: toolName, args: { query: promptText } });
