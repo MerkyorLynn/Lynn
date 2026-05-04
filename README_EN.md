@@ -45,6 +45,13 @@
 - ✅ Win Setup.exe size 204.5MB → 204.4MB (removed 132KB darwin-arm64.node); GitHub Release & Tencent mirror updated. `latest.yml` size/sha512 refreshed.
 - ✅ macOS dmgs are unaffected (still ship darwin-arm64 prebuild).
 
+**Hotpatch #4 (2026-05-04)** — Intel Mac startup ERR_DLOPEN_FAILED (better-sqlite3 ABI mismatch from cross-build)
+- ⚠️ **Scenario**: After Hotpatch #3 shipped, Intel Mac users hit immediate crash — `better_sqlite3.node was compiled against NODE_MODULE_VERSION 115. This version requires NODE_MODULE_VERSION 127` (ABI mismatch)
+- 🔧 **Root cause**: `scripts/build-server.mjs` cross-build (arm64 host → x64 target) used the host Node to run npm install. `prebuild-install` downloaded the better-sqlite3 prebuilt for the host's Node v20 (ABI 115) and dropped it into `dist-server/mac-x64/` — but that bundle ships its own Node v22 binary (ABI 127). At runtime, Node v22 dlopens an ABI-115 .node → instant crash. Apple Silicon was unaffected (host and target both v22). Hotpatch #1's sweep only checked `file` output (Mach-O arch), not the embedded NODE_MODULE_VERSION, so it slipped past.
+- ✅ **Fix**: cross-build env now explicitly sets `npm_config_target=22.16.0` + `npm_config_runtime=node` + `npm_config_disturl=https://nodejs.org/dist`, forcing prebuild-install to download the v22-ABI-127 prebuilt for the target.
+- ✅ **Verification**: actual dlopen + `new Database(':memory:')` instantiation test using each `dist-server/{platform}/node` binary — both mac arm64 and mac Intel now FULL OK. Windows Setup.exe shared the same root cause (arm64 cross-build → win32 x64) and was rebuilt the same way.
+- ✅ All three artifacts (Mac arm64 / Mac Intel / Win x64) rebuilt, re-signed, re-notarized, and re-mirrored.
+
 **Hotpatch #3 (2026-05-04)** — "Confirm delete" no-op old bug + brain lip-service defense + route metadata leak fix
 - ⚠️ **Scenario 1**: user typed "delete the zip files in Downloads" → brain returned empty → Lynn fallback promised "reply 'confirm delete' to trigger execution" → user replied "confirm delete" → **empty again** (the old bug — files were never actually deleted). Even after re-injecting context, brain (Qwen3.6-A3B) may still "say 'understood, executing now' without calling bash" or emit a placeholder `bash {"command": "command"}` literal.
 - ⚠️ **Scenario 2**: user sent a research-style long task ("research and analyse Chinese executive coaching circles — pricing, headcount, key features") → brain returned empty → Lynn's fallback ended with **"Kind: utility"** route-metadata leak (user-confirmed screenshot) — brain echoed the internal retry prompt's `任务类型: utility` line as user-visible text.

@@ -144,14 +144,22 @@ for (const key of Object.keys(nestedInstallEnv)) {
     delete nestedInstallEnv[key];
   }
 }
+// Target Node version (strip leading "v" — prebuild-install / node-gyp expect bare semver)
+const NODE_TARGET_SEMVER = NODE_VERSION.replace(/^v/, "");
 const targetEnv = {
   ...nestedInstallEnv,
   NODE_ENV: "production",
   PATH: `${hostNodeDir}${path.delimiter}${process.env.PATH}`,
-  // 跨平台构建时，告诉 prebuild-install 下载目标平台的预编译二进制
+  // 跨平台构建时，告诉 prebuild-install 下载目标平台 + 目标 Node 版本的预编译二进制。
+  // 不设 npm_config_target 会让 prebuild-install 默认拿 host Node 的 ABI (NODE_MODULE_VERSION)，
+  // 跨平台构建里就会出现 dist-server/{plat}/{arch}/node 是 v22.16.0 (ABI 127) 但
+  // better-sqlite3 prebuild 是 host 的 v20.x (ABI 115)，安装运行时 dlopen 立即 ERR_DLOPEN_FAILED 崩。
   ...(isCrossBuild ? {
     npm_config_platform: platform,
     npm_config_arch: arch,
+    npm_config_target: NODE_TARGET_SEMVER,
+    npm_config_runtime: "node",
+    npm_config_disturl: "https://nodejs.org/dist",
   } : {}),
 };
 function runWithTargetNode(cmd, opts = {}) {
