@@ -3,11 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   buildEmptyReplyFallbackText,
   buildEmptyReplyRetryPrompt,
+  buildPostRehydrateEscalationPrompt,
   buildShortLeadInRetryPrompt,
   buildLocalMutationContinuationRetryPrompt,
   buildSuccessfulToolNoTextFallback,
   buildTruncatedStructuredRetryPrompt,
+  clearPendingMutationOnSuccessfulDelete,
+  commandLooksLikeDelete,
+  consumeMutationConfirmation,
   looksLikeTruncatedStructuredAnswer,
+  recordPendingDeleteRequest,
+  stripRouteMetadataLeaks,
 } from "../server/chat/turn-retry-policy.js";
 
 describe("turn retry policy", () => {
@@ -128,5 +134,201 @@ describe("turn retry policy", () => {
 
     expect(fallback).toContain("图片没有被模型可靠识别到");
     expect(fallback).not.toContain("类型：");
+  });
+
+  it("records pendingMutationContext on the session when delete fallback fires", () => {
+    const ss = {
+      pseudoToolSteered: true,
+      originalPromptText: "请把下载文件夹的所有后缀 zip 的文件都删除",
+      effectivePromptText: "请把下载文件夹的所有后缀 zip 的文件都删除",
+    };
+
+    const fallback = buildEmptyReplyFallbackText(ss);
+
+    expect(fallback).toContain("确认删除");
+    expect(ss.pendingMutationContext).toBeTruthy();
+    expect(ss.pendingMutationContext.originalPrompt).toBe("请把下载文件夹的所有后缀 zip 的文件都删除");
+    expect(ss.pendingMutationContext.requirement?.requiresDelete).toBe(true);
+    expect(typeof ss.pendingMutationContext.recordedAt).toBe("number");
+  });
+
+  it("does not record pendingMutationContext for non-delete local mutations", () => {
+    const ss = {
+      pseudoToolSteered: true,
+      originalPromptText: "请把桌面的截图都移动到下载文件夹",
+      effectivePromptText: "请把桌面的截图都移动到下载文件夹",
+    };
+
+    buildEmptyReplyFallbackText(ss);
+
+    expect(ss.pendingMutationContext).toBeUndefined();
+  });
+
+  it("consumeMutationConfirmation returns retry prompt when user replies 确认删除", () => {
+    const ss = {
+      pendingMutationContext: {
+        originalPrompt: "请把下载文件夹的所有后缀 zip 的文件都删除",
+        requirement: { requiresDelete: true },
+        recordedAt: Date.now(),
+      },
+    };
+
+    const result = consumeMutationConfirmation(ss, "确认删除");
+
+    expect(result).toBeTruthy();
+    expect(result.originalPrompt).toBe("请把下载文件夹的所有后缀 zip 的文件都删除");
+    expect(result.retryPrompt).toContain("严格执行要求");
+    expect(result.retryPrompt).toContain("下载文件夹 / Downloads");
+    expect(result.retryPrompt).toContain("删除任务安全要求");
+    expect(result.retryPrompt).toContain("请把下载文件夹的所有后缀 zip 的文件都删除");
+    expect(ss.pendingMutationContext).toBeNull();
+  });
+
+  it("consumeMutationConfirmation accepts common confirmation phrases", () => {
+    for (const phrase of ["确认", "确认删除", "确认执行", "是", "好的", "可以", "yes", "y", "Confirm Delete", "go ahead", "proceed"]) {
+      const ss = {
+        pendingMutationContext: {
+          originalPrompt: "删除下载里的 zip",
+          requirement: { requiresDelete: true },
+          recordedAt: Date.now(),
+        },
+      };
+      const result = consumeMutationConfirmation(ss, phrase);
+      expect(result, `phrase="${phrase}"`).toBeTruthy();
+      expect(result.originalPrompt).toBe("删除下载里的 zip");
+    }
+  });
+
+  it("consumeMutationConfirmation rejects unrelated user input and keeps context", () => {
+    const ss = {
+      pendingMutationContext: {
+        originalPrompt: "删除下载里的 zip",
+        requirement: { requiresDelete: true },
+        recordedAt: Date.now(),
+      },
+    };
+
+    expect(consumeMutationConfirmation(ss, "再想想")).toBeNull();
+    expect(consumeMutationConfirmation(ss, "我先看看文件列表")).toBeNull();
+    expect(consumeMutationConfirmation(ss, "")).toBeNull();
+    expect(ss.pendingMutationContext).toBeTruthy();
+  });
+
+  it("consumeMutationConfirmation returns null and clears expired context", () => {
+    const ss = {
+      pendingMutationContext: {
+        originalPrompt: "删除下载里的 zip",
+        requirement: { requiresDelete: true },
+        recordedAt: Date.now() - 30 * 60 * 1000,
+      },
+    };
+
+    const result = consumeMutationConfirmation(ss, "确认删除");
+
+    expect(result).toBeNull();
+    expect(ss.pendingMutationContext).toBeNull();
+  });
+
+  it("consumeMutationConfirmation no-ops without pendingMutationContext", () => {
+    expect(consumeMutationConfirmation({}, "确认删除")).toBeNull();
+    expect(consumeMutationConfirmation(null, "确认删除")).toBeNull();
+  });
+
+  it("recordPendingDeleteRequest stores context for delete prompts", () => {
+    const ss = {};
+    expect(recordPendingDeleteRequest(ss, "请把下载文件夹的所有 zip 文件删除")).toBe(true);
+    expect(ss.pendingMutationContext?.requirement?.requiresDelete).toBe(true);
+    expect(ss.pendingMutationContext?.originalPrompt).toBe("请把下载文件夹的所有 zip 文件删除");
+  });
+
+  it("recordPendingDeleteRequest skips non-delete prompts", () => {
+    const ss = {};
+    expect(recordPendingDeleteRequest(ss, "把桌面截图移动到下载文件夹")).toBe(false);
+    expect(ss.pendingMutationContext).toBeUndefined();
+    expect(recordPendingDeleteRequest(ss, "你好")).toBe(false);
+    expect(ss.pendingMutationContext).toBeUndefined();
+  });
+
+  it("clearPendingMutationOnSuccessfulDelete clears context for rm/trash commands", () => {
+    const baseCtx = () => ({
+      pendingMutationContext: {
+        originalPrompt: "删除下载里的 zip",
+        requirement: { requiresDelete: true },
+        recordedAt: Date.now(),
+      },
+    });
+    for (const command of [
+      "rm -f /tmp/foo.zip",
+      "rm -rf /tmp/lynn-bug-test/*.zip",
+      "trash ~/Downloads/old.zip",
+      "find ~/Downloads -name '*.zip' -delete",
+    ]) {
+      const ss = baseCtx();
+      expect(clearPendingMutationOnSuccessfulDelete(ss, command), `command="${command}"`).toBe(true);
+      expect(ss.pendingMutationContext).toBeNull();
+    }
+  });
+
+  it("clearPendingMutationOnSuccessfulDelete leaves non-delete commands alone", () => {
+    const ss = {
+      pendingMutationContext: {
+        originalPrompt: "删除下载里的 zip",
+        requirement: { requiresDelete: true },
+        recordedAt: Date.now(),
+      },
+    };
+    for (const command of ["ls -la", "find ~/Downloads -name '*.zip'", "echo hello", "cat foo.txt"]) {
+      expect(clearPendingMutationOnSuccessfulDelete(ss, command), `command="${command}"`).toBe(false);
+    }
+    expect(ss.pendingMutationContext).toBeTruthy();
+  });
+
+  it("buildPostRehydrateEscalationPrompt forces a real bash tool call, no narration", () => {
+    const prompt = buildPostRehydrateEscalationPrompt("请把下载文件夹的 zip 都删除");
+
+    expect(prompt).toContain("严重升级");
+    expect(prompt).toContain("调用 bash 工具");
+    expect(prompt).toContain("不要再输出任何前置说明");
+    expect(prompt).toContain("禁止");
+    expect(prompt).toContain("placeholder");
+    expect(prompt).toContain("嘴炮");
+    expect(prompt).toContain("下载文件夹 / Downloads");
+    expect(prompt).toContain("请把下载文件夹的 zip 都删除");
+  });
+
+  it("commandLooksLikeDelete recognises rm / trash / find -delete forms", () => {
+    expect(commandLooksLikeDelete("rm -rf /tmp/x")).toBe(true);
+    expect(commandLooksLikeDelete("trash ~/Downloads/old.zip")).toBe(true);
+    expect(commandLooksLikeDelete("find . -name '*.tmp' -delete")).toBe(true);
+    expect(commandLooksLikeDelete("find /tmp -type f -iname '*.zip' -delete")).toBe(true);
+    expect(commandLooksLikeDelete("ls -la")).toBe(false);
+    expect(commandLooksLikeDelete("find /tmp -name '*.zip'")).toBe(false);
+    expect(commandLooksLikeDelete("")).toBe(false);
+  });
+
+  it("buildEmptyReplyRetryPrompt does not embed route intent metadata that brain can echo", () => {
+    for (const route of ["chat", "utility", "utility_large", "vision", "writing", "research"]) {
+      const prompt = buildEmptyReplyRetryPrompt("帮我整理中国各个私董会的价格、人数、特点", route);
+      expect(prompt, `route=${route}`).not.toMatch(/任务类型\s*[:：]\s*(?:chat|utility|utility_large|vision|writing|research)/);
+      expect(prompt, `route=${route}`).not.toMatch(/Route\s*[:：]\s*(?:chat|utility|utility_large|vision|writing|research)/);
+    }
+  });
+
+  it("stripRouteMetadataLeaks scrubs echoed Chinese/English route labels", () => {
+    const cases = [
+      ["这是回答正文。\n类型: utility", "这是回答正文。"],
+      ["回答完毕。\n任务类型：utility_large\n", "回答完毕。\n"],
+      ["Some answer.\nRoute: research\n", "Some answer.\n"],
+      ["Answer.\nKind: vision", "Answer."],
+    ];
+    for (const [input, expected] of cases) {
+      expect(stripRouteMetadataLeaks(input).trim()).toBe(expected.trim());
+    }
+  });
+
+  it("stripRouteMetadataLeaks leaves benign content untouched", () => {
+    expect(stripRouteMetadataLeaks("这是一篇关于私董会的分析。")).toBe("这是一篇关于私董会的分析。");
+    expect(stripRouteMetadataLeaks("订单类型: 加急")).toBe("订单类型: 加急"); // not a route metadata leak
+    expect(stripRouteMetadataLeaks("")).toBe("");
   });
 });
