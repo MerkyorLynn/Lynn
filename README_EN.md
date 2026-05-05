@@ -368,7 +368,19 @@ Interface available in 5 languages: Chinese, English, Japanese, Korean, and Trad
 
 Lynn doesn't just slap an OpenAI-compatible wrapper and call it a day. From 9B small models to GLM-5 reasoning models, every tier has purpose-built adaptations:
 
-**Free built-in models (Brain)** — Quick Start ships with a domestic built-in model pool, and the default route includes GLM-Z1-9B (Zhipu reasoning, 9B), GLM-4-9B, Qwen3-8B, and Step-3.5-Flash. No API key needed — device authentication only.
+**Free built-in models (Brain v2)** — Quick Start ships with a built-in model pool. v0.77.7+ routes through brain v2 with seven-tier auto-fallback:
+
+```
+T1  ⭐ Xiaomi MiMo v2.5-pro (default head; enable_search built-in web search + thinking)
+T2  GPU Qwen3.6-35B-A3B FP8 (128K window; self-hosted SGLang+MTP on DGX Spark)
+T3  GPU Qwen3.6-27B IQ4_XS (128K window; 5090 llama.cpp fallback)
+T4  DeepSeek V4-flash / V4-pro (cloud, long context)
+T5  Zhipu GLM-5-Turbo / GLM-5.1 (coding plan)
+T6  Kimi K2.6 (api.kimi.com coding plan, 256K window)
+T7  Step-3.5 Flash / MiniMax M2.7-highspeed (last-resort)
+```
+
+No API key needed — device authentication only. MiMo upstream supports `thinking:{type:"disabled"}` fast-mode (simple chat TTF -51%). Some tiers go through DGX Spark / 5090 GPUs which require physical access; cloud tiers (T1, T4-T7) always available.
 
 **Three-tier tool layering** — Tools are automatically pruned based on context window:
 - Small models (<32K, e.g. ERNIE 8K, Moonshot 8K, Step 8K): only `web_search` + `web_fetch`, preventing tool descriptions from blowing out the context
