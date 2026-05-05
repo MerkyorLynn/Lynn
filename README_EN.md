@@ -20,7 +20,28 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.5</strong> · 2026-05-02 · stoppable speech + WeChat bridge stability + voice latency <em>(latest)</em></summary>
+<summary><strong>v0.77.6</strong> · 2026-05-05 · Brain v2 backend rewrite (transparent to users) <em>(latest)</em></summary>
+
+**Backend rewrite — invisible to users**:
+- 🧠 **Brain v2 deployed**: 11k-line v1 monolith replaced by 5-module v2 (< 2000 LoC production), OpenAI-compatible, full Lynn client protocol preserved.
+- 🚀 **MiMo `enable_search:true` as primary**: simple chat 2-5s, tool calls 5-10s, multi-turn web_search 7-10s.
+- 🛠️ **16 server tools fully ported**: web_search / web_fetch / weather / exchange_rate / express_tracking / sports_score / calendar / unit_convert / create_artifact / create_pdf / stock_market / live_news / stock_research / create_report / create_pptx / parallel_research — all e2e verified.
+- 🔧 **Fixed a v1 hidden bug along the way**: `create_pptx` was actually erroring in v1 due to deprecated pptxgenjs 4.0.1 fill API, v2 uses modern `{color}`.
+- 🎯 **Zero client changes for fallback paths**: `<lynn_tool_progress>` markers + reasoning_content stream + tool_calls SSE fields are byte-identical to v1.
+- 🔐 **HMAC sign verify reuses v1 device store**: legacy clients unaffected, new clients use new endpoint.
+- 📊 **Monitoring online**: pulse every 5min (/health + ping chat) + smoke every 2h (4 core scenarios), Feishu alerts on failure.
+- 🔄 **Natural rollout**: v0.77.6 routes to brain v2 (`/api/v2/`), v0.77.5 and earlier keep v1 (`/api/`), dual-stack for 30 days then v1 sunset.
+
+**Quality gate** (all green):
+- 90 vitest unit tests + 16 e2e smoke scenarios
+- Server-side TypeScript / Lint / Build all pass
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.6)
+
+</details>
+
+<details>
+<summary><strong>v0.77.5</strong> · 2026-05-02 · stoppable speech + WeChat bridge stability + voice latency</summary>
 
 **Speech & voice**:
 - 🛑 **Speech can be stopped anytime**: the chat "Read aloud" button is now a toggle — press again during a long playback to stop instantly. Switching messages or unmounting also stops audio.

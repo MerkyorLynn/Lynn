@@ -84,7 +84,7 @@ describe("config memory routes", () => {
 
     app.route("/api", createConfigRoute(engine));
 
-    const res = await app.request("/api/memories/timeline?days=30");
+    const res = await app.request("/api/memories/timeline?days=400");
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.timeline).toHaveLength(2);
