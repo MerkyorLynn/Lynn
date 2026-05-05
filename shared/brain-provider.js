@@ -39,9 +39,10 @@ const _brainHost = resolveProcessEnvValue("BRAIN_API_HOST");
 const _brainLegacyApiRootUrl = resolveProcessEnvValue("BRAIN_LEGACY_API_ROOT_URL");
 const _brainLegacyHost = resolveProcessEnvValue("BRAIN_LEGACY_HOST");
 
+// v0.77.6 起默认走 brain v2 (/api/v2/),旧客户端继续走 /api/(brain v1)→ 自然灰度
 export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
-  normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api",
+  normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api/v2",
 );
 
 // 容灾 API Root（当主地址不可达时使用）

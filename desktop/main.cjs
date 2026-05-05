@@ -439,13 +439,18 @@ function writeUserPreferences(nextPrefs) {
   fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
 }
 
-const CANONICAL_BRAIN_API_ROOT = "https://api.merkyorlynn.com/api";
+// v0.77.6: brain v2 路径,旧 /api 弃用(brain v1 仍然在线但不是默认)
+const CANONICAL_BRAIN_API_ROOT = "https://api.merkyorlynn.com/api/v2";
 const CANONICAL_BRAIN_PROVIDER_BASE_URL = `${CANONICAL_BRAIN_API_ROOT}/v1`;
 const DEPRECATED_BRAIN_API_ROOTS = new Set([
   "http://82.156.182.240/api",
+  "https://api.merkyorlynn.com/api",  // brain v1 (留作 30 天 fallback,不再默认)
+  "http://82.156.182.240/api/v2",
 ]);
 const DEPRECATED_BRAIN_PROVIDER_BASE_URLS = new Set([
   "http://82.156.182.240/api/v1",
+  "https://api.merkyorlynn.com/api/v1",  // brain v1 旧 base
+  "http://82.156.182.240/api/v2/v1",
 ]);
 
 function normalizeBrainUrl(value) {
