@@ -276,7 +276,11 @@ function buildLocalMutationEmptyFallbackText(ss) {
 
 const PENDING_MUTATION_CONFIRMATION_TTL_MS = 10 * 60 * 1000;
 
-const MUTATION_CONFIRMATION_PATTERN = /^\s*(?:确认删除|确认执行|确认|执行删除|继续执行|继续|执行|是的|是|对|好的|好|可以|ok|okay|yes|y|confirm(?:\s+delete)?|do\s+it|go\s+ahead|proceed)\s*[。.!！,，]?\s*$/i;
+// [v0.77.8 P1 (2026-05-05)] 收紧 pattern — 删除中文模糊词(好的/好/是/对/可以/确认/继续/执行/是的)。
+// 真危险场景:用户回复"好的"含义是"知道了" 而非"确认执行",原宽 pattern 会误触发自动重发原 prompt + forced bash 命令。
+// 保留兜底:confirmation card 仍是最后审核,但减少误触发减少用户惊讶。
+// 保留英文标准 confirmation 词(yes/y/ok/okay/proceed/do it/go ahead/confirm)— 英文场景这些是真 confirm 语义,且词义边界清晰。
+const MUTATION_CONFIRMATION_PATTERN = /^\s*(?:确认删除|确认执行|执行删除|继续执行|确认[\s,，]*(?:执行|删除)|confirm(?:\s+delete)?|yes|y|ok|okay|do\s+it|go\s+ahead|proceed)\s*[。.!！,，]?\s*$/i;
 
 function rememberPendingDeleteConfirmation(ss, originalPrompt, requirement) {
   if (!ss || !originalPrompt || !requirement?.requiresDelete) return;

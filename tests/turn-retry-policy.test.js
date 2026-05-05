@@ -184,8 +184,9 @@ describe("turn retry policy", () => {
     expect(ss.pendingMutationContext).toBeNull();
   });
 
-  it("consumeMutationConfirmation accepts common confirmation phrases", () => {
-    for (const phrase of ["确认", "确认删除", "确认执行", "是", "好的", "可以", "yes", "y", "Confirm Delete", "go ahead", "proceed"]) {
+  it("consumeMutationConfirmation accepts strong-semantic confirmation phrases", () => {
+    // [v0.77.8 P1] 仅强语义词触发 — 删除中文模糊词 (好的/可以/是 等),保留英文标准 confirm
+    for (const phrase of ["确认删除", "确认执行", "执行删除", "继续执行", "yes", "y", "Confirm Delete", "ok", "okay", "go ahead", "proceed", "do it"]) {
       const ss = {
         pendingMutationContext: {
           originalPrompt: "删除下载里的 zip",
@@ -196,6 +197,23 @@ describe("turn retry policy", () => {
       const result = consumeMutationConfirmation(ss, phrase);
       expect(result, `phrase="${phrase}"`).toBeTruthy();
       expect(result.originalPrompt).toBe("删除下载里的 zip");
+    }
+  });
+
+  it("consumeMutationConfirmation rejects ambiguous Chinese phrases (v0.77.8 P1)", () => {
+    // 真危险场景: 用户说"好的"含义是"知道了/收到"而非"确认执行删除",原宽 pattern 会误触发
+    for (const phrase of ["好的", "好", "是", "是的", "对", "可以", "确认", "继续", "执行", "好的。", "嗯"]) {
+      const ss = {
+        pendingMutationContext: {
+          originalPrompt: "删除下载里的 zip",
+          requirement: { requiresDelete: true },
+          recordedAt: Date.now(),
+        },
+      };
+      const result = consumeMutationConfirmation(ss, phrase);
+      expect(result, `ambiguous phrase="${phrase}" must NOT auto-confirm delete`).toBeNull();
+      // pendingContext 应保留(未消费),供后续真强语义确认或超时
+      expect(ss.pendingMutationContext).toBeTruthy();
     }
   });
 
