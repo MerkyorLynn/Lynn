@@ -20,7 +20,32 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.6</strong> · 2026-05-05 · Brain v2 backend rewrite (transparent to users) <em>(latest)</em></summary>
+<summary><strong>v0.77.7</strong> · 2026-05-05 · Performance optimizations + dangerous-command detection hardening <em>(latest)</em></summary>
+
+**Performance (brain v2 side, all users benefit immediately)**:
+- 🚀 **MiMo fast-mode passthrough**: Lynn ThinkingLevelButton 'off' → Pi SDK `reasoning_effort: off` → brain v2 translates to MiMo `thinking:{type:"disabled"}`. **Simple chat TTF-Content -51% (2.7s → 1.3s)**, first-byte latency nearly halved.
+- 🌐 **HTTP/2 enabled**: nginx `api.merkyorlynn.com` upgraded with ALPN h2; SSE over H/2 cuts head-of-line blocking, TTFB ~50-100ms improvement.
+- 🔌 **undici Pool keep-alive**: brain v2 upstream 16 connections + 30s keep-alive; **evening peak 3-concurrent -23%** (12.7s → 9.7s), resolves cold-connection stalls.
+- 📊 **e2e smoke before/after**: HMAC valid -41% / stock_market -54% / web_fetch -38% / exchange_rate -33% / calendar -33% / multi-scenario -23~54%.
+
+**Safety hardening (client)**:
+- 🛡️ **Dangerous-command detection regex fix**: `commandLooksLike{Delete,MoveOrCopy,Create,LocalMutation}` previously missed `/bin/rm`, `./rm`, `exec rm` etc. absolute-path forms — confirmation card high-risk markers were absent. Fix:
+  - leading set adds `/` (catches `/bin/rm` etc.)
+  - trailing lookahead enforces strict boundary (prevents `rmdir-nope` filename false positives)
+  - **51 new parameterized tests** (`tests/command-looks-like.test.js`) covering 17+11+10+4 positives + 6+3 negatives
+
+**Brain provider reasoning passthrough**:
+- 🧠 **`engine.js`** marks brain models default `reasoning: true` so Pi SDK's standard `reasoning_effort` field flows through to brain v2 (no extra client change needed).
+
+**Monitoring updates**:
+- 📊 Feishu health-check adds MiMo as primary + 4090→5090 rename + Kimi K2.6 (kimi-for-coding API) replaces K2.5 + brain v2 /api/v2 health probe.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.7)
+
+</details>
+
+<details>
+<summary><strong>v0.77.6</strong> · 2026-05-05 · Brain v2 backend rewrite (transparent to users)</summary>
 
 **Backend rewrite — invisible to users**:
 - 🧠 **Brain v2 deployed**: 11k-line v1 monolith replaced by 5-module v2 (< 2000 LoC production), OpenAI-compatible, full Lynn client protocol preserved.

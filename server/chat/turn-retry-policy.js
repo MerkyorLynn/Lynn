@@ -137,25 +137,28 @@ export function buildToolContinuationRetryPrompt(originalPrompt, visibleText) {
   return parts.join("\n\n");
 }
 
-function commandLooksLikeLocalMutation(command = "") {
+export function commandLooksLikeLocalMutation(command = "") {
   const text = String(command || "").trim();
   if (!text) return false;
-  return /(^|[;&|()\s])(?:mkdir|mv|cp|rsync|rm|rmdir|trash|touch|install\s+-d|ditto|osascript)\b/i.test(text)
+  // P0 (2026-05-05): leading set 加 `/`(识别 /bin/rm 等绝对路径),
+  // trailing 用 lookahead 要 boundary char(空白/EOL/分隔)代替 `\b`,
+  // 避免 `rmdir-nope` `cp-suffix` 等文件名误识别为命令
+  return /(^|[;&|()\s/])(?:mkdir|mv|cp|rsync|rm|rmdir|trash|touch|install\s+-d|ditto|osascript)(?=\s|$|[;&|()])/i.test(text)
     || /(?:>|>>)\s*(?:"[^"]+"|'[^']+'|[^\s;&|]+)/.test(text)
     || /\b(?:shutil\.(?:move|copy|copy2|copytree|rmtree)|os\.(?:rename|renames|replace|remove|unlink|makedirs|mkdir|rmdir)|Path\([^)]*\)\.mkdir|fs\.(?:rename|renameSync|copyFile|copyFileSync|mkdir|mkdirSync|rm|rmSync|unlink|unlinkSync|writeFile|writeFileSync))\b/.test(text);
 }
 
-function commandLooksLikeMoveOrCopy(command = "") {
+export function commandLooksLikeMoveOrCopy(command = "") {
   const text = String(command || "").trim();
   if (!text) return false;
-  return /(^|[;&|()\s])(?:mv|cp|rsync|ditto)\b/i.test(text)
+  return /(^|[;&|()\s/])(?:mv|cp|rsync|ditto)(?=\s|$|[;&|()])/i.test(text)
     || /\b(?:shutil\.(?:move|copy|copy2|copytree)|os\.(?:rename|renames|replace)|fs\.(?:rename|renameSync|copyFile|copyFileSync))\b/.test(text);
 }
 
-function commandLooksLikeCreate(command = "") {
+export function commandLooksLikeCreate(command = "") {
   const text = String(command || "").trim();
   if (!text) return false;
-  return /(^|[;&|()\s])(?:mkdir|touch|install\s+-d)\b/i.test(text)
+  return /(^|[;&|()\s/])(?:mkdir|touch|install\s+-d)(?=\s|$|[;&|()])/i.test(text)
     || /(?:>|>>)\s*(?:"[^"]+"|'[^']+'|[^\s;&|]+)/.test(text)
     || /\b(?:os\.(?:makedirs|mkdir)|Path\([^)]*\)\.mkdir|fs\.(?:mkdir|mkdirSync|writeFile|writeFileSync))\b/.test(text);
 }
@@ -163,7 +166,7 @@ function commandLooksLikeCreate(command = "") {
 export function commandLooksLikeDelete(command = "") {
   const text = String(command || "").trim();
   if (!text) return false;
-  return /(^|[;&|()\s])(?:rm|rmdir|trash)\b/i.test(text)
+  return /(^|[;&|()\s/])(?:rm|rmdir|trash)(?=\s|$|[;&|()])/i.test(text)
     || /\bfind\b[^|;&]*\s-delete\b/i.test(text)
     || /\b(?:shutil\.rmtree|os\.(?:remove|unlink|rmdir)|fs\.(?:rm|rmSync|unlink|unlinkSync))\b/.test(text);
 }

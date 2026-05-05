@@ -37,8 +37,8 @@ describe("turn quality gate", () => {
     const snapshot = createTurnQualitySnapshot(ss, "");
     const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: false, sessionPath: "/sessions/bg.jsonl" });
 
-    expect(decision).toMatchObject({ type: "fallback" });
-    expect(decision.text).toContain("没有生成可见答案");
+    // [BRAIN ROLL 2026-05-05] evaluator 已 stub return null,brain 不替模型决策
+    expect(decision).toBeNull();
   });
 
   it("summarizes successful tools when the model produced no final answer", () => {
@@ -56,9 +56,8 @@ describe("turn quality gate", () => {
     const snapshot = createTurnQualitySnapshot(ss, "");
     const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: false, sessionPath: "/sessions/bg.jsonl" });
 
-    expect(decision).toMatchObject({ type: "fallback" });
-    expect(decision.text).toContain("已完成本轮本地操作");
-    expect(decision.text).toContain("mkdir -p 表格");
+    // [BRAIN ROLL 2026-05-05] evaluator 已 stub return null,brain 不替模型决策
+    expect(decision).toBeNull();
   });
 
   it("continues local mutation tasks before summarizing a partial mkdir as success", () => {
@@ -78,9 +77,8 @@ describe("turn quality gate", () => {
     const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: true, sessionPath: "/sessions/current.jsonl" });
 
     expect(snapshot.shouldRetryLocalMutationContinuation).toBe(true);
-    expect(decision).toMatchObject({ type: "retry", reason: "tool_continuation" });
-    expect(decision.prompt).toContain("不能宣称已经完成");
-    expect(decision.prompt).toContain("把我桌面的HTML移动到桌面Claude文件夹");
+    // [BRAIN ROLL 2026-05-05] evaluator 已 stub return null,brain 不替模型决策
+    expect(decision).toBeNull();
   });
 
   it("retries local mutation tasks that produced prose without any real tool call", () => {
@@ -101,8 +99,8 @@ describe("turn quality gate", () => {
     const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: true, sessionPath: "/sessions/current.jsonl", visibleTextBeforeReset: visible });
 
     expect(snapshot.shouldRetryLocalMutationWithoutTool).toBe(true);
-    expect(decision).toMatchObject({ type: "retry", reason: "local_mutation_no_tool" });
-    expect(decision.prompt).toContain("必须继续调用真实工具完成变更");
+    // [BRAIN ROLL 2026-05-05] evaluator 已 stub return null,brain 不替模型决策
+    expect(decision).toBeNull();
   });
 
   it("does not expose internal fallback kind labels in flow fallback", () => {
@@ -119,10 +117,8 @@ describe("turn quality gate", () => {
     const snapshot = createTurnQualitySnapshot(ss, "");
     const decision = evaluatePreTurnEndQuality(ss, snapshot, { isActive: false, sessionPath: "/sessions/bg.jsonl" });
 
-    expect(decision).toMatchObject({ type: "fallback" });
-    expect(decision.text).toContain("本轮工具已执行");
-    expect(decision.text).not.toContain("类型：");
-    expect(decision.text).not.toContain("thinking_only");
+    // [BRAIN ROLL 2026-05-05] evaluator 已 stub return null,brain 不替模型决策
+    expect(decision).toBeNull();
   });
 
   it("forces a failed-tool fallback when a stream is closed by a watchdog", () => {
@@ -140,6 +136,7 @@ describe("turn quality gate", () => {
     const snapshot = createTurnQualitySnapshot(ss, "");
     const decision = evaluateForcedTurnFallback(ss, snapshot, { sessionPath: "/sessions/bg.jsonl" });
 
+    // evaluateForcedTurnFallback 不在 brain v1 nuke 范围内(watchdog forced fallback 仍 active)
     expect(decision).toMatchObject({ type: "fallback" });
     expect(decision.text).toContain("工具调用失败");
     expect(decision.text).toContain("live_news");

@@ -27,7 +27,32 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.77.6</strong> · 2026-05-05 · Brain v2 重写上线(底层换装,体感无感) <em>(最新)</em></summary>
+<summary><strong>v0.77.7</strong> · 2026-05-05 · 性能优化 + 危险命令识别加固 <em>(最新)</em></summary>
+
+**性能优化(brain v2 端,所有用户立即受益)**:
+- 🚀 **MiMo 快速模式透传**:Lynn ThinkingLevelButton 'off' 档自动经 `reasoning_effort: off` → brain v2 翻译成 MiMo `thinking:{type:"disabled"}`,**简单 chat TTF-Content -51%(2.7s → 1.3s)**,首字延迟近半。
+- 🌐 **HTTP/2 上线**:nginx `api.merkyorlynn.com` 升级 ALPN h2,SSE over H/2 节省 head-of-line blocking,TTFB ~50-100ms 改善。
+- 🔌 **undici Pool keep-alive**:brain v2 上游 16 connections + 30s keep-alive,**晚高峰并发 3 -23%**(12.7s → 9.7s),解决冷连接卡顿。
+- 📊 **e2e smoke 实测对比**:HMAC valid -41% / stock_market -54% / web_fetch -38% / exchange_rate -33% / calendar -33% / 多场景 -23~54%。
+
+**安全加固(客户端)**:
+- 🛡️ **危险命令识别正则修**:`commandLooksLike{Delete,MoveOrCopy,Create,LocalMutation}` 之前漏识别 `/bin/rm`、`./rm`、`exec rm` 等绝对路径形式,confirmation card 高危标识缺失。修后:
+  - leading set 加 `/`(识别 `/bin/rm` 等绝对路径)
+  - trailing lookahead 严格 boundary(防 `rmdir-nope` 等文件名误识别)
+  - 新增 **51 个参数化测试**(`tests/command-looks-like.test.js`)覆盖 17+11+10+4 positives + 6+3 negatives
+
+**Brain provider reasoning 透传**:
+- 🧠 **`engine.js`** 给 brain models 默认 `reasoning: true`,让 Pi SDK `reasoning_effort` 字段经标准链路透传到 brain v2(无需客户端额外改动)。
+
+**巡检改造**:
+- 📊 飞书 health-check 加 MiMo 头位 + 5090 改名(原 4090)+ Kimi K2.6 (kimi-for-coding API) 替 K2.5 + brain v2 /api/v2 健康检测。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.7)
+
+</details>
+
+<details>
+<summary><strong>v0.77.6</strong> · 2026-05-05 · Brain v2 重写上线(底层换装,体感无感)</summary>
 
 **幕后大重构 — 用户视角无感**:
 - 🧠 **Brain v2 上线**:服务端 11000+ 行单文件 v1 整体替换为 5 模块拆分的 v2(< 2000 行生产代码),OpenAI 兼容 + Lynn 客户端协议完全保留。
