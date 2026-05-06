@@ -38,6 +38,8 @@ CHARTS_DIR = V9_DIR / "charts"
 CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+PROVIDER_EXCLUDED = {'Qwen3.6-Plus','Step-3.5-Flash','Gemini 2.5 Pro','Gemini 2.5 Flash'}
+
 def load_v9_data():
     """聚合 v9 results · 砍 sql 维度"""
     files = sorted(glob.glob(str(RESULTS_DIR / "v9_*.json")))
@@ -45,6 +47,7 @@ def load_v9_data():
     for f in files:
         d = json.load(open(f))
         pname = d.get("provider", "?")
+        if pname in PROVIDER_EXCLUDED: continue
         score_d = d.get("subset_score", {})
         total_d = d.get("subset_total", {})
         if not total_d:

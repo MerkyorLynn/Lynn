@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-05T16:51:54.412092",
+  "provider": "Qwen3.6-27B-NVFP4 (Spark)",
+  "model": "lynn-27b-nvfp4",
+  "runs": 1,
+  "subset_score": {},
+  "subset_total": {
+    "math": 1
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 240011,
+          "error": "TimeoutError: timed out",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-05-04T22:09:34.561067",
+  "provider": "DeepSeek V4-Pro",
+  "model": "deepseek-reasoner",
+  "runs": 1,
+  "subset_score": {
+    "finance": 1
+  },
+  "subset_total": {
+    "finance": 1
+  },
+  "results": [
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 5264,
+          "content_len": 132,
+          "reasoning_len": 507,
+          "raw_full": "我们被问到：\"Calculate Diluted EPS for the quarter, in RMB. Round to 2 decimal places.\" 给出数据：净收入归属于普通股股东：48,945 million RMB，稀释加权平均普通股股数：19,250 million shares。因此稀释每股收益 = 48,945 / 19,250 = ？计算：48,945 ÷ 19,250 = ？首先，48,945 / 19,250 = 2.542... 计算：19,250 * 2.54 = 19,250*2.5=48,125，加上19,250*0.04=770，总和48,895，剩余50，所以2.5426... 四舍五入到两位小数：2.54？实际上48,945/19,250 = 2.542597... 所以四舍五入到2.54。但检查：19,250 * 2.54 = 19,250*2.5=48,125，加上19,250*0.04=770，得到48,895，差50，所以0.0026更多。所以2.54。注意单位是百万，但每股收益是人民币，所以结果是2.54元。所以答案：\\boxed{2.54}。\n\n稀释每股收益的计算公式为：归属于普通股股东的净利润除以稀释后加权平均普通股股数。代入数据：48,945 million RMB ÷ 19,250 million shares = 2.542597...，四舍五入保留两位小数得2.54。\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

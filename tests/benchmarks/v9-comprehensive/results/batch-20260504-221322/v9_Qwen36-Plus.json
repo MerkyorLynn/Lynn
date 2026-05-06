@@ -1,0 +1,506 @@
+{
+  "timestamp": "2026-05-04T22:14:01.393635",
+  "provider": "Qwen3.6-Plus",
+  "model": "qwen3.6-plus",
+  "runs": 1,
+  "subset_score": {},
+  "subset_total": {
+    "math": 3,
+    "finance": 3,
+    "biology": 3,
+    "chemistry": 3,
+    "physics": 3,
+    "code_algo": 3,
+    "longctx": 3,
+    "medical": 3,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 325,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 305,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 5016,
+          "error": "URLError: <urlopen error [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1081)>",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 5027,
+          "error": "URLError: <urlopen error [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1081)>",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 361,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 301,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 300,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 5016,
+          "error": "URLError: <urlopen error [SSL: WRONG_VERSION_NUMBER] wrong version number (_ssl.c:1081)>",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 266,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 278,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 283,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 276,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 298,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 303,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 262,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 300,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 316,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 274,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 528,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 867,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 2637,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 272,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 275,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 316,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 296,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 284,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 302,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    }
+  ]
+}

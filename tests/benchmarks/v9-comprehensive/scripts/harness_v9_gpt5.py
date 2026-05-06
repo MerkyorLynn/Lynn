@@ -38,13 +38,28 @@ VERIFIER_DISPATCH = {
 }
 
 
-# ── Codex auth ──
-AUTH = json.load(open(os.path.expanduser("~/.lynn/auth.json")))
-TOKEN = AUTH["openai-codex"]["access"]
-ACCOUNT_ID = AUTH["openai-codex"].get("accountId", "")
+# ── Codex auth ──(优先读 ~/.codex/auth.json,codex CLI 自动 refresh,token 总是新鲜)
+def _load_codex_auth():
+    paths = [os.path.expanduser("~/.codex/auth.json"), os.path.expanduser("~/.lynn/auth.json")]
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        a = json.load(open(p))
+        # codex CLI 格式
+        if "tokens" in a and a["tokens"].get("access_token"):
+            return a["tokens"]["access_token"], a["tokens"].get("account_id", ""), p
+        # Lynn 格式
+        if "openai-codex" in a:
+            o = a["openai-codex"]
+            if o.get("access"):
+                return o["access"], o.get("accountId", ""), p
+    raise SystemExit("ERROR: no Codex OAuth token found in ~/.codex/auth.json or ~/.lynn/auth.json")
+
+TOKEN, ACCOUNT_ID, _AUTH_SRC = _load_codex_auth()
 if not ACCOUNT_ID:
     payload = json.loads(base64.urlsafe_b64decode(TOKEN.split(".")[1] + "==="))
     ACCOUNT_ID = payload.get("https://api.openai.com/auth", {}).get("chatgpt_account_id", "")
+print(f"[auth] loaded from {_AUTH_SRC}", file=sys.stderr)
 
 CODEX_EP = "https://chatgpt.com/backend-api/codex/responses"
 CODEX_HEADERS = {

@@ -75,13 +75,29 @@ def load_env():
 ENV = load_env()
 
 
-# ── 12 家 Provider 配置 ──
+# ── 12 家 Provider 配置(原 10 + MiMo 2.5 Pro + HY3 Hy3-Preview)──
 PROVIDERS = [
     {
         "name": "Qwen3.6-A3B (Spark)",
         "url": os.environ.get("SPARK_URL", "http://127.0.0.1:18002/v1/chat/completions"),
         "key": None,
         "model": os.environ.get("SPARK_MODEL", "Qwen3.6-35B-A3B-FP8"),
+        "max_tokens": 16384,
+        "extra": {"chat_template_kwargs": {"enable_thinking": True}, "enable_thinking": True},
+    },
+    {
+        "name": "Qwen3.6-35B-A3B (5090)",
+        "url": os.environ.get("FIVE090_URL", "http://127.0.0.1:18099/v1/chat/completions"),
+        "key": None,
+        "model": os.environ.get("FIVE090_MODEL", "qwen3.6-35b-a3b-fp8"),
+        "max_tokens": 16384,
+        "extra": {"chat_template_kwargs": {"enable_thinking": True}, "enable_thinking": True},
+    },
+    {
+        "name": "Qwen3.6-27B-NVFP4 (Spark)",
+        "url": os.environ.get("SPARK27_URL", "http://127.0.0.1:18198/v1/chat/completions"),
+        "key": None,
+        "model": "lynn-27b-nvfp4",
         "max_tokens": 16384,
         "extra": {"chat_template_kwargs": {"enable_thinking": True}, "enable_thinking": True},
     },
@@ -151,6 +167,21 @@ PROVIDERS = [
         "key": ENV.get("STEP_KEY"),
         "model": ENV.get("STEP_TEXT_MODEL", "step-3-5-flash"),
         "max_tokens": 8192,
+    },
+    {
+        "name": "MiMo 2.5 Pro",
+        "url": (os.environ.get("MIMO_BASE") or ENV.get("MIMO_BASE") or "https://api.xiaomimimo.com/v1") + "/chat/completions",
+        "key": os.environ.get("MIMO_KEY") or ENV.get("MIMO_KEY"),
+        "model": os.environ.get("MIMO_MODEL") or ENV.get("MIMO_MODEL") or "mimo-v2.5-pro",
+        "max_tokens": 16384,
+    },
+    {
+        "name": "HY3 (Hy3-Preview)",
+        "url": (os.environ.get("OPENROUTER_BASE") or ENV.get("OPENROUTER_BASE") or "https://openrouter.ai/api/v1") + "/chat/completions",
+        "key": os.environ.get("OPENROUTER_KEY") or ENV.get("OPENROUTER_KEY"),
+        "model": os.environ.get("OPENROUTER_HY3_MODEL") or ENV.get("OPENROUTER_HY3_MODEL") or "tencent/hy3-preview:free",
+        "max_tokens": 16384,
+        "headers_extra": {"HTTP-Referer": "https://github.com/MerkyorLynn/Lynn", "X-Title": "Lynn V9 Benchmark"},
     },
 ]
 

@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-05-04T22:09:36.906091",
+  "provider": "DeepSeek V4-Flash",
+  "model": "deepseek-chat",
+  "runs": 1,
+  "subset_score": {
+    "finance": 1
+  },
+  "subset_total": {
+    "finance": 1
+  },
+  "results": [
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 1613,
+          "content_len": 160,
+          "reasoning_len": 0,
+          "raw_full": "Diluted EPS = Net income / Diluted shares  \n= 48,945 million RMB / 19,250 million shares  \n= 2.542... RMB  \n\nRounded to two decimal places: 2.54  \n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,623 @@
+{
+  "timestamp": "2026-05-04T23:56:09.947748",
+  "provider": "GPT-5.4",
+  "model": "gpt-5.4",
+  "runs": 1,
+  "subset_score": {
+    "math": 3,
+    "finance": 3,
+    "biology": 2,
+    "chemistry": 3,
+    "physics": 2,
+    "code_algo": 3,
+    "longctx": 2,
+    "medical": 3
+  },
+  "subset_total": {
+    "math": 3,
+    "finance": 3,
+    "biology": 3,
+    "chemistry": 3,
+    "physics": 3,
+    "code_algo": 3,
+    "longctx": 3,
+    "medical": 3,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "510",
+          "gold_ans": "510",
+          "ms": 71917,
+          "content_len": 3117,
+          "reasoning_len": 0,
+          "raw_full": "Let\n\\[\nx+y+z=75.\n\\]\nWe want the points in this plane satisfying\n\\[\nx-yz<y-zx<z-xy.\n\\]\n\nWe will rewrite the inequalities in a much cleaner form.\n\n## 1. Rewrite the inequalities\n\nSet\n\\[\nX=x+1,\\qquad Y=y+1,\\qquad Z=z+1.\n\\]\nThen\n\\[\nX+Y+Z=(x+y+z)+3=78.\n\\]\n\nAlso,\n\\[\nx-y=(X-1)-(Y-1)=X-Y,\n\\]\nand similarly for the others.\n\nNow compute the first inequality:\n\\[\nx-yz<y-zx.\n\\]\nMove terms:\n\\[\nx-y<yz-zx=z(y-x)=-(x-y)z.\n\\]\nSo\n\\[\n(x-y)(1+z)<0.\n\\]\nIn terms of \\(X,Y,Z\\), this is\n\\[\n(X-Y)Z<0.\n\\]\n\nSimilarly,\n\\[\ny-zx<z-xy\n\\]\nbecomes\n\\[\n(y-z)(1+x)<0\n\\]\nwhich is\n\\[\n(Y-Z)X<0.\n\\]\n\nAnd since \\(x-yz<z-xy\\) also follows from the chain, we get\n\\[\n(x-z)(1+y)<0,\n\\]\ni.e.\n\\[\n(X-Z)Y<0.\n\\]\n\nSo the system is equivalent to\n\\[\n(X-Y)Z<0,\\qquad (Y-Z)X<0,\\qquad (X-Z)Y<0,\n\\]\nwith\n\\[\nX+Y+Z=78.\n\\]\n\n---\n\n## 2. Determine which sign patterns are possible\n\nBecause \\(X+Y+Z=78>0\\), not all of \\(X,Y,Z\\) can be negative.\n\nWe check sign cases.\n\n### Case 1: \\(X,Y,Z>0\\)\n\nThen the inequalities become\n\\[\nX-Y<0,\\qquad Y-Z<0,\\qquad X-Z<0,\n\\]\nso\n\\[\nX<Y<Z.\n\\]\nThis is a region inside\n\\[\nX>0,\\ Y>0,\\ Z>0,\\ X+Y+Z=78,\n\\]\nwhich is a bounded triangle in the plane.\n\nSo this gives one finite region.\n\n---\n\n### Case 2: exactly one of \\(X,Y,Z\\) is negative\n\nTry \\(X<0\\), \\(Y,Z>0\\). Then:\n- \\((Y-Z)X<0\\) with \\(X<0\\) gives \\(Y-Z>0\\), so \\(Y>Z\\).\n- \\((X-Z)Y<0\\) with \\(Y>0\\) gives \\(X-Z<0\\), so \\(X<Z\\).\n- \\((X-Y)Z<0\\) with \\(Z>0\\) gives \\(X-Y<0\\), so \\(X<Y\\).\n\nThus\n\\[\nX<Z<Y.\n\\]\nThis is possible, and because \\(X<0\\) only imposes a half-plane condition on the plane \\(X+Y+Z=78\\), this region is unbounded.\n\nTry instead \\(Y<0\\) or \\(Z<0\\) alone; those lead to contradictions. So only \\(X<0<Z<Y\\) works.\n\n---\n\n### Case 3: exactly two of \\(X,Y,Z\\) are negative\n\nTry \\(Y<0,\\ Z<0,\\ X>0\\). Then:\n- \\((Y-Z)X<0\\) with \\(X>0\\) gives \\(Y-Z<0\\), so \\(Y<Z\\).\n- \\((X-Z)Y<0\\) with \\(Y<0\\) gives \\(X-Z>0\\), so \\(X>Z\\).\n- \\((X-Y)Z<0\\) with \\(Z<0\\) gives \\(X-Y>0\\), so \\(X>Y\\).\n\nThus\n\\[\nY<Z<X.\n\\]\nThis is possible, and again it is unbounded.\n\nThe other choices for two negatives lead to contradictions.\n\n---\n\nTherefore the three regions are:\n\n1. \\(X,Y,Z>0\\) with \\(X<Y<Z\\) — bounded,\n2. \\(X<0<Z<Y\\) — unbounded,\n3. \\(Y<Z<0<X\\) — unbounded.\n\nSo the **unique finite region** is the one with\n\\[\nX>0,\\ Y>0,\\ Z>0,\\ X<Y<Z.\n\\]\n\nReturning to \\(x,y,z\\), this is\n\\[\nx>-1,\\ y>-1,\\ z>-1,\\ x<y<z.\n\\]\n\n---\n\n## 3. Find the area of the finite region\n\nThe set\n\\[\nx+y+z=75,\\qquad x>-1,\\ y>-1,\\ z>-1\n\\]\nis a triangle in the plane. Its vertices occur when two variables are \\(-1\\):\n\n\\[\nA=(-1,-1,77),\\quad B=(-1,77,-1),\\quad C=(77,-1,-1).\n\\]\n\nThis triangle is equilateral. For example,\n\\[\nAB=\\sqrt{(0)^2+(78)^2+(-78)^2}=78\\sqrt2.\n\\]\nSo its area is\n\\[\n\\frac{\\sqrt3}{4}(78\\sqrt2)^2\n=\\frac{\\sqrt3}{4}\\cdot 78^2\\cdot 2\n=\\frac{\\sqrt3}{2}\\cdot 6084\n=3042\\sqrt3.\n\\]\n\nInside this triangle, the lines\n\\[\nx=y,\\qquad y=z,\\qquad z=x\n\\]\ndivide it into \\(6\\) congruent regions, corresponding to the \\(6\\) possible orderings of \\(x,y,z\\). Our region is exactly one of these orderings, namely \\(x<y<z\\).\n\nHence its area is\n\\[\n\\frac{3042\\sqrt3}{6}=507\\sqrt3.\n\\]\n\nSo\n\\[\na=507,\\qquad b=3,\n\\]\nand\n\\[\na+b=510.\n\\]\n\n\\[\n\\boxed{510}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 28005,
+          "content_len": 1956,
+          "reasoning_len": 0,
+          "raw_full": "Let the six collinear points lie on a number line in the order\n\n\\[\nA,\\ B,\\ C,\\ D,\\ E,\\ F.\n\\]\n\nWe will first find the distances between consecutive points.\n\n## 1. Find the segment lengths on the line\n\nLet\n\n\\[\nAB=x_1,\\quad BC=x_2,\\quad CD=x_3,\\quad DE=x_4,\\quad EF=x_5.\n\\]\n\nThen the given information translates to:\n\n\\[\nAC=AB+BC=x_1+x_2=26\n\\]\n\\[\nBD=BC+CD=x_2+x_3=22\n\\]\n\\[\nCE=CD+DE=x_3+x_4=31\n\\]\n\\[\nDF=DE+EF=x_4+x_5=33\n\\]\n\\[\nAF=x_1+x_2+x_3+x_4+x_5=73\n\\]\n\nNow use these equations.\n\nFrom\n\\[\nAC+CE=(x_1+x_2)+(x_3+x_4)=26+31=57,\n\\]\nwe get\n\\[\nx_1+x_2+x_3+x_4=57.\n\\]\nSince\n\\[\nx_1+x_2+x_3+x_4+x_5=73,\n\\]\nit follows that\n\\[\nx_5=73-57=16.\n\\]\n\nThen from\n\\[\nx_4+x_5=33,\n\\]\nwe get\n\\[\nx_4=33-16=17.\n\\]\n\nFrom\n\\[\nx_3+x_4=31,\n\\]\nwe get\n\\[\nx_3=31-17=14.\n\\]\n\nFrom\n\\[\nx_2+x_3=22,\n\\]\nwe get\n\\[\nx_2=22-14=8.\n\\]\n\nFrom\n\\[\nx_1+x_2=26,\n\\]\nwe get\n\\[\nx_1=26-8=18.\n\\]\n\nSo the consecutive distances are\n\n\\[\nAB=18,\\quad BC=8,\\quad CD=14,\\quad DE=17,\\quad EF=16.\n\\]\n\nHence\n\n\\[\nBE=BC+CD+DE=8+14+17=39.\n\\]\n\n---\n\n## 2. Find the height of \\(G\\) above the line\n\nPlace the line on the \\(x\\)-axis with coordinates\n\n\\[\nA=(0,0).\n\\]\n\nThen\n\n\\[\nB=(18,0),\\quad C=(26,0),\\quad D=(40,0),\\quad E=(57,0).\n\\]\n\nLet\n\n\\[\nG=(x,h),\n\\]\n\nwhere \\(h\\) is the perpendicular distance from \\(G\\) to the line.\n\nWe are given:\n\n\\[\nCG=40,\\quad DG=30.\n\\]\n\nSo\n\n\\[\n(x-26)^2+h^2=40^2=1600\n\\]\nand\n\\[\n(x-40)^2+h^2=30^2=900.\n\\]\n\nSubtract the second equation from the first:\n\n\\[\n(x-26)^2-(x-40)^2=1600-900=700.\n\\]\n\nExpand:\n\n\\[\n(x^2-52x+676)-(x^2-80x+1600)=700\n\\]\n\n\\[\n28x-924=700\n\\]\n\n\\[\n28x=1624\n\\]\n\n\\[\nx=58.\n\\]\n\nNow substitute into\n\n\\[\n(x-40)^2+h^2=900:\n\\]\n\n\\[\n(58-40)^2+h^2=900\n\\]\n\n\\[\n18^2+h^2=900\n\\]\n\n\\[\n324+h^2=900\n\\]\n\n\\[\nh^2=576\n\\]\n\n\\[\nh=24.\n\\]\n\nSo the distance from \\(G\\) to the line containing \\(B\\) and \\(E\\) is \\(24\\).\n\n---\n\n## 3. Compute the area of \\(\\triangle BGE\\)\n\nUsing base \\(BE=39\\) and height \\(24\\),\n\n\\[\n[\\triangle BGE]=\\frac12 \\cdot 39 \\cdot 24.\n\\]\n\n\\[\n[\\triangle BGE]=\\frac12 \\cdot 936=468.\n\\]\n\n\\[\n\\boxed{468}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "60",
+          "gold_ans": "60",
+          "ms": 531704,
+          "content_len": 2679,
+          "reasoning_len": 0,
+          "raw_full": "First compute some useful diagonals.\n\nUsing the Law of Cosines in \\(\\triangle ABC\\),\n\\[\nAC^2=AB^2+BC^2-2(AB)(BC)\\cos 60^\\circ\n=14^2+7^2-2\\cdot14\\cdot7\\cdot \\frac12\n=147,\n\\]\nso\n\\[\nAC=7\\sqrt3.\n\\]\n\nSimilarly, in \\(\\triangle AED\\),\n\\[\nAD^2=AE^2+DE^2-2(AE)(DE)\\cos 60^\\circ\n=26^2+13^2-2\\cdot26\\cdot13\\cdot \\frac12\n=507,\n\\]\nso\n\\[\nAD=13\\sqrt3.\n\\]\n\nNow in \\(\\triangle ACD\\),\n\\[\nAC=7\\sqrt3,\\qquad CD=24,\\qquad AD=13\\sqrt3.\n\\]\n\n---\n\n## Step 1: A lower bound from \\(B\\) and \\(E\\)\n\nFor any point \\(X\\),\n\\[\nBX+EX\\ge BE\n\\]\nby the triangle inequality, with equality when \\(X\\) lies on segment \\(\\overline{BE}\\).\n\nSo\n\\[\nf(X)=AX+BX+CX+DX+EX \\ge (AX+CX+DX)+BE.\n\\]\n\nLet us compute \\(BE\\). Using coordinates is convenient.\n\nSet \\(A=(0,0)\\), \\(B=(14,0)\\). Since \\(\\angle ABC=60^\\circ\\) and \\(BC=7\\), we may take\n\\[\nC=\\left(\\frac{21}{2},\\frac{7\\sqrt3}{2}\\right).\n\\]\nAlso, from the side data at \\(E\\), one gets\n\\[\nE=\\left(-\\frac{143}{7},\\frac{65\\sqrt3}{7}\\right).\n\\]\nHence\n\\[\nBE^2=\\left(14+\\frac{143}{7}\\right)^2+\\left(\\frac{65\\sqrt3}{7}\\right)^2\n=\\left(\\frac{241}{7}\\right)^2+\\left(\\frac{65\\sqrt3}{7}\\right)^2\n=\\frac{58081+12675}{49}\n=\\frac{70756}{49}=1444.\n\\]\nThus\n\\[\nBE=38.\n\\]\n\nSo\n\\[\nf(X)\\ge AX+CX+DX+38.\n\\]\n\n---\n\n## Step 2: Minimize \\(AX+CX+DX\\)\n\nNow consider triangle \\(ACD\\), whose side lengths are\n\\[\n7\\sqrt3,\\quad 24,\\quad 13\\sqrt3.\n\\]\nAll its angles are \\(<120^\\circ\\), so the minimum of \\(AX+CX+DX\\) is the Fermat-point value for \\(\\triangle ACD\\).\n\nFor a triangle with side lengths \\(a,b,c\\) and area \\(\\Delta\\), the minimum of the sum of distances from a point to the three vertices is\n\\[\n\\sqrt{\\frac{a^2+b^2+c^2+4\\sqrt3\\,\\Delta}{2}}.\n\\]\n\nHere\n\\[\na=7\\sqrt3,\\quad b=24,\\quad c=13\\sqrt3.\n\\]\nSo\n\\[\na^2+b^2+c^2=147+576+507=1230.\n\\]\n\nWe compute the area \\(\\Delta\\) of \\(\\triangle ACD\\). Using the coordinates above and the coordinates\n\\[\nD=\\left(-\\frac{117}{14},\\frac{169\\sqrt3}{14}\\right),\n\\]\nwe get\n\\[\n\\Delta\n=\\frac12\\left|x_Cy_D-y_Cx_D\\right|\n=\\frac12\\left|\\frac{21}{2}\\cdot\\frac{169\\sqrt3}{14}-\\frac{7\\sqrt3}{2}\\cdot\\left(-\\frac{117}{14}\\right)\\right|.\n\\]\nThis simplifies to\n\\[\n\\Delta=\\frac12\\cdot \\frac{3549\\sqrt3+819\\sqrt3}{28}\n=\\frac12\\cdot \\frac{4368\\sqrt3}{28}\n=78\\sqrt3.\n\\]\n\nTherefore\n\\[\n4\\sqrt3\\,\\Delta=4\\sqrt3\\cdot 78\\sqrt3=4\\cdot78\\cdot3=936.\n\\]\n\nSo the minimum of \\(AX+CX+DX\\) is\n\\[\n\\sqrt{\\frac{1230+936}{2}}\n=\\sqrt{\\frac{2166}{2}}\n=\\sqrt{1083}\n=19\\sqrt3.\n\\]\n\nHence\n\\[\nf(X)\\ge 38+19\\sqrt3.\n\\]\n\nThis value is achieved when \\(X\\) is chosen so that \\(BX+EX=BE\\) and simultaneously \\(X\\) is the minimizing point for \\(AX+CX+DX\\); therefore the least possible value of \\(f(X)\\) is\n\\[\n38+19\\sqrt3.\n\\]\n\nThus\n\\[\nm=38,\\qquad n=19,\\qquad p=3,\n\\]\nand\n\\[\nm+n+p=38+19+3=60.\n\\]\n\n\\[\n\\boxed{60}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 5590,
+          "content_len": 240,
+          "reasoning_len": 0,
+          "raw_full": "Diluted EPS \\(=\\frac{\\text{Net income attributable to ordinary shareholders}}{\\text{Weighted average ordinary shares outstanding (diluted)}}\\)\n\n\\[\n\\frac{48{,}945}{19{,}250} = 2.5426\\ldots\n\\]\n\nRounded to 2 decimal places:\n\n\\[\n\\boxed{2.54}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 5412,
+          "content_len": 304,
+          "reasoning_len": 0,
+          "raw_full": "Net Income is calculated as:\n\n1. **Operating Income** = Revenue - Operating expenses  \n   = 1,200 - 850 = 350\n\n2. **Pre-Tax Income** = Operating Income - Interest expense  \n   = 350 - 30 = 320\n\n3. **Taxes** = 320 × 25% = 80\n\n4. **Net Income** = Pre-Tax Income - Taxes  \n   = 320 - 80 = 240\n\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 10297,
+          "content_len": 715,
+          "reasoning_len": 0,
+          "raw_full": "Discount each projected free cash flow and the terminal value back to today.\n\n\\[\nPV = \\frac{100}{1.10} + \\frac{115}{1.10^2} + \\frac{130}{1.10^3} + \\frac{TV_3}{1.10^3}\n\\]\n\nFirst, calculate the terminal value at the end of year 3:\n\n\\[\nTV_3 = \\frac{FCF_4}{WACC-g}\n\\]\n\n\\[\nFCF_4 = 130(1.03) = 133.9\n\\]\n\n\\[\nTV_3 = \\frac{133.9}{0.10-0.03} = \\frac{133.9}{0.07} = 1912.86\n\\]\n\nNow discount everything:\n\n\\[\n\\frac{100}{1.10} = 90.91\n\\]\n\n\\[\n\\frac{115}{1.10^2} = \\frac{115}{1.21} = 95.04\n\\]\n\n\\[\n\\frac{130}{1.10^3} = \\frac{130}{1.331} = 97.67\n\\]\n\n\\[\n\\frac{1912.86}{1.10^3} = \\frac{1912.86}{1.331} = 1437.16\n\\]\n\nAdd them up:\n\n\\[\nPV = 90.91 + 95.04 + 97.67 + 1437.16 = 1720.78\n\\]\n\nRounded to the nearest integer:\n\n\\[\n\\boxed{1721}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 11429,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 4631,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 5832,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 39523,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 39138,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 19112,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 5618,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "D",
+          "ms": 9593,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 8268,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 3810,
+          "content_len": 320,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    maximum = l[0]\n    for element in l[1:]:\n        if element > maximum:\n            maximum = element\n    return maximum\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 13899,
+          "content_len": 330,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    vowels = \"aeiouAEIOU\"\n    result = []\n\n    for ch in message:\n        if ch in vowels:\n            shifted = chr(ord(ch.lower()) + 2)\n            result.append(shifted.swapcase() if ch.islower() else shifted)\n        else:\n            result.append(ch.swapcase())\n\n    return \"\".join(result)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 4961,
+          "content_len": 356,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    if n <= 2:\n        return []\n\n    sieve = [True] * n\n    sieve[0] = sieve[1] = False\n\n    limit = int(n ** 0.5) + 1\n    for i in range(2, limit):\n        if sieve[i]:\n            for multiple in range(i * i, n, i):\n                sieve[multiple] = False\n\n    return [i for i, is_prime in enumerate(sieve) if is_prime]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 13198,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 7959,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 6382,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 5468,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 4761,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 2386,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct ml.model from model_list as ml join car_makers as cm on ml.maker = cm.id where cm.fullname = 'general motors' or ml.model in (select distinct cn.model from car_names as cn join cars_da",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 12786,
+          "content_len": 307,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT ml.Model\nFROM model_list AS ml\nJOIN car_makers AS cm\n  ON ml.Maker = cm.Id\nWHERE cm.FullName = 'General Motors'\n   OR ml.Model IN (\n      SELECT DISTINCT cn.Model\n      FROM car_names AS cn\n      JOIN cars_data AS cd\n        ON cn.MakeId = cd.Id\n      WHERE cd.Weight > 3500\n   );\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select v.name from visitor as v join visit as vi on v.visitor_id = vi.visitor_id join museum as m on vi.museum_id = m.museum_id group by v.visitor_id, v.name having sum(case when m.open_year < 2009 th",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 9556,
+          "content_len": 299,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT v.Name\nFROM visitor AS v\nJOIN visit AS vi\n  ON v.Visitor_ID = vi.Visitor_ID\nJOIN museum AS m\n  ON vi.Museum_ID = m.Museum_ID\nGROUP BY v.Visitor_ID, v.Name\nHAVING SUM(CASE WHEN m.Open_Year < 2009 THEN 1 ELSE 0 END) > 0\n   AND SUM(CASE WHEN m.Open_Year > 2011 THEN 1 ELSE 0 END) > 0;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select cm.id, cm.maker from car_makers as cm join model_list as ml on ml.maker = cm.id join car_names as cn on cn.model = ml.modelid join cars_data as cd on cd.id = cn.makeid group by cm.id, cm.maker ",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 13134,
+          "content_len": 289,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT cm.Id, cm.Maker\nFROM car_makers AS cm\nJOIN model_list AS ml\n  ON ml.Maker = cm.Id\nJOIN car_names AS cn\n  ON cn.Model = ml.ModelId\nJOIN cars_data AS cd\n  ON cd.Id = cn.MakeId\nGROUP BY cm.Id, cm.Maker\nHAVING COUNT(DISTINCT ml.ModelId) >= 2\n   AND COUNT(DISTINCT cd.Id) > 3;\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

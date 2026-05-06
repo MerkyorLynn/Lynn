@@ -1,0 +1,1327 @@
+{
+  "timestamp": "2026-05-05T09:49:09.371442",
+  "provider": "Gemini 3.1 Pro",
+  "model": "gemini-3.1-pro-preview",
+  "runs": 1,
+  "subset_score": {
+    "math": 7,
+    "finance": 7,
+    "biology": 5,
+    "chemistry": 4,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 3,
+    "medical": 7
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "510",
+          "gold_ans": "510",
+          "ms": 88007,
+          "content_len": 2954,
+          "reasoning_len": 0,
+          "raw_full": "To find the area of the finite region, we first analyze the given inequalities:\n$$x-yz < y-zx < z-xy$$\n\nWe can rewrite the inequalities by grouping terms:\n1. $x - yz < y - zx \\implies (x - y) + z(x - y) < 0 \\implies (x - y)(1 + z) < 0$\n2. $y - zx < z - xy \\implies (y - z) + x(y - z) < 0 \\implies (y - z)(1 + x) < 0$\n3. $x - yz < z - xy \\implies (x - z) + y(x - z) < 0 \\implies (x - z)(1 + y) < 0$\n\nThese inequalities imply that the signs of the differences between $x, y,$ and $z$ are strictly determined by the signs of $1+x, 1+y,$ and $1+z$. \nLet's test the possible orderings of $x, y,$ and $z$:\n- **Case 1: $x < y < z$**\n  Here, $x - y < 0$, $y - z < 0$, and $x - z < 0$. \n  For the inequalities to hold, we must have:\n  $1 + z > 0 \\implies z > -1$\n  $1 + x > 0 \\implies x > -1$\n  $1 + y > 0 \\implies y > -1$\n  Since $x < y < z$, the condition $x > -1$ guarantees that $y > -1$ and $z > -1$. Thus, the region is defined by $-1 < x < y < z$. Combined with the plane equation $x + y + z = 75$, this forms a bounded (finite) triangle.\n\n- **Other Cases:**\n  Testing other orderings (like $x < z < y$ or $y < z < x$) yields conditions such as $x < -1 < z < y$ and $y < z < -1 < x$. These form the other two convex regions, but they extend infinitely in the plane $x+y+z=75$, meaning they have infinite area.\n\nWe now focus on the finite region defined by $-1 < x < y < z$ on the plane $x + y + z = 75$. The region is a triangle whose vertices are the intersections of the boundary planes $x = -1$, $x = y$, and $y = z$:\n1. Intersection of $x = -1$ and $x = y$: \n   $x = -1, y = -1 \\implies -1 - 1 + z = 75 \\implies z = 77$. \n   Vertex $V_1 = (-1, -1, 77)$.\n2. Intersection of $x = -1$ and $y = z$: \n   $x = -1 \\implies -1 + 2y = 75 \\implies y = 38, z = 38$. \n   Vertex $V_2 = (-1, 38, 38)$.\n3. Intersection of $x = y$ and $y = z$: \n   $x = y = z \\implies 3x = 75 \\implies x = 25, y = 25, z = 25$. \n   Vertex $V_3 = (25, 25, 25)$.\n\nTo find the area of this triangle, we can use the vectors forming two of its sides:\n$\\vec{V_1V_2} = V_2 - V_1 = (0, 39, -39)$\n$\\vec{V_2V_3} = V_3 - V_2 = (26, -13, -13)$\n\nLet's check the dot product of these two vectors to see if they form a right angle:\n$\\vec{V_1V_2} \\cdot \\vec{V_2V_3} = (0)(26) + (39)(-13) + (-39)(-13) = 0 - 507 + 507 = 0$\nSince the dot product is $0$, the triangle is a right-angled triangle at vertex $V_2$.\n\nThe lengths of the legs of the right triangle are:\n$\\|\\vec{V_1V_2}\\| = \\sqrt{0^2 + 39^2 + (-39)^2} = 39\\sqrt{2}$\n$\\|\\vec{V_2V_3}\\| = \\sqrt{26^2 + (-13)^2 + (-13)^2} = \\sqrt{676 + 169 + 169} = \\sqrt{1014} = 13\\sqrt{6}$\n\nThe area of the triangle is:\n$\\text{Area} = \\frac{1}{2} \\|\\vec{V_1V_2}\\| \\|\\vec{V_2V_3}\\| = \\frac{1}{2} (39\\sqrt{2})(13\\sqrt{6}) = \\frac{1}{2} (507\\sqrt{12}) = \\frac{1}{2} (507 \\cdot 2\\sqrt{3}) = 507\\sqrt{3}$\n\nThis area is in the form $a\\sqrt{b}$, where $a = 507$ and $b = 3$. The number $b=3$ is square-free. \nFinally, we find $a + b$:\n$a + b = 507 + 3 = 510$\n\n\\boxed{510}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 46422,
+          "content_len": 2208,
+          "reasoning_len": 0,
+          "raw_full": "To find the area of $\\triangle BGE$, we first need to determine the distances between the points on the straight line. Let the positions of the points $A, B, C, D, E,$ and $F$ on the number line be $x_A, x_B, x_C, x_D, x_E,$ and $x_F$ respectively. \n\nSince the points lie in that order, we can set $x_A = 0$. We are given the following lengths:\n- $AC = 26 \\implies x_C = 26$\n- $AF = 73 \\implies x_F = 73$\n- $DF = 33 \\implies x_D = x_F - 33 = 73 - 33 = 40$\n- $BD = 22 \\implies x_B = x_D - 22 = 40 - 22 = 18$\n- $CE = 31 \\implies x_E = x_C + 31 = 26 + 31 = 57$\n\nLet's verify the order of the points: $x_A=0$, $x_B=18$, $x_C=26$, $x_D=40$, $x_E=57$, $x_F=73$. This perfectly matches the given order $A, B, C, D, E, F$.\n\nThe base of $\\triangle BGE$ is the segment $BE$. Its length is:\n$$BE = x_E - x_B = 57 - 18 = 39$$\n\nTo find the height of $\\triangle BGE$, we can find the perpendicular distance from point $G$ to the line containing the points. This height $h$ is the same as the height of $\\triangle CGD$ with respect to its base $CD$. \nFirst, we find the length of $CD$:\n$$CD = x_D - x_C = 40 - 26 = 14$$\n\nWe are given the lengths of the other two sides of $\\triangle CGD$: $CG = 40$ and $DG = 30$. We can find the area of $\\triangle CGD$ using Heron's formula. \nThe semi-perimeter $s$ of $\\triangle CGD$ is:\n$$s = \\frac{CD + CG + DG}{2} = \\frac{14 + 40 + 30}{2} = \\frac{84}{2} = 42$$\n\nNow, applying Heron's formula, the area of $\\triangle CGD$ is:\n$$\\text{Area} = \\sqrt{s(s - CD)(s - CG)(s - DG)}$$\n$$\\text{Area} = \\sqrt{42(42 - 14)(42 - 40)(42 - 30)}$$\n$$\\text{Area} = \\sqrt{42 \\times 28 \\times 2 \\times 12}$$\n$$\\text{Area} = \\sqrt{28224} = 168$$\n\nThe area of $\\triangle CGD$ can also be expressed as $\\frac{1}{2} \\times \\text{base} \\times \\text{height}$:\n$$168 = \\frac{1}{2} \\times CD \\times h$$\n$$168 = \\frac{1}{2} \\times 14 \\times h$$\n$$168 = 7h \\implies h = 24$$\n\nThe height of $G$ above the line is $24$. Now we can find the area of $\\triangle BGE$ using its base $BE = 39$ and the height $h = 24$:\n$$\\text{Area of } \\triangle BGE = \\frac{1}{2} \\times BE \\times h$$\n$$\\text{Area of } \\triangle BGE = \\frac{1}{2} \\times 39 \\times 24$$\n$$\\text{Area of } \\triangle BGE = 39 \\times 12 = 468$$\n\n\\boxed{468}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 60",
+          "gold_ans": "60",
+          "ms": 132096,
+          "content_len": 1337,
+          "reasoning_len": 0,
+          "raw_full": "$ No, $C_1$ was the rotation of $C$ around $B$.\nLet's re-evaluate $BX + CX \\ge XC_1$.\nIn $\\triangle BXC$, let $X_1$ be the rotation of $X$ around $B$ by $60^\\circ$.\nThen $BX = X_1 X$.\nLet $C_1$ be the rotation of $C$ around $B$ by $60^\\circ$.\nThen $CX = C_1 X_1$.\nSo $BX + CX = X X_1 + X_1 C_1 \\ge X C_1$.\nThis is ALWAYS true.\nWhere is $C_1$?\n$C_1$ is the rotation of $C$ around $B$ by $60^\\circ$.\nWe found that if we rotate $C$ around $B$ by $60^\\circ$ towards $A$, $C_1$ is the midpoint of $AB$.\nLet's check this again.\n$B = 14 e^{-i 30^\\circ}$. $C = 7\\sqrt{3}$.\n$B - C = 14(\\frac{\\sqrt{3}}{2} - \\frac{i}{2}) - 7\\sqrt{3} = 7\\sqrt{3} - 7i - 7\\sqrt{3} = -7i$.\nSo $C$ to $B$ is $-7i$. $B$ to $C$ is $7i$.\nRotate $B \\to C$ by $60^\\circ$ CCW:\n$7i e^{i 60^\\circ} = 7i (\\frac{1}{2} + i \\frac{\\sqrt{3}}{2}) = -\\frac{7\\sqrt{3}}{2} + \\frac{7}{2} i$.\nSo $C_1 = B + (-\\frac{7\\sqrt{3}}{2} + \\frac{7}{2} i) = 7\\sqrt{3} - 7i - \\frac{7\\sqrt{3}}{2} + \\frac{7}{2} i = \\frac{7\\sqrt{3}}{2} - \\frac{7}{2} i$.\nWait! $A = 0$.\n$C_1 = \\frac{7\\sqrt{3}}{2} - \\frac{7}{2} i$.\nNotice that $C_1 = \\frac{1}{4} (14\\sqrt{3} - 14i) = \\frac{1}{2} B$!\nSo $C_1$ is exactly the midpoint of $AB$!\nYes! My previous deduction was correct.\nSo $BX + CX \\ge X C_1$, where $C_1 = B/2$.\nEquality holds if $X, X_1, C_1$ are collinear.\nSimilarly, let's rotate $X$ around $E$ by $60^\\",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "204",
+          "gold_ans": "204",
+          "ms": 18130,
+          "content_len": 2053,
+          "reasoning_len": 0,
+          "raw_full": "Let $d = 9$ km be the distance of Aya's walk. \nLet $s$ be her initial walking speed in km/h, and $t$ be the time spent in the coffee shop in minutes.\n\nWe are given two scenarios which we can write as equations. \nFirst, when she walks at $s$ km/h, the total time is 4 hours. The time spent walking is $\\frac{9}{s}$ hours, and the time spent in the coffee shop is $\\frac{t}{60}$ hours. \n$$\\frac{9}{s} + \\frac{t}{60} = 4$$\n\nSecond, when she walks at $s+2$ km/h, the total time is 2 hours and 24 minutes. Since 24 minutes is $\\frac{24}{60} = 0.4$ hours, the total time is 2.4 hours.\n$$\\frac{9}{s+2} + \\frac{t}{60} = 2.4$$\n\nWe can subtract the second equation from the first to eliminate $t$:\n$$\\left(\\frac{9}{s} + \\frac{t}{60}\\right) - \\left(\\frac{9}{s+2} + \\frac{t}{60}\\right) = 4 - 2.4$$\n$$\\frac{9}{s} - \\frac{9}{s+2} = 1.6$$\n\nTo solve for $s$, we find a common denominator for the left side:\n$$\\frac{9(s+2) - 9s}{s(s+2)} = 1.6$$\n$$\\frac{18}{s^2+2s} = 1.6$$\n\nMultiply both sides by $s^2+2s$ and divide by 1.6:\n$$s^2 + 2s = \\frac{18}{1.6}$$\n$$s^2 + 2s = 11.25$$\n\nWe can solve this quadratic equation by completing the square:\n$$s^2 + 2s + 1 = 11.25 + 1$$\n$$(s + 1)^2 = 12.25$$\n\nTaking the positive square root (since speed must be positive):\n$$s + 1 = 3.5$$\n$$s = 2.5 \\text{ km/h}$$\n\nNow we can substitute $s = 2.5$ back into the first equation to find $t$:\n$$\\frac{9}{2.5} + \\frac{t}{60} = 4$$\n$$3.6 + \\frac{t}{60} = 4$$\n$$\\frac{t}{60} = 0.4$$\n$$t = 24 \\text{ minutes}$$\n\nThe question asks for the total time the walk takes her, in minutes, if she walks at $s + \\frac{1}{2}$ km/h.\nHer new speed is:\n$$s + 0.5 = 2.5 + 0.5 = 3 \\text{ km/h}$$\n\nThe time spent walking at this new speed is:\n$$\\text{Walking time} = \\frac{9 \\text{ km}}{3 \\text{ km/h}} = 3 \\text{ hours}$$\n\nConvert the walking time to minutes:\n$$3 \\text{ hours} \\times 60 \\text{ minutes/hour} = 180 \\text{ minutes}$$\n\nFinally, add the $t$ minutes spent in the coffee shop to find the total time:\n$$\\text{Total time} = 180 \\text{ minutes} + 24 \\text{ minutes} = 204 \\text{ minutes}$$\n\n\\boxed{204}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "116",
+          "gold_ans": "116",
+          "ms": 23515,
+          "content_len": 2276,
+          "reasoning_len": 0,
+          "raw_full": "To find the probability of Jen winning the grand prize given that she won a prize, we need to find the number of ways she can win any prize and the number of ways she can win the grand prize.\n\nJen picks 4 distinct numbers from the set $S = \\{1, 2, 3, \\dots, 10\\}$. The total number of ways the lottery can randomly choose 4 numbers from the 10 available numbers in set $S$ is given by the combination formula $\\binom{n}{k}$:\n$$\\binom{10}{4} = \\frac{10!}{4!(10-4)!} = \\frac{10 \\times 9 \\times 8 \\times 7}{4 \\times 3 \\times 2 \\times 1} = 210$$\n\nLet's break down the possible outcomes for the number of matching numbers between Jen's picks and the lottery's picks:\n- **Exactly 0 matches:** The lottery picks 4 numbers from the 6 Jen didn't pick. \n  $$\\binom{4}{0} \\times \\binom{6}{4} = 1 \\times 15 = 15 \\text{ ways}$$\n- **Exactly 1 match:** The lottery picks 1 of Jen's numbers and 3 of the other 6.\n  $$\\binom{4}{1} \\times \\binom{6}{3} = 4 \\times 20 = 80 \\text{ ways}$$\n- **Exactly 2 matches:** The lottery picks 2 of Jen's numbers and 2 of the other 6.\n  $$\\binom{4}{2} \\times \\binom{6}{2} = 6 \\times 15 = 90 \\text{ ways}$$\n- **Exactly 3 matches:** The lottery picks 3 of Jen's numbers and 1 of the other 6.\n  $$\\binom{4}{3} \\times \\binom{6}{1} = 4 \\times 6 = 24 \\text{ ways}$$\n- **Exactly 4 matches (Grand Prize):** The lottery picks all 4 of Jen's numbers.\n  $$\\binom{4}{4} \\times \\binom{6}{0} = 1 \\times 1 = 1 \\text{ way}$$\n\nJen wins a prize if at least two of her numbers are chosen. The number of ways she can win a prize is the sum of the ways to get exactly 2, 3, or 4 matches:\n$$\\text{Ways to win a prize} = 90 + 24 + 1 = 115 \\text{ ways}$$\n\nJen wins the grand prize if all 4 of her numbers are chosen, which can only happen in $1$ way.\n\nWe are looking for the conditional probability that she wins the grand prize given that she won a prize. This is the ratio of the number of ways to win the grand prize to the number of ways to win any prize:\n$$P(\\text{Grand Prize} \\mid \\text{Prize}) = \\frac{\\text{Ways to win the Grand Prize}}{\\text{Ways to win a Prize}} = \\frac{1}{115}$$\n\nThis fraction is in the form $\\frac{m}{n}$, where $m=1$ and $n=115$. Since $1$ and $115$ are relatively prime positive integers, we can now find $m+n$:\n$$m + n = 1 + 115 = 116$$\n\n\\boxed{116}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "70",
+          "gold_ans": "70",
+          "ms": 24116,
+          "content_len": 1535,
+          "reasoning_len": 0,
+          "raw_full": "To find the integer bases $b > 9$ for which $17_b$ is a divisor of $97_b$, we first need to express the numbers $17_b$ and $97_b$ in base 10.\n\nThe number $17_b$ in base 10 is:\n$$17_b = 1 \\cdot b + 7 = b + 7$$\n\nThe number $97_b$ in base 10 is:\n$$97_b = 9 \\cdot b + 7 = 9b + 7$$\n\nWe are given that $17_b$ is a divisor of $97_b$. This means that $(b + 7)$ must divide $(9b + 7)$ without a remainder. We can express the division of $(9b + 7)$ by $(b + 7)$ as follows:\n$$\\frac{9b + 7}{b + 7} = \\frac{9(b + 7) - 63 + 7}{b + 7} = \\frac{9(b + 7) - 56}{b + 7} = 9 - \\frac{56}{b + 7}$$\n\nFor the result to be an integer, $(b + 7)$ must be a divisor of $56$. \nSince we are given that $b > 9$, it follows that $b + 7 > 16$. \n\nNow, we list the positive divisors of $56$:\n$1, 2, 4, 7, 8, 14, 28, \\text{ and } 56$.\n\nWe look for the divisors of $56$ that are strictly greater than $16$. These are $28$ and $56$. \n\nSetting $b + 7$ equal to these divisors gives:\n1) $b + 7 = 28 \\implies b = 21$\n2) $b + 7 = 56 \\implies b = 49$\n\nBoth $b = 21$ and $b = 49$ are integers greater than $9$. (Also, in both bases, the digit $9$ is valid since the bases are strictly greater than $9$).\n\nTo be absolutely sure, we can check both bases:\n- For $b = 21$: $17_{21} = 21 + 7 = 28$ and $97_{21} = 9(21) + 7 = 196$. Since $196 \\div 28 = 7$, it is a valid base.\n- For $b = 49$: $17_{49} = 49 + 7 = 56$ and $97_{49} = 9(49) + 7 = 448$. Since $448 \\div 56 = 8$, it is also a valid base.\n\nThe problem asks for the sum of all such integer bases:\n$$21 + 49 = 70$$\n\n\\boxed{70}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "16",
+          "gold_ans": "16",
+          "ms": 49585,
+          "content_len": 2064,
+          "reasoning_len": 0,
+          "raw_full": "To find the number of different assignments of flavors to the 9 players, we first need to determine the possible number of players that could have chosen each flavor. \n\nLet $c$, $v$, and $s$ be the number of players who chose chocolate, vanilla, and strawberry, respectively. \nWe are given the following conditions:\n1. Each player chose exactly one flavor, so $c + v + s = 9$.\n2. At least one player chose each flavor, so $s \\ge 1$.\n3. The number of players who chose chocolate was greater than vanilla, which was greater than strawberry, meaning $c > v > s$.\n\nWe need to find all the partitions of 9 into three distinct positive integers $(c, v, s)$ that satisfy $c > v > s \\ge 1$.\nLet's list the possible values for $s$:\n- If $s = 1$, then $c + v = 8$. Since $c > v > 1$, the possible pairs for $(c, v)$ are $(6, 2)$ and $(5, 3)$.\n- If $s = 2$, then $c + v = 7$. Since $c > v > 2$, the only possible pair for $(c, v)$ is $(4, 3)$.\n- If $s = 3$, then $c + v = 6$. For $c > v > 3$, there are no possible integer pairs.\n\nThus, the only valid combinations of $(c, v, s)$ are:\n1. $c = 6$, $v = 2$, $s = 1$\n2. $c = 5$, $v = 3$, $s = 1$\n3. $c = 4$, $v = 3$, $s = 2$\n\nNow, we calculate the number of ways to assign these flavors to the 9 distinct players for each case using the multinomial coefficient formula $\\frac{n!}{c! \\cdot v! \\cdot s!}$:\n\n**Case 1: 6 Chocolate, 2 Vanilla, 1 Strawberry**\n$$\\frac{9!}{6! \\cdot 2! \\cdot 1!} = \\frac{9 \\times 8 \\times 7}{2 \\times 1} = 252$$\n\n**Case 2: 5 Chocolate, 3 Vanilla, 1 Strawberry**\n$$\\frac{9!}{5! \\cdot 3! \\cdot 1!} = \\frac{9 \\times 8 \\times 7 \\times 6}{3 \\times 2 \\times 1} = 504$$\n\n**Case 3: 4 Chocolate, 3 Vanilla, 2 Strawberry**\n$$\\frac{9!}{4! \\cdot 3! \\cdot 2!} = \\frac{9 \\times 8 \\times 7 \\times 6 \\times 5}{(3 \\times 2 \\times 1) \\times (2 \\times 1)} = \\frac{15120}{12} = 1260$$\n\nTo find the total number of different assignments $N$, we sum the number of ways from all valid cases:\n$$N = 252 + 504 + 1260 = 2016$$\n\nThe problem asks for the remainder when $N$ is divided by 1000:\n$$2016 \\pmod{1000} = 16$$\n\n\\boxed{16}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 9230,
+          "content_len": 660,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the Diluted Earnings Per Share (EPS) for the quarter, we use the following formula:\n\n$$\\text{Diluted EPS} = \\frac{\\text{Net income attributable to ordinary shareholders}}{\\text{Weighted average ordinary shares outstanding (diluted)}}$$\n\nGiven the data from the company report:\n- **Net income attributable to ordinary shareholders:** 48,945 million RMB\n- **Weighted average ordinary shares outstanding (diluted):** 19,250 million shares\n\nPlugging in the numbers:\n\n$$\\text{Diluted EPS} = \\frac{48,945 \\text{ million RMB}}{19,250 \\text{ million shares}} \\approx 2.5426 \\text{ RMB per share}$$\n\nRounding to 2 decimal places, we get 2.54.\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 9020,
+          "content_len": 967,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the Net Income, we need to follow the standard steps of an income statement:\n\n**Step 1: Calculate Operating Income (EBIT)**\nOperating Income is the profit realized from a business's operations after deducting operating expenses from revenue.\n* Operating Income = Revenue - Operating Expenses\n* Operating Income = $1,200 million - $850 million = $350 million\n\n**Step 2: Calculate Earnings Before Tax (EBT)**\nNext, we subtract the interest expense from the Operating Income to find the taxable income.\n* EBT = Operating Income - Interest Expense\n* EBT = $350 million - $30 million = $320 million\n\n**Step 3: Calculate Net Income**\nFinally, we deduct the taxes from the EBT. The tax expense is calculated by multiplying the EBT by the tax rate.\n* Tax Expense = EBT × Tax Rate = $320 million × 25% = $80 million\n* Net Income = EBT - Tax Expense\n* Net Income = $320 million - $80 million = $240 million\n\nRounding to 1 decimal place as requested:\n\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 18890,
+          "content_len": 1684,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the present value of the company, we need to find the present value (PV) of the projected free cash flows (FCF) for the next 3 years and the present value of the terminal value (TV) of the company after year 3. \n\n**Step 1: Calculate the Present Value of the projected FCFs for Years 1 to 3**\nThe formula for the present value of each cash flow is:\nPV = FCF / (1 + WACC)^n\n\n- **Year 1:**\n  PV(FCF1) = $100M / (1 + 0.10)^1 = $100M / 1.10 = $90.909M\n\n- **Year 2:**\n  PV(FCF2) = $115M / (1 + 0.10)^2 = $115M / 1.21 = $95.041M\n\n- **Year 3:**\n  PV(FCF3) = $130M / (1 + 0.10)^3 = $130M / 1.331 = $97.671M\n\nSum of the PV of the projected FCFs = $90.909M + $95.041M + $97.671M = **$283.621M**\n\n**Step 2: Calculate the Terminal Value (TV) at the end of Year 3**\nThe terminal value represents the value of all future cash flows after year 3, growing at a perpetual rate of 3%. We use the Gordon Growth Model:\nTV3 = FCF4 / (WACC - g)\n\nFirst, we find the projected FCF for Year 4:\nFCF4 = FCF3 × (1 + g) = $130M × (1 + 0.03) = $133.9M\n\nNow, calculate the Terminal Value at Year 3:\nTV3 = $133.9M / (0.10 - 0.03) = $133.9M / 0.07 = **$1912.857M**\n\n**Step 3: Calculate the Present Value of the Terminal Value**\nWe must discount the Terminal Value back to Year 0 (today) since it is calculated at the end of Year 3:\nPV(TV3) = TV3 / (1 + WACC)^3\nPV(TV3) = $1912.857M / (1.10)^3 = $1912.857M / 1.331 = **$1437.158M**\n\n**Step 4: Calculate the Total Present Value of the Company**\nTotal PV = Sum of PV of FCFs (Years 1-3) + PV of Terminal Value\nTotal PV = $283.621M + $1437.158M = **$1720.779M**\n\nRounding to the nearest integer, the present value of the company today is $1721M.\n\n\\boxed{1721}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 8672,
+          "content_len": 342,
+          "reasoning_len": 0,
+          "raw_full": "根据戈登增长模型（Gordon Growth Model），公司企业价值（Enterprise Value, EV）的计算公式为：\n\n$$EV = \\frac{FCFF_1}{WACC - g}$$\n\n其中：\n- $FCFF_1$ 是下一年的预期自由现金流 = 100 百万美元\n- $WACC$ 是加权平均资本成本 = 9% = 0.09\n- $g$ 是永续增长率 = 3% = 0.03\n\n将数据代入公式：\n\n$$EV = \\frac{100}{0.09 - 0.03}$$\n$$EV = \\frac{100}{0.06}$$\n$$EV \\approx 1666.666...$$\n\n根据题目要求，保留 1 位小数，结果为 1666.7 百万美元。\n\n\\boxed{1666.7}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 8448,
+          "content_len": 413,
+          "reasoning_len": 0,
+          "raw_full": "要计算净资产收益率（Return on Equity, 简称 ROE），我们需要使用以下公式：\n\n**ROE = 净利润 (Net Income) / 股东权益 (Shareholders' Equity)**\n\n根据会计基本等式：\n**股东权益 = 总资产 (Total Assets) - 总负债 (Total Liabilities)**\n\n1. **计算股东权益：**\n   股东权益 = 5,000 million - 3,200 million = 1,800 million\n\n2. **计算 ROE：**\n   ROE = 480 million / 1,800 million\n   ROE = 0.26666...\n\n3. **转换为百分比并保留两位小数：**\n   0.26666... × 100% ≈ 26.67%\n\n（注：营业收入在此计算中为干扰项，不需要使用。）\n\n\\boxed{26.67\\%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.88",
+          "gold_ans": "957.88",
+          "ms": 16032,
+          "content_len": 1066,
+          "reasoning_len": 0,
+          "raw_full": "要计算债券的价格，我们需要将债券未来产生的所有现金流（每年的利息和到期时的面值）按照到期收益率（YTM）折现到现在的价值（现值）。\n\n**已知变量：**\n*   面值 (Face Value, $FV$) = 1,000 USD\n*   票面利率 (Coupon Rate) = 5%\n*   每年支付的利息 (Coupon Payment, $C$) = $1,000 \\times 5\\% = 50$ USD\n*   期限 (Years to Maturity, $n$) = 5 年\n*   到期收益率 (Yield to Maturity, $r$) = 6% = 0.06\n\n**债券价格计算公式：**\n$$P = C \\times \\left[ \\frac{1 - (1 + r)^{-n}}{r} \\right] + \\frac{FV}{(1 + r)^n}$$\n\n**代入数据进行计算：**\n1. **计算利息的现值 (Present Value of Coupons):**\n   $$PV_{coupons} = 50 \\times \\left[ \\frac{1 - (1 + 0.06)^{-5}}{0.06} \\right]$$\n   $$PV_{coupons} = 50 \\times \\left[ \\frac{1 - 0.747258}{0.06} \\right]$$\n   $$PV_{coupons} = 50 \\times \\left[ \\frac{0.252742}{0.06} \\right]$$\n   $$PV_{coupons} = 50 \\times 4.212364 \\approx 210.618 \\text{ USD}$$\n\n2. **计算面值的现值 (Present Value of Face Value):**\n   $$PV_{face\\_value} = \\frac{1000}{(1 + 0.06)^5}$$\n   $$PV_{face\\_value} = \\frac{1000}{1.338226} \\approx 747.258 \\text{ USD}$$\n\n3. **计算债券总价格：**\n   $$P = PV_{coupons} + PV_{face\\_value}$$\n   $$P = 210.618 + 747.258 = 957.876 \\text{ USD}$$\n\n保留两位小数后，债券价格为 957.88 USD。\n\n\\boxed{957.88}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 6082,
+          "content_len": 273,
+          "reasoning_len": 0,
+          "raw_full": "要计算利息保障倍数（Times Interest Earned ratio，简称 TIE），我们需要使用以下公式：\n\n**利息保障倍数 (TIE) = 息税前利润 (EBIT) / 利息费用 (Interest Expense)**\n\n题目中给出的数据为：\n- EBIT = 200 million\n- 利息费用 = 40 million\n- 税率 = 25%（此数据为干扰项，计算利息保障倍数时不需要用到税率）\n\n将数据代入公式：\nTIE = 200 / 40 = 5\n\n根据要求保留 2 位小数，结果为 5.00。\n\n\\boxed{5.00}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 46053,
+          "content_len": 1770,
+          "reasoning_len": 0,
+          "raw_full": "Based on the results of the experiment, we can deduce the roles and interactions of the genes G1, G2, and G3:\n\n1. **Identifying the Transcription Factor (Master Regulator):** \nThe single mutant **g2** shows 0% resistance (a complete loss of resistance), and any double mutant containing the g2 mutation (**g1g2** and **g2g3**) also shows 0% resistance. This indicates that G2 is absolutely essential for the plant's resistance to anthracnose. Because the problem states that at least one gene is a transcription factor acting upstream, **G2 is the transcription factor** that regulates the downstream resistance genes. When G2 is knocked out, the downstream genes (like G1 and G3) are not expressed, leading to a total loss of resistance. This also means G2 is epistatic to G1 and G3.\n\n2. **Interaction between G1 and G3:**\nThe single mutant **g1** retains 75% resistance (a 25% drop) and **g3** retains 50% resistance (a 50% drop). If these genes acted in completely independent pathways, we would expect their double mutant to have an additive or multiplicative resistance (e.g., 0.75 × 0.50 = 37.5%). However, the **g1g3** double mutant has only 10% resistance, which is a drastically more severe drop than expected. This synergistic effect is a classic hallmark of **gene redundancy** (specifically partial redundancy), meaning G1 and G3 perform similar, overlapping functions in the same pathway. When one is missing, the other can partially compensate, but losing both cripples the plant's defense. \n\n*(Note: The last phrase in option C contains a known typo from the translated source material, which originally stated \"G2 is epistatic to G1 and G3\", but C remains the only biologically accurate option regarding the transcription factor and gene redundancy).*\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 6427,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 4745,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 62198,
+          "content_len": 2517,
+          "reasoning_len": 0,
+          "raw_full": "To determine the most likely molecular phenotype caused by mutation Y, we must analyze the roles of the protein domains and the nature of the mutations described:\n\n1. **Mutation X (Transactivation Domain):** This mutation is a recessive loss-of-function. Because the dimerization domain is still intact, the mutant protein can still form heterodimers with the wild-type protein. The fact that it is recessive indicates that a heterodimer containing one wild-type transactivation domain and one mutant transactivation domain retains enough activity to produce a wild-type phenotype (or that enough wild-type homodimers form to suffice). \n\n2. **Mutation Y (Dimerization Domain):** This mutation acts as a dominant-negative, meaning the mutant allele's product interferes with the function of the wild-type allele's product, leading to a loss-of-function phenotype in the heterozygote. \n   - Naively, a mutation in the dimerization domain might simply prevent the protein from dimerizing. If it merely lost the ability to dimerize (Option C), it would not be able to interact with the wild-type protein. The wild-type proteins would still homodimerize with each other, likely resulting in a normal (wild-type) phenotype, making the mutation recessive. \n   - However, because it *does* act as a dominant-negative, it must be actively interfering with the wild-type protein. A classic molecular mechanism for this is **protein aggregation**. When a dimerization domain is mutated, it often fails to fold correctly or leaves hydrophobic interaction interfaces exposed. This causes the mutant proteins to misfold and clump together into aggregates. These aggregates can non-specifically trap and sequester the wild-type proteins (co-aggregation), preventing them from shuttling into the nucleus and performing their normal function. \n   - This sequestration effectively depletes the cell of functional wild-type transcription factors, resulting in a dominant-negative loss-of-function phenotype. \n\nOption D (degradation) would typically result in a recessive phenotype (haplosufficiency) unless the mutant specifically binds the wild-type to drag it to the proteasome, which is unlikely if its dimerization domain is compromised. Option A describes a gain-of-function, which contradicts the dominant-negative (loss-of-function) nature of the mutation. \n\nTherefore, protein aggregation trapping the wild-type protein is the most logical explanation for how a dimerization domain mutation exerts a dominant-negative effect.\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 17805,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 5552,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 59571,
+          "content_len": 2392,
+          "reasoning_len": 0,
+          "raw_full": "To identify the incorrect statement among the options provided, let's evaluate the molecular biology of SARS-CoV-2 described in each:\n\nA. **Correct.** SARS-CoV-2 utilizes -1 programmed ribosomal frameshifting (-1 PRF) to translate its two massive replicase polyproteins, pp1a and pp1ab, from the 5' end of its genome. This process involves the ribosome slipping back by one nucleotide, which is facilitated by a slippery sequence (UUUAAAC) and a downstream RNA pseudoknot structure. The conformation of this pseudoknot is highly conserved and mostly identical between SARS-CoV and SARS-CoV-2.\n\nB. **Correct.** Research using optical tweezers and single-molecule force spectroscopy has shown that the frameshifting efficiency in vitro correlates linearly with the conformational plasticity (the number of conformations) the pseudoknot can adopt. Both the SARS-CoV and SARS-CoV-2 -1 PRF signals have been observed to adopt two distinct folded conformations when placed under mechanical tension, which is consistent with other viral pseudoknots that drive similar frameshifting rates.\n\nC. **Incorrect.** This statement contains a functional contradiction. The SARS-CoV-2 nsp14 protein does indeed possess an N-terminal exoribonuclease (ExoN) domain that binds to the nsp10 cofactor to form a heterodimeric complex. This complex acts as a proofreading machine in a mismatch repair mechanism to excise mismatched nucleotides incorporated by the RNA-dependent RNA polymerase (RdRp). Because it is an *exonuclease*, its very function is to **cleave/break down** RNA (specifically removing errors from the 3' end of the growing RNA strand). It does *not* prevent the breakdown of dsRNA; rather, it actively degrades it during the proofreading excision process. (Note: It is the capping function of nsp14's C-terminal N7-methyltransferase domain and the nsp10/nsp16 2'-O-methyltransferase complex that protects viral RNA from being recognized and broken down by host immune sensors).\n\nD. **Correct.** SARS-CoV-2 ORF3a is a pro-apoptotic accessory protein. Studies have shown that it induces apoptosis primarily through the extrinsic pathway. It triggers the cleavage and activation of caspase-8 (the hallmark initiator of the extrinsic death receptor pathway) without altering the levels of Bcl-2, which is the key regulatory protein of the intrinsic (mitochondrial) apoptotic pathway. \n\n**Answer:**\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "A",
+          "ms": 128322,
+          "content_len": 873,
+          "reasoning_len": 0,
+          "raw_full": "A methanol solution of (R)-(+)-Limonene is stirred with Pd/C under a Hydrogen atmosphere. After 1 equivalent of hydrogen is consumed, product 1 is isolated as the major product.\n\n1 is treated with 3-chloroperbenzoic acid, forming product 2.\n\nProduct 2 is treated with sodium methoxide, forming product 3.\n\nProduct 3 is treated with propanoic acid, dicyclohexylcarbodiimide. and a catalytic amount of  4-dimethylaminopyridine, forming product 4.\n\nwhat is a valid structure of product 4? (product 4 exists as a mixture of isomers. the correct answer is one of them).\n\nA. (1S,2S,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate\nB. 1-methoxy-2-((S)-4-methylcyclohex-3-en-1-yl)propan-2-yl propionate\nC. (1S,2R,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate\nD. (1S,2S,5R)-5-isopropyl-2-methoxy-2-methylcyclohexyl propionate\n\nAnswer with only the letter (A/B/C/D).",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "D",
+          "ms": 57195,
+          "content_len": 1839,
+          "reasoning_len": 0,
+          "raw_full": "To determine the molecular symmetry group of product 3, let's follow the reaction sequence step-by-step:\n\n1. **Formation of Product 1:** \nToluene is treated with a mixture of nitric acid and sulfuric acid (nitrating mixture). The methyl group is an ortho/para director. Under controlled conditions, the major isolable product is **p-nitrotoluene** (Product 1).\n\n2. **Formation of Product 2:** \np-Nitrotoluene is treated with manganese dioxide (MnO₂) and sulfuric acid (H₂SO₄). This is a classic oxidation reaction where the methyl group of the p-nitrotoluene is selectively oxidized to an aldehyde, yielding **p-nitrobenzaldehyde** (Product 2).\n\n3. **Formation of Product 3:** \np-Nitrobenzaldehyde is treated with acetone and aqueous sodium hydroxide. This is a Claisen-Schmidt (aldol) condensation. Depending on the stoichiometry, this typically yields the mono-condensation product **4-(4-nitrophenyl)but-3-en-2-one** (also known as p-nitrobenzalacetone) when acetone is in excess, or the bis-condensation product bis(4-nitrobenzylidene)acetone. \n- For the mono-adduct (p-nitrobenzalacetone), the molecule can adopt a completely planar conformation (with the benzene ring, alkene, and carbonyl group all lying in the same plane). A planar molecule with no other axes of symmetry or inversion centers belongs to the **Cs** point group (it possesses only a single mirror plane, $\\sigma_h$, which is the plane of the molecule itself). \n- Even if the bis-adduct is formed, its most stable solid-state conformation (analogous to dibenzylideneacetone, dba) is the *s-cis, s-trans* conformation, which also falls under the **Cs** point group.\n\nBecause there are no higher symmetry elements like a $C_2$ axis with a horizontal mirror plane ($C_{2h}$), a $C_3$ axis ($C_3$), or an inversion center ($D_{2h}$), the correct symmetry group is Cs.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "C",
+          "ms": 138167,
+          "content_len": 1571,
+          "reasoning_len": 0,
+          "raw_full": ") -> 4(Wedge).\nSwap 3 and 4: 1(Down-Right) -> 2(Down-Left) -> 3(Dash) -> 4(Wedge).\n1(Down-Right) -> 2(Down-Left) -> 3(Center).\nDown-Right to Down-Left to Center is clockwise.\nClockwise with 4 in front is (S).\nWait!\nLet's re-evaluate 1(Down-Right) -> 2(Down-Left) -> 3(Center).\nDown-Right is 4:30. Down-Left is 7:30. Center is origin.\nFrom 4:30 to 7:30 is clockwise.\nFrom 7:30 to Center is... wait.\nLet's use vectors.\n1 is (1, -1). 2 is (-1, -1). 3 is (0, 0).\nVector 12 = (-2, 0).\nVector 23 = (1, 1).\nCross product 12 x 23 = -2*1 - 0*1 = -2.\nNegative means clockwise.\nClockwise with 4 in front (Wedge) means (S).\nWait, standard rule: if 4 is in front, clockwise means (S).\nLet's check.\nIf 4 is in back, clockwise is (R).\nIf 4 is in front, clockwise is (S).\nSo swapped is (S).\nOriginal is (R).\nWait!\nIf swapped is (S), then original is (R).\nLet me re-do the swap for C6.\nOriginal: 1=Down-Right, 2=Down-Left, 3=Dash, 4=Wedge.\nSwap 3 and 4: 1=Down-Right, 2=Down-Left, 4=Dash, 3=Wedge.\nNow 4 is in back.\n1=Down-Right, 2=Down-Left, 3=Wedge (Center).\n1 -> 2 -> 3 is clockwise.\nClockwise with 4 in back is (R).\nSo swapped is (R).\nOriginal is (S).\nYes! Original is (S).\nSo C6 is (S).\nMatches option C perfectly!\nLet me re-verify the swap logic.\nOriginal has 4=Wedge.\nIf we just look at 1, 2, 3 in the original:\n1=Down-Right, 2=Down-Left, 3=Dash.\nProjected on front: 1=Down-Right, 2=Down-Left, 3=Center.\n1->2->3 is clockwise.\nSince 4 is Wedge (in front), the apparent direction is opposite to the true direction.\nApparent is clockwise (R). So true is (S).\nYes, C6 is (S).\nLet me re",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 37200,
+          "content_len": 3270,
+          "reasoning_len": 0,
+          "raw_full": "To find the total number of atoms in salts A and B, we first need to determine the elemental composition of the initial mixture based on the products formed.\n\n1. **Analysis of the products:**\n- **Tube №1 (anhydrous Mg(ClO4)2):** Absorbs water ($H_2O$). \n  The mass increased by 3.60 g, which corresponds to the mass of water produced.\n  Moles of $H_2O$ = $3.60 \\text{ g} / 18.02 \\text{ g/mol} = 0.200 \\text{ mol}$.\n  This gives us $0.400 \\text{ mol}$ of Hydrogen atoms and $0.200 \\text{ mol}$ of Oxygen atoms.\n\n- **Tube №2 (Ca(OH)2 solution):** Absorbs acidic gases like $CO_2$, $SO_2$, etc. \n  The mass did not change, meaning no such gases were produced.\n\n- **Tube №3 (red-hot copper):** Copper reacts with oxidizing gases (like $O_2$ or $N_2O$) to form $CuO$. \n  The mass increased by 0.80 g, which is the mass of the oxygen atoms that reacted with the copper.\n  Moles of $O$ atoms = $0.80 \\text{ g} / 16.00 \\text{ g/mol} = 0.050 \\text{ mol}$.\n\n- **Remaining gas C:** 2.24 liters at STP (Standard Temperature and Pressure).\n  Moles of gas C = $2.24 \\text{ L} / 22.4 \\text{ L/mol} = 0.100 \\text{ mol}$.\n  Since it passed through all tubes unreacted, it is nitrogen gas ($N_2$).\n  This gives us $0.200 \\text{ mol}$ of Nitrogen atoms.\n\n2. **Mass balance check:**\nLet's calculate the total mass of the elements we found:\n- Mass of H = $0.400 \\text{ mol} \\times 1.01 \\text{ g/mol} \\approx 0.40 \\text{ g}$\n- Mass of O = $(0.200 + 0.050) \\text{ mol} \\times 16.00 \\text{ g/mol} = 4.00 \\text{ g}$\n- Mass of N = $0.200 \\text{ mol} \\times 14.01 \\text{ g/mol} \\approx 2.80 \\text{ g}$\nTotal mass = $0.40 \\text{ g} + 4.00 \\text{ g} + 2.80 \\text{ g} = 7.20 \\text{ g}$.\nThis exactly matches the initial mass of the mixture. Thus, the salts consist *only* of Hydrogen, Nitrogen, and Oxygen.\n\n3. **Determining the formulas of the salts:**\nThe total molar amounts of the elements in the mixture are:\n- $N$: 0.200 mol\n- $H$: 0.400 mol\n- $O$: 0.250 mol\n\nBecause the mixture of salts A and B is equimolar, they must be present in equal amounts. The simplest nitrogen-containing salts that decompose entirely into gases at 200°C are ammonium nitrite ($NH_4NO_2$) and ammonium nitrate ($NH_4NO_3$).\nLet's test an equimolar mixture of $0.050 \\text{ mol}$ of each:\n- $0.050 \\text{ mol}$ $NH_4NO_2$ decomposes into $0.050 \\text{ mol}$ $N_2$ and $0.100 \\text{ mol}$ $H_2O$.\n- $0.050 \\text{ mol}$ $NH_4NO_3$ decomposes into $0.050 \\text{ mol}$ $N_2O$ and $0.100 \\text{ mol}$ $H_2O$.\n\nLet's see if this matches our tube results:\n- Total $H_2O$ = $0.100 + 0.100 = 0.200 \\text{ mol}$ (Matches Tube 1: 3.60 g)\n- The $0.050 \\text{ mol}$ of $N_2O$ passes into Tube 3 and reacts with red-hot Cu ($N_2O + Cu \\rightarrow CuO + N_2$), leaving $0.050 \\text{ mol}$ of O on the copper. (Matches Tube 3: $0.050 \\text{ mol} \\times 16 \\text{ g/mol} = 0.80 \\text{ g}$)\n- The reaction in Tube 3 also releases $0.050 \\text{ mol}$ of $N_2$. Combined with the $0.050 \\text{ mol}$ of $N_2$ from the $NH_4NO_2$, we get a total of $0.100 \\text{ mol}$ of $N_2$ gas. (Matches Gas C: 2.24 L)\n\n4. **Calculating the total number of atoms:**\n- Salt A ($NH_4NO_3$) has 2 N + 4 H + 3 O = 9 atoms.\n- Salt B ($NH_4NO_2$) has 2 N + 4 H + 2 O = 8 atoms.\nTotal number of atoms in one formula unit of both salts = 9 + 8 = 17 atoms.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 12290,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 26466,
+          "content_len": 2383,
+          "reasoning_len": 0,
+          "raw_full": "To determine the number of ^{13}\\text{C}\\text{-NMR} signals produced by the final product E, let's analyze the given series of reactions step-by-step:\n\n1. **Formation of A**: Propionaldehyde ($\\text{CH}_3\\text{CH}_2\\text{CHO}$) reacts with 1,2-ethanedithiol (EDT) in the presence of a Lewis acid catalyst ($\\text{BF}_3$) to form a thioacetal. \n   *Product A* is **2-ethyl-1,3-dithiolane**.\n\n2. **Formation of B**: The treatment of A with Butyllithium ($\\text{BuLi}$) deprotonates the most acidic proton, which is located on the carbon between the two sulfur atoms (C2). \n   *Product B* is the **lithium salt of 2-ethyl-1,3-dithiolane**.\n\n3. **Formation of C**: The nucleophilic carbanion B undergoes an $\\text{S}_\\text{N}2$ reaction with bromoethane ($\\text{CH}_3\\text{CH}_2\\text{Br}$), adding an ethyl group to the C2 position.\n   *Product C* is **2,2-diethyl-1,3-dithiolane**.\n\n4. **Formation of D**: The thioacetal C is hydrolyzed using mercury(II) chloride ($\\text{HgCl}_2$) in acidic water ($\\text{H}_2\\text{O} / \\text{H}^+$) to reveal the carbonyl group.\n   *Product D* is **3-pentanone** (diethyl ketone), which has the structure $\\text{CH}_3\\text{CH}_2\\text{C(=O)}\\text{CH}_2\\text{CH}_3$.\n\n5. **Formation of E**: The final step is a Wittig reaction. \n   - First, 3-bromopentane ($\\text{CH}_3\\text{CH}_2\\text{CH(Br)}\\text{CH}_2\\text{CH}_3$) reacts with triphenylphosphine ($\\text{PPh}_3$) to form a phosphonium salt.\n   - Next, $\\text{BuLi}$ deprotonates the salt to form the Wittig reagent (an ylide): $\\text{Ph}_3\\text{P=C(CH}_2\\text{CH}_3)_2$.\n   - Finally, the ylide reacts with the ketone D (3-pentanone) to form an alkene. \n   *Product E* is **3,4-diethylhex-3-ene** (also known as tetraethylethylene), which has the structure $(\\text{CH}_3\\text{CH}_2)_2\\text{C=C(CH}_2\\text{CH}_3)_2$.\n\n**^{13}\\text{C}\\text{-NMR} Analysis of E:**\nTetraethylethylene is a highly symmetrical molecule ($D_{2h}$ symmetry). Because of this symmetry, all four ethyl groups attached to the central double bond are chemically and magnetically equivalent. \nTherefore, the carbon atoms will group into the following unique environments:\n1. The two equivalent alkene carbons ($\\text{C=C}$)\n2. The four equivalent methylene carbons ($-\\text{CH}_2-$)\n3. The four equivalent methyl carbons ($-\\text{CH}_3$)\n\nThis results in exactly **3** distinct signals in its ^{13}\\text{C}\\text{-NMR} spectrum.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 10868,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 12437,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 14974,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 6588,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 8269,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 8984,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 52394,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 34910,
+          "content_len": 1742,
+          "reasoning_len": 0,
+          "raw_full": "To find the ratio of the equilibrium temperatures between Planet1 and Planet2, we can use the relationship between a planet's equilibrium temperature, its semi-major axis, its mass, and the radial velocity semi-amplitude it induces on its host star.\n\n1. **Equilibrium Temperature ($T_{eq}$):**\nThe equilibrium temperature of a planet is inversely proportional to the square root of its semi-major axis ($a$):\n$T_{eq} \\propto \\frac{1}{\\sqrt{a}}$\nSince both planets orbit the same star and have the same albedo, all other factors (stellar temperature, stellar radius, etc.) cancel out when taking the ratio.\n\n2. **Radial Velocity Semi-Amplitude ($K$):**\nThe periodic Doppler shift ($\\Delta \\lambda$) is directly proportional to the radial velocity semi-amplitude ($K$). For a circular orbit, $K$ is given by:\n$K \\approx \\frac{m}{\\sqrt{a}} \\frac{\\sqrt{G}}{\\sqrt{M_*}}$\nWhere $m$ is the mass of the planet. Rearranging this to solve for $\\frac{1}{\\sqrt{a}}$, we get:\n$\\frac{1}{\\sqrt{a}} \\propto \\frac{K}{m}$\n\n3. **Relating $T_{eq}$ to $K$ and $m$:**\nSince $T_{eq} \\propto \\frac{1}{\\sqrt{a}}$, we can substitute the relationship from step 2:\n$T_{eq} \\propto \\frac{K}{m}$\n\n4. **Calculating the Ratio:**\nNow we can find the ratio of the equilibrium temperatures of Planet1 to Planet2:\n$\\frac{T_{eq,1}}{T_{eq,2}} = \\frac{K_1 / m_1}{K_2 / m_2}$\n\nGiven the values in the problem:\n- $K_1 \\propto 0.03$ Å\n- $K_2 \\propto 0.04$ Å\n- $m_1 = 7 M_\\oplus$\n- $m_2 = 5 M_\\oplus$\n\nPlug these into the ratio equation:\n$\\frac{T_{eq,1}}{T_{eq,2}} = \\frac{0.03 / 7}{0.04 / 5} = \\left(\\frac{0.03}{0.04}\\right) \\times \\left(\\frac{5}{7}\\right) = \\frac{3}{4} \\times \\frac{5}{7} = \\frac{15}{28}$\n\n$\\frac{15}{28} \\approx 0.5357$\n\nThis gives a ratio of approximately 0.53.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 6586,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 21930,
+          "content_len": 270,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    result = []\n    for char in message:\n        swapped = char.swapcase()\n        if swapped in 'aeiouAEIOU':\n            result.append(chr(ord(swapped) + 2))\n        else:\n            result.append(swapped)\n    return ''.join(result)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 17392,
+          "content_len": 272,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    if n <= 2:\n        return []\n    sieve = [True] * n\n    for p in range(2, int(n**0.5) + 1):\n        if sieve[p]:\n            for i in range(p * p, n, p):\n                sieve[i] = False\n    return [p for p in range(2, n) if sieve[p]]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 11109,
+          "content_len": 116,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    return a*a == b*b + c*c or b*b == a*a + c*c or c*c == a*a + b*b\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "largest_prime_factor",
+          "gold_ans": "largest_prime_factor",
+          "ms": 15937,
+          "content_len": 493,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    largest = 1\n    \n    while n % 2 == 0:\n        largest = 2\n        n //= 2\n        \n    i = 3\n    while i * i <= n:\n        while n % i == 0:\n            largest = i\n            n //= i\n        i += 2\n        \n    if n > 1:\n        largest = n\n        \n    return largest\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 4850,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 7268,
+          "content_len": 216,
+          "reasoning_len": 0,
+          "raw_full": "```python\nfrom typing import List\n\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    min_val = min(numbers)\n    max_val = max(numbers)\n    return [(x - min_val) / (max_val - min_val) for x in numbers]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "C",
+          "ms": 38950,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 22277,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 9912,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 11605,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "D",
+          "ms": 40520,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 12823,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 18064,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 7373,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 5197,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 4911,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 7727,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 7820,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 3569,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 4172,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.model from model_list as t1 join car_makers as t2 on t1.maker = t2.id where t2.fullname = 'general motors' union select t1.model from car_names as t1 join cars_data as t2 on t1.makeid = t2.i",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 11858,
+          "content_len": 235,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT T1.Model FROM model_list AS T1 JOIN car_makers AS T2 ON T1.Maker = T2.Id WHERE T2.FullName = 'General Motors'\nUNION\nSELECT T1.Model FROM car_names AS T1 JOIN cars_data AS T2 ON T1.MakeId = T2.Id WHERE T2.Weight > 3500\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t2.museum_id = t3.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 8630,
+          "content_len": 332,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT T1.Name \nFROM visitor AS T1 \nJOIN visit AS T2 ON T1.ID = T2.visitor_ID \nJOIN museum AS T3 ON T2.Museum_ID = T3.Museum_ID \nWHERE T3.Open_Year < 2009 \nINTERSECT \nSELECT T1.Name \nFROM visitor AS T1 \nJOIN visit AS T2 ON T1.ID = T2.visitor_ID \nJOIN museum AS T3 ON T2.Museum_ID = T3.Museum_ID \nWHERE T3.Open_Year > 2011\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker join car_names as t3 on t2.model = t3.model group by t1.id having count(distinct t2.model) >= 2 and count(t3.make",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 16623,
+          "content_len": 230,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT\n  T1.Id,\n  T1.Maker\nFROM car_makers AS T1\nJOIN model_list AS T2\n  ON T1.Id = T2.Maker\nJOIN car_names AS T3\n  ON T2.Model = T3.Model\nGROUP BY\n  T1.Id\nHAVING\n  count(DISTINCT T2.Model) >= 2 AND count(T3.MakeId) > 3\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

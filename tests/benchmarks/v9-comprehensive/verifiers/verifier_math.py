@@ -129,6 +129,22 @@ def verify(model_output: str, gold_solution: str) -> dict:
     result["gold_ans"] = gold_ans
 
     if model_ans is None:
+        # Tail-number fallback: 模型用 markdown header / 自然语言写答案没用 \boxed{}
+        # 在最后 800 字找 gold 数字(支持整数 / 小数 / 分数 a/b)
+        gold_for_search = extract_boxed(gold_solution)
+        if gold_for_search is not None:
+            tail = model_output[-800:] if model_output else ""
+            # 简化 gold:取数字 token
+            gold_clean = re.sub(r'[\\\s${}]', '', gold_for_search)
+            # 整数或小数
+            if re.fullmatch(r'-?\d+(?:\.\d+)?', gold_clean):
+                # 尾段必须含完整数字(word boundary)
+                if re.search(rf'(?<![.\d]){re.escape(gold_clean)}(?![.\d])', tail):
+                    result["verified"] = True
+                    result["model_ans"] = f"[tail-match] {gold_clean}"
+                    result["gold_ans"] = gold_for_search
+                    result["method"] = "tail_number_match"
+                    return result
         result["error"] = "model_output_no_boxed"
         return result
     if gold_ans is None:

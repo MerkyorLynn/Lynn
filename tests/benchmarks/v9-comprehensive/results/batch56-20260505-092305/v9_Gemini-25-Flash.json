@@ -1,0 +1,1327 @@
+{
+  "timestamp": "2026-05-05T09:39:31.844353",
+  "provider": "Gemini 2.5 Flash",
+  "model": "gemini-2.5-flash",
+  "runs": 1,
+  "subset_score": {
+    "math": 7,
+    "finance": 7,
+    "biology": 4,
+    "chemistry": 4,
+    "physics": 6,
+    "code_algo": 7,
+    "longctx": 2,
+    "medical": 6
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "510",
+          "gold_ans": "510",
+          "ms": 43410,
+          "content_len": 3943,
+          "reasoning_len": 0,
+          "raw_full": "Let the given inequalities be:\n1. $x-yz < y-zx$\n2. $y-zx < z-xy$\n\nFrom inequality 1:\n$x-y < yz-zx \\implies x-y < z(y-x) \\implies x-y < -z(x-y)$\n$(x-y) + z(x-y) < 0 \\implies (x-y)(1+z) < 0$\n\nFrom inequality 2:\n$y-z < zx-xy \\implies y-z < x(z-y) \\implies y-z < -x(y-z)$\n$(y-z) + x(y-z) < 0 \\implies (y-z)(1+x) < 0$\n\nThe third inequality is derived from $x-yz < z-xy$:\n$x-z < yz-xy \\implies x-z < y(z-x) \\implies x-z < -y(x-z)$\n$(x-z) + y(x-z) < 0 \\implies (x-z)(1+y) < 0$\n\nSo the system of inequalities is:\n(A) $(x-y)(1+z) < 0$\n(B) $(y-z)(1+x) < 0$\n(C) $(x-z)(1+y) < 0$\n\nThe problem states that there is exactly one finite region. This usually occurs when the variables are bounded. Let's analyze the signs of the factors.\nLet $s_1 = \\text{sign}(x-y)$, $s_2 = \\text{sign}(y-z)$, $s_3 = \\text{sign}(x-z)$.\nLet $p_1 = \\text{sign}(1+x)$, $p_2 = \\text{sign}(1+y)$, $p_3 = \\text{sign}(1+z)$.\n\nThe inequalities become:\n$s_1 p_3 = -1$\n$s_2 p_1 = -1$\n$s_3 p_2 = -1$\n\nNote that $x-z = (x-y) + (y-z)$, so $s_3$ is related to $s_1$ and $s_2$.\nIf $s_1 = 1$ and $s_2 = 1$, then $x>y>z$. Then $x>z$, so $s_3 = 1$.\nIf $s_1 = 1$ and $s_2 = -1$, then $x>y$ and $y<z$.\nIf $s_1 = -1$ and $s_2 = 1$, then $x<y$ and $y>z$.\nIf $s_1 = -1$ and $s_2 = -1$, then $x<y<z$. Then $x<z$, so $s_3 = -1$.\n\nConsider the case where all $1+x, 1+y, 1+z$ are positive ($p_1=1, p_2=1, p_3=1$). This means $x>-1, y>-1, z>-1$.\nThen:\n$s_1 = -1 \\implies x < y$\n$s_2 = -1 \\implies y < z$\n$s_3 = -1 \\implies x < z$ (consistent with $x<y<z$)\nSo, this region is $x+y+z=75$ and $x<y<z$ and $x,y,z > -1$. Since $x<y<z$, if $x>-1$, then $y>-1$ and $z>-1$ are implied.\nThus, this region is defined by $x+y+z=75$ and $x<y<z$ and $x>-1$.\n\nLet's find the vertices of the triangle on the plane $x+y+z=75$ defined by $x<y<z$ and $x>-1$.\nThe boundaries are the lines $x=y$, $y=z$, and $x=-1$.\n1. Intersection of $x=y$ and $y=z$: $x=y=z$. With $x+y+z=75$, we get $3x=75 \\implies x=25$. So $(25,25,25)$.\n2. Intersection of $x=y$ and $x=-1$: $x=-1, y=-1$. With $x+y+z=75$, we get $-1-1+z=75 \\implies z=77$. So $(-1,-1,77)$.\n3. Intersection of $y=z$ and $x=-1$: $x=-1, y=z$. With $x+y+z=75$, we get $-1+y+y=75 \\implies 2y=76 \\implies y=38$. So $(-1,38,38)$.\n\nThe vertices of the triangular region are $A=(25,25,25)$, $B=(-1,38,38)$, $C=(-1,-1,77)$.\nLet's check if these vertices satisfy $x<y<z$.\nFor $A=(25,25,25)$, $x=y=z$, so it's on the boundary.\nFor $B=(-1,38,38)$, $x=-1 < y=38 = z=38$. So $y=z$ is on the boundary.\nFor $C=(-1,-1,77)$, $x=-1 = y=-1 < z=77$. So $x=y$ is on the boundary.\n\nThis triangular region is defined by the intersection of the plane $x+y+z=75$ with the half-spaces $x \\geq -1$, $x \\leq y$, $y \\leq z$.\nThe area of a triangle in 3D with vertices $V_1, V_2, V_3$ is given by $\\frac{1}{2} \\|(V_2-V_1) \\times (V_3-V_1)\\|$.\nLet $V_1 = A = (25,25,25)$\nLet $V_2 = B = (-1,38,38)$\nLet $V_3 = C = (-1,-1,77)$\n\n$V_2 - V_1 = (-1-25, 38-25, 38-25) = (-26, 13, 13)$\n$V_3 - V_1 = (-1-25, -1-25, 77-25) = (-26, -26, 52)$\n\nNow calculate the cross product $(V_2-V_1) \\times (V_3-V_1)$:\n$((-26, 13, 13) \\times (-26, -26, 52)) = (\\det \\begin{pmatrix} 13 & 13 \\\\ -26 & 52 \\end{pmatrix}, -\\det \\begin{pmatrix} -26 & 13 \\\\ -26 & 52 \\end{pmatrix}, \\det \\begin{pmatrix} -26 & 13 \\\\ -26 & -26 \\end{pmatrix})$\n$= (13 \\cdot 52 - 13 \\cdot (-26), -(-26 \\cdot 52 - 13 \\cdot (-26)), -26 \\cdot (-26) - 13 \\cdot (-26))$\n$= (676 + 338, -(-1352 + 338), 676 + 338)$\n$= (1014, -(-1014), 1014)$\n$= (1014, 1014, 1014)$\n\nThe magnitude of this vector is $\\sqrt{1014^2 + 1014^2 + 1014^2} = \\sqrt{3 \\cdot 1014^2} = 1014\\sqrt{3}$.\nThe area of the triangle is $\\frac{1}{2} \\cdot 1014\\sqrt{3} = 507\\sqrt{3}$.\n\nThis area is in the form $a\\sqrt{b}$, where $a=507$ and $b=3$.\nWe need to check if $b$ is not divisible by the square of any prime. $3$ is a prime, so it's not divisible by the square of any prime.\n$a=507$, $b=3$. Both are positive integers.\nWe need to find $a+b = 507+3 = 510$.\n\nThe final answer is $\\boxed{510}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 17234,
+          "content_len": 2317,
+          "reasoning_len": 0,
+          "raw_full": "The points $A, B, C, D, E, F$ lie in a straight line in that order. Let's set the coordinate of point $A$ as $0$. We can then determine the coordinates of the other points.\n\nGiven lengths:\n$AC = 26 \\implies x_C - x_A = 26 \\implies x_C = 26$ (since $x_A = 0$)\n$AF = 73 \\implies x_F - x_A = 73 \\implies x_F = 73$ (since $x_A = 0$)\n$DF = 33 \\implies x_F - x_D = 33 \\implies x_D = x_F - 33 = 73 - 33 = 40$\n$BD = 22 \\implies x_D - x_B = 22 \\implies x_B = x_D - 22 = 40 - 22 = 18$\n$CE = 31 \\implies x_E - x_C = 31 \\implies x_E = x_C + 31 = 26 + 31 = 57$\n\nSo the coordinates of the points on the line are:\n$A = 0$\n$B = 18$\n$C = 26$\n$D = 40$\n$E = 57$\n$F = 73$\n\nLet's check the order: $0 < 18 < 26 < 40 < 57 < 73$, which is correct.\nWe can consider the line as the x-axis, so the coordinates of the points are $A(0,0)$, $B(18,0)$, $C(26,0)$, $D(40,0)$, $E(57,0)$, $F(73,0)$.\n\nLet the coordinates of point $G$ be $(x_G, y_G)$.\nWe are given $CG = 40$ and $DG = 30$. Using the distance formula:\n$CG^2 = (x_G - x_C)^2 + (y_G - 0)^2 = (x_G - 26)^2 + y_G^2 = 40^2 = 1600$  (Equation 1)\n$DG^2 = (x_G - x_D)^2 + (y_G - 0)^2 = (x_G - 40)^2 + y_G^2 = 30^2 = 900$   (Equation 2)\n\nSubtract Equation 2 from Equation 1:\n$(x_G - 26)^2 - (x_G - 40)^2 = 1600 - 900$\n$(x_G^2 - 52x_G + 676) - (x_G^2 - 80x_G + 1600) = 700$\n$x_G^2 - 52x_G + 676 - x_G^2 + 80x_G - 1600 = 700$\n$28x_G - 924 = 700$\n$28x_G = 1624$\n$x_G = \\frac{1624}{28} = 58$\n\nSubstitute $x_G = 58$ into Equation 2:\n$(58 - 40)^2 + y_G^2 = 900$\n$18^2 + y_G^2 = 900$\n$324 + y_G^2 = 900$\n$y_G^2 = 900 - 324 = 576$\n$y_G = \\pm\\sqrt{576} = \\pm 24$\n\nSince $G$ is a point not on the line, $y_G \\neq 0$. We can take $y_G = 24$.\nSo the coordinates of $G$ are $(58, 24)$.\n\nWe need to find the area of $\\triangle BGE$. The vertices are $B(18,0)$, $G(58,24)$, and $E(57,0)$.\nThe base of the triangle can be the segment $BE$, which lies on the x-axis.\nThe length of the base $BE = x_E - x_B = 57 - 18 = 39$.\nThe height of the triangle is the perpendicular distance from point $G$ to the line containing $BE$ (the x-axis), which is the absolute value of the y-coordinate of $G$.\nHeight $h = |y_G| = 24$.\n\nThe area of $\\triangle BGE = \\frac{1}{2} \\times \\text{base} \\times \\text{height}$\nArea $= \\frac{1}{2} \\times 39 \\times 24$\nArea $= 39 \\times 12$\nArea $= 468$\n\nThe final answer is $\\boxed{468}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 60",
+          "gold_ans": "60",
+          "ms": 99538,
+          "content_len": 46837,
+          "reasoning_len": 0,
+          "raw_full": "Let $X$ be a point in the plane. We want to minimize $f(X) = AX+BX+CX+DX+EX$.\nThis problem can be solved by rotating parts of the pentagon to \"unfold\" the path, making the sum of distances equivalent to the length of a single line segment. The key are the angles $\\angle B = 60^\\circ$ and $\\angle E = 60^\\circ$.\n\nLet's perform the following rotations:\n1. Rotate triangle $BCX$ about point $B$ by $60^\\circ$ counterclockwise. Let $C'$ be the image of $C$ and $X_1$ be the image of $X$.\n   Since the rotation is $60^\\circ$, $\\triangle BX X_1$ is equilateral, so $BX = X X_1$.\n   Also, $CX = C' X_1$.\n   Thus, $BX+CX = X X_1 + C' X_1$.\n   The coordinates of $C'$ can be found. Assume $B$ is at the origin $(0,0)$. Let $C=(x_C, y_C)$. Then $C'=(x_C \\cos 60^\\circ - y_C \\sin 60^\\circ, x_C \\sin 60^\\circ + y_C \\cos 60^\\circ) = (x_C/2 - y_C\\sqrt{3}/2, x_C\\sqrt{3}/2 + y_C/2)$. We are given $BC=7$.\n   The side length $BC'$ is also $7$.\n\n2. Rotate triangle $DEX$ about point $E$ by $60^\\circ$ clockwise. Let $D'$ be the image of $D$ and $X_2$ be the image of $X$.\n   Since the rotation is $60^\\circ$, $\\triangle EX X_2$ is equilateral, so $EX = X X_2$.\n   Also, $DX = D' X_2$.\n   Thus, $DX+EX = X X_2 + D' X_2$.\n   The side length $ED'$ is also $13$.\n\nNow, substitute these into $f(X)$:\n$f(X) = AX + (X X_1 + C' X_1) + (X X_2 + D' X_2)$.\nThis is not a single path, as $X_1$ and $X_2$ are images of $X$ under different rotations.\n\nLet's try another approach. Consider a coordinate system. Let $B = (0,0)$.\nSince $\\angle B = 60^\\circ$, we can place $C$ at $(7,0)$ and $A$ at $(14 \\cos 60^\\circ, 14 \\sin 60^\\circ) = (14 \\cdot 1/2, 14 \\cdot \\sqrt{3}/2) = (7, 7\\sqrt{3})$.\n\nThis is based on the assumption that $BC$ lies on the x-axis, which is not necessarily true.\n\nLet's consider the problem with a specific construction.\nConstruct point $C'$ such that $\\triangle BCC'$ is equilateral, with $C'$ outside the pentagon. Then $CC'=7$.\nConstruct point $D'$ such that $\\triangle DED'$ is equilateral, with $D'$ outside the pentagon. Then $DD'=13$.\n\nThis problem is a classic application of the geometric median with rotations.\nThe minimum value of $f(X)$ is the shortest path from a rotated $A$ to a rotated $E$.\n\nLet's use the transformation method where $X$ is the point we're trying to find.\nRotate point $A$ around point $B$ by $60^\\circ$ clockwise. Call this point $A'$. Then $A'B = AB = 14$.\nRotate point $C$ around point $B$ by $60^\\circ$ counterclockwise. Call this point $C'$. Then $C'B = CB = 7$.\nNo, this is not correct for the problem setup.\n\nThe standard solution involves \"unfolding\" the path.\nConstruct $A_1$ by rotating $A$ around $B$ by $60^\\circ$ clockwise.\nConstruct $C_1$ by rotating $C$ around $B$ by $60^\\circ$ counterclockwise.\nThen $AX+BX+CX = AX + \\text{something} + CX$.\n\nLet's try to create a path of length $AE + \\text{something}$.\nConsider rotating $\\triangle XBC$ about $B$ by $60^\\circ$ to $\\triangle X'BC'$.\nThen $BX = XX'$ and $CX = C'X'$.\nSo $BX+CX = XX' + C'X'$.\n\nConsider rotating $\\triangle XDE$ about $E$ by $60^\\circ$ to $\\triangle X''D'E$.\nThen $EX = XX''$ and $DX = D'X''$.\nSo $DX+EX = XX'' + D'X''$.\n\nThis problem is a variation of the Fermat Point problem for a pentagon.\nThe sum $f(X)$ is minimized when the \"angles\" around $X$ are $120^\\circ$.\n\nLet's use the \"unfolding\" strategy that works for these kinds of problems.\n1. Rotate $\\triangle XAB$ about $B$ by $60^\\circ$ such that $A$ maps to $A'$. Then $AX = A'X'$. And $BX = XX'$, where $X'$ is the image of $X$. This is not useful.\n\nConsider the general solution for a convex polygon $V_1V_2...V_n$. The sum of distances is minimized at the geometric median.\n\nLet's use the construction technique described in similar problems.\nConstruct $A'$ by rotating $A$ about $B$ by $60^\\circ$ such that $\\triangle ABA'$ is equilateral. No, this rotates a side.\n\nThe problem implies that a point $X$ exists such that a straight line is formed.\nLet $R_B^{60}$ denote a rotation by $60^\\circ$ counterclockwise around $B$.\nLet $R_E^{-60}$ denote a rotation by $60^\\circ$ clockwise around $E$.\n\nLet $X$ be the point.\nWe have $f(X) = AX+BX+CX+DX+EX$.\nConstruct point $C'$ such that $\\triangle CBC'$ is equilateral. Then $BC=BC'=CC'=7$.\nConstruct point $D'$ such that $\\triangle DED'$ is equilateral. Then $DE=DE'=DD'=13$.\n\nThe minimum value of $AX+BX+CX+DX+EX$ occurs when $X$ is such that when we construct $C'$ (by rotating $C$ about $B$ by $60^\\circ$ outward) and $D'$ (by rotating $D$ about $E$ by $60^\\circ$ outward), the path $A \\to X \\to C' \\to D \\to E$. This is not quite right.\n\nThe solution usually involves constructing a path:\nLet $A_0 = A$.\nRotate $\\vec{BX}$ about $B$ by $60^\\circ$ to $\\vec{BX_1}$. Then $BX = XX_1$.\nRotate $\\vec{CX}$ about $X$ to $\\vec{C'X}$.\n\nConsider the chain of segments.\nLet $X$ be the point.\nRotate $B$ about $A$ by $60^\\circ$ such that $\\triangle BAX_1$ is equilateral.\n\nLet's construct point $C'$ by rotating $C$ about $B$ by $60^\\circ$ counterclockwise. Then $BC=BC'=7$.\nLet $D'$ be the point obtained by rotating $D$ about $E$ by $60^\\circ$ clockwise. Then $DE=DE'=13$.\n\nNow consider the sum $AX + BX + CX + DX + EX$.\nWhen $X$ is the minimizing point, it should satisfy certain angular conditions.\n\nLet's use the technique of \"unfolding\" the polygon.\n1. Rotate $\\triangle BXC$ about $B$ by $60^\\circ$ counter-clockwise. Let $X_1$ be the image of $X$. Let $C_1$ be the image of $C$.\n   Then $\\triangle BXX_1$ is equilateral, so $BX = XX_1$.\n   Also $CX = C_1X_1$.\n   So $BX+CX = XX_1 + C_1X_1$.\n   The point $C_1$ is constructed from $C$ by rotating $C$ about $B$ by $60^\\circ$ counter-clockwise.\n\n2. Rotate $\\triangle EXD$ about $E$ by $60^\\circ$ clockwise. Let $X_2$ be the image of $X$. Let $D_1$ be the image of $D$.\n   Then $\\triangle EXX_2$ is equilateral, so $EX = XX_2$.\n   Also $DX = D_1X_2$.\n   So $DX+EX = XX_2 + D_1X_2$.\n   The point $D_1$ is constructed from $D$ by rotating $D$ about $E$ by $60^\\circ$ clockwise.\n\nNow, $f(X) = AX + XX_1 + C_1X_1 + D_1X_2 + XX_2$.\nThis does not form a straight line.\n\nThe problem implies that a specific point $X$ simplifies the sum.\nThe minimum value of $AX+BX+CX+DX+EX$ occurs when $X$ is such that if we construct an equilateral triangle on $BC$ and $DE$ outwards, the sum forms a straight line.\n\nLet's use the \"unfolding\" method where we connect points.\nLet $A$ be $(x_A, y_A)$, $B=(x_B, y_B)$, etc.\nLet's consider specific rotations.\nLet $C_1$ be the point obtained by rotating $C$ about $B$ by $60^\\circ$ counterclockwise. Then $BC=BC_1=7$.\nLet $D_1$ be the point obtained by rotating $D$ about $E$ by $60^\\circ$ clockwise. Then $DE=D_1E=13$.\n\nThe value of $f(X)$ is minimized when $A, X, C_1, D_1, E$ are collinear. This is for the case of $AX+XC_1+C_1D_1+D_1E$.\nNo, this is not directly applicable.\n\nThe minimum value of $f(X)$ is the length of the segment $A_2 E_2$, where $A_2$ and $E_2$ are specific rotated points.\n\nLet's consider constructing a new point.\nRotate $\\triangle BCD$ about $B$ by $60^\\circ$ counterclockwise to $\\triangle BC'D'$.\nThen $BC=BC'=7$, $CD=C'D'=24$, $BD=BD'$.\nNow consider $AX+BX+CX+DX+EX$.\nIf we place $X$ such that $\\angle BXC = 60^\\circ$ and $\\angle CXD = 60^\\circ$. No.\n\nThe specific geometry of the $60^\\circ$ angles usually means that we can \"straighten\" some parts of the sum.\nLet $A = (0, 26)$.\nLet $E = (0,0)$.\nThen $D = (13 \\cos 60^\\circ, -13 \\sin 60^\\circ) = (13/2, -13\\sqrt{3}/2)$. This places $E$ at origin.\n\nLet's place $B=(0,0)$. Since $\\angle B=60^\\circ$.\n$C=(7,0)$.\n$A=(14 \\cos 60^\\circ, 14 \\sin 60^\\circ) = (7, 7\\sqrt{3})$.\n\nNow consider point $E$. We are given $EA=26$.\nDistance between $A=(7, 7\\sqrt{3})$ and $E=(x_E, y_E)$ is 26.\n$(x_E-7)^2 + (y_E-7\\sqrt{3})^2 = 26^2 = 676$.\n\nAlso, $DE=13$. So $(x_E-x_D)^2 + (y_E-y_D)^2 = 13^2 = 169$.\nAlso, $\\angle E=60^\\circ$.\n\nLet's rotate the segments.\nRotate $AB$ about $B$ by $60^\\circ$ to $A_1B$. So $BA_1=14$.\nRotate $CD$ about $D$ by $60^\\circ$ to $C_1D$. So $DC_1=24$.\nRotate $EA$ about $E$ by $60^\\circ$ to $E_1A$. So $AE_1=26$.\n\nThis problem ",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "204",
+          "gold_ans": "204",
+          "ms": 14082,
+          "content_len": 2648,
+          "reasoning_len": 0,
+          "raw_full": "Here's how to solve the problem:\n\nLet $D$ be the distance of the walk, $s$ be Aya's constant walking speed in km/h, and $t$ be the time spent in the coffee shop in minutes.\nWe are given $D = 9$ km.\n\n**Scenario 1:**\n*   Speed: $s$ km/h\n*   Total time: 4 hours = 240 minutes\n*   Time spent walking: $(240 - t)$ minutes = $\\frac{240 - t}{60}$ hours\n*   Using the formula Distance = Speed × Time:\n    $9 = s \\times \\frac{240 - t}{60}$\n    $540 = s(240 - t)$  (Equation 1)\n\n**Scenario 2:**\n*   Speed: $(s + 2)$ km/h\n*   Total time: 2 hours and 24 minutes = $2 \\times 60 + 24 = 120 + 24 = 144$ minutes\n*   Time spent walking: $(144 - t)$ minutes = $\\frac{144 - t}{60}$ hours\n*   Using the formula Distance = Speed × Time:\n    $9 = (s + 2) \\times \\frac{144 - t}{60}$\n    $540 = (s + 2)(144 - t)$  (Equation 2)\n\nFrom Equation 1, we can express $s$:\n$s = \\frac{540}{240 - t}$\n\nSubstitute this expression for $s$ into Equation 2:\n$540 = \\left(\\frac{540}{240 - t} + 2\\right)(144 - t)$\n$540 = \\left(\\frac{540 + 2(240 - t)}{240 - t}\\right)(144 - t)$\n$540 = \\left(\\frac{540 + 480 - 2t}{240 - t}\\right)(144 - t)$\n$540 = \\frac{(1020 - 2t)(144 - t)}{240 - t}$\n$540(240 - t) = (1020 - 2t)(144 - t)$\n$129600 - 540t = 1020 \\times 144 - 1020t - 2t \\times 144 + 2t^2$\n$129600 - 540t = 146880 - 1020t - 288t + 2t^2$\n$129600 - 540t = 146880 - 1308t + 2t^2$\nRearrange into a quadratic equation:\n$2t^2 - 1308t + 540t + 146880 - 129600 = 0$\n$2t^2 - 768t + 17280 = 0$\nDivide by 2:\n$t^2 - 384t + 8640 = 0$\n\nUse the quadratic formula $t = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$:\n$t = \\frac{384 \\pm \\sqrt{(-384)^2 - 4 \\times 1 \\times 8640}}{2 \\times 1}$\n$t = \\frac{384 \\pm \\sqrt{147456 - 34560}}{2}$\n$t = \\frac{384 \\pm \\sqrt{112896}}{2}$\n$t = \\frac{384 \\pm 336}{2}$\n\nTwo possible values for $t$:\n$t_1 = \\frac{384 + 336}{2} = \\frac{720}{2} = 360$\n$t_2 = \\frac{384 - 336}{2} = \\frac{48}{2} = 24$\n\nIf $t = 360$ minutes, then in Scenario 1, the time spent walking would be $240 - 360 = -120$ minutes, which is impossible.\nTherefore, $t = 24$ minutes.\n\nNow substitute $t = 24$ into the expression for $s$:\n$s = \\frac{540}{240 - 24} = \\frac{540}{216} = 2.5$ km/h.\n\nFinally, we need to find the total time when Aya walks at $s + \\frac{1}{2}$ km/h.\nNew speed: $2.5 + 0.5 = 3$ km/h.\nDistance: $9$ km.\nTime spent walking = $\\frac{\\text{Distance}}{\\text{Speed}} = \\frac{9}{3} = 3$ hours.\n\nThe total time for the walk, including the $t$ minutes spent in the coffee shop, is:\nTotal time = Time spent walking + Time in coffee shop\nTotal time = 3 hours + 24 minutes\nConvert 3 hours to minutes: $3 \\times 60 = 180$ minutes.\nTotal time = $180 + 24 = 204$ minutes.\n\nThe final answer is $\\boxed{204}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "116",
+          "gold_ans": "116",
+          "ms": 9761,
+          "content_len": 2582,
+          "reasoning_len": 0,
+          "raw_full": "Let S be the set of 10 numbers {1, 2, ..., 10}.\nJen picks 4 distinct numbers from S. Let's call this set J.\n4 numbers are randomly chosen from S. Let's call this set R.\n\nThe total number of ways to choose 4 numbers from 10 is given by the combination formula:\n$N = \\binom{10}{4} = \\frac{10!}{4!(10-4)!} = \\frac{10 \\times 9 \\times 8 \\times 7}{4 \\times 3 \\times 2 \\times 1} = 10 \\times 3 \\times 7 = 210$.\n\nLet A be the event that Jen wins a prize, which means at least two of her numbers were among the randomly chosen numbers ($|J \\cap R| \\ge 2$).\nLet B be the event that Jen wins the grand prize, which means all four of her numbers were the randomly chosen numbers ($|J \\cap R| = 4$).\n\nWe need to find the probability of her winning the grand prize given that she won a prize, which is $P(B|A)$.\nSince winning the grand prize implies winning a prize, event B is a subset of event A. Therefore, $B \\cap A = B$.\nSo, $P(B|A) = \\frac{P(B)}{P(A)}$.\n\nFirst, let's calculate the number of ways to win the grand prize (event B).\nThis occurs when all 4 numbers Jen picked are exactly the 4 numbers chosen randomly. For a specific set J chosen by Jen, there is only 1 way for the randomly chosen set R to match J.\nNumber of ways for B = $\\binom{4}{4}\\binom{10-4}{4-4} = \\binom{4}{4}\\binom{6}{0} = 1 \\times 1 = 1$.\nSo, $P(B) = \\frac{1}{210}$.\n\nNext, let's calculate the number of ways to win a prize (event A), which means $|J \\cap R| \\ge 2$.\nWe consider the number of common numbers (k) between Jen's chosen numbers (J) and the randomly chosen numbers (R).\nThe number of ways to choose 4 numbers from S such that k of them are from J and (4-k) are from $S \\setminus J$ (the remaining 6 numbers) is $\\binom{4}{k}\\binom{6}{4-k}$.\n\nWe need to consider the cases where k = 2, k = 3, or k = 4.\n\nCase 1: k = 4 (Grand Prize)\nNumber of ways: $\\binom{4}{4}\\binom{6}{0} = 1 \\times 1 = 1$.\n\nCase 2: k = 3\nNumber of ways: $\\binom{4}{3}\\binom{6}{1} = 4 \\times 6 = 24$.\n\nCase 3: k = 2\nNumber of ways: $\\binom{4}{2}\\binom{6}{2} = 6 \\times \\frac{6 \\times 5}{2 \\times 1} = 6 \\times 15 = 90$.\n\nThe total number of ways to win a prize (event A) is the sum of the ways for these cases:\nNumber of ways for A = $1 + 24 + 90 = 115$.\nSo, $P(A) = \\frac{115}{210}$.\n\nNow, we can calculate $P(B|A)$:\n$P(B|A) = \\frac{P(B)}{P(A)} = \\frac{1/210}{115/210} = \\frac{1}{115}$.\n\nWe are given that this probability is $m/n$, where m and n are relatively prime positive integers.\nHere, $m=1$ and $n=115$.\n1 and 115 are relatively prime.\n\nFinally, we need to find $m+n$:\n$m+n = 1 + 115 = 116$.\n\nThe final answer is $\\boxed{116}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "70",
+          "gold_ans": "70",
+          "ms": 7972,
+          "content_len": 1593,
+          "reasoning_len": 0,
+          "raw_full": "To solve the problem, we first convert the numbers from base $b$ to base 10.\nThe number $17_b$ in base 10 is $1 \\cdot b^1 + 7 \\cdot b^0 = b + 7$.\nThe number $97_b$ in base 10 is $9 \\cdot b^1 + 7 \\cdot b^0 = 9b + 7$.\n\nWe are given that $17_b$ is a divisor of $97_b$. This means that $(9b + 7)$ must be divisible by $(b + 7)$.\nWe can write this condition as:\n$$ \\frac{9b + 7}{b + 7} = k $$\nwhere $k$ is an integer.\n\nWe can rewrite the numerator in terms of the denominator:\n$$ 9b + 7 = 9(b + 7) - 9 \\cdot 7 + 7 $$\n$$ 9b + 7 = 9(b + 7) - 63 + 7 $$\n$$ 9b + 7 = 9(b + 7) - 56 $$\n\nNow, substitute this back into the fraction:\n$$ \\frac{9(b + 7) - 56}{b + 7} = \\frac{9(b + 7)}{b + 7} - \\frac{56}{b + 7} $$\n$$ = 9 - \\frac{56}{b + 7} $$\nFor this expression to be an integer, $\\frac{56}{b + 7}$ must be an integer. This implies that $(b + 7)$ must be a divisor of 56.\n\nWe are also given that the base $b$ is an integer and $b > 9$.\nFrom $b > 9$, we can deduce the range for $b + 7$:\n$b + 7 > 9 + 7$\n$b + 7 > 16$\n\nNow, let's list the positive divisors of 56:\nThe divisors of 56 are 1, 2, 4, 7, 8, 14, 28, 56.\n\nWe need to find the divisors of 56 that are greater than 16.\nFrom the list of divisors, the values that satisfy this condition are 28 and 56.\n\nCase 1: $b + 7 = 28$\n$b = 28 - 7$\n$b = 21$\nThis value of $b$ satisfies the condition $b > 9$.\n\nCase 2: $b + 7 = 56$\n$b = 56 - 7$\n$b = 49$\nThis value of $b$ also satisfies the condition $b > 9$.\n\nThe integer bases $b > 9$ for which $17_b$ is a divisor of $97_b$ are 21 and 49.\nThe sum of these bases is $21 + 49 = 70$.\n\nThe final answer is $\\boxed{70}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "16",
+          "gold_ans": "16",
+          "ms": 17227,
+          "content_len": 3069,
+          "reasoning_len": 0,
+          "raw_full": "Let $N_C$, $N_V$, and $N_S$ be the number of players who chose chocolate, vanilla, and strawberry ice cream, respectively.\n\nFrom the problem statement, we have the following conditions:\n1.  The total number of players is 9: $N_C + N_V + N_S = 9$.\n2.  At least one player chose each flavor: $N_C \\ge 1$, $N_V \\ge 1$, $N_S \\ge 1$.\n3.  The number of players who chose chocolate was greater than the number who chose vanilla, which was greater than the number who chose strawberry: $N_C > N_V > N_S$.\n\nFrom condition 3, we can establish minimum values based on $N_S$:\nSince $N_S \\ge 1$, then $N_V \\ge N_S + 1$, and $N_C \\ge N_V + 1 \\ge (N_S + 1) + 1 = N_S + 2$.\n\nSubstitute these minimums into the sum equation:\n$N_C + N_V + N_S = 9$\n$(N_S + 2) + (N_S + 1) + N_S \\le 9$\n$3N_S + 3 \\le 9$\n$3N_S \\le 6$\n$N_S \\le 2$\n\nSince $N_S \\ge 1$ (from condition 2), the possible integer values for $N_S$ are 1 or 2.\n\nLet's consider each case:\n\nCase 1: $N_S = 1$\nIf $N_S = 1$, then:\n$N_C + N_V + 1 = 9 \\implies N_C + N_V = 8$.\nFrom $N_V > N_S$, we have $N_V > 1 \\implies N_V \\ge 2$.\nFrom $N_C > N_V$.\n\nWe need to find integer pairs $(N_C, N_V)$ such that $N_C + N_V = 8$, $N_V \\ge 2$, and $N_C > N_V$.\n*   If $N_V = 2$, then $N_C = 6$. This satisfies $6 > 2$. So, $(N_C, N_V, N_S) = (6, 2, 1)$ is a valid distribution.\n*   If $N_V = 3$, then $N_C = 5$. This satisfies $5 > 3$. So, $(N_C, N_V, N_S) = (5, 3, 1)$ is a valid distribution.\n*   If $N_V = 4$, then $N_C = 4$. This does not satisfy $N_C > N_V$.\nSo, for $N_S = 1$, we have two distributions: $(6, 2, 1)$ and $(5, 3, 1)$.\n\nCase 2: $N_S = 2$\nIf $N_S = 2$, then:\n$N_C + N_V + 2 = 9 \\implies N_C + N_V = 7$.\nFrom $N_V > N_S$, we have $N_V > 2 \\implies N_V \\ge 3$.\nFrom $N_C > N_V$.\n\nWe need to find integer pairs $(N_C, N_V)$ such that $N_C + N_V = 7$, $N_V \\ge 3$, and $N_C > N_V$.\n*   If $N_V = 3$, then $N_C = 4$. This satisfies $4 > 3$. So, $(N_C, N_V, N_S) = (4, 3, 2)$ is a valid distribution.\n*   If $N_V = 4$, then $N_C = 3$. This does not satisfy $N_C > N_V$.\nSo, for $N_S = 2$, we have one distribution: $(4, 3, 2)$.\n\nThe possible distributions $(N_C, N_V, N_S)$ are:\n1.  $(6, 2, 1)$\n2.  $(5, 3, 1)$\n3.  $(4, 3, 2)$\n\nFor each distribution, the number of different assignments of flavors to players is given by the multinomial coefficient $\\frac{9!}{N_C! N_V! N_S!}$.\n\n1.  For $(6, 2, 1)$:\n    Number of assignments = $\\frac{9!}{6! 2! 1!} = \\frac{9 \\times 8 \\times 7}{2 \\times 1} = 9 \\times 4 \\times 7 = 252$.\n\n2.  For $(5, 3, 1)$:\n    Number of assignments = $\\frac{9!}{5! 3! 1!} = \\frac{9 \\times 8 \\times 7 \\times 6}{3 \\times 2 \\times 1} = 9 \\times 8 \\times 7 = 504$.\n\n3.  For $(4, 3, 2)$:\n    Number of assignments = $\\frac{9!}{4! 3! 2!} = \\frac{9 \\times 8 \\times 7 \\times 6 \\times 5}{3 \\times 2 \\times 1 \\times 2 \\times 1} = 9 \\times 4 \\times 7 \\times 5 = 1260$.\n\nThe total number of different assignments, $N$, is the sum of these values:\n$N = 252 + 504 + 1260 = 2016$.\n\nFinally, we need to find the remainder when $N$ is divided by 1000.\n$2016 \\div 1000 = 2$ with a remainder of $16$.\n\nThe final answer is $\\boxed{16}$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 4399,
+          "content_len": 154,
+          "reasoning_len": 0,
+          "raw_full": "Diluted EPS = 48,945 million RMB / 19,250 million shares\nDiluted EPS = 2.5426 RMB/share\n\nRounding to 2 decimal places, Diluted EPS = 2.54 RMB/share.\n\n2.54",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 5717,
+          "content_len": 505,
+          "reasoning_len": 0,
+          "raw_full": "Here's the calculation for Net Income:\n\n1.  **Calculate Operating Income:**\n    Revenue - Operating Expenses = $1,200 million - $850 million = $350 million\n\n2.  **Calculate Earnings Before Taxes (EBT):**\n    Operating Income - Interest Expense = $350 million - $30 million = $320 million\n\n3.  **Calculate Taxes:**\n    EBT * Tax Rate = $320 million * 0.25 = $80 million\n\n4.  **Calculate Net Income:**\n    EBT - Taxes = $320 million - $80 million = $240 million\n\nNet Income: $240.0 million USD\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 14104,
+          "content_len": 1472,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the present value of the company, we need to sum the present values of the free cash flows (FCF) for the explicit forecast period (3 years) and the present value of the terminal value.\n\nGiven:\n*   FCF Year 1 = $100M\n*   FCF Year 2 = $115M\n*   FCF Year 3 = $130M\n*   Terminal growth rate (g) = 3% = 0.03\n*   Weighted Average Cost of Capital (WACC) = 10% = 0.10\n\n**1. Calculate the present value of FCF for the explicit forecast period:**\n\n*   PV(FCF1) = $100M / (1 + 0.10)^1 = $100M / 1.10 = $90.909M\n*   PV(FCF2) = $115M / (1 + 0.10)^2 = $115M / 1.21 = $95.041M\n*   PV(FCF3) = $130M / (1 + 0.10)^3 = $130M / 1.331 = $97.671M\n\n**2. Calculate the Terminal Value (TV) at the end of Year 3:**\n\nFirst, calculate the FCF for Year 4:\n*   FCF_Year 4 = FCF_Year 3 * (1 + g) = $130M * (1 + 0.03) = $130M * 1.03 = $133.9M\n\nNow, calculate the Terminal Value at the end of Year 3:\n*   TV_Year 3 = FCF_Year 4 / (WACC - g) = $133.9M / (0.10 - 0.03) = $133.9M / 0.07 = $1912.857M\n\n**3. Calculate the Present Value of the Terminal Value (PV_TV):**\n\n*   PV_TV = TV_Year 3 / (1 + WACC)^3 = $1912.857M / (1 + 0.10)^3 = $1912.857M / 1.331 = $1437.158M\n\n**4. Sum the present values:**\n\n*   Total Present Value = PV(FCF1) + PV(FCF2) + PV(FCF3) + PV_TV\n*   Total Present Value = $90.909M + $95.041M + $97.671M + $1437.158M = $1720.779M\n\nRounding to the nearest integer, the present value of the company today is $1721M.\n\nThe present value of the company today is $1721M.\n\\boxed{1721}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 4174,
+          "content_len": 6,
+          "reasoning_len": 0,
+          "raw_full": "1666.7",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 8554,
+          "content_len": 374,
+          "reasoning_len": 0,
+          "raw_full": "Shareholder Equity = Total Assets - Total Liabilities\nShareholder Equity = 5,000 million - 3,200 million = 1,800 million\n\nReturn on Equity (ROE) = Net Profit / Shareholder Equity\nROE = 480 million / 1,800 million\nROE = 0.26666...\n\nTo express as a percentage and retain 2 decimal places:\nROE = 0.26666... * 100% = 26.67%\n\nThe Return on Equity (ROE) is 26.67%.\n\\boxed{26.67\\%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.88",
+          "gold_ans": "957.88",
+          "ms": 7817,
+          "content_len": 709,
+          "reasoning_len": 0,
+          "raw_full": "债券价格的计算如下：\n\n年息票支付 (C) = 面值 × 息票率 = $1,000 × 5% = $50\n\n债券价格 = $\\sum_{t=1}^{N} \\frac{C}{(1+YTM)^t} + \\frac{FV}{(1+YTM)^N}$\n其中：\n*   C = 年息票支付 = $50\n*   FV = 面值 = $1,000\n*   YTM = 到期收益率 = 6% 或 0.06\n*   N = 到期年限 = 5\n\n计算：\n*   第一年息票的现值 = $50 / (1 + 0.06)^1 = 50 / 1.06 = $47.1698\n*   第二年息票的现值 = $50 / (1 + 0.06)^2 = 50 / 1.1236 = $44.4998\n*   第三年息票的现值 = $50 / (1 + 0.06)^3 = 50 / 1.191016 = $41.9806\n*   第四年息票的现值 = $50 / (1 + 0.06)^4 = 50 / 1.26247696 = $39.6053\n*   第五年息票的现值 = $50 / (1 + 0.06)^5 = 50 / 1.3382255776 = $37.3635\n*   面值的现值 = $1,000 / (1 + 0.06)^5 = 1,000 / 1.3382255776 = $747.2622\n\n债券价格 = $47.1698 + 44.4998 + 41.9806 + 39.6053 + 37.3635 + 747.2622 = $957.8812\n\n保留两位小数后，债券价格为 $957.88。\n\n\\boxed{957.88}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 4653,
+          "content_len": 4,
+          "reasoning_len": 0,
+          "raw_full": "5.00",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 36544,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 6567,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 5729,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 15901,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "A",
+          "ms": 20513,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 6774,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 94622,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "A",
+          "ms": 44555,
+          "content_len": 5450,
+          "reasoning_len": 0,
+          "raw_full": "To determine the correct structure of product 4, we need to follow the reaction sequence step by step, paying close attention to stereochemistry.\n\n1.  **Starting Material:** (R)-(+)-Limonene\n    The structure of (R)-(+)-Limonene is (R)-1-methyl-4-(prop-1-en-2-yl)cyclohex-1-ene. The chiral center at C4 has an (R) configuration. It has two double bonds: one endocyclic (between C1 and C2) and one exocyclic (in the isopropenyl group).\n\n2.  **Reaction 1: Hydrogenation with H₂/Pd/C (1 equivalent)**\n    Catalytic hydrogenation typically reduces the more accessible or less hindered double bond first. In limonene, the exocyclic double bond of the isopropenyl group is generally more reactive than the endocyclic double bond.\n    So, 1 equivalent of hydrogen will reduce the isopropenyl group to an isopropyl group. The double bond in the cyclohexene ring remains. The (R) configuration at C4 is retained.\n    **Product 1:** (R)-p-menth-1-ene (1-methyl-4-isopropylcyclohex-1-ene). The chiral center at C4 remains (R).\n\n3.  **Reaction 2: Epoxidation with 3-chloroperbenzoic acid (mCPBA)**\n    Product 1 ((R)-p-menth-1-ene) has a double bond between C1 and C2. Epoxidation with mCPBA will form an epoxide across this double bond.\n    The bulky isopropyl group at C4 will sterically influence the approach of mCPBA. Epoxidation typically occurs from the face *anti* to the larger substituent.\n    If we consider the (R) configuration at C4, and assuming the isopropyl group is oriented in a specific way (e.g., \"down\"), the mCPBA will attack from the \"up\" face. This means the epoxide oxygen will be on the \"up\" face of the ring.\n    When the epoxide forms, the C1-O and C2-O bonds are *cis* to each other (both pointing \"up\"). This sets the relative stereochemistry for C1 and C2.\n    **Product 2:** An epoxide where the oxygen bridge is on one face of the ring (e.g., above the plane). Let's tentatively assign this as (1R,2S,4R)-epoxide or (1S,2S,4R)-epoxide depending on the specific attack.\n\n4.  **Reaction 3: Epoxide opening with sodium methoxide (NaOMe)**\n    Sodium methoxide is a strong nucleophile and base. It will open the epoxide via an SN2-like mechanism. The nucleophile (methoxide) attacks the less sterically hindered and less substituted carbon of the epoxide.\n    In our epoxide (derived from 1-methyl-4-isopropylcyclohex-1-ene), C2 is less substituted (only ring carbons and hydrogens) than C1 (which has a methyl group). Therefore, the methoxide will attack C2.\n    The SN2 attack causes an inversion of configuration at C2. The other carbon (C1) retains its configuration, forming a hydroxyl group.\n    If the epoxide oxygen was \"up\" at both C1 and C2:\n    -   The methoxide attacks C2 from the \"down\" face, so the -OCH₃ group at C2 will be \"down\".\n    -   The oxygen at C1 (which becomes -OH) retains its \"up\" configuration.\n    Thus, the -OH group at C1 and the -OCH₃ group at C2 will be *trans* to each other.\n    **Product 3:** A 2-methoxy-1-methyl-4-isopropylcyclohexan-1-ol, where the -OH at C1 and -OCH₃ at C2 are *trans*. The C4 remains (R).\n\n5.  **Reaction 4: Esterification with propanoic acid, DCC, and DMAP**\n    This is a Steglich esterification, where the hydroxyl group of Product 3 is esterified with propanoic acid. The -OH group at C1 will be converted to a propionate ester. The stereochemistry at C1 is retained during this process.\n    **Product 4:** A 4-isopropyl-2-methoxy-1-methylcyclohexyl propionate.\n\n**Analyzing the Options based on Stereochemistry:**\n\n*   **Chirality at C4:** The (R) configuration at C4 is retained throughout all steps. So, Product 4 must have (4R). All options A, C, and D have (4R) or (5R) which rules out B due to its structure. Option D has (5R) which suggests different numbering. So it's between A and C.\n\n*   **Relative Stereochemistry at C1 and C2:** As determined from the epoxide opening, the -OH at C1 (now propionate) and the -OCH₃ at C2 must be *trans* to each other. This means their absolute configurations at C1 and C2 should be opposite (e.g., 1S,2R or 1R,2S).\n\n    *   **Option A: (1S,2S,4R)** - The configurations at C1 and C2 are both (S). This implies a *cis* relationship (if priorities are similar), which contradicts our finding of a *trans* relationship.\n    *   **Option C: (1S,2R,4R)** - The configurations at C1 (S) and C2 (R) are opposite, indicating a *trans* relationship. This is consistent with the epoxide opening mechanism.\n\nLet's confirm the absolute configuration more rigorously using a common pathway. For (R)-(+)-limonene, epoxidation often occurs to give the epoxide where the methyl at C1 and the isopropyl at C4 are *trans*. If C4 is (R), let's assume the isopropyl group is *trans* to the oxygen of the epoxide if we consider it in a general plane. If epoxidation is from the face *anti* to the isopropyl, and the isopropyl at C4 is \"down\" (consistent with R), then the epoxide oxygen would be \"up\".\nThis \"up\" epoxide, when attacked by methoxide at C2 from \"down\", leads to -OH at C1 (\"up\") and -OMe at C2 (\"down\"). This again confirms the *trans* relationship.\n\nWith the (R) configuration at C4, and assuming the epoxidation of p-menth-1-ene proceeds in a stereoselective manner, the subsequent SN2 opening will lead to specific absolute configurations at C1 and C2. Based on established stereochemical outcomes for (R)-limonene derivatives undergoing these reactions, (1S,2R,4R) is the most likely outcome.\n\nThe final answer is $\\boxed{C}$",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "D",
+          "ms": 4247,
+          "content_len": 203,
+          "reasoning_len": 0,
+          "raw_full": "I am sorry, but I cannot answer this question as it requires advanced chemistry knowledge and reasoning that I do not possess. I am not able to perform chemical reactions or determine molecular symmetry.",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "C",
+          "ms": 46918,
+          "content_len": 3919,
+          "reasoning_len": 0,
+          "raw_full": "The problem describes a four-step reaction sequence starting from (S)-4-hydroxycyclohex-2-en-1-one. I need to determine the structure of the final product 4 and select the correct option.\n\nHere's a breakdown of each step, focusing on regiochemistry and stereochemistry:\n\n**Starting Material:** (S)-4-hydroxycyclohex-2-en-1-one. The (S) configuration at C4 defines the absolute stereochemistry of this carbon. Let's assume, for illustrative purposes, that the hydroxyl group at C4 is oriented \"up\" in a simplified representation of the cyclohexene ring.\n\n**Step 1: Protection of the alcohol.**\n(S)-4-hydroxycyclohex-2-en-1-one is treated with tert-Butyldimethylsilyl chloride (TBDMSCl) and triethylamine (Et3N). This reaction protects the alcohol group as a tert-butyldimethylsilyl (OTBDMS) ether.\n*   **Product 1:** (S)-4-(tert-butyldimethylsilyloxy)cyclohex-2-en-1-one. The OTBDMS group at C4 retains the \"up\" orientation.\n\n**Step 2: 1,4-conjugate addition and α-alkylation.**\nProduct 1 is treated with Ph2CuLi (Gilman reagent) at low temperature, followed by benzyl bromide (BnBr).\n*   **1,4-addition (Ph2CuLi):** The phenyl group (Ph) from the Gilman reagent adds to the β-carbon (C3) of the α,β-unsaturated ketone. In cyclohexenones, conjugate addition typically occurs *trans* to existing bulky substituents on the ring. Since the OTBDMS group at C4 is \"up\", the phenyl group at C3 will preferentially add from the opposite face, making it \"down\".\n*   **α-alkylation (BnBr):** After the 1,4-addition, an enolate is formed with the negative charge delocalized to the α-carbon (C2). Benzyl bromide then alkylates this enolate at C2, introducing a benzyl group (Bn). The stereochemistry of this alkylation is often directed by the existing substituent at C3. To minimize steric interactions, the benzyl group at C2 tends to add *syn* to the phenyl group at C3. Since C3-Ph is \"down\", C2-Bn will also be \"down\".\n*   **Product 2:** Has the OTBDMS group at C4 \"up\", the phenyl group at C3 \"down\", and the benzyl group at C2 \"down\". This implies a *syn* relationship between C2-Bn and C3-Ph, and a *trans* relationship between C3-Ph and C4-OTBDMS.\n\n**Step 3: α-Methylation.**\nProduct 2 is treated with LDA (Lithium Diisopropylamide) and iodomethane (CH3I) at low temperature.\n*   **LDA deprotonation:** LDA is a strong, non-nucleophilic base that will deprotonate the remaining α-hydrogen at C2. At C2, we currently have the benzyl group \"down\" and a hydrogen \"up\". LDA will remove the \"up\" hydrogen.\n*   **Methylation (CH3I):** Iodomethane will then add a methyl group (Me) to C2. This methylation will typically occur from the less sterically hindered face, meaning the methyl group will occupy the \"up\" position, replacing the hydrogen.\n*   **Product 3:** Now has the OTBDMS group at C4 \"up\", the phenyl group at C3 \"down\", the benzyl group at C2 \"down\", and the methyl group at C2 \"up\".\n\n**Step 4: Deprotection.**\nProduct 3 is treated with aqueous HCl.\n*   **Deprotection:** Aqueous acid (HCl) will cleave the TBDMS ether, regenerating the hydroxyl group at C4.\n*   **Final Product 4:** The hydroxyl group at C4 is \"up\" (retaining the original (S) configuration), the phenyl group at C3 is \"down\", the benzyl group at C2 is \"down\", and the methyl group at C2 is \"up\".\n\nNow let's compare this deduced relative stereochemistry with the given options. The options use R/S nomenclature for the absolute configuration.\n*   **C4:** We started with (S)-4-hydroxy, and it remains (S). So 4S.\n*   **C3:** If C4-OH is \"up\", and C3-Ph is \"down\", then C3 has an (R) configuration (assuming standard priority rules and numbering for cyclohexanones).\n*   **C2:** If C2-Bn is \"down\" and C2-Me is \"up\", C2 also has an (R) configuration (again, based on standard priority rules).\n\nTherefore, the final product is (2R,3R,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one.\n\nThis matches option A.\n\nThe final answer is $\\boxed{A}$",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 27844,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 8909,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 30661,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 6445,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 21476,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 10203,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 12713,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 6797,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 6981,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 9020,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "C",
+          "ms": 24027,
+          "content_len": 9,
+          "reasoning_len": 0,
+          "raw_full": "C. ~ 0.53",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 3670,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 21281,
+          "content_len": 745,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    encoded_chars = []\n    vowels_lower = {'a', 'e', 'i', 'o', 'u'}\n    vowels_upper = {'A', 'E', 'I', 'O', 'U'}\n\n    for char in message:\n        if not char.isalpha():\n            encoded_chars.append(char)\n            continue\n\n        temp_char = char\n        \n        if char.islower() and char in vowels_lower:\n            temp_char = chr(ord(char) + 2)\n        elif char.isupper() and char in vowels_upper:\n            temp_char = chr(ord(char) + 2)\n        \n        # Swap case of the (potentially modified) character\n        if temp_char.islower():\n            encoded_chars.append(temp_char.upper())\n        else:\n            encoded_chars.append(temp_char.lower())\n\n    return \"\".join(encoded_chars)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 4929,
+          "content_len": 876,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    \"\"\"Implement a function that takes an non-negative integer and returns an array of the first n\n    integers that are prime numbers and less than n.\n    for example:\n    count_up_to(5) => [2,3]\n    count_up_to(11) => [2,3,5,7]\n    count_up_to(0) => []\n    count_up_to(20) => [2,3,5,7,11,13,17,19]\n    count_up_to(1) => []\n    count_up_to(18) => [2,3,5,7,11,13,17]\n    \"\"\"\n    if n <= 2:\n        return []\n\n    primes = []\n    \n    def is_prime(num):\n        if num < 2:\n            return False\n        if num == 2:\n            return True\n        if num % 2 == 0:\n            return False\n        i = 3\n        while i * i <= num:\n            if num % i == 0:\n                return False\n            i += 2\n        return True\n\n    for i in range(2, n):\n        if is_prime(i):\n            primes.append(i)\n            \n    return primes\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 5831,
+          "content_len": 673,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    '''\n    Given the lengths of the three sides of a triangle. Return True if the three\n    sides form a right-angled triangle, False otherwise.\n    A right-angled triangle is a triangle in which one angle is right angle or \n    90 degree.\n    Example:\n    right_angle_triangle(3, 4, 5) == True\n    right_angle_triangle(1, 2, 3) == False\n    '''\n    a_squared = a * a\n    b_squared = b * b\n    c_squared = c * c\n\n    if a_squared + b_squared == c_squared:\n        return True\n    if a_squared + c_squared == b_squared:\n        return True\n    if b_squared + c_squared == a_squared:\n        return True\n    \n    return False\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "largest_prime_factor",
+          "gold_ans": "largest_prime_factor",
+          "ms": 4732,
+          "content_len": 619,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    largest_factor = 1\n\n    # Handle factor 2\n    while n % 2 == 0:\n        largest_factor = 2\n        n //= 2\n\n    # Handle odd factors\n    i = 3\n    while i * i <= n:\n        while n % i == 0:\n            largest_factor = i\n            n //= i\n        i += 2\n\n    # If n is still greater than 1, it must be the largest prime factor\n    if n > 1:\n        largest_factor = n\n\n    return largest_factor\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 7286,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 4605,
+          "content_len": 563,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    \"\"\" Given list of numbers (of at least two elements), apply a linear transform to that list,\n    such that the smallest number will become 0 and the largest will become 1\n    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])\n    [0.0, 0.25, 0.5, 0.75, 1.0]\n    \"\"\"\n    min_val = min(numbers)\n    max_val = max(numbers)\n    data_range = max_val - min_val\n\n    if data_range == 0:\n        return [0.0] * len(numbers)\n    else:\n        return [(num - min_val) / data_range for num in numbers]\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 20796,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 16226,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "B",
+          "ms": 6513,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 22602,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "D",
+          "ms": 19908,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 9350,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 12320,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 8283,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "B",
+          "ms": 3366,
+          "content_len": 56,
+          "reasoning_len": 0,
+          "raw_full": "I am a CLI agent, and I cannot answer medical questions.",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 6677,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 11106,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 17070,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 4681,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 6622,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct t1.model from car_names as t1 join cars_data as t2 on t1.id = t2.id join car_makers as t3 on t1.make = t3.maker where t3.fullname = 'general motors' or t2.weight > 3500",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 13602,
+          "content_len": 195,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT T1.model FROM car_names AS T1 JOIN cars_data AS T2 ON T1.id = T2.id JOIN car_makers AS T3 ON T1.make = T3.maker WHERE T3.fullname = 'General Motors' OR T2.weight > 3500\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.name from visitor as t1 inner join visit as t2 on t1.vid = t2.vid inner join museum as t3 on t2.muid = t3.muid where t3.open_year < 2009 intersect select t1.name from visitor as t1 inner joi",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 5017,
+          "content_len": 314,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT T1.name FROM visitor AS T1 INNER JOIN visit AS T2 ON T1.vid = T2.vid INNER JOIN museum AS T3 ON T2.muid = T3.muid WHERE T3.Open_Year < 2009 INTERSECT SELECT T1.name FROM visitor AS T1 INNER JOIN visit AS T2 ON T1.vid = T2.vid INNER JOIN museum AS T3 ON T2.muid = T3.muid WHERE T3.Open_Year > 2011\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.id, t1.maker from makers as t1 inner join models as t2 on t1.id = t2.maker_id inner join cars as t3 on t2.id = t3.model_id group by t1.id having count(distinct t2.id) >= 2 and count(t3.id) >",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 8283,
+          "content_len": 213,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT T1.id, T1.maker FROM makers AS T1 INNER JOIN models AS T2 ON T1.id = T2.maker_id INNER JOIN cars AS T3 ON T2.id = T3.model_id GROUP BY T1.id HAVING COUNT(DISTINCT T2.id) >= 2 AND COUNT(T3.id) > 3\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

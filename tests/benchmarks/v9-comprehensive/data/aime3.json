@@ -22,5 +22,33 @@
     "problem": "Let $ABCDE$ be a convex pentagon with $AB=14, BC=7, CD=24, DE=13, EA=26,$ and $\\angle B=\\angle E=60^\\circ$. For each point $X$ in the plane, define $f(X)=AX+BX+CX+DX+EX$. The least possible value of $f(X)$ can be expressed as $m+n\\sqrt{p}$, where $m$ and $n$ are positive integers and $p$ is not divisible by the square of any prime. Find $m+n+p$.",
     "answer": "60",
     "solution": "60"
+  },
+  {
+    "qid": "aime_003",
+    "subset": "math",
+    "source": "AIME 2024 I Problem 1",
+    "problem": "Every morning Aya goes for a 9-kilometer-long walk and stops at a coffee shop afterwards. When she walks at a constant speed of s kilometers per hour, the walk takes her 4 hours, including t minutes spent in the coffee shop. When she walks s+2 kilometers per hour, the walk takes her 2 hours and 24 minutes, including t minutes spent in the coffee shop. Suppose Aya walks at s+1/2 kilometers per hour. Find the number of minutes the walk takes her, including the t minutes spent in the coffee shop. Give the final answer in \\boxed{}.",
+    "answer": "204"
+  },
+  {
+    "qid": "aime_004",
+    "subset": "math",
+    "source": "AIME 2024 I Problem 4",
+    "problem": "Jen enters a lottery by picking 4 distinct numbers from S={1,2,3,...,9,10}. 4 numbers are randomly chosen from S. She wins a prize if at least two of her numbers were 2 of the randomly chosen numbers, and wins the grand prize if all four of her numbers were the randomly chosen numbers. The probability of her winning the grand prize given that she won a prize is m/n where m and n are relatively prime positive integers. Find m+n. Give the final answer in \\boxed{}.",
+    "answer": "116"
+  },
+  {
+    "qid": "aime_005",
+    "subset": "math",
+    "source": "AIME 2025 I Problem 1",
+    "problem": "Find the sum of all integer bases b > 9 for which 17_b is a divisor of 97_b. (Here 17_b means the number 17 in base b.) Give the final answer in \\boxed{}.",
+    "answer": "70"
+  },
+  {
+    "qid": "aime_006",
+    "subset": "math",
+    "source": "AIME 2025 I Problem 3",
+    "problem": "The 9 members of a baseball team went to an ice-cream parlor after their game. Each player had a single scoop cone of chocolate, vanilla, or strawberry ice cream. At least one player chose each flavor, and the number of players who chose chocolate was greater than the number of players who chose vanilla, which was greater than the number of players who chose strawberry. Let N be the number of different assignments of flavors to players that meet these conditions. Find the remainder when N is divided by 1000. Give the final answer in \\boxed{}.",
+    "answer": "16"
   }
 ]

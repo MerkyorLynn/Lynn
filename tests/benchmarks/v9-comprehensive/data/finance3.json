@@ -22,5 +22,37 @@
     "problem": "A company has projected free cash flows for next 3 years: $100M, $115M, $130M.\nAfter year 3, FCF grows at terminal rate g = 3% perpetually.\nUse WACC = 10% as discount rate.\n\nCalculate the present value of the company today (in $M, rounded to nearest integer).\n\nEnd your answer in \\boxed{}.",
     "answer": "1721",
     "tolerance": 5
+  },
+  {
+    "qid": "fin_003",
+    "subset": "finance",
+    "source": "self-authored DCF",
+    "problem": "公司明年自由现金流 (FCFF) 预测 100 million USD,之后每年永续增长 3%。WACC = 9%。用 Gordon growth model 计算公司企业价值 (Enterprise Value),单位百万美元,保留 1 位小数。\n\nEnd your answer in \\boxed{}.",
+    "answer": 1666.7,
+    "tolerance": 5.0
+  },
+  {
+    "qid": "fin_004",
+    "subset": "finance",
+    "source": "self-authored ratio",
+    "problem": "公司财报:总资产 5,000 million,总负债 3,200 million,营业收入 8,000 million,净利润 480 million。计算 Return on Equity (ROE),百分比保留 2 位小数。\n\nEnd your answer in \\boxed{}.",
+    "answer": 26.67,
+    "tolerance": 0.5
+  },
+  {
+    "qid": "fin_005",
+    "subset": "finance",
+    "source": "self-authored bond",
+    "problem": "5 年期债券,面值 1,000 USD,coupon rate 5% (年付),YTM = 6%。计算债券价格,保留 2 位小数。\n\nEnd your answer in \\boxed{}.",
+    "answer": 957.88,
+    "tolerance": 1.0
+  },
+  {
+    "qid": "fin_006",
+    "subset": "finance",
+    "source": "self-authored leverage",
+    "problem": "公司 EBIT = 200 million,利息费用 = 40 million,税率 25%。计算 Times Interest Earned ratio (利息保障倍数),保留 2 位小数。\n\nEnd your answer in \\boxed{}.",
+    "answer": 5.0,
+    "tolerance": 0.05
   }
 ]

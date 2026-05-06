@@ -1,0 +1,1327 @@
+{
+  "timestamp": "2026-05-05T10:03:34.179285",
+  "provider": "Gemini 3 Flash",
+  "model": "gemini-3-flash-preview",
+  "runs": 1,
+  "subset_score": {
+    "math": 5,
+    "finance": 7,
+    "biology": 3,
+    "chemistry": 5,
+    "physics": 5,
+    "code_algo": 7,
+    "longctx": 2,
+    "medical": 5
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": null,
+          "model_ans": null,
+          "gold_ans": "510",
+          "ms": 87726,
+          "content_len": 1393,
+          "reasoning_len": 0,
+          "raw_full": "To find the area of the finite region formed by the points in the plane $x+y+z=75$ satisfying the inequalities $x-yz < y-zx < z-xy$, we first rewrite the inequalities:\n1. $x-yz < y-zx \\implies (x-y)(1+z) < 0$\n2. $y-zx < z-xy \\implies (y-z)(1+x) < 0$\n\nThese inequalities define four possible cases for the signs of the factors:\n- Case 1: $x-y < 0, 1+z > 0, y-z < 0, 1+x > 0 \\implies -1 < x < y < z$\n- Case 2: $x-y < 0, 1+z > 0, y-z > 0, 1+x < 0 \\implies x < -1, y > z > -1$\n- Case 3: $x-y > 0, 1+z < 0, y-z < 0, 1+x > 0 \\implies x > -1, y < z < -1$\n- Case 4: $x-y > 0, 1+z < 0, y-z > 0, 1+x < 0 \\implies z < y < x < -1$\n\nSince $x+y+z=75$, Case 4 is impossible because $x, y, z < -1$ implies $x+y+z < -3$. Cases 2 and 3 represent infinite regions. Case 1 is the only finite region, defined by the inequalities $-1 < x < y < z$ and $x+y+z=75$. The boundaries of this region are the lines $x=y$, $y=z$, and $x=-1$. The vertices of this triangular region are:\n- $V_1$: $x=y, y=z \\implies 3x=75 \\implies x=25, y=25, z=25$\n- $V_2$: $x=y, x=-1 \\implies x=-1, y=-1, z=77$\n- $V_3$: $y=z, x=-1 \\implies x=-1, y=38, z=38$\n\nThe area of the triangle with these vertices is calculated using the cross product:\n$V_1-V_2 = (26, 26, -52) = 26(1, 1, -2)$\n$V_3-V_2 = (0, 39, -39) = 39(0, 1, -1)$\nThe cross product of $(1, 1, -2)$ and $(0, 1, -1)$ is $(1, 1, 1)$, which has magnitude $\\sqrt{3}$.\nThe area is $\\frac",
+          "verify_error": "model_output_no_boxed"
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 22644,
+          "content_len": 1607,
+          "reasoning_len": 0,
+          "raw_full": "To find the area of $\\triangle BGE$, we first determine the positions of the points $A, B, C, D, E, F$ on the straight line. Let the line be the $x$-axis and let the $x$-coordinate of point $A$ be $x_A = 0$. Since the points lie in the order $A, B, C, D, E, F$, their $x$-coordinates satisfy $x_A < x_B < x_C < x_D < x_E < x_F$.\n\nFrom the given distances:\n1. $AC = x_C - x_A = 26 \\implies x_C = 26$.\n2. $AF = x_F - x_A = 73 \\implies x_F = 73$.\n3. $DF = x_F - x_D = 33 \\implies x_D = 73 - 33 = 40$.\n4. $BD = x_D - x_B = 22 \\implies x_B = 40 - 22 = 18$.\n5. $CE = x_E - x_C = 31 \\implies x_E = 26 + 31 = 57$.\n\nThe $x$-coordinates are $x_A = 0, x_B = 18, x_C = 26, x_D = 40, x_E = 57, x_F = 73$.\nThe length of the base $BE$ of $\\triangle BGE$ is $x_E - x_B = 57 - 18 = 39$.\n\nNext, we find the height of point $G$ from the line. Let $G = (x, y)$. The distances from $G$ to $C(26, 0)$ and $D(40, 0)$ are $CG = 40$ and $DG = 30$.\nThe distance $CD = x_D - x_C = 40 - 26 = 14$.\nUsing the coordinates of $C$ and $D$:\n$(x - 26)^2 + y^2 = 40^2 = 1600$\n$(x - 40)^2 + y^2 = 30^2 = 900$\nSubtracting the two equations:\n$(x - 26)^2 - (x - 40)^2 = 1600 - 900$\n$(x^2 - 52x + 676) - (x^2 - 80x + 1600) = 700$\n$28x - 924 = 700 \\implies 28x = 1624 \\implies x = 58$.\nNow, find $y^2$:\n$y^2 = 900 - (58 - 40)^2 = 900 - 18^2 = 900 - 324 = 576$.\nThe height $h = |y| = \\sqrt{576} = 24$.\n\nThe area of $\\triangle BGE$ is given by:\nArea $= \\frac{1}{2} \\times \\text{base} \\times \\text{height} = \\frac{1}{2} \\times BE \\times h$\nArea $= \\frac{1}{2} \\times 39 \\times 24 = 39 \\times 12 = 468$.\n\nThe area of $\\triangle BGE$ is 468.\n\n\\boxed{468}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": null,
+          "model_ans": null,
+          "gold_ans": "60",
+          "ms": 122459,
+          "content_len": 1856,
+          "reasoning_len": 0,
+          "raw_full": "To minimize the function $f(X) = AX+BX+CX+DX+EX$ for the given convex pentagon $ABCDE$, we first analyze the geometry of the pentagon. From the given side lengths and angles $\\angle B = \\angle E = 60^\\circ$, we found that $\\triangle ABC$ and $\\triangle AED$ are right triangles with $\\angle ACB = 90^\\circ$ and $\\angle ADE = 90^\\circ$. Specifically, $AC = 7\\sqrt{3}$ and $AD = 13\\sqrt{3}$. Using the side $CD = 24$, we calculated $\\cos \\angle CAD = 1/7$.\n\nSetting up a coordinate system with $A$ at the origin $(0,0)$, we found the coordinates of the vertices:\n$A = (0,0)$\n$B = (7\\sqrt{3}, 7)$\n$C = (7\\sqrt{3}, 0)$\n$D = \\left(\\frac{13\\sqrt{3}}{7}, \\frac{156}{7}\\right)$\n$E = \\left(-\\frac{39\\sqrt{3}}{7}, \\frac{169}{7}\\right)$\n\nThe lines $BC$ and $ED$ intersect at the point $P = (7\\sqrt{3}, 21)$. We calculated the distances from $P$ to each vertex:\n$PA = 14\\sqrt{3}$\n$PB = 14$\n$PC = 21$\n$PD = 9$\n$PE = 22$\n\nSince $P, B, C$ are collinear and $P, D, E$ are collinear, for any point $X$, we have the triangle inequalities:\n$XB + XC \\ge BC = 7$\n$XD + XE \\ge DE = 13$\nHowever, these are minimized when $X$ lies on the segments $BC$ and $DE$, which do not intersect. A more useful application of the triangle inequality is:\n$XB + XC = |X-B| + |X-C| \\ge |B-C| = 7$\n$XD + XE = |X-D| + |X-E| \\ge |D-E| = 13$\nBut we can also use the property that $P$ is the intersection of the lines $BC$ and $DE$. The Fermat point $X$ of the five points minimizes the sum of distances. For the given configuration, the minimum is achieved at $X=A$. We previously checked the condition $|u_B + u_C + u_D + u_E| \\le 1$ and found it was not satisfied, but the correct approach for this specific problem involves the sum of distances being minimized at a point that balances the vectors. Re-evaluating the geometry, the minimum value is $f(A) = AB + AC + AD + AE$.\n$f(A) = 14 + 7\\sqrt",
+          "verify_error": "model_output_no_boxed"
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "204",
+          "gold_ans": "204",
+          "ms": 25208,
+          "content_len": 1812,
+          "reasoning_len": 0,
+          "raw_full": "To find the number of minutes the walk takes Aya, we first establish the relationship between the distance, speed, and time for each case. Let $d = 9$ km be the distance of the walk, $s$ be her initial speed in km/h, and $t$ be the time spent in the coffee shop in minutes.\n\nThe total time for the walk, including the time spent in the coffee shop, is given by the formula:\n$$\\text{Total Time} = \\frac{d}{\\text{speed}} + \\frac{t}{60}$$\n\nFrom the first case, we have:\n$$\\frac{9}{s} + \\frac{t}{60} = 4 \\quad \\text{(Equation 1)}$$\n\nFrom the second case, where the speed is $s+2$ km/h and the total time is 2 hours and 24 minutes (which is $2 + \\frac{24}{60} = 2.4$ hours):\n$$\\frac{9}{s+2} + \\frac{t}{60} = 2.4 \\quad \\text{(Equation 2)}$$\n\nSubtracting Equation 2 from Equation 1, we get:\n$$\\left(\\frac{9}{s} + \\frac{t}{60}\\right) - \\left(\\frac{9}{s+2} + \\frac{t}{60}\\right) = 4 - 2.4$$\n$$\\frac{9}{s} - \\frac{9}{s+2} = 1.6$$\n$$9 \\left(\\frac{s+2-s}{s(s+2)}\\right) = 1.6$$\n$$\\frac{18}{s^2+2s} = 1.6$$\n$$18 = 1.6(s^2+2s)$$\n$$s^2+2s = \\frac{18}{1.6} = 11.25$$\n$$s^2+2s-11.25 = 0$$\n\nUsing the quadratic formula to solve for $s$:\n$$s = \\frac{-2 \\pm \\sqrt{2^2 - 4(1)(-11.25)}}{2(1)} = \\frac{-2 \\pm \\sqrt{4 + 45}}{2} = \\frac{-2 \\pm 7}{2}$$\nSince speed must be positive, $s = \\frac{5}{2} = 2.5$ km/h.\n\nNow, we find the time $t$ spent in the coffee shop:\n$$\\frac{9}{2.5} + \\frac{t}{60} = 4 \\implies 3.6 + \\frac{t}{60} = 4 \\implies \\frac{t}{60} = 0.4 \\implies t = 24 \\text{ minutes}$$\n\nFinally, we calculate the total time when the speed is $s + \\frac{1}{2} = 2.5 + 0.5 = 3$ km/h:\n$$\\text{Total Time} = \\frac{9}{3} + \\frac{24}{60} = 3 + 0.4 = 3.4 \\text{ hours}$$\nTo convert this to minutes:\n$$3.4 \\times 60 = 204 \\text{ minutes}$$\n\nThe walk takes her 204 minutes, including the $t$ minutes spent in the coffee shop.\n\n\\boxed{204}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "116",
+          "gold_ans": "116",
+          "ms": 69435,
+          "content_len": 1456,
+          "reasoning_len": 0,
+          "raw_full": "To find the probability of Jen winning the grand prize given that she won a prize, we first determine the total number of ways to choose 4 numbers from the set $S = \\{1, 2, 3, \\dots, 10\\}$. The total number of ways is given by the combination formula:\n$$\\binom{10}{4} = \\frac{10 \\times 9 \\times 8 \\times 7}{4 \\times 3 \\times 2 \\times 1} = 210$$\nLet $X$ be the number of Jen's numbers that match the randomly chosen numbers. Jen wins a prize if $X \\ge 2$ and the grand prize if $X = 4$. The probability distribution of $X$ is hypergeometric, given by:\n$$P(X=k) = \\frac{\\binom{4}{k} \\binom{10-4}{4-k}}{\\binom{10}{4}}$$\nWe calculate the probabilities for $k=2, 3, 4$:\n- For $k=2$: $P(X=2) = \\frac{\\binom{4}{2} \\binom{6}{2}}{210} = \\frac{6 \\times 15}{210} = \\frac{90}{210}$\n- For $k=3$: $P(X=3) = \\frac{\\binom{4}{3} \\binom{6}{1}}{210} = \\frac{4 \\times 6}{210} = \\frac{24}{210}$\n- For $k=4$: $P(X=4) = \\frac{\\binom{4}{4} \\binom{6}{0}}{210} = \\frac{1 \\times 1}{210} = \\frac{1}{210}$\n\nThe probability that Jen wins a prize is:\n$$P(X \\ge 2) = P(X=2) + P(X=3) + P(X=4) = \\frac{90 + 24 + 1}{210} = \\frac{115}{210}$$\nThe probability of winning the grand prize given that she won a prize is:\n$$P(X=4 | X \\ge 2) = \\frac{P(X=4)}{P(X \\ge 2)} = \\frac{1/210}{115/210} = \\frac{1}{115}$$\nThis probability is in the form $m/n$ where $m=1$ and $n=115$. Since $\\gcd(1, 115) = 1$, $m$ and $n$ are relatively prime. We are asked to find $m+n$:\n$$m+n = 1 + 115 = 116$$\n\n\\boxed{116}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "70",
+          "gold_ans": "70",
+          "ms": 25251,
+          "content_len": 1194,
+          "reasoning_len": 0,
+          "raw_full": "To find the integer bases $b > 9$ for which $17_b$ is a divisor of $97_b$, we first express these numbers in terms of $b$:\n$17_b = 1 \\cdot b^1 + 7 \\cdot b^0 = b + 7$\n$97_b = 9 \\cdot b^1 + 7 \\cdot b^0 = 9b + 7$\n\nThe condition that $17_b$ is a divisor of $97_b$ means that $b+7$ divides $9b+7$. We can write this as:\n$\\frac{9b+7}{b+7} = k$ for some integer $k$.\nWe can rewrite the expression as:\n$\\frac{9b+7}{b+7} = \\frac{9(b+7) - 63 + 7}{b+7} = \\frac{9(b+7) - 56}{b+7} = 9 - \\frac{56}{b+7}$\nFor this to be an integer, $b+7$ must be a divisor of 56.\nThe positive divisors of 56 are 1, 2, 4, 7, 8, 14, 28, and 56.\nWe are given the condition $b > 9$, which implies $b+7 > 9+7 = 16$.\nThe divisors of 56 that are greater than 16 are 28 and 56.\n1. If $b+7 = 28$, then $b = 21$.\n2. If $b+7 = 56$, then $b = 49$.\n\nLet's check these values:\n- For $b = 21$: $17_{21} = 21 + 7 = 28$ and $97_{21} = 9(21) + 7 = 189 + 7 = 196$. Since $196 = 7 \\times 28$, $17_{21}$ is a divisor of $97_{21}$.\n- For $b = 49$: $17_{49} = 49 + 7 = 56$ and $97_{49} = 9(49) + 7 = 441 + 7 = 448$. Since $448 = 8 \\times 56$, $17_{49}$ is a divisor of $97_{49}$.\n\nThe sum of all such integer bases $b$ is $21 + 49 = 70$.\n\n\\boxed{70}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "16",
+          "gold_ans": "16",
+          "ms": 51446,
+          "content_len": 1505,
+          "reasoning_len": 0,
+          "raw_full": "To find the number of different assignments of flavors to the 9 players, we first determine the possible number of players who chose each flavor. Let $n_c, n_v, n_s$ be the number of players who chose chocolate, vanilla, and strawberry ice cream, respectively. The conditions given are:\n1. $n_c + n_v + n_s = 9$\n2. $n_c > n_v > n_s \\ge 1$\n\nWe find all possible integer triples $(n_c, n_v, n_s)$ that satisfy these conditions:\n- If $n_s = 1$, then $n_c + n_v = 8$. Since $n_c > n_v > 1$, the possible values for $(n_c, n_v)$ are $(6, 2)$ and $(5, 3)$.\n- If $n_s = 2$, then $n_c + n_v = 7$. Since $n_c > n_v > 2$, the only possible value for $(n_c, n_v)$ is $(4, 3)$.\n- If $n_s \\ge 3$, then $n_c + n_v + n_s \\ge 5 + 4 + 3 = 12$, which exceeds 9.\n\nThus, the possible triples $(n_c, n_v, n_s)$ are $(6, 2, 1)$, $(5, 3, 1)$, and $(4, 3, 2)$. For each triple, the number of ways to assign the flavors to the 9 distinct players is given by the multinomial coefficient $\\frac{9!}{n_c! n_v! n_s!}$:\n- For $(6, 2, 1)$: $N_1 = \\frac{9!}{6! 2! 1!} = \\frac{362880}{720 \\times 2 \\times 1} = 252$\n- For $(5, 3, 1)$: $N_2 = \\frac{9!}{5! 3! 1!} = \\frac{362880}{120 \\times 6 \\times 1} = 504$\n- For $(4, 3, 2)$: $N_3 = \\frac{9!}{4! 3! 2!} = \\frac{362880}{24 \\times 6 \\times 2} = 1260$\n\nThe total number of assignments $N$ is the sum of these values:\n$N = N_1 + N_2 + N_3 = 252 + 504 + 1260 = 2016$\n\nWe need to find the remainder when $N$ is divided by 1000:\n$N = 2016 \\equiv 16 \\pmod{1000}$\n\nThe remainder is 16.\n\n\\boxed{16}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 8414,
+          "content_len": 583,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the Diluted Earnings Per Share (EPS) for the quarter, use the following formula:\n\n**Diluted EPS = Net income attributable to ordinary shareholders / Weighted average ordinary shares outstanding (diluted)**\n\nUsing the data provided in the report:\n*   **Net income attributable to ordinary shareholders:** 48,945 million RMB\n*   **Weighted average ordinary shares outstanding (diluted):** 19,250 million shares\n\nCalculation:\n$$\\text{Diluted EPS} = \\frac{48,945}{19,250}$$\n$$\\text{Diluted EPS} \\approx 2.542597...$$\n\nRounding to 2 decimal places, we get 2.54.\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 33868,
+          "content_len": 1542,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the Net Income for the company, we follow the standard structure of an income statement:\n\n1.  **Calculate Operating Income (EBIT):**\n    Operating Income is calculated by subtracting operating expenses from revenue.\n    $$\\text{EBIT} = \\text{Revenue} - \\text{Operating Expenses}$$\n    $$\\text{EBIT} = \\$1,200 \\text{ million} - \\$850 \\text{ million} = \\$350 \\text{ million}$$\n\n2.  **Calculate Earnings Before Tax (EBT):**\n    EBT is calculated by subtracting interest expense from the operating income (EBIT).\n    $$\\text{EBT} = \\text{EBIT} - \\text{Interest Expense}$$\n    $$\\text{EBT} = \\$350 \\text{ million} - \\$30 \\text{ million} = \\$320 \\text{ million}$$\n\n3.  **Calculate Income Tax Expense:**\n    The tax expense is calculated by applying the tax rate to the pre-tax income (EBT).\n    $$\\text{Tax Expense} = \\text{EBT} \\times \\text{Tax Rate}$$\n    $$\\text{Tax Expense} = \\$320 \\text{ million} \\times 25\\% = \\$320 \\text{ million} \\times 0.25 = \\$80 \\text{ million}$$\n\n4.  **Calculate Net Income:**\n    Net Income is the final profit after all expenses and taxes have been deducted.\n    $$\\text{Net Income} = \\text{EBT} - \\text{Tax Expense}$$\n    $$\\text{Net Income} = \\$320 \\text{ million} - \\$80 \\text{ million} = \\$240 \\text{ million}$$\n\nAlternatively, you can calculate it as:\n$$\\text{Net Income} = \\text{EBT} \\times (1 - \\text{Tax Rate})$$\n$$\\text{Net Income} = \\$320 \\text{ million} \\times (1 - 0.25) = \\$320 \\text{ million} \\times 0.75 = \\$240 \\text{ million}$$\n\nRounding to 1 decimal place, we get 240.0.\n\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 49441,
+          "content_len": 1524,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the present value (Enterprise Value) of the company, we need to find the present value of the projected free cash flows (FCF) for the first three years and the present value of the terminal value.\n\n**1. Present Value of FCF for the first 3 years:**\nThe formula for present value is $PV = \\frac{FCF_n}{(1 + WACC)^n}$.\n*   $PV(FCF_1) = \\frac{100}{(1 + 0.10)^1} = \\frac{100}{1.1} \\approx 90.91$\n*   $PV(FCF_2) = \\frac{115}{(1 + 0.10)^2} = \\frac{115}{1.21} \\approx 95.04$\n*   $PV(FCF_3) = \\frac{130}{(1 + 0.10)^3} = \\frac{130}{1.331} \\approx 97.67$\n*   Sum of PV(FCF) = $90.91 + 95.04 + 97.67 = 283.62$\n\n**2. Terminal Value (TV) at the end of Year 3:**\nThe terminal value is calculated using the Gordon Growth Model: $TV_3 = \\frac{FCF_4}{WACC - g}$.\n*   $FCF_4 = FCF_3 \\times (1 + g) = 130 \\times (1 + 0.03) = 133.9$\n*   $TV_3 = \\frac{133.9}{0.10 - 0.03} = \\frac{133.9}{0.07} \\approx 1912.86$\n\n**3. Present Value of the Terminal Value:**\nThe terminal value is at the end of Year 3, so we discount it back 3 years to today.\n*   $PV(TV_3) = \\frac{TV_3}{(1 + WACC)^3} = \\frac{1912.86}{(1.1)^3} = \\frac{1912.86}{1.331} \\approx 1437.16$\n\n**4. Total Present Value of the Company:**\nThe total value is the sum of the present value of the FCFs and the present value of the terminal value.\n*   Total PV = $PV(FCF_1 \\text{ to } 3) + PV(TV_3)$\n*   Total PV = $283.62 + 1437.16 = 1720.78$\n\n**5. Rounding:**\nRounding $1720.78$ to the nearest integer gives $1721$.\n\nThe present value of the company today is $1721M.\n\n\\boxed{1721}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 5012,
+          "content_len": 339,
+          "reasoning_len": 0,
+          "raw_full": "根据戈登增长模型（Gordon Growth Model），公司企业价值（Enterprise Value, EV）的计算公式为：\n\n$$EV = \\frac{FCFF_1}{WACC - g}$$\n\n其中：\n*   $FCFF_1$ = 明年预测的自由现金流 = 100 百万美元\n*   $WACC$ = 加权平均资本成本 = 9% = 0.09\n*   $g$ = 永续增长率 = 3% = 0.03\n\n将数值代入公式：\n\n$$EV = \\frac{100}{0.09 - 0.03}$$\n$$EV = \\frac{100}{0.06}$$\n$$EV \\approx 1666.666...$$\n\n按要求保留一位小数，结果为 1666.7。\n\n\\boxed{1666.7}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 3908,
+          "content_len": 303,
+          "reasoning_len": 0,
+          "raw_full": "计算步骤如下：\n\n1.  **计算股东权益 (Shareholders' Equity)：**\n    股东权益 = 总资产 - 总负债\n    股东权益 = 5,000 million - 3,200 million = 1,800 million\n\n2.  **计算净资产收益率 (ROE)：**\n    ROE = 净利润 / 股东权益\n    ROE = 480 million / 1,800 million\n\n3.  **转换为百分比并保留两位小数：**\n    ROE = 480 ÷ 1,800 ≈ 0.266666...\n    ROE ≈ 26.67%\n\n\\boxed{26.67\\%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.88",
+          "gold_ans": "957.88",
+          "ms": 27558,
+          "content_len": 989,
+          "reasoning_len": 0,
+          "raw_full": "要计算债券价格，我们需要将债券未来的所有现金流（利息和面值）按照到期收益率（YTM）折现到当前时刻。\n\n**1. 确定已知变量：**\n*   面值 (F) = 1,000 USD\n*   票面利率 (C) = 5%\n*   年利息 (PMT) = 1,000 × 5% = 50 USD\n*   到期年限 (n) = 5 年\n*   到期收益率 (r) = 6% (0.06)\n*   付款频率 = 每年支付一次\n\n**2. 债券价格计算公式：**\n债券价格 $P$ 是各期利息的现值与面值现值之和：\n$$P = \\sum_{t=1}^{n} \\frac{PMT}{(1+r)^t} + \\frac{F}{(1+r)^n}$$\n或者使用年金现值公式：\n$$P = PMT \\times \\left[ \\frac{1 - (1+r)^{-n}}{r} \\right] + \\frac{F}{(1+r)^n}$$\n\n**3. 分步计算：**\n*   **计算利息的现值：**\n    $$PV_{coupons} = 50 \\times \\left[ \\frac{1 - (1+0.06)^{-5}}{0.06} \\right]$$\n    $$(1.06)^{-5} \\approx 0.747258$$\n    $$PV_{coupons} = 50 \\times \\left[ \\frac{1 - 0.747258}{0.06} \\right] = 50 \\times \\frac{0.252742}{0.06} \\approx 50 \\times 4.212364 = 210.6182$$\n\n*   **计算面值的现值：**\n    $$PV_{face\\_value} = \\frac{1,000}{(1+0.06)^5} = 1,000 \\times 0.747258 = 747.258$$\n\n*   **计算债券总价格：**\n    $$P = 210.6182 + 747.258 = 957.8762$$\n\n**4. 取两位小数：**\n根据计算结果 $957.8762...$，保留两位小数为 $957.88$。\n\n由于票面利率 (5%) 低于到期收益率 (6%)，该债券为折价发行，价格低于面值 1,000 USD，符合逻辑。\n\n\\boxed{957.88}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 3515,
+          "content_len": 292,
+          "reasoning_len": 0,
+          "raw_full": "利息保障倍数（Times Interest Earned ratio, TIE）的计算公式为：\n\n$$\\text{利息保障倍数} = \\frac{\\text{EBIT（息税前利润）}}{\\text{利息费用}}$$\n\n根据题目提供的数据：\n*   EBIT = 200 million\n*   利息费用 = 40 million\n*   税率 = 25%（在计算利息保障倍数时，由于使用的是息税前利润，因此税率是干扰项，无需使用）\n\n计算过程如下：\n$$\\text{利息保障倍数} = \\frac{200}{40} = 5$$\n\n保留两位小数为 5.00。\n\n\\boxed{5.00}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 65657,
+          "content_len": 2083,
+          "reasoning_len": 0,
+          "raw_full": "The results of the experiment show that:\n1.  **G2 is essential for resistance:** The single mutant $g2$ has 0% resistance, and any double mutant involving $g2$ ($g1g2$ and $g2g3$) also has 0% resistance. This indicates that G2 is a critical component of the resistance pathway, likely acting as a transcription factor that regulates the expression of other genes involved in the process.\n2.  **G1 and G3 both contribute to resistance:** The single mutants $g1$ (75%) and $g3$ (50%) show reduced resistance compared to the wild-type (100%).\n3.  **G1 and G3 show synergistic interaction (partial redundancy):** The double mutant $g1g3$ has only 10% resistance, which is significantly lower than either single mutant and lower than what would be expected if their effects were simply additive ($100\\% - 25\\% - 50\\% = 25\\%$). This suggests that G1 and G3 act in parallel pathways or provide partially redundant functions that both contribute to the overall resistance.\n4.  **Epistasis:** Since the $g2$ phenotype (0%) is expressed in both the $g1g2$ and $g2g3$ double mutants, G2 is epistatic to both G1 and G3. This is consistent with G2 being a transcription factor acting upstream of G1 and G3 or being the final common step in the pathway.\n\nComparing these conclusions to the given options:\n-   **Option A** suggests G1 is the transcription factor, which is unlikely as $g1$ is not the most severe mutant.\n-   **Option B** suggests pleiotropy, which refers to one gene affecting multiple traits, not observed here.\n-   **Option C** identifies G2 as the transcription factor and G1/G3 as showing gene redundancy. While the final part of the statement (\"G1 is epistatic towards G3\") does not perfectly match the $g1g3$ result (10%), Option C is the only one that correctly identifies G2 as the transcription factor and the relationship between G1 and G3 as redundancy.\n-   **Option D** suggests G1 and G3 have the same promoter, which does not explain the synergistic effect in the $g1g3$ mutant.\n\nIn the context of such genetics problems, Option C is the most plausible conclusion.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 49158,
+          "content_len": 1080,
+          "reasoning_len": 0,
+          "raw_full": "The most crucial step before proceeding with in silico docking studies for a molecule like Xantheraquin, which has multiple chiral centers and tautomeric forms, is to properly prepare the ligand. In structure-based drug discovery, the 3D structure and chemical properties of the ligand (such as hydrogen bond donors/acceptors and overall shape) are fundamental to the docking algorithm's ability to predict binding affinity and pose.\n\nSince different tautomers and chiral forms (enantiomers or diastereomers) can have vastly different shapes and interaction patterns, failing to account for them would lead to unreliable docking results. Standard practice involves generating and analyzing all relevant forms and then prioritizing those most likely to exist under physiological conditions (e.g., at pH 7.4) or those that are most likely to be biologically active based on their physicochemical properties.\n\nOption B directly addresses these complexities by emphasizing the analysis and prioritization of these forms, which is a foundational step in any robust docking workflow.\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 4413,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 22151,
+          "content_len": 1866,
+          "reasoning_len": 0,
+          "raw_full": "The provided information describes a transcription factor that must be phosphorylated and then dimerize to function. \n\n1.  **Mutation X (Recessive LOF):** A mutation in the transactivation domain (TAD) that is recessive. In a heterozygote (WT/X), the wild-type protein can still form functional homodimers (WT-WT) and potentially partially functional heterodimers (WT-X). Since the phenotype is wild-type, the remaining activity is sufficient.\n2.  **Mutation Y (Dominant-Negative):** A mutation in the dimerization domain that is dominant-negative. This means that in a heterozygote (WT/Y), the presence of the mutant protein Y actively interferes with the function of the wild-type protein, leading to a loss-of-function (LOF) phenotype.\n3.  **Mechanism of Dominant-Negative Effect:** For a mutation in a dimerization domain to be dominant-negative, it must not only lose its own function but also prevent the wild-type protein from functioning. A common molecular mechanism for this is **protein aggregation**, where the mutant protein misfolds and sequesters the wild-type protein into non-functional aggregates, thereby eliminating the activity of the wild-type allele.\n\nEvaluating the options:\n*   **A:** Dominant-negative mutations typically result in a loss-of-function, not a gain-of-function.\n*   **B:** Protein aggregation is a common mechanism for dominant-negative effects, leading to a loss-of-function phenotype even in the presence of a wild-type allele.\n*   **C:** If the mutation simply caused a loss of dimerization, it would likely be recessive (like mutation X), as the wild-type proteins could still find each other and form functional dimers.\n*   **D:** While degradation of the mutant protein can occur, it usually prevents a dominant-negative effect because the mutant protein is removed before it can interfere with the wild-type protein.\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "A",
+          "ms": 19500,
+          "content_len": 1241,
+          "reasoning_len": 0,
+          "raw_full": "The most likely location to find ChIP-seq peaks that appear with PFA fixation but disappear when using a dual-crosslinking protocol (PFA+DSG) is at active promoters and enhancers.\n\nThese \"disappearing peaks\" are often referred to as \"hyper-ChIPable\" regions or \"phantom peaks.\" They are common artifacts in ChIP-seq experiments, particularly when using PFA fixation, which is a relatively weak and short-range crosslinker. These regions are characterized by high transcriptional activity, open chromatin, and a high density of various proteins, which can lead to non-specific enrichment of the protein being studied, even in the absence of true sequence-specific binding.\n\nWhen a more robust or different crosslinking method is used, such as the addition of DSG (a long-range protein-protein crosslinker), these artifactual signals are often reduced or eliminated, while genuine binding sites (especially those involving indirect binding or large protein complexes) are stabilized and more accurately represented. IKAROS, a transcription factor that can show such artifactual enrichment at active promoters in addition to its true binding sites, is a classic example used to demonstrate this phenomenon.\n\nA. At active promoters and enhancers",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "B",
+          "ms": 60461,
+          "content_len": 1348,
+          "reasoning_len": 0,
+          "raw_full": "Based on the complexities of structure-based drug discovery, especially when dealing with a novel molecule like Xantheraquin that has multiple chiral centers and tautomeric forms, the most crucial step before proceeding with in silico docking studies is to ensure the ligand is correctly prepared. \n\nIn silico docking is highly sensitive to the 3D structure of the ligand. Different chiral forms (enantiomers and diastereomers) and tautomers have different spatial arrangements and hydrogen-bonding patterns, which can lead to vastly different docking results. Therefore, it is essential to analyze all possible forms and prioritize those that are most likely to exist and be biologically active under physiological conditions (e.g., based on their stability and ionization state at physiological pH). This process, often called ligand preparation, ensures that the docking studies are performed on the most relevant structures, thereby increasing the accuracy and reliability of the predictions.\n\nWhile other steps like ADME analysis (A) or in vitro validation (B) are important in the overall drug discovery pipeline, they either follow the initial docking studies or are part of a later validation phase. Relying only on the most stable form (D) can be misleading, as the bioactive conformation is not always the most stable one in isolation.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "C",
+          "ms": 78076,
+          "content_len": 1830,
+          "reasoning_len": 0,
+          "raw_full": "The correct answer is **B**.\n\n**Explanation:**\n\n*   **A is correct:** SARS-CoV-2 uses a -1 programmed ribosomal frameshifting (-1 PRF) mechanism involving a slippery sequence (UUUAAAC) and a downstream pseudoknot to produce two polyproteins, pp1a and pp1ab. The genomic structure and the PRF signal are highly conserved between SARS-CoV and SARS-CoV-2.\n*   **B is incorrect:** This statement is based on recent biophysical research (notably by Neupane et al., 2021). The study found that the rate of frameshifting is indeed linearly correlated with the number of conformations a pseudoknot can adopt. However, it specifically highlighted that while the **SARS-CoV** pseudoknot adopts **two** folded conformations, the **SARS-CoV-2** pseudoknot is more dynamic and adopts **three** folded conformations. This difference in conformational heterogeneity explains why SARS-CoV-2 has a higher frameshifting rate (~25%) compared to SARS-CoV (~15%). Therefore, saying both show \"two conformations\" is factually incorrect.\n*   **C is correct (notwithstanding a likely typo):** The nsp14-nsp10 complex is a well-characterized 3'-to-5' exoribonuclease (ExoN) that provides a proofreading function during viral replication. While the statement in the prompt uses the word \"prevents\" (which is likely a typo for \"is responsible for\" or \"promotes\" the breakdown of mismatched dsRNA), in the context of molecular biology exams (such as the CNBO from which this question originates), this statement is treated as a description of the ExoN proofreading mechanism.\n*   **D is correct:** Research (e.g., Ren et al., 2020) has shown that the SARS-CoV-2 ORF3a protein induces apoptosis primarily through the extrinsic pathway, evidenced by the cleavage of caspase-8 and the fact that Bcl-2 levels (a marker of the intrinsic pathway) remain unchanged.",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 55652,
+          "content_len": 2124,
+          "reasoning_len": 0,
+          "raw_full": "The starting material is (R)-(+)-Limonene. \n\n1.  **Hydrogenation**: (R)-(+)-Limonene has two double bonds: an endocyclic trisubstituted one and an exocyclic disubstituted one. Hydrogenation with 1 equivalent of H₂ and Pd/C selectively reduces the more accessible, less substituted exocyclic double bond. This yields **Product 1**, which is (R)-4-isopropyl-1-methylcyclohex-1-ene (also known as (+)-p-menth-1-ene).\n\n2.  **Epoxidation**: Treatment of Product 1 with mCPBA forms an epoxide at the remaining endocyclic double bond. This creates two new stereocenters at C1 and C2, forming **Product 2** (1-methyl-4-isopropyl-1,2-epoxycyclohexane). This reaction can occur on either face of the ring, leading to a mixture of diastereomers.\n\n3.  **Epoxide Opening**: Treatment of Product 2 with sodium methoxide (NaOMe) in methanol results in a base-catalyzed epoxide opening. The methoxide nucleophile attacks the less sterically hindered carbon (C2) in an SN2 fashion, which involves inversion of configuration at C2 and results in an anti-relationship between the methoxy group at C2 and the newly formed hydroxyl group at C1. This yields **Product 3** (2-methoxy-1-methyl-4-isopropylcyclohexan-1-ol).\n\n4.  **Esterification**: Product 3 is treated with propanoic acid, DCC, and DMAP (Steglich esterification). The tertiary hydroxyl group at C1 is esterified to form **Product 4** (2-methoxy-1-methyl-4-isopropylcyclohexyl propionate).\n\n**Stereochemical Analysis**:\n- The configuration at C4 remains (R) throughout the sequence.\n- The anti-opening of the epoxide ensures that the propionate group at C1 and the methoxy group at C2 are in an anti-relationship.\n- Among the given options, **(1S,2S,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate** (Option A) and **(1R,2R,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate** are the two possible anti-products.\n- Option C represents a syn-relationship, which is not expected from epoxide opening.\n- Options B and D represent incorrect skeletons or numbering.\n\nThus, a valid structure for Product 4 is (1S,2S,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate.\n\nA",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 62176,
+          "content_len": 1655,
+          "reasoning_len": 0,
+          "raw_full": "The reaction sequence is as follows:\n\n1.  **Nitration of Toluene:** Toluene is treated with nitric acid ($HNO_3$) and sulfuric acid ($H_2SO_4$). This is an electrophilic aromatic substitution reaction. The methyl group is ortho/para-directing, leading to a mixture of ortho-nitrotoluene and para-nitrotoluene. The major product is typically ortho-nitrotoluene (product 1).\n2.  **Oxidation with $MnO_2$:** Ortho-nitrotoluene is treated with manganese dioxide ($MnO_2$) and sulfuric acid ($H_2SO_4$). $MnO_2$ is a selective oxidant that can oxidize the methyl group of an aromatic ring to an aldehyde group. This forms ortho-nitrobenzaldehyde (product 2).\n3.  **Baeyer-Drewson Indigo Synthesis:** Ortho-nitrobenzaldehyde is treated with acetone and aqueous sodium hydroxide ($NaOH$). This is the classic Baeyer-Drewson synthesis of indigo. The reaction involves an aldol condensation followed by a base-catalyzed cyclization and oxidative dimerization to form indigo (product 3).\n\n**Symmetry of Indigo:**\nIndigo ($C_{16}H_{10}N_2O_2$) exists primarily as the trans-isomer due to stabilizing intramolecular hydrogen bonds between the N-H groups and the carbonyl oxygen atoms. The trans-indigo molecule is planar and possesses the following symmetry elements:\n*   An identity element ($E$).\n*   A center of inversion ($i$) located at the midpoint of the central C=C double bond.\n*   A $C_2$ rotation axis perpendicular to the molecular plane and passing through the center of inversion.\n*   A mirror plane ($\\sigma_h$) which is the plane of the molecule.\n\nThese symmetry elements ($E, C_2, i, \\sigma_h$) correspond to the $C_{2h}$ molecular symmetry group.\n\nD",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "C",
+          "ms": 71137,
+          "content_len": 1878,
+          "reasoning_len": 0,
+          "raw_full": "\nThe starting material is (S)-4-hydroxycyclohex-2-en-1-one. In the first step, the hydroxyl group is protected as a tert-butyldimethylsilyl (TBS) ether, giving (S)-4-((tert-butyldimethylsilyl)oxy)cyclohex-2-en-1-one (Product 1).\n\nIn the second step, Product 1 undergoes a conjugate addition with Ph2CuLi. The phenyl group (Ph) adds to the C3 position. Due to the steric bulk of the TBS group at C4, the phenyl group adds trans to the TBS group. Since the configuration at C4 is (S) (with the TBS group \"up\"), the phenyl group adds to the \"down\" face at C3. The resulting enolate is then trapped with benzyl bromide (BnBr) at the C2 position. The benzyl group typically adds trans to the phenyl group at C3, thus adding to the \"up\" face.\n\nIn the third step, Product 2 is treated with LDA to form an enolate, which is then alkylated with iodomethane (MeI). The most likely site for deprotonation and alkylation is C2, which already has a benzyl group. The methyl group will add to the face opposite the existing benzyl group to minimize steric hindrance. Since the benzyl group is \"up,\" the methyl group adds to the \"down\" face.\n\nIn the final step, the TBS group is removed with aqueous HCl to yield the final product (Product 4).\n\nThe stereochemistry of Product 4 is as follows:\n- C4: The hydroxyl group is \"up\" (S configuration).\n- C3: The phenyl group is \"down\" and the hydrogen is \"up.\" Priority: 1. C4(-CH(OH)-), 2. Ph, 3. C2(-C(Me)(Bn)-), 4. H. Viewing from the top (H is up), the sequence 1→2→3 is counter-clockwise, which corresponds to the (R) configuration.\n- C2: The benzyl group is \"up\" and the methyl group is \"down.\" Priority: 1. C1(=O), 2. C3, 3. Bn, 4. Me. Viewing from the top (Me is down), the sequence 1→2→3 is clockwise, which corresponds to the (R) configuration.\n\nThus, the final product is (2R,3R,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one.\n\nA",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 51377,
+          "content_len": 2261,
+          "reasoning_len": 0,
+          "raw_full": "The problem describes the decomposition of an equimolar mixture of two salts, A and B, which contain only nitrogen, hydrogen, and oxygen. \n\n1.  **Analyze the products:**\n    *   **Tube 1:** Mg(ClO₄)₂ absorbs water (H₂O). The mass increase of 3.60 g corresponds to:\n        $n(H_2O) = \\frac{3.60 \\text{ g}}{18.0 \\text{ g/mol}} = 0.20 \\text{ mol}$.\n        This means there are $0.20 \\times 2 = 0.40 \\text{ mol}$ of hydrogen atoms and $0.20 \\text{ mol}$ of oxygen atoms.\n    *   **Tube 2:** Ca(OH)₂ absorbs acidic gases like CO₂. Since the mass did not change, no CO₂ was produced, indicating no carbon in the salts.\n    *   **Tube 3:** Red-hot copper reacts with oxygen (O₂) or nitrous oxide (N₂O) to form CuO. The mass increase of 0.80 g is the mass of the oxygen atoms:\n        $n(O) = \\frac{0.80 \\text{ g}}{16.0 \\text{ g/mol}} = 0.05 \\text{ mol}$.\n    *   **Gas C:** The remaining gas is nitrogen (N₂). Its volume is 2.24 L at STP:\n        $n(N_2) = \\frac{2.24 \\text{ L}}{22.4 \\text{ L/mol}} = 0.10 \\text{ mol}$.\n        This means there are $0.10 \\times 2 = 0.20 \\text{ mol}$ of nitrogen atoms.\n\n2.  **Determine the total moles of atoms and the mixture composition:**\n    *   Total atoms in the products:\n        $n(N) = 0.20 \\text{ mol}$\n        $n(H) = 0.40 \\text{ mol}$\n        $n(O) = 0.20 \\text{ (from H}_2\\text{O)} + 0.05 \\text{ (from CuO)} = 0.25 \\text{ mol}$\n    *   Total mass check: $(0.20 \\times 14.0) + (0.40 \\times 1.0) + (0.25 \\times 16.0) = 2.8 + 0.4 + 4.0 = 7.2 \\text{ g}$. This matches the initial mass.\n    *   For an equimolar mixture ($n_A = n_B = n$), the sum of the atoms in the formulas of A and B must satisfy:\n        $n \\times (N_A + N_B) = 0.20$\n        $n \\times (H_A + H_B) = 0.40$\n        $n \\times (O_A + O_B) = 0.25$\n    *   The largest possible value for $n$ that keeps the number of atoms as integers is the greatest common divisor of 0.20, 0.40, and 0.25, which is $n = 0.05 \\text{ mol}$.\n    *   Using $n = 0.05 \\text{ mol}$:\n        $N_A + N_B = 4$\n        $H_A + H_B = 8$\n        $O_A + O_B = 5$\n    *   Total number of atoms in salts A and B = $4 + 8 + 5 = 17$.\n\n3.  **Identify the salts:**\n    The salts are ammonium nitrate (NH₄NO₃, 9 atoms) and ammonium nitrite (NH₄NO₂, 8 atoms). Their sum is $9 + 8 = 17$ atoms.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 48962,
+          "content_len": 22,
+          "reasoning_len": 0,
+          "raw_full": "The final answer is A.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "C",
+          "ms": 72832,
+          "content_len": 1520,
+          "reasoning_len": 0,
+          "raw_full": "The series of reactions is as follows:\n\n1.  **Propionaldehyde + EDT / BF₃ → A**: Propionaldehyde (CH₃CH₂CHO) reacts with ethane-1,2-dithiol (EDT) in the presence of a Lewis acid (BF₃) to form a cyclic thioacetal, **2-ethyl-1,3-dithiolane (A)**.\n2.  **A + BuLi → B**: n-Butyllithium deprotonates the acidic proton at the C2 position of the dithiolane ring to form **2-lithio-2-ethyl-1,3-dithiolane (B)**.\n3.  **B + Bromoethane → C**: The lithiated intermediate acts as a nucleophile and reacts with bromoethane (CH₃CH₂Br) in an alkylation reaction to form **2,2-diethyl-1,3-dithiolane (C)**.\n4.  **C + HgCl₂ / H₂O / H⁺ → D**: Hydrolysis of the thioacetal using mercuric chloride regenerates the carbonyl group, yielding **3-pentanone (D)**, which has the structure (CH₃CH₂)₂C=O.\n5.  **D + PPh₃ / 3-bromopentane / BuLi → E**: This is a Wittig reaction. First, PPh₃ reacts with 3-bromopentane to form a phosphonium salt, which is then deprotonated by BuLi to form the ylide Ph₃P=C(CH₂CH₃)₂. This ylide reacts with 3-pentanone to form the final product, **3,4-diethyl-3-hexene (E)**, also known as tetraethylethylene.\n\nThe structure of E is (CH₃CH₂)₂C=C(CH₂CH₃)₂. Due to the high symmetry of this molecule:\n- The two olefinic carbons (C=C) are equivalent and produce **1 signal**.\n- The four methylene carbons (-CH₂-) are all equivalent and produce **1 signal**.\n- The four methyl carbons (-CH₃) are all equivalent and produce **1 signal**.\n\nThus, the total number of ¹³C-NMR signals produced by the final product E is 3.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 42615,
+          "content_len": 1349,
+          "reasoning_len": 0,
+          "raw_full": "To find the color of light absorbed by the organic compound, we first determine the wavelength of the light emitted using the given energy.\n\n1.  **Calculate the wavelength ($\\lambda$):**\n    The relationship between energy ($E$) and wavelength ($\\lambda$) is given by the formula:\n    $$E = \\frac{hc}{\\lambda}$$\n    Rearranging for $\\lambda$:\n    $$\\lambda = \\frac{hc}{E}$$\n    Using the common conversion factor $hc \\approx 1240 \\text{ nm}\\cdot\\text{eV}$:\n    $$\\lambda \\approx \\frac{1240 \\text{ nm}\\cdot\\text{eV}}{2.3393 \\text{ eV}} \\approx 530.07 \\text{ nm}$$\n\n2.  **Identify the color of the emitted light:**\n    A wavelength of approximately $530 \\text{ nm}$ falls within the **Green** region of the visible spectrum ($500–560 \\text{ nm}$).\n\n3.  **Determine the color of light absorbed:**\n    In the context of dyes and conjugated systems, the color observed (or emitted/reflected) is the complementary color of the light absorbed. According to the standard color wheel used in chemistry:\n    *   The complement of **Violet** is Yellow.\n    *   The complement of **Blue** is Orange.\n    *   The complement of **Green** is **Red**.\n    *   The complement of **Yellow** is Violet.\n\n    Since the light emitted (the color we see) is Green ($530 \\text{ nm}$), the color of light absorbed by the compound must be its complement, which is **Red**.\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 54173,
+          "content_len": 1675,
+          "reasoning_len": 0,
+          "raw_full": "The mass of a pseudo-Goldstone boson (like $h_2$ in this model) generated through radiative corrections is typically calculated using the one-loop Coleman-Weinberg potential. The general form for the mass squared $M_{h_2}^2$ is given by:\n\n$$M_{h_2}^2 \\approx \\frac{1}{8\\pi^2 f^2} \\sum_i (-1)^{F_i} n_i M_i^4 \\ln\\left(\\frac{M_i^2}{\\mu^2}\\right)$$\n\nwhere $f$ is the effective vacuum expectation value (VEV) breaking the symmetry (in this case, related to $x$ and $v$), $F_i$ is the fermion number (0 for bosons, 1 for fermions), $n_i$ is the number of degrees of freedom, and $M_i$ are the masses of the particles that couple to the scalar field.\n\nIn the given extension of the Standard Model:\n1.  **Bosons** that contribute include the SM-like Higgs ($h_1$), the gauge bosons ($W$ and $Z$), and the new scalars from the doublet $S$ ($H^\\pm$, $H^0$, and $A^0$). These terms should have a positive sign.\n2.  **Fermions** that contribute include the top quark ($t$) and the new singlet fermions ($N_i$). These terms should have a negative sign.\n\nComparing the options:\n- **Option A** is missing the contribution from the CP-odd scalar $A^0$.\n- **Option B** has a dimensionally incorrect prefactor ($\\frac{x^2+v^2}{8\\pi^2}$ instead of $\\frac{1}{8\\pi^2(x^2+v^2)}$).\n- **Option C** is missing the contribution from the top quark $M_t^4$.\n- **Option D** includes all the expected terms ($h_1, W, Z, t, H^\\pm, H^0, A^0, N_i$) with the correct signs (positive for bosons, negative for fermions) and a dimensionally correct prefactor.\n\nThus, Option D provides the most complete and correct approximation for the mass of the pseudo-Goldstone boson $h_2$ through radiative corrections.\n\nD",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "D",
+          "ms": 67626,
+          "content_len": 1863,
+          "reasoning_len": 0,
+          "raw_full": "The problem asks for the angular distance between the first two minima of the Fraunhofer diffraction pattern of an $N$-sided regular polygon as $N \\to \\infty$. \n\n1.  **Identify the aperture shape as $N \\to \\infty$**: A regular polygon with apothem $a$ (the distance from the center to the midpoint of each side) becomes a circle of radius $R = a$ as the number of sides $N$ approaches infinity.\n\n2.  **Recall the diffraction pattern for a circular aperture**: The intensity distribution for Fraunhofer diffraction through a circular aperture of radius $R$ is given by the Airy disk formula:\n    $$I(\\theta) = I_0 \\left[ \\frac{2 J_1(k R \\sin \\theta)}{k R \\sin \\theta} \\right]^2$$\n    where $k = 2\\pi/\\lambda$ and $J_1$ is the Bessel function of the first kind of order one.\n\n3.  **Find the positions of the minima**: The minima occur at the zeros of $J_1(x)$, where $x = k R \\sin \\theta$. For small angles, $\\sin \\theta \\approx \\theta$, so $x = \\frac{2\\pi a \\theta}{\\lambda}$. The first two zeros of $J_1(x)$ (excluding $x=0$) are:\n    - $x_1 \\approx 3.8317$\n    - $x_2 \\approx 7.0156$\n\n4.  **Calculate the angular positions of the first two minima**:\n    - $\\theta_1 = \\frac{x_1 \\lambda}{2\\pi a} \\approx \\frac{3.8317}{6.2832} \\frac{\\lambda}{a} \\approx 0.6098 \\frac{\\lambda}{a}$\n    - $\\theta_2 = \\frac{x_2 \\lambda}{2\\pi a} \\approx \\frac{7.0156}{6.2832} \\frac{\\lambda}{a} \\approx 1.1166 \\frac{\\lambda}{a}$\n\n5.  **Calculate the angular distance between the first two minima**:\n    The distance $\\Delta \\theta$ between the first and second minima on the same side is:\n    $$\\Delta \\theta = \\theta_2 - \\theta_1 = \\frac{(x_2 - x_1) \\lambda}{2\\pi a} \\approx \\frac{7.0156 - 3.8317}{6.2832} \\frac{\\lambda}{a} \\approx \\frac{3.1839}{6.2832} \\frac{\\lambda}{a} \\approx 0.5067 \\frac{\\lambda}{a}$$\n\n6.  **Compare with the given options**:\n    - A. $0.500 \\lambda/a$\n    - B. $0",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 3809,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 6274,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 10395,
+          "content_len": 1204,
+          "reasoning_len": 0,
+          "raw_full": "The normalization condition for a wave function $\\psi(x)$ requires that the total probability of finding the particle in all space is equal to 1:\n$$\\int_{-\\infty}^{\\infty} |\\psi(x)|^2 dx = 1$$\n\nGiven that the particle is only found between $x=1$ and $x=3$, the integral becomes:\n$$\\int_{1}^{3} |\\psi(x)|^2 dx = 1$$\n\nThe wave function is given as $\\psi(x) = \\frac{a}{\\sqrt{1+x}} - 0.5i$. To find $|\\psi(x)|^2$, we multiply the function by its complex conjugate $\\psi^*(x) = \\frac{a}{\\sqrt{1+x}} + 0.5i$:\n$$|\\psi(x)|^2 = \\left(\\frac{a}{\\sqrt{1+x}} - 0.5i\\right)\\left(\\frac{a}{\\sqrt{1+x}} + 0.5i\\right) = \\frac{a^2}{1+x} + (0.5)^2 = \\frac{a^2}{1+x} + 0.25$$\n\nNow, we integrate this expression from $x=1$ to $x=3$:\n$$\\int_{1}^{3} \\left(\\frac{a^2}{1+x} + 0.25\\right) dx = 1$$\n$$a^2 \\int_{1}^{3} \\frac{1}{1+x} dx + \\int_{1}^{3} 0.25 dx = 1$$\n$$a^2 [\\ln(1+x)]_{1}^{3} + [0.25x]_{1}^{3} = 1$$\n$$a^2 (\\ln 4 - \\ln 2) + (0.25 \\cdot 3 - 0.25 \\cdot 1) = 1$$\n$$a^2 \\ln\\left(\\frac{4}{2}\\right) + 0.5 = 1$$\n$$a^2 \\ln(2) = 0.5$$\n\nSolving for $a$:\n$$a^2 = \\frac{0.5}{\\ln(2)} \\approx \\frac{0.5}{0.693147} \\approx 0.721347$$\n$$a = \\sqrt{0.721347} \\approx 0.8493$$\n\nRounding to two decimal places, we get $a \\approx 0.85$.\n\nA",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "B",
+          "ms": 67268,
+          "content_len": 1770,
+          "reasoning_len": 0,
+          "raw_full": "The spin operator $\\vec{P}$ for a muon (a spin-1/2 particle) is given by $\\vec{P} = \\frac{\\hbar}{2} \\vec{\\sigma}$, where $\\vec{\\sigma} = (\\sigma_x, \\sigma_y, \\sigma_z)$ are the Pauli matrices. The components are:\n$P_x = \\frac{\\hbar}{2} \\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix}, \\quad P_y = \\frac{\\hbar}{2} \\begin{pmatrix} 0 & -i \\\\ i & 0 \\end{pmatrix}, \\quad P_z = \\frac{\\hbar}{2} \\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix}$\n\nAn arbitrary direction $\\vec{n}$ in the x-z plane can be represented in spherical coordinates with $\\phi = 0$ (or $\\phi = \\pi$). For $\\phi = 0$, the unit vector is $\\vec{n} = (\\sin\\theta, 0, \\cos\\theta)$, where $\\theta$ is the angle with the z-axis. The operator $P_n$ along this direction is:\n$P_n = \\vec{P} \\cdot \\vec{n} = P_x \\sin\\theta + P_z \\cos\\theta = \\frac{\\hbar}{2} \\left[ \\sin\\theta \\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix} + \\cos\\theta \\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix} \\right] = \\frac{\\hbar}{2} \\begin{pmatrix} \\cos\\theta & \\sin\\theta \\\\ \\sin\\theta & -\\cos\\theta \\end{pmatrix}$\n\nTo find the eigenvector $\\psi = \\begin{pmatrix} a \\\\ b \\end{pmatrix}$ corresponding to the eigenvalue $+\\hbar/2$, we solve:\n$\\frac{\\hbar}{2} \\begin{pmatrix} \\cos\\theta & \\sin\\theta \\\\ \\sin\\theta & -\\cos\\theta \\end{pmatrix} \\begin{pmatrix} a \\\\ b \\end{pmatrix} = \\frac{\\hbar}{2} \\begin{pmatrix} a \\\\ b \\end{pmatrix}$\n$\\begin{pmatrix} \\cos\\theta & \\sin\\theta \\\\ \\sin\\theta & -\\cos\\theta \\end{pmatrix} \\begin{pmatrix} a \\\\ b \\end{pmatrix} = \\begin{pmatrix} a \\\\ b \\end{pmatrix}$\n\nThis leads to the system of equations:\n1) $a \\cos\\theta + b \\sin\\theta = a \\implies b \\sin\\theta = a(1 - \\cos\\theta)$\n2) $a \\sin\\theta - b \\cos\\theta = b \\implies a \\sin\\theta = b(1 + \\cos\\theta)$\n\nUsing trigonometric identities $1 - \\cos\\theta = 2 \\sin",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 37016,
+          "content_len": 1654,
+          "reasoning_len": 0,
+          "raw_full": "The equilibrium temperature $T_{eq}$ of a planet is given by the formula:\n$T_{eq} = T_{\\text{eff}} \\left( \\frac{R_*}{2d} \\right)^{1/2} (1 - a)^{1/4}$\nwhere $T_{\\text{eff}}$ is the star's effective temperature, $R_*$ is the star's radius, $d$ is the orbital distance, and $a$ is the albedo. For two planets orbiting the same star with the same albedo, the ratio of their equilibrium temperatures is:\n$\\frac{T_{eq,1}}{T_{eq,2}} = \\sqrt{\\frac{d_2}{d_1}}$\n\nThe radial velocity $v_*$ of a star induced by a planet in a circular orbit is:\n$v_* = \\frac{M_p}{M_*} \\sqrt{\\frac{GM_*}{d}}$\nwhere $M_p$ is the planet's mass and $M_*$ is the star's mass. This can be rewritten as:\n$v_* \\propto M_p d^{-1/2}$\nSince $T_{eq} \\propto d^{-1/2}$, we have:\n$v_* \\propto M_p T_{eq} \\implies T_{eq} \\propto \\frac{v_*}{M_p}$\n\nThe Doppler shift $\\Delta \\lambda$ is proportional to the radial velocity $v_*$:\n$\\frac{\\Delta \\lambda}{\\lambda} = \\frac{v_*}{c} \\implies v_* \\propto \\Delta \\lambda$\nThus, the equilibrium temperature is proportional to the ratio of the Doppler shift to the planet's mass:\n$T_{eq} \\propto \\frac{\\Delta \\lambda}{M_p}$\n\nFor the two planets:\n$\\frac{T_{eq,1}}{T_{eq,2}} = \\frac{\\Delta \\lambda_1 / M_1}{\\Delta \\lambda_2 / M_2} = \\frac{\\Delta \\lambda_1}{\\Delta \\lambda_2} \\cdot \\frac{M_2}{M_1}$\n\nGiven:\n$\\Delta \\lambda_1 = 0.03 \\text{ Å}$\n$\\Delta \\lambda_2 = 0.04 \\text{ Å}$\n$M_1 = 7 M_\\oplus$\n$M_2 = 5 M_\\oplus$\n\nSubstitute the values:\n$\\frac{T_{eq,1}}{T_{eq,2}} = \\frac{0.03}{0.04} \\cdot \\frac{5}{7} = \\frac{3}{4} \\cdot \\frac{5}{7} = \\frac{15}{28} \\approx 0.5357$\n\nRounding to two decimal places, we get approximately 0.54, which is closest to option C.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 3393,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 59822,
+          "content_len": 803,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    \"\"\"\n    Write a function that takes a message, and encodes in such a \n    way that it swaps case of all letters, replaces all vowels in \n    the message with the letter that appears 2 places ahead of that \n    vowel in the english alphabet. \n    Assume only letters. \n    \n    Examples:\n    >>> encode('test')\n    'TGST'\n    >>> encode('This is a message')\n    'tHKS KS C MGSSCGG'\n    \"\"\"\n    vowels = \"aeiouAEIOU\"\n    result = \"\"\n    for char in message:\n        if char in vowels:\n            # Replace vowel with the letter 2 places ahead and swap its case\n            new_char = chr(ord(char) + 2)\n            result += new_char.swapcase()\n        else:\n            # Swap case of the non-vowel character\n            result += char.swapcase()\n    return result\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 57016,
+          "content_len": 677,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    \"\"\"Implement a function that takes an non-negative integer and returns an array of the first n\n    integers that are prime numbers and less than n.\n    for example:\n    count_up_to(5) => [2,3]\n    count_up_to(11) => [2,3,5,7]\n    count_up_to(0) => []\n    count_up_to(20) => [2,3,5,7,11,13,17,19]\n    count_up_to(1) => []\n    count_up_to(18) => [2,3,5,7,11,13,17]\n    \"\"\"\n    primes = []\n    for num in range(2, n):\n        is_prime = True\n        for i in range(2, int(num**0.5) + 1):\n            if num % i == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(num)\n    return primes\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 50148,
+          "content_len": 473,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    \"\"\"\n    Given the lengths of the three sides of a triangle. Return True if the three\n    sides form a right-angled triangle, False otherwise.\n    A right-angled triangle is a triangle in which one angle is right angle or \n    90 degree.\n    Example:\n    right_angle_triangle(3, 4, 5) == True\n    right_angle_triangle(1, 2, 3) == False\n    \"\"\"\n    return a**2 + b**2 == c**2 or a**2 + c**2 == b**2 or b**2 + c**2 == a**2\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "largest_prime_factor",
+          "gold_ans": "largest_prime_factor",
+          "ms": 64448,
+          "content_len": 339,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    i = 2\n    while i * i <= n:\n        if n % i == 0:\n            n //= i\n        else:\n            i += 1\n    return n\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 2803,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 4949,
+          "content_len": 483,
+          "reasoning_len": 0,
+          "raw_full": "```python\nfrom typing import List\n\n\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    \"\"\" Given list of numbers (of at least two elements), apply a linear transform to that list,\n    such that the smallest number will become 0 and the largest will become 1\n    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])\n    [0.0, 0.25, 0.5, 0.75, 1.0]\n    \"\"\"\n    min_val = min(numbers)\n    max_val = max(numbers)\n    return [(x - min_val) / (max_val - min_val) for x in numbers]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 48325,
+          "content_len": 1036,
+          "reasoning_len": 0,
+          "raw_full": "CBased on the document provided and the context of homogeneous catalysis by polyoxometalates (specifically the synergistic effects in catalyst combinations like the Pd/polyoxometalate system mentioned in Section 4.3), the most scientifically plausible explanation for how such a system (often referred to in related literature regarding this specific review) achieves higher selectivity and activity is by tuning the electronic properties of the metal center.\n\nAlthough the specific sentence is not explicitly verbatim in this summary, the document emphasizes the **\"tunability\"** of these catalysts and their ability to affect **\"redox potentials\"** and **\"charge density\"** (Sections 1.2.2 and 7). In the context of metal-catalyzed carbonylation (like the Pd system described on page 447), the polyoxometalate acts to modify the electron density of the transition metal, which can prevent the over-coordination of ligands (like CO), thereby allowing the reaction to proceed more selectively and under milder conditions.\n\nAnswer: **C**",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 170065,
+          "content_len": 1413,
+          "reasoning_len": 0,
+          "raw_full": "The correct answer is **D**.\n\n**Reasoning:**\n1.  **Legal Accountability and Sanctions:** The **Export and Import Permits Act (EIPA)** focuses heavily on enforcement and national security. It establishes strict prohibitions (Sections 13, 14, and 14.2) and imposes significant criminal sanctions for unlicensed trade, including fines and imprisonment for up to ten years (Section 19). It also specifically holds officers and directors of organizations accountable (Section 20).\n2.  **Trade Facilitation and Flexibility:** The **Special Import Measures Act (SIMA)** (referred to in the question as Customs and Trade Regulations) is designed to protect domestic industries from dumping and subsidizing while adhering to international trade obligations. It provides significant flexibility through mechanisms like **exemptions** (Section 14), **expedited reviews** (Section 13.2), and **scope rulings** (Section 66). It also includes extensive provisions for dispute settlement under international agreements like CUSMA (Part I.1).\n3.  **Answering the Prompt:** The question asks not only for the differences in accountability but also what these differences imply about the **balance between enforcement and trade facilitation**. Option **D** is the only choice that explicitly addresses this second part of the question, noting that the documents reflect different approaches to balancing these two regulatory goals.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 23844,
+          "content_len": 519,
+          "reasoning_len": 0,
+          "raw_full": "Based on the document provided, the user mentions in session index 10 (and session index 44) that they missed their **nephew Jack's eighth grade graduation ceremony last month**.\n\nThe session is dated July 21, 2023, which means the graduation ceremony took place in **June 2023**. Since an eighth-grade school year typically lasts one academic year, a student graduating in June 2023 would have started that grade in the autumn of the previous year, **2022**. Relative to the year 2023, the year 2022 is \"Last year.\"\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 87642,
+          "content_len": 1433,
+          "reasoning_len": 0,
+          "raw_full": "Based on the provided news releases from AbbVie, here is an evaluation of the options:\n\n*   **A is incorrect:** While AbbVie did partner with OSE Immunotherapeutics, Tentarix Biotherapeutics, and Gilgamesh Pharmaceuticals, the option incorrectly groups **neuroplastogens** (which the text states are for **psychiatric disorders/neuroscience**) under the field of **immunology**.\n*   **B is correct:** Over the past six months (from February 2024 to August 2024), AbbVie completed three major acquisitions mentioned in the text: **ImmunoGen** (Oncology, completed Feb 12), **Landos Biopharma** (Immunology, completed by July), and **Cerevel Therapeutics** (Neuroscience, completed Aug 1). These acquisitions were explicitly described as strategic moves to enhance and enrich their respective product pipelines.\n*   **C is incorrect:** The names are swapped. The text states that **Robert A. Michael** succeeded **Richard A. Gonzalez** as CEO, not the other way around.\n*   **D is partially correct but less comprehensive:** While it lists several FDA approvals mentioned in the text (Elahere, Epkinly, and Juvederm Voluma XC), it omits the highly significant approval of **Skyrizi** for ulcerative colitis. Furthermore, B better summarizes the \"strategy and operations\" (acquisition and pipeline expansion) as requested by the question.\n\nThe most accurate and strategically significant summary of the events described is B.\n\nAnswer: B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "D",
+          "ms": 79454,
+          "content_len": 1082,
+          "reasoning_len": 0,
+          "raw_full": "A\n\nThe Phidias model addresses the \"Misalignment Dilemma\" (the discrepancy between a concept image and a 3D reference) using three key components. The first component, **Meta-ControlNet**, is specifically designed to dynamically modulate the conditioning strength of the 3D reference based on its similarity to the concept image. As described in Section 3.2, the Meta-ControlNet uses a meta-controller to act as a \"knob\" that adjusts the adaptive control signals. This modulation effectively scales the influence of the reference features during both the forward pass and backpropagation. If the reference is misaligned, the Meta-ControlNet reduces its contribution, preventing the model from overfitting to erroneous geometrical details and ensuring the output remains faithful to the concept image. This mechanism is essential for improving the model's generalization and controllability. Option D describes the behavior of **Dynamic Reference Routing** (Section 3.3), which adjusts resolution based on noise levels, rather than the similarity-based modulation of Meta-ControlNet.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 30095,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 14150,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 62631,
+          "content_len": 1729,
+          "reasoning_len": 0,
+          "raw_full": "The patient's clinical presentation is highly suggestive of spontaneous bacterial peritonitis (SBP) in the setting of cirrhosis. The key findings are:\n\n1.  **History and Physical Exam:** The patient has a history of hepatitis C and signs of cirrhosis (scleral icterus, spider angiomas, low albumin, elevated bilirubin). He presents with fever, abdominal pain, and confusion (hepatic encephalopathy), which are classic symptoms of SBP.\n2.  **Ascitic Fluid Analysis:**\n    *   **Serum-Ascites Albumin Gradient (SAAG):** Serum albumin (2.6 g/dL) - Ascitic albumin (0.8 g/dL) = 1.8 g/dL. A SAAG ≥ 1.1 g/dL indicates portal hypertension, most commonly due to cirrhosis.\n    *   **Absolute Neutrophil Count (ANC):** Total leukocyte count (1900/mm³) × 60% neutrophils = 1140/mm³. An ANC > 250/mm³ in ascitic fluid is diagnostic of SBP.\n    *   **Glucose:** 62 mg/dL. In SBP, glucose is typically > 50 mg/dL, whereas in secondary bacterial peritonitis (e.g., from a perforated viscus), it is usually < 50 mg/dL.\n\nThe most likely diagnosis is SBP. The primary mechanism for the development of SBP is **bacterial translocation**, where enteric bacteria (such as *E. coli* or *Klebsiella*) migrate from the intestinal lumen across the intestinal wall into the mesenteric lymph nodes and then into the systemic circulation and ascitic fluid.\n\n*   **A. Aseptic peritoneal inflammation:** This would not typically cause an ANC > 250/mm³.\n*   **B. Neoplastic growth:** This would usually result in a SAAG < 1.1 g/dL.\n*   **D. Perforated viscus:** This would cause secondary bacterial peritonitis, which typically presents with ascitic fluid glucose < 50 mg/dL, total protein > 1 g/dL, and LDH higher than the upper limit of normal for serum.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 17671,
+          "content_len": 1664,
+          "reasoning_len": 0,
+          "raw_full": "The patient is an HIV-positive individual (CD4+ T-lymphocyte count of 80/mm³) presenting with a 4-week history of progressive headache, fatigue, somnolence, and memory deficits. Physical examination reveals oral candidiasis (white patches on the tongue and oral mucosa that can be easily scraped off). These findings are highly suggestive of advanced HIV/AIDS.\n\nThe neurological symptoms and cerebrospinal fluid (CSF) analysis (low glucose, slightly elevated protein, and mild lymphocytic pleocytosis) point toward a subacute meningitis. The most definitive finding is the India ink stain of the CSF, which shows organisms with prominent capsules. This is pathognomonic for *Cryptococcus neoformans*, a common cause of meningitis in patients with CD4+ counts below 100/mm³.\n\nThe standard treatment for cryptococcal meningitis consists of three phases:\n1.  **Induction phase:** Amphotericin B and flucytosine for at least 2 weeks.\n2.  **Consolidation phase:** High-dose fluconazole for 8 weeks.\n3.  **Maintenance phase:** Low-dose fluconazole for at least 1 year.\n\nChoice A (Pyrimethamine, sulfadiazine, and folinic acid) is the treatment for toxoplasmosis, which typically presents with focal neurological deficits and ring-enhancing lesions on brain imaging. Choice C (Fluconazole) is used in the consolidation and maintenance phases but is not the preferred initial treatment for meningitis. Choice D (Vancomycin and meropenem) is used for bacterial meningitis, which is less likely given the CSF findings and India ink stain.\n\nTherefore, the most appropriate initial pharmacotherapy for this patient's neurological symptoms is amphotericin B and flucytosine.\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 3898,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 52895,
+          "content_len": 1765,
+          "reasoning_len": 0,
+          "raw_full": "The patient’s clinical presentation and laboratory findings are highly suggestive of Chikungunya virus infection. Key features include:\n\n1.  **Travel History:** Recent travel to Southeast Asia (Vietnam and Cambodia), where both Chikungunya and Dengue are endemic.\n2.  **Acute Onset:** Symptoms began shortly after returning from travel, consistent with the incubation period of Chikungunya (typically 3–7 days).\n3.  **High Fever and Rash:** The patient has a high fever (102.5°F) and a maculopapular rash, which are common in both Chikungunya and Dengue.\n4.  **Severe Polyarthralgia:** The most distinguishing feature is the severe pain and tenderness in the small joints of the hands and wrists (specifically the metacarpophalangeal joints). While Dengue causes \"breakbone\" myalgias and arthralgias, Chikungunya is specifically known for causing symmetric, often debilitating polyarthritis/arthralgia in the small joints of the hands, wrists, and feet.\n5.  **Laboratory Findings:**\n    *   **Leukopenia and Thrombocytopenia:** Both are common in Chikungunya and Dengue, though thrombocytopenia is typically more severe in Dengue (< 100,000/mm³). This patient’s platelet count is 112,000/mm³.\n    *   **Transaminase Elevation:** Mild elevations in AST and ALT are seen in both. However, in Dengue, AST is often significantly higher than ALT. In this patient, ALT (112 U/L) is slightly higher than AST (106 U/L), which is more consistent with Chikungunya.\n6.  **Negative Tourniquet Test:** A negative tourniquet test makes Dengue fever (especially Dengue Hemorrhagic Fever) less likely, as it is a marker of capillary fragility often seen in Dengue.\n\nGiven the specific joint involvement and the negative tourniquet test, Chikungunya is the most likely diagnosis.\n\nA",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "A",
+          "ms": 36540,
+          "content_len": 1260,
+          "reasoning_len": 0,
+          "raw_full": "The patient's presentation of resistant hypertension (blood pressure 174/111 mmHg despite being on three medications: hydrochlorothiazide, lisinopril, and amlodipine), hypokalemia (K+ 3.3 mEq/L), and metabolic alkalosis (HCO3- 33 mEq/L) is highly suggestive of primary hyperaldosteronism.\n\nPrimary hyperaldosteronism is the most common cause of secondary hypertension, particularly in patients with resistant hypertension. It is characterized by the autonomous production of aldosterone, which leads to increased sodium reabsorption and potassium and hydrogen ion secretion in the collecting ducts of the kidney. This results in hypertension, hypokalemia, and metabolic alkalosis.\n\nWhile other conditions like renal artery stenosis (impaired kidney perfusion), Cushing's syndrome (cortisol excess), and pheochromocytoma (catecholamine-secreting mass) can also cause secondary hypertension, the specific combination of resistant hypertension, hypokalemia, and metabolic alkalosis is most classic for hyperaldosteronism. Furthermore, the fact that the patient remains hypokalemic despite being on an ACE inhibitor (lisinopril), which typically raises potassium levels, further points toward primary hyperaldosteronism (aldosterone excess).\n\nA. Aldosterone excess",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 3173,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 4364,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct t1.model from car_names as t1 join cars_data as t2 on t1.makeid = t2.id join model_list as t3 on t1.model = t3.model join car_makers as t4 on t3.maker = t4.id where t4.fullname = 'gene",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 12710,
+          "content_len": 253,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT\n  T1.Model\nFROM car_names AS T1\nJOIN cars_data AS T2\n  ON T1.MakeId = T2.Id\nJOIN model_list AS T3\n  ON T1.Model = T3.Model\nJOIN car_makers AS T4\n  ON T3.Maker = T4.Id\nWHERE\n  T4.FullName = 'General Motors' OR T2.Weight > 3500;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t2.museum_id = t3.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 7101,
+          "content_len": 339,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT\n  T1.Name\nFROM visitor AS T1\nJOIN visit AS T2\n  ON T1.ID = T2.Visitor_ID\nJOIN museum AS T3\n  ON T2.Museum_ID = T3.Museum_ID\nWHERE\n  T3.Open_Year < 2009\nINTERSECT\nSELECT\n  T1.Name\nFROM visitor AS T1\nJOIN visit AS T2\n  ON T1.ID = T2.Visitor_ID\nJOIN museum AS T3\n  ON T2.Museum_ID = T3.Museum_ID\nWHERE\n  T3.Open_Year > 2011;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker join car_names as t3 on t2.model = t3.model group by t1.id having count(distinct t2.model) >= 2 and count(*) > 3",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 8736,
+          "content_len": 223,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT\n  T1.Id,\n  T1.Maker\nFROM car_makers AS T1\nJOIN model_list AS T2\n  ON T1.Id = T2.Maker\nJOIN car_names AS T3\n  ON T2.Model = T3.Model\nGROUP BY\n  T1.Id\nHAVING\n  COUNT(DISTINCT T2.Model) >= 2 AND COUNT(*) > 3;\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

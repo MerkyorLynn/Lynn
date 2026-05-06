@@ -1,0 +1,1323 @@
+{
+  "timestamp": "2026-05-05T09:54:48.428762",
+  "provider": "Gemini 2.5 Pro",
+  "model": "gemini-2.5-pro",
+  "runs": 1,
+  "subset_score": {
+    "math": 5,
+    "finance": 7,
+    "biology": 3,
+    "chemistry": 5,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 3,
+    "medical": 7
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 510",
+          "gold_ans": "510",
+          "ms": 121698,
+          "content_len": 5035,
+          "reasoning_len": 0,
+          "raw_full": "The problem asks for the area of a specific region in the plane $x+y+z=75$ defined by the inequalities $x-yz<y-zx<z-xy$.\n\nFirst, let's analyze the inequalities. The chain of inequalities can be broken down into two parts:\n1) $x-yz < y-zx$\n2) $y-zx < z-xy$\n\nLet's simplify the first inequality:\n$x - y < yz - zx$\n$x - y < z(y - x)$\n$x - y < -z(x - y)$\n$(x - y) + z(x - y) < 0$\n$(x - y)(1 + z) < 0$\n\nNow, let's simplify the second inequality:\n$y - z < zx - xy$\n$y - z < x(z - y)$\n$y - z < -x(y - z)$\n$(y - z) + x(y - z) < 0$\n$(y - z)(1 + x) < 0$\n\nThe full condition $x-yz < y-zx < z-xy$ also implies $x-yz < z-xy$. Let's simplify this as well:\n$x - z < yz - xy$\n$x - z < y(z - x)$\n$x - z < -y(x - z)$\n$(x - z) + y(x - z) < 0$\n$(x - z)(1 + y) < 0$\n\nSo, the set of points must satisfy all three inequalities:\n(1) $(x - y)(1 + z) < 0$\n(2) $(y - z)(1 + x) < 0$\n(3) $(x - z)(1 + y) < 0$\n\nThese inequalities define regions in 3D space. The boundaries of these regions are the planes $x=y$, $y=z$, $z=x$, $x=-1$, $y=-1$, $z=-1$. The problem states that the intersection of the region defined by these inequalities with the plane $x+y+z=75$ forms three disjoint convex regions, and exactly one of them has a finite area.\n\nLet's analyze the conditions based on the signs of $1+x, 1+y, 1+z$. This gives $2^3 = 8$ possible cases.\nLet $s_x = \\text{sgn}(1+x)$, $s_y = \\text{sgn}(1+y)$, $s_z = \\text{sgn}(1+z)$.\nThe inequalities become:\n(1) $\\text{sgn}(x-y) \\cdot s_z < 0$\n(2) $\\text{sgn}(y-z) \\cdot s_x < 0$\n(3) $\\text{sgn}(x-z) \\cdot s_y < 0$\n\nCase 1: $x>-1, y>-1, z>-1$.\nThis means $s_x=1, s_y=1, s_z=1$.\n(1) $\\text{sgn}(x-y) < 0 \\implies x < y$.\n(2) $\\text{sgn}(y-z) < 0 \\implies y < z$.\n(3) $\\text{sgn}(x-z) < 0 \\implies x < z$.\nCombining these gives $x < y < z$. The condition $x<z$ is consistent with the other two.\nSo, this region is defined by $x+y+z=75$ together with $x>-1, y>-1, z>-1$ and $x<y<z$.\nLet's check if this region is bounded.\nFrom $x<y<z$, we have $x+y+z > 3x \\implies 75 > 3x \\implies x < 25$.\nFrom $x<y<z$, we have $x+y+z < 3z \\implies 75 < 3z \\implies z > 25$.\nThe condition $x>-1$ provides a lower bound for $x$.\nAlso, $x = 75-y-z$. Since $y>x>-1$ and $z>y>-1$, we have $y+z > -2$, so $x < 77$.\n$y = 75-x-z$. Since $x>-1$ and $z>y$, we have $z > (75-x)/2 > (75- (-1))/2=38$.\nAll coordinates are bounded. This region is finite.\n\nOther cases for the signs of $1+x, 1+y, 1+z$ lead to either empty or unbounded regions. For instance, consider the case $x>-1, y<-1, z<-1$. This leads to the conditions $y<z<x$, which is an unbounded region on the plane $x+y+z=75$. For example, let $y \\to -\\infty$, then for a fixed $z$ (e.g., $z=-2$), $x=75-y-z \\to +\\infty$, satisfying all the inequalities.\n\nThe problem states there is exactly one finite region, so this must be it. The region is defined by points on the plane $x+y+z=75$ satisfying $x<y<z$ and $x>-1, y>-1, z>-1$.\nThe boundaries of this region are formed by the intersection of the plane $x+y+z=75$ with the planes $x=y$, $y=z$, and $x=-1$. (The boundaries $y=-1$ and $z=-1$ are not reached, as $x<y$ and $x>-1$ implies $y>-1$, and $y<z$ implies $z>-1$).\nThese boundary lines form a triangle in the plane $x+y+z=75$. The vertices of this triangle are the points where these boundary lines intersect.\n\nVertex A: Intersection of $x=y$ and $y=z$.\n$x=y=z$. Substituting into the plane equation: $x+x+x=75 \\implies 3x=75 \\implies x=25$.\nSo, A = (25, 25, 25).\n\nVertex B: Intersection of $x=y$ and $x=-1$.\n$x=-1, y=-1$. Substituting into the plane equation: $-1 + (-1) + z = 75 \\implies z=77$.\nSo, B = (-1, -1, 77).\n\nVertex C: Intersection of $y=z$ and $x=-1$.\n$x=-1$. Substituting into the plane equation: $-1 + y + y = 75 \\implies 2y=76 \\implies y=38$.\nSince $y=z$, we have $z=38$.\nSo, C = (-1, 38, 38).\n\nThe finite region is the triangle with vertices A, B, and C.\nWe can calculate the area of this triangle using the formula Area = $\\frac{1}{2} |\\vec{AB} \\times \\vec{AC}|$.\nFirst, find the vectors for two sides of the triangle:\n$\\vec{AB} = B - A = (-1-25, -1-25, 77-25) = (-26, -26, 52)$\n$\\vec{AC} = C - A = (-1-25, 38-25, 38-25) = (-26, 13, 13)$\n\nNow, compute the cross product:\n$\\vec{AB} \\times \\vec{AC} = \\begin{vmatrix} \\mathbf{i} & \\mathbf{j} & \\mathbf{k} \\\\ -26 & -26 & 52 \\\\ -26 & 13 & 13 \\end{vmatrix}$\n$= \\mathbf{i}((-26)(13) - (52)(13)) - \\mathbf{j}((-26)(13) - (52)(-26)) + \\mathbf{k}((-26)(13) - (-26)(-26))$\n$= \\mathbf{i}(-338 - 676) - \\mathbf{j}(-338 + 1352) + \\mathbf{k}(-338 - 676)$\n$= -1014\\mathbf{i} - 1014\\mathbf{j} - 1014\\mathbf{k}$\n$= (-1014, -1014, -1014)$\n\nNext, find the magnitude of the cross product:\n$|\\vec{AB} \\times \\vec{AC}| = \\sqrt{(-1014)^2 + (-1014)^2 + (-1014)^2}$\n$= \\sqrt{3 \\cdot (1014)^2} = 1014\\sqrt{3}$\n\nThe area of the triangle is half of this magnitude:\nArea = $\\frac{1}{2} (1014\\sqrt{3}) = 507\\sqrt{3}$\n\nThe area is in the form $a\\sqrt{b}$, where $a=507$ and $b=3$.\n$a$ and $b$ are positive integers. $b=3$ is not divisible by the square of any prime (it is square-free).\nThe problem asks for the value of $a+b$.\n$a+b = 507 + 3 = 510$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 468",
+          "gold_ans": "468",
+          "ms": 85064,
+          "content_len": 3910,
+          "reasoning_len": 0,
+          "raw_full": "This problem can be solved in two main parts:\n1.  Find the length of the base BE of the triangle $\\triangle BGE$.\n2.  Find the height of the triangle from vertex G to the base BE.\n\n**Part 1: Find the length of the base BE**\n\nThe points A, B, C, D, E, F are collinear in that order. We can express the given lengths as sums of smaller segments:\nLet $AB = x_1$, $BC = x_2$, $CD = x_3$, $DE = x_4$, $EF = x_5$.\n\nFrom the given information, we can set up a system of equations:\n1.  $AC = AB + BC = x_1 + x_2 = 26$\n2.  $BD = BC + CD = x_2 + x_3 = 22$\n3.  $CE = CD + DE = x_3 + x_4 = 31$\n4.  $DF = DE + EF = x_4 + x_5 = 33$\n5.  $AF = AB + BC + CD + DE + EF = x_1 + x_2 + x_3 + x_4 + x_5 = 73$\n\nWe can also express $AF$ by combining some of the given segments:\n$AF = AC + CE + EF = 26 + 31 + EF = 57 + EF$.\nSince $AF = 73$, we have $73 = 57 + EF$, which gives $EF = x_5 = 16$.\n\nNow we can work backwards using the equations:\nFrom (4), $DF = DE + EF \\Rightarrow 33 = x_4 + 16 \\Rightarrow x_4 = 17$. So, $DE = 17$.\nFrom (3), $CE = CD + DE \\Rightarrow 31 = x_3 + 17 \\Rightarrow x_3 = 14$. So, $CD = 14$.\nFrom (2), $BD = BC + CD \\Rightarrow 22 = x_2 + 14 \\Rightarrow x_2 = 8$. So, $BC = 8$.\nFrom (1), $AC = AB + BC \\Rightarrow 26 = x_1 + 8 \\Rightarrow x_1 = 18$. So, $AB =To find the area of $\\triangle BGE$, we need the length of its base, BE, and its corresponding height. Let the line containing the points $A, B, C, D, E, F$ be the base. The height of the triangle is the perpendicular distance from point $G$ to this line.\n\n**1. Find the length of the base BE.**\n\nThe points $A, B, C, D, E, F$ are collinear in that order. We can denote the lengths of the segments as follows: $AB=a, BC=b, CD=c, DE=d, EF=e$.\n\nWe are given the following information:\n1.  $AC = a + b = 26$\n2.  $BD = b + c = 22$\n3.  $CE = c + d = 31$\n4.  $DF = d + e = 33$\n5.  $AF = a + b + c + d + e = 73$\n\nWe can use the length of the entire segment $AF$ to find the smaller segments.\nFrom $AF = (a+b) + (c+d) + e = AC + CE + e$, we have:\n$73 = 26 + 31 + e$\n$73 = 57 + e$\n$e = 16$\n\nNow we can work backwards to find the other lengths:\n-   $DF = d + e = 33 \\implies d + 16 = 33 \\implies d = 17$\n-   $CE = c + d = 31 \\implies c + 17 = 31 \\implies c = 14$\n-   $BD = b + c = 22 \\implies b + 14 = 22 \\implies b = 8$\n-   $AC = a + b = 26 \\implies a + 8 = 26 \\implies a = 18$\n\nThe base of our triangle is $BE$. The length of $BE$ is the sum of the lengths of segments $BC$, $CD$, and $DE$.\n$BE = b + c + d = 8 + 14 + 17 = 39$.\n\n**2. Find the height of the triangle.**\n\nLet the line containing the points be the x-axis in a coordinate plane. Let the point $C$ be at the origin $(0,0)$.\nSince $CD = 14$, the coordinate of point $D$ is $(14,0)$.\n\nLet the coordinates of point $G$ be $(x,h)$. The height of $\\triangle BGE$ is the absolute value of $h$. We can assume $h > 0$.\nWe are given the distances $CG=40$ and $DG=30$. We can use the distance formula to set up a system of equations:\n1.  For $CG = 40$:\n    $CG^2 = (x-0)^2 + (h-0)^2 = x^2 + h^2$\n    $x^2 + h^2 = 40^2 = 1600$\n\n2.  For $DG = 30$:\n    $DG^2 = (x-14)^2 + (h-0)^2 = (x-14)^2 + h^2$\n    $(x-14)^2 + h^2 = 30^2 = 900$\n\nNow we solve this system. Expand the second equation:\n$x^2 - 28x + 196 + h^2 = 900$\n\nSubstitute $x^2 + h^2 = 1600$ into the expanded equation:\n$(x^2 + h^2) - 28x + 196 = 900$\n$1600 - 28x + 196 = 900$\n$1796 - 28x = 900$\n$28x = 1796 - 900$\n$28x = 896$\n$x = \\frac{896}{28} = 32$\n\nNow substitute the value of $x$ back into the first equation to find $h$:\n$x^2 + h^2 = 1600$\n$32^2 + h^2 = 1600$\n$1024 + h^2 = 1600$\n$h^2 = 1600 - 1024 = 576$\n$h = \\sqrt{576} = 24$\n\nThe height of the triangle is 24.\n\n**3. Calculate the area of $\\triangle BGE$.**\n\nThe area of a triangle is given by the formula $\\frac{1}{2} \\times \\text{base} \\times \\text{height}$.\n-   Base $BE = 39$\n-   Height $h = 24$\n\nArea of $\\triangle BGE = \\frac{1}{2} \\times 39 \\times 24$\nArea = $39 \\times 12$\nArea = $468$",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 240022,
+          "error": "timeout",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 204",
+          "gold_ans": "204",
+          "ms": 26090,
+          "content_len": 2473,
+          "reasoning_len": 0,
+          "raw_full": "Let D be the distance of the walk, which is 9 kilometers.\nLet s be Aya's speed in km/h.\nLet t be the time spent in the coffee shop in minutes. The time in hours is t/60.\n\nIn the first scenario, the total time is 4 hours. The time spent walking is the total time minus the time in the coffee shop.\nWalking time = 4 - t/60 hours.\nUsing the formula distance = speed × time, we get:\n9 = s * (4 - t/60)  (Equation 1)\n\nIn the second scenario, the speed is s+2 km/h. The total time is 2 hours and 24 minutes.\n2 hours and 24 minutes = 2 + 24/60 = 2 + 2/5 = 12/5 hours.\nThe walking time in this case is:\nWalking time = 12/5 - t/60 hours.\nSo, we have:\n9 = (s+2) * (12/5 - t/60)  (Equation 2)\n\nThe time spent walking can also be expressed as distance/speed.\nFrom Equation 1, the walking time is 9/s. So, 9/s = 4 - t/60.\nFrom Equation 2, the walking time is 9/(s+2). So, 9/(s+2) = 12/5 - t/60.\n\nThe difference in total time is equal to the difference in walking time, as the time t in the coffee shop is constant.\nDifference in total time = 4 - 12/5 = (20-12)/5 = 8/5 hours.\nDifference in walking time = (9/s) - (9/(s+2)).\n\nSo, we can write:\n8/5 = 9/s - 9/(s+2)\n8/5 = 9 * (1/s - 1/(s+2))\n8/5 = 9 * ( (s+2 - s) / (s(s+2)) )\n8/5 = 9 * (2 / (s^2 + 2s))\n8/5 = 18 / (s^2 + 2s)\n\nNow, we solve for s by cross-multiplying:\n8 * (s^2 + 2s) = 5 * 18\n8s^2 + 16s = 90\n8s^2 + 16s - 90 = 0\nDividing by 2, we get:\n4s^2 + 8s - 45 = 0\n\nWe use the quadratic formula to solve for s: s = [-b ± sqrt(b^2 - 4ac)] / 2a\ns = [-8 ± sqrt(8^2 - 4 * 4 * (-45))] / (2 * 4)\ns = [-8 ± sqrt(64 + 720)] / 8\ns = [-8 ± sqrt(784)] / 8\nThe square root of 784 is 28.\ns = [-8 ± 28] / 8\n\nSince speed must be a positive value, we take the positive root:\ns = (-8 + 28) / 8 = 20 / 8 = 5/2 = 2.5 km/h.\n\nNow we find the time t spent in the coffee shop. The walking time in the first scenario is:\nWalking time = 9/s = 9/2.5 = 3.6 hours.\nThe total time was 4 hours, so the time in the coffee shop is:\nTime in shop (hours) = 4 - 3.6 = 0.4 hours.\nConverting this to minutes:\nt = 0.4 * 60 = 24 minutes.\n\nNow we need to find the total time taken if Aya walks at s + 1/2 km/h.\nNew speed = 2.5 + 1/2 = 2.5 + 0.5 = 3 km/h.\nThe walking time at this new speed is:\nNew walking time = Distance / New speed = 9 / 3 = 3 hours.\n\nThe total time is the new walking time plus the time spent in the coffee shop.\nTotal time in hours = 3 hours + 0.4 hours = 3.4 hours.\nTo convert the total time to minutes:\nTotal time in minutes = 3.4 * 60 = 204 minutes.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": null,
+          "model_ans": null,
+          "gold_ans": "116",
+          "ms": 25454,
+          "content_len": 3047,
+          "reasoning_len": 0,
+          "raw_full": "Let S = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}.\nJen picks a set of 4 distinct numbers from S. Let's call her set J.\nA set of 4 distinct numbers is randomly chosen from S. Let's call this the winning set W.\n\nThe total number of possible winning sets W is the number of ways to choose 4 numbers from 10, which is given by the combination formula:\nTotal outcomes = $\\binom{10}{4} = \\frac{10!}{4!(10-4)!} = \\frac{10 \\times 9 \\times 8 \\times 7}{4 \\times 3 \\times 2 \\times 1} = 10 \\times 3 \\times 7 = 210$.\n\nLet A be the event that Jen wins a prize. This means that the number of elements in the intersection of her set and the winning set is at least 2.\n$|J \\cap W| \\ge 2$.\n\nLet B be the event that Jen wins the grand prize. This means all four of her numbers match the winning numbers.\n$|J \\cap W| = 4$, which is equivalent to J = W.\n\nWe want to find the probability of B given A, which is $P(B|A) = \\frac{P(A \\cap B)}{P(A)}$.\nNotice that if event B occurs (4 matches), then event A (at least 2 matches) must also occur. This means B is a subset of A. Therefore, the intersection of A and B is just B ($A \\cap B = B$).\nThe formula simplifies to $P(B|A) = \\frac{P(B)}{P(A)}$.\n\nThe probability can also be calculated by considering the number of favorable outcomes for each event:\n$P(B|A) = \\frac{\\text{Number of outcomes for B}}{\\text{Number of outcomes for A}}$.\n\nLet's calculate the number of outcomes for each event. We can fix Jen's set J of 4 numbers. The other 6 numbers in S are not in her set.\n\n**Number of outcomes for B (Grand Prize):**\nThere is only one winning set W that is identical to Jen's set J.\nSo, the number of outcomes for B is 1.\n\n**Number of outcomes for A (Winning a Prize):**\nThis is the number of ways the winning set W has at least 2 numbers in common with Jen's set J. We can break this down into cases:\n*   **Case 1: Exactly 2 numbers match.**\n    We need to choose 2 numbers from Jen's 4 numbers ($\\binom{4}{2}$) AND 2 numbers from the 6 numbers not in Jen's set ($\\binom{6}{2}$).\n    Number of ways = $\\binom{4}{2} \\times \\binom{6}{2} = \\frac{4 \\times 3}{2} \\times \\frac{6 \\times 5}{2} = 6 \\times 15 = 90$.\n\n*   **Case 2: Exactly 3 numbers match.**\n    We need to choose 3 numbers from Jen's 4 numbers ($\\binom{4}{3}$) AND 1 number from the 6 numbers not in Jen's set ($\\binom{6}{1}$).\n    Number of ways = $\\binom{4}{3} \\times \\binom{6}{1} = 4 \\times 6 = 24$.\n\n*   **Case 3: Exactly 4 numbers match.**\n    This is the grand prize. We choose all 4 numbers from Jen's 4 numbers ($\\binom{4}{4}$) AND 0 numbers from the 6 others ($\\binom{6}{0}$).\n    Number of ways = $\\binom{4}{4} \\times \\binom{6}{0} = 1 \\times 1 = 1$.\n\nThe total number of outcomes for event A is the sum of these cases:\nNumber of outcomes for A = 90 + 24 + 1 = 115.\n\nNow we can calculate the conditional probability:\n$P(B|A) = \\frac{\\text{Number of outcomes for B}}{\\text{Number of outcomes for A}} = \\frac{1}{115}$.\n\nThis probability is given as m/n, so m = 1 and n = 115.\nThe numbers m and n are relatively prime.\nWe need to find m + n.\nm + n = 1 + 115 = 116.",
+          "verify_error": "model_output_no_boxed"
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 70",
+          "gold_ans": "70",
+          "ms": 24358,
+          "content_len": 1735,
+          "reasoning_len": 0,
+          "raw_full": "Let the base be $b$. The numbers given are $17_b$ and $97_b$.\nIn base 10, these numbers can be written as:\n$17_b = 1 \\cdot b^1 + 7 \\cdot b^0 = b+7$\n$97_b = 9 \\cdot b^1 + 7 \\cdot b^0 = 9b+7$\n\nThe problem states that $17_b$ is a divisor of $97_b$. This means that in base 10, $b+7$ must be a divisor of $9b+7$.\nFor this to be true, the division of $9b+7$ by $b+7$ must result in an integer.\n\nWe can perform algebraic division:\n$$ \\frac{9b+7}{b+7} $$\nWe can rewrite the numerator in terms of the denominator:\n$$ 9b+7 = 9(b+7) - 63 + 7 = 9(b+7) - 56 $$\nNow, the division becomes:\n$$ \\frac{9(b+7) - 56}{b+7} = \\frac{9(b+7)}{b+7} - \\frac{56}{b+7} = 9 - \\frac{56}{b+7} $$\nFor this expression to be an integer, $\\frac{56}{b+7}$ must be an integer. This implies that $b+7$ must be a divisor of 56.\n\nThe divisors of 56 are $\\pm1, \\pm2, \\pm4, \\pm7, \\pm8, \\pm14, \\pm28, \\pm56$.\n\nThe problem has two conditions for the base $b$:\n1. $b$ is an integer.\n2. The digits used in base $b$ are 1, 7, and 9. Therefore, the base $b$ must be greater than the largest digit. So, $b > 9$. This condition is also given in the problem statement.\n\nSince $b > 9$, we can determine the possible values for $b+7$:\n$b > 9 \\implies b+7 > 9+7 \\implies b+7 > 16$.\n\nWe need to find the divisors of 56 that are greater than 16. Looking at the list of divisors of 56, the ones that are greater than 16 are 28 and 56.\n\nWe have two possible cases for $b+7$:\nCase 1: $b+7 = 28$\n$b = 28 - 7 = 21$. This satisfies the condition $b > 9$.\n\nCase 2: $b+7 = 56$\n$b = 56 - 7 = 49$. This also satisfies the condition $b > 9$.\n\nThe integer bases $b > 9$ for which $17_b$ is a divisor of $97_b$ are 21 and 49.\n\nThe problem asks for the sum of all such integer bases.\nSum = $21 + 49 = 70$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tail_number_match",
+          "model_ans": "[tail-match] 16",
+          "gold_ans": "16",
+          "ms": 29217,
+          "content_len": 2908,
+          "reasoning_len": 0,
+          "raw_full": "Let $n_c$, $n_v$, and $n_s$ be the number of players who chose chocolate, vanilla, and strawberry ice cream, respectively.\nThe problem gives us the following conditions:\n1.  The total number of players is 9: $n_c + n_v + n_s = 9$.\n2.  At least one player chose each flavor: $n_c \\ge 1$, $n_v \\ge 1$, $n_s \\ge 1$.\n3.  The number of players for each flavor is strictly ordered: $n_c > n_v > n_s$.\n\nCombining these conditions, we need to find all sets of integers $(n_c, n_v, n_s)$ that satisfy $n_c + n_v + n_s = 9$ and $n_c > n_v > n_s \\ge 1$.\n\nLet's find the possible integer partitions of 9 that meet these criteria. We can do this by starting with the smallest possible value for $n_s$.\n\nCase 1: $n_s = 1$.\nThe equation becomes $n_c + n_v = 8$, with the condition $n_c > n_v > 1$.\n*   If $n_v = 2$, then $n_c = 6$. This satisfies $6 > 2 > 1$. So, $(6, 2, 1)$ is a valid partition.\n*   If $n_v = 3$, then $n_c = 5$. This satisfies $5 > 3 > 1$. So, $(5, 3, 1)$ is a valid partition.\n*   If $n_v = 4$, then $n_c = 4$. This does not satisfy $n_c > n_v$.\n\nCase 2: $n_s = 2$.\nThe equation becomes $n_c + n_v = 7$, with the condition $n_c > n_v > 2$.\n*   If $n_v = 3$, then $n_c = 4$. This satisfies $4 > 3 > 2$. So, $(4, 3, 2)$ is a valid partition.\n*   If $n_v = 4$, then $n_c = 3$. This does not satisfy $n_c > n_v$.\n\nCase 3: $n_s = 3$.\nThe equation becomes $n_c + n_v = 6$, with the condition $n_c > n_v > 3$.\n*   There are no integers $n_v$ such that $n_c > n_v > 3$ and $n_c+n_v=6$. For instance, if $n_v=4$, $n_c=2$, which violates $n_c > n_v$.\n\nIf $n_s \\ge 3$, the smallest possible sum would be $3+4+5=12$, which is greater than 9. So, we have found all possible partitions.\n\nThe three possible distributions of flavors are:\n1.  (6 Chocolate, 2 Vanilla, 1 Strawberry)\n2.  (5 Chocolate, 3 Vanilla, 1 Strawberry)\n3.  (4 Chocolate, 3 Vanilla, 2 Strawberry)\n\nNow, for each distribution, we need to calculate the number of ways to assign the 9 distinct players to these flavor groups. This is a multinomial coefficient problem, calculated as $\\frac{9!}{n_c! n_v! n_s!}$.\n\n1.  For the (6, 2, 1) distribution:\n    Number of assignments = $\\frac{9!}{6! \\cdot 2! \\cdot 1!} = \\frac{9 \\cdot 8 \\cdot 7}{2 \\cdot 1} = 9 \\cdot 4 \\cdot 7 = 252$.\n\n2.  For the (5, 3, 1) distribution:\n    Number of assignments = $\\frac{9!}{5! \\cdot 3! \\cdot 1!} = \\frac{9 \\cdot 8 \\cdot 7 \\cdot 6}{3 \\cdot 2 \\cdot 1} = 9 \\cdot 8 \\cdot 7 = 504$.\n\n3.  For the (4, 3, 2) distribution:\n    Number of assignments = $\\frac{9!}{4! \\cdot 3! \\cdot 2!} = \\frac{9 \\cdot 8 \\cdot 7 \\cdot 6 \\cdot 5}{3 \\cdot 2 \\cdot 1 \\cdot 2 \\cdot 1} = 9 \\cdot 4 \\cdot 7 \\cdot 5 = 1260$.\n\nThe total number of different assignments, N, is the sum of the assignments from all possible distributions:\n$N = 252 + 504 + 1260 = 2016$.\n\nThe problem asks for the remainder when N is divided by 1000.\n$2016 \\div 1000 = 2$ with a remainder of $16$.\n\n$2016 \\pmod{1000} \\equiv 16$.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 8576,
+          "content_len": 484,
+          "reasoning_len": 0,
+          "raw_full": "To calculate the Diluted Earnings Per Share (EPS), we use the following formula:\n\nDiluted EPS = (Net income attributable to ordinary shareholders) / (Weighted average ordinary shares outstanding)\n\nGiven the values from the report:\n- Net income attributable to ordinary shareholders: 48,954 million RMB\n- Weighted average ordinary shares outstanding (diluted): 19,250 million shares\n\nDiluted EPS = 48,945 / 19,250 = 2.542597...\n\nRounding to 2 decimal places, we get 2.54.\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 9957,
+          "content_len": 589,
+          "reasoning_len": 0,
+          "raw_full": "Here is the step-by-step calculation for Net Income:\n\n1.  **Calculate Earnings Before Tax (EBT):**\n    EBT = Revenue - Operating Expenses - Interest Expense\n    EBT = $1,200 million - $850 million - $30 million\n    EBT = $320 million\n\n2.  **Calculate Tax Expense:**\n    Tax Expense = EBT * Tax Rate\n    Tax Expense = $320 million * 25%\n    Tax Expense = $80 million\n\n3.  **Calculate Net Income:**\n    Net Income = EBT - Tax Expense\n    Net Income = $320 million - $80 million\n    Net Income = $240 million\n\nRounding to one decimal place, the Net Income is 240.0 million USD.\n\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 23275,
+          "content_len": 1563,
+          "reasoning_len": 0,
+          "raw_full": "Here is the step-by-step calculation for the present value of the company.\n\n### 1. Calculate the Present Value (PV) of Explicit Free Cash Flows (FCF)\n\nWe discount each of the first three years' cash flows to their present value using the formula:\nPV = FCF / (1 + WACC)^n\n\n*   **Year 1:** $100M / (1 + 0.10)^1 = $100M / 1.10 = $90.91M\n*   **Year 2:** $115M / (1 + 0.10)^2 = $115M / 1.21 = $95.04M\n*   **Year 3:** $130M / (1 + 0.10)^3 = $130M / 1.331 = $97.67M\n\n**Sum of PV of FCFs** = $90.91M + $95.04M + $97.67M = **$283.62M**\n\n### 2. Calculate the Terminal Value (TV)\n\nThe Terminal Value represents the value of all cash flows after Year 3, assuming a perpetual growth rate. First, we calculate the FCF for Year 4, which is the first year of the perpetuity period.\n\n*   **FCF Year 4:** FCF Year 3 * (1 + g) = $130M * (1 + 0.03) = $133.9M\n\nNow, we use the Gordon Growth Model to find the terminal value at the end of Year 3:\nTV = (FCF Year 4) / (WACC - g)\nTV = $133.9M / (0.10 - 0.03) = $133.9M / 0.07 = **$1912.86M**\n\n### 3. Calculate the Present Value of the Terminal Value\n\nThe TV calculated above is its value at the end of Year 3. We need to discount it back to its present value today.\n\n*   **PV of TV:** $1912.86M / (1 + 0.10)^3 = $1912.86M / 1.331 = **$1437.16M**\n\n### 4. Calculate Total Company Value\n\nFinally, we add the present value of the explicit cash flows and the present value of the terminal value.\n\n*   **Total Value:** $283.62M + $1437.16M = $1720.78M\n\nRounding to the nearest integer, the present value of the company is $1721M.\n\n\\boxed{1721}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 27589,
+          "content_len": 346,
+          "reasoning_len": 0,
+          "raw_full": "根据戈登增长模型 (Gordon Growth Model)，公司企业价值 (Enterprise Value) 的计算公式为：\n\nEnterprise Value = FCFF / (WACC - g)\n\n其中：\n*   FCFF = 下一年的公司自由现金流 = 100 million USD\n*   WACC = 加权平均资本成本 = 9%\n*   g = 永续增长率 = 3%\n\n计算过程：\nEnterprise Value = 100 / (9% - 3%)\nEnterprise Value = 100 / 6%\nEnterprise Value = 100 / 0.06\nEnterprise Value ≈ 1666.7 million USD\n\n\\boxed{1666.7}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 8524,
+          "content_len": 297,
+          "reasoning_len": 0,
+          "raw_full": "1.  **计算股东权益 (Shareholder's Equity):**\n    股东权益 = 总资产 - 总负债\n    股东权益 = 5,000 million - 3,200 million = 1,800 million\n\n2.  **计算净资产收益率 (Return on Equity - ROE):**\n    ROE = (净利润 / 股东权益) * 100%\n    ROE = (480 million / 1,800 million) * 100%\n    ROE = 0.2666... * 100%\n    ROE ≈ 26.67%\n\n\\boxed{26.67%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.88",
+          "gold_ans": "957.88",
+          "ms": 49263,
+          "content_len": 573,
+          "reasoning_len": 0,
+          "raw_full": "债券价格的计算需要将未来所有的现金流（每年的利息和到期时的本金）按市场利率（YTM）折现到当前时点。\n\n1.  **确定参数:**\n    *   面值 (FV) = 1,000 USD\n    *   票面利率 (Coupon Rate) = 5%\n    *   每年利息支付 (C) = 1,000 * 5% = 50 USD\n    *   到期收益率 (YTM / r) = 6% 或 0.06\n    *   年期 (n) = 5 年\n\n2.  **计算公式:**\n    债券价格 (P) = C * [ (1 - (1 + r)^-n) / r ] + [ FV / (1 + r)^n ]\n\n3.  **计算过程:**\n    *   利息的现值 = 50 * [ (1 - (1 + 0.06)^-5) / 0.06 ] ≈ 50 * 4.21236 ≈ 210.62 USD\n    *   本金的现值 = 1000 / (1 + 0.06)^5 ≈ 1000 / 1.338225 ≈ 747.26 USD\n    *   债券总价 = 210.62 + 747.26 = 957.88 USD\n\n由于市场利率 (6%) 高于票面利率 (5%)，债券会以低于面值的价格（折价）交易。\n\n\\boxed{957.88 USD}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 6953,
+          "content_len": 183,
+          "reasoning_len": 0,
+          "raw_full": "利息保障倍数 (Times Interest Earned Ratio) 的计算公式为：\n\n利息保障倍数 = 息税前利润 (EBIT) / 利息费用\n\n根据您提供的数据：\nEBIT = 200 million\n利息费用 = 40 million\n\n计算过程：\n利息保障倍数 = 200 / 40 = 5.00\n\n税率在此计算中不需要使用。\n\n\\boxed{5.00}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "C",
+          "ms": 116193,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 39940,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 16578,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 17042,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "A",
+          "ms": 15305,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 15556,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 18618,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 27490,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "D",
+          "ms": 34435,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 53707,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 34846,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 15752,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 47761,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 95612,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 20197,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 23147,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 18434,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 12921,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 15394,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 20065,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 22785,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 13357,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 19989,
+          "content_len": 735,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    \"\"\"\n    Write a function that takes a message, and encodes in such a \n    way that it swaps case of all letters, replaces all vowels in \n    the message with the letter that appears 2 places ahead of that \n    vowel in the english alphabet. \n    Assume only letters. \n    \n    Examples:\n    >>> encode('test')\n    'TGST'\n    >>> encode('This is a message')\n    'tHKS KS C MGSSCGG'\n    \"\"\"\n    swapped_message = message.swapcase()\n    encoded_chars = []\n    vowels = \"aeiouAEIOU\"\n    \n    for char in swapped_message:\n        if char in vowels:\n            encoded_chars.append(chr(ord(char) + 2))\n        else:\n            encoded_chars.append(char)\n            \n    return \"\".join(encoded_chars)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 18005,
+          "content_len": 793,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    \"\"\"Implement a function that takes an non-negative integer and returns an array of the first n\n    integers that are prime numbers and less than n.\n    for example:\n    count_up_to(5) => [2,3]\n    count_up_to(11) => [2,3,5,7]\n    count_up_to(0) => []\n    count_up_to(20) => [2,3,5,7,11,13,17,19]\n    count_up_to(1) => []\n    count_up_to(18) => [2,3,5,7,11,13,17]\n    \"\"\"\n    if n <= 2:\n        return []\n    \n    sieve = [True] * n\n    sieve[0] = sieve[1] = False\n    \n    for i in range(2, int(n**0.5) + 1):\n        if sieve[i]:\n            for multiple in range(i*i, n, i):\n                sieve[multiple] = False\n                \n    primes = []\n    for i in range(2, n):\n        if sieve[i]:\n            primes.append(i)\n            \n    return primes\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 17060,
+          "content_len": 533,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    '''\n    Given the lengths of the three sides of a triangle. Return True if the three\n    sides form a right-angled triangle, False otherwise.\n    A right-angled triangle is a triangle in which one angle is right angle or \n    90 degree.\n    Example:\n    right_angle_triangle(3, 4, 5) == True\n    right_angle_triangle(1, 2, 3) == False\n    '''\n    if a <= 0 or b <= 0 or c <= 0:\n        return False\n    sides = sorted([a, b, c])\n    return sides[0]**2 + sides[1]**2 == sides[2]**2\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "largest_prime_factor",
+          "gold_ans": "largest_prime_factor",
+          "ms": 33618,
+          "content_len": 441,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    i = 2\n    largest_factor = 1\n    while i * i <= n:\n        if n % i:\n            i += 1\n        else:\n            n //= i\n            largest_factor = i\n    if n > 1:\n        largest_factor = n\n    return largest_factor\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 5973,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 12328,
+          "content_len": 595,
+          "reasoning_len": 0,
+          "raw_full": "```python\nfrom typing import List\n\n\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    \"\"\" Given list of numbers (of at least two elements), apply a linear transform to that list,\n    such that the smallest number will become 0 and the largest will become 1\n    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])\n    [0.0, 0.25, 0.5, 0.75, 1.0]\n    \"\"\"\n    min_number = min(numbers)\n    max_number = max(numbers)\n    range_numbers = max_number - min_number\n    if range_numbers == 0:\n        return [0.0 for _ in numbers]\n    return [(x - min_number) / range_numbers for x in numbers]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 26777,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 24832,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 8292,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 24779,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "D",
+          "ms": 20536,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 25961,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 15832,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 13756,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 12238,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 11963,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 18712,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 18848,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 9853,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 12104,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct t2.model from car_makers as t1 inner join car_names as t2 on t1.maker = t2.make inner join cars_data as t3 on t2.makeid = t3.id where t1.fullname = 'general motors' or t3.weight > 3500",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 65129,
+          "content_len": 213,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT T2.Model FROM car_makers AS T1 INNER JOIN car_names AS T2 ON T1.Maker = T2.Make INNER JOIN cars_data AS T3 ON T2.MakeId = T3.Id WHERE T1.FullName = 'General Motors' OR T3.Weight  >  3500\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select t2.name from visit as t1 join visitor as t2 on t1.visitor_id = t2.id join museum as t3 on t1.museum_id = t3.id where t3.open_year < 2009 intersect select t2.name from visit as t1 join visitor a",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 15957,
+          "content_len": 320,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT T2.Name FROM visit AS T1 JOIN visitor AS T2 ON T1.Visitor_ID  =  T2.ID JOIN museum AS T3 ON T1.Museum_ID  =  T3.ID WHERE T3.Open_Year  <  2009 INTERSECT SELECT T2.Name FROM visit AS T1 JOIN visitor AS T2 ON T1.Visitor_ID  =  T2.ID JOIN museum AS T3 ON T1.Museum_ID  =  T3.ID WHERE T3.Open_Year  >  2011\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select id, maker from car_makers where id in (select maker from model_list group by maker having count(*) >= 2 intersect select t2.maker from car_names as t1 join model_list as t2 on t1.model = t2.mod",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 54182,
+          "content_len": 252,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT Id, Maker FROM car_makers WHERE Id IN (SELECT Maker FROM model_list GROUP BY Maker HAVING count(*) >= 2 INTERSECT SELECT T2.Maker FROM car_names AS T1 JOIN model_list AS T2 ON T1.Model = T2.Model GROUP BY T2.Maker HAVING count(*) > 3)\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

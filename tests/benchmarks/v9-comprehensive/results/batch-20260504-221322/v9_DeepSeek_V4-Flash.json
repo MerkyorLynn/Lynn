@@ -1,0 +1,622 @@
+{
+  "timestamp": "2026-05-04T22:17:03.889298",
+  "provider": "DeepSeek V4-Flash",
+  "model": "deepseek-chat",
+  "runs": 1,
+  "subset_score": {
+    "math": 1,
+    "finance": 3,
+    "biology": 1,
+    "chemistry": 2,
+    "physics": 3,
+    "code_algo": 3,
+    "medical": 2
+  },
+  "subset_total": {
+    "math": 3,
+    "finance": 3,
+    "biology": 3,
+    "chemistry": 3,
+    "physics": 3,
+    "code_algo": 3,
+    "longctx": 3,
+    "medical": 3,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "1017",
+          "gold_ans": "510",
+          "ms": 32939,
+          "content_len": 6234,
+          "reasoning_len": 0,
+          "raw_full": "We are given the plane  \n\\[\nx + y + z = 75\n\\]  \nand the inequalities  \n\\[\nx - yz < y - zx < z - xy.\n\\]\n\n---\n\n### Step 1: Rewrite the inequalities\nThe first inequality:\n\\[\nx - yz < y - zx\n\\]\nBring terms together:\n\\[\nx - yz - y + zx < 0\n\\]\nFactor:\n\\[\n(x - y) + z(x - y) < 0\n\\]\n\\[\n(x - y)(1 + z) < 0.\n\\]\n\nThe second inequality:\n\\[\ny - zx < z - xy\n\\]\n\\[\ny - zx - z + xy < 0\n\\]\n\\[\n(y - z) + x(y - z) < 0\n\\]\n\\[\n(y - z)(1 + x) < 0.\n\\]\n\nSo we have:\n\\[\n(x - y)(1 + z) < 0, \\quad (y - z)(1 + x) < 0.\n\\]\n\n---\n\n### Step 2: Sign analysis\nSince the plane is \\(x + y + z = 75\\), coordinates are large positive numbers typically, so \\(1+z > 0\\) and \\(1+x > 0\\) for sure (since \\(x, z\\) could be negative in principle, but the finite region will be where these are positive).  \nThus the inequalities reduce to:\n\\[\nx - y < 0 \\quad\\Rightarrow\\quad x < y,\n\\]\n\\[\ny - z < 0 \\quad\\Rightarrow\\quad y < z.\n\\]\n\nSo we have:\n\\[\nx < y < z.\n\\]\n\n---\n\n### Step 3: The region in the plane\nWe are in the plane \\(x + y + z = 75\\) with \\(x < y < z\\).  \nThe region with \\(x < y < z\\) is an open triangular region in the plane (since it's intersection of half-planes \\(x<y\\) and \\(y<z\\) with the plane).  \nBut the problem says there are three disjoint convex regions, and exactly one has finite area.\n\nThe inequalities \\(x<y<z\\) define an infinite wedge in the plane (since coordinates can go arbitrarily negative while still satisfying sum 75). However, the *finite* region comes from also considering the original inequality chain:  \nWe only used \\(x - yz < y - zx\\) and \\(y - zx < z - xy\\). The chain also implies \\(x - yz < z - xy\\) automatically, but that gives:\n\\[\nx - yz < z - xy\n\\]\n\\[\nx - yz - z + xy < 0\n\\]\n\\[\n(x - z) + y(x - z) < 0\n\\]\n\\[\n(x - z)(1 + y) < 0.\n\\]\nSince \\(1+y > 0\\) in the finite region, this gives \\(x < z\\), which is already implied by \\(x<y<z\\). So no new restriction.\n\nThus the finite region comes from the fact that the inequalities \\(x - yz < y - zx\\) and \\(y - zx < z - xy\\) also impose bounds when \\(1+z\\) or \\(1+x\\) could be negative. In the finite region, all \\(1+x, 1+y, 1+z > 0\\) so we just get \\(x<y<z\\). But the *finite* region is bounded by the lines where equalities hold:  \n\\(x = y\\), \\(y = z\\), and also the intersection of the plane with the coordinate axes? Let's check.\n\n---\n\n### Step 4: Find boundaries\nThe equalities \\(x=y\\) and \\(y=z\\) in the plane \\(x+y+z=75\\) give lines:\n\n- If \\(x = y\\), then \\(2x + z = 75\\).\n- If \\(y = z\\), then \\(x + 2y = 75\\).\n\nThe intersection of these two lines: \\(x=y=z\\) gives \\(3x=75 \\Rightarrow x=25\\). So point \\(P = (25,25,25)\\).\n\nThe region \\(x<y<z\\) in the plane is an open triangular region bounded by these two lines and the line where the third inequality becomes equality? Actually the third inequality \\(x<z\\) is automatically satisfied if \\(x<y<z\\), but the boundary of the region is where \\(x=y\\) or \\(y=z\\).  \n\nBut the region in the plane is infinite because \\(x\\) can go to \\(-\\infty\\) while \\(y\\) and \\(z\\) adjust. So why finite?\n\n---\n\n### Step 5: Finite region arises from sign changes\nIf \\(1+z < 0\\), then \\((x-y)(1+z) < 0\\) would imply \\(x-y > 0\\) i.e. \\(x > y\\). Similarly for other sign combos.  \nThe three disjoint convex regions correspond to the three possible orderings of \\(x, y, z\\) with sign conditions on \\(1+x, 1+y, 1+z\\).  \n\nThe finite region occurs when all \\(1+x, 1+y, 1+z\\) are positive, so \\(x, y, z > -1\\). Combined with \\(x+y+z=75\\), this bounds them above too.  \nSpecifically, \\(x > -1\\), \\(y > -1\\), \\(z > -1\\) and sum 75 implies each is less than \\(75 - (-1) - (-1) = 77\\). So all coordinates are bounded between \\(-1\\) and \\(77\\).  \n\nThus the region is the intersection of the plane with the cube \\((-1, \\infty)^3\\) but effectively bounded.\n\n---\n\n### Step 6: Shape and area\nThe region in the plane is the triangle formed by the lines:\n- \\(x = y\\) (with \\(x+y+z=75\\))\n- \\(y = z\\)\n- The plane intersection with \\(x = -1\\)? Wait, the boundaries from \\(x > -1\\) etc.\n\nThe finite region is the set in the plane \\(x+y+z=75\\) with \\(x<y<z\\) and \\(x > -1, y > -1, z > -1\\).  \nThe vertices:\n\n1. Intersection of \\(x = y\\) and \\(x = -1\\):  \n\\(x = -1, y = -1\\), then \\(z = 75 - (-1) - (-1) = 77\\). Point \\(A = (-1,-1,77)\\).\n\n2. Intersection of \\(y = z\\) and \\(z = -1\\):  \n\\(y = -1, z = -1\\), then \\(x = 75 - (-1) - (-1) = 77\\). Point \\(B = (77,-1,-1)\\).\n\n3. Intersection of \\(x = y\\) and \\(y = z\\):  \n\\(x=y=z=25\\). Point \\(C = (25,25,25)\\).\n\nBut note: The ordering \\(x<y<z\\) must hold. Check:  \nAt \\(A\\): \\(x=-1, y=-1, z=77\\) gives \\(x=y\\), not strict. So boundary.  \nAt \\(B\\): \\(x=77, y=-1, z=-1\\) gives \\(y=z\\), boundary.  \nAt \\(C\\): all equal, boundary.\n\nThe triangle vertices are \\(A, B, C\\).\n\n---\n\n### Step 7: Compute side lengths\nCoordinates:\n\\[\nA = (-1,-1,77), \\quad B = (77,-1,-1), \\quad C = (25,25,25).\n\\]\n\nVector \\(AB = (78, 0, -78)\\), length:\n\\[\n|AB| = \\sqrt{78^2 + 0^2 + (-78)^2} = \\sqrt{2 \\cdot 78^2} = 78\\sqrt{2}.\n\\]\n\nVector \\(AC = (26, 26, -52)\\), length:\n\\[\n|AC| = \\sqrt{26^2 + 26^2 + (-52)^2} = \\sqrt{676 + 676 + 2704} = \\sqrt{4056}.\n\\]\nFactor: \\(4056 = 4 \\cdot 1014 = 4 \\cdot 2 \\cdot 507 = 8 \\cdot 3 \\cdot 169 = 8 \\cdot 3 \\cdot 13^2 = (2^3)(3)(13^2)\\).  \nSo \\(\\sqrt{4056} = 13 \\cdot 2 \\cdot \\sqrt{6} = 26\\sqrt{6}\\).\n\nVector \\(BC = (-52, 26, 26)\\), length same as \\(AC\\) by symmetry: \\(26\\sqrt{6}\\).\n\n---\n\n### Step 8: Area of triangle\nSides: \\(78\\sqrt{2}, 26\\sqrt{6}, 26\\sqrt{6}\\).  \nIt’s isosceles with base \\(78\\sqrt{2}\\) and equal sides \\(26\\sqrt{6}\\).\n\nHeight from \\(C\\) to midpoint of \\(AB\\):  \nMidpoint of \\(AB\\):  \n\\[\n\\left( \\frac{-1+77}{2}, \\frac{-1-1}{2}, \\frac{77-1}{2} \\right) = (38, -1, 38).\n\\]  \nVector from midpoint to \\(C\\):  \n\\((25-38, 25-(-1), 25-38) = (-13, 26, -13)\\).  \nLength:\n\\[\n\\sqrt{(-13)^2 + 26^2 + (-13)^2} = \\sqrt{169 + 676 + 169} = \\sqrt{1014}.\n\\]  \n\\(\\sqrt{1014} = \\sqrt{2 \\cdot 3 \\cdot 13^2} = 13\\sqrt{6}\\).\n\nArea = \\(\\frac12 \\cdot \\text{base} \\cdot \\text{height}\\):\n\\[\n\\frac12 \\cdot 78\\sqrt{2} \\cdot 13\\sqrt{6} = \\frac12 \\cdot 78 \\cdot 13 \\cdot \\sqrt{12}.\n\\]  \n\\(\\sqrt{12} = 2\\sqrt{3}\\). So:\n\\[\n\\frac12 \\cdot 78 \\cdot 13 \\cdot 2\\sqrt{3} = 78 \\cdot 13 \\cdot \\sqrt{3} = 1014 \\sqrt{3}.\n\\]\n\n---\n\n### Step 9: Final answer\nArea = \\(1014\\sqrt{3}\\), so \\(a = 1014\\), \\(b = 3\\).  \n\\[\na+b = 1014 + 3 = 1017.\n\\]\n\n\\[\n\\boxed{1017}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 17346,
+          "content_len": 2693,
+          "reasoning_len": 0,
+          "raw_full": "We have six collinear points in order \\(A, B, C, D, E, F\\).  \nLet’s assign coordinates on a number line to simplify.\n\nLet \\(A = 0\\).  \nLet distances between consecutive points be:\n\n\\[\nAB = a,\\quad BC = b,\\quad CD = c,\\quad DE = d,\\quad EF = e\n\\]\n\nThen:\n\n\\[\nA = 0,\\quad B = a,\\quad C = a+b,\\quad D = a+b+c,\\quad E = a+b+c+d,\\quad F = a+b+c+d+e\n\\]\n\nGiven:\n\n1. \\(AC = 26 \\implies a+b = 26\\)  \n2. \\(BD = 22 \\implies (a+b+c) - a = b+c = 22\\)  \n3. \\(CE = 31 \\implies (a+b+c+d) - (a+b) = c+d = 31\\)  \n4. \\(DF = 33 \\implies (a+b+c+d+e) - (a+b+c) = d+e = 33\\)  \n5. \\(AF = 73 \\implies a+b+c+d+e = 73\\)\n\nFrom (1): \\(a+b = 26\\)  \nFrom (2): \\(b+c = 22\\)  \nFrom (3): \\(c+d = 31\\)  \nFrom (4): \\(d+e = 33\\)  \nFrom (5): total = 73\n\nCheck consistency:  \nFrom (1)+(2)+(3)+(4) we get:\n\n\\[\n(a+b) + (b+c) + (c+d) + (d+e) = 26 + 22 + 31 + 33 = 112\n\\]\n\nBut left side is \\(a + 2b + 2c + 2d + e\\).  \nWe know \\(a+b+c+d+e = 73\\). Subtract:\n\n\\[\n(a+2b+2c+2d+e) - (a+b+c+d+e) = b+c+d = 112 - 73 = 39\n\\]\n\nSo \\(b+c+d = 39\\).  \nFrom (2) \\(b+c = 22\\), so \\(d = 39 - 22 = 17\\).  \nFrom (3) \\(c+d = 31 \\implies c + 17 = 31 \\implies c = 14\\).  \nFrom (2) \\(b + 14 = 22 \\implies b = 8\\).  \nFrom (1) \\(a + 8 = 26 \\implies a = 18\\).  \nFrom (4) \\(d+e = 17 + e = 33 \\implies e = 16\\).\n\nCheck total: \\(a+b+c+d+e = 18+8+14+17+16 = 73\\), correct.\n\nCoordinates:\n\n\\[\nA=0,\\ B=18,\\ C=26,\\ D=40,\\ E=57,\\ F=73\n\\]\n\nNow \\(G\\) is off the line. Given:\n\n\\(CG = 40\\), \\(DG = 30\\).  \n\\(C = 26\\), \\(D = 40\\), so \\(CD = 14\\).\n\nTriangle \\(CDG\\) has sides \\(CG=40\\), \\(DG=30\\), \\(CD=14\\).\n\nCheck if triangle inequality holds: \\(30+14=44 > 40\\), okay.\n\nWe need area of \\(\\triangle BGE\\). Points:  \n\\(B = 18\\), \\(G\\) unknown coordinates, \\(E = 57\\).\n\nPlace line \\(AF\\) as x-axis. Let \\(C = (26,0)\\), \\(D = (40,0)\\).  \nLet \\(G = (x,y)\\) with \\(y \\neq 0\\).\n\nFrom distances:\n\n\\[\nCG^2 = (x-26)^2 + y^2 = 40^2 = 1600\n\\]\n\\[\nDG^2 = (x-40)^2 + y^2 = 30^2 = 900\n\\]\n\nSubtract second from first:\n\n\\[\n(x-26)^2 - (x-40)^2 = 1600 - 900 = 700\n\\]\n\nExpand:\n\n\\[\n(x^2 - 52x + 676) - (x^2 - 80x + 1600) = 700\n\\]\n\\[\n-52x + 676 + 80x - 1600 = 700\n\\]\n\\[\n28x - 924 = 700\n\\]\n\\[\n28x = 1624 \\implies x = 58\n\\]\n\nThen from \\( (x-40)^2 + y^2 = 900\\):\n\n\\[\n(58-40)^2 + y^2 = 18^2 + y^2 = 324 + y^2 = 900\n\\]\n\\[\ny^2 = 576 \\implies y = \\pm 24\n\\]\n\nTake \\(y = 24\\) (area positive either way).\n\nSo \\(G = (58, 24)\\).\n\nNow \\(B = (18,0)\\), \\(E = (57,0)\\), \\(G = (58,24)\\).\n\nArea of \\(\\triangle BGE\\):\n\nBase \\(BE\\) is horizontal from \\(x=18\\) to \\(x=57\\), length \\(57-18 = 39\\).  \nHeight is vertical distance from \\(G\\) to line \\(BE\\) (the x-axis), which is \\(|y| = 24\\).\n\nArea = \\(\\frac12 \\times \\text{base} \\times \\text{height} = \\frac12 \\times 39 \\times 24 = 39 \\times 12 = 468\\).\n\n\\[\n\\boxed{468}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "177",
+          "gold_ans": "60",
+          "ms": 82641,
+          "content_len": 15483,
+          "reasoning_len": 0,
+          "raw_full": "We are told that in pentagon \\(ABCDE\\),  \n\\(AB = 14\\), \\(BC = 7\\), \\(CD = 24\\), \\(DE = 13\\), \\(EA = 26\\),  \nand \\(\\angle B = \\angle E = 60^\\circ\\).  \nWe want the minimum of \\(f(X) = AX + BX + CX + DX + EX\\) over all points \\(X\\) in the plane.\n\n---\n\n### Step 1 – Understanding the minimization\nThe sum of distances from a point to a set of fixed points is minimized at the *Fermat point* if all angles between segments from that point to the vertices are \\(\\le 120^\\circ\\), but here we have 5 points.  \nA known trick: For sum of distances to vertices of a polygon, the minimum occurs at a vertex if the polygon is convex and certain conditions hold, but here we can use the idea of reflecting points.\n\n---\n\n### Step 2 – Use reflection method for two fixed points\nFor minimizing \\(AX + BX\\) with \\(A,B\\) fixed, the minimum is just \\(AB\\) when \\(X\\) lies on segment \\(AB\\).  \nBut here we have 5 points; we can apply a *path* transformation:  \nWe want to minimize  \n\\[\nAX + BX + CX + DX + EX.\n\\]  \nThink of a path from \\(A\\) to \\(B\\) to \\(C\\) to \\(D\\) to \\(E\\) and back to \\(A\\) via \\(X\\).  \nIf we reflect points across lines, the sum of distances can be turned into a straight line distance.\n\n---\n\n### Step 3 – Reflection chain idea\nWe reflect \\(A\\) across line through \\(B\\) making \\(60^\\circ\\)? Wait—better:  \nWe can treat the sum as length of a broken line from a fixed point to another after reflections.\n\nA standard method:  \nTo minimize \\(AX + BX + CX + DX + EX\\), consider reflecting \\(A\\) across line through \\(B\\) at \\(60^\\circ\\)? Actually, we can use the fact that \\(\\angle B = 60^\\circ\\) and \\(\\angle E = 60^\\circ\\) to \"unfold\" the pentagon into a straight line.\n\n---\n\n### Step 4 – Unfolding\nLet’s place points so we can reflect:\n\n- Reflect \\(A\\) across line \\(BC\\)? Not exactly.\n\nBetter:  \nWe want to minimize \\(AX + BX + CX + DX + EX\\).  \nIf we reflect \\(A\\) across line through \\(B\\) such that \\(AB\\) makes \\(60^\\circ\\) with \\(BC\\), then the path \\(A \\to X \\to B\\) becomes straight after reflection.\n\nSpecifically, since \\(\\angle B = 60^\\circ\\), reflect \\(A\\) across line \\(BC\\)? Let's check:  \nIf we reflect \\(A\\) across line through \\(B\\) that makes \\(60^\\circ\\) with \\(BC\\), the reflection plus \\(BC\\) aligns.\n\n---\n\n### Step 5 – Systematic approach\nWe can treat the sum as the length of a path:\n\nStart at \\(A\\), go to \\(X\\), then to \\(B\\), then to \\(C\\), then to \\(D\\), then to \\(E\\), then back to \\(A\\)? No, that would be double counting.\n\nActually, the sum \\(AX + BX + CX + DX + EX\\) can be seen as:  \nFrom \\(A\\) to \\(X\\) to \\(B\\) to \\(X\\) to \\(C\\) ... no, that repeats \\(X\\).\n\n---\n\n### Step 6 – Known trick: Fermat point for polygon\nFor an odd number of points, sometimes the minimum occurs at a vertex. Let's test vertices:\n\n- At \\(X = B\\):  \n\\(f(B) = AB + 0 + BC + BD + BE\\).  \nWe don’t know \\(BD\\) or \\(BE\\) yet.\n\nWe can compute distances using law of cosines.\n\n---\n\n### Step 7 – Place coordinates\nLet’s set coordinates:\n\nPlace \\(B\\) at \\((0,0)\\).  \nSince \\(AB = 14\\) and \\(\\angle B = 60^\\circ\\) between \\(AB\\) and \\(BC\\), put \\(BC\\) along positive x-axis:\n\n- \\(C = (7, 0)\\).\n- \\(A\\): from \\(B\\), length 14 at \\(60^\\circ\\) from BC. Since \\(\\angle ABC = 60^\\circ\\), \\(BA\\) makes \\(60^\\circ\\) with BC, so \\(A = (14\\cos 60^\\circ, 14\\sin 60^\\circ) = (7, 7\\sqrt{3})\\).\n\n---\n\n### Step 8 – Place D and E\nWe have \\(CD = 24\\). We don’t know angle at C yet.  \nWe have \\(DE = 13\\), \\(EA = 26\\), and \\(\\angle E = 60^\\circ\\) between \\(DE\\) and \\(EA\\).\n\nWe can place \\(D\\) somewhere, then \\(E\\) relative to \\(D\\) and \\(A\\).\n\nLet’s set \\(D = (7 + 24\\cos\\theta, 0 + 24\\sin\\theta)\\) for some \\(\\theta\\) (angle at C from BC to CD).  \nThen \\(E\\) is such that \\(DE = 13\\) and \\(EA = 26\\) and \\(\\angle DEA = 60^\\circ\\).\n\n---\n\n### Step 9 – Use \\(\\angle E = 60^\\circ\\)\nAt vertex \\(E\\), the interior angle is between \\(DE\\) and \\(EA\\).  \nSo vectors \\(ED\\) and \\(EA\\) have \\(60^\\circ\\) between them.\n\nLet \\(E = (x_E, y_E)\\). Then:\n\n\\[\n|E - D| = 13,\\quad |E - A| = 26,\n\\]\nand\n\\[\n(D - E) \\cdot (A - E) = |D-E||A-E|\\cos 60^\\circ = 13 \\cdot 26 \\cdot \\frac12 = 169.\n\\]\n\n---\n\n### Step 10 – Solve for D and E\nWe have unknowns \\(\\theta, x_E, y_E\\).  \nFrom \\(D = (7+24c_\\theta,\\, 24s_\\theta)\\) with \\(c_\\theta=\\cos\\theta, s_\\theta=\\sin\\theta\\).\n\nLet’s denote \\(u = x_E\\), \\(v = y_E\\).  \nEquations:\n\n(1) \\((u - (7+24c_\\theta))^2 + (v - 24s_\\theta)^2 = 169\\)  \n(2) \\((u - 7)^2 + (v - 7\\sqrt{3})^2 = 676\\)  \n(3) \\((7+24c_\\theta - u)(7 - u) + (24s_\\theta - v)(7\\sqrt{3} - v) = 169\\)\n\n---\n\n### Step 11 – Try to simplify\nSubtract (1) from (2):\n\n(2) – (1):  \n\\((u-7)^2 - (u-7-24c_\\theta)^2 + (v-7\\sqrt{3})^2 - (v-24s_\\theta)^2 = 676 - 169 = 507\\).\n\nFirst difference:  \n\\((u-7)^2 - (u-7-24c_\\theta)^2 = [ (u-7) - (u-7-24c_\\theta) ] [ (u-7)+(u-7-24c_\\theta) ]\\)  \n= \\((24c_\\theta)(2u - 14 - 24c_\\theta)\\).\n\nSecond difference:  \n\\((v-7\\sqrt{3})^2 - (v-24s_\\theta)^2 = [ (v-7\\sqrt{3}) - (v-24s_\\theta) ] [ (v-7\\sqrt{3}) + (v-24s_\\theta) ]\\)  \n= \\(( -7\\sqrt{3} + 24s_\\theta)(2v - 7\\sqrt{3} - 24s_\\theta)\\).\n\nSo:\n\n\\[\n24c_\\theta(2u - 14 - 24c_\\theta) + (24s_\\theta - 7\\sqrt{3})(2v - 7\\sqrt{3} - 24s_\\theta) = 507.\n\\]\n\n---\n\n### Step 12 – Use dot product equation (3)\nEquation (3):  \n\\((7+24c_\\theta - u)(7-u) + (24s_\\theta - v)(7\\sqrt{3} - v) = 169\\).\n\nLet’s set \\(p = 7 - u\\), \\(q = 7\\sqrt{3} - v\\). Then \\(u = 7-p\\), \\(v = 7\\sqrt{3} - q\\).\n\nThen \\(7+24c_\\theta - u = 7+24c_\\theta - (7-p) = 24c_\\theta + p\\).  \nAlso \\(24s_\\theta - v = 24s_\\theta - (7\\sqrt{3} - q) = 24s_\\theta - 7\\sqrt{3} + q\\).\n\nEquation (3) becomes:  \n\\((24c_\\theta + p)p + (24s_\\theta - 7\\sqrt{3} + q)q = 169\\).\n\nSo:  \n\\(24c_\\theta p + p^2 + (24s_\\theta - 7\\sqrt{3})q + q^2 = 169\\).   …(3')\n\n---\n\n### Step 13 – Equation from subtraction in new variables\nFrom earlier subtraction:  \n\\(24c_\\theta(2u - 14 - 24c_\\theta) + (24s_\\theta - 7\\sqrt{3})(2v - 7\\sqrt{3} - 24s_\\theta) = 507\\).\n\nNow \\(2u - 14 = 2(7-p) - 14 = 14 - 2p - 14 = -2p\\).  \nSo \\(2u - 14 - 24c_\\theta = -2p - 24c_\\theta\\).\n\nSimilarly \\(2v - 7\\sqrt{3} = 2(7\\sqrt{3} - q) - 7\\sqrt{3} = 14\\sqrt{3} - 2q - 7\\sqrt{3} = 7\\sqrt{3} - 2q\\).  \nThen \\(2v - 7\\sqrt{3} - 24s_\\theta = 7\\sqrt{3} - 2q - 24s_\\theta\\).\n\nSo subtraction equation becomes:  \n\\(24c_\\theta(-2p - 24c_\\theta) + (24s_\\theta - 7\\sqrt{3})(7\\sqrt{3} - 2q - 24s_\\theta) = 507\\).\n\nFirst term: \\(-48c_\\theta p - 576c_\\theta^2\\).\n\nSecond term: Let \\(t = 24s_\\theta - 7\\sqrt{3}\\). Then second term = \\(t(7\\sqrt{3} - 2q - 24s_\\theta)\\).  \nBut \\(7\\sqrt{3} - 24s_\\theta = -t\\). So second term = \\(t(-t - 2q) = -t^2 - 2qt\\).\n\nThus equation:  \n\\(-48c_\\theta p - 576c_\\theta^2 - t^2 - 2qt = 507\\).\n\nBut \\(t^2 = (24s_\\theta - 7\\sqrt{3})^2 = 576 s_\\theta^2 - 336\\sqrt{3} s_\\theta + 147\\).\n\nAlso \\(576c_\\theta^2 + 576 s_\\theta^2 = 576\\). So \\(576c_\\theta^2 + t^2 = 576c_\\theta^2 + 576 s_\\theta^2 - 336\\sqrt{3}s_\\theta + 147 = 576 + 147 - 336\\sqrt{3}s_\\theta = 723 - 336\\sqrt{3}s_\\theta\\).\n\nSo \\(- (576c_\\theta^2 + t^2) = -723 + 336\\sqrt{3}s_\\theta\\).\n\nThus equation:  \n\\(-48c_\\theta p - 723 + 336\\sqrt{3}s_\\theta - 2qt = 507\\).\n\nSo:  \n\\(-48c_\\theta p - 2qt + 336\\sqrt{3}s_\\theta = 1230\\).   …(S)\n\n---\n\n### Step 14 – Also from (3'):  \n\\(24c_\\theta p + p^2 + t q + q^2 = 169\\).\n\nWe have two equations in \\(p,q\\) with parameters \\(\\theta\\).  \nWe can solve for \\(p,q\\) perhaps.\n\nFrom (S):  \n\\(48c_\\theta p + 2qt = 336\\sqrt{3}s_\\theta - 1230\\).\n\nDivide by 2:  \n\\(24c_\\theta p + q t = 168\\sqrt{3}s_\\theta - 615\\).   …(S')\n\nCompare with (3'):  \n\\(24c_\\theta p + p^2 + t q + q^2 = 169\\).\n\nSubtract (S') from (3'):  \n\\((24c_\\theta p + p^2 + t q + q^2) - (24c_\\theta p + t q) = 169 - (168\\sqrt{3}s_\\theta - 615)\\).\n\nSo:  \n\\(p^2 + q^2 = 169 - 168\\sqrt{3}s_\\theta + 615 = 784 - 168\\sqrt{3}s_\\theta\\).\n\nThus:  \n\\(p^2 + q^2 = 784 - 168\\sqrt{3}s_\\theta\\).   …(4)\n\n---\n\n### Step 15 – Also from (S') we have  \n\\(24c_\\theta p + t q = 168\\sqrt{3}s_\\theta - 615\\).   …(5)\n\nNow \\(p,q\\) are coordinates relative to A.  \nWe also have from (1) that \\((p+24c_\\theta)^2 + (q+24s_\\theta - 7\\sqrt{3})^2 = 169\\).  \nBut \\(q+24s_\\theta - 7\\sqrt{3} = q - t\\). So:\n\n\\((p+24c_\\theta)^2 + ",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 1412,
+          "content_len": 158,
+          "reasoning_len": 0,
+          "raw_full": "Diluted EPS = Net income / Diluted shares  \n= 48,945 million RMB / 19,250 million shares  \n= 2.542... RMB  \n\nRounded to 2 decimal places: 2.54  \n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 3022,
+          "content_len": 480,
+          "reasoning_len": 0,
+          "raw_full": "First, calculate **Earnings Before Interest and Taxes (EBIT)**:\n\n\\[\n\\text{EBIT} = \\text{Revenue} - \\text{Operating expenses} = 1200 - 850 = 350 \\text{ million}\n\\]\n\nThen subtract **Interest expense** to get **Earnings Before Tax (EBT)**:\n\n\\[\n\\text{EBT} = 350 - 30 = 320 \\text{ million}\n\\]\n\nApply the **tax rate (25%)**:\n\n\\[\n\\text{Tax} = 320 \\times 0.25 = 80 \\text{ million}\n\\]\n\nFinally, **Net Income**:\n\n\\[\n\\text{Net Income} = 320 - 80 = 240 \\text{ million}\n\\]\n\n\\[\n\\boxed{240.0}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 6006,
+          "content_len": 858,
+          "reasoning_len": 0,
+          "raw_full": "We need to find the present value of the projected free cash flows and the terminal value.\n\n**Step 1: Present value of the first three years' FCFs**\n\n\\[\nPV_1 = \\frac{100}{(1.10)^1} = \\frac{100}{1.10} \\approx 90.909\n\\]\n\\[\nPV_2 = \\frac{115}{(1.10)^2} = \\frac{115}{1.21} \\approx 95.041\n\\]\n\\[\nPV_3 = \\frac{130}{(1.10)^3} = \\frac{130}{1.331} \\approx 97.671\n\\]\n\nSum of these:\n\\[\n90.909 + 95.041 + 97.671 = 283.621\n\\]\n\n**Step 2: Terminal value at end of year 3**\n\nTerminal value (TV) at year 3:\n\\[\nTV_3 = \\frac{FCF_3 \\times (1+g)}{WACC - g} = \\frac{130 \\times 1.03}{0.10 - 0.03} = \\frac{133.9}{0.07} \\approx 1912.857\n\\]\n\n**Step 3: Present value of terminal value**\n\n\\[\nPV_{TV} = \\frac{1912.857}{(1.10)^3} = \\frac{1912.857}{1.331} \\approx 1437.16\n\\]\n\n**Step 4: Total present value**\n\n\\[\n283.621 + 1437.16 = 1720.781\n\\]\n\nRounded to nearest integer:\n\\[\n\\boxed{1721}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 979,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 611,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 621,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 6204,
+          "content_len": 1173,
+          "reasoning_len": 0,
+          "raw_full": "Let’s go step-by-step.\n\n1. **Starting material**: (R)-(+)-Limonene has the structure:\n\n```\n   CH3\n    |\n   C\n  / \\\n CH2 CH2\n |   |\n CH  C\n |   |\n CH3 C=CH2\n```\n\nIt has one double bond in the ring and one exocyclic double bond.\n\n2. **Hydrogenation with Pd/C, 1 eq H₂**: The more substituted (exocyclic) double bond is reduced first, giving **p-menth-1-ene** (4-isopropyl-1-methylcyclohexene). This is product **1**.\n\n3. **mCPBA**: Epoxidation of the remaining double bond gives the epoxide at the 1,2-position of the ring. Product **2** is an epoxide.\n\n4. **Sodium methoxide**: Opens the epoxide via nucleophilic attack at the less substituted carbon (by standard epoxide opening under basic conditions), introducing a methoxy group at C-2 and an alcohol at C-1. Product **3** is a trans-diaxial opening product: (1S,2S,4R)-4-isopropyl-1-methyl-2-methoxycyclohexanol (or similar depending on stereochemistry).\n\n5. **Propanoic acid, DCC, DMAP**: This esterifies the alcohol at C-1 with propanoic acid, giving the propionate ester.\n\nThe resulting structure matches:\n\n- (1S,2S,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate\n\nThat’s option **A**.\n\n**Final answer**:  \nA",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 9842,
+          "content_len": 2276,
+          "reasoning_len": 0,
+          "raw_full": "Let’s go step-by-step.\n\n1. **Toluene + HNO₃/H₂SO₄** → nitration.  \n   The major product is *p*-nitrotoluene (1).\n\n2. **1 + MnO₂/H₂SO₄** → oxidation of the methyl group to carboxylic acid.  \n   Product 2 is *p*-nitrobenzoic acid.\n\n3. **2 + acetone + aqueous NaOH** → this is a classic base-catalyzed condensation.  \n   *p*-Nitrobenzoic acid reacts with acetone under basic conditions to give *p*-nitrophenyl-2-propanone? Actually, more likely this is a crossed aldol-type or related reaction, but the common reaction here is the **base-catalyzed condensation of a nitroaromatic aldehyde** — but we have an acid, not an aldehyde.  \n   Wait — in strong base, *p*-nitrobenzoic acid might decarboxylate? Not likely under mild conditions.  \n   Actually, the more common sequence: nitration of toluene → oxidation to *p*-nitrobenzoic acid → then reduction? No, here it says acetone and NaOH. This is likely a **Knoevenagel condensation** if the acid were an aldehyde. But it’s not.  \n\n   Let’s reconsider:  \n   Possibly the intended product is **4-nitrophenylacetone** from decarboxylation and condensation? That seems forced.\n\n   Another known reaction: *p*-nitrobenzoic acid with acetone in base can give **4,4'-(dinitro)diphenyl** derivatives? Not standard.\n\n   Given the symmetry options, the likely final product here is **4,4'-dinitrobibenzyl** or something symmetrical.  \n   Actually, the classic is:  \n   Toluene → *p*-nitrotoluene → *p*-nitrobenzoic acid → reduction to *p*-aminobenzoic acid? No.  \n\n   Let’s check: Acetone + NaOH + *p*-nitrobenzoic acid → possibly the formation of **4-nitrophenyl-2-propanone** after decarboxylation? That would have low symmetry.\n\n   But the answer choices include D₂h, C₃, Cₛ, C₂h.  \n   A D₂h molecule is highly symmetric (like ethylene).  \n   A C₂h molecule has a 2-fold axis and a horizontal mirror.\n\n   The most plausible final product with high symmetry from such a sequence is **4,4'-dinitrostilbene** (often made via condensation of *p*-nitrotoluene with something). But here we have *p*-nitrobenzoic acid + acetone + base — that could yield **4,4'-dinitrodibenzylideneacetone**? That would have C₂h or even D₂h if perfectly planar.\n\n   Given the options, the likely symmetry is **C₂h**.\n\nThus the answer is **D**.\n\n\\[\n\\boxed{D}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 684,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 652,
+          "content_len": 2,
+          "reasoning_len": 0,
+          "raw_full": "D.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 5004,
+          "content_len": 990,
+          "reasoning_len": 0,
+          "raw_full": "When \\(N\\) is infinitely large, the polygon approximates a circle of radius \\(a\\) (since the apothem equals the radius for a circle).  \nFor a circular aperture, the first minimum in the far-field diffraction pattern occurs at an angle given by  \n\n\\[\n\\sin \\theta_1 \\approx \\theta_1 = 1.22 \\frac{\\lambda}{2a}\n\\]\n\nWait — careful: For a circular aperture of radius \\(R\\), the first minimum is at  \n\\[\n\\theta_1 = 1.22 \\frac{\\lambda}{2R}\n\\]  \nHere the apothem \\(a\\) equals the radius \\(R\\), so  \n\\[\n\\theta_1 = 1.22 \\frac{\\lambda}{2a} = 0.61 \\frac{\\lambda}{a}\n\\]  \nThe second minimum is at  \n\\[\n\\theta_2 = 1.22 \\frac{\\lambda}{a} \\times \\frac{?}{?}\n\\]  \nActually, the zeros of the Airy pattern are at  \n\\[\n\\sin\\theta = 1.22 \\frac{\\lambda}{2a}, \\; 2.23 \\frac{\\lambda}{2a}, \\dots\n\\]  \nSo the angular distance between first and second minima is  \n\\[\n\\Delta\\theta = (2.23 - 1.22) \\frac{\\lambda}{2a} = 1.01 \\frac{\\lambda}{2a} \\approx 0.505 \\frac{\\lambda}{a}\n\\]  \n\nThat matches option D.\n\n\\[\n\\boxed{D}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 4246,
+          "content_len": 714,
+          "reasoning_len": 0,
+          "raw_full": "We compare the paramagnetic term \\(\\langle H \\rangle = \\mu_B B m\\) with the transition energy \\(\\Delta E = \\frac{hc}{\\lambda}\\).\n\nGiven \\(B = 1 \\, \\text{T}\\), \\(m\\) small (order 1),  \n\\(\\mu_B = 9.27 \\times 10^{-24} \\, \\text{J/T}\\), so  \n\\(\\langle H \\rangle \\approx 9.27 \\times 10^{-24} \\, \\text{J}\\).\n\nTransition energy:  \n\\(\\lambda = 0.4861 \\, \\mu\\text{m} = 4.861 \\times 10^{-7} \\, \\text{m}\\),  \n\\(h = 6.626 \\times 10^{-34} \\, \\text{J·s}\\),  \n\\(c = 3 \\times 10^8 \\, \\text{m/s}\\),  \n\\(\\Delta E = \\frac{(6.626 \\times 10^{-34})(3 \\times 10^8)}{4.861 \\times 10^{-7}} \\approx 4.09 \\times 10^{-19} \\, \\text{J}\\).\n\nClearly,  \n\\(9.27 \\times 10^{-24} \\ll 4.09 \\times 10^{-19}\\),  \nso \\(\\langle H \\rangle \\ll \\Delta E\\).\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 1741,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 2663,
+          "content_len": 498,
+          "reasoning_len": 0,
+          "raw_full": "```python\n\ndef encode(message):\n    vowels = \"aeiouAEIOU\"\n    result = []\n    for ch in message:\n        if ch in vowels:\n            # Shift vowel by 2 places in alphabet\n            if ch.islower():\n                new_char = chr((ord(ch) - ord('a') + 2) % 26 + ord('a'))\n            else:\n                new_char = chr((ord(ch) - ord('A') + 2) % 26 + ord('A'))\n            result.append(new_char.swapcase())\n        else:\n            result.append(ch.swapcase())\n    return ''.join(result)\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 2010,
+          "content_len": 341,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    def is_prime(num):\n        if num < 2:\n            return False\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n\n    result = []\n    for i in range(2, n):\n        if is_prime(i):\n            result.append(i)\n    return result\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 1969,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 11913,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "B",
+          "ms": 6222,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 681,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 917,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 478,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct m.model from models as m join makers as mk on m.maker = mk.maker join cars as c on m.model = c.model where mk.fullname = 'general motors' or c.weight > 3500",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 1454,
+          "content_len": 175,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT m.model\nFROM models m\nJOIN makers mk ON m.maker = mk.maker\nJOIN cars c ON m.model = c.model\nWHERE mk.fullname = 'General Motors' OR c.weight > 3500;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select v.name from visitor as v join visit as vt on v.id = vt.visitor_id join museum as m on vt.museum_id = m.id where m.open_year < 2009 intersect select v.name from visitor as v join visit as vt on ",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 2186,
+          "content_len": 279,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT v.name\nFROM visitor v\nJOIN visit vt ON v.id = vt.visitor_id\nJOIN museum m ON vt.museum_id = m.id\nWHERE m.open_year < 2009\nINTERSECT\nSELECT v.name\nFROM visitor v\nJOIN visit vt ON v.id = vt.visitor_id\nJOIN museum m ON vt.museum_id = m.id\nWHERE m.open_year > 2011;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select maker.id, maker.name from maker join model on maker.id = model.maker_id join car on model.id = car.model_id group by maker.id, maker.name having count(distinct model.id) >= 2 and count(car.id) ",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 2062,
+          "content_len": 215,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT maker.id, maker.name\nFROM maker\nJOIN model ON maker.id = model.maker_id\nJOIN car ON model.id = car.model_id\nGROUP BY maker.id, maker.name\nHAVING COUNT(DISTINCT model.id) >= 2 AND COUNT(car.id) > 3;\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

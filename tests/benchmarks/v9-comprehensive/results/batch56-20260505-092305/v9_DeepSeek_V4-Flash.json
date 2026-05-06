@@ -1,0 +1,1327 @@
+{
+  "timestamp": "2026-05-05T09:27:44.390348",
+  "provider": "DeepSeek V4-Flash",
+  "model": "deepseek-chat",
+  "runs": 1,
+  "subset_score": {
+    "math": 5,
+    "finance": 7,
+    "biology": 2,
+    "chemistry": 4,
+    "physics": 5,
+    "code_algo": 6,
+    "longctx": 1,
+    "medical": 3
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "510",
+          "gold_ans": "510",
+          "ms": 21731,
+          "content_len": 5092,
+          "reasoning_len": 0,
+          "raw_full": "We are given the plane  \n\\[\nx + y + z = 75\n\\]  \nand the inequalities  \n\\[\nx - yz < y - zx < z - xy.\n\\]\n\n---\n\n### Step 1: Simplify the inequalities\nFirst inequality:  \n\\[\nx - yz < y - zx\n\\]  \nBring terms together:  \n\\[\nx - yz - y + zx < 0\n\\]  \nFactor:  \n\\[\n(x - y) + z(x - y) < 0\n\\]  \n\\[\n(x - y)(1 + z) < 0.\n\\]\n\nSecond inequality:  \n\\[\ny - zx < z - xy\n\\]  \n\\[\ny - zx - z + xy < 0\n\\]  \n\\[\n(y - z) + x(y - z) < 0\n\\]  \n\\[\n(y - z)(1 + x) < 0.\n\\]\n\nSo the system is:\n\\[\n(x - y)(1 + z) < 0, \\quad (y - z)(1 + x) < 0.\n\\]\n\n---\n\n### Step 2: Sign analysis\nSince \\(x+y+z=75\\), coordinates are not all small. But note \\(1+z\\) changes sign at \\(z=-1\\), similarly \\(1+x\\) at \\(x=-1\\).  \nGiven \\(x+y+z=75\\), it's likely \\(x, y, z > -1\\) for the finite region (since otherwise infinite region). Let's check possibilities.\n\nWe have two product inequalities:\n\n1. \\((x-y)(1+z) < 0\\) means \\(x-y\\) and \\(1+z\\) have opposite signs.\n2. \\((y-z)(1+x) < 0\\) means \\(y-z\\) and \\(1+x\\) have opposite signs.\n\n---\n\n### Step 3: Determine sign pattern for finite region\nIf all \\(x, y, z > -1\\), then \\(1+x > 0\\), \\(1+z > 0\\).  \nThen the inequalities become:\n\\[\nx - y < 0 \\quad \\Rightarrow \\quad x < y\n\\]  \n\\[\ny - z < 0 \\quad \\Rightarrow \\quad y < z\n\\]  \nSo  \n\\[\nx < y < z.\n\\]\n\nThus in the plane \\(x+y+z=75\\), the finite region is where \\(x < y < z\\) and all \\(> -1\\).\n\n---\n\n### Step 4: Describe the region\nThe region in the plane is the intersection of the plane with the open region \\(x<y<z\\).  \nIn the plane, the lines \\(x=y\\) and \\(y=z\\) are lines through the plane; they intersect at the line where \\(x=y=z\\).  \nOn \\(x+y+z=75\\), \\(x=y=z\\) gives \\(3x=75 \\Rightarrow x=25\\). So the point \\((25,25,25)\\) is the intersection of the two dividing lines.\n\nThe inequalities \\(x<y<z\\) define an open triangular region in the plane bounded by the lines \\(x=y\\) and \\(y=z\\), but since the plane is infinite, this region is actually an infinite wedge unless bounded by something else.  \nBut the problem says exactly one of the three disjoint convex regions has finite area. That suggests the other two are unbounded, and the finite one is bounded by the intersection of the plane with the coordinate planes or something else.\n\n---\n\n### Step 5: Check boundaries from inequalities\nWe assumed \\(1+x>0\\) and \\(1+z>0\\). If instead \\(1+x<0\\) and \\(1+z<0\\), then \\(x<-1\\) and \\(z<-1\\), but \\(x+y+z=75\\) would force \\(y\\) huge positive, so that region is unbounded.  \nIf signs mixed, also unbounded. So indeed the only bounded region is when \\(x>-1, z>-1\\) and \\(x<y<z\\).\n\nBut is it bounded? The condition \\(x<y<z\\) on the plane \\(x+y+z=75\\) is not bounded by itself: as \\(x \\to -\\infty\\), \\(z \\to \\infty\\) still satisfies. So we need extra bounds: the inequalities themselves only gave \\(x<y<z\\) under \\(x>-1, z>-1\\). But if \\(x>-1\\) and \\(z>-1\\) and sum is 75, then \\(y = 75 - x - z\\) is bounded between \\(75 - (-1) - (-1) = 77\\) and something smaller. Wait, \\(x>-1\\) and \\(z>-1\\) and \\(x<y<z\\) actually forces bounds.\n\nLet's find explicit bounds:\n\nFrom \\(x<y\\) and \\(y<z\\) and \\(x+y+z=75\\):\n\n- \\(x < y \\Rightarrow x < 75 - x - z \\Rightarrow 2x + z < 75\\).\n- \\(y < z \\Rightarrow 75 - x - z < z \\Rightarrow 75 - x < 2z \\Rightarrow z > (75 - x)/2\\).\n\nAlso \\(x > -1\\), \\(z > -1\\).\n\n---\n\n### Step 6: Intersection with plane yields triangle\nThe boundaries in the plane are:\n- \\(x = y\\) (line)\n- \\(y = z\\) (line)\n- Possibly \\(x = -1\\) or \\(z = -1\\)? Since we required \\(x>-1, z>-1\\), the boundaries \\(x=-1\\) and \\(z=-1\\) might cut off the region.\n\nCheck: If \\(x=-1\\), then \\(y+z=76\\) and \\(x<y<z\\) gives \\(-1<y<z\\). That line in the plane is a boundary. Similarly \\(z=-1\\) gives \\(x+y=76\\) and \\(x<y<-1\\) impossible because \\(y<-1\\) contradicts \\(y > x > -1\\). So \\(z=-1\\) is not a boundary for the finite region because \\(y<z\\) fails. So only \\(x=-1\\) is a boundary.\n\nAlso \\(y=z\\) and \\(x=y\\) intersect at \\((25,25,25)\\).  \nLine \\(x=-1\\) intersects \\(x=y\\) at \\((-1,-1,77)\\).  \nLine \\(x=-1\\) intersects \\(y=z\\): \\(x=-1\\), \\(y=z\\), and \\(x+y+z=75\\) gives \\(-1 + 2y = 75 \\Rightarrow 2y=76 \\Rightarrow y=38, z=38\\). So point \\((-1,38,38)\\).\n\nThus the finite region is a triangle in the plane with vertices:\n\\[\n(25,25,25),\\quad (-1,-1,77),\\quad (-1,38,38).\n\\]\n\n---\n\n### Step 7: Compute area of triangle\nVectors in the plane:\n\\[\nA = (25,25,25), \\quad B = (-1,-1,77), \\quad C = (-1,38,38).\n\\]  \nVectors from \\(A\\):\n\\[\n\\vec{AB} = (-26, -26, 52), \\quad \\vec{AC} = (-26, 13, 13).\n\\]  \nCross product:\n\\[\n\\vec{AB} \\times \\vec{AC} = \n\\begin{vmatrix}\n\\mathbf{i} & \\mathbf{j} & \\mathbf{k} \\\\\n-26 & -26 & 52 \\\\\n-26 & 13 & 13\n\\end{vmatrix}.\n\\]  \nCompute:\n- \\(\\mathbf{i}\\): \\((-26)(13) - (52)(13) = -338 - 676 = -1014\\).\n- \\(\\mathbf{j}\\): \\(-[(-26)(13) - (52)(-26)] = -[-338 + 1352] = -[1014] = -1014\\).\n- \\(\\mathbf{k}\\): \\((-26)(13) - (-26)(-26) = -338 - 676 = -1014\\).\n\nSo cross product = \\((-1014, -1014, -1014) = -1014(1,1,1)\\).\n\nMagnitude:\n\\[\n| -1014(1,1,1) | = 1014 \\sqrt{3}.\n\\]  \nArea = half of magnitude:\n\\[\n\\frac{1014\\sqrt{3}}{2} = 507\\sqrt{3}.\n\\]\n\n---\n\n### Step 8: Final answer\nHere \\(a=507\\), \\(b=3\\), so  \n\\[\na+b = 507+3 = 510.\n\\]\n\n\\[\n\\boxed{510}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 11550,
+          "content_len": 2182,
+          "reasoning_len": 0,
+          "raw_full": "We have six collinear points in order \\(A, B, C, D, E, F\\).  \nLet’s assign coordinates on a number line to simplify.\n\nLet \\(A = 0\\).  \nLet distances between consecutive points be:\n\n\\[\nAB = a,\\quad BC = b,\\quad CD = c,\\quad DE = d,\\quad EF = e\n\\]\n\nThen:\n\\[\nA = 0,\\quad B = a,\\quad C = a+b,\\quad D = a+b+c,\\quad E = a+b+c+d,\\quad F = a+b+c+d+e\n\\]\n\nGiven:\n\\[\nAC = a+b = 26 \\tag{1}\n\\]\n\\[\nBD = (a+b+c) - a = b+c = 22 \\tag{2}\n\\]\n\\[\nCE = (a+b+c+d) - (a+b) = c+d = 31 \\tag{3}\n\\]\n\\[\nDF = (a+b+c+d+e) - (a+b+c) = d+e = 33 \\tag{4}\n\\]\n\\[\nAF = a+b+c+d+e = 73 \\tag{5}\n\\]\n\nFrom (1): \\(a+b = 26\\).  \nFrom (5): \\(26 + c + d + e = 73 \\Rightarrow c+d+e = 47\\).  \nFrom (3): \\(c+d = 31\\), so \\(31 + e = 47 \\Rightarrow e = 16\\).  \nFrom (4): \\(d+e = 33 \\Rightarrow d + 16 = 33 \\Rightarrow d = 17\\).  \nFrom (3): \\(c + 17 = 31 \\Rightarrow c = 14\\).  \nFrom (2): \\(b + 14 = 22 \\Rightarrow b = 8\\).  \nFrom (1): \\(a + 8 = 26 \\Rightarrow a = 18\\).\n\nThus coordinates:\n\\[\nA=0,\\ B=18,\\ C=26,\\ D=40,\\ E=57,\\ F=73\n\\]\n\nNow \\(G\\) is off the line. Given:\n\\[\nCG = 40,\\quad DG = 30\n\\]\nSo \\(C = 26\\), \\(D = 40\\). Distance \\(CD = 14\\).\n\nTriangle \\(CDG\\) has sides \\(CG=40\\), \\(DG=30\\), \\(CD=14\\).  \nCheck: \\(14^2 + 30^2 = 196 + 900 = 1096\\), \\(40^2=1600\\), so not right; but we can find height from \\(G\\) to line \\(CD\\).\n\nUse coordinates: place \\(C=(26,0)\\), \\(D=(40,0)\\), and let \\(G=(x,y)\\) with \\(y \\neq 0\\).  \nFrom distances:\n\\[\n(x-26)^2 + y^2 = 40^2 = 1600\n\\]\n\\[\n(x-40)^2 + y^2 = 30^2 = 900\n\\]\n\nSubtract second from first:\n\\[\n(x-26)^2 - (x-40)^2 = 700\n\\]\nCompute:\n\\[\n(x^2 -52x + 676) - (x^2 -80x + 1600) = 700\n\\]\n\\[\n-52x + 676 + 80x - 1600 = 700\n\\]\n\\[\n28x - 924 = 700\n\\]\n\\[\n28x = 1624 \\implies x = 58\n\\]\n\nThen from \\((x-26)^2 + y^2 = 1600\\):\n\\[\n(58-26)^2 + y^2 = 32^2 + y^2 = 1024 + y^2 = 1600\n\\]\n\\[\ny^2 = 576 \\implies y = 24 \\ (\\text{take positive, orientation doesn't matter})\n\\]\n\nSo \\(G = (58, 24)\\).\n\nNow find area of \\(\\triangle BGE\\):\n\\(B = (18,0)\\), \\(G = (58,24)\\), \\(E = (57,0)\\).\n\nBase \\(BE\\) is horizontal from \\(x=18\\) to \\(x=57\\), length \\(= 57-18 = 39\\).  \nHeight from \\(G\\) to line \\(BE\\) is vertical distance \\(y=24\\).\n\nArea:\n\\[\n\\frac{1}{2} \\times 39 \\times 24 = 39 \\times 12 = 468\n\\]\n\n\\[\n\\boxed{468}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "53",
+          "gold_ans": "60",
+          "ms": 61257,
+          "content_len": 11949,
+          "reasoning_len": 0,
+          "raw_full": "We are given a convex pentagon \\(ABCDE\\) with:\n\n- \\(AB = 14\\), \\(BC = 7\\), \\(CD = 24\\), \\(DE = 13\\), \\(EA = 26\\)\n- \\(\\angle B = \\angle E = 60^\\circ\\)\n\nWe want the minimum of  \n\\[\nf(X) = AX + BX + CX + DX + EX\n\\]\nover all points \\(X\\) in the plane.\n\n---\n\n### Step 1 – Recognize the Fermat point idea\nThe sum of distances from a point to the vertices of a polygon is minimized at a point where certain angles are \\(120^\\circ\\) if the polygon is such that all vertices are “visible” from that point.  \nFor a set of points, the point minimizing sum of distances is called the *geometric median*.\n\nFor a pentagon, there is no simple closed form, but here we have two \\(60^\\circ\\) angles and side lengths that might allow a vector or transformation approach.\n\n---\n\n### Step 2 – Place coordinates\nLet’s put \\(B\\) at the origin \\((0,0)\\).  \nSince \\(\\angle B = 60^\\circ\\) and \\(AB = 14\\), \\(BC = 7\\), we can place:\n\n- \\(B = (0,0)\\)\n- Let \\(C\\) be along the positive x-axis: \\(C = (7,0)\\)\n- Since \\(\\angle ABC = 60^\\circ\\), \\(A\\) is at angle \\(60^\\circ\\) from \\(BC\\):  \n  \\(A = (14\\cos 60^\\circ, 14\\sin 60^\\circ) = (7, 7\\sqrt{3})\\)\n\n---\n\n### Step 3 – Place \\(D\\) and \\(E\\) using given lengths and \\(\\angle E = 60^\\circ\\)\nWe know \\(CD = 24\\), \\(DE = 13\\), \\(EA = 26\\), and \\(\\angle E = 60^\\circ\\).\n\nLet’s place \\(E\\) first, then \\(D\\).\n\nWe have \\(EA = 26\\) and \\(A = (7, 7\\sqrt{3})\\).  \nLet \\(E = (x_E, y_E)\\).  \nAlso \\(\\angle E = 60^\\circ\\) means angle \\(DEA = 60^\\circ\\).\n\nWe also have \\(DE = 13\\) and \\(CD = 24\\) with \\(C = (7,0)\\).\n\n---\n\n### Step 4 – Use law of cosines in triangle \\(AED\\)\nIn triangle \\(AED\\):  \n\\(AE = 26\\), \\(DE = 13\\), angle at \\(E\\) is \\(60^\\circ\\).  \nBy Law of Cosines:\n\\[\nAD^2 = AE^2 + DE^2 - 2(AE)(DE)\\cos 60^\\circ\n\\]\n\\[\nAD^2 = 26^2 + 13^2 - 2\\cdot 26 \\cdot 13 \\cdot \\frac12\n\\]\n\\[\n= 676 + 169 - 338 = 507\n\\]\nSo \\(AD = \\sqrt{507} = 13\\sqrt{3}\\).\n\n---\n\n### Step 5 – Use triangle \\(ACD\\)  \nWe know \\(A = (7, 7\\sqrt{3})\\), \\(C = (7,0)\\).  \nSo \\(AC = 7\\sqrt{3}\\) (vertical distance).  \nWe have \\(CD = 24\\), \\(AD = 13\\sqrt{3}\\).\n\nCheck triangle \\(ACD\\):  \n\\(AC^2 = (7\\sqrt{3})^2 = 147\\)  \n\\(AD^2 = 507\\)  \n\\(CD^2 = 576\\)\n\nCheck: \\(147 + 507 = 654 \\neq 576\\), so not right triangle. But we can find coordinates.\n\n---\n\n### Step 6 – Find coordinates of \\(D\\) and \\(E\\)\nLet’s place \\(D = (x_D, y_D)\\).  \nFrom \\(C = (7,0)\\) and \\(CD = 24\\):\n\\[\n(x_D - 7)^2 + y_D^2 = 576\n\\]\nFrom \\(A = (7, 7\\sqrt{3})\\) and \\(AD = 13\\sqrt{3}\\):\n\\[\n(x_D - 7)^2 + (y_D - 7\\sqrt{3})^2 = 507\n\\]\n\nSubtract second from first:\n\\[\ny_D^2 - (y_D - 7\\sqrt{3})^2 = 576 - 507 = 69\n\\]\nExpand:  \n\\(y_D^2 - (y_D^2 - 14\\sqrt{3} y_D + 147) = 69\\)  \n\\(14\\sqrt{3} y_D - 147 = 69\\)  \n\\(14\\sqrt{3} y_D = 216\\)  \n\\[\ny_D = \\frac{216}{14\\sqrt{3}} = \\frac{108}{7\\sqrt{3}} = \\frac{36\\sqrt{3}}{7}\n\\]\n\n---\n\n### Step 7 – Find \\(x_D\\)\nFrom \\((x_D - 7)^2 + y_D^2 = 576\\):\n\\[\n(x_D - 7)^2 + \\left(\\frac{36\\sqrt{3}}{7}\\right)^2 = 576\n\\]\n\\[\n\\left(\\frac{36\\sqrt{3}}{7}\\right)^2 = \\frac{1296 \\cdot 3}{49} = \\frac{3888}{49}\n\\]\nSo:\n\\[\n(x_D - 7)^2 = 576 - \\frac{3888}{49} = \\frac{28224 - 3888}{49} = \\frac{24336}{49}\n\\]\n\\[\nx_D - 7 = \\pm \\frac{156}{7}\n\\]\nSince convex pentagon, likely \\(x_D > 7\\):\n\\[\nx_D = 7 + \\frac{156}{7} = \\frac{49+156}{7} = \\frac{205}{7}\n\\]\n\nSo \\(D = \\left(\\frac{205}{7}, \\frac{36\\sqrt{3}}{7}\\right)\\).\n\n---\n\n### Step 8 – Find \\(E\\)\nWe have \\(DE = 13\\) and angle at \\(E\\) is \\(60^\\circ\\) between \\(ED\\) and \\(EA\\).\n\nWe know \\(A = (7, 7\\sqrt{3})\\), \\(D\\) as above.\n\nVector \\( \\overrightarrow{EA} = A - E\\), \\(\\overrightarrow{ED} = D - E\\), angle between them \\(60^\\circ\\).\n\nAlso \\(AE = 26\\), \\(DE = 13\\).\n\nWe can place \\(E\\) using law of cos again:  \nWe already used that to get \\(AD = 13\\sqrt{3}\\), so triangle \\(AED\\) is determined uniquely up to reflection.\n\nCoordinates:  \nLet’s find \\(E\\) by solving:  \n\\(|E - A| = 26\\), \\(|E - D| = 13\\).\n\nLet \\(E = (x,y)\\). Then:\n\\[\n(x - 7)^2 + (y - 7\\sqrt{3})^2 = 676\n\\]\n\\[\n\\left(x - \\frac{205}{7}\\right)^2 + \\left(y - \\frac{36\\sqrt{3}}{7}\\right)^2 = 169\n\\]\n\nSubtract second from first:\n\nFirst expand differences:  \nFirst eq: \\(x^2 - 14x + 49 + y^2 - 14\\sqrt{3}y + 147 = 676\\)  \nSo \\(x^2 + y^2 - 14x - 14\\sqrt{3}y + 196 = 676\\)  \nThus:\n\\[\nx^2 + y^2 - 14x - 14\\sqrt{3}y = 480\n\\]\n\nSecond eq:  \n\\(x^2 - \\frac{410}{7}x + \\frac{205^2}{49} + y^2 - \\frac{72\\sqrt{3}}{7}y + \\frac{1296 \\cdot 3}{49} = 169\\)  \nNote \\(\\frac{205^2}{49} = \\frac{42025}{49}\\), \\(\\frac{3888}{49}\\) for the y-term constant. Sum constant = \\(\\frac{42025+3888}{49} = \\frac{45913}{49}\\).\n\nSo:\n\\[\nx^2 + y^2 - \\frac{410}{7}x - \\frac{72\\sqrt{3}}{7}y + \\frac{45913}{49} = 169\n\\]\nMultiply by 49:\n\\[\n49(x^2+y^2) - 2870 x - 504\\sqrt{3} y + 45913 = 8281\n\\]\n\\[\n49(x^2+y^2) - 2870 x - 504\\sqrt{3} y = 8281 - 45913 = -37632\n\\]\n\nFrom first eq: \\(x^2+y^2 = 480 + 14x + 14\\sqrt{3}y\\).\n\nPlug into second:\n\\[\n49(480 + 14x + 14\\sqrt{3}y) - 2870x - 504\\sqrt{3}y = -37632\n\\]\n\\[\n23520 + 686x + 686\\sqrt{3}y - 2870x - 504\\sqrt{3}y = -37632\n\\]\n\\[\n23520 + (686-2870)x + (686-504)\\sqrt{3}y = -37632\n\\]\n\\[\n23520 - 2184x + 182\\sqrt{3}y = -37632\n\\]\n\\[\n-2184x + 182\\sqrt{3}y = -37632 - 23520 = -61152\n\\]\nDivide by 182:\n\\[\n-12x + \\sqrt{3}y = -336\n\\]\nSo:\n\\[\n\\sqrt{3}y = 12x - 336 \\quad\\Rightarrow\\quad y = \\frac{12x - 336}{\\sqrt{3}} = 4\\sqrt{3}x - 112\\sqrt{3}\n\\]\n\n---\n\n### Step 9 – Use first equation to solve for \\(x\\)\nFrom \\(x^2+y^2 - 14x - 14\\sqrt{3}y = 480\\) and \\(y = 4\\sqrt{3}x - 112\\sqrt{3}\\):\n\nCompute \\(y^2\\):  \n\\(y = \\sqrt{3}(4x - 112)\\) so \\(y^2 = 3(4x-112)^2 = 3(16x^2 - 896x + 12544)\\)  \n\\(= 48x^2 - 2688x + 37632\\)\n\nAlso \\(14\\sqrt{3}y = 14\\sqrt{3} \\cdot \\sqrt{3}(4x-112) = 14\\cdot 3 (4x-112) = 42(4x-112) = 168x - 4704\\)\n\nPlug in:\n\\[\nx^2 + (48x^2 - 2688x + 37632) - 14x - (168x - 4704) = 480\n\\]\n\\[\n49x^2 - 2688x - 14x - 168x + 37632 + 4704 = 480\n\\]\n\\[\n49x^2 - 2870x + 42336 = 480\n\\]\n\\[\n49x^2 - 2870x + 41856 = 0\n\\]\n\nDivide by 1? Check gcd: 41856/49? Let’s divide by? 2870 and 41856 divisible by 2? 49 not divisible by 2. Try dividing by 1. Solve:\n\nDiscriminant:  \n\\(\\Delta = 2870^2 - 4\\cdot 49 \\cdot 41856\\)  \n\\(2870^2 = 8236900\\)  \n\\(4\\cdot 49 = 196\\), \\(196 \\cdot 41856 = 41856\\cdot 200 - 41856\\cdot 4 = 8371200 - 167424 = 8203776\\)  \n\\(\\Delta = 8236900 - 8203776 = 33124\\)  \n\\(\\sqrt{33124} = 182\\) (since \\(182^2=33124\\))\n\nSo:\n\\[\nx = \\frac{2870 \\pm 182}{98}\n\\]\nCase 1: \\(x = \\frac{3052}{98} = \\frac{1526}{49} = \\frac{218}{7}\\)? Check: \\(1526/7=218\\), yes \\(x=218/7 \\approx 31.14\\)  \nCase 2: \\(x = \\frac{2688}{98} = \\frac{1344}{49} = \\frac{192}{7} \\approx 27.428\\)\n\nConvexity: likely \\(x_E\\) between A and D? A has x=7, D has x≈29.2857, so \\(192/7 \\approx 27.43\\) is plausible, the other is too far right.\n\nSo \\(x_E = \\frac{192}{7}\\). Then  \n\\(y_E = 4\\sqrt{3}\\cdot\\frac{192}{7} - 112\\sqrt{3} = \\frac{768\\sqrt{3}}{7} - \\frac{784\\sqrt{3}}{7} = -\\frac{16\\sqrt{3}}{7}\\).\n\nSo \\(E = \\left(\\frac{192}{7}, -\\frac{16\\sqrt{3}}{7}\\right)\\).\n\n---\n\n### Step 10 – Coordinates summary\n\\[\nA = (7, 7\\sqrt{3}),\\quad B=(0,0),\\quad C=(7,0),\\quad D=\\left(\\frac{205}{7}, \\frac{36\\sqrt{3}}{7}\\right),\\quad E=\\left(\\frac{192}{7}, -\\frac{16\\sqrt{3}}{7}\\right)\n\\]\n\n---\n\n### Step 11 – Minimizing sum of distances\nFor 5 points, the geometric median has no closed form, but here symmetry? Check if points form a kind of broken line with two 60° turns.\n\nNotice \\(AB\\) and \\(BC\\) form 60°, \\(AE\\) and \\(ED\\) form 60° at E. Possibly the minimizing point is where two equilateral triangles complete to a straight line.\n\nConstruct equilateral triangles outwardly on \\(AB\\) and \\(AE\\)? Classic trick: For sum \\(AX+BX\\), minimum is \\(AB\\) if X lies on segment AB, but here we have more points.\n\nBetter: Use vector method: For points \\(P_i\\), the minimum of \\(\\sum |X-P_i|\\) occurs where \\(\\sum \\frac{X-P_i}{|X-P_i|} = 0\\).\n\nGiven the 60° angles, maybe the minimum occurs at intersection of lines from B and E at 120°.\n\n---\n\n### Step 12 – Try Fermat point for quadrilateral \\(BCDE\\) plus A?\nAlternatively, note that \\(A\\) and \\(D\\) are far apart; maybe the minimizing X is at intersection of diagonals? Let’s test candidate: midpoint of \\(AD\\)?\n\n\\(A=(7,7\\sqrt3)\\), \\(D=(205/7, 36\\",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "204",
+          "gold_ans": "204",
+          "ms": 8557,
+          "content_len": 1712,
+          "reasoning_len": 0,
+          "raw_full": "We are told:\n\n- Distance = 9 km  \n- At speed \\( s \\) km/h, total time = 4 hours (including \\( t \\) minutes in coffee shop).  \n- At speed \\( s+2 \\) km/h, total time = 2 hours 24 minutes (including \\( t \\) minutes in coffee shop).  \n\n---\n\n### Step 1: Convert times to minutes\n4 hours = 240 minutes  \n2 hours 24 minutes = \\( 2 \\times 60 + 24 = 144 \\) minutes  \n\n---\n\n### Step 2: Write equations for walking time\nWalking time at speed \\( s \\):  \n\\[\n\\frac{9}{s} \\text{ hours} = \\frac{9}{s} \\times 60 \\text{ minutes}\n\\]  \nTotal time = walking time + coffee time \\( t \\):  \n\\[\n\\frac{540}{s} + t = 240\n\\tag{1}\n\\]\n\nWalking time at speed \\( s+2 \\):  \n\\[\n\\frac{9}{s+2} \\text{ hours} = \\frac{540}{s+2} \\text{ minutes}\n\\]  \nTotal time:  \n\\[\n\\frac{540}{s+2} + t = 144\n\\tag{2}\n\\]\n\n---\n\n### Step 3: Solve for \\( s \\) and \\( t \\)\nSubtract (2) from (1):  \n\\[\n\\frac{540}{s} - \\frac{540}{s+2} = 240 - 144 = 96\n\\]  \nFactor:  \n\\[\n540 \\left( \\frac{1}{s} - \\frac{1}{s+2} \\right) = 96\n\\]  \n\\[\n540 \\cdot \\frac{2}{s(s+2)} = 96\n\\]  \n\\[\n\\frac{1080}{s(s+2)} = 96\n\\]  \n\\[\ns(s+2) = \\frac{1080}{96} = 11.25\n\\]  \n\\[\ns^2 + 2s - 11.25 = 0\n\\]  \nMultiply by 4 to avoid decimals:  \n\\[\n4s^2 + 8s - 45 = 0\n\\]  \n\n---\n\n### Step 4: Quadratic formula\n\\[\ns = \\frac{-8 \\pm \\sqrt{64 + 720}}{8} = \\frac{-8 \\pm \\sqrt{784}}{8} = \\frac{-8 \\pm 28}{8}\n\\]  \nPositive root:  \n\\[\ns = \\frac{20}{8} = 2.5\n\\]  \n\n---\n\n### Step 5: Find \\( t \\)\nFrom (1):  \n\\[\n\\frac{540}{2.5} + t = 240\n\\]  \n\\[\n216 + t = 240\n\\]  \n\\[\nt = 24 \\text{ minutes}\n\\]  \n\n---\n\n### Step 6: New speed \\( s + \\frac{1}{2} = 3 \\) km/h\nWalking time in minutes:  \n\\[\n\\frac{9}{3} \\times 60 = 180 \\text{ minutes}\n\\]  \nTotal time including coffee:  \n\\[\n180 + 24 = 204 \\text{ minutes}\n\\]  \n\n---\n\n\\[\n\\boxed{204}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "116",
+          "gold_ans": "116",
+          "ms": 6086,
+          "content_len": 1231,
+          "reasoning_len": 0,
+          "raw_full": "We are picking 4 distinct numbers from \\( S = \\{1,2,\\dots,10\\} \\).  \nJen also picks 4 distinct numbers.\n\n**Step 1: Total ways to choose 4 numbers from 10**  \n\\[\n\\binom{10}{4} = 210\n\\]\n\n**Step 2: Define events**  \n- Let \\( G \\) = event she wins grand prize (all 4 match).  \n- Let \\( W \\) = event she wins a prize (at least 2 match).\n\nWe want:\n\\[\nP(G \\mid W) = \\frac{P(G \\cap W)}{P(W)} = \\frac{P(G)}{P(W)}\n\\]\nsince \\( G \\subset W \\).\n\n**Step 3: Probability of grand prize**  \nOnly 1 specific set of 4 numbers matches hers:\n\\[\nP(G) = \\frac{1}{\\binom{10}{4}} = \\frac{1}{210}\n\\]\n\n**Step 4: Probability of winning a prize**  \nWinning a prize means at least 2 of her numbers match the chosen 4.\n\nNumber of ways to have exactly \\( k \\) matches:  \n\\[\n\\binom{4}{k} \\binom{6}{4-k}\n\\]\nSo:\n- Exactly 2 matches: \\(\\binom{4}{2}\\binom{6}{2} = 6 \\times 15 = 90\\)  \n- Exactly 3 matches: \\(\\binom{4}{3}\\binom{6}{1} = 4 \\times 6 = 24\\)  \n- Exactly 4 matches: \\(\\binom{4}{4}\\binom{6}{0} = 1\\)\n\nTotal winning outcomes:\n\\[\n90 + 24 + 1 = 115\n\\]\nThus:\n\\[\nP(W) = \\frac{115}{210}\n\\]\n\n**Step 5: Conditional probability**  \n\\[\nP(G \\mid W) = \\frac{1/210}{115/210} = \\frac{1}{115}\n\\]\n\nHere \\( m=1, n=115 \\), relatively prime.  \n\\[\nm+n = 116\n\\]\n\n\\[\n\\boxed{116}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "70",
+          "gold_ans": "70",
+          "ms": 5649,
+          "content_len": 974,
+          "reasoning_len": 0,
+          "raw_full": "We are told that \\( 17_b \\) divides \\( 97_b \\), with base \\( b > 9 \\).\n\nFirst, convert from base \\( b \\) to decimal:\n\n\\[\n17_b = 1 \\cdot b + 7 = b + 7\n\\]\n\\[\n97_b = 9 \\cdot b + 7 = 9b + 7\n\\]\n\nThe condition is:\n\\[\nb + 7 \\mid 9b + 7\n\\]\n\nWe can use the division algorithm:  \nIf \\( d = b+7 \\) divides \\( 9b+7 \\), then it also divides any linear combination. Compute:\n\\[\n9b + 7 - 9(b+7) = 9b + 7 - 9b - 63 = -56\n\\]\nSo \\( b+7 \\) must divide \\( -56 \\), i.e., \\( b+7 \\mid 56 \\).\n\nSince \\( b > 9 \\), we have \\( b+7 > 16 \\).  \nDivisors of 56 greater than 16 are:  \n\\[\n28, 56\n\\]\n(Also 14 is too small, 7, 8, etc. are smaller.)\n\nThus:\n- If \\( b+7 = 28 \\), then \\( b = 21 \\).\n- If \\( b+7 = 56 \\), then \\( b = 49 \\).\n\nCheck both:\n- \\( b=21 \\): \\( 17_{21} = 28 \\), \\( 97_{21} = 9\\cdot 21 + 7 = 196 \\), and \\( 196/28 = 7 \\), works.\n- \\( b=49 \\): \\( 17_{49} = 56 \\), \\( 97_{49} = 9\\cdot 49 + 7 = 448 \\), and \\( 448/56 = 8 \\), works.\n\nSum of all such bases:\n\\[\n21 + 49 = 70\n\\]\n\n\\[\n\\boxed{70}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "parse_fail",
+          "model_ans": "016",
+          "gold_ans": "16",
+          "ms": 9007,
+          "content_len": 1763,
+          "reasoning_len": 0,
+          "raw_full": "We have 9 players, each assigned one of 3 flavors: chocolate (C), vanilla (V), strawberry (S).  \nConditions:  \n- At least one of each flavor.  \n- Counts satisfy \\( C > V > S \\geq 1 \\).\n\nLet \\( c, v, s \\) be the numbers choosing chocolate, vanilla, strawberry.  \nWe have:  \n\\[\nc + v + s = 9, \\quad c > v > s \\ge 1.\n\\]\n\n---\n\n**Step 1: Find all possible triples \\((c, v, s)\\).**  \nSince \\( s \\ge 1 \\), start with smallest \\( s \\).\n\n- If \\( s = 1 \\):  \n  \\( c + v = 8 \\), \\( c > v > 1 \\).  \n  Possible \\( v \\): 2, 3.  \n  - \\( v = 2 \\Rightarrow c = 6 \\) → (6,2,1) valid.  \n  - \\( v = 3 \\Rightarrow c = 5 \\) → (5,3,1) valid.  \n  - \\( v = 4 \\Rightarrow c = 4 \\) not \\( c > v \\).  \n  So: (6,2,1), (5,3,1).\n\n- If \\( s = 2 \\):  \n  \\( c + v = 7 \\), \\( c > v > 2 \\).  \n  Possible \\( v \\): 3, 4.  \n  - \\( v = 3 \\Rightarrow c = 4 \\) → (4,3,2) valid.  \n  - \\( v = 4 \\Rightarrow c = 3 \\) not \\( c > v \\).  \n  So: (4,3,2).\n\n- If \\( s = 3 \\):  \n  \\( c + v = 6 \\), \\( c > v > 3 \\).  \n  Smallest \\( v \\) is 4 → \\( c = 2 \\) not possible.  \n  No solutions.\n\nThus triples:  \n\\[\n(6,2,1), \\quad (5,3,1), \\quad (4,3,2).\n\\]\n\n---\n\n**Step 2: Count assignments for each triple.**  \nNumber of ways to assign flavors to players = multinomial coefficient:\n\n\\[\n\\frac{9!}{c! \\, v! \\, s!}\n\\]\n\n- For (6,2,1):  \n  \\[\n  \\frac{9!}{6!2!1!} = \\frac{362880}{720 \\cdot 2 \\cdot 1} = \\frac{362880}{1440} = 252.\n  \\]\n\n- For (5,3,1):  \n  \\[\n  \\frac{9!}{5!3!1!} = \\frac{362880}{120 \\cdot 6 \\cdot 1} = \\frac{362880}{720} = 504.\n  \\]\n\n- For (4,3,2):  \n  \\[\n  \\frac{9!}{4!3!2!} = \\frac{362880}{24 \\cdot 6 \\cdot 2} = \\frac{362880}{288} = 1260.\n  \\]\n\n---\n\n**Step 3: Sum them.**  \n\\[\nN = 252 + 504 + 1260 = 2016.\n\\]\n\n---\n\n**Step 4: Remainder when divided by 1000.**  \n\\[\n2016 \\mod 1000 = 16.\n\\]\n\n---\n\n\\[\n\\boxed{016}\n\\]",
+          "verify_error": "parse: model=True, gold=False"
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 2405,
+          "content_len": 348,
+          "reasoning_len": 0,
+          "raw_full": "我们需要计算稀释每股收益（Diluted EPS），公式为：\n\n\\[\n\\text{Diluted EPS} = \\frac{\\text{Net income attributable to ordinary shareholders}}{\\text{Diluted weighted average shares outstanding}}\n\\]\n\n代入数据：\n\n\\[\n\\frac{48,945 \\text{ 百万}}{19,250 \\text{ 百万}} = \\frac{48,945}{19,250}\n\\]\n\n计算：\n\n\\[\n48,945 \\div 19,250 \\approx 2.542597\n\\]\n\n四舍五入到两位小数：\n\n\\[\n2.54\n\\]\n\n最终答案：\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 2216,
+          "content_len": 409,
+          "reasoning_len": 0,
+          "raw_full": "We start with revenue and subtract operating expenses to get operating income:  \n\n\\[\n\\text{Operating Income} = 1200 - 850 = 350 \\text{ million}\n\\]  \n\nThen subtract interest expense:  \n\n\\[\n\\text{Pre-tax Income} = 350 - 30 = 320 \\text{ million}\n\\]  \n\nApply the 25% tax rate:  \n\n\\[\n\\text{Tax} = 320 \\times 0.25 = 80 \\text{ million}\n\\]  \n\nNet income:  \n\n\\[\n320 - 80 = 240 \\text{ million}\n\\]  \n\n\\[\n\\boxed{240.0}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1721.0",
+          "gold_ans": "1721.0",
+          "ms": 4754,
+          "content_len": 852,
+          "reasoning_len": 0,
+          "raw_full": "We need to calculate the present value of the projected free cash flows and the terminal value.\n\n**Step 1: Present value of the first three cash flows**\n\n\\[\nPV_1 = \\frac{100}{(1.10)^1} = \\frac{100}{1.10} \\approx 90.909\n\\]\n\\[\nPV_2 = \\frac{115}{(1.10)^2} = \\frac{115}{1.21} \\approx 95.041\n\\]\n\\[\nPV_3 = \\frac{130}{(1.10)^3} = \\frac{130}{1.331} \\approx 97.670\n\\]\n\nSum of these:\n\\[\n90.909 + 95.041 + 97.670 = 283.620\n\\]\n\n**Step 2: Terminal value at end of year 3**\n\nTerminal value formula:\n\\[\nTV_3 = \\frac{FCF_3 \\times (1+g)}{WACC - g}\n= \\frac{130 \\times 1.03}{0.10 - 0.03}\n= \\frac{133.9}{0.07} \\approx 1912.857\n\\]\n\n**Step 3: Present value of terminal value**\n\n\\[\nPV_{TV} = \\frac{1912.857}{(1.10)^3} = \\frac{1912.857}{1.331} \\approx 1437.0\n\\]\n\n**Step 4: Total present value**\n\n\\[\n283.620 + 1437.0 = 1720.62\n\\]\n\nRounded to nearest integer:\n\\[\n\\boxed{1721}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 2481,
+          "content_len": 311,
+          "reasoning_len": 0,
+          "raw_full": "我们使用戈登增长模型（Gordon Growth Model）计算企业价值：\n\n公式为：\n\\[\nEV = \\frac{FCFF_1}{WACC - g}\n\\]\n\n其中：\n- \\( FCFF_1 = 100 \\) 百万美元\n- \\( WACC = 9\\% = 0.09 \\)\n- \\( g = 3\\% = 0.03 \\)\n\n代入计算：\n\\[\nEV = \\frac{100}{0.09 - 0.03} = \\frac{100}{0.06} = 1666.666\\ldots\n\\]\n\n保留一位小数：\n\\[\nEV \\approx 1666.7 \\text{ 百万美元}\n\\]\n\n最终答案：\n\\[\n\\boxed{1666.7}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 1449,
+          "content_len": 156,
+          "reasoning_len": 0,
+          "raw_full": "首先，计算股东权益（Equity）：  \n总资产 - 总负债 = 5,000 - 3,200 = 1,800 million  \n\n然后，ROE = 净利润 / 股东权益 = 480 / 1,800 ≈ 0.266666...  \n\n转换为百分比并保留两位小数：26.67%  \n\n\\boxed{26.67\\%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.87",
+          "gold_ans": "957.88",
+          "ms": 3960,
+          "content_len": 543,
+          "reasoning_len": 0,
+          "raw_full": "我们先用债券定价公式计算：\n\n债券价格  \n\\[\nP = \\sum_{t=1}^{5} \\frac{50}{(1.06)^t} + \\frac{1000}{(1.06)^5}\n\\]\n\n先计算各期利息现值：\n\n- 第1年：\\( \\frac{50}{1.06} \\approx 47.1698 \\)  \n- 第2年：\\( \\frac{50}{1.06^2} \\approx 44.4989 \\)  \n- 第3年：\\( \\frac{50}{1.06^3} \\approx 41.9801 \\)  \n- 第4年：\\( \\frac{50}{1.06^4} \\approx 39.6048 \\)  \n- 第5年：\\( \\frac{50}{1.06^5} \\approx 37.3630 \\)\n\n利息现值总和 ≈  \n\\( 47.1698 + 44.4989 + 41.9801 + 39.6048 + 37.3630 = 210.6166 \\)\n\n本金现值：  \n\\[\n\\frac{1000}{1.06^5} \\approx 747.2582\n\\]\n\n债券价格：\n\\[\n210.6166 + 747.2582 = 957.8748\n\\]\n\n保留两位小数：\n\n\\[\n\\boxed{957.87}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 1816,
+          "content_len": 183,
+          "reasoning_len": 0,
+          "raw_full": "首先，利息保障倍数的公式是：\n\n\\[\n\\text{Times Interest Earned} = \\frac{\\text{EBIT}}{\\text{利息费用}}\n\\]\n\n代入数据：\n\n\\[\n\\frac{200\\ \\text{million}}{40\\ \\text{million}} = 5\n\\]\n\n因此，结果为 5.00。\n\n\\[\n\\boxed{5.00}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 990,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 725,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 945,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 646,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 714,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 521,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 695,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "A",
+          "ms": 4072,
+          "content_len": 996,
+          "reasoning_len": 0,
+          "raw_full": "Let’s go through the steps logically.\n\n1. **(R)-(+)-Limonene** has the structure:  \n   It’s (R)-4-isopropenyl-1-methylcyclohex-1-ene.  \n   Hydrogenation with Pd/C and 1 equivalent of H₂ will selectively reduce the more substituted double bond (the isopropenyl group), giving **p-menth-1-ene** (a mixture of isomers, but major product is (R)-1-methyl-4-isopropylcyclohex-1-ene).\n\n2. **Epoxidation** with mCPBA gives the epoxide at the remaining double bond.\n\n3. **Sodium methoxide** opens the epoxide via nucleophilic attack at the less substituted carbon, giving a trans-diaxial opening product: a methoxy group at C-2 and an OH at C-1 (relative stereochemistry depends on starting geometry).\n\n4. **Esterification** with propanoic acid, DCC, and DMAP attaches the propionate group to the OH, giving the final product.\n\nGiven the stereochemistry from (R)-limonene and the trans opening, the correct structure matches option **C**: (1S,2R,4R)-4-isopropyl-2-methoxy-1-methylcyclohexyl propionate.\n\nC",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 7166,
+          "content_len": 1822,
+          "reasoning_len": 0,
+          "raw_full": "Let’s go step by step.  \n\n1. **Toluene + HNO₃/H₂SO₄** → nitration. The major product is *p*-nitrotoluene (since methyl is ortho/para-directing, and para is favored due to sterics). So product 1 is **p-nitrotoluene**.\n\n2. **p-Nitrotoluene + MnO₂/H₂SO₄** → oxidation of the methyl group to a carboxylic acid. Product 2 is **p-nitrobenzoic acid**.\n\n3. **p-Nitrobenzoic acid + acetone + aq. NaOH** → This is a classic haloform-type reaction? Actually, with acetone and base, p-nitrobenzoic acid won’t react directly. But if we think of a base-catalyzed condensation: p-nitrobenzaldehyde would be needed. Wait — MnO₂/H₂SO₄ oxidizes methyl to carboxylic acid, not aldehyde. So product 2 is p-nitrobenzoic acid.  \n\nBut p-nitrobenzoic acid with acetone and NaOH? That doesn’t give a typical condensation unless we think of a decarboxylation? Actually, under strong base, p-nitrobenzoic acid could undergo nucleophilic aromatic substitution if the nitro group is *ortho* or *para*? But here it’s para, so the carboxylate is a leaving group? That seems unlikely.  \n\nMaybe the intended step is:  \n- p-nitrotoluene → (oxidation) → p-nitrobenzaldehyde? But MnO₂/H₂SO₄ is not selective for aldehyde; it goes to acid.  \n\nIf we instead consider that product 2 is **p-nitrobenzaldehyde** (by some selective oxidation), then with acetone/NaOH, we get an aldol condensation to form **p-nitrophenyl-3-buten-2-one** or similar.  \n\nBut the symmetry group question suggests the final product is symmetric.  \nIf product 3 is **4,4'-dinitrobibenzyl** or something like that?  \n\nActually, a known reaction: p-nitrotoluene treated with base and acetone can give **4,4'-dinitrostilbene** via a condensation. That molecule has a center of symmetry and belongs to **C₂h** point group.\n\nThus, the molecular symmetry group of 3 is **C₂h**.\n\n**Answer: D**",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 555,
+          "content_len": 2,
+          "reasoning_len": 0,
+          "raw_full": "D.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 10956,
+          "content_len": 2065,
+          "reasoning_len": 0,
+          "raw_full": "We have an equimolar mixture of two salts, total mass 7.20 g.  \nHeating gives only gases.  \n\n- Tube 1 (Mg(ClO₄)₂) absorbs water; mass increase 3.60 g → water mass = 3.60 g → moles H₂O = 3.60 / 18 = 0.20 mol.  \n- Tube 2 (Ca(OH)₂) absorbs acidic gases like CO₂, but no mass change → no CO₂ or other acidic gas.  \n- Tube 3 (hot Cu) absorbs O₂ to form CuO; mass increase 0.80 g → oxygen mass = 0.80 g → moles O₂ = 0.80 / 32 = 0.025 mol.  \n\nRemaining gas C: 2.24 L at STP → moles = 2.24 / 22.4 = 0.10 mol. This is N₂ (since no CO₂, and O₂ and H₂O removed).  \n\nSo gases produced:  \n- H₂O: 0.20 mol  \n- O₂: 0.025 mol  \n- N₂: 0.10 mol  \n\nSince salts are equimolar, let each be 1 mole in mixture → total moles = 2x, mass = 7.20 g.  \n\nFrom gases:  \n- N₂ comes from a salt containing nitrogen, likely NH₄⁺ or NO₃⁻ decomposition.  \n- O₂ suggests an oxygen-rich anion like nitrate.  \n- H₂O suggests ammonium or hydrated salt.  \n\nIf one salt is NH₄NO₃ (ammonium nitrate), decomposition:  \nNH₄NO₃ → N₂O + 2 H₂O (but here we get N₂, not N₂O).  \nActually, NH₄NO₃ can decompose to N₂ + ½ O₂ + 2 H₂O.  \n\nCheck:  \nNH₄NO₃ → N₂ + ½ O₂ + 2 H₂O  \nFrom 1 mol: gives 1 mol N₂, 0.5 mol O₂, 2 mol H₂O.  \n\nWe have total N₂ = 0.10 mol → if from one salt, that salt amount = 0.10 mol.  \nThen H₂O from that salt = 0.20 mol (matches).  \nO₂ from that salt = 0.05 mol, but we only have 0.025 mol O₂ total → so second salt must consume O₂ or produce less.  \n\nIf second salt is NH₄NO₂ (ammonium nitrite):  \nNH₄NO₂ → N₂ + 2 H₂O  \nFrom 0.10 mol: gives 0.10 mol N₂, 0.20 mol H₂O.  \n\nBut total N₂ would then be 0.20 mol, too high.  \n\nSo mixture:  \nSalt A = NH₄NO₃ (0.05 mol) → gives 0.05 N₂, 0.025 O₂, 0.10 H₂O  \nSalt B = NH₄NO₂ (0.05 mol) → gives 0.05 N₂, 0.10 H₂O  \nTotal: N₂ = 0.10 mol, O₂ = 0.025 mol, H₂O = 0.20 mol. Perfect.  \n\nMolar mass NH₄NO₃ = 80 g/mol, NH₄NO₂ = 64 g/mol.  \nMass: 0.05×80 = 4.00 g + 0.05×64 = 3.20 g → total 7.20 g. Matches.  \n\nAtoms in NH₄NO₃: N=2, H=4, O=3 → total 9 atoms.  \nAtoms in NH₄NO₂: N=2, H=4, O=2 → total 8 atoms.  \nSum = 9 + 8 = 17.  \n\nSo answer: **C**.  \n\n\\boxed{C}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 6271,
+          "content_len": 1185,
+          "reasoning_len": 0,
+          "raw_full": "We need to find the pH after mixing the given solutions.\n\n**Step 1: Calculate moles of each species.**\n\n- CH₃COOH:  \n\\( 0.1 \\, \\text{M} \\times 0.5 \\, \\text{L} = 0.05 \\, \\text{mol} \\)\n\n- HCl:  \n\\( 0.2 \\, \\text{M} \\times 0.4 \\, \\text{L} = 0.08 \\, \\text{mol} \\) (strong acid, gives 0.08 mol H⁺)\n\n- Ba(OH)₂:  \n\\( 0.3 \\, \\text{M} \\times 0.3 \\, \\text{L} = 0.09 \\, \\text{mol} \\)  \nEach Ba(OH)₂ gives 2 OH⁻, so total OH⁻ = \\( 0.09 \\times 2 = 0.18 \\, \\text{mol} \\)\n\n**Step 2: Neutralization of strong acid and strong base.**  \nH⁺ from HCl = 0.08 mol  \nOH⁻ from Ba(OH)₂ = 0.18 mol  \n\nAfter reaction:  \nOH⁻ left = \\( 0.18 - 0.08 = 0.10 \\, \\text{mol} \\)\n\n**Step 3: Reaction of remaining OH⁻ with weak acid CH₃COOH.**  \nCH₃COOH + OH⁻ → CH₃COO⁻ + H₂O  \n\nInitial:  \nCH₃COOH = 0.05 mol  \nOH⁻ = 0.10 mol  \n\nAfter reaction:  \nCH₃COOH = 0 (all consumed)  \nOH⁻ left = \\( 0.10 - 0.05 = 0.05 \\, \\text{mol} \\)  \nCH₃COO⁻ formed = 0.05 mol\n\n**Step 4: Total volume.**  \n500 + 400 + 300 = 1200 mL = 1.2 L\n\n**Step 5: Concentration of excess OH⁻.**  \n[OH⁻] = \\( 0.05 / 1.2 \\approx 0.04167 \\, \\text{M} \\)\n\npOH = \\( -\\log(0.04167) \\approx 1.38 \\)  \npH = \\( 14 - 1.38 = 12.62 \\)\n\nThe answer is **A**.\n\n\\[\n\\boxed{A}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "C",
+          "ms": 12540,
+          "content_len": 2773,
+          "reasoning_len": 0,
+          "raw_full": "Let’s break down the reaction sequence step by step.\n\n1. **Propionaldehyde + EDT / BF₃**  \n   EDT = ethane-1,2-dithiol. This forms a dithioacetal (A).  \n   A = 2-ethyl-1,3-dithiolane (protects the aldehyde).\n\n2. **A + BuLi**  \n   BuLi deprotonates at the carbon adjacent to the dithiolane ring, generating a carbanion (B).\n\n3. **B + Bromoethane**  \n   Alkylation occurs, adding an ethyl group to that carbon (C).\n\n4. **C + HgCl₂ / H₂O / H⁺**  \n   This is a deprotection step, regenerating the aldehyde (D).  \n   D = 2-methylbutanal (since starting from propionaldehyde, after alkylation with ethyl, the chain becomes 2-methylbutanal).\n\n5. **D + PPh₃ / 3-bromopentane / BuLi**  \n   This is a Wittig reaction.  \n   The ylide is formed from 3-bromopentane and PPh₃/BuLi (a non-stabilized ylide).  \n   Reaction with 2-methylbutanal gives an alkene (E).  \n   E = 3-methyl-4-ethyl-2-heptene (or similar depending on geometry, but the carbon count is 8).\n\nNow count unique carbons in E for ¹³C-NMR:  \nE is an 8-carbon alkene with some symmetry? Let’s draw:  \n2-methylbutanal (C₅ aldehyde) + ylide from 3-bromopentane (C₅) → product has 10 carbons? Wait, check:  \n2-methylbutanal = 5 carbons.  \nYlide from 3-bromopentane = pentylidene (C₅).  \nSo product = C₁₀ alkene.\n\nStructure:  \nCH₃-CH₂-CH(CH₃)-CH=CH-CH(CH₃)-CH₂-CH₃  \nThis has no symmetry → all 10 carbons are distinct.\n\nThus number of ¹³C signals = 10.  \nBut 10 is not an option, so maybe I miscounted the starting material or steps.\n\nLet’s re-evaluate:  \nPropionaldehyde = CH₃CH₂CHO (3 carbons).  \nAfter protection, alkylation with ethyl, deprotection → aldehyde becomes CH₃CH₂CH(CH₃)CHO?  \nThat’s 2-methylbutanal (5 carbons).  \n\nYlide from 3-bromopentane (C₅) adds 5 carbons → total 10.  \nBut options are 6, 8, 3, 11. So maybe product is not fully acyclic or has symmetry.\n\nActually, 3-bromopentane gives ylide = CH₃CH₂CH=CHCH₃ after Wittig?  \nNo, ylide = (C₅H₁₁)PPh₃, so alkene = C₅ + C₅ = C₁₀.  \n\nIf product is 3-methyl-4-ethyl-2-octene? Let’s count unique carbons:  \nLikely 8 unique signals due to symmetry in the alkene part?  \nActually, with branching, 10 carbons often give 10 signals unless symmetry.  \nHere, no symmetry → 10. Not matching.\n\nMaybe I misidentified D. Let’s check:  \nPropionaldehyde + EDT → dithiane of propanal.  \nBuLi deprotonates the dithiane carbon (the one originally aldehyde carbon).  \nThen alkylation with bromoethane adds ethyl, so dithiane now has ethyl and propyl groups?  \nDeprotection gives ketone? No, gives aldehyde: 2-methylbutanal indeed.\n\nThen Wittig with C₅ ylide gives C₁₀ alkene.  \nPossible that the alkene has 8 unique carbons due to some equivalence?  \nIf the double bond is internal and symmetrical enough, maybe 8.  \n\nGiven options, **B. 8** is most plausible.\n\n\\[\n\\boxed{B}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 1799,
+          "content_len": 309,
+          "reasoning_len": 0,
+          "raw_full": "The energy of emitted light is 2.3393 eV.  \nThe wavelength corresponding to this energy is:  \n\n\\[\n\\lambda = \\frac{1240}{E (\\text{eV})} = \\frac{1240}{2.3393} \\approx 530 \\text{ nm}\n\\]\n\n530 nm is green light.  \nFor a dye that emits green, it absorbs the complementary color, which is red.\n\nThe answer is B.  \n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 598,
+          "content_len": 2,
+          "reasoning_len": 0,
+          "raw_full": "D.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 3066,
+          "content_len": 611,
+          "reasoning_len": 0,
+          "raw_full": "When \\( N \\) becomes infinitely large, the polygon approximates a circle of radius \\( a \\) (since the apothem equals the radius for a circle).  \nFor a circular aperture, the first minimum in the far-field diffraction pattern occurs at  \n\\[\n\\sin \\theta_1 \\approx \\theta_1 = 1.22 \\frac{\\lambda}{2a} = 0.61 \\frac{\\lambda}{a}\n\\]  \nThe second minimum occurs at  \n\\[\n\\theta_2 = 1.22 \\frac{\\lambda}{a}\n\\]  \nThe angular distance between the first two minima is  \n\\[\n\\theta_2 - \\theta_1 = 1.22 \\frac{\\lambda}{a} - 0.61 \\frac{\\lambda}{a} = 0.61 \\frac{\\lambda}{a}\n\\]  \n\nThus the correct choice is **B**.  \n\n\\[\n\\boxed{B}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 3506,
+          "content_len": 607,
+          "reasoning_len": 0,
+          "raw_full": "The paramagnetic coupling term is given by  \n\\[\n\\langle H \\rangle = \\mu_B B m\n\\]  \nwith \\(\\mu_B = 9.27 \\times 10^{-24} \\, \\text{J/T}\\), \\(B = 1 \\, \\text{T}\\), and \\(m\\) small (say \\(m \\approx 1\\)).  \nThus  \n\\[\n\\langle H \\rangle \\approx 9.27 \\times 10^{-24} \\, \\text{J}.\n\\]  \n\nThe transition energy for \\(\\lambda = 0.4861 \\, \\mu\\text{m}\\) is  \n\\[\n\\Delta E = \\frac{hc}{\\lambda} \n= \\frac{6.626 \\times 10^{-34} \\times 3 \\times 10^8}{0.4861 \\times 10^{-6}} \n\\approx 4.09 \\times 10^{-19} \\, \\text{J}.\n\\]  \n\nClearly  \n\\[\n9.27 \\times 10^{-24} \\ll 4.09 \\times 10^{-19},\n\\]  \nso \\(\\langle H \\rangle \\ll \\Delta E\\).\n\nB",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "C",
+          "ms": 2454,
+          "content_len": 685,
+          "reasoning_len": 0,
+          "raw_full": "We have a spherical conductor with a cavity inside, and a charge \\( +q \\) placed inside the cavity.  \nBy electrostatic shielding and the properties of conductors, the charge inside the cavity induces charges on the inner surface of the cavity and an equal and opposite charge on the outer surface of the conductor.  \nFor points outside the conductor, the field is the same as if the total charge \\( q \\) were at the center of the spherical conductor.\n\nThus, the electric field at a point at distance \\( L \\) from the center of the conductor is simply:\n\n\\[\nE = \\frac{1}{4 \\pi \\epsilon_0} \\frac{q}{L^2}\n\\]\n\nSo the correct choice is:\n\nC. \\(E = \\dfrac{1}{4 \\pi \\epsilon_o} \\dfrac{q}{L^2}\\)",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 4848,
+          "content_len": 879,
+          "reasoning_len": 0,
+          "raw_full": "We have the wave function:\n\n\\[\n\\psi(x) = \\frac{a}{\\sqrt{1+x}} - 0.5i\n\\]\n\nThe probability density is:\n\n\\[\n|\\psi(x)|^2 = \\left( \\frac{a}{\\sqrt{1+x}} \\right)^2 + (0.5)^2\n\\]\nsince the real and imaginary parts are orthogonal in the modulus squared.\n\nSo:\n\n\\[\n|\\psi(x)|^2 = \\frac{a^2}{1+x} + 0.25\n\\]\n\nThe particle is only found between \\(x=1\\) and \\(x=3\\), so normalization requires:\n\n\\[\n\\int_{1}^{3} \\left( \\frac{a^2}{1+x} + 0.25 \\right) dx = 1\n\\]\n\nCompute:\n\n\\[\n\\int_{1}^{3} \\frac{a^2}{1+x} dx = a^2 \\left[ \\ln(1+x) \\right]_{1}^{3} = a^2 (\\ln 4 - \\ln 2) = a^2 \\ln 2\n\\]\n\n\\[\n\\int_{1}^{3} 0.25 \\, dx = 0.25 \\times (3 - 1) = 0.5\n\\]\n\nSo:\n\n\\[\na^2 \\ln 2 + 0.5 = 1\n\\]\n\\[\na^2 \\ln 2 = 0.5\n\\]\n\\[\na^2 = \\frac{0.5}{\\ln 2}\n\\]\n\n\\(\\ln 2 \\approx 0.6931\\), so:\n\n\\[\na^2 \\approx \\frac{0.5}{0.6931} \\approx 0.7213\n\\]\n\\[\na \\approx \\sqrt{0.7213} \\approx 0.849\n\\]\n\nThat matches **0.85**.\n\nThe answer is **A**.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 6421,
+          "content_len": 1510,
+          "reasoning_len": 0,
+          "raw_full": "We are given the Pauli matrices for spin:\n\n\\[\nP_x = \\frac{\\hbar}{2} \\begin{pmatrix} 0 & 1 \\\\ 1 & 0 \\end{pmatrix},\n\\quad\nP_y = \\frac{\\hbar}{2} \\begin{pmatrix} 0 & -i \\\\ i & 0 \\end{pmatrix},\n\\quad\nP_z = \\frac{\\hbar}{2} \\begin{pmatrix} 1 & 0 \\\\ 0 & -1 \\end{pmatrix}.\n\\]\n\nFor a direction \\(\\vec{n}\\) in the \\(x\\)-\\(z\\) plane,  \n\\(\\vec{n} = (\\sin\\theta, 0, \\cos\\theta)\\).\n\nThe operator along \\(\\vec{n}\\) is:\n\n\\[\nP_{\\vec{n}} = \\vec{P} \\cdot \\vec{n} \n= \\frac{\\hbar}{2} \\left( \\sin\\theta \\, \\sigma_x + \\cos\\theta \\, \\sigma_z \\right).\n\\]\n\nSo:\n\n\\[\nP_{\\vec{n}} = \\frac{\\hbar}{2} \n\\begin{pmatrix}\n\\cos\\theta & \\sin\\theta \\\\\n\\sin\\theta & -\\cos\\theta\n\\end{pmatrix}.\n\\]\n\nWe want the eigenvector for eigenvalue \\(+\\hbar/2\\).  \nThat means solving:\n\n\\[\n\\begin{pmatrix}\n\\cos\\theta & \\sin\\theta \\\\\n\\sin\\theta & -\\cos\\theta\n\\end{pmatrix}\n\\begin{pmatrix} a \\\\ b \\end{pmatrix}\n= \n\\begin{pmatrix} a \\\\ b \\end{pmatrix}.\n\\]\n\nFirst equation:  \n\\( a\\cos\\theta + b\\sin\\theta = a \\)  \n\\(\\Rightarrow b\\sin\\theta = a(1 - \\cos\\theta)\\).\n\nUsing \\(1 - \\cos\\theta = 2\\sin^2(\\theta/2)\\) and \\(\\sin\\theta = 2\\sin(\\theta/2)\\cos(\\theta/2)\\),  \nwe get:\n\n\\[\nb \\cdot 2\\sin(\\theta/2)\\cos(\\theta/2) = a \\cdot 2\\sin^2(\\theta/2).\n\\]\n\nIf \\(\\sin(\\theta/2) \\neq 0\\), divide by \\(2\\sin(\\theta/2)\\):\n\n\\[\nb \\cos(\\theta/2) = a \\sin(\\theta/2) \\quad\\Rightarrow\\quad a = b \\cot(\\theta/2).\n\\]\n\nNormalized solution:  \n\\(a = \\cos(\\theta/2)\\), \\(b = \\sin(\\theta/2)\\).\n\nThus the eigenvector is \\((\\cos(\\theta/2), \\sin(\\theta/2))\\).\n\nThe correct choice is:\n\n\\[\n\\boxed{B}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 5186,
+          "content_len": 987,
+          "reasoning_len": 0,
+          "raw_full": "We know the equilibrium temperature for a planet in a circular orbit depends on the stellar flux it receives, which scales as:\n\n\\[\nT_{\\text{eq}} \\propto \\left( \\frac{L_*}{a^2} \\right)^{1/4}\n\\]\n\nSince both planets orbit the same star, \\(L_*\\) is constant, so:\n\n\\[\n\\frac{T_1}{T_2} = \\left( \\frac{a_2}{a_1} \\right)^{1/2}\n\\]\n\nFrom the radial velocity data, the RV semi-amplitude \\(K\\) is proportional to \\(\\frac{M_p}{a^{1/2}}\\) (for circular orbits, assuming star mass dominates).  \nGiven \\(K \\propto \\frac{M_p}{\\sqrt{a}}\\), we have:\n\n\\[\na \\propto \\left( \\frac{M_p}{K} \\right)^2\n\\]\n\nFor Planet1: \\(M_{p1} = 7 M_\\oplus\\), \\(K_1 \\propto 0.03\\) Å shift.  \nFor Planet2: \\(M_{p2} = 5 M_\\oplus\\), \\(K_2 \\propto 0.04\\) Å shift.\n\nThus:\n\n\\[\n\\frac{a_2}{a_1} = \\left( \\frac{5 / 0.04}{7 / 0.03} \\right)^2\n= \\left( \\frac{125}{233.33} \\right)^2\n\\approx (0.5357)^2 \\approx 0.287\n\\]\n\nThen:\n\n\\[\n\\frac{T_1}{T_2} = (0.287)^{1/2} \\approx 0.536\n\\]\n\nThat’s about **0.53**.\n\nThe correct choice is:\n\n\\[\n\\boxed{C}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 1823,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 2310,
+          "content_len": 579,
+          "reasoning_len": 0,
+          "raw_full": "```python\n\ndef encode(message):\n    vowels = 'aeiouAEIOU'\n    result = []\n    for ch in message:\n        if ch in vowels:\n            # Shift vowel by 2 positions in the alphabet\n            if ch.islower():\n                new_char = chr((ord(ch) - ord('a') + 2) % 26 + ord('a'))\n            else:\n                new_char = chr((ord(ch) - ord('A') + 2) % 26 + ord('A'))\n            # Then swap case\n            result.append(new_char.swapcase())\n        else:\n            # For non-vowels, just swap case\n            result.append(ch.swapcase())\n    return ''.join(result)\n\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 1784,
+          "content_len": 339,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    def is_prime(num):\n        if num < 2:\n            return False\n        for i in range(2, int(num**0.5) + 1):\n            if num % i == 0:\n                return False\n        return True\n\n    result = []\n    for i in range(2, n):\n        if is_prime(i):\n            result.append(i)\n    return result\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 2120,
+          "content_len": 477,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    '''\n    Given the lengths of the three sides of a triangle. Return True if the three\n    sides form a right-angled triangle, False otherwise.\n    A right-angled triangle is a triangle in which one angle is right angle or \n    90 degree.\n    Example:\n    right_angle_triangle(3, 4, 5) == True\n    right_angle_triangle(1, 2, 3) == False\n    '''\n    sides = sorted([a, b, c])\n    return sides[0]**2 + sides[1]**2 == sides[2]**2\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "pytest_fail",
+          "model_ans": "fail",
+          "gold_ans": "largest_prime_factor",
+          "ms": 1829,
+          "content_len": 410,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    factor = 2\n    while factor * factor <= n:\n        while n % factor == 0:\n            n //= factor\n        factor += 1 if factor == 2 else 2  # after 2, check only odd numbers\n    return n\n```",
+          "verify_error": "Traceback (most recent call last):\n  File \"/var/folders/6k/k5xx78r11wd6r_ds40hxf8ch0000gn/T/tmp2sctnvn4.py\", line 50, in <module>\n    check(largest_prime_factor)\n    ~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/folders/6k/k5xx78r11wd6r_ds40hxf8ch0000gn/T/tmp2sctnvn4.py\", line 46, in check\n    assertion(candidate(*inp), exp, 0)\n    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/var/folders/6k/k5xx78r11wd6r_ds40hxf8ch0000gn/T/tmp2sctnvn4.py\", line 39, in assertion\n    assert exact_match\n           ^^^^^^"
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 1114,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 1407,
+          "content_len": 299,
+          "reasoning_len": 0,
+          "raw_full": "```python\nfrom typing import List\n\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    min_val = min(numbers)\n    max_val = max(numbers)\n    range_val = max_val - min_val\n    if range_val == 0:\n        return [0.0] * len(numbers)\n    return [(x - min_val) / range_val for x in numbers]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "C",
+          "ms": 1199,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 2174,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "B",
+          "ms": 1641,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 1060,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 1762,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 786,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 736,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 622,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "B",
+          "ms": 749,
+          "content_len": 14,
+          "reasoning_len": 0,
+          "raw_full": "C. Fluconazole",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 635,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 690,
+          "content_len": 14,
+          "reasoning_len": 0,
+          "raw_full": "D. Hepatitis A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "A",
+          "ms": 840,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "A",
+          "ms": 651,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_letter_extracted",
+          "model_ans": null,
+          "gold_ans": "D",
+          "ms": 682,
+          "content_len": 33,
+          "reasoning_len": 0,
+          "raw_full": "D. Adaptation in binding proteins",
+          "verify_error": "model_output_no_letter"
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct m.model from models as m join makers as mk on m.maker = mk.maker join cars as c on m.model = c.model where mk.fullname = 'general motors' or c.weight > 3500",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 1304,
+          "content_len": 175,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT m.Model\nFROM models m\nJOIN makers mk ON m.maker = mk.maker\nJOIN cars c ON m.model = c.model\nWHERE mk.fullname = 'General Motors' OR c.weight > 3500;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select v.name from visitor as v join visit as vi on v.id = vi.visitor_id join museum as m on vi.museum_id = m.id where m.open_year < 2009 intersect select v.name from visitor as v join visit as vi on ",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 1633,
+          "content_len": 279,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT v.name\nFROM visitor v\nJOIN visit vi ON v.id = vi.visitor_id\nJOIN museum m ON vi.museum_id = m.id\nWHERE m.open_year < 2009\nINTERSECT\nSELECT v.name\nFROM visitor v\nJOIN visit vi ON v.id = vi.visitor_id\nJOIN museum m ON vi.museum_id = m.id\nWHERE m.open_year > 2011;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select m.id, m.maker from makers as m join models as mo on m.id = mo.maker_id join cars as c on mo.id = c.model_id group by m.id, m.maker having count(distinct mo.id) >= 2 and count(c.id) > 3",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 1365,
+          "content_len": 194,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT m.id, m.maker\nFROM makers m\nJOIN models mo ON m.id = mo.maker_id\nJOIN cars c ON mo.id = c.model_id\nGROUP BY m.id, m.maker\nHAVING COUNT(DISTINCT mo.id) >= 2 AND COUNT(c.id) > 3;\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

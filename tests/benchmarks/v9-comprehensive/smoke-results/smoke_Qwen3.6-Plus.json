@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-04T22:09:28.548550",
+  "provider": "Qwen3.6-Plus",
+  "model": "qwen3.6-plus",
+  "runs": 1,
+  "subset_score": {},
+  "subset_total": {
+    "finance": 1
+  },
+  "results": [
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 0,
+      "runs": [
+        {
+          "run": 0,
+          "ok": false,
+          "verified": false,
+          "ms": 356,
+          "error": "HTTP 403: {\"error\":{\"message\":\"The free tier of the model has been exhausted. If you wish to continue access the model on a paid basis, please disable the \\\"use free tier only\\\" mode in the management console.\",\"type\":\"AllocationQuota.FreeTierOnly\",\"param\":null,\"code\":\"AllocationQuota.FreeTierOnly\"},\"id\":\"cha",
+          "method": null,
+          "model_ans": null
+        }
+      ]
+    }
+  ]
+}

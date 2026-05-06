@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-05-04T22:12:36.158156",
+  "provider": "HY3 (Hy3-Preview)",
+  "model": "tencent/hy3-preview:free",
+  "runs": 1,
+  "subset_score": {
+    "finance": 1
+  },
+  "subset_total": {
+    "finance": 1
+  },
+  "results": [
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 29536,
+          "content_len": 452,
+          "reasoning_len": 4070,
+          "raw_full": "Got it, let's calculate this step by step. First, diluted EPS is net income attributable to ordinary shareholders divided by weighted average diluted shares outstanding, right?\nWait, let's confirm the numbers. Net income is 48,945 million RMB. Diluted shares are 19,250 million shares. Oh right, both are in millions, so the millions will cancel out. Let's do the division: 48945 / 19250. Let's compute that. Let's see, 48945 divided by 19250. Let's calculate: 19250 * 2 = 38500, 48945 - 38500 = 10445. 10445 / 19250 ≈ 0.5426. So total is 2 + 0.5426 ≈ 2.5426? Wait wait wait, wait no, wait 48945 divided by 19250. Let's do it properly: 48945 ÷ 19250. Let's divide numerator and denominator by 5: 9789 ÷ 3850. 3850 * 2.54 = 3850*2 + 3850*0.5 + 3850*0.04 = 7700 + 1925 + 154 = 7700+1925 is 9625 +154 is 9779. Oh, 9789 - 9779 is 10. So 2.54 + 10/3850 ≈ 2.54 + 0.002597 ≈ 2.542597. Rounded to two decimal places is 2.54? Wait wait wait, wait did I get the numbers right? Let's check again. Net income attributable to ordinary shareholders is 48,945 million RMB. Diluted shares are 19,250 million. So 48945 / 19250 = let's use a calculator approach: 19250 * 2.54 = 19250 * 2 + 19250 * 0.54 = 38500 + (19250 * 0.5 + 19250 * 0.04) = 38500 + 9625 + 770 = 38500+9625=48125 +770=48895. Oh, 48895. The net income is 48945, so 48945 - 48895 = 50. So 50 / 19250 ≈ 0.002597. So total is 2.54 + 0.002597 ≈ 2.542597, which rounds to 2.54 when rounded to two decimal places? Wait wait, 2.542597 is 2.54 when rounded to two decimals? Wait no, wait the third decimal is 2, right? Wait 2.542597: first decimal 5, second 4, third 2. Oh right! Because 2.542597 is 2.54 (since the third digit is 2, which is less than 5, so we don't round up the second decimal). Wait wait wait, wait 48945 divided by 19250: let's compute exactly. 48945 ÷ 19250 = 48945 / 19250 = let's divide numerator and denominator by 5: 9789 / 3850. Let's do 9789 ÷ 3850: 3850 * 2.5425974 = let's see 3850 * 2.5425974 = 3850 * 2 + 3850 * 0.5 + 3850 * 0.04 + 3850 * 0.0025974 = 7700 + 1925 + 154 + 10 = 7700+1925=9625+154=9779+10=9789. Oh right, so that's 2.5425974, which is approximately 2.54 when rounded to two decimal places? Wait wait, 2.542597 is 2.54? Wait no, wait 2.542597: the digits are 2 (units), . (decimal), 5 (tenths), 4 (hundredths), 2 (thousandths). So to round to two decimal places, we look at the third decimal, which is 2. Since 2 < 5, we keep the second decimal as 4. So yes, 2.54? Wait wait wait, wait did I mix up the numbers? Let's check again: net income is 48,945 million, shares 19,250 million. So 48945 / 19250 = let's compute 48945 ÷ 19250 = 2.5425974026. Oh right, that's ~2.54 when rounded to two decimals. Wait but wait, is there any adjustment? No, diluted EPS is net income available to ordinary shareholders divided by diluted weighted average shares. That's exactly what we used. So the answer is 2.54? Wait wait, wait 2.542597 is 2.54? Wait no, wait 2.542597 is 2.54 when rounded to two decimal places? Let's confirm: rounding rules: if the digit after the desired decimal is 5 or more, round up, else leave as is. The third decimal is 2, so yes, 2.54. Wait but wait, let me check again: 19250 * 2.54 = 19250 * 2.54 = 19250 * 2 + 19250 * 0.54 = 38500 + (19250 * 0.5 + 19250 * 0.04) = 38500 + 9625 + 770 = 38500 + 10395 = 48895. Then 48945 - 48895 = 50. 50 / 19250 = 0.002597. So total is 2.54 + 0.002597 = 2.542597, which is 2.54 when rounded to two decimals. Yeah, that's right. So the answer is \\boxed{2.54}? Wait wait, wait a second, wait is the net income correct? The problem says \"Net income attributable to ordinary shareholders: 48,945 million RMB\" yes. Diluted shares 19,250 million. So yes, 48945 / 19250 = ~2.54. Wait but let me make sure I didn't divide wrong. Let's do 48945 ÷ 19250: 19250 goes into 48945 twice (38500), remainder 10445. 19250 goes into 104450 5 times? No, 19250 *5 is 96250, remainder 81950. 19250 *4 is 77000, remainder 4950. So now we have 2.54, remainder 4950. 4950 /19250 = 0.257, so 0.00257, so total 2.54257, which is 2.54. Yep. So that's correct.\n\nTocalculate diluted EPS, we use the formula:\n$$\\text{Diluted EPS} = \\frac{\\text{Net income attributable to ordinary shareholders}}{\\text{Weighted average diluted ordinary shares outstanding}}$$\n\nSubstitute the given values:\n- Net income = 48,945 million RMB\n- Diluted shares = 19,250 million shares\n\nThe millions unit cancels out, so:\n$$\\text{Diluted EPS} = \\frac{48945}{19250} \\approx 2.5426$$\n\nRounded to 2 decimal places, this is 2.54.\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

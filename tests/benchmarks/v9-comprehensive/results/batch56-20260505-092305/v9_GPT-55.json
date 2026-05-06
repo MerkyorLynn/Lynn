@@ -1,0 +1,1327 @@
+{
+  "timestamp": "2026-05-05T09:38:06.553224",
+  "provider": "GPT-5.5",
+  "model": "gpt-5.5",
+  "runs": 1,
+  "subset_score": {
+    "math": 7,
+    "finance": 6,
+    "biology": 5,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 2,
+    "medical": 7
+  },
+  "subset_total": {
+    "math": 7,
+    "finance": 7,
+    "biology": 7,
+    "chemistry": 7,
+    "physics": 7,
+    "code_algo": 7,
+    "longctx": 7,
+    "medical": 7,
+    "sql": 3
+  },
+  "results": [
+    {
+      "qid": "aime_000",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "510",
+          "gold_ans": "510",
+          "ms": 26791,
+          "content_len": 2059,
+          "reasoning_len": 0,
+          "raw_full": "We are working in the plane\n\n\\[\nx+y+z=75.\n\\]\n\nThe inequalities are\n\n\\[\nx-yz<y-zx<z-xy.\n\\]\n\nWe can split this into two inequalities:\n\n\\[\nx-yz<y-zx\n\\]\n\nand\n\n\\[\ny-zx<z-xy.\n\\]\n\nRearrange the first:\n\n\\[\nx-yz<y-zx\n\\]\n\n\\[\nx-y+zx-yz<0\n\\]\n\n\\[\n(x-y)+z(x-y)<0\n\\]\n\n\\[\n(x-y)(z+1)<0.\n\\]\n\nRearrange the second:\n\n\\[\ny-zx<z-xy\n\\]\n\n\\[\ny-z+xy-zx<0\n\\]\n\n\\[\n(y-z)+x(y-z)<0\n\\]\n\n\\[\n(y-z)(x+1)<0.\n\\]\n\nSo the conditions are\n\n\\[\n(x-y)(z+1)<0\n\\]\n\nand\n\n\\[\n(y-z)(x+1)<0.\n\\]\n\nSince \\(x+y+z=75\\), we have\n\n\\[\nz=75-x-y.\n\\]\n\nThus\n\n\\[\nz+1=76-x-y,\n\\]\n\nand\n\n\\[\ny-z=y-(75-x-y)=x+2y-75.\n\\]\n\nSo the inequalities become\n\n\\[\n(x-y)(76-x-y)<0\n\\]\n\nand\n\n\\[\n(x+2y-75)(x+1)<0.\n\\]\n\nThe boundary lines in the \\(xy\\)-plane are therefore\n\n\\[\nx=y,\\qquad x+y=76,\\qquad x+2y=75,\\qquad x=-1.\n\\]\n\nThe finite region comes from the simultaneous conditions\n\n\\[\nx<y,\\qquad x+y<76,\\qquad x+2y<75,\\qquad x>-1.\n\\]\n\nThe inequality \\(x+y<76\\) is redundant inside the bounded region determined by the other three. Thus the finite region is the triangle bounded by\n\n\\[\nx=-1,\\qquad x=y,\\qquad x+2y=75.\n\\]\n\nFind its vertices:\n\n1. \\(x=-1\\) and \\(x=y\\):\n\n\\[\n(-1,-1).\n\\]\n\n2. \\(x=-1\\) and \\(x+2y=75\\):\n\n\\[\n-1+2y=75 \\implies 2y=76 \\implies y=38,\n\\]\n\nso\n\n\\[\n(-1,38).\n\\]\n\n3. \\(x=y\\) and \\(x+2y=75\\):\n\n\\[\nx+2x=75 \\implies 3x=75 \\implies x=25,\n\\]\n\nso\n\n\\[\n(25,25).\n\\]\n\nThus the projected triangle in the \\(xy\\)-plane has vertices\n\n\\[\n(-1,-1),\\quad (-1,38),\\quad (25,25).\n\\]\n\nIts area in the \\(xy\\)-plane is\n\n\\[\n\\frac12(39)(26)=507.\n\\]\n\nBut this is only the area of the projection onto the \\(xy\\)-plane. The actual region lies in the plane\n\n\\[\nz=75-x-y.\n\\]\n\nA parametrization is\n\n\\[\n\\mathbf r(x,y)=(x,y,75-x-y).\n\\]\n\nThen\n\n\\[\n\\mathbf r_x=(1,0,-1),\\qquad \\mathbf r_y=(0,1,-1).\n\\]\n\nSo the area-scaling factor is\n\n\\[\n\\left|\\mathbf r_x\\times \\mathbf r_y\\right|.\n\\]\n\nCompute:\n\n\\[\n\\mathbf r_x\\times \\mathbf r_y\n=\n(1,0,-1)\\times(0,1,-1)\n=\n(1,1,1),\n\\]\n\nso\n\n\\[\n\\left|\\mathbf r_x\\times \\mathbf r_y\\right|=\\sqrt{1^2+1^2+1^2}=\\sqrt3.\n\\]\n\nTherefore the actual area is\n\n\\[\n507\\sqrt3.\n\\]\n\nSo\n\n\\[\na=507,\\qquad b=3,\n\\]\n\nand\n\n\\[\na+b=510.\n\\]\n\n\\[\n\\boxed{510}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_001",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "468",
+          "gold_ans": "468",
+          "ms": 14282,
+          "content_len": 1325,
+          "reasoning_len": 0,
+          "raw_full": "Let the six collinear points lie on the \\(x\\)-axis in the order\n\n\\[\nA,\\ B,\\ C,\\ D,\\ E,\\ F.\n\\]\n\nSet\n\n\\[\nA=0.\n\\]\n\nSince \\(AF=73\\), we have\n\n\\[\nF=73.\n\\]\n\nNow use the given segment lengths to determine the coordinates of the other points.\n\nBecause\n\n\\[\nAC=26,\n\\]\n\nwe get\n\n\\[\nC=26.\n\\]\n\nBecause\n\n\\[\nDF=33,\n\\]\n\nwe have\n\n\\[\nD=73-33=40.\n\\]\n\nBecause\n\n\\[\nBD=22,\n\\]\n\nwe have\n\n\\[\nB=40-22=18.\n\\]\n\nBecause\n\n\\[\nCE=31,\n\\]\n\nwe have\n\n\\[\nE=26+31=57.\n\\]\n\nThus\n\n\\[\nBE=57-18=39.\n\\]\n\nNow we need the height from \\(G\\) to the line. Since \\(C\\) and \\(D\\) lie on the line, we use triangle \\(CDG\\). We know\n\n\\[\nCD=40-26=14,\n\\]\n\nand we are given\n\n\\[\nCG=40,\\qquad DG=30.\n\\]\n\nLet the perpendicular distance from \\(G\\) to the line be \\(h\\). Put \\(C=(0,0)\\) and \\(D=(14,0)\\) for this calculation, and let \\(G=(x,h)\\). Then\n\n\\[\nx^2+h^2=40^2=1600\n\\]\n\nand\n\n\\[\n(x-14)^2+h^2=30^2=900.\n\\]\n\nSubtracting the second equation from the first gives\n\n\\[\nx^2-(x-14)^2=700.\n\\]\n\nExpanding,\n\n\\[\nx^2-(x^2-28x+196)=700,\n\\]\n\nso\n\n\\[\n28x-196=700.\n\\]\n\nThus\n\n\\[\n28x=896,\n\\]\n\nand\n\n\\[\nx=32.\n\\]\n\nNow substitute into\n\n\\[\nx^2+h^2=1600:\n\\]\n\n\\[\n32^2+h^2=1600.\n\\]\n\nSo\n\n\\[\n1024+h^2=1600,\n\\]\n\nwhich gives\n\n\\[\nh^2=576.\n\\]\n\nTherefore,\n\n\\[\nh=24.\n\\]\n\nThe area of \\(\\triangle BGE\\) is\n\n\\[\n\\frac12 \\cdot BE \\cdot h\n=\n\\frac12 \\cdot 39 \\cdot 24.\n\\]\n\nThus\n\n\\[\n[\\triangle BGE]=468.\n\\]\n\n\\[\n\\boxed{468}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_002",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "60",
+          "gold_ans": "60",
+          "ms": 178511,
+          "content_len": 3194,
+          "reasoning_len": 0,
+          "raw_full": "Let\n\n\\[\nf(X)=AX+BX+CX+DX+EX.\n\\]\n\nWe want the least possible value of \\(f(X)\\).\n\n---\n\n### 1. Compute the important diagonals\n\nBecause \\(\\angle B=60^\\circ\\), in \\(\\triangle ABC\\),\n\n\\[\nAC^2=AB^2+BC^2-2(AB)(BC)\\cos 60^\\circ.\n\\]\n\nSo\n\n\\[\nAC^2=14^2+7^2-2(14)(7)\\cdot \\frac12=196+49-98=147,\n\\]\n\nhence\n\n\\[\nAC=7\\sqrt3.\n\\]\n\nSimilarly, because \\(\\angle E=60^\\circ\\), in \\(\\triangle AED\\),\n\n\\[\nAD^2=AE^2+DE^2-2(AE)(DE)\\cos 60^\\circ.\n\\]\n\nThus\n\n\\[\nAD^2=26^2+13^2-2(26)(13)\\cdot \\frac12=676+169-338=507,\n\\]\n\nso\n\n\\[\nAD=13\\sqrt3.\n\\]\n\nTherefore triangle \\(ACD\\) has side lengths\n\n\\[\nAC=7\\sqrt3,\\qquad AD=13\\sqrt3,\\qquad CD=24.\n\\]\n\n---\n\n### 2. Split the sum\n\nFor every point \\(X\\),\n\n\\[\nf(X)=AX+CX+DX+BX+EX.\n\\]\n\nBy the triangle inequality,\n\n\\[\nBX+EX\\ge BE,\n\\]\n\nwith equality exactly when \\(X\\) lies on segment \\(\\overline{BE}\\).\n\nAlso,\n\n\\[\nAX+CX+DX\n\\]\n\nis minimized when \\(X\\) is the Fermat point of \\(\\triangle ACD\\). Therefore\n\n\\[\nf(X)\\ge BE+\\min(AX+CX+DX).\n\\]\n\nWe will show that the Fermat point of \\(\\triangle ACD\\) lies on \\(\\overline{BE}\\), so equality can occur.\n\n---\n\n### 3. Find \\(BE\\)\n\nUse coordinates. Place\n\n\\[\nA=(0,0),\\qquad B=(14,0).\n\\]\n\nSince \\(\\angle BAC=30^\\circ\\) and \\(AC=7\\sqrt3\\),\n\n\\[\nC=\\left(7\\sqrt3\\cos30^\\circ,7\\sqrt3\\sin30^\\circ\\right)\n=\\left(\\frac{21}{2},\\frac{7\\sqrt3}{2}\\right).\n\\]\n\nSimilarly, from \\(\\triangle ADE\\), one obtains\n\n\\[\nE=\\left(-\\frac{143}{7},\\frac{65\\sqrt3}{7}\\right).\n\\]\n\nThus\n\n\\[\nBE^2=\\left(14+\\frac{143}{7}\\right)^2+\\left(0-\\frac{65\\sqrt3}{7}\\right)^2.\n\\]\n\nSince\n\n\\[\n14+\\frac{143}{7}=\\frac{241}{7},\n\\]\n\nwe get\n\n\\[\nBE^2=\\left(\\frac{241}{7}\\right)^2+\\left(\\frac{65\\sqrt3}{7}\\right)^2\n=\\frac{241^2+65^2\\cdot 3}{49}.\n\\]\n\nNow\n\n\\[\n241^2=58081,\\qquad 65^2\\cdot 3=4225\\cdot 3=12675,\n\\]\n\nso\n\n\\[\nBE^2=\\frac{70756}{49}=\\frac{266^2}{7^2}=38^2.\n\\]\n\nHence\n\n\\[\nBE=38.\n\\]\n\n---\n\n### 4. Minimum of \\(AX+CX+DX\\)\n\nFor a triangle with side lengths \\(a,b,c\\) and area \\(\\Delta\\), if all angles are less than \\(120^\\circ\\), the minimum possible value of the sum of distances from a point to the three vertices is\n\n\\[\n\\sqrt{\\frac{a^2+b^2+c^2+4\\sqrt3\\Delta}{2}}.\n\\]\n\nHere, for \\(\\triangle ACD\\),\n\n\\[\na=24,\\qquad b=13\\sqrt3,\\qquad c=7\\sqrt3.\n\\]\n\nWe compute its area. The angle between \\(AC\\) and \\(AD\\) satisfies\n\n\\[\n\\cos\\angle CAD=\\frac{AC^2+AD^2-CD^2}{2(AC)(AD)}\n=\\frac{147+507-576}{2(7\\sqrt3)(13\\sqrt3)}\n=\\frac{78}{546}\n=\\frac17.\n\\]\n\nTherefore\n\n\\[\n\\sin\\angle CAD=\\sqrt{1-\\frac1{49}}=\\frac{4\\sqrt3}{7}.\n\\]\n\nThus\n\n\\[\n\\Delta=\\frac12(AC)(AD)\\sin\\angle CAD\n=\\frac12(7\\sqrt3)(13\\sqrt3)\\cdot \\frac{4\\sqrt3}{7}\n=78\\sqrt3.\n\\]\n\nNow\n\n\\[\na^2+b^2+c^2=24^2+(13\\sqrt3)^2+(7\\sqrt3)^2\n=576+507+147=1230.\n\\]\n\nAlso,\n\n\\[\n4\\sqrt3\\Delta=4\\sqrt3(78\\sqrt3)=936.\n\\]\n\nTherefore\n\n\\[\n\\min(AX+CX+DX)\n=\\sqrt{\\frac{1230+936}{2}}\n=\\sqrt{1083}\n=19\\sqrt3.\n\\]\n\n---\n\n### 5. Show equality is achievable\n\nThe Fermat point \\(F\\) of \\(\\triangle ACD\\) satisfies\n\n\\[\nAF+CF+DF=19\\sqrt3.\n\\]\n\nA coordinate calculation verifies that this Fermat point lies on segment \\(\\overline{BE}\\). Hence for \\(X=F\\),\n\n\\[\nBF+EF=BE=38.\n\\]\n\nTherefore\n\n\\[\nf(F)=AF+BF+CF+DF+EF\n=(AF+CF+DF)+(BF+EF)\n=19\\sqrt3+38.\n\\]\n\nSo the least possible value is\n\n\\[\n38+19\\sqrt3.\n\\]\n\nThus\n\n\\[\nm=38,\\qquad n=19,\\qquad p=3,\n\\]\n\nand\n\n\\[\nm+n+p=38+19+3=60.\n\\]\n\n\\[\n\\boxed{60}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_003",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "204",
+          "gold_ans": "204",
+          "ms": 12935,
+          "content_len": 1524,
+          "reasoning_len": 0,
+          "raw_full": "Let \\(t\\) be the number of minutes Aya spends in the coffee shop.\n\nSince the walk is \\(9\\) kilometers long, her walking time at speed \\(s\\) kilometers per hour is\n\n\\[\n\\frac{9}{s}\\text{ hours}.\n\\]\n\nIncluding the coffee shop time, the total time is \\(4\\) hours, so\n\n\\[\n\\frac{9}{s}+\\frac{t}{60}=4.\n\\]\n\nWhen she walks at \\(s+2\\) kilometers per hour, the total time is \\(2\\) hours and \\(24\\) minutes. Since \\(24\\) minutes is \\(\\frac{24}{60}=\\frac25\\) hours, this is\n\n\\[\n2+\\frac25=\\frac{12}{5}\\text{ hours}.\n\\]\n\nSo\n\n\\[\n\\frac{9}{s+2}+\\frac{t}{60}=\\frac{12}{5}.\n\\]\n\nSubtract the second equation from the first:\n\n\\[\n\\frac{9}{s}-\\frac{9}{s+2}=4-\\frac{12}{5}.\n\\]\n\n\\[\n\\frac{9(s+2)-9s}{s(s+2)}=\\frac{20}{5}-\\frac{12}{5}\n\\]\n\n\\[\n\\frac{18}{s(s+2)}=\\frac85.\n\\]\n\nCross-multiply:\n\n\\[\n90=8s(s+2)\n\\]\n\n\\[\ns(s+2)=\\frac{45}{4}.\n\\]\n\nSo\n\n\\[\ns^2+2s=\\frac{45}{4}.\n\\]\n\n\\[\n4s^2+8s-45=0.\n\\]\n\nFactor:\n\n\\[\n(2s-5)(2s+9)=0.\n\\]\n\nSince speed must be positive,\n\n\\[\ns=\\frac52.\n\\]\n\nNow find \\(t\\). Using\n\n\\[\n\\frac{9}{s}+\\frac{t}{60}=4,\n\\]\n\nwe get\n\n\\[\n\\frac{9}{5/2}+\\frac{t}{60}=4.\n\\]\n\n\\[\n\\frac{18}{5}+\\frac{t}{60}=4.\n\\]\n\n\\[\n\\frac{t}{60}=4-\\frac{18}{5}\n\\]\n\n\\[\n\\frac{t}{60}=\\frac{20}{5}-\\frac{18}{5}=\\frac25.\n\\]\n\nThus\n\n\\[\nt=24.\n\\]\n\nNow Aya walks at\n\n\\[\ns+\\frac12=\\frac52+\\frac12=3\n\\]\n\nkilometers per hour. Her walking time is\n\n\\[\n\\frac{9}{3}=3\n\\]\n\nhours. Including the \\(24\\) minutes in the coffee shop, the total time is\n\n\\[\n3\\text{ hours }24\\text{ minutes}.\n\\]\n\nIn minutes, this is\n\n\\[\n3\\cdot 60+24=204.\n\\]\n\nTherefore, the total time is\n\n\\[\n\\boxed{204}\n\\] minutes.",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_004",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "116",
+          "gold_ans": "116",
+          "ms": 10216,
+          "content_len": 1102,
+          "reasoning_len": 0,
+          "raw_full": "Let Jen’s chosen set of 4 numbers be fixed.\n\nThe lottery randomly chooses 4 numbers from the set\n\n\\[\nS=\\{1,2,3,\\dots,10\\}.\n\\]\n\nThere are\n\n\\[\n\\binom{10}{4}=210\n\\]\n\npossible sets of 4 randomly chosen numbers.\n\nJen wins a prize if at least 2 of her 4 numbers are among the randomly chosen numbers.\n\nWe count the number of random 4-number sets that share exactly \\(k\\) numbers with Jen’s set.\n\nSince Jen has 4 chosen numbers, and there are \\(10-4=6\\) numbers not in her set:\n\n\\[\n\\text{Number with exactly } k \\text{ matches}=\\binom{4}{k}\\binom{6}{4-k}.\n\\]\n\nShe wins a prize when \\(k=2,3,\\) or \\(4\\).\n\nFor exactly 2 matches:\n\n\\[\n\\binom{4}{2}\\binom{6}{2}=6\\cdot 15=90\n\\]\n\nFor exactly 3 matches:\n\n\\[\n\\binom{4}{3}\\binom{6}{1}=4\\cdot 6=24\n\\]\n\nFor exactly 4 matches, which is the grand prize:\n\n\\[\n\\binom{4}{4}\\binom{6}{0}=1\\cdot 1=1\n\\]\n\nSo the total number of prize-winning outcomes is\n\n\\[\n90+24+1=115.\n\\]\n\nOnly 1 of those outcomes is the grand prize outcome.\n\nThus,\n\n\\[\nP(\\text{grand prize}\\mid \\text{won a prize})=\\frac{1}{115}.\n\\]\n\nSo\n\n\\[\nm=1,\\qquad n=115,\n\\]\n\nand therefore\n\n\\[\nm+n=116.\n\\]\n\n\\[\n\\boxed{116}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_005",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "70",
+          "gold_ans": "70",
+          "ms": 6407,
+          "content_len": 542,
+          "reasoning_len": 0,
+          "raw_full": "In base \\(b\\),\n\n\\[\n17_b = 1\\cdot b + 7 = b+7\n\\]\n\nand\n\n\\[\n97_b = 9\\cdot b + 7 = 9b+7.\n\\]\n\nWe need \\(17_b\\) to divide \\(97_b\\), so\n\n\\[\nb+7 \\mid 9b+7.\n\\]\n\nNow rewrite \\(9b+7\\) in terms of \\(b+7\\):\n\n\\[\n9b+7 = 9(b+7)-56.\n\\]\n\nSo if \\(b+7\\mid 9b+7\\), then\n\n\\[\nb+7 \\mid 56.\n\\]\n\nSince \\(b>9\\), we have\n\n\\[\nb+7>16.\n\\]\n\nThe positive divisors of \\(56\\) greater than \\(16\\) are\n\n\\[\n28,\\ 56.\n\\]\n\nThus\n\n\\[\nb+7=28 \\implies b=21\n\\]\n\nand\n\n\\[\nb+7=56 \\implies b=49.\n\\]\n\nBoth bases are greater than \\(9\\), so the required sum is\n\n\\[\n21+49=70.\n\\]\n\n\\[\n\\boxed{70}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "aime_006",
+      "subset": "math",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "string_match",
+          "model_ans": "16",
+          "gold_ans": "16",
+          "ms": 10974,
+          "content_len": 995,
+          "reasoning_len": 0,
+          "raw_full": "Let\n\n- \\(c\\) = number of players who chose chocolate,\n- \\(v\\) = number of players who chose vanilla,\n- \\(s\\) = number of players who chose strawberry.\n\nWe need\n\n\\[\nc+v+s=9\n\\]\n\nwith\n\n\\[\nc>v>s\\ge 1.\n\\]\n\nNow list all possible triples \\((c,v,s)\\).\n\nIf \\(s=1\\), then \\(c+v=8\\) and \\(c>v>1\\). The possibilities are\n\n\\[\n(c,v,s)=(6,2,1),(5,3,1).\n\\]\n\nIf \\(s=2\\), then \\(c+v=7\\) and \\(c>v>2\\). The only possibility is\n\n\\[\n(c,v,s)=(4,3,2).\n\\]\n\nIf \\(s\\ge 3\\), there are no more possibilities because the counts would be too large.\n\nSo we count assignments for each case. Since the 9 players are distinct, the number of assignments for a given triple is\n\n\\[\n\\frac{9!}{c!v!s!}.\n\\]\n\nThus\n\n\\[\nN=\\frac{9!}{6!2!1!}+\\frac{9!}{5!3!1!}+\\frac{9!}{4!3!2!}.\n\\]\n\nCompute each term:\n\n\\[\n\\frac{9!}{6!2!1!}=252,\n\\]\n\n\\[\n\\frac{9!}{5!3!1!}=504,\n\\]\n\n\\[\n\\frac{9!}{4!3!2!}=1260.\n\\]\n\nTherefore,\n\n\\[\nN=252+504+1260=2016.\n\\]\n\nThe remainder when \\(2016\\) is divided by \\(1000\\) is\n\n\\[\n2016 \\equiv 16 \\pmod{1000}.\n\\]\n\n\\[\n\\boxed{16}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_000",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "2.54",
+          "gold_ans": "2.54",
+          "ms": 5834,
+          "content_len": 193,
+          "reasoning_len": 0,
+          "raw_full": "Diluted EPS = Net income attributable to ordinary shareholders ÷ Weighted average ordinary shares outstanding (diluted)\n\n= 48,945 ÷ 19,250  \n= 2.5426\n\nRounded to 2 decimal places:\n\n\\boxed{2.54}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_001",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "240.0",
+          "gold_ans": "240.0",
+          "ms": 10472,
+          "content_len": 185,
+          "reasoning_len": 0,
+          "raw_full": "Revenue − Operating expenses = Operating income:\n\n$1{,}200 - 850 = 350$\n\nPretax income:\n\n$350 - 30 = 320$\n\nTaxes:\n\n$320 \\times 25\\% = 80$\n\nNet Income:\n\n$320 - 80 = 240.0$\n\n\\boxed{240.0}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_002",
+      "subset": "finance",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "721.0",
+          "gold_ans": "1721.0",
+          "ms": 18017,
+          "content_len": 265,
+          "reasoning_len": 0,
+          "raw_full": "\\[\nTV_3=\\frac{FCF_4}{WACC-g}=\\frac{130(1.03)}{0.10-0.03}=\\frac{133.9}{0.07}=1{,}912.86\n\\]\n\n\\[\nPV=\\frac{100}{1.10}+\\frac{115}{1.10^2}+\\frac{130+1{,}912.86}{1.10^3}\n\\]\n\n\\[\nPV=90.91+95.04+1{,}534.83=1{,}720.78\n\\]\n\nRounded to the nearest integer:\n\n\\[\n\\boxed{1{,}721}\n\\]",
+          "verify_error": "diff=-1000.00"
+        }
+      ]
+    },
+    {
+      "qid": "fin_003",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "1666.7",
+          "gold_ans": "1666.7",
+          "ms": 4810,
+          "content_len": 127,
+          "reasoning_len": 0,
+          "raw_full": "Gordon Growth Model：\n\n\\[\nEV=\\frac{FCFF_1}{WACC-g}=\\frac{100}{9\\%-3\\%}=\\frac{100}{0.06}=1666.7\n\\]\n\n单位：百万美元\n\n\\[\n\\boxed{1666.7}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_004",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "26.67",
+          "gold_ans": "26.67",
+          "ms": 7543,
+          "content_len": 120,
+          "reasoning_len": 0,
+          "raw_full": "股东权益 = 总资产 - 总负债 = 5,000 - 3,200 = 1,800 million\n\nROE = 净利润 / 股东权益 × 100% = 480 / 1,800 × 100% = 26.67%\n\n\\boxed{26.67\\%}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_005",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "957.88",
+          "gold_ans": "957.88",
+          "ms": 7812,
+          "content_len": 204,
+          "reasoning_len": 0,
+          "raw_full": "债券价格：\n\n\\[\nP=\\sum_{t=1}^{5}\\frac{50}{(1+6\\%)^t}+\\frac{1000}{(1+6\\%)^5}\n\\]\n\n\\[\nP=50\\times \\frac{1-(1.06)^{-5}}{0.06}+1000\\times (1.06)^{-5}\n\\]\n\n\\[\nP=210.62+747.26=957.88\n\\]\n\n\\[\n\\boxed{957.88\\ \\text{USD}}\n\\]",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "fin_006",
+      "subset": "finance",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "tolerance_match",
+          "model_ans": "5.0",
+          "gold_ans": "5.0",
+          "ms": 5333,
+          "content_len": 80,
+          "reasoning_len": 0,
+          "raw_full": "Times Interest Earned ratio（利息保障倍数）= EBIT ÷ 利息费用 = 200 ÷ 40 = 5.00\n\n\\boxed{5.00}",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_00",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 12585,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_01",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 7301,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_biology_02",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 5634,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_003",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 15983,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_004",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 15126,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_005",
+      "subset": "biology",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "B",
+          "ms": 3704,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "bio_006",
+      "subset": "biology",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 11261,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_00",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 67125,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_01",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 36210,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_chemistry_02",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 17472,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_003",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 15992,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_004",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 7493,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_005",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 16247,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "chem_006",
+      "subset": "chemistry",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 16312,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_00",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 4814,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_01",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 12244,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "gpqa_physics_02",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 7577,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_003",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 7851,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_004",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 7851,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_005",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 6783,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "phys_006",
+      "subset": "physics",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 7580,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_000",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "max_element",
+          "gold_ans": "max_element",
+          "ms": 5194,
+          "content_len": 214,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef max_element(l: list):\n    \"\"\"Return maximum element in the list.\n    >>> max_element([1, 2, 3])\n    3\n    >>> max_element([5, 3, -5, 2, -3, 3, 9, 0, 123, 1, -10])\n    123\n    \"\"\"\n    return max(l)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_001",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "encode",
+          "gold_ans": "encode",
+          "ms": 11742,
+          "content_len": 301,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef encode(message):\n    vowels = \"aeiouAEIOU\"\n    result = []\n\n    for char in message:\n        if char in vowels:\n            shifted = chr(ord(char) + 2)\n            result.append(shifted.swapcase())\n        else:\n            result.append(char.swapcase())\n\n    return \"\".join(result)\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_002",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "count_up_to",
+          "gold_ans": "count_up_to",
+          "ms": 6072,
+          "content_len": 717,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef count_up_to(n):\n    \"\"\"Implement a function that takes an non-negative integer and returns an array of the first n\n    integers that are prime numbers and less than n.\n    for example:\n    count_up_to(5) => [2,3]\n    count_up_to(11) => [2,3,5,7]\n    count_up_to(0) => []\n    count_up_to(20) => [2,3,5,7,11,13,17,19]\n    count_up_to(1) => []\n    count_up_to(18) => [2,3,5,7,11,13,17]\n    \"\"\"\n    if n <= 2:\n        return []\n\n    is_prime = [True] * n\n    is_prime[0] = is_prime[1] = False\n\n    p = 2\n    while p * p < n:\n        if is_prime[p]:\n            for multiple in range(p * p, n, p):\n                is_prime[multiple] = False\n        p += 1\n\n    return [i for i in range(n) if is_prime[i]]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_003",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "right_angle_triangle",
+          "gold_ans": "right_angle_triangle",
+          "ms": 5861,
+          "content_len": 269,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef right_angle_triangle(a, b, c):\n    sides = sorted([a, b, c])\n    \n    if sides[0] <= 0:\n        return False\n    \n    if sides[0] + sides[1] <= sides[2]:\n        return False\n    \n    return abs((sides[0] ** 2 + sides[1] ** 2) - sides[2] ** 2) <= 1e-9\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_004",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "largest_prime_factor",
+          "gold_ans": "largest_prime_factor",
+          "ms": 6442,
+          "content_len": 484,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef largest_prime_factor(n: int):\n    \"\"\"Return the largest prime factor of n. Assume n > 1 and is not a prime.\n    >>> largest_prime_factor(13195)\n    29\n    >>> largest_prime_factor(2048)\n    2\n    \"\"\"\n    largest = None\n\n    while n % 2 == 0:\n        largest = 2\n        n //= 2\n\n    factor = 3\n    while factor * factor <= n:\n        while n % factor == 0:\n            largest = factor\n            n //= factor\n        factor += 2\n\n    return n if n > 1 else largest\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_005",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "flip_case",
+          "gold_ans": "flip_case",
+          "ms": 4654,
+          "content_len": 219,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef flip_case(string: str) -> str:\n    \"\"\" For a given string, flip lowercase characters to uppercase and uppercase to lowercase.\n    >>> flip_case('Hello')\n    'hELLO'\n    \"\"\"\n    return string.swapcase()\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "he_006",
+      "subset": "code_algo",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "pytest_pass",
+          "model_ans": "rescale_to_unit",
+          "gold_ans": "rescale_to_unit",
+          "ms": 4005,
+          "content_len": 216,
+          "reasoning_len": 0,
+          "raw_full": "```python\ndef rescale_to_unit(numbers: List[float]) -> List[float]:\n    min_number = min(numbers)\n    max_number = max(numbers)\n    return [(number - min_number) / (max_number - min_number) for number in numbers]\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_000",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 14210,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_001",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "B",
+          "ms": 13511,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_002",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "B",
+          "ms": 34161,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_003",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 27083,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_004",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "D",
+          "ms": 18764,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_005",
+      "subset": "longctx",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "D",
+          "ms": 14686,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "lb_006",
+      "subset": "longctx",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 7551,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_000",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 5128,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_001",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "B",
+          "gold_ans": "B",
+          "ms": 5824,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "B",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_002",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "C",
+          "gold_ans": "C",
+          "ms": 5408,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "C",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_003",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 4912,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_004",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 6028,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_005",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "A",
+          "gold_ans": "A",
+          "ms": 3167,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "A",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "med_006",
+      "subset": "medical",
+      "verified_strict": true,
+      "n_verified": 1,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": true,
+          "method": "letter_match",
+          "model_ans": "D",
+          "gold_ans": "D",
+          "ms": 4409,
+          "content_len": 1,
+          "reasoning_len": 0,
+          "raw_full": "D",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_000",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select distinct ml.model from model_list as ml join car_makers as cm on ml.maker = cm.id where cm.fullname = 'general motors' union select distinct cn.model from car_names as cn join cars_data as cd o",
+          "gold_ans": "select distinct t2.model from car_names as t1 join model_list as t2 on t1.model = t2.model join car_makers as t3 on t2.maker = t3.id join cars_data as t4 on t1.makeid = t4.id where t3.fullname = 'gene",
+          "ms": 15147,
+          "content_len": 260,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT DISTINCT ml.Model\nFROM model_list AS ml\nJOIN car_makers AS cm\n  ON ml.Maker = cm.Id\nWHERE cm.FullName = 'General Motors'\n\nUNION\n\nSELECT DISTINCT cn.Model\nFROM car_names AS cn\nJOIN cars_data AS cd\n  ON cn.MakeId = cd.Id\nWHERE cd.Weight > 3500;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_001",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select v.name from visitor as v join visit as vi on v.id = vi.visitor_id join museum as m on vi.museum_id = m.museum_id group by v.id, v.name having sum(case when m.open_year < 2009 then 1 else 0 end)",
+          "gold_ans": "select t1.name from visitor as t1 join visit as t2 on t1.id = t2.visitor_id join museum as t3 on t3.museum_id = t2.museum_id where t3.open_year < 2009 intersect select t1.name from visitor as t1 join ",
+          "ms": 9747,
+          "content_len": 279,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT v.Name\nFROM visitor AS v\nJOIN visit AS vi ON v.ID = vi.visitor_ID\nJOIN museum AS m ON vi.Museum_ID = m.Museum_ID\nGROUP BY v.ID, v.Name\nHAVING SUM(CASE WHEN m.Open_Year < 2009 THEN 1 ELSE 0 END) > 0\n   AND SUM(CASE WHEN m.Open_Year > 2011 THEN 1 ELSE 0 END) > 0;\n```",
+          "verify_error": null
+        }
+      ]
+    },
+    {
+      "qid": "sql_002",
+      "subset": "sql",
+      "verified_strict": false,
+      "n_verified": 0,
+      "n_ok": 1,
+      "runs": [
+        {
+          "run": 0,
+          "ok": true,
+          "verified": false,
+          "method": "no_match",
+          "model_ans": "select cm.id, cm.maker from car_makers as cm join model_list as ml on cm.id = ml.maker join car_names as cn on ml.model = cn.model group by cm.id, cm.maker having count(distinct ml.modelid) >= 2 and c",
+          "gold_ans": "select t1.id, t1.maker from car_makers as t1 join model_list as t2 on t1.id = t2.maker group by t1.id having count(*) >= 2 intersect select t1.id, t1.maker from car_makers as t1 join model_list as t2 ",
+          "ms": 9687,
+          "content_len": 256,
+          "reasoning_len": 0,
+          "raw_full": "```sql\nSELECT\n  cm.Id,\n  cm.Maker\nFROM car_makers AS cm\nJOIN model_list AS ml\n  ON cm.Id = ml.Maker\nJOIN car_names AS cn\n  ON ml.Model = cn.Model\nGROUP BY\n  cm.Id,\n  cm.Maker\nHAVING\n  COUNT(DISTINCT ml.ModelId) >= 2\n  AND COUNT(DISTINCT cn.MakeId) > 3;\n```",
+          "verify_error": null
+        }
+      ]
+    }
+  ]
+}

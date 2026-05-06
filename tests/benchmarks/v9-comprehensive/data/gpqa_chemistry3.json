@@ -25,5 +25,41 @@
     "raw_subdomain": "Chemistry",
     "problem": "S)-4-hydroxycyclohex-2-en-1-one is treated with tert-Butyldimethylsilyl chloride and triethylamine, forming product 1.\n\n1 is treated with Ph2CuLi at low temperature, followed by benzyl bromide, forming product 2.\n\n2 is treated with LDA and iodomethane at low temperature, forming product 3.\n\nProduct 3 is treatd with aqueous HCl, forming final product 4. what is the structure of product 4?\n\nA. (2R,3R,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one\nB. (1S,2S,4S)-1-(benzyloxy)-2-methyl-1,2,3,4-tetrahydro-[1,1'-biphenyl]-4-ol\nC. (2S,3R,4S,6S)-2-benzyl-4-hydroxy-6-methyl-3-phenylcyclohexan-1-one\nD. (2S,3S,4S)-2-benzyl-4-hydroxy-2-methyl-3-phenylcyclohexan-1-one\n\nAnswer with only the letter (A/B/C/D).",
     "answer": "C"
+  },
+  {
+    "qid": "chem_003",
+    "subset": "chemistry",
+    "source": "GPQA Diamond",
+    "domain": "chemistry",
+    "raw_subdomain": "Inorganic Chemistry",
+    "problem": "An equimolar mixture of salts A and B weighing 7.20 g was heated to 200°C without air. In this case, only a mixture of gases was formed, which, without cooling, was passed successively through tubes filled with anhydrous Mg(ClO4)2 (№1), Ca(OH)2 (№2) solution, and red-hot copper (№3). Results: the weights of tubes №1 and №3 increased by 3.60 g and 0.80 g, respectively (CuO formed in tube №3). The weight of the second tube has not changed. As a result, only 2.24 liters of gas C (standard temperature and pressure) remained.\nIndicate the total number of all atoms in salts A and B.\n\nA. 19\nB. 15\nC. 17\nD. 13\n\nAnswer with only A/B/C/D.",
+    "answer": "C"
+  },
+  {
+    "qid": "chem_004",
+    "subset": "chemistry",
+    "source": "GPQA Diamond",
+    "domain": "chemistry",
+    "raw_subdomain": "Chemistry (general)",
+    "problem": "Determine the pH of the solution of 500 mL of 0.1 M CH3COOH, 400 mL of 0.2 M HCl, and 300 mL of 0.3 M Ba(OH)2.\n\nA. 12.62\nB. 8.68\nC. 8.92\nD. 1.38\n\nAnswer with only A/B/C/D.",
+    "answer": "A"
+  },
+  {
+    "qid": "chem_005",
+    "subset": "chemistry",
+    "source": "GPQA Diamond",
+    "domain": "chemistry",
+    "raw_subdomain": "Organic Chemistry",
+    "problem": "Identify the number of 13C-NMR signals produced by the final product, denoted as E, resulting from the series of reactions shown below.\nPropionaldehyde + EDT / BF3 ---> A\nA + BuLi ---> B\nB + Bromoethane ---> C\nC + HgCl2 / H2O / H+ ---> D\nD + PPh3 / 3-bromopentane / BuLi ---> E\n\nA. 6\nB. 8\nC. 3\nD. 11\n\nAnswer with only A/B/C/D.",
+    "answer": "C"
+  },
+  {
+    "qid": "chem_006",
+    "subset": "chemistry",
+    "source": "GPQA Diamond",
+    "domain": "chemistry",
+    "raw_subdomain": "Organic Chemistry",
+    "problem": "A textile dye containing an extensively conjugated pi-electrons emits light with energy of 2.3393 eV. What color of light is absorbed by the organic compound?\n\nA. Violet\nB. Red\nC. Blue\nD. Yellow\n\nAnswer with only A/B/C/D.",
+    "answer": "B"
   }
 ]
