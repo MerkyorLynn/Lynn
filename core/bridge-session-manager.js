@@ -92,26 +92,6 @@ function buildGuestSafetyPrompt(ownerName = "User") {
   ].join("\n");
 }
 
-function pseudoToolSimulationMessage() {
-  const localized = t("error.invalidToolSimulation");
-  return localized && localized !== "error.invalidToolSimulation"
-    ? localized
-    : "Model emitted an invalid tool-call simulation instead of executing the tool.";
-}
-
-function buildPseudoToolRetryPrompt(prompt) {
-  const isZh = getLocale().startsWith("zh");
-  return [
-    isZh
-      ? "【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。"
-      : "[Strict execution requirement] The previous attempt simulated tool calls in plain text instead of actually executing them.",
-    isZh
-      ? "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 之类的伪工具文本。请直接调用真实工具完成当前任务，拿到结果后再回复。"
-      : "Do not output any pseudo tool text such as <tool_call>, XML, shell commands, or web_search(...). Use the real tool interface, finish the task, and only then reply.",
-    String(prompt || ""),
-  ].filter(Boolean).join("\n\n");
-}
-
 export class BridgeSessionManager {
   /**
    * @param {object} deps - 注入依赖（不持有 engine 引用）
@@ -380,13 +360,8 @@ export class BridgeSessionManager {
         const first = await runBridgeAttempt(effectivePrompt);
         capturedText = first.capturedText;
         if (!first.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
-          debugLog()?.warn("bridge", "pseudo tool simulation detected, retrying once");
-          const retry = await runBridgeAttempt(buildPseudoToolRetryPrompt(effectivePrompt), { streamDeltas: false });
-          capturedText = retry.capturedText || capturedText;
-          if (!retry.sawToolCall && containsPseudoToolCallSimulation(capturedText)) {
-            debugLog()?.warn("bridge", "pseudo tool simulation persisted after retry; sanitizing final text");
-            capturedText = stripPseudoToolCallMarkup(capturedText);
-          }
+          debugLog()?.warn("bridge", "pseudo tool simulation detected; sanitizing without model retry");
+          capturedText = stripPseudoToolCallMarkup(capturedText);
         }
         if (!String(capturedText || "").trim()) {
           debugLog()?.warn("bridge", `empty bridge reply detected, retrying once as plain text · route=${routeIntent}`);

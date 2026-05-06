@@ -170,7 +170,7 @@ describe("chat route event forwarding", () => {
     expect(clients[0].sent).toContainEqual({ type: "security_mode", mode: "safe" });
   });
 
-  it("suppresses pseudo-tool XML and recovers for Brain default model text", async () => {
+  it("suppresses pseudo-tool XML without steering Brain default model text", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
@@ -191,17 +191,14 @@ describe("chat route event forwarding", () => {
       },
     }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).toHaveBeenCalled();
-    expect(clients[0].sent).toContainEqual(expect.objectContaining({
-      noticeKey: "status.defaultModelRecoveringToolExecution",
-    }));
+    expect(engine.steerSession).not.toHaveBeenCalled();
     expect(clients[0].sent
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)
       .join("")).not.toContain("<web_search>");
   });
 
-  it("still triggers pseudo-tool recovery for non-Brain model text", async () => {
+  it("suppresses pseudo-tool function text for non-Brain model text without steering", async () => {
     engine.currentModel = { id: "kimi-k2.5", provider: "moonshot", name: "Kimi K2.5" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
@@ -222,10 +219,12 @@ describe("chat route event forwarding", () => {
       },
     }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).toHaveBeenCalled();
-    expect(clients[0].sent).toContainEqual(expect.objectContaining({
-      noticeKey: "status.recoveringToolExecution",
-    }));
+    expect(engine.steerSession).not.toHaveBeenCalled();
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).not.toContain("web_search");
   });
 
   it("suppresses pseudo bash XML even after a real tool call already ran", async () => {
@@ -271,7 +270,7 @@ describe("chat route event forwarding", () => {
       },
     }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).toHaveBeenCalled();
+    expect(engine.steerSession).not.toHaveBeenCalled();
     const visibleText = clients[0].sent
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)
@@ -306,7 +305,7 @@ describe("chat route event forwarding", () => {
       assistantMessageEvent: { type: "text_delta", delta: "</web_search>" },
     }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).toHaveBeenCalled();
+    expect(engine.steerSession).not.toHaveBeenCalled();
     const visibleText = clients[0].sent
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)
@@ -379,7 +378,7 @@ describe("chat route event forwarding", () => {
     }, "/sessions/current.jsonl");
     subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
 
-    expect(engine.steerSession).toHaveBeenCalled();
+    expect(engine.steerSession).not.toHaveBeenCalled();
     const visibleText = clients[0].sent
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)

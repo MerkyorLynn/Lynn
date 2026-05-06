@@ -5,6 +5,7 @@ import {
   LOCAL_COMPLETION_TOOLS,
   buildEmptyReplyFallbackText,
   buildEmptyReplyRetryPrompt,
+  buildCodingDiagnosticVerificationAppend,
   buildFailedToolFallbackText,
   buildLocalMutationContinuationRetryPrompt,
   buildLocalToolSuccessFallback,
@@ -20,10 +21,11 @@ import {
 import { looksLikePendingToolExecutionText } from "../../shared/task-route-intent.js";
 
 const PENDING_LANGUAGE_RE = /(?:再抓取|进一步|尚未提取|还需|稍后|still fetching|incomplete|unable to extract|let me (?:try|check|fetch|search) again)/i;
-const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先查一下|先搜索|先检索|先检查|先确认|我先.{0,12}(?:查|搜|看|确认|获取|检索)|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
+const SHORT_LEADIN_RE = /(?:先读一下|先看一下|先查一下|先搜索|先检索|先检查|先确认|先定位|定位一下|看看相关文件|我先.{0,12}(?:查|搜|看|确认|获取|检索|定位)|接下来|我将|我会|我来|让我先|准备|ensure|make sure)/i;
 const TOOL_FAILED_LEADIN_RE = /(?:两个任务|多个任务|一起处理|同时处理|我来搜索|让我搜索|开始搜索|开始查|开始处理|来查找|来找|来看|来分析|来帮你|马上来|稍等|let me (?:search|fetch|find|look)|i'?ll (?:search|check|look|fetch))/i;
 const LOCAL_MUTATION_LEADIN_RE = /(?:我来帮你|我来处理|我来执行|让我先|让我再|先查找|先检查|先列出|先确认|先创建|先执行|开始处理|搜索到的信息|查找当前|查看当前|接下来会|准备(?:创建|移动|整理|处理)|let me (?:check|list|find|handle)|i'?ll (?:check|list|find|handle))/i;
 const GENERIC_ACK_RE = /^(?:好(?:的|了)?|收到|明白|可以|ok(?:ay)?|sure|done)[。.!！\s]*$/i;
+const CODING_DIAGNOSTIC_PROMPT_RE = /(?:traceback|importerror|cannot import|main\.py|comfyui|代码|报错|导入失败|修复)/i;
 
 function promptText(ss) {
   return ss?.effectivePromptText || ss?.originalPromptText || "";
@@ -95,6 +97,12 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     successfulTools.length > 0 &&
     !ss?.hasFailedTool &&
     (visibleLen < 5 || (visibleLen < 30 && GENERIC_ACK_RE.test(visibleTrimmed)));
+  const isToolSuccessLeadInOnly =
+    successfulTools.length > 0 &&
+    !ss?.hasFailedTool &&
+    visibleLen > 0 &&
+    visibleLen < 120 &&
+    SHORT_LEADIN_RE.test(visibleTrimmed);
   const isPseudoToolNoOutput =
     ss?.pseudoToolSteered &&
     visibleLen < 5 &&
@@ -113,10 +121,15 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     ? buildSuccessfulToolNoTextFallback(ss)
     : "";
   const toolSuccessFallback = localToolSuccessFallback || successfulToolNoTextFallback;
+  const isCodingDiagnosticMissingVerification =
+    visibleLen > 120 &&
+    CODING_DIAGNOSTIC_PROMPT_RE.test(original) &&
+    !/python\s+main\.py/i.test(visibleTrimmed) &&
+    !/(?:请运行验证|run (?:the )?verification|verify by running)/i.test(visibleTrimmed);
 
   const shouldRetryToolFinalize =
     !ss?.hasError &&
-    isToolDidNotProduceText &&
+    (isToolDidNotProduceText || isToolSuccessLeadInOnly) &&
     !ss?.hasFailedTool &&
     !toolSuccessFallback &&
     !ss?.toolFinalizationRetryAttempted &&
@@ -150,12 +163,14 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
     shouldRetryLocalMutationWithoutTool,
     isToolDidNotProduceText,
     isToolSuccessMissingAnswer,
+    isToolSuccessLeadInOnly,
     isPseudoToolNoOutput,
     isToolFailedShortAnswer,
     isThinkingOnlyNoOutput,
     localToolSuccessFallback,
     successfulToolNoTextFallback,
     toolSuccessFallback,
+    isCodingDiagnosticMissingVerification,
     shouldRetryToolFinalize,
     shouldRetryLocalMutationContinuation,
     shouldRetryToolContinuation,
@@ -327,7 +342,6 @@ const PRE_TURN_END_RULES = [
     name: "tool_failed_fallback",
     priority: 900,
     guard: ({ ss, snapshot }) =>
-      !ss.hasError &&
       snapshot.isToolFailedShortAnswer,
     action: ({ ss, snapshot, isActive, visibleTextBeforeReset, sessionPath }) => {
       if (isActive && !ss.toolFailedFallbackRetryAttempted && canScheduleInternalRetry(ss, "tool_failed_fallback")) {
@@ -347,6 +361,16 @@ const PRE_TURN_END_RULES = [
         logMessage: `[TOOL-FAILED-FALLBACK v2] emitted visible fallback · visibleLen=${snapshot.visibleLen} failedTools=${(ss.lastFailedTools || []).join(",")} · session=${sessionPath}`,
       });
     },
+  },
+  {
+    name: "coding_diagnostic_verification_append",
+    priority: 950,
+    guard: ({ snapshot }) => snapshot.isCodingDiagnosticMissingVerification,
+    action: ({ ss, sessionPath }) => fallbackDecision({
+      text: buildCodingDiagnosticVerificationAppend(ss),
+      logLevel: "log",
+      logMessage: `[CODING-VERIFY-APPEND v1] appended verification command · session=${sessionPath}`,
+    }),
   },
   {
     name: "flow_fallback",
@@ -410,9 +434,31 @@ export function evaluatePostTurnEndQuality(ss, snapshot, { internalRetry = null,
   }
 
   if (snapshot.shouldRetryToolFinalize) {
-    const retryPrompt = getLocale().startsWith("zh")
+    const isCodingRoute = /(?:coding|code|代码|debug|fix|修复)/i.test(String(ss?.routeIntent || ""))
+      || /(?:代码|报错|traceback|importerror|main\.py|npm test|pytest|python)/i.test(promptText(ss));
+    const retryPrompt = isCodingRoute
+      ? (getLocale().startsWith("zh")
+        ? [
+            "[系统提示] 上面工具已经执行成功并拿到真实结果(在本次对话历史中)，但上一段只停在“先看/先定位/准备检查”的开场，没有给用户最终修复建议。",
+            "现在不要再调用任何工具。请直接基于工具结果给最终答复，必须包含：",
+            "1. 根因判断；",
+            "2. 用户应该修改/检查的文件或代码位置；",
+            "3. 一条可复制的验证命令，必须明确写出 `python main.py`；",
+            "4. 明确提示用户：请运行验证。",
+            "没有真实修改文件时，不要说“已修复”“应该好了”“这下能跑了”。",
+          ].join("\n")
+        : [
+            "[System] The tools above executed successfully and returned real results, but the previous visible answer stopped at a lead-in instead of giving a final fix recommendation.",
+            "Do not call any more tools. Use the tool results to give the final answer and include:",
+            "1. Root cause;",
+            "2. Which file/code location the user should inspect or change;",
+            "3. A copyable verification command, explicitly including `python main.py`;",
+            "4. Explicitly ask the user to run the verification.",
+            "If no real file was changed, do not claim it is fixed.",
+          ].join("\n"))
+      : (getLocale().startsWith("zh")
       ? "[系统提示] 上面工具已经执行成功并拿到真实结果(在本次对话历史中)。请基于这些工具结果直接给用户最终答案 · 综合推理和结论。不要再调用任何工具 · 不要重复工具 raw output 的数据 · 直接给简洁可读的最终回答。"
-      : "[System] The tools above executed successfully and returned real results (in this conversation history). Use those results to give the user the final answer directly — synthesize and conclude. Do not call any more tools. Do not restate raw tool output; produce a concise, readable final answer.";
+      : "[System] The tools above executed successfully and returned real results (in this conversation history). Use those results to give the user the final answer directly — synthesize and conclude. Do not call any more tools. Do not restate raw tool output; produce a concise, readable final answer.");
     return retryDecision({
       reason: "tool_finalization",
       prompt: retryPrompt,
@@ -438,7 +484,7 @@ export function evaluateForcedTurnFallback(ss, snapshot, { sessionPath = "" } = 
     });
   }
 
-  if (!ss.hasError && (ss.hasFailedTool || snapshot.isToolFailedShortAnswer)) {
+  if (ss.hasFailedTool || snapshot.isToolFailedShortAnswer) {
     return fallbackDecision({
       text: buildFailedToolFallbackText(ss),
       logMessage: `[FORCED-TOOL-FAILED-FALLBACK v1] emitted · failedTools=${(ss.lastFailedTools || []).join(",")} · ${sessionPath}`,

@@ -172,4 +172,12 @@ describe("task route intent", () => {
       expect(classifyRouteIntent("OCR 提取图片内容", { imagesCount: 1 })).toBe("vision");
     });
   });
+
+  it("requires copyable verification commands for coding fix tasks", () => {
+    const hint = buildRouteIntentSystemHint("coding", "zh-CN");
+
+    expect(hint).toContain("python main.py");
+    expect(hint).toContain("请运行验证");
+    expect(hint).toContain("没有真实修改时不要说“已修复”");
+  });
 });

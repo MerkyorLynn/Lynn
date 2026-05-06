@@ -53,6 +53,8 @@ export function buildSuccessfulToolNoTextFallback(ss) {
   if (!tools.length) return "";
 
   const isZh = getLocale().startsWith("zh");
+  const originalPrompt = String(ss?.originalPromptText || ss?.effectivePromptText || "");
+  const isFinancePrompt = /(?:AAPL|TSLA|股票|股价|行情|美股|港股|A股|投资建议|stock|market|ticker|quote)/i.test(originalPrompt);
   const snippets = tools
     .map((tool) => tool.outputPreview || tool.command || tool.filePath || tool.name)
     .filter(Boolean)
@@ -68,6 +70,9 @@ export function buildSuccessfulToolNoTextFallback(ss) {
     if (snippets.length) {
       parts.push("结果摘要：\n" + snippets.map((snippet) => `- ${snippet.slice(0, 180)}`).join("\n"));
     }
+    if (isFinancePrompt) {
+      parts.push("以上只是最近可用行情快照，不构成投资建议。");
+    }
     parts.push("你可以直接基于上面的工具结果继续追问，我也可以重新整理成更完整的答案。");
     return parts.join("\n\n");
   }
@@ -78,6 +83,9 @@ export function buildSuccessfulToolNoTextFallback(ss) {
   if (snippets.length) {
     parts.push("Result summary:\n" + snippets.map((snippet) => `- ${snippet.slice(0, 180)}`).join("\n"));
   }
+  if (isFinancePrompt) {
+    parts.push("This is a recent market snapshot only and is not investment advice.");
+  }
   parts.push("You can ask me to reformat this into a fuller answer.");
   return parts.join("\n\n");
 }
@@ -87,10 +95,19 @@ export function buildFailedToolFallbackText(ss) {
   const names = [...new Set(failedTools.filter(Boolean))].slice(-4);
   const isZh = getLocale().startsWith("zh");
   const originalPrompt = String(ss?.originalPromptText || ss?.effectivePromptText || "").trim();
+  const looksCodingDiagnostic = /(?:traceback|importerror|cannot import|main\.py|python|comfyui|代码|报错|导入失败|修复)/i.test(originalPrompt);
   const looksLocalOperation = names.some((name) => LOCAL_COMPLETION_TOOLS.has(name))
     || /(?:删除|移动|整理|新建|创建|复制|改名|重命名|写入|下载文件夹|桌面|文件夹|文件|delete|remove|move|copy|rename|write|mkdir|folder|file)/i.test(originalPrompt);
 
   if (isZh) {
+    if (looksCodingDiagnostic) {
+      return [
+        `工具调用没有成功完成${names.length ? `（${names.join("、")}）` : ""}，所以我不能声称已经修改了你的工程。`,
+        "就这段 Traceback 本身看，根因很明确：`nodes.py` 正在执行 `from custom_nodes.foo import FooNode`，但 `custom_nodes/foo.py` 里没有导出同名的 `FooNode`，或者该模块在导入时先发生了内部异常。",
+        "请重点检查两个位置：`nodes.py` 第 5 行附近的 import 语句，以及 `custom_nodes/foo.py` 里实际定义的类名/`__all__`/依赖导入错误。如果 `foo.py` 里类名不是 `FooNode`，要么把类名改成 `FooNode`，要么把 `nodes.py` 的 import 改成实际类名；如果这是第三方 custom node，建议先临时禁用该插件目录再启动。",
+        "请运行验证：在 ComfyUI 根目录执行 `python main.py`。如果仍报错，把 `custom_nodes/foo.py` 里 `class` 定义和 `nodes.py` 前 10 行贴出来，我再按真实文件给你精确改法。",
+      ].join("\n\n");
+    }
     if (looksLocalOperation) {
       return [
         `这轮本地操作没有执行成功${names.length ? `（${names.join("、")}）` : ""}。`,
@@ -118,6 +135,25 @@ export function buildFailedToolFallbackText(ss) {
     "I will not present unverified data as fact. Please retry later or verify against an official source.",
     originalPrompt ? `Original task: ${originalPrompt.slice(0, 180)}` : "",
   ].filter(Boolean).join("\n\n");
+}
+
+export function buildCodingDiagnosticVerificationAppend(ss) {
+  const isZh = getLocale().startsWith("zh");
+  if (isZh) {
+    return [
+      "",
+      "",
+      "验证收尾：我还没有实际改动你的工程。请运行验证：在 ComfyUI 根目录执行 `python main.py`。",
+      "如果仍然报同样的 ImportError，请把 `custom_nodes/foo.py` 里实际的 `class` 定义、`NODE_CLASS_MAPPINGS` 相关代码，以及 `nodes.py` 前 10 行贴出来，我再按真实文件继续定位。",
+    ].join("\n");
+  }
+
+  return [
+    "",
+    "",
+    "Verification: I have not actually changed your project. Please run `python main.py` from the ComfyUI root.",
+    "If the same ImportError still appears, paste the actual class definitions in `custom_nodes/foo.py`, the related `NODE_CLASS_MAPPINGS` code, and the first 10 lines of `nodes.py` so I can continue from the real files.",
+  ].join("\n");
 }
 
 export function buildToolContinuationRetryPrompt(originalPrompt, visibleText) {

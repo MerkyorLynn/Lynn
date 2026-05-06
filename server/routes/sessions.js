@@ -12,6 +12,10 @@ import { BrowserManager } from "../../lib/browser/browser-manager.js";
 import { isToolCallBlock, getToolArgs } from "../../core/llm-utils.js";
 import { sanitizeBrainIdentityDisclosureText } from "../../shared/brain-provider.js";
 import { stripPseudoToolCallMarkup } from "../../shared/pseudo-tool-call.js";
+import {
+  artifactPreviewDedupeKey,
+  artifactPreviewsFromContent,
+} from "../chat/artifact-recovery.js";
 
 /**
  * 从 Pi SDK 的 content 块数组中提取纯文本 + thinking + tool_use 调用
@@ -186,6 +190,7 @@ export function createSessionsRoute(engine) {
       const fileOutputs = [];
       const fileDiffs = [];
       const artifacts = [];
+      const artifactKeys = new Set();
       let globalIdx = 0;
 
       for (const m of sourceMessages) {
@@ -204,6 +209,20 @@ export function createSessionsRoute(engine) {
               content: text,
               thinking: thinking || undefined,
               toolCalls: toolUses.length ? toolUses : undefined,
+            });
+          }
+          for (const artifact of artifactPreviewsFromContent(m.content)) {
+            const key = artifactPreviewDedupeKey(artifact);
+            if (artifactKeys.has(key)) continue;
+            artifactKeys.add(key);
+            artifacts.push({
+              afterIndex: Math.max(0, allMessages.length - 1),
+              artifactId: artifact.artifactId,
+              artifactType: artifact.artifactType,
+              title: artifact.title,
+              content: artifact.content,
+              language: artifact.language,
+              recovered: true,
             });
           }
         } else if (m.role === "toolResult") {
@@ -230,15 +249,20 @@ export function createSessionsRoute(engine) {
               linesRemoved,
               rollbackId: m.toolCallId || undefined,
             });
-          } else if (m.toolName === "create_artifact" && d.content) {
-            artifacts.push({
+          } else if ((m.toolName === "create_artifact" || m.toolName === "create_report") && d.content) {
+            const artifact = {
               afterIndex: allMessages.length - 1,
               artifactId: d.artifactId,
               artifactType: d.type,
               title: d.title,
               content: d.content,
-              language: d.language,
-            });
+              language: d.language || (d.type === "html" ? "html" : undefined),
+            };
+            const key = artifactPreviewDedupeKey(artifact);
+            if (!artifactKeys.has(key)) {
+              artifactKeys.add(key);
+              artifacts.push(artifact);
+            }
           }
         }
       }

@@ -190,8 +190,8 @@ export function buildRouteIntentSystemHint(routeIntent, locale = "zh") {
 
   if (intent === ROUTE_INTENTS.CODING) {
     return isZh
-      ? "【本轮任务类型】这更像编码型任务。优先按“默认编码链路”思考与执行：先检查相关文件、错误信息和测试线索，再用真实工具逐步修改、验证并完成，不要停留在泛泛建议。"
-      : "[Current task type] This is primarily a coding task. Treat it as a default coding-route task: inspect relevant files, errors, and test signals first, then use real tools to edit, verify, and finish. Do not stay at generic advice.";
+      ? "【本轮任务类型】这更像编码型任务。优先按“默认编码链路”思考与执行：先检查相关文件、错误信息和测试线索，再用真实工具逐步修改、验证并完成，不要停留在泛泛建议。调试/修复类任务的最终回答必须给出可复制的验证命令（例如 python main.py、npm test、pytest），并明确提示用户“请运行验证”；没有真实修改时不要说“已修复”。"
+      : "[Current task type] This is primarily a coding task. Treat it as a default coding-route task: inspect relevant files, errors, and test signals first, then use real tools to edit, verify, and finish. Do not stay at generic advice. For debugging/fix tasks, the final answer must include a copyable verification command (for example python main.py, npm test, or pytest) and explicitly ask the user to run it; do not say it is fixed when no real change was made.";
   }
   if (intent === ROUTE_INTENTS.UTILITY) {
     return isZh

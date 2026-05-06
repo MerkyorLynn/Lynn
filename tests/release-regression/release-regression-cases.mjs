@@ -60,13 +60,13 @@ export const RELEASE_CASES = [
     timeoutMs: 60000,
     turns: [
       {
-        prompt: "【MEM-01A】请记住本轮口令：银杏-42。只回复“已记住”。",
+        prompt: "【MEM-01A】请记住本轮回归测试项目代号：银杏-42。它不是密码、口令或密钥，只是普通项目标签。只回复“已记住”。",
         minChars: 2,
-        maxVisibleChars: 80,
+        maxVisibleChars: 120,
         forbidTools: true,
       },
       {
-        prompt: "【MEM-01B】请只输出刚才的口令本身，最后一行不能有其他字。",
+        prompt: "【MEM-01B】请只输出刚才的项目代号本身，最后一行不能有其他字。",
         minChars: 5,
         maxVisibleChars: 80,
         forbidTools: true,

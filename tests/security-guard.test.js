@@ -11,7 +11,7 @@ const snapshotMock = vi.hoisted(() => ({
 
 vi.mock("../lib/sandbox/snapshot.js", () => snapshotMock);
 
-import { normalizeBashCommandForExecution, wrapBashTool } from "../lib/sandbox/tool-wrapper.js";
+import { looksLikeBroadHomeSearchCommand, normalizeBashCommandForExecution, wrapBashTool } from "../lib/sandbox/tool-wrapper.js";
 import { loadLocale } from "../server/i18n.js";
 import { SECURITY_MODE_CONFIG, SecurityMode } from "../shared/security-mode.js";
 
@@ -449,6 +449,29 @@ describe("authorized execution safety confirmations", () => {
 
     expect(confirmStore.create).not.toHaveBeenCalled();
     expect(executed).toHaveBeenCalled();
+  });
+
+  it("blocks broad home-root find commands before they can hang the turn", async () => {
+    const executed = vi.fn(async () => ({ content: [{ type: "text", text: "should not run" }] }));
+    const wrapped = wrapBashTool(
+      {
+        name: "bash",
+        parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+        execute: executed,
+      },
+      undefined,
+      "/tmp",
+      undefined,
+    );
+
+    const command = `find ${process.env.HOME} -maxdepth 4 -type d -name "ComfyUI" 2>/dev/null | head -5`;
+    expect(looksLikeBroadHomeSearchCommand(command)).toBe(true);
+
+    const result = await wrapped.execute("call-find-home", { command });
+
+    expect(executed).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content?.[0]?.text).toContain("用户主目录");
   });
 });
 

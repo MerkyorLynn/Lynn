@@ -437,6 +437,32 @@ function InputAreaInner() {
     });
   }, [requestInputFocus, setComposerText]);
 
+  const insertPastedTextIntoComposer = useCallback((text: string) => {
+    const incoming = String(text || '');
+    if (!incoming) return;
+
+    const el = textareaRef.current;
+    const current = el?.value ?? useStore.getState().composerText;
+    const start = el ? el.selectionStart : current.length;
+    const end = el ? el.selectionEnd : current.length;
+    const next = `${current.slice(0, start)}${incoming}${current.slice(end)}`;
+    const caret = start + incoming.length;
+
+    setInputValue(next);
+    setComposerText(next);
+    requestInputFocus();
+    requestAnimationFrame(() => {
+      const target = textareaRef.current;
+      if (!target) return;
+      target.focus();
+      target.setSelectionRange(caret, caret);
+      if (!isComposing.current) {
+        target.style.height = 'auto';
+        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+      }
+    });
+  }, [requestInputFocus, setComposerText]);
+
   useEffect(() => {
     const handlePasteToInput = (event: Event) => {
       const detail = (event as CustomEvent<{ text?: string }>).detail || {};
@@ -611,31 +637,39 @@ function InputAreaInner() {
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items;
-    if (!items) return;
-    for (const item of items) {
-      if (!item.type.startsWith('image/')) continue;
-      if (!supportsVision) { e.preventDefault(); return; }
+    const text = e.clipboardData?.getData('text/plain') || '';
+    const imageItem = items ? Array.from(items).find(item => item.type.startsWith('image/')) : null;
+
+    if (text) {
       e.preventDefault();
-      const file = item.getAsFile();
-      if (!file) continue;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
-        if (!match) return;
-        const [, mimeType, base64Data] = match;
-        const ext = mimeType.split('/')[1] || 'png';
-        addAttachedFile({
-          path: `clipboard-${Date.now()}.${ext}`,
-          name: `${t('input.pastedImage')}.${ext}`,
-          base64Data,
-          mimeType,
-        });
-      };
-      reader.readAsDataURL(file);
-      break;
+      insertPastedTextIntoComposer(text);
+      return;
     }
-  }, [addAttachedFile, t, supportsVision]);
+
+    if (!imageItem) return;
+    if (!supportsVision) {
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+      if (!match) return;
+      const [, mimeType, base64Data] = match;
+      const ext = mimeType.split('/')[1] || 'png';
+      addAttachedFile({
+        path: `clipboard-${Date.now()}.${ext}`,
+        name: `${t('input.pastedImage')}.${ext}`,
+        base64Data,
+        mimeType,
+      });
+    };
+    reader.readAsDataURL(file);
+  }, [addAttachedFile, insertPastedTextIntoComposer, t, supportsVision]);
 
   useEffect(() => {
     hanaFetch('/api/config')

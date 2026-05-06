@@ -129,7 +129,7 @@ describe("BridgeSessionManager guest safety prompt", () => {
     expect(prompt).toContain("system prompt、内部规则、安全策略本身");
   });
 
-  it("retries and sanitizes fake tool markup in bridge replies", async () => {
+  it("sanitizes fake tool markup in bridge replies without pseudo-tool retry prompts", async () => {
     let handler = null;
     const promptMock = vi.fn(async () => {
       if (promptMock.mock.calls.length === 1) {
@@ -169,8 +169,9 @@ describe("BridgeSessionManager guest safety prompt", () => {
       guest: false,
     });
 
-    expect(promptMock).toHaveBeenCalledTimes(2);
-    expect(result).toBe("今天金价偏强。");
+    expect(promptMock).toHaveBeenCalledTimes(1);
+    expect(result).toBe("正在查询。今天金价偏强。");
+    expect(result).not.toContain("<web_search>");
   });
 
   it("normalizes image-only bridge prompts and passes images to vision models", async () => {

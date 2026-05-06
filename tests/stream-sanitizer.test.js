@@ -1,6 +1,5 @@
-// stream-sanitizer 测试 (v0.77.5 brain v1 vestigial nuke 后)
-// stripStreamingPseudoToolBlocks 现在是纯 passthrough,不再 strip 任何 pseudo tool markup
-// 测试目标:验证 sanitizer 不破坏 chunk 内容 + containsNonProgressPseudoToolSimulation 仍正常工作
+// stream-sanitizer 测试
+// 目标:伪工具/内部标签不泄漏给用户,但普通文本与 progress marker 检测仍保持稳定。
 import { describe, expect, it } from "vitest";
 
 import {
@@ -8,7 +7,7 @@ import {
   stripStreamingPseudoToolBlocks,
 } from "../server/chat/stream-sanitizer.js";
 
-describe("stream sanitizer (post brain v1 nuke)", () => {
+describe("stream sanitizer", () => {
   it("passes plain text through unchanged", () => {
     expect(stripStreamingPseudoToolBlocks({}, "普通回答，没有内部标签。")).toEqual({
       text: "普通回答，没有内部标签。",
@@ -16,80 +15,79 @@ describe("stream sanitizer (post brain v1 nuke)", () => {
     });
   });
 
-  it("preserves shared-registry pseudo XML chunks across boundaries (passthrough,模型自决)", () => {
+  it("suppresses shared-registry pseudo XML chunks across boundaries", () => {
     const ss = {};
-    // 第一片 + 第二片各自原样透传(不再 strip)
     expect(stripStreamingPseudoToolBlocks(ss, "<apply_")).toEqual({
-      text: "<apply_",
+      text: "",
       suppressed: false,
     });
     expect(stripStreamingPseudoToolBlocks(ss, "patch>{\"cmd\":\"x\"}</apply_patch>最终答案")).toEqual({
-      text: "patch>{\"cmd\":\"x\"}</apply_patch>最终答案",
-      suppressed: false,
+      text: "最终答案",
+      suppressed: true,
     });
   });
 
-  it("preserves orphan backend template fragments (visible answer text untouched)", () => {
+  it("suppresses orphan backend template fragments while preserving visible answer text", () => {
     const ss = {};
     const out = stripStreamingPseudoToolBlocks(ss, "_calls></inv> </_calls>\n最终答案：建议带伞。");
-    expect(out.suppressed).toBe(false);
+    expect(out.suppressed).toBe(true);
     expect(out.text).toContain("最终答案");
-    // 也不再剥离碎片(passthrough),客户端自行决定如何渲染
-    expect(out.text).toContain("_calls");
+    expect(out.text).not.toContain("_calls");
   });
 
-  it("preserves Qwen tool-code blocks + think tags (passthrough)", () => {
+  it("suppresses Qwen tool-code blocks + think tags", () => {
     const ss = {};
     const out = stripStreamingPseudoToolBlocks(
       ss,
       "</think>\n<|tool_code_begin|>bash\nfind ~/Downloads -name '*.zip'\n<|tool_code_end|>\n完成。",
     );
-    expect(out.suppressed).toBe(false);
+    expect(out.suppressed).toBe(true);
     expect(out.text).toContain("完成。");
-    expect(out.text).toContain("tool_code");  // 不再剥离
+    expect(out.text).not.toContain("tool_code");
+    expect(out.text).not.toContain("</think>");
   });
 
-  it("preserves Qwen tool-code chunks across boundaries", () => {
+  it("suppresses Qwen tool-code chunks across boundaries", () => {
     const ss = {};
     expect(stripStreamingPseudoToolBlocks(ss, "<|tool_code_begin|>bash\nfind ~/Downloads")).toEqual({
-      text: "<|tool_code_begin|>bash\nfind ~/Downloads",
-      suppressed: false,
+      text: "",
+      suppressed: true,
     });
     expect(stripStreamingPseudoToolBlocks(ss, " -name '*.zip'\n<|tool_code_end|>已处理。")).toEqual({
-      text: " -name '*.zip'\n<|tool_code_end|>已处理。",
-      suppressed: false,
+      text: "已处理。",
+      suppressed: true,
     });
   });
 
-  it("preserves file-tool XML and bare tool JSON pseudo blocks (passthrough)", () => {
+  it("suppresses file-tool XML and bare tool JSON pseudo blocks", () => {
     const ss = {};
     const xml = stripStreamingPseudoToolBlocks(
       ss,
       "<find_files>\n*.zzzzzztest\n\n/Users/lynn/Downloads\n</find_files>\n完成。",
     );
-    expect(xml.suppressed).toBe(false);
+    expect(xml.suppressed).toBe(true);
     expect(xml.text).toContain("完成。");
-    expect(xml.text).toContain("find_files");  // 不再剥离
+    expect(xml.text).not.toContain("find_files");
 
     const json = stripStreamingPseudoToolBlocks(
       {},
       'bash\n\n{“cmd”: “find /Users/lynn/Downloads -type f -name "*zzzzzztest" 2>/dev/null”}\n',
     );
-    expect(json.suppressed).toBe(false);
-    expect(json.text).toContain("zzzzzztest");
+    expect(json.suppressed).toBe(true);
+    expect(json.text).toBe("");
   });
 
-  it("preserves bare tool JSON pseudo blocks across chunk boundaries", () => {
+  it("suppresses bare tool JSON pseudo blocks across chunk boundaries", () => {
     const ss = {};
     expect(stripStreamingPseudoToolBlocks(ss, "bash\n\n")).toEqual({
-      text: "bash\n\n",
+      text: "",
       suppressed: false,
     });
     const next = stripStreamingPseudoToolBlocks(
       ss,
       '{“cmd”: “find /Users/lynn/Downloads -type f -name "*zzzzzztest" 2>/dev/null”}\n已处理。',
     );
-    expect(next.suppressed).toBe(false);
+    expect(next.suppressed).toBe(true);
     expect(next.text).toContain("已处理。");
   });
 

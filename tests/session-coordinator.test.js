@@ -651,7 +651,7 @@ describe("SessionCoordinator", () => {
     expect(result.dryRun.validation.exitCode).toBe(0);
   });
 
-  it("retries executeIsolated once when the first reply only simulates progress markup", async () => {
+  it("sanitizes executeIsolated pseudo-tool text without retrying a prompt", async () => {
     let handler = null;
     const promptMock = vi.fn(async (attemptPrompt) => {
       if (promptMock.mock.calls.length === 1) {
@@ -723,9 +723,9 @@ describe("SessionCoordinator", () => {
     const result = await coordinator.executeIsolated("今天金价如何");
 
     expect(result.error).toBeNull();
-    expect(result.replyText).toContain("今天金价偏强");
-    expect(promptMock).toHaveBeenCalledTimes(2);
-    expect(promptMock.mock.calls[1][0]).not.toBe("今天金价如何");
+    expect(result.replyText).toBe("我来搜索一下。");
+    expect(result.replyText).not.toContain("<web_search>");
+    expect(promptMock).toHaveBeenCalledTimes(1);
   });
 
   it("emits warn-level content filter events without blocking prompts", async () => {

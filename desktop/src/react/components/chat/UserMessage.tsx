@@ -33,10 +33,30 @@ export const UserMessage = memo(function UserMessage({ message, showAvatar }: Pr
   const handleCopy = useCallback(() => {
     const text = String(message.text || '').trim();
     if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }).catch(() => {});
+    const setOK = () => { setCopied(true); setTimeout(() => setCopied(false), 1500); };
+    // [COPY-FIX 2026-05-05] navigator.clipboard 在 Electron 失焦/权限场景会 reject,
+    // 必须 fallback 到 document.execCommand('copy') 才能稳定 work。
+    const legacyFallback = () => {
+      try {
+        // eslint-disable-next-line no-restricted-syntax -- Electron clipboard fallback needs a temporary textarea for execCommand when navigator.clipboard rejects.
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) setOK();
+      } catch { /* swallow */ }
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(setOK).catch(legacyFallback);
+    } else {
+      legacyFallback();
+    }
   }, [message.text]);
 
   const handlePasteToInput = useCallback(() => {

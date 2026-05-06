@@ -20,7 +20,6 @@ import {
   buildReportResearchContext,
 } from "../chat/report-research-context.js";
 import {
-  buildPseudoToolRecoveryNotice,
   resolveCurrentModelInfo,
 } from "../chat/chat-recovery.js";
 import { createLifecycleHooks } from "../chat/lifecycle-hooks.js";
@@ -61,7 +60,13 @@ import {
   resolveInitialToolUseBehavior,
 } from "../chat/tool-use-behavior.js";
 import {
+  artifactPreviewDedupeKey,
+  artifactPreviewFromToolCall,
+} from "../chat/artifact-recovery.js";
+import {
   buildLocalToolSuccessFallback,
+  buildFailedToolFallbackText,
+  buildSuccessfulToolNoTextFallback,
   buildPostRehydrateEscalationPrompt,
   classifyRequestedLocalMutation,
   clearPendingMutationOnSuccessfulDelete,
@@ -85,6 +90,14 @@ function extractText(content) {
     .filter(b => b.type === "text" && b.text)
     .map(b => b.text)
     .join("");
+}
+
+function looksLikeCodingDiagnosticPrompt(text = "") {
+  return /(?:traceback|importerror|cannot import|main\.py|python|comfyui|代码|报错|导入失败|修复)/i.test(String(text || ""));
+}
+
+function looksLikeEarlyStoppedToolFailure(text = "") {
+  return /(?:命令被提前停止|broad\s+home|home-root|Command aborted|timeout|timed out|NOT_FOUND|not found|No such file|no such file|permission denied|EACCES|EPERM)/i.test(String(text || ""));
 }
 
 function stripHiddenReflectionBlocks(text) {
@@ -482,22 +495,6 @@ function resolveEditSnapshotPath(session, engine, rawPath) {
 
   const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
   return path.resolve(cwd, trimmed);
-}
-
-function buildPseudoToolRecoverySteerText() {
-  const isZh = getLocale().startsWith("zh");
-  if (isZh) {
-    return [
-      "你刚才把工具调用写成了普通文本，例如 web_search(...)，这不会真的执行。",
-      "不要输出任何 tool_name(...)、XML 工具标签或伪 JSON 调用。",
-      "如果需要搜索或读取，请直接调用真实工具；给用户只输出结果本身。",
-    ].join(" ");
-  }
-  return [
-    "You just printed a tool call like web_search(...), which does not execute anything.",
-    "Do not output tool_name(...), XML tool tags, or pseudo JSON calls.",
-    "If you need a tool, call the real tool and only show the user the result.",
-  ].join(" ");
 }
 
 export function createChatRoute(engine, hub, { upgradeWebSocket }) {
@@ -944,7 +941,12 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       Promise.resolve(engine.abortSessionByPath?.(sessionPath)).catch(() => {});
       const localToolFallback = buildLocalToolSuccessFallback(ss);
       const snapshot = createTurnQualitySnapshot(ss, ss.visibleTextAcc || "");
-      const fallback = localToolFallback || (ss.hasOutput ? "" : (evaluateForcedTurnFallback(ss, snapshot, { sessionPath })?.text || (getLocale().startsWith("zh")
+      const successfulToolFallback =
+        snapshot.toolSuccessFallback ||
+        ((snapshot.isToolSuccessLeadInOnly || snapshot.isToolDidNotProduceText)
+          ? buildSuccessfulToolNoTextFallback(ss)
+          : "");
+      const fallback = localToolFallback || successfulToolFallback || (ss.hasOutput ? "" : (evaluateForcedTurnFallback(ss, snapshot, { sessionPath })?.text || (getLocale().startsWith("zh")
         ? "工具已执行，但模型没有生成最终回复。Lynn 已结束这轮会话；你可以检查上方工具结果，或让我继续核对。"
         : "The tool ran, but the model did not produce a final reply. Lynn closed this turn; you can inspect the tool result above or ask me to verify it.")));
       closeStreamWithVisibleFallback(
@@ -953,8 +955,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         fallback,
         "tool_finalization_timeout",
         {
-          appendEvenIfHasOutput: Boolean(localToolFallback && ss.hasOutput),
-          trustedFallback: Boolean(localToolFallback),
+          appendEvenIfHasOutput: Boolean(fallback && ss.hasOutput),
+          trustedFallback: Boolean(localToolFallback || successfulToolFallback),
         },
       );
     }, TOOL_FINALIZATION_GRACE_MS);
@@ -1138,6 +1140,24 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       seq: entry.seq,
     });
     return entry;
+  }
+
+  function emitRecoveredArtifact(sessionPath, ss, artifact, source = "toolcall") {
+    if (!ss || !artifact?.content) return false;
+    ss.recoveredArtifactKeys = ss.recoveredArtifactKeys || new Set();
+    const key = artifactPreviewDedupeKey(artifact);
+    if (ss.recoveredArtifactKeys.has(key)) return false;
+    ss.recoveredArtifactKeys.add(key);
+    ss.hasOutput = true;
+    emitStreamEvent(sessionPath, ss, artifact);
+    debugLog()?.info("ws", `recovered artifact from ${source} · tool=${artifact.recoveredFromTool || "unknown"} · title=${artifact.title || ""} · session=${sessionPath || "unknown"}`);
+    return true;
+  }
+
+  function maybeRecoverArtifactFromMessageUpdate(sessionPath, ss, event, source = "message_update") {
+    const sub = event?.assistantMessageEvent;
+    const preview = artifactPreviewFromToolCall(sub?.toolCall);
+    return preview ? emitRecoveredArtifact(sessionPath, ss, preview, source) : false;
   }
 
   // ── scheduleInternalRetry 的闭包适配器 ──
@@ -1345,6 +1365,46 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return executeRecoveredBashCommand(sessionPath, ss, session, command, "failed_local_mutation_recovery");
   }
 
+  function shouldEmitFailedCodingToolFallback(ss, toolName, failedText = "") {
+    if (!ss) return false;
+    const name = String(toolName || "");
+    if (!["bash", "read", "grep", "glob", "find"].includes(name)) return false;
+    const prompt = ss.originalPromptText || ss.effectivePromptText || "";
+    if (!looksLikeCodingDiagnosticPrompt(prompt)) return false;
+    const visible = String(ss.visibleTextAcc || "").trim();
+    if (visible.length > 120) return false;
+    return looksLikeEarlyStoppedToolFailure(failedText) || ss.hasFailedTool;
+  }
+
+  function emitFailedCodingToolFallback(sessionPath, ss, reason = "coding_tool_failed_fallback") {
+    if (!sessionPath || !ss || ss.__failedCodingToolFallbackEmitted) return false;
+    const text = buildFailedToolFallbackText(ss);
+    if (!text) return false;
+    ss.__failedCodingToolFallbackEmitted = true;
+    clearToolFinalizationTimer(ss);
+    const closed = closeStreamWithVisibleFallback(sessionPath, ss, text, reason, {
+      appendEvenIfHasOutput: true,
+      trustedFallback: true,
+      skipPostRehydrateRecover: true,
+    });
+    if (!closed && !hasDifferentActiveStreamToken(ss, ss.activeStreamToken)) {
+      const prefix = ss.hasOutput ? "\n\n" : "";
+      emitTrustedVisibleTextDelta(sessionPath, ss, prefix + text);
+      if (!hasStreamEvent(ss, "turn_end")) {
+        emitStreamEvent(sessionPath, ss, { type: "turn_end" });
+      }
+      broadcast({ type: "status", isStreaming: false, sessionPath });
+      finishSessionStream(ss);
+      resetCompletedTurnState(ss);
+      debugLog()?.warn("ws", `[FAILED-CODING-TOOL-FALLBACK v1] emitted after close refusal · reason=${reason} · session=${sessionPath}`);
+      return true;
+    }
+    if (closed) {
+      debugLog()?.warn("ws", `[FAILED-CODING-TOOL-FALLBACK v1] closed stream · reason=${reason} · session=${sessionPath}`);
+    }
+    return closed;
+  }
+
   function maybeRecoverUnexecutedLocalMutationCommand(sessionPath, ss, visibleTextBeforeReset = "", opts = {}) {
     const successfulTools = Array.isArray(ss?.lastSuccessfulTools) ? ss.lastSuccessfulTools : [];
     const hasOnlyLocalProbeTools =
@@ -1377,25 +1437,22 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     const hasPseudoToolText = containsPseudoToolCallSimulation(inspectedText);
     const hasFakeProgress = ss.progressMarkerCount > 0 && !ss.hasToolCall;
     if (!hasPseudoToolText && !hasFakeProgress) return false;
+
+    // P0/P1: 不抢模型是否调用工具的决策，只在模型已经把伪工具泄漏给用户时兜底。
+    // 本地文件任务可从原始用户意图构造确定性 bash，则真实执行；否则只标记并剥离泄漏文本，
+    // 后续 turn-quality gate 会给一次受限 retry 或可见 fallback。这里不再 steerSession，
+    // 避免“你刚才输出了伪工具调用...”提示造成循环。
     const recovered = maybeRecoverPseudoToolCommand(sessionPath, ss, inspectedText);
     if (recovered) {
       debugLog()?.warn("ws", `pseudo tool text recovered through real tool; suppressing leaked text without steer · session=${sessionPath}`);
       return true;
     }
-    if (ss.pseudoToolSteered) return false;
-    if (ss.pseudoToolRecoveryHandled) {
-      debugLog()?.warn("ws", `pseudo tool/progress detected after recovery already handled; suppressing without steer · session=${sessionPath}`);
-      return false;
+
+    if (!ss.pseudoToolRecoveryHandled) {
+      ss.pseudoToolSteered = true;
+      ss.pseudoToolRecoveryHandled = true;
+      debugLog()?.warn("ws", `pseudo tool/progress detected; suppressing leaked text without model steer · text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount} · session=${sessionPath}`);
     }
-    ss.pseudoToolSteered = true;
-    ss.pseudoToolRecoveryHandled = true;
-    const steered = engine.steerSession(sessionPath, buildPseudoToolRecoverySteerText());
-    if (steered) {
-      broadcast(buildPseudoToolRecoveryNotice(engine, sessionPath, ss.routeIntent));
-    } else {
-      debugLog()?.warn("ws", `pseudo tool/progress detected but steerSession unavailable · session=${sessionPath}`);
-    }
-    debugLog()?.warn("ws", `pseudo tool/progress detected (text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount}), suppressing leaked text · steered=${Boolean(steered)} · session=${sessionPath}`);
     return true;
   }
 
@@ -1479,6 +1536,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     const ss = sessionPath ? sessionState.get(sessionPath) : null;
 
     if (isAssistantStreamScopedEvent(event) && (!ss || !ss.isStreaming)) {
+      if (event?.type === "message_update" && ss) {
+        maybeRecoverArtifactFromMessageUpdate(sessionPath, ss, event, "late_message_update");
+      }
       debugLog()?.warn("ws", `ignored late stream event after turn close · type=${event?.type} · session=${sessionPath || "unknown"}`);
       return;
     }
@@ -1570,6 +1630,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         });
       } else if (sub === "toolcall_start") {
         // 不在这里关闭 thinking 状态
+      } else if (sub === "toolcall_end") {
+        maybeRecoverArtifactFromMessageUpdate(sessionPath, ss, event, "toolcall_end");
       } else if (sub === "error") {
         ss.hasError = true;
         if (isActive) broadcast({ type: "error", message: event.assistantMessageEvent.error || "Unknown error" });
@@ -1647,6 +1709,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       const toolSummary = {};
       const toolName = event.toolName || "";
       const normalizedArgs = normalizeToolArgsForSummary(toolName, event.args) || {};
+      const toolIsError = Boolean(event.isError || event.result?.isError);
 
       if (toolName === "edit" || toolName === "edit-diff") {
         if (rawDetails.diff) {
@@ -1698,7 +1761,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       emitStreamEvent(sessionPath, ss, {
         type: "tool_end",
         name: toolName,
-        success: !event.isError,
+        success: !toolIsError,
         details: rawDetails,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
@@ -1707,11 +1770,11 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ss,
         sessionPath,
         toolName,
-        success: !event.isError,
+        success: !toolIsError,
         summary: Object.keys(toolSummary).length > 0 ? toolSummary : undefined,
       });
 
-      if (!event.isError) {
+      if (!toolIsError) {
         rememberSuccessfulTool(ss, toolName, toolSummary, normalizedArgs);
       } else {
         rememberFailedTool(ss, toolName);
@@ -1720,12 +1783,17 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
           clearToolAuthorizationTimer(ss);
           return;
         }
+        if (shouldEmitFailedCodingToolFallback(ss, toolName, failedText)) {
+          clearToolAuthorizationTimer(ss);
+          emitFailedCodingToolFallback(sessionPath, ss);
+          return;
+        }
       }
       clearToolAuthorizationTimer(ss);
       scheduleToolFinalizationFallback(sessionPath, ss);
 
       if ((toolName === "edit" || toolName === "edit-diff") && event.toolCallId) {
-        if (event.isError || !rawDetails.diff) {
+        if (toolIsError || !rawDetails.diff) {
           editRollbackStore.discardPending(event.toolCallId);
         }
       }
@@ -1746,7 +1814,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       }
 
-      if ((event.toolName === "edit" || event.toolName === "edit-diff") && rawDetails.diff && !event.isError) {
+      if ((event.toolName === "edit" || event.toolName === "edit-diff") && rawDetails.diff && !toolIsError) {
         const diffFilePath = event.args?.file_path || event.args?.path || "";
         const rollback = event.toolCallId ? editRollbackStore.finalize(event.toolCallId) : null;
         emitStreamEvent(sessionPath, ss, {
@@ -1759,16 +1827,18 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         });
       }
 
-      if (event.toolName === "create_artifact") {
+      if (event.toolName === "create_artifact" || event.toolName === "create_report") {
         const d = event.result?.details || {};
-        emitStreamEvent(sessionPath, ss, {
-          type: "artifact",
-          artifactId: d.artifactId,
-          artifactType: d.type,
-          title: d.title,
-          content: d.content,
-          language: d.language,
-        });
+        if (d.artifactId && d.type && d.content) {
+          emitStreamEvent(sessionPath, ss, {
+            type: "artifact",
+            artifactId: d.artifactId,
+            artifactType: d.type,
+            title: d.title,
+            content: d.content,
+            language: d.language || (d.type === "html" ? "html" : undefined),
+          });
+        }
       }
 
       if (event.toolName === "browser") {

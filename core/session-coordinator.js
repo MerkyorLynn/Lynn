@@ -42,6 +42,7 @@ import {
   buildProviderToolCallHint,
   buildRouteIntentSystemHint,
   classifyRouteIntent,
+  normalizeRouteIntent,
   ROUTE_INTENTS,
 } from "../shared/task-route-intent.js";
 import { buildScenarioContractHintForText } from "../shared/scenario-contracts.js";
@@ -266,22 +267,6 @@ function ensureValidReplyExecution(tracker) {
   if (!tracker || tracker.sawToolCall) return;
   if (!containsPseudoToolCallSimulation(tracker.replyText)) return;
   throw createPseudoToolSimulationError(tracker.replyText);
-}
-
-function buildPseudoToolRetryPrompt(prompt) {
-  const isZh = getLocale().startsWith("zh");
-  return [
-    isZh
-      ? "【严格执行要求】上一轮把工具调用写成了正文文本，没有真正执行工具。"
-      : "[Strict execution requirement] The previous attempt simulated tool calls in plain text instead of actually executing them.",
-    isZh
-      ? "这一次不要输出任何 <tool_call>、XML、shell、web_search(...) 之类的伪工具文本。请直接调用真实工具完成当前任务，拿到结果后再回复。"
-      : "Do not output any pseudo tool text such as <tool_call>, XML, shell commands, or web_search(...). Use the real tool interface, finish the task, and only then reply.",
-    isZh
-      ? "如果这是本地文件任务，请调用真实 bash 工具；删除/覆盖类命令会由系统确认卡拦截，不要把命令写成普通回复。"
-      : "For local file tasks, call the real bash tool. Delete/overwrite commands are intercepted by the system confirmation card; do not print commands as plain text.",
-    String(prompt || ""),
-  ].filter(Boolean).join("\n\n");
 }
 
 function getBuiltinToolNames(tools) {
@@ -740,7 +725,8 @@ export class SessionCoordinator {
       }
       // P3: 工具调用连续失败降级追踪
       if (event?.type === "tool_execution_end" && entryForEvent) {
-        if (event.isError) {
+        const toolIsError = Boolean(event.isError || event.result?.isError);
+        if (toolIsError) {
           entryForEvent._toolFailCount = (entryForEvent._toolFailCount || 0) + 1;
           if (entryForEvent._toolFailCount >= 3 && !entryForEvent._toolFailDegraded) {
             entryForEvent._toolFailDegraded = true;
@@ -761,7 +747,7 @@ export class SessionCoordinator {
         });
 
         // ── ClawAegis 输出层：输出验证（AI 声称 vs 实际结果） ──
-        if (event.isError && entryForEvent) {
+        if (toolIsError && entryForEvent) {
           const errText = event.result?.content?.[0]?.text || "";
           if (/no such file|not found|ENOENT/i.test(errText) || /permission denied|EACCES/i.test(errText)) {
             // 记录操作失败详情，下一轮 context 中可供 AI 参考
@@ -974,13 +960,7 @@ export class SessionCoordinator {
         await runPromptAttempt(text);
       } catch (err) {
         if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
-        log.warn("[prompt] 检测到伪工具调用，立即重试一次");
-        try {
-          await runPromptAttempt(buildPseudoToolRetryPrompt(text));
-        } catch (retryErr) {
-          if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
-          log.warn("[prompt] 重试后仍出现伪工具文本，已抑制错误避免打断用户");
-        }
+        log.warn("[prompt] 检测到伪工具文本，按零干预策略结束本轮并交给上层兜底");
       }
       if (sp) {
         const entry = this._sessions.get(sp);
@@ -1090,13 +1070,7 @@ export class SessionCoordinator {
         await runPromptAttempt(text);
       } catch (err) {
         if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
-        log.warn("[promptSession] 检测到伪工具调用，立即重试一次");
-        try {
-          await runPromptAttempt(buildPseudoToolRetryPrompt(text));
-        } catch (retryErr) {
-          if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
-          log.warn("[promptSession] 重试后仍出现伪工具文本，已抑制错误避免打断用户");
-        }
+        log.warn("[promptSession] 检测到伪工具文本，按零干预策略结束本轮并交给上层兜底");
       }
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {
@@ -1740,14 +1714,8 @@ export class SessionCoordinator {
           replyText = await runPromptAttempt(prompt);
         } catch (err) {
           if (err?.code !== "INVALID_TOOL_SIMULATION") throw err;
-          log.warn("[executeIsolated] 检测到伪工具调用，立即重试一次");
-          try {
-            replyText = await runPromptAttempt(buildPseudoToolRetryPrompt(prompt));
-          } catch (retryErr) {
-            if (retryErr?.code !== "INVALID_TOOL_SIMULATION") throw retryErr;
-            log.warn("[executeIsolated] 重试后仍出现伪工具文本，返回清洗后的文本");
-            replyText = stripPseudoToolCallMarkup(String(retryErr.replyText || "")).trim();
-          }
+          log.warn("[executeIsolated] 检测到伪工具文本，返回清洗后的文本");
+          replyText = stripPseudoToolCallMarkup(String(err.replyText || "")).trim();
         }
       } finally {
         opts.signal?.removeEventListener("abort", abortHandler);
