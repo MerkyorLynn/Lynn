@@ -89,39 +89,57 @@ export function isStaleEmptySessionStream(ss, now = Date.now()) {
   return elapsed > STALE_EMPTY_STREAM_MS && !ss.hasThinking && !ss.hasError;
 }
 
+function clearTimerField(ss, field, clearFn = clearTimeout) {
+  if (!ss?.[field]) return;
+  try { clearFn(ss[field]); } catch { /* timer may already be cleared */ }
+  ss[field] = null;
+}
+
+export function clearSilentBrainAbortTimer(ss) {
+  clearTimerField(ss, "silentBrainAbortTimer");
+}
+
+export function clearTurnHardAbortTimer(ss) {
+  clearTimerField(ss, "turnHardAbortTimer");
+}
+
+export function clearToolFinalizationTimer(ss) {
+  clearTimerField(ss, "toolFinalizationTimer");
+}
+
+export function clearDeferredTurnEndSafetyTimer(ss) {
+  clearTimerField(ss, "deferredTurnEndSafetyTimer");
+}
+
+export function clearToolAuthorizationTimer(ss) {
+  clearTimerField(ss, "toolAuthorizationTimer");
+}
+
+export function clearToolAuthorizationPollTimer(ss) {
+  clearTimerField(ss, "toolAuthorizationPollTimer", clearInterval);
+}
+
+export function clearReturnedTurnFinalizationTimer(ss) {
+  clearTimerField(ss, "returnedTurnFinalizationTimer");
+}
+
+export function clearPersistedFinalAnswerPollTimer(ss) {
+  clearTimerField(ss, "persistedFinalAnswerPollTimer", clearInterval);
+}
+
+export function clearTurnTimers(ss) {
+  clearSilentBrainAbortTimer(ss);
+  clearTurnHardAbortTimer(ss);
+  clearToolFinalizationTimer(ss);
+  clearDeferredTurnEndSafetyTimer(ss);
+  clearToolAuthorizationTimer(ss);
+  clearToolAuthorizationPollTimer(ss);
+  clearReturnedTurnFinalizationTimer(ss);
+  clearPersistedFinalAnswerPollTimer(ss);
+}
+
 export function resetCompletedTurnState(ss) {
-  if (ss.silentBrainAbortTimer) {
-    try { clearTimeout(ss.silentBrainAbortTimer); } catch { /* timer may already be cleared */ }
-    ss.silentBrainAbortTimer = null;
-  }
-  if (ss.turnHardAbortTimer) {
-    try { clearTimeout(ss.turnHardAbortTimer); } catch { /* timer may already be cleared */ }
-    ss.turnHardAbortTimer = null;
-  }
-  if (ss.toolFinalizationTimer) {
-    try { clearTimeout(ss.toolFinalizationTimer); } catch { /* timer may already be cleared */ }
-    ss.toolFinalizationTimer = null;
-  }
-  if (ss.deferredTurnEndSafetyTimer) {
-    try { clearTimeout(ss.deferredTurnEndSafetyTimer); } catch { /* timer may already be cleared */ }
-    ss.deferredTurnEndSafetyTimer = null;
-  }
-  if (ss.toolAuthorizationTimer) {
-    try { clearTimeout(ss.toolAuthorizationTimer); } catch { /* timer may already be cleared */ }
-    ss.toolAuthorizationTimer = null;
-  }
-  if (ss.toolAuthorizationPollTimer) {
-    try { clearInterval(ss.toolAuthorizationPollTimer); } catch { /* timer may already be cleared */ }
-    ss.toolAuthorizationPollTimer = null;
-  }
-  if (ss.returnedTurnFinalizationTimer) {
-    try { clearTimeout(ss.returnedTurnFinalizationTimer); } catch { /* timer may already be cleared */ }
-    ss.returnedTurnFinalizationTimer = null;
-  }
-  if (ss.persistedFinalAnswerPollTimer) {
-    try { clearInterval(ss.persistedFinalAnswerPollTimer); } catch { /* timer may already be cleared */ }
-    ss.persistedFinalAnswerPollTimer = null;
-  }
+  clearTurnTimers(ss);
   ss.activeStreamToken = null;
   ss.degenerationAbortRequested = false;
   ss.progressMarkerCount = 0;

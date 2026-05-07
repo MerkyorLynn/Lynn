@@ -48,8 +48,12 @@ export function resolveInitialToolUseBehavior(promptText, opts = {}) {
     ? `${budgetContext}\n\n【用户原始问题】\n${text}`
     : text;
   const suppressLocalPrefetch = shouldSuppressLocalToolPrefetch(text);
+  const isBrainModel = Boolean(opts.modelInfo?.isBrain);
 
-  if (!suppressLocalPrefetch && shouldPrefetchReportContext(reportKind, opts.modelInfo)) {
+  // Brain v2 owns realtime/search/research evidence collection. Keep the local
+  // prefetch stage only as a BYOK/non-Brain safety net; otherwise the client can
+  // feed shallow evidence that competes with Brain's multi-step synthesis.
+  if (!isBrainModel && !suppressLocalPrefetch && shouldPrefetchReportContext(reportKind, opts.modelInfo)) {
     return {
       behavior: TOOL_USE_BEHAVIOR.PREFETCH_THEN_RUN_OR_STOP,
       reason: "report_context_prefetch",

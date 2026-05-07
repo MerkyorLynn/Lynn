@@ -314,7 +314,7 @@ describe("chat route event forwarding", () => {
     expect(visibleText).not.toContain("深圳 2026年4月28日 天气预报");
   });
 
-  it("retries once when pseudo-tool XML leaves a thinking-only empty turn", async () => {
+  it("suppresses pseudo-tool XML without retrying Brain when a thinking-only turn ends", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
@@ -340,15 +340,16 @@ describe("chat route event forwarding", () => {
     }, "/sessions/current.jsonl");
     subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
 
-    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(2), { timeout: 1000 });
-    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalledTimes(1), { timeout: 1000 });
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).toContain("模型输出了无效工具标记");
+    expect(visibleText).not.toContain("<bash>");
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
       type: "turn_retry",
-      reason: "pseudo_tool_text",
     }));
-    const retryPrompt = hub.send.mock.calls[1]?.[0] || "";
-    expect(retryPrompt).toContain("不要输出任何");
-    expect(retryPrompt).toContain("伪工具文本");
-    expect(retryPrompt).toContain("下载文件夹");
   });
 
   it("suppresses backend tool-template XML fragments across streaming chunks", async () => {
@@ -1433,9 +1434,9 @@ describe("chat route event forwarding", () => {
     }
   });
 
-  // Brain 默认仍保留自主工具判断；但天气/金价/新闻这类实时直答必须有本地证据兜底，
-  // 否则远端模型一旦输出伪 web_search，用户只能看到“未检索到明确证据”。
-  it("injects local realtime prefetch for brain weather turns", async () => {
+  // Brain v2 自己负责实时资料、研究和合成；客户端不再提前注入浅层本地预取，
+  // 避免浅资料和 Brain 多步调研互相抢上下文。
+  it("does not inject local realtime prefetch for brain weather turns", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     let eventsBeforeModelCall = [];
@@ -1454,21 +1455,21 @@ describe("chat route event forwarding", () => {
 
     await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
 
-    expect(eventsBeforeModelCall).toContainEqual(expect.objectContaining({
+    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
       type: "tool_start",
       name: "weather",
       sessionPath: "/sessions/current.jsonl",
     }));
-    expect(eventsBeforeModelCall).toContainEqual(expect.objectContaining({
+    expect(eventsBeforeModelCall).not.toContainEqual(expect.objectContaining({
       type: "tool_end",
       name: "weather",
       success: true,
       sessionPath: "/sessions/current.jsonl",
     }));
-    expect(reportResearchMock.buildReportResearchContext).toHaveBeenCalled();
+    expect(reportResearchMock.buildReportResearchContext).not.toHaveBeenCalled();
   });
 
-  it("emits a visible prefetch fallback when the model only leaks pseudo tool text", async () => {
+  it("suppresses pseudo tool text for Brain without client-side retry prompts", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);
     engine.steerSession = vi.fn(() => true);
@@ -1499,12 +1500,10 @@ describe("chat route event forwarding", () => {
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)
       .join("");
-    expect(visibleText).toContain("操作已完成");
-    expect(visibleText).toContain("深圳明天小雨");
+    expect(visibleText).toContain("模型输出了无效工具标记");
     expect(visibleText).not.toContain("<web_search>");
     expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
       type: "turn_retry",
-      reason: "empty_reply",
     }));
   });
 

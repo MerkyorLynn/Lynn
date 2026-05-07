@@ -47,6 +47,14 @@ import {
   containsNonProgressPseudoToolSimulation,
 } from "../chat/stream-sanitizer.js";
 import {
+  clearPersistedFinalAnswerPollTimer,
+  clearReturnedTurnFinalizationTimer,
+  clearSilentBrainAbortTimer,
+  clearToolAuthorizationPollTimer,
+  clearToolAuthorizationTimer,
+  clearToolFinalizationTimer,
+  clearTurnHardAbortTimer,
+  clearTurnTimers,
   createSessionStateStore,
   isStaleEmptySessionStream,
   resetCompletedTurnState,
@@ -76,7 +84,6 @@ import {
   shouldRetryUnverifiedLocalMutation,
   stripRouteMetadataLeaks,
 } from "../chat/turn-retry-policy.js";
-import { writeDocxFile } from "../../lib/tools/docx-tool.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "cmd", "shell", "script", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
@@ -115,29 +122,6 @@ function normalizePersistedAssistantText(text) {
     return "";
   }
   return trimmed;
-}
-
-function wantsDocxAttachment(text = "") {
-  const value = String(text || "");
-  return /\bdocx\b|\.docx\b|\bword\b|Word|文档附件|生成(?:一份)?(?:Word|word|docx|文档)|(?:形成|输出|整理成).{0,12}(?:docx|Word|word|文档|调研报告)/i.test(value);
-}
-
-function looksLikeDocxWorthyText(text = "") {
-  const value = String(text || "").trim();
-  if (value.replace(/\s+/g, "").length < 600) return false;
-  if (/本轮模型没有生成可[见用]回复|空转以免卡住会话|合成阶段未能完成|你可以直接重试/i.test(value)) return false;
-  return /(?:^|\n)#{1,3}\s+|(?:^|\n)\d+[.、]\s+|(?:^|\n)[-*]\s+|报告|调研|分析|结论|建议|受众|内容|传播|策略/.test(value);
-}
-
-function deriveDocxTitle(prompt = "", visibleText = "") {
-  const heading = String(visibleText || "").match(/^\s*#{1,3}\s+(.{2,80})$/m);
-  if (heading?.[1]) return heading[1].trim();
-  const promptTitle = String(prompt || "")
-    .replace(/\s+/g, " ")
-    .replace(/^(?:请|帮我|为我|把|将|生成|整理成|形成|输出)\s*/g, "")
-    .trim()
-    .slice(0, 60);
-  return promptTitle || "Lynn 调研报告";
 }
 
 function readPersistedAssistantVisibleTexts(session, sessionPath = "") {
@@ -654,65 +638,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return true;
   }
 
-  function clearSilentBrainAbortTimer(ss) {
-    if (ss?.silentBrainAbortTimer) {
-      clearTimeout(ss.silentBrainAbortTimer);
-      ss.silentBrainAbortTimer = null;
-    }
-  }
-
-  function clearTurnHardAbortTimer(ss) {
-    if (ss?.turnHardAbortTimer) {
-      clearTimeout(ss.turnHardAbortTimer);
-      ss.turnHardAbortTimer = null;
-    }
-  }
-
-  function clearToolFinalizationTimer(ss) {
-    if (ss?.toolFinalizationTimer) {
-      clearTimeout(ss.toolFinalizationTimer);
-      ss.toolFinalizationTimer = null;
-    }
-  }
-
-  function clearToolAuthorizationTimer(ss) {
-    if (ss?.toolAuthorizationTimer) {
-      clearTimeout(ss.toolAuthorizationTimer);
-      ss.toolAuthorizationTimer = null;
-    }
-  }
-
-  function clearToolAuthorizationPollTimer(ss) {
-    if (ss?.toolAuthorizationPollTimer) {
-      clearInterval(ss.toolAuthorizationPollTimer);
-      ss.toolAuthorizationPollTimer = null;
-    }
-  }
-
-  function clearReturnedTurnFinalizationTimer(ss) {
-    if (ss?.returnedTurnFinalizationTimer) {
-      clearTimeout(ss.returnedTurnFinalizationTimer);
-      ss.returnedTurnFinalizationTimer = null;
-    }
-  }
-
-  function clearPersistedFinalAnswerPollTimer(ss) {
-    if (ss?.persistedFinalAnswerPollTimer) {
-      clearInterval(ss.persistedFinalAnswerPollTimer);
-      ss.persistedFinalAnswerPollTimer = null;
-    }
-  }
-
-  function clearTurnTimers(ss) {
-    clearSilentBrainAbortTimer(ss);
-    clearTurnHardAbortTimer(ss);
-    clearToolFinalizationTimer(ss);
-    clearToolAuthorizationTimer(ss);
-    clearToolAuthorizationPollTimer(ss);
-    clearReturnedTurnFinalizationTimer(ss);
-    clearPersistedFinalAnswerPollTimer(ss);
-  }
-
   function isGenericEmptyFallbackText(text) {
     const value = String(text || "");
     return /本轮模型没有生成可[见用]回复|本轮模型没有生成可见答案|本轮补写回答没有稳定完成|空转以免卡住会话|The model did not produce (?:a )?visible answer|The model did not produce visible text/i.test(value);
@@ -1201,28 +1126,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     return emitted;
   }
 
-  function maybeEmitAutoDocxAttachment(sessionPath, ss) {
-    if (!ss || ss.autoDocxEmitted) return false;
-    const prompt = ss.originalPromptText || ss.effectivePromptText || "";
-    const visible = String(ss.visibleTextAcc || "").trim();
-    if (!wantsDocxAttachment(prompt) || !looksLikeDocxWorthyText(visible)) return false;
-    try {
-      const file = writeDocxFile({
-        outDir: engine.agent?.deskDir || path.join(os.homedir(), ".lynn", "docx"),
-        title: deriveDocxTitle(prompt, visible),
-        content: visible,
-        author: engine.agentName || "Lynn",
-      });
-      ss.autoDocxEmitted = true;
-      emitFileOutputsFromDetails(sessionPath, ss, { files: [file] });
-      debugLog()?.info("ws", `[AUTO-DOCX v1] emitted docx attachment · ${file.filePath} · session=${sessionPath}`);
-      return true;
-    } catch (err) {
-      debugLog()?.warn("ws", `[AUTO-DOCX v1] failed · ${err?.message || err} · session=${sessionPath}`);
-      return false;
-    }
-  }
-
   function emitRecoveredArtifact(sessionPath, ss, artifact, source = "toolcall") {
     if (!ss || !artifact?.content) return false;
     ss.recoveredArtifactKeys = ss.recoveredArtifactKeys || new Set();
@@ -1520,9 +1423,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     if (!hasPseudoToolText && !hasFakeProgress) return false;
 
     // P0/P1: 不抢模型是否调用工具的决策，只在模型已经把伪工具泄漏给用户时兜底。
-    // 本地文件任务可从原始用户意图构造确定性 bash，则真实执行；否则只标记并剥离泄漏文本，
-    // 后续 turn-quality gate 会给一次受限 retry 或可见 fallback。这里不再 steerSession，
-    // 避免“你刚才输出了伪工具调用...”提示造成循环。
+    // 本地文件任务可从原始用户意图构造确定性 bash，则真实执行；否则只剥离泄漏文本。
+    // Brain v2 不再走客户端二次提示 retry，避免“伪工具纠错提示”反过来污染模型自主工具决策。
     const recovered = maybeRecoverPseudoToolCommand(sessionPath, ss, inspectedText);
     if (recovered) {
       debugLog()?.warn("ws", `pseudo tool text recovered through real tool; suppressing leaked text without steer · session=${sessionPath}`);
@@ -1530,9 +1432,10 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     }
 
     if (!ss.pseudoToolRecoveryHandled) {
-      ss.pseudoToolSteered = true;
+      const isBrainModel = Boolean(resolveCurrentModelInfo(engine)?.isBrain);
+      ss.pseudoToolSteered = !isBrainModel;
       ss.pseudoToolRecoveryHandled = true;
-      debugLog()?.warn("ws", `pseudo tool/progress detected; suppressing leaked text without model steer · text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount} · session=${sessionPath}`);
+      debugLog()?.warn("ws", `pseudo tool/progress detected; suppressing leaked text without model steer · brain=${isBrainModel} text=${hasPseudoToolText} fake_progress=${hasFakeProgress} count=${ss.progressMarkerCount} · session=${sessionPath}`);
     }
     return true;
   }
@@ -2207,7 +2110,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
 
       maybeEmitLocalToolCompletionFallback(sessionPath, ss);
-      maybeEmitAutoDocxAttachment(sessionPath, ss);
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       broadcast({ type: "status", isStreaming: false, sessionPath });
@@ -2482,7 +2384,6 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.pseudoToolRecoveryHandled = false;
                 ss.pseudoToolCommandRecoveryAttempted = false;
                 ss.pseudoToolXmlBlock = null;
-                ss.autoDocxEmitted = false;
                 ss.emittedFileOutputPaths = new Set();
                 ss.rehydratedThisTurn = false;
                 ss.postRehydrateEscalationAttempted = false;

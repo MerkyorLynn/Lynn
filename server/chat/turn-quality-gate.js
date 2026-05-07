@@ -58,6 +58,12 @@ function markDecision({ flag, logLevel = "log", logMessage = "" }) {
   return { type: "mark", flag, logLevel, logMessage };
 }
 
+function buildSuppressedPseudoToolFallbackText() {
+  return getLocale().startsWith("zh")
+    ? "模型输出了无效工具标记，Lynn 已拦截这段内容；本轮没有执行未确认操作。请直接重试一次，或把任务说得更具体一点。"
+    : "The model emitted invalid tool markup. Lynn blocked it and did not execute any unconfirmed action. Please retry or make the task more specific.";
+}
+
 export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
   const visibleTrimmed = String(visibleTextBeforeReset || "").trim();
   const visibleLen = visibleTrimmed.length;
@@ -189,6 +195,12 @@ const PRE_TURN_END_RULES = [
       !ss.hasError &&
       !ss.hasFailedTool,
     action: ({ ss, isActive, sessionPath }) => {
+      if (ss.pseudoToolRecoveryHandled && !ss.pseudoToolSteered) {
+        return fallbackDecision({
+          text: buildSuppressedPseudoToolFallbackText(),
+          logMessage: `[PSEUDO-TOOL-SUPPRESSED-FALLBACK v1] emitted visible fallback without client retry · session=${sessionPath}`,
+        });
+      }
       if (isActive && ss.pseudoToolSteered && canScheduleInternalRetry(ss, "pseudo_tool_text")) {
         return retryDecision({
           reason: "pseudo_tool_text",
@@ -381,7 +393,11 @@ const PRE_TURN_END_RULES = [
         snapshot.isThinkingOnlyNoOutput ||
         (snapshot.isToolDidNotProduceText && ss.toolFinalizationRetryAttempted)),
     action: ({ ss, snapshot, sessionPath }) => {
-      const localFallbackMsg = ss.pseudoToolSteered ? buildEmptyReplyFallbackText(ss) : "";
+      const localFallbackMsg = ss.pseudoToolRecoveryHandled && !ss.pseudoToolSteered
+        ? buildSuppressedPseudoToolFallbackText()
+        : ss.pseudoToolSteered
+          ? buildEmptyReplyFallbackText(ss)
+          : "";
       const text = localFallbackMsg || (getLocale().startsWith("zh")
         ? "本轮工具已执行，但未能整合出明确答案（原因：流程提前结束）。建议重新提问或换个说法。"
         : "Tools executed but the final answer could not be assembled because the flow ended early. Please rephrase or try again.");
