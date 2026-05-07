@@ -1499,7 +1499,7 @@ describe("chat route event forwarding", () => {
       .filter((evt) => evt.type === "text_delta")
       .map((evt) => evt.delta)
       .join("");
-    expect(visibleText).toContain("工具已成功执行");
+    expect(visibleText).toContain("操作已完成");
     expect(visibleText).toContain("深圳明天小雨");
     expect(visibleText).not.toContain("<web_search>");
     expect(clients[0].sent).not.toContainEqual(expect.objectContaining({

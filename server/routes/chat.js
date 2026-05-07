@@ -76,6 +76,7 @@ import {
   shouldRetryUnverifiedLocalMutation,
   stripRouteMetadataLeaks,
 } from "../chat/turn-retry-policy.js";
+import { writeDocxFile } from "../../lib/tools/docx-tool.js";
 
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "cmd", "shell", "script", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
@@ -114,6 +115,29 @@ function normalizePersistedAssistantText(text) {
     return "";
   }
   return trimmed;
+}
+
+function wantsDocxAttachment(text = "") {
+  const value = String(text || "");
+  return /\bdocx\b|\.docx\b|\bword\b|Word|文档附件|生成(?:一份)?(?:Word|word|docx|文档)|(?:形成|输出|整理成).{0,12}(?:docx|Word|word|文档|调研报告)/i.test(value);
+}
+
+function looksLikeDocxWorthyText(text = "") {
+  const value = String(text || "").trim();
+  if (value.replace(/\s+/g, "").length < 600) return false;
+  if (/本轮模型没有生成可[见用]回复|空转以免卡住会话|合成阶段未能完成|你可以直接重试/i.test(value)) return false;
+  return /(?:^|\n)#{1,3}\s+|(?:^|\n)\d+[.、]\s+|(?:^|\n)[-*]\s+|报告|调研|分析|结论|建议|受众|内容|传播|策略/.test(value);
+}
+
+function deriveDocxTitle(prompt = "", visibleText = "") {
+  const heading = String(visibleText || "").match(/^\s*#{1,3}\s+(.{2,80})$/m);
+  if (heading?.[1]) return heading[1].trim();
+  const promptTitle = String(prompt || "")
+    .replace(/\s+/g, " ")
+    .replace(/^(?:请|帮我|为我|把|将|生成|整理成|形成|输出)\s*/g, "")
+    .trim()
+    .slice(0, 60);
+  return promptTitle || "Lynn 调研报告";
 }
 
 function readPersistedAssistantVisibleTexts(session, sessionPath = "") {
@@ -505,6 +529,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
   let disconnectAbortTimer = null;
   const DISCONNECT_ABORT_GRACE_MS = 15_000;
   const TURN_HARD_ABORT_MS = Number(process.env.LYNN_TURN_HARD_ABORT_MS || 120_000);
+  const TURN_LONG_RESEARCH_HARD_ABORT_MS = Number(process.env.LYNN_TURN_LONG_RESEARCH_HARD_ABORT_MS || 240_000);
   const TOOL_FINALIZATION_GRACE_MS = Number(process.env.LYNN_TOOL_FINALIZATION_GRACE_MS || 8_000);
   const TOOL_AUTHORIZATION_GRACE_MS = Number(process.env.LYNN_TOOL_AUTHORIZATION_GRACE_MS || 45_000);
   const RETURNED_TURN_FINALIZATION_GRACE_MS = Number(process.env.LYNN_RETURNED_TURN_FINALIZATION_GRACE_MS || 3_000);
@@ -904,6 +929,15 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     clearTurnHardAbortTimer(ss);
     if (!sessionPath || !ss || !TURN_HARD_ABORT_MS) return;
     const streamToken = ss.activeStreamToken || null;
+    const originalOrEffectivePrompt = `${ss.originalPromptText || ""}\n${ss.effectivePromptText || ""}`;
+    const isLongResearchTurn =
+      /(?:深度|深入|完整|系统性|多维度|全面|调研|研究|研报|报告|分析报告|形成\s*docx|docx\s*格式|来源包括|但不限于|学术界|咨询领域|小红书|抖音|快手|视频号|公众号)/i.test(originalOrEffectivePrompt);
+    const timeoutMs = isLongResearchTurn
+      ? Math.max(TURN_HARD_ABORT_MS, TURN_LONG_RESEARCH_HARD_ABORT_MS || TURN_HARD_ABORT_MS)
+      : TURN_HARD_ABORT_MS;
+    if (isLongResearchTurn && timeoutMs !== TURN_HARD_ABORT_MS) {
+      debugLog()?.log("ws", `[TURN-HARD-ABORT v2] long research turn timeout=${timeoutMs}ms · session=${sessionPath}`);
+    }
     ss.turnHardAbortTimer = setTimeout(() => {
       ss.turnHardAbortTimer = null;
       if (hasDifferentActiveStreamToken(ss, streamToken) || ss.hasError || hasStreamEvent(ss, "turn_end")) return;
@@ -914,7 +948,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         ? "本轮模型长时间没有生成可见答案，Lynn 已结束这次空转以免卡住会话。你可以直接重试一次，或把任务说得更具体一点。"
         : "The model did not produce visible text in time, so Lynn closed this turn to avoid blocking the session. Please retry or make the task more specific.";
       closeStreamWithVisibleFallback(sessionPath, ss, text, "hard_turn_timeout");
-    }, TURN_HARD_ABORT_MS);
+    }, timeoutMs);
     if (ss.turnHardAbortTimer.unref) ss.turnHardAbortTimer.unref();
   }
 
@@ -1140,6 +1174,53 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       seq: entry.seq,
     });
     return entry;
+  }
+
+  function emitFileOutputsFromDetails(sessionPath, ss, details = {}) {
+    const files = Array.isArray(details.files) ? [...details.files] : [];
+    if (files.length === 0 && details.filePath) {
+      files.push({ filePath: details.filePath, label: details.label, ext: details.ext || "" });
+    }
+    if (!ss.emittedFileOutputPaths || typeof ss.emittedFileOutputPaths.has !== "function") {
+      ss.emittedFileOutputPaths = new Set();
+    }
+    let emitted = 0;
+    for (const f of files) {
+      if (!f?.filePath) continue;
+      const key = path.resolve(String(f.filePath));
+      if (ss.emittedFileOutputPaths.has(key)) continue;
+      ss.emittedFileOutputPaths.add(key);
+      emitStreamEvent(sessionPath, ss, {
+        type: "file_output",
+        filePath: f.filePath,
+        label: f.label || path.basename(f.filePath),
+        ext: f.ext || path.extname(f.filePath).replace(/^\./, ""),
+      });
+      emitted += 1;
+    }
+    return emitted;
+  }
+
+  function maybeEmitAutoDocxAttachment(sessionPath, ss) {
+    if (!ss || ss.autoDocxEmitted) return false;
+    const prompt = ss.originalPromptText || ss.effectivePromptText || "";
+    const visible = String(ss.visibleTextAcc || "").trim();
+    if (!wantsDocxAttachment(prompt) || !looksLikeDocxWorthyText(visible)) return false;
+    try {
+      const file = writeDocxFile({
+        outDir: engine.agent?.deskDir || path.join(os.homedir(), ".lynn", "docx"),
+        title: deriveDocxTitle(prompt, visible),
+        content: visible,
+        author: engine.agentName || "Lynn",
+      });
+      ss.autoDocxEmitted = true;
+      emitFileOutputsFromDetails(sessionPath, ss, { files: [file] });
+      debugLog()?.info("ws", `[AUTO-DOCX v1] emitted docx attachment · ${file.filePath} · session=${sessionPath}`);
+      return true;
+    } catch (err) {
+      debugLog()?.warn("ws", `[AUTO-DOCX v1] failed · ${err?.message || err} · session=${sessionPath}`);
+      return false;
+    }
   }
 
   function emitRecoveredArtifact(sessionPath, ss, artifact, source = "toolcall") {
@@ -1798,20 +1879,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
         }
       }
 
-      if (event.toolName === "present_files") {
-        const details = event.result?.details || {};
-        const files = details.files || [];
-        if (files.length === 0 && details.filePath) {
-          files.push({ filePath: details.filePath, label: details.label, ext: details.ext || "" });
-        }
-        for (const f of files) {
-          emitStreamEvent(sessionPath, ss, {
-            type: "file_output",
-            filePath: f.filePath,
-            label: f.label,
-            ext: f.ext || "",
-          });
-        }
+      if (event.toolName === "present_files" || event.toolName === "create_docx" || event.toolName === "create_pptx" || event.toolName === "create_report" || event.toolName === "create_poster") {
+        emitFileOutputsFromDetails(sessionPath, ss, event.result?.details || {});
       }
 
       if ((event.toolName === "edit" || event.toolName === "edit-diff") && rawDetails.diff && !toolIsError) {
@@ -2138,6 +2207,7 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
       }
 
       maybeEmitLocalToolCompletionFallback(sessionPath, ss);
+      maybeEmitAutoDocxAttachment(sessionPath, ss);
 
       emitStreamEvent(sessionPath, ss, { type: "turn_end" });
       broadcast({ type: "status", isStreaming: false, sessionPath });
@@ -2412,6 +2482,8 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
                 ss.pseudoToolRecoveryHandled = false;
                 ss.pseudoToolCommandRecoveryAttempted = false;
                 ss.pseudoToolXmlBlock = null;
+                ss.autoDocxEmitted = false;
+                ss.emittedFileOutputPaths = new Set();
                 ss.rehydratedThisTurn = false;
                 ss.postRehydrateEscalationAttempted = false;
                 ss.postRehydrateDeterministicAttempted = false;

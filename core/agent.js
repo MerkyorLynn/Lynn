@@ -26,6 +26,7 @@ import { createPresentFilesTool } from "../lib/tools/output-file-tool.js";
 import { createArtifactTool } from "../lib/tools/artifact-tool.js";
 import { createPptxTool } from "../lib/tools/pptx-tool.js";
 import { createReportTool } from "../lib/tools/report-tool.js";
+import { createDocxTool } from "../lib/tools/docx-tool.js";
 import { createStockResearchTool } from "../lib/tools/stock-research-tool.js";
 import { createPosterTool } from "../lib/tools/poster-tool.js";
 import { createChannelTool } from "../lib/tools/channel-tool.js";
@@ -387,6 +388,7 @@ export class Agent {
     this._artifactTool = createArtifactTool();
     this._pptxTool = createPptxTool({ getDeskDir: () => this.deskDir });
     this._reportTool = createReportTool({ getDeskDir: () => this.deskDir });
+    this._docxTool = createDocxTool({ getDeskDir: () => this.deskDir });
     this._posterTool = createPosterTool({ getDeskDir: () => this.deskDir });
     this._stockResearchTool = createStockResearchTool();
     this._browserTool = createBrowserTool();
@@ -555,6 +557,7 @@ export class Agent {
       this._artifactTool,
       this._pptxTool,
       this._reportTool,
+      this._docxTool,
       this._posterTool,
       this._stockResearchTool,
       this._channelTool,

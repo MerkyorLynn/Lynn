@@ -94,7 +94,7 @@ export const TASK_MODES: TaskMode[] = [
     name: '商务',
     subtitle: '邮件 / PRD / 报告',
     persona: '[任务模式：商务] 写邮件：简洁、礼貌、有 CTA；写 PRD：背景→问题→方案→指标→时间线；写报告：结构化分章节，数据要有来源。避免"套话"和"空话"。',
-    tools: ['read', 'write', 'edit', 'create_report', 'create_pdf'],
+    tools: ['read', 'write', 'edit', 'create_report', 'create_docx', 'create_pdf'],
   },
   {
     id: 'translate',

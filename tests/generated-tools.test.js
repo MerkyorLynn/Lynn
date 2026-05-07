@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createPosterTool } from "../lib/tools/poster-tool.js";
 import { createPptxTool } from "../lib/tools/pptx-tool.js";
 import { createReportTool } from "../lib/tools/report-tool.js";
+import { createDocxTool } from "../lib/tools/docx-tool.js";
 import { createStockResearchTool, normalizeStockResearchTsCode } from "../lib/tools/stock-research-tool.js";
 
 function makeTempDir(prefix) {
@@ -13,6 +14,39 @@ function makeTempDir(prefix) {
 }
 
 describe("generated document tools", () => {
+  it("creates a readable DOCX attachment from markdown-like report text", async () => {
+    const outDir = makeTempDir("lynn-docx-tool-");
+    try {
+      const tool = createDocxTool({ getDeskDir: () => outDir });
+      const result = await tool.execute("test-call", {
+        title: "中老年互联网内容生态调研报告",
+        content: [
+          "# 中老年互联网内容生态调研报告",
+          "",
+          "## 核心结论",
+          "- 红松、糖豆的核心受众集中在退休前后和退休后的兴趣学习人群。",
+          "- 美篇等 App 覆盖更广的图文记录、家庭分享和兴趣社群用户。",
+          "",
+          "## 建议",
+          "围绕健康、兴趣、家庭关系和轻社交设计内容栏目。",
+        ].join("\n"),
+      });
+
+      const filePath = result.details.files[0].filePath;
+      expect(filePath.endsWith(".docx")).toBe(true);
+      expect(fs.existsSync(filePath)).toBe(true);
+      expect(fs.statSync(filePath).size).toBeGreaterThan(1000);
+
+      const mammoth = (await import("mammoth")).default;
+      const extracted = await mammoth.extractRawText({ path: filePath });
+      expect(extracted.value).toContain("中老年互联网内容生态调研报告");
+      expect(extracted.value).toContain("红松、糖豆");
+      expect(extracted.value).toContain("核心结论");
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
   it("creates PPTX content and two-column slides without leaking theme scope errors", async () => {
     const outDir = makeTempDir("lynn-pptx-tool-");
     try {

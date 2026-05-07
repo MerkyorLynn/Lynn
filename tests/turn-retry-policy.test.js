@@ -79,7 +79,7 @@ describe("turn retry policy", () => {
       ],
     });
 
-    expect(fallback).toContain("工具已成功执行");
+    expect(fallback).toContain("操作已完成");
     expect(fallback).toContain("weather");
     expect(fallback).toContain("上海");
   });

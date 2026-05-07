@@ -65,7 +65,7 @@ export function buildSuccessfulToolNoTextFallback(ss) {
 
   if (isZh) {
     const parts = [
-      `工具已成功执行${names.length ? `（${names.join("、")}）` : ""}，但模型没有整合出最终文字。`,
+      `操作已完成${names.length ? `（${names.join("、")}）` : ""}。`,
     ];
     if (snippets.length) {
       parts.push("结果摘要：\n" + snippets.map((snippet) => `- ${snippet.slice(0, 180)}`).join("\n"));
@@ -73,7 +73,7 @@ export function buildSuccessfulToolNoTextFallback(ss) {
     if (isFinancePrompt) {
       parts.push("以上只是最近可用行情快照，不构成投资建议。");
     }
-    parts.push("你可以直接基于上面的工具结果继续追问，我也可以重新整理成更完整的答案。");
+    parts.push("你可以直接打开上面的结果；如果需要，我也可以继续帮你整理成更完整的正文。");
     return parts.join("\n\n");
   }
 

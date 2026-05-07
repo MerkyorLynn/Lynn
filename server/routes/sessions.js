@@ -227,9 +227,10 @@ export function createSessionsRoute(engine) {
           }
         } else if (m.role === "toolResult") {
           const d = m.details || {};
-          if (m.toolName === "present_files" && d.files?.length) {
+          if ((m.toolName === "present_files" || m.toolName === "create_docx" || m.toolName === "create_pptx" || m.toolName === "create_report" || m.toolName === "create_poster") && d.files?.length) {
             fileOutputs.push({ afterIndex: allMessages.length - 1, files: d.files });
-          } else if ((m.toolName === "edit" || m.toolName === "edit-diff") && d.diff) {
+          }
+          if ((m.toolName === "edit" || m.toolName === "edit-diff") && d.diff) {
             const assistantMsg = allMessages[allMessages.length - 1];
             const toolCalls = assistantMsg?.toolCalls || [];
             const matchingToolCall = [...toolCalls].reverse().find(tc => tc.name === m.toolName);

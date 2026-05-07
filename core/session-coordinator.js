@@ -151,7 +151,7 @@ const MINIMAL_CUSTOM_TOOLS = new Set([
 ]);
 
 const STANDARD_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score", "todo", "present_files", "notify",
+  "web_search", "web_fetch", "stock_market", "weather", "live_news", "sports_score", "todo", "present_files", "create_docx", "create_report", "notify",
   "search_memory", "pin_memory", "unpin_memory",
   "recall_experience", "record_experience",
   // v0.77 插件工具（standard 档开放）

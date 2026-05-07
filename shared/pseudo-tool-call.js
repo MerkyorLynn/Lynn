@@ -48,7 +48,7 @@ const THINK_TAG_RE = /<\/?think\b[^>]*>/giu;
 
 const KNOWN_TOOL_NAME_LIST = [
   "apply_patch", "ask_agent", "bash", "browser", "channel", "close_agent",
-  "create_artifact", "cron", "delete_file", "delegate", "dm", "edit", "edit-diff",
+  "create_artifact", "create_docx", "cron", "delete_file", "delegate", "dm", "edit", "edit-diff",
   "execute", "execute_command", "fetch", "find", "glob", "grep", "image_gen",
   "install_skill", "list_dir", "ls", "message_agent", "notify", "pin_memory",
   "present_files", "preview_url", "read", "read_file", "recall_experience",

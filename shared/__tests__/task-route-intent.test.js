@@ -104,6 +104,17 @@ describe("task route intent", () => {
     expect(looksLikePendingToolExecutionText("目录已经列出来了，接下来执行 mkdir 和 mv。", "utility")).toBe(true);
   });
 
+  it("detects research progress narration as unfinished tool execution", () => {
+    expect(looksLikePendingToolExecutionText("开始系统调研，先并行搜索多个维度的信息。", "utility")).toBe(true);
+    expect(looksLikePendingToolExecutionText("搜索结果较简略，继续深挖具体数据和报告。", "utility")).toBe(true);
+    expect(looksLikePendingToolExecutionText("需要抓取具体页面获取数据。继续深挖。", "utility")).toBe(true);
+  });
+
+  it("does not flag ordinary research conclusions as pending execution", () => {
+    expect(looksLikePendingToolExecutionText("本次调研显示，老年用户的轻娱乐需求主要集中在陪伴、低门槛和稳定反馈。", "utility")).toBe(false);
+    expect(looksLikePendingToolExecutionText("根据现有资料，三个渠道的转化路径存在明显差异。", "utility")).toBe(false);
+  });
+
   it("detects local file permission deflections as unfinished execution", () => {
     expect(looksLikePendingToolExecutionText("抱歉，我当前没有文件系统读取权限，无法直接列出 /Users/lynn/Desktop/Lynn 文件夹内的内容。", "utility")).toBe(true);
     expect(looksLikePendingToolExecutionText("I cannot access the local file system to list this folder.", "utility")).toBe(true);

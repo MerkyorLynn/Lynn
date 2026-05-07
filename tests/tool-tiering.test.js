@@ -9,7 +9,7 @@ const MINIMAL_CUSTOM_TOOLS = new Set([
   "web_search", "web_fetch", "stock_market",
 ]);
 const STANDARD_CUSTOM_TOOLS = new Set([
-  "web_search", "web_fetch", "stock_market", "todo", "present_files", "notify",
+  "web_search", "web_fetch", "stock_market", "todo", "present_files", "create_docx", "create_report", "notify",
   "search_memory", "pin_memory", "unpin_memory",
   "recall_experience", "record_experience",
 ]);
@@ -27,7 +27,7 @@ const ALL_TOOLS = [
   { name: "recall_experience" }, { name: "record_experience" },
   { name: "web_search" }, { name: "web_fetch" }, { name: "stock_market" },
   { name: "todo" }, { name: "cron" }, { name: "present_files" },
-  { name: "create_artifact" }, { name: "channel" }, { name: "browser" },
+  { name: "create_artifact" }, { name: "create_docx" }, { name: "create_report" }, { name: "channel" }, { name: "browser" },
   { name: "install_skill" }, { name: "notify" }, { name: "update_settings" },
   { name: "delegate" },
 ];
@@ -47,13 +47,15 @@ describe("filterCustomToolsByTier", () => {
     expect(names).toContain("stock_market");
     expect(names).toContain("todo");
     expect(names).toContain("present_files");
+    expect(names).toContain("create_docx");
+    expect(names).toContain("create_report");
     expect(names).toContain("notify");
     expect(names).toContain("search_memory");
     expect(names).not.toContain("delegate");
     expect(names).not.toContain("cron");
     expect(names).not.toContain("browser");
     expect(names).not.toContain("create_artifact");
-    expect(result.length).toBe(11);
+    expect(result.length).toBe(13);
   });
 
   it("minimal tier 只保留搜索工具", () => {

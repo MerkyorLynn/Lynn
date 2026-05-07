@@ -33,6 +33,10 @@ const PENDING_TOOL_EXECUTION_PATTERNS = [
   /(?:no|without|lack|missing|cannot|can't|unable to).{0,24}(?:file system|local file|directory|folder|shell|command).{0,24}(?:access|permission|tool|read|list)/i,
   /^(?:directly|now|next)\s+(?:use|call|run|invoke)\s+(?:the )?(?:real )?(?:weather|stock_market|sports_score|live_news|web_search|web_fetch)\b/i,
   /^(?:直接|立刻|立即|马上).*(?:调用|使用).*(?:weather|stock_market|sports_score|live_news|web_search|web_fetch|搜索工具|天气工具|行情工具)/i,
+  /(?:^|[\n。.！？\s])\s*开始(?:系统|深度|深入|进一步)?(?:调研|研究|搜集|收集|挖掘|探索|检索)/i,
+  /(?:[，,。.\s]|^)继续(?:深挖|深入|搜集|搜索|抓取|爬取|挖掘|挖|检索)(?=[，,。.！？\s]|具体|更多|详细|深入|页面|数据|信息|资料|$)/i,
+  /(?:搜索结果|检索结果|查询结果|结果|信息|资料)(?:较|偏|有些|稍|有点)?(?:简略|简单|浅|泛|少|不够|不足|有限|偏泛)/i,
+  /需要(?:再|进一步|继续|更|更多)?(?:抓取|爬取|搜索|查询|检索|挖掘|搜集)(?:具体|更多|详细|深入|页面|数据|信息|资料)/i,
 ];
 
 const CODE_FILE_RE = /\b[\w./-]+\.(?:tsx?|jsx?|css|json|md|py|rs|go|java|vue|svelte|swift|kt|kts|c|cc|cpp|h|hpp|m|mm|sql|yaml|yml|toml|sh)\b/i;
