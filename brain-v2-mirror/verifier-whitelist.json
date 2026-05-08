@@ -1,0 +1,21 @@
+{
+  "version": "v1",
+  "tools": [
+    "web_search",
+    "web_fetch",
+    "stock_market",
+    "stock_research",
+    "weather",
+    "live_news",
+    "parallel_research"
+  ],
+  "min_result_chars": {},
+  "exclude": [
+    "create_artifact",
+    "create_pdf",
+    "create_pptx",
+    "create_report",
+    "utility"
+  ],
+  "_note": "v1 only high-hallucination info-fetching tools. Generation tools (create_*) excluded — verifier evaluates correctness, not creative output."
+}

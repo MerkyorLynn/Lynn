@@ -180,4 +180,7 @@ export function resetCompletedTurnState(ss) {
   ss.toolFinalizationRetryAttempted = false;
   ss.toolFailedFallbackRetryAttempted = false;
   ss.persistedAssistantTextBaseline = 0;
+  ss.rehydratedThisTurn = false;
+  ss.postRehydrateEscalationAttempted = false;
+  ss.postRehydrateDeterministicAttempted = false;
 }

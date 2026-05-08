@@ -130,8 +130,8 @@ export function createTurnQualitySnapshot(ss, visibleTextBeforeReset) {
   const isCodingDiagnosticMissingVerification =
     visibleLen > 120 &&
     CODING_DIAGNOSTIC_PROMPT_RE.test(original) &&
-    !/python\s+main\.py/i.test(visibleTrimmed) &&
-    !/(?:请运行验证|run (?:the )?verification|verify by running)/i.test(visibleTrimmed);
+    (!/python\s+main\.py/i.test(visibleTrimmed) ||
+      !/(?:请运行验证|run (?:the )?verification|verify by running)/i.test(visibleTrimmed));
 
   const shouldRetryToolFinalize =
     !ss?.hasError &&

@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.77.9-brightgreen" alt="Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.77.10-brightgreen" alt="Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -27,7 +27,28 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.77.9</strong> · 2026-05-07 · 调研合成加固 + DOCX 质量门禁 + Turn 状态收口 <em>(最新)</em></summary>
+<summary><strong>v0.77.10</strong> · 2026-05-08 · Brain v2 镜像同步 + 伪工具恢复 + Release 门禁加固 <em>(最新)</em></summary>
+
+**Brain v2 与调研链路**:
+- 🧠 **Brain v2 镜像代码入仓**:把远端 verifier / deep research / agent checkpoint 相关镜像代码同步进仓库,避免只靠服务器热修。
+- 🧪 **Deep Research 质量地板**:低分候选不会被直接当成最终答案,后续接主链前先保留为受控能力。
+- 🧭 **只读伪工具恢复**:对天气、行情这类只读工具,模型误输出伪工具文本时会转成真实工具调用并给出可见依据。
+
+**本地任务与代码门禁**:
+- 🛠️ **Bash 恢复模块迁出**:把命令恢复逻辑从 `chat.js` 拆进独立模块,继续压缩主路由复杂度。
+- ✅ **代码修复验证补写**:代码诊断类回答如果缺少明确验证提醒,会自动补上可复制验证步骤,避免“看起来修了但没让用户验证”。
+- 📊 **Tool Abstain V9 benchmark 入仓**:保留可复现 harness / question,把临时运行产物移出测试目录。
+
+**发布与下载**:
+- Release、更新清单和镜像站下载链接统一指向 v0.77.10。
+- 全量 release regression 继续作为发版阻断门禁。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.10)
+
+</details>
+
+<details>
+<summary><strong>v0.77.9</strong> · 2026-05-07 · 调研合成加固 + DOCX 质量门禁 + Turn 状态收口</summary>
 
 **调研与长报告**:
 - 🧠 **Brain v2 多轮调研合成加固**:调研类任务在多轮工具调用后会进入强制合成轮,避免只输出“继续深挖/摘要太粗”的进度文字。

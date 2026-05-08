@@ -39,10 +39,13 @@ const _brainHost = resolveProcessEnvValue("BRAIN_API_HOST");
 const _brainLegacyApiRootUrl = resolveProcessEnvValue("BRAIN_LEGACY_API_ROOT_URL");
 const _brainLegacyHost = resolveProcessEnvValue("BRAIN_LEGACY_HOST");
 
-// v0.77.6 起默认走 brain v2 (/api/v2/),旧客户端继续走 /api/(brain v1)→ 自然灰度
+// v0.77.9 hotfix:
+// The v2 public hostname is not reliable enough for release gates yet. Keep the
+// runtime default on the proven public API root, while callers may still opt into
+// v2 by setting BRAIN_API_ROOT_URL / BRAIN_API_HOST explicitly.
 export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
-  normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api/v2",
+  normalizeApiRoot(_brainHost, _BRAIN_BACKUP_FALLBACK) + "/api",
 );
 
 // 容灾 API Root（当主地址不可达时使用）

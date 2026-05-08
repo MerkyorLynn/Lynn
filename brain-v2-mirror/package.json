@@ -1,0 +1,21 @@
+{
+  "name": "lobster-brain-v2",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "pptxgenjs": "^4.0.1",
+    "undici": "^7.25.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  }
+}

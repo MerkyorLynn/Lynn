@@ -1,43 +1,42 @@
-# Lynn v0.77.9 Release Notes
+# Lynn v0.77.10 Release Notes
 
-> 发布日期: 2026-05-07 · 代号: "Research Synthesis Gate"
+> 发布日期: 2026-05-08 · 代号: "Tool Recovery Gate"
 
-v0.77.9 是一次面向深度调研、DOCX 产物和 turn 状态稳定性的补丁版本。重点修复“多轮调研只输出继续深挖”“DOCX 文档没写完也生成附件”“Brain 伪工具泄漏后静默空答”等问题，同时把 chat route 中的 timer 清理逻辑迁入 `stream-state`，为后续继续拆分 `chat.js` 打基础。
+v0.77.10 是一次面向真实用户场景的热修版本。重点修复 Brain 伪工具输出导致天气、行情和本地任务“看起来在调用工具但没有真实执行”的问题，同时把 Brain v2 的 verifier / deep-research / agent checkpoint 镜像代码同步进仓库，方便后续从热修验证转为正式资产。
 
 ## 重点更新
 
-### 深度调研与 Brain v2
-- Brain v2 多轮调研任务在达到工具轮次预算、或多轮后仍只生成短进度说明时，会进入禁工具合成轮，避免把“继续整理/继续深挖”当最终回答。
-- 调研链路新增研究拆题、证据账本、来源片段和日期线索，方便最终报告合成时保留可追溯依据。
-- `parallel_research` 改为尽早聚合可用结果，减少等待慢源拖满预算的情况。
+### 工具调用与实时数据
+- 新增只读伪工具恢复层：当 Brain 把天气、行情等工具写成 `<tool_call>` 文本时，Lynn 会改走真实 `weather` / `stock_market` 工具，并输出带时间戳和依据的可见结果。
+- 修复 release gate 中 FENCE / TOOL 场景的假阳性：天气、AAPL / TSLA 行情和伪工具泄漏用例均已通过真实 live 回归。
+- 保持本地写入、删除、移动任务的安全边界：只读恢复不会绕过授权卡片，也不会自动执行危险操作。
 
-### DOCX 报告质量
-- `create_docx` 增加内容质量门禁：过短正文、进度占位语、悬挂 Markdown 表格、明显未完成报告都会被拒绝生成。
-- 自动 DOCX 逻辑从 `chat.js` 迁出，由 DOCX 工具模块负责质量判断与附件产出，降低 chat route 复杂度。
+### Brain v2 资产同步
+- 将 Brain v2 mirror 纳入仓库：包含 provider registry、router、wire adapters、tool exec、verifier middleware、deep-research、agent checkpoint 和配套测试。
+- Deep Research 增加质量地板：低质量 winner 不再直接输出，避免把不稳定候选答案当成最终结论。
+- verifier 默认禁用 DeepSeek thinking，降低评估延迟，并以 fail-open 方式避免阻塞用户主链路。
 
-### Brain / 非 Brain 行为分层
-- Brain 模型跳过浅层本地预取，避免本地预取资料抢占上下文，让 Brain v2 自己做证据收集和工具决策。
-- Brain 伪工具泄漏后给用户可见兜底说明，不再静默吞掉；非 Brain 模型继续保留原有伪工具恢复策略。
-
-### Turn 状态稳定性
-- 将 `silentBrainAbortTimer`、`turnHardAbortTimer`、tool finalization、授权轮询、持久化轮询等 timer 清理函数统一迁入 `stream-state`。
-- `resetCompletedTurnState()` 复用同一个 `clearTurnTimers()` 出口，减少 retry、turn_end、stale stream release 三条路径的重置漂移。
+### 桌面稳定性与安全
+- 加固 Electron IPC sender 校验，降低非主窗口 webContents 调用写敏感 IPC 的风险。
+- 增加 server heartbeat 自动恢复，内嵌 server 卡死或不可复用时会主动重启并通知前端重连。
+- 自动更新继续使用腾讯镜像下载资产，国内用户不再依赖 GitHub 二进制下载速度。
 
 ## 回归结果
 
-- Unit tests: `1209 passed / 1 skipped`
-- Focused chat route events: `41 passed`
+- Unit tests: `1404 passed / 1 skipped`
+- Brain v2 mirror tests: `141 passed`
+- Focused chat route events: `43 passed`
 - TypeScript: `tsc --noEmit` 通过
 - Lint: `npm run lint -- --quiet` 通过
-- Release regression 与 UI smoke 已纳入本次发版门禁
+- Release regression: `0 failed / 0 blocker / 0 critical`
 
 ## 下载
 
-- macOS Apple Silicon: `Lynn-0.77.9-macOS-Apple-Silicon.dmg`
-- macOS Intel: `Lynn-0.77.9-macOS-Intel.dmg`
-- Windows x64: `Lynn-0.77.9-Windows-Setup.exe`
+- macOS Apple Silicon: `Lynn-0.77.10-macOS-Apple-Silicon.dmg`
+- macOS Intel: `Lynn-0.77.10-macOS-Intel.dmg`
+- Windows x64: `Lynn-0.77.10-Windows-Setup.exe`
 - 镜像站: https://download.merkyorlynn.com/download
-- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.9
+- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.10
 
 ## 升级建议
 

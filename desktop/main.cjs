@@ -15,7 +15,7 @@ const { spawn, execFileSync } = require("child_process");
 const fs = require("fs");
 const yaml = require("js-yaml");
 const { initAutoUpdater, checkForUpdatesAuto, setMainWindow: setUpdaterMainWindow, setUpdateChannel } = require("./auto-updater.cjs");
-const { wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
+const { setIpcSenderValidator, wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
 const { normalizeConfiguredShortcut, registerFirstAvailableGlobalShortcut } = require("./shortcut-policy.cjs");
 const { VoiceTunnelManager } = require("./voice-tunnel-manager.cjs");
 
@@ -70,6 +70,8 @@ let browserViewerWindow = null;
 let _browserWebView = null;        // 当前活跃的 WebContentsView
 const _browserViews = new Map();   // sessionPath → WebContentsView（挂起的浏览器）
 let _currentBrowserSession = null; // 当前浏览器绑定的 sessionPath
+
+setIpcSenderValidator((channel, event) => isTrustedAppWebContents(event?.sender, channel));
 
 // 有任务进行时禁止系统挂起。使用 prevent-app-suspension 保持任务执行，
 // 但不强制点亮屏幕，避免长任务时额外耗电或打扰用户。
@@ -439,17 +441,18 @@ function writeUserPreferences(nextPrefs) {
   fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
 }
 
-// v0.77.6: brain v2 路径,旧 /api 弃用(brain v1 仍然在线但不是默认)
-const CANONICAL_BRAIN_API_ROOT = "https://api.merkyorlynn.com/api/v2";
+// v0.77.9 hotfix: keep the packaged client on the proven public API root until
+// the v2 hostname is stable enough for release gates and end-user networks.
+const CANONICAL_BRAIN_API_ROOT = "http://82.156.182.240/api";
 const CANONICAL_BRAIN_PROVIDER_BASE_URL = `${CANONICAL_BRAIN_API_ROOT}/v1`;
 const DEPRECATED_BRAIN_API_ROOTS = new Set([
-  "http://82.156.182.240/api",
-  "https://api.merkyorlynn.com/api",  // brain v1 (留作 30 天 fallback,不再默认)
+  "https://api.merkyorlynn.com/api",
+  "https://api.merkyorlynn.com/api/v2",
   "http://82.156.182.240/api/v2",
 ]);
 const DEPRECATED_BRAIN_PROVIDER_BASE_URLS = new Set([
-  "http://82.156.182.240/api/v1",
-  "https://api.merkyorlynn.com/api/v1",  // brain v1 旧 base
+  "https://api.merkyorlynn.com/api/v1",
+  "https://api.merkyorlynn.com/api/v2/v1",
   "http://82.156.182.240/api/v2/v1",
 ]);
 
@@ -972,6 +975,7 @@ async function startServer() {
   }
 
   // ── 2. 启动新 server ──
+  reusedServerPid = null;
   _serverLogs = [];
 
   const serverEnv = { ...process.env, LYNN_HOME: lynnHome };
@@ -1097,10 +1101,25 @@ async function startServer() {
  * 持久监控 server 进程：崩溃后自动重启一次，再失败则写 crash log 并通知用户
  */
 let _serverRestartAttempts = 0;
+let _serverHeartbeatTimer = null;
+let _serverHeartbeatFailures = 0;
+let _serverHeartbeatChecking = false;
+let _serverHeartbeatRestarting = false;
+
+function notifyRendererServerRestarted() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
+  }
+}
+
 function monitorServer() {
   if (!serverProcess) return;
   serverProcess.on("exit", async (code, signal) => {
     if (isQuitting) return; // 正常退出流程
+    if (_serverHeartbeatRestarting) return; // heartbeat 正在主动拉起新 server
     const reason = signal ? `信号 ${signal}` : `退出码 ${code}`;
     console.error(`[desktop] Server 意外退出 (${reason})`);
 
@@ -1111,14 +1130,7 @@ function monitorServer() {
         await startServer();
         console.log("[desktop] Server 重启成功");
         monitorServer(); // 重新挂监控
-        // 通知前端重连
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
-        }
-        // 设置窗口也需要知道新端口（否则旧端口的 API 全部失败）
-        if (settingsWindow && !settingsWindow.isDestroyed()) {
-          settingsWindow.webContents.send("server-restarted", { port: serverPort, token: serverToken });
-        }
+        notifyRendererServerRestarted();
       } catch (err) {
         console.error("[desktop] Server 重启失败:", err.message);
         writeCrashLog(`Server 重启失败: ${err.message}`);
@@ -1129,6 +1141,62 @@ function monitorServer() {
       dialog.showErrorBox("Lynn Server", mt("dialog.serverMultipleCrash", { reason }));
     }
   });
+}
+
+async function checkServerHeartbeat() {
+  if (isQuitting || _serverHeartbeatRestarting || _serverHeartbeatChecking) return;
+  if (!serverPort || !serverToken) return;
+  _serverHeartbeatChecking = true;
+  try {
+    const res = await fetch(`http://127.0.0.1:${serverPort}/api/health`, {
+      headers: { Authorization: `Bearer ${serverToken}` },
+      signal: AbortSignal.timeout(2000),
+    });
+    const health = res.ok ? await res.json().catch(() => null) : null;
+    if (res.ok && isReusableServerHealth(health)) {
+      _serverHeartbeatFailures = 0;
+      return;
+    }
+    _serverHeartbeatFailures++;
+  } catch {
+    _serverHeartbeatFailures++;
+  } finally {
+    _serverHeartbeatChecking = false;
+  }
+
+  if (_serverHeartbeatFailures < 3 || _serverHeartbeatRestarting || isQuitting) return;
+  _serverHeartbeatRestarting = true;
+  console.warn("[desktop] Server heartbeat failed 3 times, restarting server...");
+  try {
+    _serverHeartbeatFailures = 0;
+    await startServer();
+    monitorServer();
+    notifyRendererServerRestarted();
+    console.log("[desktop] Server heartbeat restart succeeded");
+  } catch (err) {
+    console.error("[desktop] Server heartbeat restart failed:", err?.message || err);
+    writeCrashLog(`Server 心跳重启失败: ${err?.message || err}`);
+  } finally {
+    _serverHeartbeatRestarting = false;
+  }
+}
+
+function startServerHeartbeat() {
+  if (_serverHeartbeatTimer) clearInterval(_serverHeartbeatTimer);
+  _serverHeartbeatTimer = setInterval(() => {
+    void checkServerHeartbeat();
+  }, 5000);
+  if (typeof _serverHeartbeatTimer.unref === "function") {
+    _serverHeartbeatTimer.unref();
+  }
+}
+
+function stopServerHeartbeat() {
+  if (_serverHeartbeatTimer) clearInterval(_serverHeartbeatTimer);
+  _serverHeartbeatTimer = null;
+  _serverHeartbeatFailures = 0;
+  _serverHeartbeatChecking = false;
+  _serverHeartbeatRestarting = false;
 }
 
 /**
@@ -1381,7 +1449,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow(opts);
 
   // 自动更新：注册 IPC handlers
-  initAutoUpdater(mainWindow);
+  initAutoUpdater(mainWindow, isTrustedAppWebContents);
 
   if (saved?.isMaximized) {
     mainWindow.maximize();
@@ -2961,7 +3029,11 @@ wrapIpcHandler("confirm-action", async (event, opts = {}) => {
       resolve(false);
     }, 5 * 60 * 1000);
 
-    const handleResponse = (_respEvent, payload = {}) => {
+    const handleResponse = (respEvent, payload = {}) => {
+      if (respEvent?.sender !== webContents) {
+        console.warn("[confirm-action] rejected response from untrusted sender");
+        return;
+      }
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
@@ -3351,6 +3423,7 @@ app.whenReady().then(async () => {
     await startServer();
     console.log(`[desktop] Server 就绪，端口: ${serverPort}`);
     monitorServer();
+    startServerHeartbeat();
     setupBrowserCommands();
     createTray();
 
@@ -3507,6 +3580,7 @@ function registerGlobalSummon(configuredAccelerator = readGlobalSummonShortcutPr
 
 // ── 优雅关闭 ──
 app.on("will-quit", () => {
+  stopServerHeartbeat();
   wakeLockReasons.clear();
   refreshWakeLock();
   globalShortcut.unregisterAll();

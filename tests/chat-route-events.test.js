@@ -1507,6 +1507,109 @@ describe("chat route event forwarding", () => {
     }));
   });
 
+  it("recovers Brain pseudo weather skill reads through the real weather tool", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    const weatherExecute = vi.fn(async () => ({
+      content: [{ type: "text", text: "深圳明天小雨，22-27°C。建议带伞。" }],
+      details: { provider: "test-weather" },
+    }));
+    engine.buildTools = vi.fn(() => ({
+      tools: [{ name: "weather", execute: weatherExecute }],
+      customTools: [],
+    }));
+    hub.send = vi.fn(async () => {});
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "用工具查深圳明天天气，回答温度、天气和一句出行建议。" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "<tool_call>\n<function=read>\n<parameter=file_path>/Users/lynn/.lynn/skills/weather/SKILL.md</parameter>\n</function>\n</tool_call>",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await vi.waitFor(() => expect(weatherExecute).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "tool_start",
+      name: "weather",
+      sessionPath: "/sessions/current.jsonl",
+    })));
+    await vi.waitFor(() => expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "tool_end",
+      name: "weather",
+      success: true,
+      sessionPath: "/sessions/current.jsonl",
+    })));
+
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(visibleText).toContain("深圳明天小雨");
+    expect(visibleText).toContain("数据来源/判断依据");
+    expect(visibleText).not.toContain("<tool_call>");
+    expect(clients[0].sent).not.toContainEqual(expect.objectContaining({
+      type: "turn_retry",
+    }));
+  });
+
+  it("recovers Brain pseudo market searches through the real stock_market tool", async () => {
+    engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
+    engine.resolveModelOverrides = vi.fn((model) => model);
+    const stockExecute = vi.fn(async () => ({
+      content: [{ type: "text", text: "AAPL：195.12 USD；TSLA：178.40 USD；时间：2026-05-08 13:00；来源：test-market。" }],
+      details: { provider: "test-market" },
+    }));
+    engine.buildTools = vi.fn(() => ({
+      tools: [{ name: "stock_market", execute: stockExecute }],
+      customTools: [],
+    }));
+    hub.send = vi.fn(async () => {});
+
+    const res = await app.request("/ws");
+    expect(res.status).toBe(200);
+
+    connections[0].handlers.onMessage({
+      data: JSON.stringify({ type: "prompt", text: "查最近可用的 AAPL 和 TSLA 行情，给时间戳和来源，并明确这不构成投资建议。" }),
+    }, connections[0].client);
+
+    await vi.waitFor(() => expect(hub.send).toHaveBeenCalled());
+
+    subscribed({
+      type: "message_update",
+      assistantMessageEvent: {
+        type: "text_delta",
+        delta: "<tool_call>\n<function=web_search>\n<parameter=query>AAPL stock price today</parameter>\n</function>\n</tool_call>",
+      },
+    }, "/sessions/current.jsonl");
+    subscribed({ type: "turn_end" }, "/sessions/current.jsonl");
+
+    await vi.waitFor(() => expect(stockExecute).toHaveBeenCalledTimes(1));
+    const visibleText = clients[0].sent
+      .filter((evt) => evt.type === "text_delta")
+      .map((evt) => evt.delta)
+      .join("");
+    expect(clients[0].sent).toContainEqual(expect.objectContaining({
+      type: "tool_start",
+      name: "stock_market",
+      sessionPath: "/sessions/current.jsonl",
+    }));
+    expect(visibleText).toContain("AAPL");
+    expect(visibleText).toContain("TSLA");
+    expect(visibleText).toContain("不构成投资建议");
+    expect(visibleText).not.toContain("<tool_call>");
+  });
+
   it("does not inject local prefetch for non-realtime brain turns", async () => {
     engine.currentModel = { id: "lynn-brain-router", provider: "brain", name: "默认模型" };
     engine.resolveModelOverrides = vi.fn((model) => model);

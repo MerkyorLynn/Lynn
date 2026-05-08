@@ -197,6 +197,36 @@ describe("turn quality gate", () => {
     expect(decision.text).not.toContain("已修复");
   });
 
+  it("appends the explicit verification request even when a command is present", () => {
+    const ss = {
+      hasOutput: true,
+      hasToolCall: false,
+      hasThinking: true,
+      hasError: false,
+      hasFailedTool: false,
+      routeIntent: "coding",
+      internalRetryCounts: {},
+      originalPromptText: "我跑 ComfyUI 的 main.py 报 ImportError: cannot import name 'FooNode'，请帮我修",
+      effectivePromptText: "我跑 ComfyUI 的 main.py 报 ImportError: cannot import name 'FooNode'，请帮我修",
+    };
+    const visible = [
+      "根因是 custom_nodes.foo 没有导出 FooNode。",
+      "建议先检查 custom_nodes/foo.py 里的类名或删除 nodes.py 里的错误导入。",
+      "如果这是第三方 custom node，也要检查插件是否兼容当前 ComfyUI 主分支。",
+      "验证命令：`python main.py`。",
+    ].join("\n");
+    const snapshot = createTurnQualitySnapshot(ss, visible);
+    const decision = evaluatePreTurnEndQuality(ss, snapshot, {
+      isActive: true,
+      sessionPath: "/sessions/current.jsonl",
+      visibleTextBeforeReset: visible,
+    });
+
+    expect(snapshot.isCodingDiagnosticMissingVerification).toBe(true);
+    expect(decision).toMatchObject({ type: "fallback" });
+    expect(decision.text).toContain("请运行验证");
+  });
+
   it("retries local mutation tasks that produced prose without any real tool call", () => {
     const ss = {
       hasOutput: true,

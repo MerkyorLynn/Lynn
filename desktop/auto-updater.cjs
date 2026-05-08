@@ -234,15 +234,28 @@ async function checkUpdate() {
 // 公共 API
 // ══════════════════════════════════════
 
-function initAutoUpdater(mainWindow) {
+function initAutoUpdater(mainWindow, isTrustedIpcSender) {
   _mainWindow = mainWindow;
 
-  ipcMain.handle("auto-update-check", async () => {
+  const isTrustedSender = (event) => {
+    try {
+      if (typeof isTrustedIpcSender === "function") {
+        return isTrustedIpcSender(event?.sender, "auto-updater") !== false;
+      }
+      return Boolean(_mainWindow && !_mainWindow.isDestroyed() && event?.sender === _mainWindow.webContents);
+    } catch {
+      return false;
+    }
+  };
+
+  ipcMain.handle("auto-update-check", async (event) => {
+    if (!isTrustedSender(event)) return null;
     resetState();
     return checkUpdate();
   });
 
-  ipcMain.handle("auto-update-download", async () => {
+  ipcMain.handle("auto-update-download", async (event) => {
+    if (!isTrustedSender(event)) return false;
     if (_updateState.status !== "available") return false;
     const nativeOk = await tryNativeDownload();
     if (nativeOk) return true;
@@ -252,7 +265,8 @@ function initAutoUpdater(mainWindow) {
     return true;
   });
 
-  ipcMain.handle("auto-update-install", () => {
+  ipcMain.handle("auto-update-install", (event) => {
+    if (!isTrustedSender(event)) return;
     if (_updateState.status === "downloaded" && _autoUpdater && app.isPackaged) {
       try {
         _autoUpdater.quitAndInstall();
@@ -266,11 +280,13 @@ function initAutoUpdater(mainWindow) {
     }
   });
 
-  ipcMain.handle("auto-update-state", () => {
+  ipcMain.handle("auto-update-state", (event) => {
+    if (!isTrustedSender(event)) return { status: "idle" };
     return getState();
   });
 
-  ipcMain.handle("auto-update-set-channel", (_event, channel) => {
+  ipcMain.handle("auto-update-set-channel", (event, channel) => {
+    if (!isTrustedSender(event)) return;
     setUpdateChannel(channel);
   });
 }

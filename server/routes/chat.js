@@ -85,6 +85,16 @@ import {
   stripRouteMetadataLeaks,
 } from "../chat/turn-retry-policy.js";
 
+import {
+  buildExplicitPromptMutationCommand,
+  extractRecoverablePseudoBashCommand,
+  isMeaningfulRecoveredBashCommand,
+  isInsidePath,
+  looksLikeIncompleteLocalMutationProbe,
+  looksLikeLocalMutationProbeCommand,
+  shellQuote,
+} from "../chat/command-recovery.js";
+
 /** tool_start 事件只广播这些 arg 字段，避免传输完整文件内容（同步维护：chat-render-shim.ts extractToolDetail） */
 const TOOL_ARG_SUMMARY_KEYS = ["file_path", "path", "command", "cmd", "shell", "script", "pattern", "url", "query", "key", "value", "action", "type", "schedule", "prompt", "label"];
 
@@ -196,270 +206,6 @@ function normalizeToolArgsForSummary(toolName, rawArgs) {
     }
   }
   return args;
-}
-
-function shellQuote(value) {
-  return `'${String(value || "").replace(/'/g, "'\\''")}'`;
-}
-
-function isMeaningfulRecoveredBashCommand(command) {
-  const trimmed = String(command || "").trim();
-  if (!trimmed || trimmed.length > 2000) return false;
-  if (/^[<>/\\\s]+$/.test(trimmed)) return false;
-  if (/^<\/?[a-zA-Z0-9_.:-]+\s*\/?>$/.test(trimmed)) return false;
-  if (/^```(?:bash|sh|shell)?$/i.test(trimmed)) return false;
-  return /[A-Za-z0-9_$~/'"`.-]/.test(trimmed);
-}
-
-function isInsidePath(child, parent) {
-  const rel = path.relative(parent, child);
-  return rel === "" || (!!rel && !rel.startsWith("..") && !path.isAbsolute(rel));
-}
-
-function extractPseudoBashCommand(text) {
-  const raw = String(text || "");
-  const patterns = [
-    /<\|tool_code_begin\|>\s*bash\s*([\s\S]*?)(?:<\|tool_code_end\|>|$)/i,
-    /<tool_call>\s*<bash[^>]*>([\s\S]*?)(?:<\/bash>|$)/i,
-    /<bash[^>]*>([\s\S]*?)<\/bash>/i,
-    /<tool_call>\s*bash\s*\n([\s\S]*?)(?:<\/tool_call>|$)/i,
-  ];
-  for (const pattern of patterns) {
-    const match = raw.match(pattern);
-    const command = String(match?.[1] || "").replace(/<\/?[^>]+>/g, "").trim();
-    if (isMeaningfulRecoveredBashCommand(command)) return command;
-  }
-  return "";
-}
-
-function extractPseudoRemovePath(text) {
-  const raw = String(text || "");
-  const patterns = [
-    /<remove[^>]*>\s*\(([^)]+)\)\s*<\/remove>/i,
-    /<(?:remove|remove_file|delete|delete_file)[^>]*>\s*(?:<path>)?\s*([^<\n]+?)\s*(?:<\/path>)?\s*<\/(?:remove|remove_file|delete|delete_file)>/i,
-  ];
-  for (const pattern of patterns) {
-    const match = raw.match(pattern);
-    const target = String(match?.[1] || "").trim();
-    if (target && target.length <= 1000) return target;
-  }
-  return "";
-}
-
-function extractExplicitDeleteTargetFromPrompt(prompt) {
-  const text = String(prompt || "");
-  const match = text.match(/(?:删除|删掉|移除|delete|remove)\s*(?:当前目录下|当前目录中|当前文件夹下|current directory|current folder)?\s*[`"“”']?([A-Za-z0-9][A-Za-z0-9._ -]{0,180}\.[A-Za-z0-9]{1,16})[`"“”']?/i);
-  const target = String(match?.[1] || "").trim();
-  if (!target || target.includes("/") || target.includes("\\") || /[*?[\]{}$`;&|<>]/.test(target)) return "";
-  return target;
-}
-
-function extractPromptDeleteExtensionRequest(prompt) {
-  const text = String(prompt || "");
-  if (!/(?:删除|删掉|清理|移除|delete|remove)/i.test(text)) return null;
-  const wantsDownloads = /(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(text);
-  if (!wantsDownloads) return null;
-  const extMatch = text.match(/(?:后缀(?:是|为)?|扩展名(?:是|为)?|extension\s*)[：:\s.'"]*([A-Za-z0-9]{1,32})\b/i)
-    || text.match(/(?:所有|全部|all)[\s\S]{0,24}\.([A-Za-z0-9]{1,32})\b/i)
-    || text.match(/\.([A-Za-z0-9]{1,32})\s*(?:文件|files?)/i)
-    || text.match(/\b(zip|rar|7z|xlsx?|csv|pdf|docx?|pptx?)\b/i);
-  const extension = String(extMatch?.[1] || "").toLowerCase();
-  if (!extension || /[^a-z0-9]/i.test(extension)) return null;
-  return {
-    folder: path.join(os.homedir(), "Downloads"),
-    extension,
-  };
-}
-
-function buildDeleteExtensionCommand(request) {
-  if (!request?.folder || !request?.extension) return "";
-  const quotedFolder = shellQuote(request.folder);
-  const pattern = `*.${request.extension}`;
-  return [
-    `dir=${quotedFolder}`,
-    `matches=$(find "$dir" -maxdepth 1 -type f -iname ${shellQuote(pattern)} -print)`,
-    `if [ -z "$matches" ]; then echo '下载文件夹中没有 ${request.extension} 文件。'`,
-    `else printf '%s\\n' "$matches"; printf '%s\\n' "$matches" | while IFS= read -r file; do rm -f "$file"; done; echo '=== 删除完成 ==='`,
-    `fi`,
-  ].join("; ");
-}
-
-function normalizeMoveExtensionToken(token = "") {
-  const raw = String(token || "").trim().toLowerCase();
-  if (!raw) return [];
-  if (/^(?:html?|网页)$/.test(raw)) return ["html", "htm"];
-  if (/^(?:excel|表格|xlsx?|xlsm|csv)$/.test(raw)) return ["xlsx", "xls", "xlsm", "csv"];
-  if (/^(?:pdf)$/.test(raw)) return ["pdf"];
-  if (/^(?:图片|image|images?|照片|photo|photos?)$/.test(raw)) {
-    return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "tiff", "svg"];
-  }
-  if (/^[a-z0-9]{1,32}$/i.test(raw)) return [raw];
-  return [];
-}
-
-function resolveKnownFolderFromText(text = "", fallback = "") {
-  const raw = String(text || "");
-  if (/(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(raw)) return path.join(os.homedir(), "Downloads");
-  if (/(?:桌面|Desktop)/i.test(raw)) return path.join(os.homedir(), "Desktop");
-  if (/(?:文稿|文档|Documents?)/i.test(raw)) return path.join(os.homedir(), "Documents");
-  return fallback || "";
-}
-
-function sanitizeFolderName(name = "") {
-  return String(name || "")
-    .replace(/["“”'`]/g, "")
-    .replace(/(?:的)?(?:文件夹|目录|folder)$/i, "")
-    .replace(/^(?:到|至|进|进入|放进|放到|移动到|移到|挪到|拷贝到|复制到)\s*/i, "")
-    .trim()
-    .replace(/[\/\\:*?"<>|]/g, "")
-    .slice(0, 80);
-}
-
-function extractTargetFolderName(text = "") {
-  const raw = String(text || "");
-  const patterns = [
-    /(?:移动到|移到|挪到|放到|放进|放入|归档到|整理到|复制到|拷贝到)\s*([^\n，。；;,.!?！？]{1,80})/i,
-    /(?:都|全部|所有)[\s\S]{0,30}(?:放进|放到|移动到|移到|挪到)\s*([^\n，。；;,.!?！？]{1,80})/i,
-  ];
-  for (const pattern of patterns) {
-    const match = raw.match(pattern);
-    const name = sanitizeFolderName(match?.[1] || "");
-    if (name) return name;
-  }
-  return "";
-}
-
-function extractPromptMoveExtensionRequest(prompt) {
-  const text = String(prompt || "");
-  const requirement = classifyRequestedLocalMutation(text);
-  if (!requirement?.requiresMove) return null;
-
-  const sourceFolder = resolveKnownFolderFromText(text);
-  if (!sourceFolder) return null;
-
-  const extMatch = text.match(/(?:后缀(?:是|为)?|扩展名(?:是|为)?|extension\s*)[：:\s.'"]*([A-Za-z0-9]{1,32})\b/i)
-    || text.match(/(?:所有|全部|all)[\s\S]{0,28}\.([A-Za-z0-9]{1,32})\b/i)
-    || text.match(/\b(html?|xlsx?|xlsm|csv|pdf|png|jpe?g|gif|webp|bmp|heic|svg)\b/i)
-    || text.match(/(HTML?|Excel|表格|PDF|图片|照片)/i);
-  const extensions = normalizeMoveExtensionToken(extMatch?.[1] || "");
-  if (!extensions.length) return null;
-
-  let targetName = extractTargetFolderName(text);
-  if (!targetName) {
-    targetName = extensions[0] === "pdf" ? "pdf"
-      : extensions.includes("xlsx") ? "表格"
-      : extensions.includes("html") ? "HTML"
-      : extensions.includes("png") ? "图片"
-      : `${extensions[0]}文件`;
-  }
-
-  let targetBase = sourceFolder;
-  if (/^(?:桌面|Desktop)/i.test(targetName)) {
-    targetBase = path.join(os.homedir(), "Desktop");
-    targetName = sanitizeFolderName(targetName.replace(/^(?:桌面|Desktop)\s*/i, ""));
-  } else if (/^(?:下载文件夹|下载目录|Downloads?|download folder)/i.test(targetName)) {
-    targetBase = path.join(os.homedir(), "Downloads");
-    targetName = sanitizeFolderName(targetName.replace(/^(?:下载文件夹|下载目录|Downloads?|download folder)\s*/i, ""));
-  }
-  if (!targetName) return null;
-
-  return {
-    sourceFolder,
-    targetFolder: path.join(targetBase, targetName),
-    extensions,
-  };
-}
-
-function buildMoveExtensionCommand(request) {
-  if (!request?.sourceFolder || !request?.targetFolder || !Array.isArray(request.extensions) || !request.extensions.length) {
-    return "";
-  }
-  const quotedSource = shellQuote(request.sourceFolder);
-  const quotedTarget = shellQuote(request.targetFolder);
-  const findPatterns = request.extensions
-    .map((ext) => `-iname ${shellQuote(`*.${ext}`)}`)
-    .join(" -o ");
-  const label = request.extensions.join("/");
-  return [
-    `src=${quotedSource}`,
-    `dst=${quotedTarget}`,
-    `mkdir -p "$dst"`,
-    `matches=$(find "$src" -maxdepth 1 -type f \\( ${findPatterns} \\) -print)`,
-    `if [ -z "$matches" ]; then echo '源文件夹中没有 ${label} 文件。'; else printf '%s\\n' "$matches"; printf '%s\\n' "$matches" | while IFS= read -r file; do [ -n "$file" ] || continue; mv -n "$file" "$dst/"; done; echo '=== 移动命令已执行 ==='; find "$dst" -maxdepth 1 -type f \\( ${findPatterns} \\) -print`,
-    `fi`,
-  ].join("; ");
-}
-
-function extractRecoverablePseudoBashCommand(text, ss, session, engine) {
-  const requirement = classifyRequestedLocalMutation(ss?.originalPromptText || ss?.effectivePromptText || "");
-  if (!requirement) return "";
-
-  // For local mutation requests, the model often leaks a fake probe such as
-  // "find matching files" while the user asked us to actually move/delete.
-  // Prefer the deterministic command derived from the original user prompt so
-  // pseudo-tool recovery still completes the task instead of only inspecting.
-  const explicitPromptCommand = buildExplicitPromptMutationCommand(ss, session, engine);
-  if (explicitPromptCommand) return explicitPromptCommand;
-
-  const bashCommand = extractPseudoBashCommand(text);
-  if (isMeaningfulRecoveredBashCommand(bashCommand)) return bashCommand;
-
-  if (!requirement.requiresDelete) return "";
-  const removePath = extractPseudoRemovePath(text);
-  if (!removePath) return "";
-
-  const cwd = session?.sessionManager?.getCwd?.() || engine?.cwd || process.cwd();
-  const resolved = path.resolve(cwd, removePath);
-  if (!isInsidePath(resolved, cwd)) return "";
-  return `rm -f ${shellQuote(resolved)} && ls -la ${shellQuote(path.dirname(resolved))}`;
-}
-
-function buildExplicitPromptDeleteCommand(ss, session, engine) {
-  const requirement = classifyRequestedLocalMutation(ss?.originalPromptText || ss?.effectivePromptText || "");
-  if (!requirement?.requiresDelete) return "";
-  const prompt = ss?.originalPromptText || ss?.effectivePromptText || "";
-  const extensionRequest = extractPromptDeleteExtensionRequest(prompt);
-  if (extensionRequest) return buildDeleteExtensionCommand(extensionRequest);
-  const target = extractExplicitDeleteTargetFromPrompt(prompt);
-  if (!target) return "";
-  const cwd = session?.sessionManager?.getCwd?.() || engine?.cwd || process.cwd();
-  const resolved = path.resolve(cwd, target);
-  if (!isInsidePath(resolved, cwd)) return "";
-  const command = `rm -f ${shellQuote(resolved)} && ls -la ${shellQuote(cwd)}`;
-  return isMeaningfulRecoveredBashCommand(command) ? command : "";
-}
-
-function buildExplicitPromptMoveCommand(ss) {
-  const prompt = ss?.originalPromptText || ss?.effectivePromptText || "";
-  const request = extractPromptMoveExtensionRequest(prompt);
-  if (!request) return "";
-  return buildMoveExtensionCommand(request);
-}
-
-function buildExplicitPromptMutationCommand(ss, session, engine) {
-  return buildExplicitPromptDeleteCommand(ss, session, engine)
-    || buildExplicitPromptMoveCommand(ss, session, engine);
-}
-
-function looksLikeIncompleteLocalMutationProbe(toolName, args, resultText = "") {
-  const name = String(toolName || "");
-  if (name !== "bash" && name !== "find" && name !== "ls") return false;
-  const command = String(args?.command || args?.query || args?.cmd || "").trim();
-  if (!command) return true;
-  if (/^(?:find|ls|pwd)\s*$/i.test(command)) return true;
-  if (/^[<>/\\\s]+$/.test(command)) return true;
-  const output = String(resultText || "");
-  return /(?:usage:|illegal option|missing argument|unknown primary|No such file or directory|参数缺失)/i.test(output)
-    && !/(?:\brm\b|\bmv\b|\bcp\b|\bmkdir\b|\b-delete\b)/i.test(command);
-}
-
-function looksLikeLocalMutationProbeCommand(toolRecord) {
-  const name = String(toolRecord?.name || "");
-  const command = String(toolRecord?.command || "").trim();
-  if (name !== "bash" && name !== "find" && name !== "ls") return false;
-  if (!command) return true;
-  if (/\b(?:rm|mv|cp|trash|unlink|rmdir)\b|(?:^|\s)-delete(?:\s|$)/i.test(command)) return false;
-  return /^(?:find|ls|pwd|mkdir\b)/i.test(command);
 }
 
 function rememberSuccessfulTool(ss, toolName, toolSummary, rawArgs) {
@@ -1206,7 +952,9 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     const session = engine.getSessionByPath(sessionPath);
     const command = extractRecoverablePseudoBashCommand(inspectedText, ss, session, engine)
       || buildExplicitPromptMutationCommand(ss, session, engine);
-    if (!command) return false;
+    if (!command) {
+      return maybeRecoverReadOnlyPseudoTool(sessionPath, ss, session, inspectedText);
+    }
 
     ss.pseudoToolCommandRecoveryAttempted = true;
     ss.pseudoToolRecoveryHandled = true;
@@ -1265,6 +1013,118 @@ export function createChatRoute(engine, hub, { upgradeWebSocket }) {
     });
 
     debugLog()?.warn("ws", `recovering pseudo bash command through real tool · session=${sessionPath}`);
+    return true;
+  }
+
+  function buildReadOnlyPseudoToolRequest(ss, inspectedText) {
+    const prompt = String(ss?.originalPromptText || ss?.effectivePromptText || "");
+    const leaked = String(inspectedText || "");
+    const combined = `${prompt}\n${leaked}`;
+
+    const wantsWeather = /(?:天气|气温|温度|下雨|降雨|带伞|雨伞|forecast|weather|rain|umbrella)/i.test(combined)
+      || /\/skills\/weather\/SKILL\.md/i.test(leaked)
+      || /<function=weather\b|<weather\b|weather\s*\(/i.test(leaked);
+    if (wantsWeather) {
+      return {
+        name: "weather",
+        args: { query: prompt || stripPseudoToolCallMarkup(leaked).slice(0, 200) || "天气" },
+      };
+    }
+
+    const wantsMarket = /(?:\bAAPL\b|\bTSLA\b|\bNVDA\b|\bMSFT\b|股票|股价|行情|美股|港股|A股|金价|黄金|原油|布伦特|stock|market|ticker|quote)/i.test(combined)
+      || /<function=stock_market\b|<stock_market\b|stock_market\s*\(/i.test(leaked);
+    if (wantsMarket) {
+      return {
+        name: "stock_market",
+        args: { query: prompt || stripPseudoToolCallMarkup(leaked).slice(0, 240) || "行情" },
+      };
+    }
+
+    return null;
+  }
+
+  function buildReadOnlyToolVisibleFallback(toolName, args, resultText, details) {
+    const prompt = String(args?.query || "");
+    const body = String(resultText || "").trim();
+    const timestamp = new Date().toLocaleString("zh-CN", { hour12: false });
+    const source = details?.provider || details?.source || details?.scene || toolName;
+    const lines = [];
+    if (body) lines.push(body);
+    lines.push("");
+    lines.push("数据来源/判断依据");
+    lines.push(`- 工具：${toolName}`);
+    lines.push(`- 时间：${timestamp}`);
+    if (source) lines.push(`- 来源：${source}`);
+    if (toolName === "stock_market" && !/不构成投资建议/.test(body)) {
+      lines.push("");
+      lines.push("以上只是最近可用行情快照，不构成投资建议。");
+    }
+    if (toolName === "weather" && /带伞|下雨|降雨|雨伞/i.test(prompt) && !/带伞|雨伞/.test(body)) {
+      lines.push("");
+      lines.push("出门前建议再看一次本地天气 App 或雷达；如预报有雨，建议带伞。");
+    }
+    return lines.join("\n").trim();
+  }
+
+  function maybeRecoverReadOnlyPseudoTool(sessionPath, ss, session, inspectedText) {
+    const request = buildReadOnlyPseudoToolRequest(ss, inspectedText);
+    if (!request?.name || !request?.args) return false;
+
+    ss.pseudoToolCommandRecoveryAttempted = true;
+    ss.pseudoToolRecoveryHandled = true;
+    ss.hasToolCall = true;
+    ss.recoveredBashInFlight = true;
+    const toolCallId = `recovered_pseudo_${request.name}_${Date.now().toString(36)}`;
+    emitStreamEvent(sessionPath, ss, { type: "tool_start", name: request.name, args: request.args });
+
+    Promise.resolve().then(async () => {
+      try {
+        const cwd = session?.sessionManager?.getCwd?.() || engine.cwd || process.cwd();
+        const built = engine.buildTools(cwd, null, {
+          workspace: cwd,
+          getSessionPath: () => sessionPath,
+        });
+        const tool = [...(built?.tools || []), ...(built?.customTools || [])].find((item) => item?.name === request.name);
+        if (!tool?.execute) throw new Error(`${request.name} tool unavailable`);
+        const result = await tool.execute(toolCallId, request.args);
+        const resultText = extractText(result?.content);
+        const toolSummary = {
+          outputPreview: resultText ? resultText.slice(0, 240) : "",
+        };
+        emitStreamEvent(sessionPath, ss, {
+          type: "tool_end",
+          name: request.name,
+          success: !result?.isError,
+          summary: toolSummary.outputPreview ? toolSummary : undefined,
+        });
+        ss.recoveredBashInFlight = false;
+        if (result?.isError) {
+          rememberFailedTool(ss, request.name);
+          closeStreamWithVisibleFallback(sessionPath, ss, "", `recovered_pseudo_${request.name}_failed`);
+          return;
+        }
+        rememberSuccessfulTool(ss, request.name, toolSummary, request.args);
+        closeStreamWithVisibleFallback(
+          sessionPath,
+          ss,
+          buildReadOnlyToolVisibleFallback(request.name, request.args, resultText, result?.details),
+          `recovered_pseudo_${request.name}`,
+          { appendEvenIfHasOutput: true, trustedFallback: true },
+        );
+      } catch (err) {
+        ss.recoveredBashInFlight = false;
+        emitStreamEvent(sessionPath, ss, {
+          type: "tool_end",
+          name: request.name,
+          success: false,
+          error: err?.message || String(err),
+        });
+        rememberFailedTool(ss, request.name);
+        closeStreamWithVisibleFallback(sessionPath, ss, "", `recovered_pseudo_${request.name}_error`);
+      }
+    });
+
+    debugLog()?.warn("ws", `recovering pseudo ${request.name} call through real read-only tool · session=${sessionPath}`);
     return true;
   }
 
