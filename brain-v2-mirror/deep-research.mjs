@@ -14,7 +14,7 @@ const CANDIDATE_TIMEOUT_MS = Number(process.env.DEEP_RESEARCH_CANDIDATE_TIMEOUT_
 const VERIFIER_TIMEOUT_MS = Number(process.env.DEEP_RESEARCH_VERIFIER_TIMEOUT_MS || 8_000);
 const MIN_VALID_CANDIDATES = Number(process.env.DEEP_RESEARCH_MIN_CANDIDATES || 2);
 const MAX_WINNER_AVG = Number(process.env.DEEP_RESEARCH_MAX_WINNER_AVG || 4);
-const MAX_WINNER_DIMENSION = Number(process.env.DEEP_RESEARCH_MAX_WINNER_DIMENSION || 5);
+const MAX_WINNER_DIMENSION = Number(process.env.DEEP_RESEARCH_MAX_WINNER_DIMENSION || 3);
 
 function buildDeepResearchVerifierPrompt({ userPrompt, candidateAnswer }) {
   const truncated = String(candidateAnswer || '').slice(0, 12000);
@@ -92,22 +92,26 @@ function isAcceptableScore(score, {
   return avg <= maxAvg && scoreMaxDimension(score.scores) <= maxDimension;
 }
 
-function buildQualityRejectedResult({ candidateResults, scores, phase1Ms, phase2Ms, startedAt }) {
+function buildQualityRejectedResult({ candidateResults, scores, phase1Ms, phase2Ms, startedAt, reason = '' }) {
   const rankedScores = scores
     .filter((s) => s.scored)
     .map((s) => ({ providerId: s.providerId, avg: s.avg, maxDimension: scoreMaxDimension(s.scores), scores: s.scores }))
     .sort((a, b) => a.avg - b.avg);
+  const validCount = candidateResults.filter((c) => c.ok && c.content && c.content.length > 20).length;
 
   const fallbackContent = [
     '这轮 Deep Research 已拦截：多模型候选答案没有达到质量线，暂不直接输出，避免把不稳定或可能误导的内容当作结论。',
     '',
+    reason ? `拦截原因：${reason}` : '',
     `质量线：平均分 ≤ ${MAX_WINNER_AVG}，且任一维度 ≤ ${MAX_WINNER_DIMENSION}。`,
     rankedScores.length
       ? `当前最好候选：${rankedScores[0].providerId}，avg=${rankedScores[0].avg.toFixed(2)}，max=${rankedScores[0].maxDimension}。`
-      : '当前没有候选完成有效评分。',
+      : (validCount > 0
+          ? `有效候选不足：${validCount}/${MIN_VALID_CANDIDATES}，未进入最终评分。`
+          : '当前没有候选完成有效评分。'),
     '',
     '建议：请重试一次，或把问题拆成更具体的子问题后再做深度研究。',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return {
     winner: null,
@@ -258,6 +262,24 @@ export async function runDeepResearch({ messages, candidates, signal, log, onPro
 
   if (validCandidates.length === 0) {
     throw new Error('deep-research: all candidates failed');
+  }
+  if (validCandidates.length < MIN_VALID_CANDIDATES) {
+    const reason = `有效候选数 ${validCandidates.length}/${MIN_VALID_CANDIDATES}，不足以做可靠 best-of-N 选择。`;
+    log && log('warn', `[deep-research] quality rejected: ${reason}`);
+    onProgress && onProgress({
+      event: 'quality-rejected',
+      reason: 'insufficient-valid-candidates',
+      validCount: validCandidates.length,
+      minValidCandidates: MIN_VALID_CANDIDATES,
+    });
+    return buildQualityRejectedResult({
+      candidateResults,
+      scores: [],
+      phase1Ms,
+      phase2Ms: 0,
+      startedAt: t0,
+      reason,
+    });
   }
 
   // Phase 2: parallel scoring of all valid candidates

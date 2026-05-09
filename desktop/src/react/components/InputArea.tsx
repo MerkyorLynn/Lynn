@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useStore } from '../stores';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
-import { showSidebarToast } from '../stores/session-actions';
+import { ensureSession, showSidebarToast } from '../stores/session-actions';
 import { getWebSocket, manualReconnect } from '../services/websocket';
 import { sendPrompt, submitPromptTask } from '../stores/prompt-actions';
 import type { ThinkingLevel } from '../stores/model-slice';
@@ -183,6 +183,8 @@ function InputAreaInner() {
   const [atResults, setAtResults] = useState<Array<{ name: string; path: string; rel: string; isDir: boolean }>>([]);
   const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
   const [inputValue, setInputValue] = useState(composerText);
+  const [deepResearchOpen, setDeepResearchOpen] = useState(false);
+  const [deepResearchBusy, setDeepResearchBusy] = useState(false);
   const [showAtDiscovery, setShowAtDiscovery] = useState(() => {
     try {
       return !localStorage.getItem('hana-at-discovery-seen');
@@ -237,6 +239,180 @@ function InputAreaInner() {
     }
     return sendPrompt({ text, displayText });
   }, [pendingNewSession]);
+
+  const renderAssistantText = useCallback(async (plainText: string) => {
+    const { renderMarkdown } = await import('../utils/markdown');
+    return [{ type: 'text' as const, html: renderMarkdown(plainText), plainText }];
+  }, []);
+
+  const patchLocalAssistantMessage = useCallback(async (sessionPath: string, messageId: string, plainText: string) => {
+    const blocks = await renderAssistantText(plainText);
+    useStore.setState((state) => {
+      const session = state.chatSessions[sessionPath];
+      if (!session) return {};
+      return {
+        chatSessions: {
+          ...state.chatSessions,
+          [sessionPath]: {
+            ...session,
+            items: session.items.map((item) => {
+              if (item.type !== 'message' || item.data.id !== messageId) return item;
+              return {
+                type: 'message' as const,
+                data: {
+                  ...item.data,
+                  text: plainText,
+                  blocks,
+                },
+              };
+            }),
+          },
+        },
+      };
+    });
+  }, [renderAssistantText]);
+
+  const handleDeepResearchRun = useCallback(async () => {
+    const latestPromptValue = textareaRef.current?.value ?? useStore.getState().composerText ?? inputValue;
+    if (latestPromptValue !== inputValue) setInputValue(latestPromptValue);
+    if (latestPromptValue !== composerText) setComposerText(latestPromptValue);
+    const prompt = latestPromptValue.trim();
+    setDeepResearchOpen(true);
+    if (!prompt) {
+      useStore.getState().addToast?.('先输入一个调研问题，再点“开始深研”', 'info', 3200, {
+        dedupeKey: 'deep-research-empty',
+      });
+      requestInputFocus();
+      return;
+    }
+    if (deepResearchBusy || isStreaming) return;
+    if (!serverReady) {
+      showSidebarToast(t('chat.serverStarting') || 'Lynn 还在启动中', 4000);
+      return;
+    }
+
+    setDeepResearchBusy(true);
+    setInlineNotice(null);
+    setInlineError(null);
+    try {
+      if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
+        useStore.setState({ selectedFolder: useStore.getState().homeFolder });
+      }
+      if (useStore.getState().pendingNewSession) {
+        const ok = await ensureSession();
+        if (!ok) throw new Error('无法创建新会话');
+      }
+      const sessionPath = useStore.getState().currentSessionPath;
+      if (!sessionPath) throw new Error('当前没有可用会话');
+
+      const renderMarkdown = (await import('../utils/markdown')).renderMarkdown;
+      const now = Date.now();
+      const userId = `deep-user-${now}`;
+      const assistantId = `deep-assistant-${now}`;
+      const thinkingText = 'Deep Research 正在并行生成候选答案，并用 verifier 做质量复核…';
+      const thinkingBlocks = await renderAssistantText(thinkingText);
+      const session = useStore.getState().chatSessions[sessionPath];
+      if (!session) {
+        useStore.getState().initSession(sessionPath, [], false);
+      }
+      useStore.getState().appendItem(sessionPath, {
+        type: 'message',
+        data: {
+          id: userId,
+          role: 'user',
+          taskMode: 'prompt',
+          text: prompt,
+          textHtml: renderMarkdown(prompt),
+          requestText: prompt,
+        },
+      });
+      useStore.getState().appendItem(sessionPath, {
+        type: 'message',
+        data: {
+          id: assistantId,
+          role: 'assistant',
+          text: thinkingText,
+          blocks: thinkingBlocks,
+          model: 'Deep Research',
+          timestamp: now,
+        },
+      });
+
+      setComposerText('');
+      setInputValue('');
+      setDeepResearchOpen(false);
+      useStore.setState({ welcomeVisible: false });
+
+      const response = await hanaFetch('/api/deep-research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          sessionPath,
+          candidates: ['mimo', 'deepseek-chat', 'qwen3.6-a3b-fp8', 'glm-5-turbo'],
+          timeoutMs: 120000,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || `Deep Research 请求失败 (${response.status})`);
+      }
+
+      const text = String(data?.text || '').trim();
+      const winner = data?.winnerProviderId ? ` · winner: ${data.winnerProviderId}` : '';
+      const status = data?.qualityRejected
+        ? '质量地板已拦截'
+        : data?.ok === false
+          ? '未通过质量复核'
+          : '已通过质量复核';
+      const scoreLines = Array.isArray(data?.rankedScores)
+        ? data.rankedScores.slice(0, 3).map((row: Record<string, unknown>, index: number) => {
+          const provider = String(row.providerId || row.provider || `候选 ${index + 1}`);
+          const avg = Number(row.avg ?? row.average ?? NaN);
+          return Number.isFinite(avg) ? `- ${provider}: ${avg.toFixed(2)}` : `- ${provider}`;
+        })
+        : [];
+      const footer = [
+        '',
+        '---',
+        `**Deep Research**：${status}${winner}`,
+        scoreLines.length ? `\n${scoreLines.join('\n')}` : '',
+      ].filter(Boolean).join('\n');
+      await patchLocalAssistantMessage(
+        sessionPath,
+        assistantId,
+        `${text || 'Deep Research 没有返回可见答案，请稍后重试或把问题拆得更具体。'}\n${footer}`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err || 'Deep Research 失败');
+      const sessionPath = useStore.getState().currentSessionPath;
+      const session = sessionPath ? useStore.getState().chatSessions[sessionPath] : null;
+      const lastAssistant = session?.items.slice().reverse().find(
+        (item) => item.type === 'message' && item.data.role === 'assistant' && item.data.id.startsWith('deep-assistant-'),
+      );
+      if (sessionPath && lastAssistant?.type === 'message') {
+        await patchLocalAssistantMessage(sessionPath, lastAssistant.data.id, `Deep Research 启动失败：${message}`);
+      } else {
+        useStore.getState().addToast?.(`Deep Research 启动失败：${message}`, 'error', 5000);
+      }
+    } finally {
+      setDeepResearchBusy(false);
+    }
+  }, [
+    deepResearchBusy,
+    isStreaming,
+    patchLocalAssistantMessage,
+    pendingNewSession,
+    renderAssistantText,
+    requestInputFocus,
+    serverReady,
+    composerText,
+    inputValue,
+    setComposerText,
+    setInlineError,
+    setInlineNotice,
+    t,
+  ]);
 
   const showSlashResult = useCallback((text: string, type: 'success' | 'error') => {
     setSlashBusy(null);
@@ -992,6 +1168,50 @@ function InputAreaInner() {
           </button>
         </div>
       )}
+      {deepResearchOpen && !recoveryMessage && !taskRecoveryMessage && !inlineError && (
+        <div className={styles['deep-research-card']}>
+          <div className={styles['deep-research-orb']} aria-hidden="true">
+            <span />
+          </div>
+          <div className={styles['deep-research-copy']}>
+            <strong>Deep Research</strong>
+            <span>适合长调研、竞品梳理、报告初稿。会并行生成多份候选答案，再用 verifier 做质量地板拦截。</span>
+          </div>
+          <div className={styles['deep-research-actions']}>
+            <button
+              type="button"
+              className={styles['deep-research-example']}
+              onClick={() => {
+                const next = '为我做一份深度调研：';
+                if (!readLatestInputValue().trim()) {
+                  setInputValue(next);
+                  setComposerText(next);
+                  requestInputFocus();
+                }
+              }}
+            >
+              填入模板
+            </button>
+            <button
+              type="button"
+              className={styles['deep-research-start']}
+              onClick={handleDeepResearchRun}
+              disabled={deepResearchBusy || isStreaming}
+            >
+              {deepResearchBusy ? '深研中…' : '开始深研'}
+            </button>
+            <button
+              type="button"
+              className={styles['deep-research-close']}
+              onClick={() => setDeepResearchOpen(false)}
+              aria-label="关闭 Deep Research 引导"
+              title="关闭"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}
           aria-label={t('input.placeholder') || '输入消息'}
@@ -1035,6 +1255,24 @@ function InputAreaInner() {
               </svg>
             </button>
             <TaskModePicker />
+            <button
+              type="button"
+              className={`${styles['deep-research-pill']} ${deepResearchOpen ? styles['deep-research-pill-active'] : ''}`}
+              onClick={() => {
+                if (readLatestInputValue().trim()) {
+                  void handleDeepResearchRun();
+                } else {
+                  setDeepResearchOpen((open) => !open);
+                }
+              }}
+              disabled={deepResearchBusy}
+              title="Deep Research：多模型并行调研 + 质量复核"
+              aria-pressed={deepResearchOpen}
+              aria-label="Deep Research 深度调研"
+            >
+              <span className={styles['deep-research-pill-mark']}>⌁</span>
+              <span>深研</span>
+            </button>
             <SecurityModeSelector />
             <WritingModeToggle />
             <ContextRing />

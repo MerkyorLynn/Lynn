@@ -1,0 +1,1825 @@
+{
+  "ts": "2026-05-09T18:01:35.640645",
+  "model": "Qwen/Qwen3.5-35B-A3B",
+  "n_trials": 2,
+  "n_questions": 31,
+  "raw": [
+    {
+      "trial": 0,
+      "qid": "A2",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "search_train"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1760,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "search_train"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A3",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "cancel_meeting"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1383,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "cancel_meeting"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A4mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "\n\n已完成代码提交和推送：\n\n✅ **Commit 成功**\n- Message: `feat: add user profile API`\n- Commit SHA: `abc123`\n\n✅ **Push 成功**\n- 已推送到远程分支：`origin/main`\n\n您的代码已成功提交并推送到远程仓库。",
+      "content_len": 153,
+      "latency_ms": 3457,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "git_commit"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1328
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "git_push"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 641
+        },
+        {
+          "turn": 2,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n已完成代码提交和推送：\n\n✅ **Commit 成功**\n- Message: `feat: add user profile API`\n- Commit SHA: `abc123`\n\n✅ **Push 成功**\n- 已推送到远程分支：`origin/main`\n\n您的代码已成功提交并推送到远程仓库。",
+          "content_len": 153,
+          "latency_ms": 1488
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "git_commit",
+          "git_push"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "git_push",
+          "git_commit"
+        ],
+        "n_turns": 3
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A5",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "transfer_money"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1896,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "transfer_money"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A6mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 63281,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "translate"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1457
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "send_email"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1621
+        },
+        {
+          "turn": 2,
+          "error": "TimeoutError: The read operation timed out",
+          "latency_ms": 60203
+        }
+      ],
+      "error": "TimeoutError: The read operation timed out",
+      "scoring": {
+        "score": null,
+        "reason": "error",
+        "details": "TimeoutError: The read operation timed out"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A7",
+      "cat": "A",
+      "kind": "SHOULD",
+      "error": "TimeoutError: The read operation timed out",
+      "latency_ms": 60212,
+      "scoring": {
+        "score": null,
+        "reason": "error",
+        "details": "TimeoutError: The read operation timed out"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A8",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "restart_service"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5878,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "restart_service"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "A9mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "close_issue",
+        "add_comment"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "close_issue",
+        "add_comment"
+      ],
+      "content_head": "\n\n已成功关闭 GitHub 仓库 lynn/ai 中的 issue #142，并添加了评论“已 fixed”。",
+      "content_len": 56,
+      "latency_ms": 4496,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 2,
+          "tool_names": [
+            "close_issue",
+            "add_comment"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 3503
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n已成功关闭 GitHub 仓库 lynn/ai 中的 issue #142，并添加了评论“已 fixed”。",
+          "content_len": 56,
+          "latency_ms": 993
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "close_issue",
+          "add_comment"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "add_comment",
+          "close_issue"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B5",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1968,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B7",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1698,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B8",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "get_stock"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1863,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_stock"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B9",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1601,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B10",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4037,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "B11",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1536,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "C1",
+      "cat": "C",
+      "kind": "SHOULD",
+      "tool_calls_n": 5,
+      "tool_names": [
+        "get_stock",
+        "get_stock",
+        "get_stock",
+        "get_stock",
+        "get_stock"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3156,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_stock",
+          "get_stock",
+          "get_stock",
+          "get_stock",
+          "get_stock"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "C2mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "search_train",
+        "get_weather"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "search_train",
+        "get_weather"
+      ],
+      "content_head": "\n\n后天北京到上海的高铁信息如下：\n\n- **G1次列车**：北京出发时间 08:00，到达上海时间 13:30，二等座余票 553 张。\n\n另外，上海后天的天气是**小雨**，建议您**带伞**以防淋雨。",
+      "content_len": 103,
+      "latency_ms": 4945,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 2,
+          "tool_names": [
+            "search_train",
+            "get_weather"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 3287
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n后天北京到上海的高铁信息如下：\n\n- **G1次列车**：北京出发时间 08:00，到达上海时间 13:30，二等座余票 553 张。\n\n另外，上海后天的天气是**小雨**，建议您**带伞**以防淋雨。",
+          "content_len": 103,
+          "latency_ms": 1658
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "search_train",
+          "get_weather"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "search_train",
+          "get_weather"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "C7mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 5,
+      "all_tool_names": [
+        "extract_entities",
+        "web_search",
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "tool_calls_n": 5,
+      "tool_names": [
+        "extract_entities",
+        "web_search",
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "content_head": "\n\n从会议纪要中提取到以下人名：\n- 李明\n- 张伟\n- 王芳\n- 陈静\n\n已使用 web_search 查询了每个人的最新动态，但搜索结果目前显示为模拟数据（mock），无法提供真实信息。如需获取真实动态，请提供更具体的搜索关键词或确认是否需要进一步操作。",
+      "content_len": 129,
+      "latency_ms": 4452,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "extract_entities"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1836
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 4,
+          "tool_names": [
+            "web_search",
+            "web_search",
+            "web_search",
+            "web_search"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1374
+        },
+        {
+          "turn": 2,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n从会议纪要中提取到以下人名：\n- 李明\n- 张伟\n- 王芳\n- 陈静\n\n已使用 web_search 查询了每个人的最新动态，但搜索结果目前显示为模拟数据（mock），无法提供真实信息。如需获取真实动态，请提供更具体的搜索关键词或确认是否需要进一步操作。",
+          "content_len": 129,
+          "latency_ms": 1242
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "extract_entities",
+          "web_search",
+          "web_search",
+          "web_search",
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "web_search",
+          "extract_entities"
+        ],
+        "n_turns": 3
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "C8mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 1,
+      "all_tool_names": [
+        "get_crypto"
+      ],
+      "tool_calls_n": 1,
+      "tool_names": [
+        "get_crypto"
+      ],
+      "content_head": "\n\n当前比特币价格为 95,000 美元，未跌破 9 万美元。无需发送邮件提醒。",
+      "content_len": 40,
+      "latency_ms": 2216,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "get_crypto"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1494
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n当前比特币价格为 95,000 美元，未跌破 9 万美元。无需发送邮件提醒。",
+          "content_len": 40,
+          "latency_ms": 722
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_crypto"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(1)",
+        "expected_called": [
+          "get_crypto"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "D5",
+      "cat": "D",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1329,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2838,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "translate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "translate"
+        ]
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E5",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n35岁转行做程序员确实是一个需要慎重考虑的决定，我来给你分析一下：\n\n## 优势方面\n\n**1. 人生阅历丰富**\n- 相比年轻人，你有更成熟的心态和更强的抗压能力\n- 其他行业的工作经验可能成为差异化优势（比如金融、医疗、教育等垂直领域）\n- 沟通协作能力通常更好\n\n**2. 职业稳定性**\n- 转行动机更明确，学习动力可能更强\n- 对职业选择更理性，不容易冲动跳槽\n\n## 挑战方面\n\n**1. 年龄歧视**\n- 国内互联网行业确实存在\"35岁门槛\"现象\n- 初级岗位竞争激烈，需要和大量年轻人竞争\n\n**2. 学习成本**\n- 需要投入大量时间学习编程基础、技术栈\n- 初期薪资可能不如预期，需要接受收入落差\n\n**3. 家庭压力**\n- 如果已有家庭，需要考虑时间、经济压力\n\n## 我的建议\n\n**1. 先做低成本尝试**\n- 花1-3个月学习基础编程（Python/JavaScri",
+      "content_len": 728,
+      "latency_ms": 14984,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E7",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "calculate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1363,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "calculate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "calculate"
+        ]
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E8",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n在 Python 中打印 \"hello world\" 非常简单，只需要使用 `print()` 函数：\n\n```python\nprint(\"hello world\")\n```\n\n或者：\n\n```python\nprint('hello world')\n```\n\n**说明：**\n- `print()` 是 Python 的内置函数，用于输出内容到控制台\n- 字符串可以用双引号 `\"` 或单引号 `'` 包裹\n- 运行这段代码后，会在终端/控制台显示：`hello world`\n\n**完整示例：**\n```python\n# hello.py\nprint(\"hello world\")\n```\n\n保存为 `hello.py` 文件后，在命令行运行：\n```bash\npython hello.py\n```\n\n就会看到输出结果了！🎉\n\n这是学习任何编程语言时最经典的第一个程序，祝你学习顺利！",
+      "content_len": 396,
+      "latency_ms": 5966,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E9",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n机器学习是人工智能的重要分支，指通过算法让计算机从数据中自动学习规律，而非依靠人工编程。它通过分析大量数据，识别模式并做出预测或决策。随着数据量增加，性能会不断提升，广泛应用于图像识别、语音助手、推荐系统等领域。",
+      "content_len": 108,
+      "latency_ms": 2246,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E10",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1544,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "translate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "translate"
+        ]
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E11",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n圆周率 π 的前 6 位数字是：**3.14159**\n\nπ 是一个无理数，其完整数值为 3.1415926535...，前 6 位就是 3.14159。",
+      "content_len": 79,
+      "latency_ms": 4461,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "E12",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n中国的首都是**北京**。\n\n北京是中国的首都，也是中国的政治、文化、国际交往和科技创新中心。北京位于中国华北地区，是中华人民共和国的中央政府所在地，拥有悠久的历史和丰富的文化遗产，如故宫、天坛、长城等著名景点。",
+      "content_len": 108,
+      "latency_ms": 1987,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "F1",
+      "cat": "F",
+      "kind": "BORDER",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2218,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "ok_with_titles_or_tool"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "F2",
+      "cat": "F",
+      "kind": "BORDER",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "calculate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1196,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "calculate"
+        ],
+        "score": 1,
+        "reason": "ok"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "F3",
+      "cat": "F",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n牛顿三大定律是经典力学的基础，由艾萨克·牛顿在1687年出版的《自然哲学的数学原理》中提出：\n\n## 牛顿第一定律（惯性定律）\n**任何物体都要保持匀速直线运动或静止状态，直到外力迫使它改变运动状态为止。**\n\n- 说明了物体具有保持原有运动状态的性质，称为惯性\n- 惯性是物体的固有属性，质量越大，惯性越大\n\n## 牛顿第二定律（加速度定律）\n**物体的加速度与所受合外力成正比，与物体的质量成反比，方向与合外力方向相同。**\n\n- 公式：**F = ma**\n- F 表示合外力，m 表示质量，a 表示加速度\n- 这是定量描述力与运动关系的定律\n\n## 牛顿第三定律（作用与反作用定律）\n**两个物体之间的作用力和反作用力总是大小相等、方向相反，作用在同一条直线上。**\n\n- 作用力和反作用力同时产生、同时消失\n- 它们作用在两个不同的物体上，不会相互抵消\n- 例如：人推墙时，墙也会给人一",
+      "content_len": 449,
+      "latency_ms": 5074,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 0,
+      "qid": "F4",
+      "cat": "F",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n# 5 条实用的时间管理建议\n\n## 1. **制定优先级清单**\n使用\"艾森豪威尔矩阵\"将任务分为四类：\n- 重要且紧急 → 立即处理\n- 重要不紧急 → 安排时间处理\n- 紧急不重要 → 委托他人\n- 不重要不紧急 → 尽量不做\n\n## 2. **番茄工作法**\n- 专注工作 25 分钟，休息 5 分钟\n- 每完成 4 个番茄钟后休息 15-30 分钟\n- 帮助保持专注力，避免疲劳\n\n## 3. **时间块规划**\n- 将一天划分为多个时间块\n- 为每个时间块分配特定任务\n- 避免多任务并行，提高专注度\n\n## 4. **两分钟原则**\n- 如果一件事能在 2 分钟内完成，立即去做\n- 避免小事堆积占用大脑内存\n- 快速清理简单任务\n\n## 5. **定期复盘**\n- 每天/每周结束时回顾时间使用情况\n- 分析时间浪费的原因\n- 调整下一周期的计划安排\n\n---\n\n**小贴士**：",
+      "content_len": 469,
+      "latency_ms": 4418,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A2",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "search_train"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1733,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "search_train"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A3",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "cancel_meeting"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1481,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "cancel_meeting"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A4mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "\n\n已成功完成以下操作：\n\n1. **Commit**: 使用 message \"feat: add user profile API\" 创建了提交，commit SHA 为 `abc123`\n2. **Push**: 已将代码推送到远程仓库 `origin/main`\n\n所有操作都已完成！",
+      "content_len": 146,
+      "latency_ms": 6852,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "git_commit"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 2598
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "git_push"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 854
+        },
+        {
+          "turn": 2,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n已成功完成以下操作：\n\n1. **Commit**: 使用 message \"feat: add user profile API\" 创建了提交，commit SHA 为 `abc123`\n2. **Push**: 已将代码推送到远程仓库 `origin/main`\n\n所有操作都已完成！",
+          "content_len": 146,
+          "latency_ms": 3400
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "git_commit",
+          "git_push"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "git_push",
+          "git_commit"
+        ],
+        "n_turns": 3
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A5",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "transfer_money"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3541,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "transfer_money"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A6mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "\n\n已将中文内容翻译成英文并发送至 newsletter@team.com。\n\n翻译后的邮件内容如下：\n**主题：** Upcoming Q3 2026 Product Launch Event\n**正文：** Our company is preparing for Q3 2026 product launch event. Please stay tuned for further announcements.",
+      "content_len": 209,
+      "latency_ms": 5411,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "translate"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 2652
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "send_email"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1300
+        },
+        {
+          "turn": 2,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n已将中文内容翻译成英文并发送至 newsletter@team.com。\n\n翻译后的邮件内容如下：\n**主题：** Upcoming Q3 2026 Product Launch Event\n**正文：** Our company is preparing for Q3 2026 product launch event. Please stay tuned for further announcements.",
+          "content_len": 209,
+          "latency_ms": 1459
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "translate",
+          "send_email"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "send_email",
+          "translate"
+        ],
+        "n_turns": 3
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A7",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "delete_files"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6108,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "delete_files"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A8",
+      "cat": "A",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "restart_service"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2589,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "restart_service"
+        ],
+        "score": 1,
+        "reason": "called_expected",
+        "hedge_phrases": [],
+        "hedged": false
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "A9mt",
+      "cat": "A",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "close_issue",
+        "add_comment"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "close_issue",
+        "add_comment"
+      ],
+      "content_head": "\n\n已成功关闭 GitHub 仓库 lynn/ai 中的 issue #142，并添加了评论“已 fixed”。",
+      "content_len": 56,
+      "latency_ms": 6203,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 2,
+          "tool_names": [
+            "close_issue",
+            "add_comment"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 3908
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n已成功关闭 GitHub 仓库 lynn/ai 中的 issue #142，并添加了评论“已 fixed”。",
+          "content_len": 56,
+          "latency_ms": 2295
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "close_issue",
+          "add_comment"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "add_comment",
+          "close_issue"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B5",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1735,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B7",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3233,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B8",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "get_stock"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4236,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_stock"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B9",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1128,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B10",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 7693,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "B11",
+      "cat": "B",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5366,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "C1",
+      "cat": "C",
+      "kind": "SHOULD",
+      "tool_calls_n": 5,
+      "tool_names": [
+        "get_stock",
+        "get_stock",
+        "get_stock",
+        "get_stock",
+        "get_stock"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5332,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_stock",
+          "get_stock",
+          "get_stock",
+          "get_stock",
+          "get_stock"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "C2mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 2,
+      "all_tool_names": [
+        "search_train",
+        "get_weather"
+      ],
+      "tool_calls_n": 2,
+      "tool_names": [
+        "search_train",
+        "get_weather"
+      ],
+      "content_head": "\n\n后天（2天后）北京到上海的高铁信息如下：\n\n- **G1次列车**：\n  - 出发时间：08:00\n  - 到达时间：13:30\n  - 二等座余票：553张\n\n另外，上海后天的天气是**小雨**。\n\n**建议**：由于上海后天有小雨，建议您**带上伞**，以防下雨。如果您需要预订这趟高铁，请告诉我。",
+      "content_len": 153,
+      "latency_ms": 4148,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 2,
+          "tool_names": [
+            "search_train",
+            "get_weather"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 2923
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n后天（2天后）北京到上海的高铁信息如下：\n\n- **G1次列车**：\n  - 出发时间：08:00\n  - 到达时间：13:30\n  - 二等座余票：553张\n\n另外，上海后天的天气是**小雨**。\n\n**建议**：由于上海后天有小雨，建议您**带上伞**，以防下雨。如果您需要预订这趟高铁，请告诉我。",
+          "content_len": 153,
+          "latency_ms": 1225
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "search_train",
+          "get_weather"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "search_train",
+          "get_weather"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "C7mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 3,
+      "total_tool_calls": 5,
+      "all_tool_names": [
+        "extract_entities",
+        "web_search",
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "tool_calls_n": 5,
+      "tool_names": [
+        "extract_entities",
+        "web_search",
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "content_head": "\n\n从会议纪要中提取到的人名有：李明、张伟、王芳、陈静。\n\n已为您查询了这四人的最新动态，但搜索结果目前显示为模拟数据（<mock>），可能因为：\n1. 这些是通用姓名，缺乏具体行业或公司背景，导致搜索结果不精确\n2. 需要更具体的搜索关键词（如\"李明 科技公司 CEO\"或\"王芳 销售总监 2024\"）\n\n如果您能提供更具体的背景信息（如所在公司、行业、职位等），我可以重新进行更精准的搜索。",
+      "content_len": 197,
+      "latency_ms": 7643,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "extract_entities"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 1262
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 4,
+          "tool_names": [
+            "web_search",
+            "web_search",
+            "web_search",
+            "web_search"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 4369
+        },
+        {
+          "turn": 2,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n从会议纪要中提取到的人名有：李明、张伟、王芳、陈静。\n\n已为您查询了这四人的最新动态，但搜索结果目前显示为模拟数据（<mock>），可能因为：\n1. 这些是通用姓名，缺乏具体行业或公司背景，导致搜索结果不精确\n2. 需要更具体的搜索关键词（如\"李明 科技公司 CEO\"或\"王芳 销售总监 2024\"）\n\n如果您能提供更具体的背景信息（如所在公司、行业、职位等），我可以重新进行更精准的搜索。",
+          "content_len": 197,
+          "latency_ms": 2012
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "extract_entities",
+          "web_search",
+          "web_search",
+          "web_search",
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(2)",
+        "expected_called": [
+          "web_search",
+          "extract_entities"
+        ],
+        "n_turns": 3
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "C8mt",
+      "cat": "C",
+      "kind": "SHOULD",
+      "n_turns": 2,
+      "total_tool_calls": 1,
+      "all_tool_names": [
+        "get_crypto"
+      ],
+      "tool_calls_n": 1,
+      "tool_names": [
+        "get_crypto"
+      ],
+      "content_head": "\n\n当前比特币价格为 **95,000 美元**，未跌破 9 万美元。无需发送邮件提醒。",
+      "content_len": 44,
+      "latency_ms": 6400,
+      "turns": [
+        {
+          "turn": 0,
+          "tool_calls_n": 1,
+          "tool_names": [
+            "get_crypto"
+          ],
+          "content_head": "",
+          "content_len": 0,
+          "latency_ms": 2032
+        },
+        {
+          "turn": 1,
+          "tool_calls_n": 0,
+          "tool_names": [],
+          "content_head": "\n\n当前比特币价格为 **95,000 美元**，未跌破 9 万美元。无需发送邮件提醒。",
+          "content_len": 44,
+          "latency_ms": 4368
+        }
+      ],
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "get_crypto"
+        ],
+        "score": 1,
+        "reason": "all_expected_called(1)",
+        "expected_called": [
+          "get_crypto"
+        ],
+        "n_turns": 2
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "D5",
+      "cat": "D",
+      "kind": "SHOULD",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2623,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "called_expected"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1133,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "translate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "translate"
+        ]
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E5",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n35岁转行做程序员是一个需要慎重考虑的决定。我来帮你客观分析一下：\n\n## 优势方面\n\n**1. 人生经验更丰富**\n- 相比年轻人，你有更多行业经验、人脉资源\n- 更强的抗压能力和解决问题的能力\n- 更清楚自己想要什么，职业目标更明确\n\n**2. 行业需求依然存在**\n- 虽然竞争激烈，但优质程序员仍然稀缺\n- 某些领域（如金融、医疗、传统企业数字化）更需要有行业背景的人才\n\n## 挑战方面\n\n**1. 年龄歧视确实存在**\n- 很多公司偏好35岁以下的候选人\n- 需要更强的能力和作品来证明自己\n\n**2. 学习成本高**\n- 需要投入大量时间学习技术栈\n- 初期薪资可能不如预期，甚至可能低于原行业\n\n**3. 竞争压力大**\n- 与科班出身的年轻人竞争\n- 技术更新快，需要持续学习\n\n## 我的建议\n\n**1. 先做低成本尝试**\n- 利用业余时间学习基础编程（Python/Jav",
+      "content_len": 843,
+      "latency_ms": 6579,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E7",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "calculate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1419,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "calculate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "calculate"
+        ]
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E8",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n在 Python 中打印 \"hello world\" 非常简单，使用 `print()` 函数即可：\n\n```python\nprint(\"hello world\")\n```\n\n或者：\n\n```python\nprint('hello world')\n```\n\n**说明：**\n- `print()` 是 Python 的内置函数，用于输出内容到控制台\n- 字符串可以用双引号 `\"` 或单引号 `'` 包裹\n- 在 Python 3 中，`print` 是一个函数，需要加括号 `()`\n\n**运行示例：**\n```bash\n$ python hello.py\nhello world\n```\n\n这是 Python 编程中最经典的入门示例！🎉",
+      "content_len": 322,
+      "latency_ms": 3215,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E9",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n机器学习是人工智能的核心分支，指计算机通过算法从数据中自动学习规律和模式，而非依赖明确编程。系统通过分析大量样本数据，识别特征和关系，从而对新数据进行预测或决策。常见应用包括图像识别、语音助手、推荐系统、医疗诊断等。机器学习让计算机具备\"经验\"，能随着数据增加不断提升性能，是现代智能技术的基础。",
+      "content_len": 150,
+      "latency_ms": 2384,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E10",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2163,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "translate"
+        ],
+        "score": 0,
+        "reason": "overcalled",
+        "overcalled_tools": [
+          "translate"
+        ]
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E11",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n圆周率 π 的前 6 位数字是：**3.14159**\n\n圆周率是一个无理数，表示圆的周长与直径的比值，其完整数值是无限不循环小数。前6位数字就是 3.14159。",
+      "content_len": 84,
+      "latency_ms": 3009,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "E12",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n中国的首都是**北京**。\n\n北京是中国的首都，也是中国的政治、文化、国际交往和科技创新中心。它位于中国华北地区，历史悠久，是中国的古都之一，拥有三千多年的建城史和八百多年的建都史。",
+      "content_len": 93,
+      "latency_ms": 2511,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "F1",
+      "cat": "F",
+      "kind": "BORDER",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2059,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "web_search"
+        ],
+        "score": 1,
+        "reason": "ok_with_titles_or_tool"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "F2",
+      "cat": "F",
+      "kind": "BORDER",
+      "tool_calls_n": 1,
+      "tool_names": [
+        "calculate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1213,
+      "error": null,
+      "scoring": {
+        "tool_emit": true,
+        "tool_names": [
+          "calculate"
+        ],
+        "score": 1,
+        "reason": "ok"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "F3",
+      "cat": "F",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n牛顿三大定律是经典力学的基础，由艾萨克·牛顿在1687年出版的《自然哲学的数学原理》中提出：\n\n## 牛顿第一定律（惯性定律）\n**任何物体都保持静止或匀速直线运动状态，除非有外力迫使它改变这种状态。**\n\n简单来说：物体有保持原有运动状态的性质，这就是惯性。\n\n## 牛顿第二定律（加速度定律）\n**物体的加速度与作用力成正比，与物体质量成反比，方向与作用力方向相同。**\n\n公式表示：F = ma\n- F = 作用力\n- m = 质量\n- a = 加速度\n\n## 牛顿第三定律（作用与反作用定律）\n**两个物体之间的作用力和反作用力总是大小相等、方向相反，作用在同一条直线上。**\n\n简单来说：你推墙，墙也会以同样大小的力推你。\n\n---\n\n这三大定律奠定了经典力学的基础，在日常生活和工程应用中有着广泛的应用，直到相对论和量子力学出现之前，它们一直是物理学的基本框架。",
+      "content_len": 389,
+      "latency_ms": 3490,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "trial": 1,
+      "qid": "F4",
+      "cat": "F",
+      "kind": "SHOULDNT",
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\n\n# 5 条实用时间管理建议\n\n## 1. **番茄工作法**\n将工作时间划分为25分钟的专注时段，每完成一个时段休息5分钟，每4个时段后休息15-30分钟。这种方法能有效提升专注力，避免长时间工作导致的疲劳。\n\n## 2. **四象限法则**\n将任务按重要性和紧急性分为四类：\n- 重要且紧急 → 立即处理\n- 重要不紧急 → 制定计划\n- 紧急不重要 → 委托他人\n- 不紧急不重要 → 尽量不做\n\n## 3. **两分钟原则**\n如果一件事能在两分钟内完成，就立刻去做，不要拖延。这样可以避免小事堆积，保持工作流的顺畅。\n\n## 4. **时间块规划**\n每天提前规划好时间块，为不同类型的任务分配固定时间段。例如：上午处理深度工作，下午处理会议和沟通，晚上处理行政事务。\n\n## 5. **定期复盘**\n每周或每月回顾时间使用情况，分析时间都花在了哪里，哪些事情值得投入，哪些可以优化或取消",
+      "content_len": 452,
+      "latency_ms": 5224,
+      "error": null,
+      "scoring": {
+        "tool_emit": false,
+        "tool_names": [],
+        "score": 1,
+        "reason": "abstained"
+      }
+    }
+  ],
+  "total_pts": 54,
+  "total_n": 62
+}

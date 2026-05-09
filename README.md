@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.77.10-brightgreen" alt="Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.77.11-brightgreen" alt="Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -27,7 +27,24 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.77.10</strong> · 2026-05-08 · Brain v2 镜像同步 + 伪工具恢复 + Release 门禁加固 <em>(最新)</em></summary>
+<summary><strong>v0.77.11</strong> · 2026-05-09 · Deep Research 桌面入口 + 质量复核 + 会话持久化 <em>(最新)</em></summary>
+
+**Deep Research 体验**:
+- 🧠 **新增 `深研` 入口**:输入框底部新增 Deep Research 按钮,空输入展示引导,有输入直接进入多模型并行调研。
+- 🧪 **质量地板**:对 `A3B` 这类容易误判的缩写和低可信 winner 做拒绝输出,不把不稳定答案伪装成结论。
+- 📌 **结果可追溯**:回答尾部显示 Deep Research 质量复核状态、winner 和候选模型评分。
+
+**本地会话与工程化**:
+- 💾 **深研结果写入会话**:`/api/deep-research` 支持 `sessionPath`,前端触发的 user/assistant 消息会真实追加到 JSONL,切会话/重载不再丢。
+- 🧩 **显式能力入口**:Deep Research 不抢占默认聊天链路,用户需要时手动开启。
+- 📊 **Benchmark 入仓**:Tool-abstain / Qwen3.5 vs Qwen3.6 实验文件归档到 `tests/benchmarks/`,便于后续复现。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.11)
+
+</details>
+
+<details>
+<summary><strong>v0.77.10</strong> · 2026-05-08 · Brain v2 镜像同步 + 伪工具恢复 + Release 门禁加固</summary>
 
 **Brain v2 与调研链路**:
 - 🧠 **Brain v2 镜像代码入仓**:把远端 verifier / deep research / agent checkpoint 相关镜像代码同步进仓库,避免只靠服务器热修。

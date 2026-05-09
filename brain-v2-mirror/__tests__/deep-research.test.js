@@ -96,6 +96,12 @@ describe('deep-research quality floor', () => {
       avg: 3.33,
       scores: { C1: MAX_WINNER_DIMENSION + 1, C2: 1, C3: 3 },
     })).toBe(false);
+
+    expect(isAcceptableScore({
+      scored: true,
+      avg: 3.33,
+      scores: { C1: 2, C2: 3, C3: 5 },
+    })).toBe(false);
   });
 
   it('builds a quality-rejected fallback instead of exposing a weak winner', () => {
@@ -118,5 +124,23 @@ describe('deep-research quality floor', () => {
     expect(result.fallbackContent).toContain('Deep Research 已拦截');
     expect(result.rankedScores[0].providerId).toBe('mimo');
     expect(scoreMaxDimension(result.rankedScores[0].scores)).toBe(7);
+  });
+
+  it('explains when best-of-N has too few valid candidates', () => {
+    const result = buildQualityRejectedResult({
+      candidateResults: [
+        { providerId: 'mimo', ok: true, content: 'this candidate has enough content to count', latencyMs: 1000 },
+        { providerId: 'qwen3.6-35b-a3b', ok: false, error: 'timeout', latencyMs: 60000 },
+      ],
+      scores: [],
+      phase1Ms: 1000,
+      phase2Ms: 0,
+      startedAt: Date.now() - 1200,
+      reason: `有效候选数 1/${MIN_VALID_CANDIDATES}，不足以做可靠 best-of-N 选择。`,
+    });
+
+    expect(result.qualityRejected).toBe(true);
+    expect(result.fallbackContent).toContain('有效候选不足');
+    expect(result.fallbackContent).toContain(`1/${MIN_VALID_CANDIDATES}`);
   });
 });

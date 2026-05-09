@@ -1,0 +1,876 @@
+{
+  "ts": "2026-05-09T12:39:45.514299",
+  "n_trials": 2,
+  "questions": [
+    "N1",
+    "N2",
+    "E1",
+    "E2",
+    "L1",
+    "L2",
+    "W1",
+    "W2",
+    "F1",
+    "F2",
+    "S1",
+    "S2"
+  ],
+  "models": [
+    "Qwen/Qwen3.5-35B-A3B",
+    "Qwen/Qwen3.6-35B-A3B"
+  ],
+  "rows": [
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "N1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 3,
+      "tool_names": [
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 103,
+      "ms": 5024,
+      "usage": {
+        "prompt_tokens": 636,
+        "completion_tokens": 154,
+        "total_tokens": 790
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "N2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 2,
+      "tool_names": [
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 93,
+      "ms": 5083,
+      "usage": {
+        "prompt_tokens": 637,
+        "completion_tokens": 122,
+        "total_tokens": 759
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "E1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 203,
+      "ms": 3941,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 134,
+        "total_tokens": 764
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "E2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 209,
+      "ms": 4850,
+      "usage": {
+        "prompt_tokens": 631,
+        "completion_tokens": 141,
+        "total_tokens": 772
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "L1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 86,
+      "ms": 3987,
+      "usage": {
+        "prompt_tokens": 635,
+        "completion_tokens": 68,
+        "total_tokens": 703
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "L2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 90,
+      "ms": 2330,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 70,
+        "total_tokens": 700
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "W1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 3,
+      "tool_names": [
+        "get_stock",
+        "get_stock",
+        "get_stock"
+      ],
+      "content": "",
+      "reasoning_len": 263,
+      "ms": 6325,
+      "usage": {
+        "prompt_tokens": 626,
+        "completion_tokens": 235,
+        "total_tokens": 861
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "W2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "search_train"
+      ],
+      "content": "",
+      "reasoning_len": 242,
+      "ms": 4736,
+      "usage": {
+        "prompt_tokens": 634,
+        "completion_tokens": 162,
+        "total_tokens": 796
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "F1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_stock"
+      ],
+      "content": "",
+      "reasoning_len": 96,
+      "ms": 3910,
+      "usage": {
+        "prompt_tokens": 624,
+        "completion_tokens": 84,
+        "total_tokens": 708
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "F2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_crypto"
+      ],
+      "content": "",
+      "reasoning_len": 119,
+      "ms": 4600,
+      "usage": {
+        "prompt_tokens": 638,
+        "completion_tokens": 98,
+        "total_tokens": 736
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "S1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 83,
+      "ms": 1385,
+      "usage": {
+        "prompt_tokens": 627,
+        "completion_tokens": 76,
+        "total_tokens": 703
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 0,
+      "qid": "S2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 86,
+      "ms": 1701,
+      "usage": {
+        "prompt_tokens": 628,
+        "completion_tokens": 78,
+        "total_tokens": 706
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "N1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 3,
+      "tool_names": [
+        "web_search",
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 93,
+      "ms": 2373,
+      "usage": {
+        "prompt_tokens": 636,
+        "completion_tokens": 148,
+        "total_tokens": 784
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "N2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 2,
+      "tool_names": [
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 121,
+      "ms": 98724,
+      "usage": {
+        "prompt_tokens": 637,
+        "completion_tokens": 134,
+        "total_tokens": 771
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "E1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 245,
+      "ms": 4713,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 151,
+        "total_tokens": 781
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "E2",
+      "score": null,
+      "ok": false,
+      "err": "TimeoutError: The read operation timed out",
+      "ms": 120181
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "L1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 172,
+      "ms": 2744,
+      "usage": {
+        "prompt_tokens": 635,
+        "completion_tokens": 105,
+        "total_tokens": 740
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "L2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 76,
+      "ms": 2005,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 67,
+        "total_tokens": 697
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "W1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 3,
+      "tool_names": [
+        "get_stock",
+        "get_stock",
+        "get_stock"
+      ],
+      "content": "",
+      "reasoning_len": 228,
+      "ms": 5617,
+      "usage": {
+        "prompt_tokens": 626,
+        "completion_tokens": 215,
+        "total_tokens": 841
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "W2",
+      "score": null,
+      "ok": false,
+      "err": "TimeoutError: The read operation timed out",
+      "ms": 120151
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "F1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_stock"
+      ],
+      "content": "",
+      "reasoning_len": 92,
+      "ms": 2191,
+      "usage": {
+        "prompt_tokens": 624,
+        "completion_tokens": 82,
+        "total_tokens": 706
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "F2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_crypto"
+      ],
+      "content": "",
+      "reasoning_len": 96,
+      "ms": 1700,
+      "usage": {
+        "prompt_tokens": 638,
+        "completion_tokens": 86,
+        "total_tokens": 724
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "S1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 89,
+      "ms": 3900,
+      "usage": {
+        "prompt_tokens": 627,
+        "completion_tokens": 79,
+        "total_tokens": 706
+      }
+    },
+    {
+      "model": "Qwen3.5-35B-A3B",
+      "trial": 1,
+      "qid": "S2",
+      "score": null,
+      "ok": false,
+      "err": "TimeoutError: The read operation timed out",
+      "ms": 120177
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "N1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2124,
+      "ms": 8998,
+      "usage": {
+        "prompt_tokens": 636,
+        "completion_tokens": 600,
+        "total_tokens": 1236
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "N2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 2,
+      "tool_names": [
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 1474,
+      "ms": 10130,
+      "usage": {
+        "prompt_tokens": 637,
+        "completion_tokens": 525,
+        "total_tokens": 1162
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "E1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1784,
+      "ms": 8427,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 600,
+        "total_tokens": 1230
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "E2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2030,
+      "ms": 6714,
+      "usage": {
+        "prompt_tokens": 631,
+        "completion_tokens": 600,
+        "total_tokens": 1231
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "L1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2435,
+      "ms": 7517,
+      "usage": {
+        "prompt_tokens": 635,
+        "completion_tokens": 600,
+        "total_tokens": 1235
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "L2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 1834,
+      "ms": 7086,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 481,
+        "total_tokens": 1111
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "W1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1882,
+      "ms": 10648,
+      "usage": {
+        "prompt_tokens": 626,
+        "completion_tokens": 600,
+        "total_tokens": 1226
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "W2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2250,
+      "ms": 4763,
+      "usage": {
+        "prompt_tokens": 634,
+        "completion_tokens": 600,
+        "total_tokens": 1234
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "F1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1944,
+      "ms": 6264,
+      "usage": {
+        "prompt_tokens": 624,
+        "completion_tokens": 600,
+        "total_tokens": 1224
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "F2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1941,
+      "ms": 11560,
+      "usage": {
+        "prompt_tokens": 638,
+        "completion_tokens": 600,
+        "total_tokens": 1238
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "S1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1969,
+      "ms": 6254,
+      "usage": {
+        "prompt_tokens": 627,
+        "completion_tokens": 600,
+        "total_tokens": 1227
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 0,
+      "qid": "S2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1889,
+      "ms": 8804,
+      "usage": {
+        "prompt_tokens": 628,
+        "completion_tokens": 600,
+        "total_tokens": 1228
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "N1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 1992,
+      "ms": 6423,
+      "usage": {
+        "prompt_tokens": 636,
+        "completion_tokens": 593,
+        "total_tokens": 1229
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "N2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 2,
+      "tool_names": [
+        "web_search",
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 1559,
+      "ms": 5352,
+      "usage": {
+        "prompt_tokens": 637,
+        "completion_tokens": 578,
+        "total_tokens": 1215
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "E1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1956,
+      "ms": 8001,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 600,
+        "total_tokens": 1230
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "E2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "web_search"
+      ],
+      "content": "",
+      "reasoning_len": 1685,
+      "ms": 4883,
+      "usage": {
+        "prompt_tokens": 631,
+        "completion_tokens": 522,
+        "total_tokens": 1153
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "L1",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 1786,
+      "ms": 12507,
+      "usage": {
+        "prompt_tokens": 635,
+        "completion_tokens": 456,
+        "total_tokens": 1091
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "L2",
+      "score": 1,
+      "ok": true,
+      "tcalls": 1,
+      "tool_names": [
+        "get_weather"
+      ],
+      "content": "",
+      "reasoning_len": 1771,
+      "ms": 12800,
+      "usage": {
+        "prompt_tokens": 630,
+        "completion_tokens": 477,
+        "total_tokens": 1107
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "W1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1873,
+      "ms": 10174,
+      "usage": {
+        "prompt_tokens": 626,
+        "completion_tokens": 600,
+        "total_tokens": 1226
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "W2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2279,
+      "ms": 8577,
+      "usage": {
+        "prompt_tokens": 634,
+        "completion_tokens": 600,
+        "total_tokens": 1234
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "F1",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2149,
+      "ms": 12122,
+      "usage": {
+        "prompt_tokens": 624,
+        "completion_tokens": 600,
+        "total_tokens": 1224
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "F2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 2068,
+      "ms": 5644,
+      "usage": {
+        "prompt_tokens": 638,
+        "completion_tokens": 600,
+        "total_tokens": 1238
+      }
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "S1",
+      "score": null,
+      "ok": false,
+      "err": "TimeoutError: The read operation timed out",
+      "ms": 120161
+    },
+    {
+      "model": "Qwen3.6-35B-A3B",
+      "trial": 1,
+      "qid": "S2",
+      "score": 0,
+      "ok": true,
+      "tcalls": 0,
+      "tool_names": [],
+      "content": "",
+      "reasoning_len": 1962,
+      "ms": 5421,
+      "usage": {
+        "prompt_tokens": 628,
+        "completion_tokens": 600,
+        "total_tokens": 1228
+      }
+    }
+  ]
+}

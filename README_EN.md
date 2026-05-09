@@ -20,7 +20,24 @@
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>v0.77.7</strong> · 2026-05-05 · Performance optimizations + dangerous-command detection hardening <em>(latest)</em></summary>
+<summary><strong>v0.77.11</strong> · 2026-05-09 · Deep Research desktop entry + quality gate + session persistence <em>(latest)</em></summary>
+
+**Deep Research UX**:
+- 🧠 **New `Deep Research` entry**:the chat composer now exposes a dedicated research toggle for multi-model research with quality review.
+- 🧪 **Quality floor**:low-confidence winners, especially ambiguous abbreviations such as `A3B`, are rejected instead of being shown as final answers.
+- 📌 **Transparent footer**:answers show the quality-review status, winner provider and candidate scores.
+
+**Persistence and packaging**:
+- 💾 **Session persistence**:`/api/deep-research` accepts `sessionPath`, so Deep Research user/assistant messages are appended to the local JSONL session and survive reloads.
+- 🧩 **Explicit mode**:Deep Research does not hijack normal chat; users opt in from the composer.
+- 📊 **Benchmarks archived**:tool-abstain and Qwen3.5 vs Qwen3.6 experiment files live under `tests/benchmarks/` for reproducibility.
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.11)
+
+</details>
+
+<details>
+<summary><strong>v0.77.7</strong> · 2026-05-05 · Performance optimizations + dangerous-command detection hardening</summary>
 
 **Performance (brain v2 side, all users benefit immediately)**:
 - 🚀 **MiMo fast-mode passthrough**: Lynn ThinkingLevelButton 'off' → Pi SDK `reasoning_effort: off` → brain v2 translates to MiMo `thinking:{type:"disabled"}`. **Simple chat TTF-Content -51% (2.7s → 1.3s)**, first-byte latency nearly halved.

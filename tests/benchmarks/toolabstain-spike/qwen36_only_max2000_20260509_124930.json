@@ -1,0 +1,295 @@
+[
+  {
+    "trial": 0,
+    "qid": "N1",
+    "tcalls": 0,
+    "tools": [],
+    "reasoning_len": 2856,
+    "finish": "stop",
+    "ms": 11175,
+    "score": 0
+  },
+  {
+    "trial": 0,
+    "qid": "N2",
+    "tcalls": 2,
+    "tools": [
+      "web_search",
+      "web_search"
+    ],
+    "reasoning_len": 3023,
+    "finish": "tool_calls",
+    "ms": 23064,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "E1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 3384,
+    "finish": "tool_calls",
+    "ms": 8021,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "E2",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 5482,
+    "finish": "tool_calls",
+    "ms": 32293,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "L1",
+    "tcalls": 1,
+    "tools": [
+      "get_weather"
+    ],
+    "reasoning_len": 2467,
+    "finish": "tool_calls",
+    "ms": 13432,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "L2",
+    "tcalls": 1,
+    "tools": [
+      "get_weather"
+    ],
+    "reasoning_len": 1945,
+    "finish": "tool_calls",
+    "ms": 5721,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "W1",
+    "tcalls": 3,
+    "tools": [
+      "get_stock",
+      "get_stock",
+      "get_stock"
+    ],
+    "reasoning_len": 4295,
+    "finish": "tool_calls",
+    "ms": 29993,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "W2",
+    "tcalls": 1,
+    "tools": [
+      "search_train"
+    ],
+    "reasoning_len": 2546,
+    "finish": "tool_calls",
+    "ms": 19310,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "F1",
+    "tcalls": 1,
+    "tools": [
+      "get_stock"
+    ],
+    "reasoning_len": 5733,
+    "finish": "tool_calls",
+    "ms": 22809,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "F2",
+    "tcalls": 2,
+    "tools": [
+      "get_crypto",
+      "web_search"
+    ],
+    "reasoning_len": 4596,
+    "finish": "tool_calls",
+    "ms": 11540,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "S1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 1966,
+    "finish": "tool_calls",
+    "ms": 8643,
+    "score": 1
+  },
+  {
+    "trial": 0,
+    "qid": "S2",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 1942,
+    "finish": "tool_calls",
+    "ms": 7960,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "N1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 4366,
+    "finish": "tool_calls",
+    "ms": 28772,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "N2",
+    "tcalls": 2,
+    "tools": [
+      "web_search",
+      "web_search"
+    ],
+    "reasoning_len": 2633,
+    "finish": "tool_calls",
+    "ms": 20229,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "E1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 3348,
+    "finish": "tool_calls",
+    "ms": 23355,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "E2",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 1825,
+    "finish": "tool_calls",
+    "ms": 8497,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "L1",
+    "tcalls": 1,
+    "tools": [
+      "get_weather"
+    ],
+    "reasoning_len": 2377,
+    "finish": "tool_calls",
+    "ms": 8061,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "L2",
+    "tcalls": 1,
+    "tools": [
+      "get_weather"
+    ],
+    "reasoning_len": 2236,
+    "finish": "tool_calls",
+    "ms": 14907,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "W1",
+    "tcalls": 3,
+    "tools": [
+      "get_stock",
+      "get_stock",
+      "get_stock"
+    ],
+    "reasoning_len": 1780,
+    "finish": "tool_calls",
+    "ms": 17435,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "W2",
+    "tcalls": 1,
+    "tools": [
+      "search_train"
+    ],
+    "reasoning_len": 2064,
+    "finish": "tool_calls",
+    "ms": 5927,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "F1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 3294,
+    "finish": "tool_calls",
+    "ms": 10283,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "F2",
+    "tcalls": 1,
+    "tools": [
+      "get_crypto"
+    ],
+    "reasoning_len": 3178,
+    "finish": "tool_calls",
+    "ms": 7763,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "S1",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 2306,
+    "finish": "tool_calls",
+    "ms": 12840,
+    "score": 1
+  },
+  {
+    "trial": 1,
+    "qid": "S2",
+    "tcalls": 1,
+    "tools": [
+      "web_search"
+    ],
+    "reasoning_len": 2947,
+    "finish": "tool_calls",
+    "ms": 12645,
+    "score": 1
+  }
+]

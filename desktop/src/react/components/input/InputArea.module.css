@@ -117,6 +117,58 @@
     background: rgba(var(--accent-rgb), 0.08);
 }
 
+.deep-research-pill {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.24rem;
+    min-height: 26px;
+    padding: 0.24rem 0.56rem 0.25rem;
+    border: 1px solid rgba(134, 95, 47, 0.18);
+    border-radius: 999px;
+    background:
+        linear-gradient(135deg, rgba(255, 250, 240, 0.92), rgba(242, 232, 211, 0.72)),
+        var(--bg-card);
+    color: #8f6835;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.03em;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 4px 14px rgba(135, 94, 48, 0.06);
+    cursor: pointer;
+    transition: transform 0.16s var(--ease-out), border-color 0.16s var(--ease-out), background 0.16s var(--ease-out), color 0.16s var(--ease-out);
+    -webkit-app-region: no-drag;
+}
+
+.deep-research-pill:hover:not(:disabled),
+.deep-research-pill-active {
+    color: #6f4c20;
+    border-color: rgba(132, 89, 39, 0.34);
+    background:
+        radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.92), transparent 38%),
+        linear-gradient(135deg, rgba(255, 246, 224, 0.98), rgba(229, 212, 180, 0.82));
+    transform: translateY(-1px);
+}
+
+.deep-research-pill:disabled {
+    opacity: 0.58;
+    cursor: wait;
+}
+
+.deep-research-pill-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    color: #fffdf7;
+    background: linear-gradient(135deg, #a6793e, #d7a65b);
+    font-size: 0.68rem;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(142, 96, 41, 0.2);
+}
+
 .stream-action-btn {
     min-height: 34px;
     min-width: 96px;
@@ -150,6 +202,129 @@
     color: var(--mood-text, #A0723C);
     border-color: var(--mood-border, rgba(180, 120, 60, 0.34));
     background: color-mix(in srgb, var(--composer-bg, var(--bg-card)) 82%, var(--mood-bg, rgba(180, 120, 60, 0.22)));
+}
+
+.deep-research-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.78rem;
+    width: min(760px, calc(100vw - 3rem));
+    margin: 0 auto 0.55rem;
+    padding: 0.72rem 0.78rem;
+    border: 1px solid rgba(139, 100, 54, 0.18);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 4% 20%, rgba(255, 255, 255, 0.92), transparent 32%),
+        linear-gradient(135deg, rgba(255, 251, 243, 0.96), rgba(241, 230, 211, 0.9));
+    box-shadow: 0 18px 45px rgba(116, 84, 47, 0.08), 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.deep-research-orb {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(161, 113, 55, 0.12), rgba(95, 141, 155, 0.12));
+    border: 1px solid rgba(134, 95, 47, 0.16);
+}
+
+.deep-research-orb span {
+    width: 18px;
+    height: 18px;
+    border-radius: 45% 55% 50% 50%;
+    background: linear-gradient(135deg, #6f94a4, #c79b59);
+    box-shadow: 0 5px 18px rgba(111, 148, 164, 0.24);
+}
+
+.deep-research-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.deep-research-copy strong {
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+}
+
+.deep-research-copy span {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    line-height: 1.45;
+}
+
+.deep-research-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.deep-research-example,
+.deep-research-start,
+.deep-research-close {
+    border: 1px solid rgba(134, 95, 47, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.16s var(--ease-out);
+    -webkit-app-region: no-drag;
+}
+
+.deep-research-example {
+    padding: 0.32rem 0.58rem;
+}
+
+.deep-research-start {
+    padding: 0.34rem 0.72rem;
+    color: #fffaf0;
+    border-color: rgba(132, 89, 39, 0.32);
+    background: linear-gradient(135deg, #8d6939, #c28c49);
+    box-shadow: 0 8px 18px rgba(142, 96, 41, 0.16);
+}
+
+.deep-research-close {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.deep-research-example:hover,
+.deep-research-close:hover {
+    color: #725025;
+    border-color: rgba(134, 95, 47, 0.3);
+    background: rgba(255, 255, 255, 0.68);
+}
+
+.deep-research-start:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(142, 96, 41, 0.22);
+}
+
+.deep-research-start:disabled {
+    opacity: 0.62;
+    cursor: wait;
+}
+
+@media (max-width: 760px) {
+    .deep-research-card {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .deep-research-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
 }
 
 /* Plan Mode 按钮 */
