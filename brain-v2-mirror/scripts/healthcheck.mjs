@@ -6,16 +6,36 @@
 import https from 'node:https';
 import http from 'node:http';
 import { promises as fsp } from 'node:fs';
+import fs from 'node:fs';
 import { URL } from 'node:url';
+
+function loadEnvFile() {
+  for (const file of [process.env.BRAIN_V2_ENV_FILE, '/opt/lobster-brain-v2/.env', '.env'].filter(Boolean)) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+        const s = line.trim();
+        if (!s || s.startsWith('#') || !s.includes('=')) continue;
+        const [key, ...rest] = s.split('=');
+        if (!process.env[key]) process.env[key] = rest.join('=').trim().replace(/^["']|["']$/g, '');
+      }
+      return file;
+    } catch (_) {}
+  }
+  return '';
+}
+
+loadEnvFile();
 
 const BASE = process.env.BRAIN_V2_BASE || 'http://127.0.0.1:8790';
 const METRICS_FILE = process.env.BRAIN_V2_METRICS || '/opt/lobster-brain-v2/data/healthcheck.jsonl';
 const PULSE_TIMEOUT = 8_000;
 
 // 飞书 (复用 brain v1 health-check.py 的 chat)
-const FEISHU_APP_ID = 'cli_a93aa76026381bd8';
+// Secrets must be supplied by deployment env; never commit app secrets.
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || process.env.LARK_APP_ID || '';
 const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || process.env.LARK_APP_SECRET || '';
-const FEISHU_CHAT_ID = 'oc_a63c109725f909d85a25135b25a8be6d';
+const FEISHU_CHAT_ID = process.env.FEISHU_CHAT_ID || process.env.LARK_CHAT_ID || '';
 
 function nowIso() { return new Date().toISOString(); }
 
@@ -28,6 +48,9 @@ async function appendJsonl(line) {
 }
 
 async function getFeishuToken() {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
+    throw new Error('missing FEISHU_APP_ID/FEISHU_APP_SECRET');
+  }
   return new Promise((resolve, reject) => {
     const req = https.request('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
       method: 'POST',
@@ -47,6 +70,7 @@ async function getFeishuToken() {
 }
 
 async function sendFeishu(text) {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET || !FEISHU_CHAT_ID) return 0;
   try {
     const token = await getFeishuToken();
     return new Promise((resolve) => {

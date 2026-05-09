@@ -23,6 +23,11 @@ function loadEnv() {
   return env;
 }
 const ENV = loadEnv();
+const requireEnv = (name) => {
+  const value = process.env[name] || ENV[name];
+  if (!value) throw new Error(`${name} is required; refusing to run benchmark with a hardcoded key.`);
+  return value;
+};
 
 const TOOL_CASES = [
   {
@@ -64,7 +69,7 @@ async function callMimo(prompt, timeoutMs = 90000) {
     const resp = await fetch("https://api.xiaomimimo.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer `,
+        "Authorization": `Bearer ${requireEnv("MIMO_KEY")}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -105,7 +110,7 @@ async function callGlm(prompt, timeoutMs = 120000) {
     const resp = await fetch("https://open.bigmodel.cn/api/coding/paas/v4/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.ZHIPU_CODING_KEY || ENV.ZHIPU_CODING_KEY || ""}`,
+        "Authorization": `Bearer ${requireEnv("ZHIPU_CODING_KEY")}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

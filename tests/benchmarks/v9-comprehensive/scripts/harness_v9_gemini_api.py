@@ -21,6 +21,8 @@ VERIFIER_DISPATCH = {
 }
 
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if not API_KEY:
+    raise SystemExit("GEMINI_API_KEY is required; refusing to run without an explicit environment variable.")
 
 
 def build_prompt(q):
