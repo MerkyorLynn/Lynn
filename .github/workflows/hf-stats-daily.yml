@@ -1,0 +1,40 @@
+name: HF nerkyor daily stats
+
+# Lynn 0511: GitHub Actions runner 跑在 Azure US,直连 huggingface.co (绕过中国出口墙)
+# 每天 00:30 UTC = 08:30 北京,在 brain server 09:00 cron 之前把数据落到 data/hf_nerkyor.json
+# brain server github-daily.py 走 GitHub Contents API 拉这个文件(同一个 PAT)
+
+on:
+  schedule:
+    - cron: '30 0 * * *'  # 00:30 UTC daily
+  workflow_dispatch:  # 允许手动触发(GitHub UI / gh CLI)
+
+permissions:
+  contents: write  # 需要 commit data/hf_nerkyor.json
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Collect HF nerkyor stats
+        run: python3 scripts/hf_nerkyor_collect.py --output data/hf_nerkyor.json
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n $(git status --porcelain data/hf_nerkyor.json) ]]; then
+            git add data/hf_nerkyor.json
+            git commit -m "[stats] HF nerkyor daily $(date -u +%Y-%m-%d) [skip ci]"
+            git push
+          else
+            echo "no changes in data/hf_nerkyor.json"
+          fi
