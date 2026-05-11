@@ -1,0 +1,22 @@
+{
+  "collected_at": "2026-05-11T10:02:33+00:00",
+  "author": "nerkyor",
+  "models": [
+    {
+      "id": "nerkyor/Qwen3.6-27B-NVFP4-v8-RTN",
+      "name": "Qwen3.6-27B-NVFP4-v8-RTN",
+      "downloads_30d": 200,
+      "likes": 1,
+      "last_modified": "2026-05-11"
+    },
+    {
+      "id": "nerkyor/Qwen3.6-35B-A3B-NVFP4-v8-RTN",
+      "name": "Qwen3.6-35B-A3B-NVFP4-v8-RTN",
+      "downloads_30d": 189,
+      "likes": 0,
+      "last_modified": "2026-05-11"
+    }
+  ],
+  "total_models": 2,
+  "total_downloads_30d": 389
+}
