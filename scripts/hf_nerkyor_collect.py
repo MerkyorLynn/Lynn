@@ -20,6 +20,7 @@ Output JSON schema:
 import argparse
 import datetime
 import json
+import os
 import sys
 import urllib.request
 
@@ -72,6 +73,9 @@ def main():
         "total_downloads_30d": total_dl,
     }
 
+    parent = os.path.dirname(args.output)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     with open(args.output, "w") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
 
