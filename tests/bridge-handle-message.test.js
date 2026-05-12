@@ -95,7 +95,12 @@ describe("BridgeManager._handleMessage", () => {
 
       expect(hub.send).toHaveBeenCalledWith(
         tagged("Alice: hello"),
-        expect.objectContaining({ sessionKey: "tg_group_g1", role: "guest", isGroup: true }),
+        expect.objectContaining({
+          sessionKey: "tg_group_g1",
+          role: "guest",
+          isGroup: true,
+          systemAppend: expect.stringContaining("禁止提及 RTX 4090"),
+        }),
       );
       await vi.waitFor(() => expect(adapter.sendReply).toHaveBeenCalled());
       expect(adapter.sendReply).toHaveBeenCalledWith("g1", "AI response");
@@ -143,7 +148,11 @@ describe("BridgeManager._handleMessage", () => {
       expect(hub.send).toHaveBeenCalledOnce();
       expect(hub.send).toHaveBeenCalledWith(
         expect.stringMatching(/^<t>\d{2}-\d{2} \d{2}:\d{2}<\/t> hello\nworld$/),
-        expect.objectContaining({ sessionKey: "tg_dm_owner123", role: "owner" }),
+        expect.objectContaining({
+          sessionKey: "tg_dm_owner123",
+          role: "owner",
+          systemAppend: expect.stringContaining("不要自称 Claude"),
+        }),
       );
       expect(adapter.sendReply).toHaveBeenCalledWith("owner123", "AI response");
     });
@@ -214,6 +223,17 @@ describe("BridgeManager._handleMessage", () => {
         tagged("Stranger: hi"),
         expect.objectContaining({ role: "guest" }),
       );
+    });
+
+    it("sanitizes stale provider or hardware identity leakage before sending", () => {
+      const { bm } = createMocks();
+      const cleaned = bm._cleanReplyForPlatform(
+        "我是基于 Claude 模型，运行在 Lynn 平台上的 AI 助手。备援是 RTX 4090 27B-FP8 Dense。",
+      );
+
+      expect(cleaned).toBe("我是 Lynn，由 Lynn 团队提供的 AI 助手；具体运行线路会动态调整。");
+      expect(cleaned).not.toContain("Claude");
+      expect(cleaned).not.toContain("4090");
     });
   });
 

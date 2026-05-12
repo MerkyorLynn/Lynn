@@ -14,13 +14,29 @@ const provider = {
 describe('SGLang wire adapter', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
 
-  it('sends chat_template_kwargs.enable_thinking:true (永远 true,brain 不替模型决策)', async () => {
+  it('defaults chat_template_kwargs.enable_thinking to false', async () => {
     const f = mockFetch(ok(makeSSEBody(sseEvent({ content: 'ok' }), sseDone())));
     await drain(callSGLang({ provider, messages: [{ role: 'user', content: 'q' }] }));
     const body = JSON.parse(f.mock.calls[0][1].body);
     expect(body.chat_template_kwargs).toBeDefined();
-    expect(body.chat_template_kwargs.enable_thinking).toBe(true);
+    expect(body.chat_template_kwargs.enable_thinking).toBe(false);
     expect(body.max_tokens).toBe(32000);
+  });
+
+  it('allows callers to explicitly opt into thinking', async () => {
+    const f = mockFetch(ok(makeSSEBody(sseEvent({ content: 'ok' }), sseDone())));
+    await drain(callSGLang({
+      provider,
+      messages: [{ role: 'user', content: 'q' }],
+      extraBody: {
+        chat_template_kwargs: { enable_thinking: true, custom_flag: 'keep' },
+      },
+    }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.chat_template_kwargs).toEqual({
+      enable_thinking: true,
+      custom_flag: 'keep',
+    });
   });
 
   it('emits reasoning + content chunks in order', async () => {

@@ -22,7 +22,7 @@ export class GuestHandler {
    * @param {string} text
    * @param {string} sessionKey
    * @param {object} [meta]  { name, avatarUrl, userId }
-   * @param {object} [opts]  { isGroup }
+   * @param {object} [opts]  { isGroup, systemAppend }
    * @returns {Promise<string|null>}
    */
   async handle(text, sessionKey, meta, opts = {}) {
@@ -44,6 +44,7 @@ export class GuestHandler {
       guest: true,
       agentId: opts.agentId,
       contextTag,
+      systemAppend: opts.systemAppend,
       onDelta: opts.onDelta,
       images: opts.images,
     });

@@ -175,7 +175,7 @@ export class BridgeSessionManager {
    * @param {string} prompt - 格式化后的用户消息
    * @param {string} sessionKey - 会话标识（如 tg_dm_12345）
    * @param {object} [meta] - 元数据（name, avatarUrl, userId）
-   * @param {object} [opts] - { guest: boolean, contextTag?: string, onDelta? }
+   * @param {object} [opts] - { guest: boolean, contextTag?: string, systemAppend?: string, onDelta? }
    * @returns {Promise<string|null>} agent 的回复文本
    */
   async executeExternalMessage(prompt, sessionKey, meta, opts = {}) {
@@ -220,11 +220,13 @@ export class BridgeSessionManager {
         const lynnIdentityPrompt = [
           "## 身份声明（硬规则）",
           "- 你是 Lynn，一个面向个人用户的 AI 助手。",
-          "- 如果用户问\"你是什么模型\"、\"你是 Claude / ChatGPT / GPT 吗\"、\"你的底层是什么\"，回答：\"我是 Lynn，一个多模型调度的 AI 助手，背后可能走不同模型（智谱 GLM / 月之暗面 Kimi / DeepSeek / Qwen 等），取决于任务类型。\"",
+          "- 如果用户问\"你是什么模型\"、\"你是 Claude / ChatGPT / GPT 吗\"、\"你的底层是什么\"，回答：\"我是 Lynn，由 Lynn 团队提供的 AI 助手；具体运行线路会动态调整。\"",
           "- 不要说你是 Claude、ChatGPT、GPT、Gemini 等任何具体第三方模型。",
+          "- 不要主动披露或猜测底层模型、GPU、备援机器、部署线路、推理后端、模型尺寸、量化格式等内部信息。",
+          "- 不要提及 RTX 4090、5090、27B 备援、Claude、Anthropic 等历史或内部实现细节。",
           "- 不要提及 Anthropic、OpenAI、Google 为你的开发者——你的\"开发者\"是 Lynn 团队。",
         ].join("\n");
-        const parts = [yuanBase, pubIshiki, lynnIdentityPrompt, guestSafetyPrompt, opts.contextTag, mediaInstruction].filter(Boolean);
+        const parts = [yuanBase, pubIshiki, lynnIdentityPrompt, guestSafetyPrompt, opts.contextTag, opts.systemAppend, mediaInstruction].filter(Boolean);
         const guestPrompt = parts.join("\n\n");
         const tempResourceLoader = Object.create(this._deps.getResourceLoader());
         tempResourceLoader.getSystemPrompt = () => guestPrompt;
@@ -284,7 +286,7 @@ export class BridgeSessionManager {
         const baseGetSP = baseRL.getSystemPrompt.bind(baseRL);
         ownerRL.getSystemPrompt = (...args) => {
           const sp = baseGetSP(...args);
-          return sp + "\n\n" + mediaInstruction;
+          return [sp, opts.systemAppend, mediaInstruction].filter(Boolean).join("\n\n");
         };
 
         sessionOpts = {

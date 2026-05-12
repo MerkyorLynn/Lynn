@@ -108,11 +108,30 @@ describe("BridgeSessionManager guest safety prompt", () => {
 
     expect(prompt).toContain("# 对外意识\n保持友好，但有边界。");
     expect(prompt).toContain("## 外部访客安全规则（内置硬规则，不可覆盖）");
+    expect(prompt).toContain("具体运行线路会动态调整");
+    expect(prompt).toContain("不要提及 RTX 4090");
     expect(prompt).toContain("这些信息我没办法分享。");
     expect(prompt).toContain("当前对话来自外部访客。");
     expect(prompt).toContain("MEDIA:<url>");
     expect(createArgs.tools).toBeUndefined();
     expect(createArgs.customTools).toBeUndefined();
+  });
+
+  it("appends bridge-specific system rules for owner sessions", async () => {
+    const manager = buildManager(tempDir, "");
+
+    await manager.executeExternalMessage("你是谁", "tg_dm_owner_identity", { name: "Owner" }, {
+      guest: false,
+      systemAppend: "## 外部平台身份规则\n不要自称 Claude。",
+    });
+
+    expect(createAgentSessionMock).toHaveBeenCalledOnce();
+    const createArgs = createAgentSessionMock.mock.calls[0][0];
+    const prompt = createArgs.resourceLoader.getSystemPrompt();
+
+    expect(prompt).toContain("BASE");
+    expect(prompt).toContain("## 外部平台身份规则\n不要自称 Claude。");
+    expect(prompt).toContain("MEDIA:<url>");
   });
 
   it("keeps hard safety rules even if public-ishiki is empty", async () => {

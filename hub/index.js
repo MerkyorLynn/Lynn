@@ -87,6 +87,7 @@ export class Hub {
    * @param {string}  [opts.cwd]         工作目录覆盖
    * @param {string}  [opts.model]       模型覆盖
    * @param {string}  [opts.persist]     持久化目录（activity session）
+   * @param {string}  [opts.systemAppend] 追加到 bridge system prompt 的硬规则
    * @returns {Promise<*>}
    */
   async send(text, opts = {}) {
@@ -106,8 +107,9 @@ export class Hub {
       sessionPath,
       agentId,
       streamToken,
+      systemAppend,
     } = opts;
-    const o = { sessionKey, role, ephemeral, meta, isGroup, cwd, model, persist, from, to, onDelta, images, sessionPath, agentId };
+    const o = { sessionKey, role, ephemeral, meta, isGroup, cwd, model, persist, from, to, onDelta, images, sessionPath, agentId, systemAppend };
 
     // 路由表：按顺序匹配，第一条命中即执行。
     // 优先级通过位置保证，新增路由在此处显式插入，不依赖散落在各处的 if 顺序。
@@ -124,11 +126,11 @@ export class Hub {
       },
       { // Bridge guest
         match: o => o.sessionKey && o.role === "guest",
-        handle: () => this._guestHandler.handle(text, o.sessionKey, o.meta, { isGroup: o.isGroup, agentId: o.agentId, onDelta: o.onDelta, images: o.images }),
+        handle: () => this._guestHandler.handle(text, o.sessionKey, o.meta, { isGroup: o.isGroup, agentId: o.agentId, onDelta: o.onDelta, images: o.images, systemAppend: o.systemAppend }),
       },
       { // Bridge owner
         match: o => o.sessionKey && !o.ephemeral,
-        handle: () => this._engine.executeExternalMessage(text, o.sessionKey, o.meta, { guest: false, agentId: o.agentId, onDelta: o.onDelta, images: o.images }),
+        handle: () => this._engine.executeExternalMessage(text, o.sessionKey, o.meta, { guest: false, agentId: o.agentId, onDelta: o.onDelta, images: o.images, systemAppend: o.systemAppend }),
       },
       { // 隔离执行（cron/heartbeat/channel）
         match: o => o.ephemeral,

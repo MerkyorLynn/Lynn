@@ -1,17 +1,27 @@
 // Brain v2 · SGLang wire adapter
 // Qwen3.6-A3B-FP8 + qwen3_coder parser native tool_calls + reasoning_content
-// 关键:enable_thinking 永远 true(brain 不替模型决定要不要 thinking)
+// 关键:默认 no-think, caller 可显式 opt-in；避免把 thinking 过程泄漏成可见回复。
 import { parseOpenAISSE } from './_sse-parser.js';
 
 export async function* call({ provider, messages, tools, signal, log, extraBody }) {
+  const {
+    chat_template_kwargs: callerTemplateKwargs,
+    ...restExtraBody
+  } = extraBody && typeof extraBody === 'object' ? extraBody : {};
+  const templateKwargs = callerTemplateKwargs && typeof callerTemplateKwargs === 'object'
+    ? callerTemplateKwargs
+    : {};
   const body = {
     model: provider.model,
     messages,
     max_tokens: 32000,
     temperature: 0.4,
     stream: true,
-    ...(extraBody && typeof extraBody === 'object' ? extraBody : {}),
-    chat_template_kwargs: { enable_thinking: true },
+    ...restExtraBody,
+    chat_template_kwargs: {
+      ...templateKwargs,
+      enable_thinking: templateKwargs.enable_thinking ?? false,
+    },
   };
   if (Array.isArray(tools) && tools.length > 0) {
     body.tools = tools;
