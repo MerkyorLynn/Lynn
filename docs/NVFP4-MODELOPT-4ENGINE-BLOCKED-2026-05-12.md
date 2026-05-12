@@ -164,28 +164,43 @@ HF 两个 repo 显式分开:
 ### Stage 0 — 5/15 ship 完全解耦(✓ 已锁定)
 production 走 v8-RTN,modelopt_fp4 留 candidate。
 
-### Stage 1 — `loader.py` fail-loud + 双格式识别
-- **遇到 NVFP4 不能 silent fallthrough** — 必须显式 raise / log。silent fallback 到 BF16 是最大的坑
-- 同时支持 `compressed-tensors nvfp4-pack-quantized` 和 `modelopt_fp4`
-- 统一成内部 canonical spec:
-  ```
-  packed_uint8       (FP4 packed, 2x 4-bit/byte)
-  weight_scale       (F8_E4M3 per-group, group_size=16)
-  global_scale       (F32 per-tensor)
-  input_scale        (F32 per-tensor)
-  ```
+### P1 — `loader.py` fail-loud + canonical spec
+**遇到 NVFP4 不许 silent fallback**。统一抽象:
 
-### Stage 2 — 第一版 offline dequant 到 BF16
-**目标不是快,是证明对。** 消灭 unpack / scale broadcast / key mapping / layer parity 这 80% 的坑。
+```python
+@dataclass
+class NVFP4TensorSpec:
+    packed_weight_uint8: torch.Tensor    # FP4 packed, 2x4-bit/byte
+    weight_scale_fp8: torch.Tensor       # F8_E4M3 per-group
+    global_scale_fp32: torch.Tensor      # F32 per-tensor
+    input_scale_fp32: torch.Tensor       # F32 per-tensor
+    group_size: int = 16
+    source_format: Literal["compressed_tensors", "modelopt_fp4"]
+```
 
-### Stage 3 — 硬验证链(不许跳)
-1. 单 tensor unit test:packed → fp4 → BF16,对 shape / scale / checksum
-2. 单 layer forward parity:atol ≤ 1e-3
-3. 5-token exact / near-exact
-4. **N ≥ 20 multi-prompt gate** — single-prompt PASS **不背书**
+两种 input(`compressed-tensors nvfp4-pack-quantized` + `modelopt_fp4`)都 normalize 到此 spec。
 
-### Stage 4 — 最后才碰 native NVFP4 GEMM
-expert FFN `Linear` 替换成 NVFP4 grouped GEMM。**不在 Stage 1-3 都通之前碰这层** — 同时面对格式 / scale / router / kernel 四层不确定性,任何一层错都会被另外三层掩盖。
+### P2 — 先 dequant 到 BF16 跑通
+**不要先写高性能 kernel。** 先把 unpack + scale broadcast 写对,输出 BF16,走现有 BF16 decode。**目标是 correctness,不是 speed**。这步消灭 80% 坑。
+
+### P3 — 测试铁链(每步都有 gate)
+```
+single tensor unpack test
+  → one linear layer parity (atol ≤ 1e-3)
+    → one transformer layer parity (atol ≤ 1e-3)
+      → 5 token decode (exact/near-exact)
+        → N ≥ 20 multi-prompt gate
+```
+**single-prompt PASS 不背书**(Lynn engine Phase 3.2 "BF16 bmm 假绿"教训)。
+
+这条通了之后 Lynn engine 已经比上游 backend 更可控。
+
+### P4 — 最后才写 native NVFP4 kernel
+expert FFN `Linear` → NVFP4 grouped GEMM(Triton / CUTLASS / cuBLAS)。**不在 P1-P3 都通之前碰这层** — 同时面对格式 / scale / router / kernel 四层不确定性,会调到怀疑人生。
+
+---
+
+> **这不是"我们放弃 modelopt_fp4",而是把 `modelopt_fp4` 从 serving 依赖降级成权重格式输入。Backend 可以等生态,loader correctness 不能等生态。**
 
 ## 总结
 
