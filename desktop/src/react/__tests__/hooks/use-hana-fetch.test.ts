@@ -30,10 +30,12 @@ describe('hanaFetch', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
+    vi.useRealTimers();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('发送带 Authorization header 的请求', async () => {
@@ -83,5 +85,20 @@ describe('hanaFetch', () => {
 
     const [, opts] = mockFetch.mock.calls[0];
     expect(opts.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('超时时抛出可读错误，而不是裸 AbortSignal 文案', async () => {
+    vi.useFakeTimers();
+    mockFetch.mockImplementationOnce((_url, opts) => new Promise((_resolve, reject) => {
+      opts.signal.addEventListener('abort', () => {
+        reject(new DOMException('signal is aborted without reason', 'AbortError'));
+      }, { once: true });
+    }));
+
+    const pending = hanaFetch('/api/slow', { timeout: 5 });
+    const assertion = expect(pending).rejects.toThrow('请求超时（1 秒）');
+    await vi.advanceTimersByTimeAsync(5);
+
+    await assertion;
   });
 });

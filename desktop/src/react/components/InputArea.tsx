@@ -25,12 +25,19 @@ import { AtMentionMenu } from './input/AtMentionMenu';
 import { SendButton } from './input/SendButton';
 import { QuotedSelectionCard } from './input/QuotedSelectionCard';
 import { TaskModePicker } from './input/TaskModePicker';
+import { DeepResearchPanel } from './input/DeepResearchPanel';
 import { JARVIS_RUNTIME_START_EVENT } from '../services/jarvis-runtime-events';
 import {
   XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
   buildTaskModeSlashCommands,
   type SlashCommand,
 } from './input/slash-commands';
+import {
+  DEEP_RESEARCH_FETCH_TIMEOUT_MS,
+  DEEP_RESEARCH_TIMEOUT_MS,
+  formatDeepResearchAssistantText,
+  normalizeDeepResearchErrorMessage,
+} from './input/deep-research';
 import {
   fileToWorkingSet,
   getComposerSessionKey,
@@ -346,11 +353,12 @@ function InputAreaInner() {
       const response = await hanaFetch('/api/deep-research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        timeout: DEEP_RESEARCH_FETCH_TIMEOUT_MS,
         body: JSON.stringify({
           prompt,
           sessionPath,
           candidates: ['mimo', 'deepseek-chat', 'qwen3.6-a3b-fp8', 'glm-5-turbo'],
-          timeoutMs: 120000,
+          timeoutMs: DEEP_RESEARCH_TIMEOUT_MS,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -358,33 +366,13 @@ function InputAreaInner() {
         throw new Error(data?.error || `Deep Research 请求失败 (${response.status})`);
       }
 
-      const text = String(data?.text || '').trim();
-      const winner = data?.winnerProviderId ? ` · winner: ${data.winnerProviderId}` : '';
-      const status = data?.qualityRejected
-        ? '质量地板已拦截'
-        : data?.ok === false
-          ? '未通过质量复核'
-          : '已通过质量复核';
-      const scoreLines = Array.isArray(data?.rankedScores)
-        ? data.rankedScores.slice(0, 3).map((row: Record<string, unknown>, index: number) => {
-          const provider = String(row.providerId || row.provider || `候选 ${index + 1}`);
-          const avg = Number(row.avg ?? row.average ?? NaN);
-          return Number.isFinite(avg) ? `- ${provider}: ${avg.toFixed(2)}` : `- ${provider}`;
-        })
-        : [];
-      const footer = [
-        '',
-        '---',
-        `**Deep Research**：${status}${winner}`,
-        scoreLines.length ? `\n${scoreLines.join('\n')}` : '',
-      ].filter(Boolean).join('\n');
       await patchLocalAssistantMessage(
         sessionPath,
         assistantId,
-        `${text || 'Deep Research 没有返回可见答案，请稍后重试或把问题拆得更具体。'}\n${footer}`,
+        formatDeepResearchAssistantText(data),
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err || 'Deep Research 失败');
+      const message = normalizeDeepResearchErrorMessage(err);
       const sessionPath = useStore.getState().currentSessionPath;
       const session = sessionPath ? useStore.getState().chatSessions[sessionPath] : null;
       const lastAssistant = session?.items.slice().reverse().find(
@@ -1169,48 +1157,20 @@ function InputAreaInner() {
         </div>
       )}
       {deepResearchOpen && !recoveryMessage && !taskRecoveryMessage && !inlineError && (
-        <div className={styles['deep-research-card']}>
-          <div className={styles['deep-research-orb']} aria-hidden="true">
-            <span />
-          </div>
-          <div className={styles['deep-research-copy']}>
-            <strong>Deep Research</strong>
-            <span>适合长调研、竞品梳理、报告初稿。会并行生成多份候选答案，再用 verifier 做质量地板拦截。</span>
-          </div>
-          <div className={styles['deep-research-actions']}>
-            <button
-              type="button"
-              className={styles['deep-research-example']}
-              onClick={() => {
-                const next = '为我做一份深度调研：';
-                if (!readLatestInputValue().trim()) {
-                  setInputValue(next);
-                  setComposerText(next);
-                  requestInputFocus();
-                }
-              }}
-            >
-              填入模板
-            </button>
-            <button
-              type="button"
-              className={styles['deep-research-start']}
-              onClick={handleDeepResearchRun}
-              disabled={deepResearchBusy || isStreaming}
-            >
-              {deepResearchBusy ? '深研中…' : '开始深研'}
-            </button>
-            <button
-              type="button"
-              className={styles['deep-research-close']}
-              onClick={() => setDeepResearchOpen(false)}
-              aria-label="关闭 Deep Research 引导"
-              title="关闭"
-            >
-              ×
-            </button>
-          </div>
-        </div>
+        <DeepResearchPanel
+          busy={deepResearchBusy}
+          isStreaming={isStreaming}
+          onClose={() => setDeepResearchOpen(false)}
+          onFillTemplate={() => {
+            const next = '为我做一份深度调研：';
+            if (!readLatestInputValue().trim()) {
+              setInputValue(next);
+              setComposerText(next);
+              requestInputFocus();
+            }
+          }}
+          onStart={handleDeepResearchRun}
+        />
       )}
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <textarea ref={textareaRef} id="inputBox" className={styles['input-box']} placeholder={placeholder}

@@ -30,7 +30,11 @@ export async function hanaFetch(
 
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = opts;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeout);
 
   try {
     const res = await fetch(`http://127.0.0.1:${serverPort}${path}`, {
@@ -44,7 +48,9 @@ export async function hanaFetch(
         const ct = res.headers.get('content-type');
         if (ct?.includes('application/json')) {
           const data = (await res.clone().json()) as { error?: string };
-          if (data?.error) detail = data.error;
+          if (data?.error || (data as { message?: string })?.message) {
+            detail = [data.error, (data as { message?: string }).message].filter(Boolean).join(": ");
+          }
         }
       } catch {
         // ignore parse failures and keep status text
@@ -52,6 +58,12 @@ export async function hanaFetch(
       throw new Error(`hanaFetch ${path}: ${detail}`);
     }
     return res;
+  } catch (err) {
+    if (timedOut && controller.signal.aborted) {
+      const seconds = Math.max(1, Math.round(timeout / 1000));
+      throw new Error(`hanaFetch ${path}: 请求超时（${seconds} 秒）`);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -72,7 +84,11 @@ export async function hanaFetchAllowError(
 
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = opts;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeout);
 
   try {
     return await fetch(`http://127.0.0.1:${serverPort}${path}`, {
@@ -80,6 +96,12 @@ export async function hanaFetchAllowError(
       headers,
       signal: controller.signal,
     });
+  } catch (err) {
+    if (timedOut && controller.signal.aborted) {
+      const seconds = Math.max(1, Math.round(timeout / 1000));
+      throw new Error(`hanaFetch ${path}: 请求超时（${seconds} 秒）`);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
