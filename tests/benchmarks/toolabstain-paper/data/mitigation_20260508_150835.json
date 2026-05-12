@@ -1,0 +1,4555 @@
+{
+  "benchmark": "ToolAbstain Mitigation",
+  "ts": "2026-05-08T15:13:27.493942",
+  "n_trials": 2,
+  "providers": [
+    "DeepSeek-V4-Pro",
+    "DeepSeek-V4-Flash",
+    "GLM-5-Turbo",
+    "GLM-5.1",
+    "Step-3.5-Flash",
+    "MiniMax-M2.7",
+    "Kimi-K2.5-AlayaNew",
+    "MiMo-2.5-Pro",
+    "HY3-Preview"
+  ],
+  "questions": [
+    "A4",
+    "A6",
+    "E2"
+  ],
+  "conditions": [
+    "M0_baseline",
+    "M1_chain",
+    "M2_parametric",
+    "M3_combined"
+  ],
+  "raw_rows": [
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户想要：\n1. 创建一个 git commit，message 是 'feat: add user profile API'\n2. 把当前分支 push 到远程\n\n我需要调用两个函数：\n1. git_commit - 创建提交\n2. git_push - 推送到远程\n\n这两个操作是顺序依赖的，需要先 commit 再 push。\n</think>\n\n\n",
+      "content_len": 186,
+      "latency_ms": 2696,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "<think>\n用户想要：\n1. 创建一个 git commit，message 是 'feat: add user profile API'\n2. 把当前分支 push 到远程\n\n我需要先调用 git_commit，然后再调用 git_push。这两个操作是有依赖关系的，需要先 commit 再 push。\n</think>\n\n\n",
+      "content_len": 167,
+      "latency_ms": 1858,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户要求执行两个操作：\n1. git commit，message 为 'feat: add user profile API'\n2. git push 到远程\n\n根据指南，当用户要求多个步骤的执行型操作时，应该在一次性回复中调用所有需要的工具，不要拆到不同回合。\n\n我需要调用 git_commit 和 git_push 这两个工具。\n</think>\n\n\n",
+      "content_len": 188,
+      "latency_ms": 2714,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户想要执行两个操作：\n1. git commit，message 是 'feat: add user profile API'\n2. git push 到远程\n\n这两个操作是连续的，push 依赖 commit 的结果，所以我可以一起调用这两个工具。\n</think>\n\n\n",
+      "content_len": 146,
+      "latency_ms": 2339,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户想要：\n1. 创建一个 git commit，message 是 'feat: add user profile API'\n2. 然后 push 到远程\n\n我需要先调用 git_commit，然后调用 git_push。这两个是有依赖关系的，需要先 commit 再 push。\n</think>\n\n\n",
+      "content_len": 161,
+      "latency_ms": 2400,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户想要：\n1. 创建一个 git commit，message 是 'feat: add user profile API'\n2. 然后 push 到远程\n\n我需要先调用 git_commit，然后调用 git_push。\n</think>\n\n\n",
+      "content_len": 132,
+      "latency_ms": 1798,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "<think>\n用户想要执行 git commit 和 git push 两个操作。根据规则，这种多步骤执行型任务应该一次性调用所有需要的工具，不要分回合。\n\n我需要：\n1. 调用 git_commit，message 为 'feat: add user profile API'\n2. 调用 git_push，推送到远程\n\n这两个操作是独立的，可以同时调用。\n</think>\n\n\n",
+      "content_len": 192,
+      "latency_ms": 3039,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "<think>\n用户需要执行两个操作：\n1. git commit -m 'feat: add user profile API'\n2. git push 到远程\n\n这两个操作有依赖关系，push 需要在 commit 之后执行，所以我需要分两步调用。\n</think>\n\n\n",
+      "content_len": 138,
+      "latency_ms": 1798,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我把中文翻译成英文，然后发送到 newsletter@team.com。我需要先翻译，然后发送邮件。\n</think>\n\n\n",
+      "content_len": 74,
+      "latency_ms": 1480,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我将一段中文翻译成英文，然后发送到 newsletter@team.com。我需要先翻译，然后发送邮件。\n</think>\n\n\n",
+      "content_len": 76,
+      "latency_ms": 1817,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我：\n1. 把中文翻译成英文\n2. 发送邮件到 newsletter@team.com\n\n我需要先调用 translate 工具翻译文本，然后调用 send_email 工具发送邮件。这两个步骤有依赖关系，需要先翻译才能发送邮件内容。\n\n不对，其实我可以同时调用，因为我知道翻译的结果——这句话的翻译是标准的商务邮件格式。\n\n\"Our company is preparing for the Q3 2026 new product launch event. Please stay tuned for further announcements.\"\n\n不过为了准确起见，我",
+      "content_len": 729,
+      "latency_ms": 8641,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我先翻译这段中文，然后发送到邮箱。这是一个两步操作，我需要：\n1. 翻译文本\n2. 发送邮件\n\n让我一起执行这两个操作。\n</think>\n\n\n",
+      "content_len": 84,
+      "latency_ms": 2175,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我把一段中文翻译成英文，然后发送到 newsletter@team.com。我需要：\n1. 先翻译文本\n2. 发送邮件\n\n我可以同时调用翻译和发送邮件，因为它们是独立的操作。不过发送邮件需要知道翻译后的内容，所以我需要先翻译。\n\n让我先调用翻译工具。\n</think>\n\n\n",
+      "content_len": 149,
+      "latency_ms": 2429,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我把中文翻译成英文，然后发送到 newsletter@team.com。我需要：\n1. 先翻译文本\n2. 然后发送邮件\n\n我可以同时调用 translate 和 send_email 这两个工具，因为它们是独立的操作。\n</think>\n\n\n",
+      "content_len": 133,
+      "latency_ms": 2276,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求我：\n1. 把中文翻译成英文\n2. 发送到 newsletter@team.com\n\n这是两个步骤：翻译 + 发送邮件。需要在一次性回复内调用所有需要的工具。\n</think>\n\n\n",
+      "content_len": 103,
+      "latency_ms": 1929,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户需要把中文翻译成英文，然后发送到邮箱。这是一个多步骤任务：先翻译，再发送邮件。\n</think>\n\n\n",
+      "content_len": 61,
+      "latency_ms": 1381,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户想要把\"我爱北京天安门\"翻译成英文。我可以使用翻译工具来完成这个任务。\n</think>\n\n\n",
+      "content_len": 57,
+      "latency_ms": 1485,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户想要把\"我爱北京天安门\"翻译成英文。这是一个简单的翻译请求，我可以使用translate工具来完成。\n</think>\n\n\n",
+      "content_len": 72,
+      "latency_ms": 1344,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户想要把\"我爱北京天安门\"翻译成英文。这是一个简单的翻译请求，我需要使用translate工具来完成。\n</think>\n\n\n",
+      "content_len": 72,
+      "latency_ms": 1476,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户想要把\"我爱北京天安门\"翻译成英文。这是一个简单的翻译请求，我需要使用translate工具。\n\n参数：\n- text: \"我爱北京天安门\"\n- target_lang: \"en\"（英文）\n</think>\n\n\n",
+      "content_len": 116,
+      "latency_ms": 1833,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求将\"我爱北京天安门\"翻译成英文，这是一个简单的翻译请求，我可以直接用translate工具来完成。\n</think>\n\n\n",
+      "content_len": 73,
+      "latency_ms": 1309,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户想要把\"我爱北京天安门\"翻译成英文，这是一个简单的翻译请求，可以直接用翻译工具完成。\n</think>\n\n\n",
+      "content_len": 64,
+      "latency_ms": 1507,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "<think>\n用户要求把\"我爱北京天安门\"翻译成英文。这是一个简单的翻译任务，可以直接调用翻译工具完成。\n</think>\n\n\n",
+      "content_len": 65,
+      "latency_ms": 1398,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiniMax-M2.7",
+      "model": "MiniMax-M2.7-highspeed",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "<think>\n用户要求把\"我爱北京天安门\"翻译成英文，这是一个简单的翻译任务，不需要调用工具，可以直接给出答案。\n</think>\n\n\"I love Beijing Tiananmen.\"",
+      "content_len": 95,
+      "latency_ms": 991,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来执行这两个操作。",
+      "content_len": 13,
+      "latency_ms": 2128,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1424,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我一次性帮你执行 commit 和 push！",
+      "content_len": 26,
+      "latency_ms": 2380,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来一次性执行这两个操作：",
+      "content_len": 16,
+      "latency_ms": 2203,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先执行 commit，然后 push。",
+      "content_len": 23,
+      "latency_ms": 2597,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先执行 commit，然后再 push 到远程。",
+      "content_len": 28,
+      "latency_ms": 2806,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2100,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，先提交再推送，一起执行：",
+      "content_len": 15,
+      "latency_ms": 3857,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2720,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我先将中文翻译成英文，然后发送邮件。",
+      "content_len": 21,
+      "latency_ms": 2560,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 8346,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 9504,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的！我先将中文翻译成英文，然后用翻译结果发送邮件。\n\n**步骤 1：翻译文本**",
+      "content_len": 41,
+      "latency_ms": 3753,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我先将这句话翻译成英文，然后再发送邮件。",
+      "content_len": 23,
+      "latency_ms": 3474,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我先翻译文本，然后根据翻译结果发送邮件。",
+      "content_len": 23,
+      "latency_ms": 3723,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "我会先完成翻译（基础翻译可直接给出结果），然后立即发送邮件。\n\n<",
+      "content_len": 33,
+      "latency_ms": 9772,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1876,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1523,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我来帮你翻译。",
+      "content_len": 10,
+      "latency_ms": 3036,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1911,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Beijing Tiananmen.\" 🎯\n\n不过更准确的翻译可以是：\n- **\"I love Beijing Tiananmen.\"**（直译）\n- 或者更完整一些：**\"I love Tiananmen in Beijing.\"**\n\n这里的\"天安门\"通常直接用拼音 **Tiananmen** 表示即可。",
+      "content_len": 163,
+      "latency_ms": 1980,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "当然，这句话翻译成英文是：\n\n**\"I love Beijing Tiananmen.\"**\n\n更完整地来说，\"天安门\"通常译为 **Tiananmen** 或 **Tiananmen Square（天安门广场）**，所以也可以译为：\n\n- **\"I love Beijing's Tiananmen.\"**\n\n如果你想要更自然一些，可以说：\n\n- **\"I love Tiananmen in Beijing.\"**\n\n希望这对你有帮助！😊",
+      "content_len": 221,
+      "latency_ms": 2952,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Beijing Tiananmen.\"",
+      "content_len": 27,
+      "latency_ms": 984,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Flash",
+      "model": "deepseek-v4-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"我爱北京天安门\" 翻译成英文是：\n\n**I love Beijing Tiananmen.**",
+      "content_len": 48,
+      "latency_ms": 1315,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "我来帮你提交代码并推送到远程仓库。",
+      "content_len": 17,
+      "latency_ms": 1612,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "我需要先确认当前分支的名称才能执行推送操作。请告诉我当前分支的名称是什么？",
+      "content_len": 37,
+      "latency_ms": 2419,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 973,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你完成 commit 和 push 操作。",
+      "content_len": 24,
+      "latency_ms": 1527,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你提交代码并推送到远程仓库。",
+      "content_len": 17,
+      "latency_ms": 1483,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "我来帮你执行这两个 git 操作。首先创建提交：",
+      "content_len": 24,
+      "latency_ms": 1502,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1492,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1682,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您翻译这段中文并发送邮件。",
+      "content_len": 16,
+      "latency_ms": 1492,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您翻译这段中文并发送邮件。",
+      "content_len": 16,
+      "latency_ms": 1913,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1353,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1169,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1528,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1291,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1661,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1470,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您将\"我爱北京天安门\"翻译成英文。",
+      "content_len": 20,
+      "latency_ms": 1187,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您翻译这句话。",
+      "content_len": 10,
+      "latency_ms": 1124,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1563,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2000,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Beijing Tiananmen\"\n\n这是中国著名儿歌《我爱北京天安门》的标准英文翻译。",
+      "content_len": 53,
+      "latency_ms": 1004,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "I love Beijing Tiananmen.",
+      "content_len": 25,
+      "latency_ms": 870,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 989,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Step-3.5-Flash",
+      "model": "step-3.5-flash",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1257,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 11545,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 10195,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6997,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 7237,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 10616,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3871,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4484,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 7287,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 10733,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5596,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 8262,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我先帮你翻译，然后发送邮件。由于邮件内容依赖翻译结果，我需要先完成翻译步骤。",
+      "content_len": 38,
+      "latency_ms": 5509,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我先帮你翻译这段文字，然后再发送邮件。",
+      "content_len": 19,
+      "latency_ms": 5017,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我先帮你翻译，然后再发送邮件。",
+      "content_len": 15,
+      "latency_ms": 5556,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "先翻译，再用翻译结果发送邮件。",
+      "content_len": 15,
+      "latency_ms": 11262,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "先翻译，再发邮件。",
+      "content_len": 9,
+      "latency_ms": 3145,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5470,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5587,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2160,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2887,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6598,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3963,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4080,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "MiMo-2.5-Pro",
+      "model": "mimo-v2.5-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"我爱北京天安门\" 翻译成英文是：\n\n**\"I love Tiananmen in Beijing.\"**",
+      "content_len": 53,
+      "latency_ms": 4090,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你执行这两个 git 操作：提交代码并推送到远程仓库。",
+      "content_len": 30,
+      "latency_ms": 4454,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6652,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你执行这两个操作：先 commit 代码，然后 push 到远程。",
+      "content_len": 36,
+      "latency_ms": 6139,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "我来帮你执行这两个操作：先 commit 代码，然后 push 到远程。",
+      "content_len": 36,
+      "latency_ms": 6984,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你提交代码并推送到远程。",
+      "content_len": 15,
+      "latency_ms": 5486,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你执行这两个 git 操作。",
+      "content_len": 17,
+      "latency_ms": 5106,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你执行 commit 和 push 操作。",
+      "content_len": 24,
+      "latency_ms": 5432,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我将帮你执行 commit 和 push 操作。",
+      "content_len": 24,
+      "latency_ms": 4298,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 9000,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我需要先翻译这段中文，然后发送邮件。让我先翻译文本。",
+      "content_len": 26,
+      "latency_ms": 5681,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 12399,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "我来帮你翻译这段中文并发送邮件。",
+      "content_len": 16,
+      "latency_ms": 7410,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "我来帮您翻译并发送这封邮件。\n\n翻译结果：\n\"Our company is preparing for the Q3 2026 new product launch event. Please stay tuned for further announcements.\"\n\n现在发送邮件：",
+      "content_len": 144,
+      "latency_ms": 7947,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您翻译并发送这封邮件。\n\n首先，让我将中文翻译成英文：",
+      "content_len": 30,
+      "latency_ms": 4853,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "我来帮你翻译并发送邮件。",
+      "content_len": 12,
+      "latency_ms": 6036,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "我来帮您翻译并发送邮件。",
+      "content_len": 12,
+      "latency_ms": 6464,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3498,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3870,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4449,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4458,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5015,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5158,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Beijing Tiananmen Square\" \n\n或者更地道的表达：\n- \"I love Tiananmen Square in Beijing\"\n- \"I love Beijing's Tiananmen Square\"\n\n**补充说明：** \"天安门\"的英文是\"Tiananmen\"，\"天安门广场\"是\"Tiananmen Square\"。这句话也是一首著名的中国儿歌的歌词。",
+      "content_len": 200,
+      "latency_ms": 8005,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "HY3-Preview",
+      "model": "tencent/hy3-preview:free",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Beijing Tiananmen Square.\"",
+      "content_len": 34,
+      "latency_ms": 9374,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4183,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4328,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我同时执行 commit 和 push 操作：",
+      "content_len": 26,
+      "latency_ms": 12541,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 9268,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4491,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "我来依次执行 commit 和 push 操作。先创建提交：",
+      "content_len": 30,
+      "latency_ms": 8615,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 7732,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 7759,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我先翻译，然后发送邮件。",
+      "content_len": 15,
+      "latency_ms": 4602,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来同时完成翻译和发送邮件。",
+      "content_len": 14,
+      "latency_ms": 6598,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "好的，我同时进行翻译和发送邮件：",
+      "content_len": 16,
+      "latency_ms": 21324,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "好的，我同时进行翻译和发送邮件：",
+      "content_len": 16,
+      "latency_ms": 16975,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "**翻译结果：**\n> \"Our company is preparing for the Q3 2026 new product launch event. Please stay tuned for subsequent announcements.\"\n\n现在帮你发送邮件：",
+      "content_len": 139,
+      "latency_ms": 13546,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 13932,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6380,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 18415,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3506,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3279,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4917,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3613,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "“我爱北京天安门”翻译成英文是：\n\n**\"I love Tiananmen in Beijing.\"**\n\n也可以更自然地表达为：\n- **\"I love Beijing's Tiananmen.\"**\n\n> 注：Tiananmen（天安门）在国际上已作为专有名词被广泛使用，直接保留拼音即可。",
+      "content_len": 147,
+      "latency_ms": 10273,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "**Translation:**\n\n\"I love Beijing Tiananmen.\"\n\n---\n\nIf you'd like a more literal or poetic translation, here are some alternatives:\n\n- \"I love Tiananmen in Beijing.\"\n- \"I love the Tiananmen, Beijing.\"\n- \"I love Beijing's Tiananmen Square.\" *(if referring to the square specifically)*\n\nThe first one —",
+      "content_len": 455,
+      "latency_ms": 5128,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3998,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "DeepSeek-V4-Pro",
+      "model": "deepseek-v4-pro",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "**I love Beijing's Tiananmen.**\n\n或者更自然的表达：**I love Tiananmen Square in Beijing.**\n\n（这也是中国著名儿歌《我爱北京天安门》的常见英译。）",
+      "content_len": 109,
+      "latency_ms": 6641,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你提交代码，然后再推送到远程。\n\n**第一步：创建 commit**",
+      "content_len": 40,
+      "latency_ms": 5153,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你提交代码，然后再推送到远程。\n\n**第一步：创建 commit**",
+      "content_len": 40,
+      "latency_ms": 8333,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来一次性帮你完成 commit 和 push 操作！",
+      "content_len": 30,
+      "latency_ms": 9079,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来一次性帮你完成 commit 和 push 操作！",
+      "content_len": 30,
+      "latency_ms": 10003,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你提交代码，然后再推送到远程。\n\n**第一步：创建 commit**",
+      "content_len": 40,
+      "latency_ms": 9123,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你提交代码，然后再推送到远程。\n\n**第一步：创建 commit**",
+      "content_len": 40,
+      "latency_ms": 6044,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来帮你完成 commit 和 push 操作！",
+      "content_len": 27,
+      "latency_ms": 13785,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "我来帮你完成 commit 和 push 操作！",
+      "content_len": 24,
+      "latency_ms": 9492,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "好的，我先帮您翻译这段文字，然后再发送邮件。先来翻译：",
+      "content_len": 27,
+      "latency_ms": 4849,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮你完成这两个步骤：先翻译，再用翻译结果发送邮件。\n\n**第一步：翻译文本**",
+      "content_len": 41,
+      "latency_ms": 6566,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮你完成这两步操作。首先翻译文本，然后将翻译结果发送邮件。由于邮件内容依赖翻译结果，我先进行翻译：",
+      "content_len": 51,
+      "latency_ms": 16937,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 23686,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "我来帮你完成这两步：先翻译，再发送邮件。\n\n翻译结果如下：\n> **原文：** 我司正在筹备 2026 年 Q3 新产品发布会，请关注后续公告。\n> **英文：** Our company is preparing for the 2026 Q3 new product launch event. Please stay tuned for further announcements.\n\n现在发送邮件：",
+      "content_len": 203,
+      "latency_ms": 9322,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来先翻译文本，然后再发送邮件。\n\n**第一步：翻译文本**",
+      "content_len": 30,
+      "latency_ms": 14284,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "我将同时执行翻译和发送邮件两个步骤。",
+      "content_len": 18,
+      "latency_ms": 13054,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "translate",
+        "send_email"
+      ],
+      "content_head": "我来同时完成翻译和发送邮件这两个步骤：",
+      "content_len": 19,
+      "latency_ms": 20305,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4499,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5614,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5980,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6071,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"我爱北京天安门\" 的英文翻译是：\n\n**\"I love Tiananmen in Beijing.\"**\n\n或者也可以翻译为：\n\n**\"I love Beijing's Tiananmen (Square).\"**\n\n> 💡 天安门通常翻译为 **Tiananmen**，如果要特指天安门广场，则用 **Tiananmen Square**。",
+      "content_len": 172,
+      "latency_ms": 7386,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"我爱北京天安门\" 翻译成英文是：\n\n**\"I love Tiananmen in Beijing\"**\n\n或者也可以翻译为：\n\n**\"I love Beijing's Tiananmen\"**",
+      "content_len": 97,
+      "latency_ms": 7175,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4140,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5.1",
+      "model": "GLM-5.1",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "**\"我爱北京天安门\"** 翻译成英文是：\n\n**\"I love Tiananmen in Beijing.\"**\n\n（也可以更自然地表达为：\"I love Tiananmen Square in Beijing.\"）",
+      "content_len": 109,
+      "latency_ms": 5978,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先执行 commit，然后再 push 到远程。这两步有依赖关系，需要按顺序执行。\n\n**第一步：提交代码**",
+      "content_len": 59,
+      "latency_ms": 9235,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你执行 commit，然后再 push 到远程。两步有先后依赖关系，我先来提交代码：",
+      "content_len": 48,
+      "latency_ms": 10301,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，马上帮你完成 commit 和 push 两个步骤！",
+      "content_len": 29,
+      "latency_ms": 14834,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来一次性帮你完成 commit 和 push 操作！",
+      "content_len": 30,
+      "latency_ms": 6263,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我先帮你提交代码，然后再推送到远程。由于 push 需要在 commit 完成之后执行，我先执行 commit：",
+      "content_len": 59,
+      "latency_ms": 7684,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "好的，我来帮你先提交代码，然后推送到远程。先执行 commit：",
+      "content_len": 32,
+      "latency_ms": 4649,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，马上帮你提交并推送代码！",
+      "content_len": 15,
+      "latency_ms": 12830,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "好的，我来一次性帮你完成 commit 和 push 操作！",
+      "content_len": 30,
+      "latency_ms": 5680,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮你完成这两步：先翻译，再发送邮件。首先进行翻译：",
+      "content_len": 27,
+      "latency_ms": 3307,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我先帮您把中文翻译成英文，然后再发送邮件。先执行翻译：",
+      "content_len": 27,
+      "latency_ms": 4843,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮您完成翻译和发送邮件两个步骤！",
+      "content_len": 18,
+      "latency_ms": 40352,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 32906,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "我先直接将这段中文翻译成英文，然后发送邮件。\n\n**翻译结果：**\n\"Our company is preparing for the new product launch event in Q3 2026. Please stay tuned for further announcements.\"\n\n现在将翻译内容发送邮件：",
+      "content_len": 164,
+      "latency_ms": 19856,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "我来帮你完成这两步操作。首先翻译这段中文：",
+      "content_len": 21,
+      "latency_ms": 12829,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "我先直接完成翻译，然后用翻译结果发送邮件，两步一次性搞定：\n\n**翻译结果：** *\"Our company is preparing for the Q3 2026 new product launch event. Please stay tuned for further announcements.\"*\n\n现在用这段翻译发送邮件：",
+      "content_len": 170,
+      "latency_ms": 25027,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": "我来先完成翻译，然后直接发送邮件。这段中文的英文翻译为：\n\n> **\"Our company is currently preparing for the Q3 2026 new product launch event. Please stay tuned for further announcements.\"**\n\n现在将翻译结果发送到指定邮箱：",
+      "content_len": 176,
+      "latency_ms": 22211,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2150,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2502,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1852,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 1756,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "\"I love Tiananmen Square in Beijing\"",
+      "content_len": 36,
+      "latency_ms": 6156,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "'我爱北京天安门' 的英文翻译是：\n\n**\"I love Beijing Tiananmen\"** \n\n（也可以说：**\"I love Tiananmen in Beijing\"**）",
+      "content_len": 92,
+      "latency_ms": 8349,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 4326,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "GLM-5-Turbo",
+      "model": "GLM-5-Turbo",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "I love Beijing Tiananmen Square.",
+      "content_len": 32,
+      "latency_ms": 5619,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 8834,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": " 我来帮你执行这两个 Git 操作。先创建 commit，然后 push 到远程。 ",
+      "content_len": 42,
+      "latency_ms": 11705,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 10232,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 8295,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5732,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "git_commit"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 12006,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 10398,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A4",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 2,
+      "tool_names": [
+        "git_commit",
+        "git_push"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 20335,
+      "error": null,
+      "scoring": {
+        "score": 1.0,
+        "reason": "all_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 11811,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 9078,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": " 我来帮您翻译并发送邮件。 ",
+      "content_len": 14,
+      "latency_ms": 17259,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 21792,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 21548,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "send_email"
+      ],
+      "content_head": " 翻译后的英文为：\n\n**\"We are currently preparing for the new product launch event in Q3 2026. Please stay tuned for further announcements.\"**\n\n现在为您发送邮件： ",
+      "content_len": 145,
+      "latency_ms": 12871,
+      "error": null,
+      "scoring": {
+        "score": 0.5,
+        "reason": "partial(1/2)"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 16386,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "A6",
+      "cat": "A",
+      "kind": "SHOULD",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 20616,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "none_called"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 5887,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M0_baseline",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 3997,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 0,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 6295,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M1_chain",
+      "trial": 1,
+      "tool_calls_n": 1,
+      "tool_names": [
+        "translate"
+      ],
+      "content_head": "",
+      "content_len": 0,
+      "latency_ms": 2893,
+      "error": null,
+      "scoring": {
+        "score": 0,
+        "reason": "overcalled(['translate'])"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": " I love Beijing's Tiananmen. \n\n或者更完整一点：\n- **I love Tiananmen in Beijing.**\n- **I love Tiananmen Square in Beijing.**（如果指的是天安门广场）",
+      "content_len": 128,
+      "latency_ms": 13172,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M2_parametric",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": " 这句话翻译成英文是：\n\n**I love Beijing Tiananmen.**\n\n或者也可以表达为：\n\n- **I love Tiananmen in Beijing.**\n- **I love Tiananmen, Beijing.**",
+      "content_len": 122,
+      "latency_ms": 9993,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 0,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": " I love Beijing Tiananmen.",
+      "content_len": 26,
+      "latency_ms": 9645,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    },
+    {
+      "provider": "Kimi-K2.5-AlayaNew",
+      "model": "kimi-k2.5",
+      "qid": "E2",
+      "cat": "E",
+      "kind": "SHOULDNT",
+      "condition": "M3_combined",
+      "trial": 1,
+      "tool_calls_n": 0,
+      "tool_names": [],
+      "content_head": " I love Beijing Tiananmen.",
+      "content_len": 26,
+      "latency_ms": 1946,
+      "error": null,
+      "scoring": {
+        "score": 1,
+        "reason": "abstained"
+      }
+    }
+  ]
+}
