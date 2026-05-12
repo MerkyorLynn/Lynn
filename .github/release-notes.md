@@ -1,40 +1,41 @@
-# Lynn v0.78.0 Release Notes
+# Lynn v0.78.1 Release Notes
 
-> 发布日期: 2026-05-12 · 代号: "Windows Startup Hotfix"
+> 发布日期: 2026-05-12 · 代号: "Deep Research Search Hotfix"
 
-v0.78.0 是一个稳定性热修版本，重点修复 Windows 用户从旧版升级后启动失败的 SQLite schema migration 问题，同时把新用户默认模型链路切到 Brain v2；已有用户的 Brain v1 配置会继续保留，不会被桌面端升级强制覆盖。
+v0.78.1 是一个 Deep Research 热修版本,重点修复中文财经/热点调研在 DuckDuckGo HTML 返回 no-results 时直接失败的问题,并优化长耗时 Deep Research 的前端超时体验。
 
 ## 重点更新
 
-### Windows 启动修复
-- 修复旧 `facts.db` 升级时可能在启动阶段报 `SQLITE_ERROR: no such column: category` 的问题。
-- 调整 FactStore schema 初始化顺序：先完成迁移，再创建依赖新列的索引。
-- 对旧库缺失 `category / confidence / evidence` 字段的场景补充回归测试，覆盖真实 crash.log 路径。
+### 中文财经搜索兜底
+- DuckDuckGo HTML 搜索无结果时,会自动对中文财经长查询做简化重试。
+- 新增 Bing HTML fallback,覆盖中文热点、融资、A 股影响等 DuckDuckGo 偶发空结果场景。
+- 修复“可灵融资 20 亿对 A 股影响”这类问题容易返回 `DuckDuckGo HTML returned no results` 的情况。
 
-### Brain v2 默认策略
-- 新安装用户默认走 Brain v2 模型链路。
-- 已经存在 `brain` provider 或本地 prefs 的老用户继续使用原有配置，避免稳定 v1 用户被一刀切迁移。
-- Onboarding、Provider 默认配置和运行时 seed 统一使用新的 V2 默认值。
+### Deep Research 体验
+- Deep Research 请求等待窗口与后端任务超时对齐,避免前端先报 `AbortSignal.timeout`。
+- 超时/失败提示统一转成可读中文文案,用户能看到明确的重试建议。
+- Deep Research 面板与结果格式化逻辑抽离,后续调研卡片可以更安全地迭代。
 
-### 数据安全
-- 本次修复不删除、不重建用户数据库；旧记忆会通过迁移保留。
-- 覆盖安装即可修复启动失败，无需用户手动删除本地数据。
+### 回归测试
+- 新增中文财经搜索 fallback 回归测试。
+- 新增 Deep Research timeout 与面板行为测试。
+- 保留 v0.78.0 的 Windows SQLite migration / Brain v2 默认策略修复。
 
 ## 回归结果
 
-- Full test suite: `165 files / 1423 passed / 1 skipped`
-- Brain provider policy tests: `6 passed`
-- FactStore migration tests: `5 passed`
-- TypeScript / build / release smoke: 见本次发版门禁记录
+- Full test suite: `165 files / 1427 passed / 1 skipped`
+- Targeted search / stock / Brain / FactStore tests: passed
+- TypeScript / server build / main build / renderer build: passed
+- Release regression: static refs, manifest, smoke and UI gates passed
 
 ## 下载
 
-- macOS Apple Silicon: `Lynn-0.78.0-macOS-Apple-Silicon.dmg`
-- macOS Intel: `Lynn-0.78.0-macOS-Intel.dmg`
-- Windows x64: `Lynn-0.78.0-Windows-Setup.exe`
+- macOS Apple Silicon: `Lynn-0.78.1-macOS-Apple-Silicon.dmg`
+- macOS Intel: `Lynn-0.78.1-macOS-Intel.dmg`
+- Windows x64: `Lynn-0.78.1-Windows-Setup.exe`
 - 镜像站: https://download.merkyorlynn.com/download
-- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.78.0
+- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.78.1
 
 ## 升级建议
 
-建议 Windows 用户尽快升级。遇到 0.77.10 / 0.77.11 启动失败的用户，直接覆盖安装 v0.78.0 即可，正常情况下不会丢失会话或本地记忆。
+建议所有使用 Deep Research / 财经调研 / 搜索工具的用户升级。Windows 用户如果仍在 0.77.10 / 0.77.11,也可以直接覆盖安装 v0.78.1,会同时获得 v0.78.0 的 SQLite 启动修复。

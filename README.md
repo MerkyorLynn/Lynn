@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.78.0-brightgreen" alt="Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/version-0.78.1-brightgreen" alt="Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -27,7 +27,20 @@
 ## 🆕 近期更新
 
 <details>
-<summary><strong>v0.78.0</strong> · 2026-05-12 · Windows 启动热修 + Brain v2 新用户默认 <em>(最新)</em></summary>
+<summary><strong>v0.78.1</strong> · 2026-05-12 · 中文财经搜索兜底 + Deep Research 体验热修 <em>(最新)</em></summary>
+
+**搜索与 Deep Research 修复**:
+- 🔎 **中文财经搜索兜底**:DuckDuckGo HTML 对中文热点/财经长查询返回 no-results 时,自动做中文查询简化并切换 Bing HTML fallback。
+- 📈 **行情/新闻类问题更稳**:修复“可灵融资”“A 股受益标的”等中文财经调研容易搜不到的问题,Deep Research 不再把临时搜索失败伪装成最终结论。
+- ⏱️ **超时文案更清楚**:Deep Research fetch 超时统一显示可读提示,前端等待时间与服务端任务窗口对齐。
+- 🧩 **面板工程化**:Deep Research 面板与格式化 helper 抽离,补齐回归测试,便于后续继续迭代。
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.78.1)
+
+</details>
+
+<details>
+<summary><strong>v0.78.0</strong> · 2026-05-12 · Windows 启动热修 + Brain v2 新用户默认</summary>
 
 **Windows 启动修复**:
 - 🧩 **修复 SQLite migration 崩溃**:旧 `facts.db` 缺少 `category` 列时,启动不再因 `SQLITE_ERROR: no such column: category` 中断。
