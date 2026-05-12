@@ -271,7 +271,7 @@ describe("deep research route", () => {
     let attempts = 0;
     const fetchImpl = vi.fn(async (url) => {
       attempts += 1;
-      if (attempts <= 2) {
+      if (attempts <= 4) {
         throw new Error("dns failed");
       }
       return new Response([
@@ -299,8 +299,10 @@ describe("deep research route", () => {
       winnerProviderId: "deepseek-chat",
       source: "brain-v2-deep-research",
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
-    expect(fetchImpl.mock.calls[2][0]).toBe("http://127.0.0.1:8790/v2/deep-research/completions");
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
+    expect(fetchImpl.mock.calls[0][0]).toBe("https://api.merkyorlynn.com/api/v2/v2/deep-research/completions");
+    expect(fetchImpl.mock.calls[2][0]).toBe("http://82.156.182.240/api/v2/v2/deep-research/completions");
+    expect(fetchImpl.mock.calls[4][0]).toBe("http://127.0.0.1:8790/v2/deep-research/completions");
   });
 
   it("tries the mirror-compatible nested v2 endpoint before legacy mirror endpoint", async () => {

@@ -1,12 +1,12 @@
 {
   "stable": {
-    "version": "0.77.11",
-    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.11",
-    "notes": "# Lynn v0.77.11 Release Notes\n\n> 发布日期: 2026-05-09 · 代号: \"Deep Research Entry\"\n\nv0.77.11 把 Brain v2 的 Deep Research 从后端试验能力推进到 Lynn 桌面客户端的可体验入口。用户现在可以在输入框底部直接开启“深研”，由多模型并行生成候选答案，再经过质量复核后输出；低质量 winner 会被拒绝，不再把不稳定答案直接展示给用户。\n\n## 重点更新\n\n### Deep Research 桌面入口\n- 新增输入框底部 `深研` 按钮：空输入时展示功能引导，有输入时直接发起 Deep Research。\n- Deep Research 会并行调用候选模型，并在结果尾部显示质量复核状态、winner 和候选评分。\n- 针对 `A3B` 这类容易误判的缩写问题加入质量地板，低质量答案会明确拒绝，而不是伪装成结论。\n\n### 会话持久化与本地体验\n- `/api/deep-research` 支持 `sessionPath`，通过客户端触发的深研结果会写入本地会话 JSONL。\n- 修复“前端看到了结果，但切会话/重载后丢失”的持久化缺口。\n- 保留普通聊天链路不变：Deep Research 是显式入口，不会抢占默认模型的日常问答。\n\n### Brain v2 mirror 与测试\n- Brain v2 `deep-research` mirror 同步质量地板和失败路径测试。\n- 新增 `server/routes/deep-research.js`，把远端 Deep Research 能力封装成桌面端可调用 API。\n- Tool-abstain / Qwen3.5 vs Qwen3.6 相关 benchmark 文件归档到 `tests/benchmarks/`，便于后续复现实验。\n\n## 回归结果\n\n- Deep Research route tests: `11 passed`\n- Brain v2 Deep Research tests: `12 passed`\n- TypeScript: `tsc --noEmit` 通过\n- Renderer build: `vite build` 通过\n- Release static smoke: `38/38 passed`\n- 本地真实 UI：`深研` 按钮点击、质量复核、结果展示、会话持久化均已验证\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.77.11-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.77.11-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.77.11-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.77.11\n\n## 升级建议\n\n建议希望体验 Deep Research 的用户升级。该版本不包含破坏性数据迁移，安装覆盖后会继续沿用原有会话、模型配置和本地数据。",
+    "version": "0.78.0",
+    "releaseUrl": "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.78.0",
+    "notes": "# Lynn v0.78.0 Release Notes\n\n> 发布日期: 2026-05-12 · 代号: \"Windows Startup Hotfix\"\n\nv0.78.0 是一个稳定性热修版本，重点修复 Windows 用户从旧版升级后启动失败的 SQLite schema migration 问题，同时把新用户默认模型链路切到 Brain v2；已有用户的 Brain v1 配置会继续保留，不会被桌面端升级强制覆盖。\n\n## 重点更新\n\n### Windows 启动修复\n- 修复旧 `facts.db` 升级时可能在启动阶段报 `SQLITE_ERROR: no such column: category` 的问题。\n- 调整 FactStore schema 初始化顺序：先完成迁移，再创建依赖新列的索引。\n- 对旧库缺失 `category / confidence / evidence` 字段的场景补充回归测试，覆盖真实 crash.log 路径。\n\n### Brain v2 默认策略\n- 新安装用户默认走 Brain v2 模型链路。\n- 已经存在 `brain` provider 或本地 prefs 的老用户继续使用原有配置，避免稳定 v1 用户被一刀切迁移。\n- Onboarding、Provider 默认配置和运行时 seed 统一使用新的 V2 默认值。\n\n### 数据安全\n- 本次修复不删除、不重建用户数据库；旧记忆会通过迁移保留。\n- 覆盖安装即可修复启动失败，无需用户手动删除本地数据。\n\n## 回归结果\n\n- Full test suite: `165 files / 1423 passed / 1 skipped`\n- Brain provider policy tests: `6 passed`\n- FactStore migration tests: `5 passed`\n- TypeScript / build / release smoke: 见本次发版门禁记录\n\n## 下载\n\n- macOS Apple Silicon: `Lynn-0.78.0-macOS-Apple-Silicon.dmg`\n- macOS Intel: `Lynn-0.78.0-macOS-Intel.dmg`\n- Windows x64: `Lynn-0.78.0-Windows-Setup.exe`\n- 镜像站: https://download.merkyorlynn.com/download\n- GitHub: https://github.com/MerkyorLynn/Lynn/releases/tag/v0.78.0\n\n## 升级建议\n\n建议 Windows 用户尽快升级。遇到 0.77.10 / 0.77.11 启动失败的用户，直接覆盖安装 v0.78.0 即可，正常情况下不会丢失会话或本地记忆。",
     "assets": {
-      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.11-macOS-Apple-Silicon.dmg",
-      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.11-macOS-Intel.dmg",
-      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.77.11-Windows-Setup.exe",
+      "darwin-arm64": "https://download.merkyorlynn.com/downloads/Lynn-0.78.0-macOS-Apple-Silicon.dmg",
+      "darwin-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.78.0-macOS-Intel.dmg",
+      "win32-x64": "https://download.merkyorlynn.com/downloads/Lynn-0.78.0-Windows-Setup.exe",
       "default": "https://download.merkyorlynn.com/download.html"
     }
   }

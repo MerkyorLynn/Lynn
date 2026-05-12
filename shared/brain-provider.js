@@ -39,19 +39,19 @@ const _brainHost = resolveProcessEnvValue("BRAIN_API_HOST");
 const _brainLegacyApiRootUrl = resolveProcessEnvValue("BRAIN_LEGACY_API_ROOT_URL");
 const _brainLegacyHost = resolveProcessEnvValue("BRAIN_LEGACY_HOST");
 
-// v0.77.9 hotfix:
-// The v2 public hostname is not reliable enough for release gates yet. Keep the
-// runtime default on the proven public API root, while callers may still opt into
-// v2 by setting BRAIN_API_ROOT_URL / BRAIN_API_HOST explicitly.
+// v0.78 policy:
+// New installs default to Brain v2. Existing users keep the base_url persisted in
+// ~/.lynn/added-models.yaml or preferences, so stable v1 installs are not
+// force-migrated by a desktop upgrade.
 export const BRAIN_API_ROOT = normalizeApiRoot(
   _brainApiRootUrl,
-  normalizeApiRoot(_brainHost, _BRAIN_BACKUP_FALLBACK) + "/api",
+  normalizeApiRoot(_brainHost, _BRAIN_FALLBACK) + "/api/v2",
 );
 
 // 容灾 API Root（当主地址不可达时使用）
 export const BRAIN_BACKUP_API_ROOT = normalizeApiRoot(
   resolveProcessEnvValue("BRAIN_BACKUP_API_ROOT_URL"),
-  normalizeApiRoot(resolveProcessEnvValue("BRAIN_BACKUP_HOST"), _BRAIN_BACKUP_FALLBACK) + "/api",
+  normalizeApiRoot(resolveProcessEnvValue("BRAIN_BACKUP_HOST"), _BRAIN_BACKUP_FALLBACK) + "/api/v2",
 );
 export const BRAIN_BACKUP_PROVIDER_BASE_URL = `${BRAIN_BACKUP_API_ROOT}/v1`;
 export const BRAIN_LEGACY_API_ROOT = normalizeApiRoot(
@@ -62,8 +62,8 @@ export const BRAIN_PROVIDER_BASE_URL = `${BRAIN_API_ROOT}/v1`;
 export const BRAIN_LEGACY_PROVIDER_BASE_URL = `${BRAIN_LEGACY_API_ROOT}/v1`;
 export const BRAIN_API_ROOTS = [...new Set([BRAIN_API_ROOT, BRAIN_BACKUP_API_ROOT].filter(Boolean))];
 export const BRAIN_PROVIDER_BASE_URLS = [...new Set([BRAIN_PROVIDER_BASE_URL, BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
-export const BRAIN_DEPRECATED_API_ROOTS = [...new Set([BRAIN_BACKUP_API_ROOT].filter(Boolean))];
-export const BRAIN_DEPRECATED_PROVIDER_BASE_URLS = [...new Set([BRAIN_BACKUP_PROVIDER_BASE_URL].filter(Boolean))];
+export const BRAIN_DEPRECATED_API_ROOTS = [];
+export const BRAIN_DEPRECATED_PROVIDER_BASE_URLS = [];
 export const BRAIN_PROVIDER_API = "openai-completions";
 const _BRAIN_MODEL_PRIMARY_ENCODED = "MzA2Mi1oc2FsZi01LjMtcGV0cw==";
 const _BRAIN_MODEL_UTILITY_ENCODED = "NDE0MC1iOS0xei1tbGc=";

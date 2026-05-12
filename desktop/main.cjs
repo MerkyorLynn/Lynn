@@ -441,20 +441,12 @@ function writeUserPreferences(nextPrefs) {
   fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
 }
 
-// v0.77.9 hotfix: keep the packaged client on the proven public API root until
-// the v2 hostname is stable enough for release gates and end-user networks.
-const CANONICAL_BRAIN_API_ROOT = "http://82.156.182.240/api";
+// v0.78 policy: new installs default to Brain v2, while existing user-persisted
+// brain provider URLs stay untouched so stable v1 installs keep working.
+const CANONICAL_BRAIN_API_ROOT = "https://api.merkyorlynn.com/api/v2";
 const CANONICAL_BRAIN_PROVIDER_BASE_URL = `${CANONICAL_BRAIN_API_ROOT}/v1`;
-const DEPRECATED_BRAIN_API_ROOTS = new Set([
-  "https://api.merkyorlynn.com/api",
-  "https://api.merkyorlynn.com/api/v2",
-  "http://82.156.182.240/api/v2",
-]);
-const DEPRECATED_BRAIN_PROVIDER_BASE_URLS = new Set([
-  "https://api.merkyorlynn.com/api/v1",
-  "https://api.merkyorlynn.com/api/v2/v1",
-  "http://82.156.182.240/api/v2/v1",
-]);
+const DEPRECATED_BRAIN_API_ROOTS = new Set([]);
+const DEPRECATED_BRAIN_PROVIDER_BASE_URLS = new Set([]);
 
 function normalizeBrainUrl(value) {
   const text = String(value || "").trim();
