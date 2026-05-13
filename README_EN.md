@@ -373,6 +373,43 @@ Lynn's memory is not a static `memory.md`. It's a six-layer system:
 
 Memory and skill distillation work together: the more you use Lynn, the more accurate its recall, the faster it works — gradually becoming a long-term collaborator that truly understands you.
 
+## 🚀 Lynn's Own Models + Inference Engine (May 2026)
+
+Until now Lynn ran entirely on third-party models (MiMo / Qwen3.6 / DeepSeek / Kimi) — Lynn handled the engineering and UX, the models came from elsewhere.
+
+**That's changing. Lynn now has its own models, with a dedicated inference engine coming next.**
+
+### First model: Lynn-V4-Pro-Distill-Qwen-35B-A3B
+
+A work-horse model built on top of Qwen3.6-35B-A3B via distillation + multi-stage LoRA. 4-gate eval **NET WIN +40pp** vs base.
+
+Three ready-to-use formats:
+
+| Format | Size | Who it's for |
+|---|---|---|
+| **BF16 full precision** | 65 GB | Finetune / training starting point |
+| **NVFP4-v8-RTN** | 21 GB | Single 24 GB GPU (verified on SGLang dev-cu13 nightly) |
+| **Q4_K_M GGUF** | 20 GB | llama.cpp / Ollama, runs on consumer GPUs |
+
+- 🤗 **HuggingFace**: [`nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B`](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B) ([Q4_K_M](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M) · [NVFP4-v8-RTN](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN))
+- 🇨🇳 **ModelScope** (recommended for users in China): [`Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B`](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B) ([Q4_K_M](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M) · [NVFP4-v8-RTN](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN))
+
+All tooling is open-sourced: [lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit) (4-gate eval / sanity / pipeline / pruning) + [qwen3.6-nvfp4-toolkit](https://github.com/MerkyorLynn/qwen3.6-nvfp4-toolkit) (NVFP4 quantization toolchain).
+
+### What's coming next
+
+- 🔜 **Lynn-V4-Flash-Distill** (ETA May 14) — a lighter Flash variant optimized for speed
+- 🔜 **Lynn-27B-A3B** (late May) — MoE-pruned variant, fits on a single 4090 / 5060 Ti
+- 🔜 **Lynn Engine** — Lynn's own inference engine. Reads NVFP4 + MoE native layouts directly, bypassing the upstream integration cycle of transformers / vLLM. Phase 1–4 path: loader → BF16 slow-path oracle → layer parity → 5-token parity → native FP4 GEMM performance
+
+### Why own models + an engine
+
+- General-purpose models — even great ones — **aren't specifically tuned for "long-term memory + multi-Agent + writing"**, the shape Lynn actually needs
+- Upstream inference engines (vLLM / SGLang / TRT-LLM) ship NVFP4 + MoE support on a 4–8 week cadence — **too slow for our roadmap**
+- Owning both means Lynn-specific capabilities (Yuan personality / proactive recall / task modes) can be baked into training data and inference paths directly
+
+This doesn't replace the cloud fallback chain (MiMo / Qwen / DeepSeek remain the default route). **It adds a private, local path** — not a switch.
+
 ## Install and Go
 
 Two paths on first launch. **Quick Start** requires zero API keys — a built-in default model works out of the box. Enter your name, grant permissions, start chatting. Want a stronger model? Connect your own provider anytime in Settings.
