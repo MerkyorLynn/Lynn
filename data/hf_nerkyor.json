@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-05-12T04:24:21+00:00",
+  "collected_at": "2026-05-13T04:30:52+00:00",
   "author": "nerkyor",
   "models": [
     {
@@ -22,8 +22,15 @@
       "downloads_30d": 0,
       "likes": 0,
       "last_modified": "2026-05-12"
+    },
+    {
+      "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B",
+      "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B",
+      "downloads_30d": 0,
+      "likes": 0,
+      "last_modified": "2026-05-13"
     }
   ],
-  "total_models": 3,
+  "total_models": 4,
   "total_downloads_30d": 389
 }
