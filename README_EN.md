@@ -17,6 +17,23 @@
 
 ---
 
+## 🧠 Lynn Models And Engine Roadmap
+
+Lynn is no longer only a desktop agent. The project now has a companion model, quantization, and custom inference stack so Lynn's local memory, multi-agent workflow, and tool-calling path can run on a model stack we fully own.
+
+| Track | Current status |
+|---|---|
+| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M variants have been shipped and regression-tested. The Q4 tool-calling template hotfix has been pushed to Hugging Face and ModelScope. |
+| **Lynn 27B-A3B base** | Built from Qwen3.6-35B-A3B BASE through variable-expert pruning + Router-FT + Recovery LoRA. The selected base is **step5000 final**. BF16 eval:V8 strict 33/34 = 97.06%,V9 adjusted 37/59 = 62.71%. |
+| **Lynn-native NVFP4** | The 27B variable-expert NVFP4 artifact is about 20GB and targets Lynn Engine directly. It is not GGUF and not the public compressed-tensors v8-RTN format used by generic serving stacks. |
+| **Lynn Engine** | Custom Blackwell/R6000 runtime for 27B NVFP4. Current R6000 strict full path reaches **103.44 tok/s**,with serving replay at **107.23 tok/s**. Next target:production-stable 100+ TPS and native FP4 kernels. |
+
+Related repositories:
+- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine):custom Lynn 27B-A3B NVFP4 inference engine.
+- [MerkyorLynn/lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit):distillation, evaluation, quantization, and release toolkit.
+
+> Note:the 27B Lynn-native NVFP4 artifact is an internal/vertical runtime artifact for Lynn Engine. General users should start with the V4 / V Flash BF16, NVFP4 v8-RTN, or Q4_K_M variants.
+
 ## 🆕 Recent Updates
 
 <details>
