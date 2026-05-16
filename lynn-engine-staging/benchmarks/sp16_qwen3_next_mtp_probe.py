@@ -58,6 +58,11 @@ LYNN_CONFIG_VALUES = {
     "vocab_size": 248320,
     "mtp_num_hidden_layers": 1,
     "mtp_use_dedicated_embeddings": False,
+    # Qwen3-Next gated attention: q_proj produces 2*num_heads*head_dim outputs
+    # (query + gate halves). Verified 2026-05-16 against real Qwen3.6-35B-A3B
+    # safetensors — both main body full_attention layers AND MTP layer have
+    # q_proj shape [8192, 2048] = 2 * 16 * 256.
+    "attn_output_gate": True,
 }
 
 # Probe-only vocab size. The real Lynn/Qwen vocab is 248320, but T1 already

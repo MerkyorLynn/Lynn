@@ -63,7 +63,17 @@ import torch.nn.functional as F
 
 @dataclass
 class Qwen3NextMTPConfig:
-    """Subset of Qwen3.6-35B-A3B text_config needed for MTP head construction."""
+    """Subset of Qwen3.6-35B-A3B text_config needed for MTP head construction.
+
+    `attn_output_gate` (default True) controls Qwen3-Next "gated attention":
+    when True, q_proj produces 2 * num_heads * head_dim outputs which split into
+    (query, gate) along last axis. Attention runs with the query half; the gate
+    half (after sigmoid) multiplies attention output before o_proj. This is the
+    canonical Qwen3.6-35B-A3B / Qwen3-Next pattern. Verified empirically against
+    real Qwen3.6-35B-A3B safetensors 2026-05-16: both main body full_attention
+    layers and MTP layer have q_proj shape [8192, 2048] for hidden=2048 with
+    num_heads=16, head_dim=256 → 2*16*256 = 8192.
+    """
     hidden_size: int = 2048
     num_attention_heads: int = 16
     num_key_value_heads: int = 2
@@ -78,6 +88,7 @@ class Qwen3NextMTPConfig:
     vocab_size: int = 248320
     mtp_num_hidden_layers: int = 1
     mtp_use_dedicated_embeddings: bool = False
+    attn_output_gate: bool = True
 
     @classmethod
     def from_dict(cls, cfg: dict) -> "Qwen3NextMTPConfig":
@@ -99,6 +110,7 @@ class Qwen3NextMTPConfig:
             vocab_size=cfg.get("vocab_size", 248320),
             mtp_num_hidden_layers=cfg.get("mtp_num_hidden_layers", 1),
             mtp_use_dedicated_embeddings=cfg.get("mtp_use_dedicated_embeddings", False),
+            attn_output_gate=cfg.get("attn_output_gate", True),
         )
 
 
@@ -156,15 +168,22 @@ def _apply_partial_rope(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor,
 
 
 class Qwen3NextMTPSelfAttention(nn.Module):
-    """Standard multi-head self-attention with Qwen-style q/k norm + partial RoPE.
+    """Qwen3-Next gated self-attention with q/k norm + partial RoPE.
 
-    Matches tensor layout `mtp.layers.0.self_attn.*` from Qwen3.6-35B-A3B:
-      q_proj.weight    : [num_heads * head_dim, hidden_size]   = [16*256, 2048] = [4096, 2048]
+    Matches tensor layout `mtp.layers.0.self_attn.*` from Qwen3.6-35B-A3B
+    (verified empirically against real safetensors 2026-05-16):
+      q_proj.weight    : [num_heads * head_dim * (2 if gated else 1), hidden_size]
+                         = [16*256*2, 2048] = [8192, 2048]  ← gated attention doubles q_proj
       k_proj.weight    : [num_kv_heads * head_dim, hidden_size] = [2*256, 2048] = [512, 2048]
       v_proj.weight    : [num_kv_heads * head_dim, hidden_size] = [512, 2048]
       o_proj.weight    : [hidden_size, num_heads * head_dim]    = [2048, 4096]
       q_norm.weight    : [head_dim] = [256]
       k_norm.weight    : [head_dim] = [256]
+
+    Gated attention (Qwen3-Next, `attn_output_gate=true` in text_config):
+      q_proj output is split into (query, gate) halves along last axis.
+      Attention runs with the query half only; the gate half (after sigmoid)
+      multiplies attention output before o_proj.
     """
     def __init__(self, cfg: Qwen3NextMTPConfig):
         super().__init__()
@@ -174,10 +193,14 @@ class Qwen3NextMTPSelfAttention(nn.Module):
         self.num_kv_heads = cfg.num_key_value_heads
         self.head_dim = cfg.head_dim
         self.rotary_dim = int(self.head_dim * cfg.partial_rotary_factor)
+        self.gated = cfg.attn_output_gate
 
-        self.q_proj = nn.Linear(H, self.num_heads * self.head_dim, bias=False)
+        # q_proj produces num_heads * head_dim * (2 if gated else 1)
+        q_out = self.num_heads * self.head_dim * (2 if self.gated else 1)
+        self.q_proj = nn.Linear(H, q_out, bias=False)
         self.k_proj = nn.Linear(H, self.num_kv_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(H, self.num_kv_heads * self.head_dim, bias=False)
+        # o_proj input is num_heads * head_dim regardless of gating
         self.o_proj = nn.Linear(self.num_heads * self.head_dim, H, bias=False)
         self.q_norm = RMSNorm(self.head_dim, cfg.rms_norm_eps)
         self.k_norm = RMSNorm(self.head_dim, cfg.rms_norm_eps)
@@ -190,7 +213,13 @@ class Qwen3NextMTPSelfAttention(nn.Module):
         Returns: [B, T, H]
         """
         B, T, _ = h.shape
-        q = self.q_proj(h).view(B, T, self.num_heads, self.head_dim)
+        q_raw = self.q_proj(h)  # [B, T, num_heads*head_dim*(2 if gated else 1)]
+        if self.gated:
+            # Split into (query, gate). Gate part has same shape as query part.
+            q_flat, gate_flat = q_raw.chunk(2, dim=-1)
+        else:
+            q_flat, gate_flat = q_raw, None
+        q = q_flat.view(B, T, self.num_heads, self.head_dim)
         k = self.k_proj(h).view(B, T, self.num_kv_heads, self.head_dim)
         v = self.v_proj(h).view(B, T, self.num_kv_heads, self.head_dim)
         q = self.q_norm(q)
@@ -223,6 +252,11 @@ class Qwen3NextMTPSelfAttention(nn.Module):
         attn_out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
         # [B, H, T, D] -> [B, T, H*D]
         attn_out = attn_out.transpose(1, 2).contiguous().view(B, T, self.num_heads * self.head_dim)
+
+        # Gated attention: multiply by sigmoid(gate) before o_proj
+        if self.gated:
+            attn_out = attn_out * torch.sigmoid(gate_flat)
+
         return self.o_proj(attn_out)
 
 
@@ -437,6 +471,8 @@ def expected_shape_check(module: Qwen3NextMTPModule) -> dict:
     nH = cfg.num_attention_heads
     nKV = cfg.num_key_value_heads
     D = cfg.head_dim
+    # Gated attention doubles q_proj output (query + gate halves)
+    q_factor = 2 if cfg.attn_output_gate else 1
     return {
         "fc.weight": (H, 2 * H),
         "norm.weight": (H,),
@@ -444,10 +480,10 @@ def expected_shape_check(module: Qwen3NextMTPModule) -> dict:
         "pre_fc_norm_hidden.weight": (H,),
         "layers.0.input_layernorm.weight": (H,),
         "layers.0.post_attention_layernorm.weight": (H,),
-        "layers.0.self_attn.q_proj.weight": (nH * D, H),
+        "layers.0.self_attn.q_proj.weight": (nH * D * q_factor, H),  # 8192 if gated, else 4096
         "layers.0.self_attn.k_proj.weight": (nKV * D, H),
         "layers.0.self_attn.v_proj.weight": (nKV * D, H),
-        "layers.0.self_attn.o_proj.weight": (H, nH * D),
+        "layers.0.self_attn.o_proj.weight": (H, nH * D),             # always num_heads * head_dim
         "layers.0.self_attn.q_norm.weight": (D,),
         "layers.0.self_attn.k_norm.weight": (D,),
         "layers.0.mlp.gate.weight": (E, H),
