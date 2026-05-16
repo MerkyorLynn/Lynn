@@ -1,0 +1,44 @@
+{
+  "type": "sp15_mtp_pipeline_probe",
+  "date": "2026-05-16T11:09:48",
+  "n_pass": 7,
+  "n_total": 7,
+  "overall_pass": true,
+  "results": [
+    {
+      "name": "disabled_path",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "perfect_nextn (math sanity)",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "random_nextn (reject path)",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "disabled_matches_baseline",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "load_nextn_missing",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "load_nextn_from_dict",
+      "pass": true,
+      "error": null
+    },
+    {
+      "name": "stats_tracking",
+      "pass": true,
+      "error": null
+    }
+  ]
+}

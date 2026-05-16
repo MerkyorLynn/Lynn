@@ -1,0 +1,84 @@
+{
+  "type": "sp13_gate_up_isolation_probe",
+  "date": "2026-05-16T09:25:26",
+  "device": "NVIDIA GB10",
+  "compute_capability": [
+    12,
+    1
+  ],
+  "shape": {
+    "hidden": 2048,
+    "intermediate": 512,
+    "num_experts": 256,
+    "top_k": 8
+  },
+  "n_seeds_per_distribution": 2,
+  "distributions": [
+    "gaussian"
+  ],
+  "results": {
+    "gaussian": {
+      "B1_triton_baseline": {
+        "cosine": [
+          0.9999974370002747,
+          0.9999973177909851
+        ],
+        "rel_l2": [
+          0.0022598637733608484,
+          0.0023268635850399733
+        ],
+        "max_abs": [
+          0.014747142791748047,
+          0.01610279083251953
+        ]
+      },
+      "B2_hybrid_gateup_fp8": {
+        "cosine": [
+          0.9240477085113525,
+          0.9342496991157532
+        ],
+        "rel_l2": [
+          7.790988445281982,
+          8.036477088928223
+        ],
+        "max_abs": [
+          42.13343048095703,
+          50.09452819824219
+        ]
+      },
+      "B3_hybrid_down_fp8": {
+        "cosine": [
+          0.9964767098426819,
+          0.9967594146728516
+        ],
+        "rel_l2": [
+          0.08387144654989243,
+          0.08080919831991196
+        ],
+        "max_abs": [
+          0.40307164192199707,
+          0.47180479764938354
+        ]
+      },
+      "B4_full_fp8": {
+        "cosine": [
+          0.9222345352172852,
+          0.9308339953422546
+        ],
+        "rel_l2": [
+          7.8515849113464355,
+          8.052846908569336
+        ],
+        "max_abs": [
+          43.38343048095703,
+          50.34452819824219
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "synthetic data only - does not reproduce real-model layer-16 outlier patterns",
+    "single forward pass - no drift accumulation across 40 layers",
+    "does not measure greedy stability - needs real-model probe"
+  ]
+}
