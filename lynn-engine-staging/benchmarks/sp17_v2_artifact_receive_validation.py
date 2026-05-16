@@ -204,8 +204,12 @@ def t4_safetensors_index_sanity(v2_dir: Path) -> tuple[bool, list[str], dict]:
         prefix = f"model.language_model.layers.{layer_idx}."
         # Either main_body MoE layers should have packed; if variable-pruned some may not
         per_layer_keys = [k for k in all_tensor_names if k.startswith(prefix)]
+        # v0 used underscore-style (_gate_up_packed); v2 uses dot-style (.gate_up_packed)
+        # or generic .packed / .scale / .global_scale per any Linear weight
         nvfp4_keys = [k for k in per_layer_keys if any(suffix in k for suffix in
-                       ["_gate_up_packed", "_down_packed", "_gate_up_scale", "_down_scale"])]
+                       ["_gate_up_packed", "_down_packed", "_gate_up_scale", "_down_scale",
+                        ".gate_up_packed", ".down_packed", ".gate_up_scale", ".down_scale"])
+                       or k.endswith(".packed") or k.endswith(".scale") or k.endswith(".global_scale")]
         layer_coverage[layer_idx] = {
             "total_keys": len(per_layer_keys),
             "nvfp4_packed_keys": len(nvfp4_keys),
@@ -353,8 +357,24 @@ def t7_topology_diff_vs_v0(v2_dir: Path, v0_dir: Path) -> tuple[bool, list[str],
     v2_map = load_index(v2_dir)
     v0_map = load_index(v0_dir)
 
-    v2_names = set(v2_map.keys())
-    v0_names = set(v0_map.keys())
+    # Normalize tensor names for diff: v2 uses dot-style (e.g. `.weight.packed`)
+    # while v0 uses underscore-style (e.g. `.weight_packed`). Same data, different naming.
+    # Treat them as equivalent by mapping dots in compound suffixes to underscores.
+    def normalize(name: str) -> str:
+        # `.weight.packed` -> `.weight_packed`,  `.weight.global_scale` -> `.weight_global_scale`
+        for suffix in [".weight.global_scale", ".weight.packed", ".weight.scale",
+                       ".weight.alpha_scale"]:
+            if suffix in name:
+                name = name.replace(suffix, suffix.replace(".", "_", 1).replace("_", ".", 1).replace(".", "_", 1)[1:] if False else suffix.replace(".g", "_g", 1).replace(".p", "_p", 1).replace(".s", "_s", 1).replace(".a", "_a", 1))
+        # Simpler: any `.weight.<X>` -> `.weight_<X>` for X being the known scaled suffixes
+        import re
+        name = re.sub(r"\.weight\.(packed|scale|global_scale|alpha_scale)", r".weight_\1", name)
+        return name
+
+    v2_names_norm = {normalize(n) for n in v2_map.keys()}
+    v0_names_norm = {normalize(n) for n in v0_map.keys()}
+    v2_names = v2_names_norm
+    v0_names = v0_names_norm
 
     # Allow MTP additions in v2 (since v0 doesn't have MTP)
     only_in_v2 = v2_names - v0_names
