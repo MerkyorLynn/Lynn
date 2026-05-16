@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-05-15T04:35:27+00:00",
+  "collected_at": "2026-05-16T04:09:45+00:00",
   "author": "nerkyor",
   "models": [
     {
@@ -17,6 +17,20 @@
       "last_modified": "2026-05-11"
     },
     {
+      "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
+      "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
+      "downloads_30d": 148,
+      "likes": 0,
+      "last_modified": "2026-05-14"
+    },
+    {
+      "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B",
+      "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B",
+      "downloads_30d": 87,
+      "likes": 0,
+      "last_modified": "2026-05-14"
+    },
+    {
       "id": "nerkyor/Qwen3.6-35B-A3B-NVFP4-modelopt",
       "name": "Qwen3.6-35B-A3B-NVFP4-modelopt",
       "downloads_30d": 63,
@@ -24,23 +38,16 @@
       "last_modified": "2026-05-12"
     },
     {
-      "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B",
-      "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B",
-      "downloads_30d": 54,
-      "likes": 0,
-      "last_modified": "2026-05-14"
-    },
-    {
-      "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
-      "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
-      "downloads_30d": 37,
-      "likes": 0,
-      "last_modified": "2026-05-14"
-    },
-    {
       "id": "nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M",
       "name": "Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M",
-      "downloads_30d": 5,
+      "downloads_30d": 28,
+      "likes": 0,
+      "last_modified": "2026-05-15"
+    },
+    {
+      "id": "nerkyor/Lynn-V4-Flash-Distill-Qwen-35B-A3B-Q4_K_M",
+      "name": "Lynn-V4-Flash-Distill-Qwen-35B-A3B-Q4_K_M",
+      "downloads_30d": 10,
       "likes": 0,
       "last_modified": "2026-05-15"
     },
@@ -52,20 +59,20 @@
       "last_modified": "2026-05-14"
     },
     {
-      "id": "nerkyor/Lynn-V4-Flash-Distill-Qwen-35B-A3B-Q4_K_M",
-      "name": "Lynn-V4-Flash-Distill-Qwen-35B-A3B-Q4_K_M",
-      "downloads_30d": 0,
-      "likes": 0,
-      "last_modified": "2026-05-15"
-    },
-    {
       "id": "nerkyor/Lynn-V4-Flash-Distill-Qwen-35B-A3B-BF16-merged",
       "name": "Lynn-V4-Flash-Distill-Qwen-35B-A3B-BF16-merged",
       "downloads_30d": 0,
       "likes": 0,
       "last_modified": "2026-05-15"
+    },
+    {
+      "id": "nerkyor/Lynn-V4-Flash-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
+      "name": "Lynn-V4-Flash-Distill-Qwen-35B-A3B-NVFP4-v8-RTN",
+      "downloads_30d": 0,
+      "likes": 0,
+      "last_modified": "2026-05-15"
     }
   ],
-  "total_models": 9,
-  "total_downloads_30d": 596
+  "total_models": 10,
+  "total_downloads_30d": 773
 }
