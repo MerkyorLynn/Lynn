@@ -65,6 +65,7 @@ const ONLY_PROVIDERS = arg('providers') ? String(arg('providers')).split(',').ma
 const SKIP_PROVIDERS = arg('skip') ? String(arg('skip')).split(',').map(s => s.trim()) : [];
 const JSON_OUT = arg('json', '');
 const SEND_FEISHU = args.includes('--feishu');
+const SKIP_MM = args.includes('--skip-mm');  // 跳过多模态 probe(默认开)
 const BRAIN_BASE = process.env.BRAIN_V2_BASE || 'http://127.0.0.1:8790';
 
 // ── provider registry from env(单一事实来源,跟 brain-v2-mirror 一致) ──
@@ -238,6 +239,107 @@ async function testProvider(p) {
   };
 }
 
+// ── MiMo 多模态 probe ──────────────────────────────────────────
+// 1x1 PNG transparent pixel(base64)— 最小可发送图像
+const MIN_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+// 极短静音 WAV(0.1s, 8kHz mono):header + 800 samples 全 0
+// 这里硬编码一个有效的小 WAV base64 reduce repo size
+const MIN_WAV_B64 = 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
+async function probeMimoMultimodal(kind) {
+  // kind: 'image' | 'audio'
+  const mimoEndpoint = process.env.MIMO_SEARCH_BASE || 'https://token-plan-cn.xiaomimimo.com/v1';
+  const mimoKey = process.env.MIMO_SEARCH_KEY || process.env.MIMO_KEY || '';
+  if (!mimoKey) {
+    return { ok: false, skipped: true, reason: 'MIMO key not configured' };
+  }
+
+  let content;
+  if (kind === 'image') {
+    content = [
+      { type: 'text', text: '描述这张图片(简短一句话)。' },
+      { type: 'image_url', image_url: { url: `data:image/png;base64,${MIN_PNG_B64}` } },
+    ];
+  } else if (kind === 'audio') {
+    content = [
+      { type: 'text', text: '这段音频是什么?(简短一句)' },
+      { type: 'input_audio', input_audio: { data: MIN_WAV_B64, format: 'wav' } },
+    ];
+  } else {
+    return { ok: false, skipped: true, reason: 'unknown kind: ' + kind };
+  }
+
+  // 多模态切换到 mimo-v2.5(跟 wire-adapter/mimo.ts pickModel 一致)
+  const model = process.env.MIMO_MULTIMODAL_MODEL || 'mimo-v2.5';
+  const body = {
+    model,
+    messages: [{ role: 'user', content }],
+    max_completion_tokens: 256,
+    temperature: 0,
+    stream: false,
+    enable_search: false,
+  };
+  const url = mimoEndpoint.replace(/\/+$/, '') + '/chat/completions';
+  const r = await timedFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + mimoKey },
+    body: JSON.stringify(body),
+  }, 30_000);
+
+  if (!r.ok) {
+    return { ok: false, ms: r.ms, reason: `HTTP ${r.status} ${(r.body || r.error || '').slice(0, 200)}` };
+  }
+  // 简单 sanity:body 里有 choices[0].message.content 且 .length > 0
+  try {
+    const j = JSON.parse(r.body);
+    const msg = j?.choices?.[0]?.message?.content;
+    if (!msg || typeof msg !== 'string' || msg.trim().length === 0) {
+      return { ok: false, ms: r.ms, reason: 'empty content' };
+    }
+    return { ok: true, ms: r.ms, excerpt: msg.slice(0, 80) };
+  } catch (e) {
+    return { ok: false, ms: r.ms, reason: 'parse fail: ' + e.message };
+  }
+}
+
+async function probeMimoTTS() {
+  // MiMo TTS: api.xiaomimimo.com (不是 token-plan endpoint!)+ api-key 头
+  // 文档:https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/speech-synthesis-v2.5
+  const ttsBase = process.env.MIMO_TTS_BASE || 'https://api.xiaomimimo.com/v1';
+  const ttsKey = process.env.MIMO_TTS_KEY || process.env.MIMO_SEARCH_KEY || process.env.MIMO_KEY || '';
+  if (!ttsKey) {
+    return { ok: false, skipped: true, reason: 'MIMO TTS key not configured' };
+  }
+  const body = {
+    model: 'mimo-v2.5-tts',
+    messages: [
+      { role: 'user', content: '请用自然平和的语气朗读。' },
+      { role: 'assistant', content: '你好,这是一段测试音频。' },
+    ],
+    audio: { format: 'wav', voice: '冰糖' },
+  };
+  const url = ttsBase.replace(/\/+$/, '') + '/chat/completions';
+  const r = await timedFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api-key': ttsKey },
+    body: JSON.stringify(body),
+  }, 30_000);
+
+  if (!r.ok) {
+    return { ok: false, ms: r.ms, reason: `HTTP ${r.status} ${(r.body || r.error || '').slice(0, 200)}` };
+  }
+  try {
+    const j = JSON.parse(r.body);
+    const audioData = j?.choices?.[0]?.message?.audio?.data;
+    if (!audioData || typeof audioData !== 'string' || audioData.length < 100) {
+      return { ok: false, ms: r.ms, reason: 'audio.data missing or too short' };
+    }
+    return { ok: true, ms: r.ms, bytes: Math.floor(audioData.length * 0.75) };
+  } catch (e) {
+    return { ok: false, ms: r.ms, reason: 'parse fail: ' + e.message };
+  }
+}
+
 // ── Brain 完整链路 smoke ───────────────────────────────────────
 async function brainSmoke() {
   const url = BRAIN_BASE.replace(/\/+$/, '') + '/v2/chat/completions';
@@ -285,10 +387,11 @@ async function sendFeishu(text) {
 }
 
 // ── 报告格式化 ─────────────────────────────────────────────────
-function formatReport(rows, brain) {
+function formatReport(rows, brain, mm) {
   const lines = [];
   const ts = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  const hasFail = rows.some(r => !r.skipped && !r.ok) || !brain.ok;
+  const hasFail = rows.some(r => !r.skipped && !r.ok) || !brain.ok ||
+    (mm && Object.values(mm).some(v => !v.skipped && !v.ok));
   lines.push((hasFail ? '🔴' : '🟢') + ` Brain 工具链巡检 · ${ts}`);
   lines.push('');
   lines.push('【单 provider 直测】');
@@ -313,6 +416,22 @@ function formatReport(rows, brain) {
   } else {
     lines.push(`Brain smoke      ${brain.ms}ms  ✗ ${brain.status} ${brain.error}`);
   }
+  if (mm) {
+    lines.push('');
+    lines.push('【MiMo 多模态 health probe】');
+    lines.push('kind'.padEnd(16) + 'ms'.padEnd(10) + 'status');
+    const fmt = (label, r) => {
+      const ms = r.ms != null ? r.ms + 'ms' : '--';
+      let st;
+      if (r.skipped) st = `⊝ skip (${r.reason})`;
+      else if (r.ok) st = '✓ OK' + (r.excerpt ? ` "${r.excerpt}"` : '') + (r.bytes ? ` (${r.bytes}B audio)` : '');
+      else st = `✗ ${r.reason}`;
+      return label.padEnd(16) + ms.padEnd(10) + st;
+    };
+    if (mm.image) lines.push(fmt('image', mm.image));
+    if (mm.audio) lines.push(fmt('audio', mm.audio));
+    if (mm.tts) lines.push(fmt('tts', mm.tts));
+  }
   return lines.join('\n');
 }
 
@@ -336,7 +455,22 @@ async function main() {
   const brain = await brainSmoke();
   process.stderr.write(brain.ok ? `OK ${brain.ms}ms\n` : `FAIL ${brain.error}\n`);
 
-  const report = formatReport(rows, brain);
+  // MiMo MM probes(image / audio / tts)— --skip-mm 关闭
+  let mm = null;
+  if (!SKIP_MM) {
+    mm = {};
+    process.stderr.write('  testing MiMo image probe... ');
+    mm.image = await probeMimoMultimodal('image');
+    process.stderr.write(mm.image.ok ? `OK ${mm.image.ms}ms\n` : mm.image.skipped ? `skip\n` : `FAIL ${mm.image.reason}\n`);
+    process.stderr.write('  testing MiMo audio probe... ');
+    mm.audio = await probeMimoMultimodal('audio');
+    process.stderr.write(mm.audio.ok ? `OK ${mm.audio.ms}ms\n` : mm.audio.skipped ? `skip\n` : `FAIL ${mm.audio.reason}\n`);
+    process.stderr.write('  testing MiMo TTS probe...   ');
+    mm.tts = await probeMimoTTS();
+    process.stderr.write(mm.tts.ok ? `OK ${mm.tts.ms}ms\n` : mm.tts.skipped ? `skip\n` : `FAIL ${mm.tts.reason}\n`);
+  }
+
+  const report = formatReport(rows, brain, mm);
   console.log(report);
 
   if (JSON_OUT) {
@@ -345,16 +479,18 @@ async function main() {
       ts: new Date().toISOString(),
       providers: rows,
       brain,
+      mm,
     }, null, 2));
   }
 
   const hardFails = rows.filter(r => !r.ok && !r.skipped);
-  if (SEND_FEISHU && (hardFails.length > 0 || !brain.ok)) {
+  const mmFails = mm ? Object.values(mm).filter(v => !v.ok && !v.skipped) : [];
+  if (SEND_FEISHU && (hardFails.length > 0 || !brain.ok || mmFails.length > 0)) {
     await sendFeishu(report);
   }
 
   if (!brain.ok) process.exit(2);
-  if (hardFails.length > 0) process.exit(1);
+  if (hardFails.length > 0 || mmFails.length > 0) process.exit(1);
   process.exit(0);
 }
 

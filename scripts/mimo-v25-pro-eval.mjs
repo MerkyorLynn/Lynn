@@ -80,9 +80,17 @@ const MMLU_PATH = arg('mmlu-path', '');
 const GPQA_PATH = arg('gpqa-path', '');
 const HUMANEVAL_PATH = arg('humaneval-path', '');
 
-const BASE = (process.env.MIMO_PRO_BASE || 'https://api.xiaomimimo.com/v1').replace(/\/+$/, '');
-const KEY = process.env.MIMO_PRO_KEY || process.env.MIMO_SEARCH_KEY || process.env.MIMO_KEY || '';
-const MODEL = process.env.MIMO_PRO_MODEL || 'mimo-v2.5-pro';
+// Endpoint 优先级:MIMO_PRO_BASE → MIMO_BASE → MIMO_SEARCH_BASE → 公网 api.xiaomimimo.com
+// 注意:token-plan-cn.xiaomimimo.com 走 tp-* key;api.xiaomimimo.com 走 sk-* key。
+// 用户的 ~/.lynn/brain.env 通常配 MIMO_BASE=token-plan-cn... + MIMO_KEY=tp-...
+const BASE = (
+  process.env.MIMO_PRO_BASE ||
+  process.env.MIMO_BASE ||
+  process.env.MIMO_SEARCH_BASE ||
+  'https://api.xiaomimimo.com/v1'
+).replace(/\/+$/, '');
+const KEY = process.env.MIMO_PRO_KEY || process.env.MIMO_KEY || process.env.MIMO_SEARCH_KEY || '';
+const MODEL = process.env.MIMO_PRO_MODEL || process.env.MIMO_MODEL || 'mimo-v2.5-pro';
 
 // ── output prep ────────────────────────────────────────────────
 fs.mkdirSync(OUT, { recursive: true });
