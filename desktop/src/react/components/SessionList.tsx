@@ -607,6 +607,9 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
             className={styles.sessionMenuBtn}
             title={t('session.menuTrigger')}
             onClick={openCtxMenu}
+            role="button"
+            aria-haspopup="menu"
+            aria-expanded={ctxMenu !== null}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <circle cx="5" cy="12" r="1.6" />
