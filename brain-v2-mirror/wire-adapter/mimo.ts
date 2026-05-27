@@ -5,6 +5,12 @@
 //   - medium/high/xhigh    → { type: 'enabled' }  (MiMo server default budget)
 //   - undefined/其他       → 不动 body.thinking,由 extraBody 或 server default 决定
 //   BYOK-equality:caller 显式 thinking via extraBody 总是 win(在 spread 之后我们才 set)
+//
+// 2026-05-27 multimodal: messages 含 image/audio content 时自动切到 mimo-v2.5(或
+// MIMO_MULTIMODAL_MODEL env 指定的变体如 mimo-v2-omni)。纯文本仍走 provider.model
+// 配置的 mimo-v2.5-pro(chat-optimized)。MiMo 文档:
+//   - https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/multimodal-understanding/image-understanding
+//   - https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/multimodal-understanding/audio-understanding
 import { parseOpenAISSE } from './_sse-parser.js';
 import type { ChatMessage, ModelId, StreamChunk, ToolDefinition, WireAdapterOptions } from '../types.js';
 
@@ -30,9 +36,38 @@ function reasoningEffortToMimoThinking(effort?: string | null): MimoThinking {
   return { type: 'enabled' };
 }
 
+// 多模态 content part 识别。OpenAI 标准 + MiMo 兼容:
+//   image: { type: 'image_url' | 'input_image', ... }
+//   audio: { type: 'input_audio' | 'audio_url', ... }
+function hasMultimodalContent(messages?: ChatMessage[]): boolean {
+  if (!Array.isArray(messages)) return false;
+  for (const m of messages) {
+    const c = m?.content;
+    if (!Array.isArray(c)) continue;
+    for (const part of c) {
+      if (!part || typeof part !== 'object') continue;
+      const typedPart = part as { type?: string };
+      const t = typedPart.type;
+      if (t === 'image_url' || t === 'input_image') return true;
+      if (t === 'input_audio' || t === 'audio_url') return true;
+    }
+  }
+  return false;
+}
+
+function pickModel(provider: { model: ModelId }, messages?: ChatMessage[]): ModelId {
+  if (!hasMultimodalContent(messages)) return provider.model;
+  // Multimodal:env 可以指定 mimo-v2-omni;默认 mimo-v2.5
+  const mm = (process.env.MIMO_MULTIMODAL_MODEL || 'mimo-v2.5') as ModelId;
+  return mm;
+}
+
 export async function* call({ provider, messages, tools, signal, extraBody, reasoningEffort }: WireAdapterOptions): AsyncGenerator<StreamChunk> {
+  // 多模态自动切 model:image/audio content → mimo-v2.5(或 MIMO_MULTIMODAL_MODEL)
+  // 纯文本走 provider.model 配置的 mimo-v2.5-pro
+  const selectedModel = pickModel(provider, messages);
   const body: MimoRequestBody = {
-    model: provider.model,
+    model: selectedModel,
     messages,
     enable_search: true,
     max_completion_tokens: 32768,
@@ -76,4 +111,4 @@ export const wireMeta = {
 };
 
 // for tests
-export const __testing__ = { reasoningEffortToMimoThinking };
+export const __testing__ = { reasoningEffortToMimoThinking, hasMultimodalContent, pickModel };

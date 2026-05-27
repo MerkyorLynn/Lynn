@@ -1,14 +1,14 @@
 // Brain v2 · MiMo wire adapter tests
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mockFetch, ok, fail, makeSSEBody, sseEvent, sseDone, drain } from './helpers.js';
-import { call as callMimo } from '../wire-adapter/mimo.js';
+import { call as callMimo, __testing__ } from '../wire-adapter/mimo.js';
 
 const provider = {
   id: 'mimo',
   endpoint: 'https://example.com/v1',
   apiKey: 'test-key',
   model: 'mimo-v2.5-pro',
-  capability: { vision: false, tools: true, native_search: true },
+  capability: { vision: true, audio: true, tools: true, native_search: true },
 };
 
 describe('MiMo wire adapter', () => {
@@ -67,6 +67,105 @@ describe('MiMo wire adapter', () => {
     const tools = [{ type: 'function', function: { name: 'web_search', parameters: {} } }];
     await drain(callMimo({ provider, messages: [{ role: 'user', content: 'q' }], tools }));
     const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.tools).toEqual(tools);
+    expect(body.tool_choice).toBe('auto');
+  });
+});
+
+describe('MiMo wire adapter — multimodal model switch', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.MIMO_MULTIMODAL_MODEL;
+  });
+  afterEach(() => {
+    delete process.env.MIMO_MULTIMODAL_MODEL;
+  });
+
+  it('hasMultimodalContent detects image_url part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [
+        { type: 'text', text: 'describe this' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,xxx' } },
+      ]},
+    ])).toBe(true);
+  });
+
+  it('hasMultimodalContent detects input_image part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [{ type: 'input_image', image_url: 'https://x' }] },
+    ])).toBe(true);
+  });
+
+  it('hasMultimodalContent detects input_audio part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [
+        { type: 'input_audio', input_audio: { data: 'b64...', format: 'mp3' } },
+      ]},
+    ])).toBe(true);
+  });
+
+  it('hasMultimodalContent detects audio_url part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [{ type: 'audio_url', audio_url: { url: 'https://x.mp3' } }] },
+    ])).toBe(true);
+  });
+
+  it('hasMultimodalContent is false for plain text', () => {
+    expect(__testing__.hasMultimodalContent([{ role: 'user', content: 'hello' }])).toBe(false);
+    expect(__testing__.hasMultimodalContent([{ role: 'user', content: [{ type: 'text', text: 'hi' }] }])).toBe(false);
+  });
+
+  it('pickModel returns provider.model for text-only', () => {
+    expect(__testing__.pickModel(provider, [{ role: 'user', content: 'hi' }])).toBe('mimo-v2.5-pro');
+  });
+
+  it('pickModel returns mimo-v2.5 for multimodal content (default)', () => {
+    expect(__testing__.pickModel(provider, [
+      { role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] },
+    ])).toBe('mimo-v2.5');
+  });
+
+  it('pickModel honors MIMO_MULTIMODAL_MODEL env override', () => {
+    process.env.MIMO_MULTIMODAL_MODEL = 'mimo-v2-omni';
+    expect(__testing__.pickModel(provider, [
+      { role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'b', format: 'wav' } }] },
+    ])).toBe('mimo-v2-omni');
+  });
+
+  it('request body switches to multimodal model when image present', async () => {
+    const f = mockFetch(ok(makeSSEBody(sseDone())));
+    await drain(callMimo({
+      provider,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'what is this?' },
+        { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,zz' } },
+      ]}],
+    }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.model).toBe('mimo-v2.5');
+    expect(body.enable_search).toBe(true);
+    expect(body.stream).toBe(true);
+  });
+
+  it('request body keeps mimo-v2.5-pro for text-only after multimodal-capable provider', async () => {
+    const f = mockFetch(ok(makeSSEBody(sseDone())));
+    await drain(callMimo({ provider, messages: [{ role: 'user', content: 'plain question' }] }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.model).toBe('mimo-v2.5-pro');
+  });
+
+  it('tools work alongside multimodal (image + tools)', async () => {
+    const f = mockFetch(ok(makeSSEBody(sseDone())));
+    const tools = [{ type: 'function', function: { name: 'web_search', parameters: {} } }];
+    await drain(callMimo({
+      provider,
+      messages: [{ role: 'user', content: [
+        { type: 'image_url', image_url: { url: 'x' } },
+      ]}],
+      tools,
+    }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.model).toBe('mimo-v2.5');
     expect(body.tools).toEqual(tools);
     expect(body.tool_choice).toBe('auto');
   });

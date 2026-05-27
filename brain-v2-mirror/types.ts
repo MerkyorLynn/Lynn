@@ -10,6 +10,8 @@ export type ProviderIdLiteral =
 
 export type ModelIdLiteral =
   | 'mimo-v2.5-pro'
+  | 'mimo-v2.5'       // MiMo 多模态:image/audio understanding
+  | 'mimo-v2-omni'    // MiMo 多模态 omni 变体(env override 时启用)
   | 'qwen36-35b-a3b-apex-mtp'
   | 'deepseek-v4-flash'
   | 'deepseek-v4-pro'

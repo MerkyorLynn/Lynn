@@ -1,8 +1,8 @@
 {
   "id": "tts-bridge",
   "name": "TTS Bridge",
-  "version": "0.1.0",
-  "description": "文本转语音桥接：支持 Edge TTS（免费在线）和 macOS say（本地）。生成音频保存到书桌，支持 Bridge 多平台推送。",
+  "version": "0.2.0",
+  "description": "文本转语音桥接：支持 Edge TTS（免费在线）、macOS say（本地）、CosyVoice 2、OpenAI TTS 和 MiMo V2.5 TTS（含音色克隆/文字定制）。生成音频保存到书桌，支持 Bridge 多平台推送。",
   "contributes": {
     "configuration": {
       "properties": {
@@ -10,14 +10,14 @@
           "type": "string",
           "title": "TTS Provider",
           "default": "edge",
-          "enum": ["edge", "say"],
-          "description": "语音合成服务来源。edge 使用微软 Edge 在线 TTS（免费，需网络）；say 使用 macOS 本地语音（仅限 Mac，离线）。"
+          "enum": ["edge", "say", "cosyvoice", "openai", "mimo"],
+          "description": "语音合成服务来源。edge 微软 Edge 在线 TTS（免费，需网络，流式低延迟）；say macOS 本地（离线，仅 Mac）；cosyvoice 阿里 CosyVoice 2；openai OpenAI TTS API；mimo 小米 MiMo V2.5 TTS（preset/voicedesign/voiceclone 三种 model，24kHz wav/pcm16，文档明示流式未上线）。"
         },
         "default_voice": {
           "type": "string",
           "title": "Default Voice",
           "default": "zh-CN-XiaoxiaoNeural",
-          "description": "默认音色 ID。edge 支持 300+ 音色（如 zh-CN-XiaoxiaoNeural、en-US-JennyNeural）；say 支持系统 voice（如 Ting-Ting、Mei-Jia）。"
+          "description": "默认音色 ID。edge 支持 300+ 音色（如 zh-CN-XiaoxiaoNeural、en-US-JennyNeural）；say 系统 voice（如 Ting-Ting、Mei-Jia）；mimo 8 个 preset：mimo_default / 冰糖 / 茉莉 / 苏打 / 白桦 / Mia / Chloe / Milo / Dean。"
         },
         "speed": {
           "type": "number",

@@ -13,7 +13,10 @@ const PROVIDER_DEFS = {
     endpoint: env('MIMO_SEARCH_BASE', 'https://token-plan-cn.xiaomimimo.com/v1'),
     apiKey: env('MIMO_SEARCH_KEY', ''),
     model: envModel('MIMO_SEARCH_MODEL', 'mimo-v2.5-pro'),
-    capability: { vision: false, audio: false, tools: true, thinking: true, native_search: true },
+    // 2026-05-27: vision/audio 翻 true。wire-adapter/mimo.ts 内部检测多模态 content
+    // 后动态切到 mimo-v2.5(或 MIMO_MULTIMODAL_MODEL env 指定的变体)。纯文本仍走
+    // mimo-v2.5-pro,保留 chat-optimized 质量。
+    capability: { vision: true, audio: true, tools: true, thinking: true, native_search: true },
     wire: 'mimo',
     cooldown_ms: 300_000,
     default_thinking: true,
