@@ -110,6 +110,31 @@ describe('MiMo wire adapter — multimodal model switch', () => {
     ])).toBe(true);
   });
 
+  it('hasMultimodalContent detects video_url part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [{ type: 'video_url', video_url: { url: 'https://x.mp4' } }] },
+    ])).toBe(true);
+  });
+
+  it('hasMultimodalContent detects input_video part', () => {
+    expect(__testing__.hasMultimodalContent([
+      { role: 'user', content: [{ type: 'input_video', video_url: 'https://x.mp4' }] },
+    ])).toBe(true);
+  });
+
+  it('request body switches to multimodal model when video present', async () => {
+    const f = mockFetch(ok(makeSSEBody(sseDone())));
+    await drain(callMimo({
+      provider,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'summarize this video' },
+        { type: 'video_url', video_url: { url: 'https://x.mp4', fps: 2 } },
+      ]}],
+    }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.model).toBe('mimo-v2.5');
+  });
+
   it('hasMultimodalContent is false for plain text', () => {
     expect(__testing__.hasMultimodalContent([{ role: 'user', content: 'hello' }])).toBe(false);
     expect(__testing__.hasMultimodalContent([{ role: 'user', content: [{ type: 'text', text: 'hi' }] }])).toBe(false);

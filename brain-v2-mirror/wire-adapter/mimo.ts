@@ -39,6 +39,7 @@ function reasoningEffortToMimoThinking(effort?: string | null): MimoThinking {
 // 多模态 content part 识别。OpenAI 标准 + MiMo 兼容:
 //   image: { type: 'image_url' | 'input_image', ... }
 //   audio: { type: 'input_audio' | 'audio_url', ... }
+//   video: { type: 'video_url' | 'input_video', ... }(MiMo MP4/MOV/AVI/WMV, URL≤300MB, fps 0.1-10)
 function hasMultimodalContent(messages?: ChatMessage[]): boolean {
   if (!Array.isArray(messages)) return false;
   for (const m of messages) {
@@ -50,6 +51,7 @@ function hasMultimodalContent(messages?: ChatMessage[]): boolean {
       const t = typedPart.type;
       if (t === 'image_url' || t === 'input_image') return true;
       if (t === 'input_audio' || t === 'audio_url') return true;
+      if (t === 'video_url' || t === 'input_video') return true;
     }
   }
   return false;

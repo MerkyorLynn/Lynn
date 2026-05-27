@@ -28,7 +28,7 @@ import { run, detectCapability, __testing__ } from '../router.js';
 function makeProvider(id, capability = {}) {
   return {
     id, wire: 'mock', endpoint: 'http://mock', apiKey: 'k', model: 'm',
-    capability: { vision: false, audio: false, tools: true, thinking: true, ...capability },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, ...capability },
   };
 }
 
@@ -231,19 +231,46 @@ describe('detectCapability', () => {
     const cap = detectCapability([{ role: 'user', content: [{ type: 'text', text: 'q' }, { type: 'image_url', image_url: { url: 'data:...' } }] }]);
     expect(cap.vision).toBe(true);
     expect(cap.audio).toBe(false);
+    expect(cap.video).toBe(false);
   });
   it('detects audio from input_audio content part', () => {
     const cap = detectCapability([{ role: 'user', content: [{ type: 'input_audio', input_audio: {} }] }]);
     expect(cap.audio).toBe(true);
+    expect(cap.video).toBe(false);
+  });
+  it('detects video from video_url content part', () => {
+    const cap = detectCapability([{ role: 'user', content: [{ type: 'video_url', video_url: { url: 'https://x.mp4' } }] }]);
+    expect(cap.video).toBe(true);
+    expect(cap.vision).toBe(false);
+    expect(cap.audio).toBe(false);
+  });
+  it('detects video from input_video content part', () => {
+    const cap = detectCapability([{ role: 'user', content: [{ type: 'input_video', video_url: 'https://x.mp4' }] }]);
+    expect(cap.video).toBe(true);
+  });
+  it('detects all three (mixed multimodal)', () => {
+    const cap = detectCapability([{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'hi' },
+        { type: 'image_url', image_url: { url: 'data:...' } },
+        { type: 'input_audio', input_audio: {} },
+        { type: 'video_url', video_url: { url: 'https://x.mp4' } },
+      ],
+    }]);
+    expect(cap.vision).toBe(true);
+    expect(cap.audio).toBe(true);
+    expect(cap.video).toBe(true);
   });
   it('returns false for plain text', () => {
     const cap = detectCapability([{ role: 'user', content: 'just text' }]);
     expect(cap.vision).toBe(false);
     expect(cap.audio).toBe(false);
+    expect(cap.video).toBe(false);
   });
   it('handles empty messages array', () => {
-    expect(detectCapability([])).toEqual({ vision: false, audio: false });
-    expect(detectCapability(null)).toEqual({ vision: false, audio: false });
+    expect(detectCapability([])).toEqual({ vision: false, audio: false, video: false });
+    expect(detectCapability(null)).toEqual({ vision: false, audio: false, video: false });
   });
 });
 

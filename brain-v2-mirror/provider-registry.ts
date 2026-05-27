@@ -13,10 +13,10 @@ const PROVIDER_DEFS = {
     endpoint: env('MIMO_SEARCH_BASE', 'https://token-plan-cn.xiaomimimo.com/v1'),
     apiKey: env('MIMO_SEARCH_KEY', ''),
     model: envModel('MIMO_SEARCH_MODEL', 'mimo-v2.5-pro'),
-    // 2026-05-27: vision/audio 翻 true。wire-adapter/mimo.ts 内部检测多模态 content
+    // 2026-05-27: vision/audio/video 全开。wire-adapter/mimo.ts 内部检测多模态 content
     // 后动态切到 mimo-v2.5(或 MIMO_MULTIMODAL_MODEL env 指定的变体)。纯文本仍走
-    // mimo-v2.5-pro,保留 chat-optimized 质量。
-    capability: { vision: true, audio: true, tools: true, thinking: true, native_search: true },
+    // mimo-v2.5-pro,保留 chat-optimized 质量。video URL ≤ 300MB,fps 0.1-10。
+    capability: { vision: true, audio: true, video: true, tools: true, thinking: true, native_search: true },
     wire: 'mimo',
     cooldown_ms: 300_000,
     default_thinking: true,
@@ -29,7 +29,7 @@ const PROVIDER_DEFS = {
     // (lynn-apex-mtp-llamacpp.service)。之前 default 'apex-i-balanced' 跟 server alias
     // mismatch,fallback 触发就 404,所以 MiMo 降级链路一直没真跑过。
     model: envModel('APEX_SPARK_MODEL', 'qwen36-35b-a3b-apex-mtp'),
-    capability: { vision: false, audio: false, tools: true, thinking: true, native_search: false },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 300_000,
     health_path: '/health',
@@ -44,7 +44,7 @@ const PROVIDER_DEFS = {
     endpoint: env('DEEPSEEK_BASE', 'https://api.deepseek.com/v1'),
     apiKey: env('DEEPSEEK_KEY', ''),
     model: envModel('DEEPSEEK_MODEL', 'deepseek-v4-flash'),
-    capability: { vision: false, audio: false, tools: true, thinking: true, native_search: false },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: true,
@@ -54,7 +54,7 @@ const PROVIDER_DEFS = {
     endpoint: env('DEEPSEEK_BASE', 'https://api.deepseek.com/v1'),
     apiKey: env('DEEPSEEK_KEY', ''),
     model: envModel('DEEPSEEK_PRO_MODEL', 'deepseek-v4-pro'),
-    capability: { vision: false, audio: false, tools: true, thinking: true, native_search: false },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: true,
@@ -64,7 +64,7 @@ const PROVIDER_DEFS = {
     endpoint: env('ZHIPU_CODING_BASE', 'https://open.bigmodel.cn/api/coding/paas/v4'),
     apiKey: env('ZHIPU_KEY', ''),
     model: envModel('ZHIPU_CODING_TURBO_MODEL', 'GLM-5-Turbo'),
-    capability: { vision: false, audio: false, tools: true, thinking: false, native_search: true },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: false, native_search: true },
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: true,
@@ -75,7 +75,7 @@ const PROVIDER_DEFS = {
     endpoint: env('ZHIPU_CODING_BASE', 'https://open.bigmodel.cn/api/coding/paas/v4'),
     apiKey: env('ZHIPU_KEY', ''),
     model: envModel('ZHIPU_CODING_TURBO_MODEL', 'GLM-5-Turbo'),
-    capability: { vision: false, audio: false, tools: true, thinking: true, native_search: false },
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: true,
