@@ -91,6 +91,11 @@ import {
   prepareSessionTurnContext,
 } from "./session-turn-context.js";
 import { readSessionSwitchMeta } from "./session-switch-meta.js";
+import {
+  notifyActiveSessionEnd,
+  prepareCachedSessionSwitch,
+  resolveColdStartSwitchModel,
+} from "./session-switch-runtime.js";
 import type { ResolvedModel } from "./types.js";
 
 export { PATROL_TOOLS_DEFAULT } from "./session-isolated-runtime.js";
@@ -444,39 +449,35 @@ export class SessionCoordinator {
     // 如果已在 map 中，切指针
     const existing = this._sessions.get(sessionPath);
     if (existing) {
-      if (this._session && this._session !== existing.session) {
-        const oldSp = this._session.sessionManager?.getSessionFile?.();
-        if (oldSp) {
-          const oldEntry = this._sessions.get(oldSp);
-          const oldAgent = oldEntry ? this._d.getAgentById(oldEntry.agentId) : this._d.getAgent();
-          await notifyMemorySessionEnd(oldAgent, oldSp, "session switch");
-        }
-      }
-      this._session = existing.session;
-      existing.lastTouchedAt = Date.now();
-      const targetAgent = this._d.getAgentById(existing.agentId) || this._d.getAgent();
-      targetAgent.setMemoryEnabled(memoryEnabled);
-      return existing.session;
+      const activeSession = await prepareCachedSessionSwitch({
+        activeSession: this._session,
+        targetEntry: existing,
+        sessions: this._sessions,
+        memoryEnabled,
+        getAgentById: (agentId) => this._d.getAgentById(agentId),
+        getFallbackAgent: () => this._d.getAgent(),
+        notifySessionEnd: notifyMemorySessionEnd,
+      });
+      this._session = activeSession;
+      return activeSession;
     }
 
     // 不在 map 中，先 flush 当前再新建
-    if (this._session) {
-      const oldSp = this._session.sessionManager?.getSessionFile?.();
-      if (oldSp) {
-        const oldEntry = this._sessions.get(oldSp);
-        const oldAgent = oldEntry ? this._d.getAgentById(oldEntry.agentId) : this._d.getAgent();
-        await notifyMemorySessionEnd(oldAgent, oldSp, "cold session switch");
-      }
-    }
+    await notifyActiveSessionEnd({
+      activeSession: this._session,
+      sessions: this._sessions,
+      getAgentById: (agentId) => this._d.getAgentById(agentId),
+      getFallbackAgent: () => this._d.getAgent(),
+      notifySessionEnd: notifyMemorySessionEnd,
+      context: "cold session switch",
+    });
+
     // 冷启动恢复：从 session-meta.json 解析 model，传给 createSession
-    let savedModel: ModelLike = null;
-    if (savedModelRef) {
-      const models = this._d.getModels();
-      savedModel = findModel(models.availableModels, savedModelRef.id, savedModelRef.provider || undefined);
-      if (!savedModel) {
-        log.warn(`cold-start model not found (${savedModelRef.id}), using agent default`);
-      }
-    }
+    const savedModel = resolveColdStartSwitchModel({
+      savedModelRef,
+      availableModels: this._d.getModels().availableModels,
+      onMissingModel: (modelRef) => log.warn(`cold-start model not found (${modelRef.id}), using agent default`),
+    });
     const sessionMgr = SessionManager.open(sessionPath, this._d.getAgent().sessionDir);
     const cwd = sessionMgr.getCwd?.() || undefined;
     return this.createSession(sessionMgr, cwd, memoryEnabled, savedModel);

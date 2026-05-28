@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-type ModelRef = { id: string; provider?: string };
+export type ModelRef = { id: string; provider?: string };
 
 export function readSessionSwitchMeta(opts: {
   sessionPath: string;
