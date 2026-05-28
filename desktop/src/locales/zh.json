@@ -1615,6 +1615,8 @@
     "searchNoResults": "没有找到相关结果。(via {provider})",
     "searchResults": "搜索结果 (via {provider}):\n\n{results}",
     "searchError": "搜索出错: {msg}",
+    "searchSynthesized": "📋 综合答案：\n{summary}",
+    "searchSources": "查看来源（{count} 个）",
     "fetchEmptyUrl": "请提供要抓取的 URL。",
     "fetchHttpOnly": "只支持 http/https 协议的 URL。",
     "fetchInvalidUrl": "无效的 URL: {url}",

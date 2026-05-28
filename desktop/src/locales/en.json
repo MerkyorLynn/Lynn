@@ -1596,6 +1596,8 @@
     "searchNoResults": "No relevant results found. (via {provider})",
     "searchResults": "Search results (via {provider}):\n\n{results}",
     "searchError": "Search error: {msg}",
+    "searchSynthesized": "📋 Synthesized answer:\n{summary}",
+    "searchSources": "View sources ({count})",
     "fetchEmptyUrl": "Please provide a URL to fetch.",
     "fetchHttpOnly": "Only http/https URLs are supported.",
     "fetchInvalidUrl": "Invalid URL: {url}",

@@ -1333,6 +1333,8 @@
     "searchResults": "검색 결과 (via {provider}):\n\n{results}",
     "searchFollowupHint": "정확한 수치, 본문 세부 내용, 출처가 필요하면 가장 관련 있는 1~2개 URL에 web_fetch를 이어서 사용해 주세요.",
     "searchError": "검색 오류: {msg}",
+    "searchSynthesized": "📋 종합 답변:\n{summary}",
+    "searchSources": "출처 보기 ({count}개)",
     "fetchEmptyUrl": "가져올 URL을 입력해 주세요.",
     "fetchHttpOnly": "http/https 프로토콜의 URL만 지원해요.",
     "fetchInvalidUrl": "잘못된 URL: {url}",
