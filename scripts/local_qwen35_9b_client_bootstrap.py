@@ -37,6 +37,11 @@ DEFAULT_PROVIDER_ID = "local-qwen35-9b-q4km-imatrix"
 DEFAULT_MODEL_ID = "qwen35-9b-q4km-imatrix"
 DEFAULT_ARTIFACT_ID = "qwen35-9b-q4km-imatrix-gguf"
 DEFAULT_MODEL_FAMILY = "Qwen3.5-9B"
+DEFAULT_MODEL_FILE_NAME = "Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf"
+LEGACY_MODEL_FILE_NAMES = {
+    "qwen3.5-9b-q4_k_m-imatrix.gguf",
+    "qwen3.5-9b-q4_k_m.gguf",
+}
 DEFAULT_MODEL_ROOT = Path.home() / "Models" / "Lynn" / "Qwen3.5-9B"
 DEFAULT_PROVIDER = Path.home() / ".lynn-engine" / "providers" / f"{DEFAULT_MODEL_ID}-gguf.json"
 DEFAULT_PID_FILE = Path.home() / ".lynn-engine" / "run" / f"{DEFAULT_MODEL_ID}.pid"
@@ -121,19 +126,19 @@ def _wait_ready(base_url: str, *, timeout_sec: float = 180.0) -> bool:
     return _health(base_url) and _models_ready(base_url)
 
 
-def _find_gguf(model_root: Path, variant: str) -> Path | None:
-    """Search for the DEFAULT MODEL (Qwen3.5-9B Q4_K_M imatrix MTP) on disk."""
-    def is_complete_candidate(path: Path) -> bool:
-        # ModelScope keeps in-flight downloads under a hidden ._____temp folder.
-        # Never treat those partial files as usable GGUFs. Do not reject
-        # ~/.lynn/models itself: that is Lynn's canonical in-app model cache.
-        parts = path.parts
-        if any(part.startswith("._____temp") or part in {".cache", ".tmp"} for part in parts):
-            return False
-        if path.name.endswith((".part", ".tmp", ".download")):
-            return False
-        return True
+def _is_complete_gguf_candidate(path: Path) -> bool:
+    # ModelScope keeps in-flight downloads under a hidden ._____temp folder.
+    # Never treat those partial files as usable GGUFs. Do not reject
+    # ~/.lynn/models itself: that is Lynn's canonical in-app model cache.
+    parts = path.parts
+    if any(part.startswith("._____temp") or part in {".cache", ".tmp"} for part in parts):
+        return False
+    if path.name.endswith((".part", ".tmp", ".download")):
+        return False
+    return True
 
+
+def _iter_gguf_candidates(model_root: Path) -> list[Path]:
     # Also probe the canonical .lynn/models target used by Lynn's in-app
     # downloader (model-downloader.cjs DEFAULT target). Without this, a user
     # who completed the in-app install gets a "no model found" false negative.
@@ -145,20 +150,60 @@ def _find_gguf(model_root: Path, variant: str) -> Path | None:
         Path.home() / "models",
         Path.home() / "Downloads",
     ]
+    candidates: list[Path] = []
+    seen: set[str] = set()
     for root in roots:
         if not root.exists():
             continue
-        candidates = sorted(p for p in root.rglob("*.gguf") if is_complete_candidate(p))
-        # Default model = Qwen3.5-9B Q4_K_M imatrix MTP.
-        preferred = [
-            p for p in candidates
-            if "qwen3.5" in p.name.lower()
-            and "9b" in p.name.lower()
-            and "q4_k_m" in p.name.lower()
-        ]
-        if preferred:
-            return preferred[0]
-    return None
+        for path in sorted(p for p in root.rglob("*.gguf") if _is_complete_gguf_candidate(p)):
+            key = str(path.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(path)
+    return candidates
+
+
+def _is_default_mtp_gguf(path: Path) -> bool:
+    name = path.name.lower()
+    if name == DEFAULT_MODEL_FILE_NAME.lower():
+        return True
+    return (
+        name.endswith(".gguf")
+        and "qwen3.5" in name
+        and "9b" in name
+        and "q4" in name
+        and "k" in name
+        and "m" in name
+        and "mtp" in name
+    )
+
+
+def _is_legacy_9b_gguf(path: Path) -> bool:
+    name = path.name.lower()
+    if name in LEGACY_MODEL_FILE_NAMES:
+        return True
+    return (
+        name.endswith(".gguf")
+        and "qwen3.5" in name
+        and "9b" in name
+        and "q4" in name
+        and "k" in name
+        and "m" in name
+        and "mtp" not in name
+    )
+
+
+def _find_gguf(model_root: Path, variant: str) -> Path | None:
+    """Search for the current DEFAULT MODEL (Qwen3.5-9B Q4_K_M imatrix MTP)."""
+    candidates = [path for path in _iter_gguf_candidates(model_root) if _is_default_mtp_gguf(path)]
+    return candidates[0] if candidates else None
+
+
+def _find_legacy_gguf(model_root: Path) -> Path | None:
+    """Find older 9B Q4_K_M files for upgrade messaging only; never use as default."""
+    candidates = [path for path in _iter_gguf_candidates(model_root) if _is_legacy_9b_gguf(path)]
+    return candidates[0] if candidates else None
 
 
 def _run_capture(cmd: list[str], timeout: float = 5.0) -> str:
@@ -412,6 +457,8 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     base_url = f"http://{host}:{port}/v1"
     provider = _read_provider(provider_path)
     gguf = _find_gguf(model_root, args.variant)
+    legacy_gguf = None if gguf else _find_legacy_gguf(model_root)
+    needs_model_upgrade = gguf is None and legacy_gguf is not None
     llama_server = _which("llama-server") or _which("llama.cpp-server")
     has_brew = _which("brew") is not None
     running = _probe_port(host, port) and _health(base_url) and _models_ready(base_url)
@@ -428,10 +475,12 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     if gguf is None:
         actions.append({
             "id": "download_model",
-            "label": "Download Qwen3.5-9B Q4_K_M imatrix MTP GGUF",
+            "label": "Upgrade Qwen3.5-9B to Q4_K_M imatrix MTP GGUF" if needs_model_upgrade else "Download Qwen3.5-9B Q4_K_M imatrix MTP GGUF",
             "requires_user_authorization": True,
             "approx_download_gib": 5.38,
             "artifact_id": DEFAULT_ARTIFACT_ID,
+            "expected_file_name": DEFAULT_MODEL_FILE_NAME,
+            "replaces": str(legacy_gguf) if legacy_gguf else None,
         })
     if provider is None:
         actions.append({
@@ -463,6 +512,9 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             "machine": platform.machine(),
             "llama_server": llama_server,
             "gguf": str(gguf) if gguf else None,
+            "legacy_gguf": str(legacy_gguf) if legacy_gguf else None,
+            "needs_model_upgrade": needs_model_upgrade,
+            "expected_file_name": DEFAULT_MODEL_FILE_NAME,
             "provider_config_exists": provider is not None,
             "endpoint_running": running,
             "homebrew_available": has_brew,

@@ -33,8 +33,13 @@ const LLAMACPP_BASE_PROFILES = Object.freeze({
   // release uses the dedicated MTP repos and measured DGX Spark 36.61 → 60.95 single TPS.
   [DEFAULT_MODEL_ID]: {
     modelId: DEFAULT_MODEL_ID,
+    revision: "2026-05-28-mtp",
     label: "Qwen3.5-9B Q4_K_M imatrix MTP",
     fileName: "Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
+    supersedesFileNames: [
+      "Qwen3.5-9B-Q4_K_M-imatrix.gguf",
+      "Qwen3.5-9B-Q4_K_M.gguf",
+    ],
     expectedSize: 5_780_090_944,
     expectedSha256: "0f292ba0d1058065a6624883a76a2adf00b266d07b9396ed67b155ff522e18d4",
     parallelSegments: 2,
@@ -45,8 +50,12 @@ const LLAMACPP_BASE_PROFILES = Object.freeze({
   // and saved configs keep working while new downloads use the faster MTP file.
   "qwen36-35b-a3b-apex-mtp": {
     modelId: "qwen36-35b-a3b-apex-mtp",
+    revision: "2026-05-28-apex-mtp",
     label: "Qwen3.6-35B-A3B APEX-MTP I-Balanced",
     fileName: "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf",
+    supersedesFileNames: [
+      "Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf",
+    ],
     expectedSize: 26_059_443_808,
     expectedSha256: "9bf7d96bb3a9d363e645dd998aee9e9bff8e016a82aec7ff081e0e6cdb53419e",
     parallelSegments: 4,
@@ -127,6 +136,10 @@ function decorateDownloadState(profile, state = {}) {
     modelId: safeIpcText(profile.modelId, 120),
     modelLabel: safeIpcText(profile.label, 160),
     fileName: safeIpcText(profile.fileName, 200),
+    revision: safeIpcText(profile.revision, 120),
+    supersedesFileNames: Array.isArray(profile.supersedesFileNames)
+      ? profile.supersedesFileNames.map((item) => safeIpcText(item, 200)).filter(Boolean)
+      : [],
   };
   if (state.reason != null) payload.reason = safeIpcText(state.reason, 200);
   if (state.sourceAttempt != null) payload.sourceAttempt = safeNonNegativeNumber(state.sourceAttempt);

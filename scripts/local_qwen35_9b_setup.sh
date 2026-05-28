@@ -221,8 +221,35 @@ find_llama_server() {
   return 1
 }
 
+is_complete_gguf_candidate() {
+  local path="$1"
+  [[ -s "$path" ]] || return 1
+  case "$path" in
+    *"/._____temp/"*|*"/.cache/"*|*"/.tmp/"*|*.part|*.tmp|*.download) return 1 ;;
+  esac
+  return 0
+}
+
+is_default_mtp_gguf_path() {
+  local base lower expected
+  base="${1##*/}"
+  lower="${base,,}"
+  expected="${Q4KM_FILE,,}"
+  [[ "$lower" == "$expected" ]] && return 0
+  [[ "$lower" == *qwen3.5*9b*q4*k*m*mtp*.gguf ]] && return 0
+  return 1
+}
+
+is_legacy_9b_gguf_path() {
+  local base lower
+  base="${1##*/}"
+  lower="${base,,}"
+  [[ "$lower" == *qwen3.5*9b*q4*k*m*.gguf && "$lower" != *mtp* ]] && return 0
+  return 1
+}
+
 find_existing_gguf() {
-  if [[ -s "$Q4KM_PATH" ]]; then
+  if is_complete_gguf_candidate "$Q4KM_PATH" && is_default_mtp_gguf_path "$Q4KM_PATH"; then
     printf '%s\n' "$Q4KM_PATH"
     return 0
   fi
@@ -230,8 +257,27 @@ find_existing_gguf() {
   for root in "$HOME/.lynn/models" "$Q4KM_DIR" "$MODEL_ROOT" "$HOME/Models" "$HOME/models" "$HOME/Downloads" "$ROOT/models"; do
     [[ -d "$root" ]] || continue
     while IFS= read -r candidate; do
-      [[ "$candidate" == *"/."* ]] && continue
-      [[ -s "$candidate" ]] || continue
+      is_complete_gguf_candidate "$candidate" || continue
+      is_default_mtp_gguf_path "$candidate" || continue
+      printf '%s\n' "$candidate"
+      return 0
+    done < <(find "$root" -maxdepth 5 -type f \( \
+      -iname '*Qwen3.5*9B*Q4*K*M*.gguf' -o \
+      -iname '*qwen3.5*9b*q4*k*m*.gguf' -o \
+      -iname '*Qwen3.5*9B*Q4_K_M*.gguf' -o \
+      -iname '*qwen3.5*9b*q4_k_m*.gguf' \
+    \) 2>/dev/null | sort)
+  done
+  return 1
+}
+
+find_legacy_gguf() {
+  local root candidate
+  for root in "$HOME/.lynn/models" "$Q4KM_DIR" "$MODEL_ROOT" "$HOME/Models" "$HOME/models" "$HOME/Downloads" "$ROOT/models"; do
+    [[ -d "$root" ]] || continue
+    while IFS= read -r candidate; do
+      is_complete_gguf_candidate "$candidate" || continue
+      is_legacy_9b_gguf_path "$candidate" || continue
       printf '%s\n' "$candidate"
       return 0
     done < <(find "$root" -maxdepth 5 -type f \( \
@@ -358,6 +404,10 @@ EOF
 }
 
 resolved_gguf="$(find_existing_gguf || true)"
+resolved_legacy_gguf=""
+if [[ -z "$resolved_gguf" ]]; then
+  resolved_legacy_gguf="$(find_legacy_gguf || true)"
+fi
 resolved_llama="$(find_llama_server || true)"
 if [[ -z "$resolved_llama" && "$INSTALL_RUNTIME" == "1" && "$DRY_RUN" != "1" ]]; then
   install_llama_cpp_runtime
@@ -370,6 +420,7 @@ cat <<EOF
 [qwen35-setup] source=$SOURCE download=$DOWNLOAD smoke=$SMOKE serve=$SERVE install_runtime=$INSTALL_RUNTIME
 [qwen35-setup] target_gguf=$Q4KM_PATH
 [qwen35-setup] found_gguf=${resolved_gguf:-<missing>}
+[qwen35-setup] legacy_gguf=${resolved_legacy_gguf:-<none>}
 [qwen35-setup] llama_server=${resolved_llama:-<missing>}
 EOF
 
@@ -379,6 +430,9 @@ if [[ "$DRY_RUN" == "1" ]]; then
 fi
 
 if [[ -z "$resolved_gguf" ]]; then
+  if [[ -n "$resolved_legacy_gguf" ]]; then
+    echo "[qwen35-setup] legacy 9B GGUF found but default requires MTP; will download/upgrade to $Q4KM_FILE"
+  fi
   if [[ "$DOWNLOAD" == "1" ]]; then
     if ! download_model; then
       cat >&2 <<EOF

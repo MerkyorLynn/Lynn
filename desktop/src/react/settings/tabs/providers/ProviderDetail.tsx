@@ -23,6 +23,11 @@ function isLocalQwenProviderId(id?: string | null) {
   return !!id && (LOCAL_QWEN_COMPAT_PROVIDER_IDS.has(id) || /^local-qwen/i.test(id));
 }
 
+function isDefaultQwen35MtpFileName(fileName: string) {
+  return /^Qwen3\.5-9B-Q4_K_M-imatrix-mtp\.gguf$/i.test(fileName)
+    || /qwen3\.?5-?9b.*q4_?k_?m.*mtp.*\.gguf$/i.test(fileName);
+}
+
 type LocalActionStatus = {
   kind: 'info' | 'success' | 'error';
   text: string;
@@ -238,6 +243,9 @@ type LocalQwen35Status = {
       endpoint_occupied?: boolean;
       served_model_ids?: string[];
       gguf?: string | null;
+      legacy_gguf?: string | null;
+      needs_model_upgrade?: boolean;
+      expected_file_name?: string;
       llama_server?: string | null;
       homebrew_available?: boolean;
     };
@@ -305,21 +313,25 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
       || status?.runtime?.endpoint_loading === true
       || status?.runtime?.process_alive === true
   );
-  const hardwareWarnings = [...new Set([
-    ...(endpointForeign
-      ? [`检测到 18099 当前运行的是 ${servedModelIds.join(', ') || '非默认模型端点'}，它不会作为默认 9B 使用；停止后可启动默认 Qwen3.5-9B MTP。`]
-      : []),
-    ...(hardware.warnings || []),
-    ...(hardware.blockers || []),
-  ])];
   const endpointActive = endpointRunning || endpointLoading;
   const canStopLocalModel = endpointActive || endpointForeign;
   const modelPath = typeof observed.gguf === 'string' ? observed.gguf : '';
   const modelFileName = modelPath ? (modelPath.split(/[\\/]/).pop() || modelPath) : '';
-  // 2026-05-25: 默认模型回到 9B MTP,这里必须只认 9B 默认文件。
-  // 4B 仍可从可选模型里手动降级启动,但不能被默认卡误判为 ready。
-  const hasModel = !!observed.gguf
-    && /qwen3\.?5-?9b.*q4_?k_?m.*(?:imatrix|mtp)?/i.test(modelFileName);
+  const legacyModelPath = typeof observed.legacy_gguf === 'string' ? observed.legacy_gguf : '';
+  const legacyModelFileName = legacyModelPath ? (legacyModelPath.split(/[\\/]/).pop() || legacyModelPath) : '';
+  // 默认卡只认当前 9B MTP artifact。旧 9B GGUF 会显示为可升级,不能挡住新版 MTP 下载。
+  const hasModel = !!observed.gguf && isDefaultQwen35MtpFileName(modelFileName);
+  const needsMtpUpgrade = !hasModel && (observed.needs_model_upgrade === true || !!legacyModelPath);
+  const hardwareWarnings = [...new Set([
+    ...(endpointForeign
+      ? [`检测到 18099 当前运行的是 ${servedModelIds.join(', ') || '非默认模型端点'}，它不会作为默认 9B 使用；停止后可启动默认 Qwen3.5-9B MTP。`]
+      : []),
+    ...(needsMtpUpgrade
+      ? [`检测到旧版 Qwen3.5-9B GGUF：${legacyModelFileName || '旧文件'}。默认档已升级为 MTP；点击升级会下载新版 MTP 文件，旧文件不会被删除。`]
+      : []),
+    ...(hardware.warnings || []),
+    ...(hardware.blockers || []),
+  ])];
   const hasRuntime = !endpointForeign && !!observed.llama_server;
   const defaultDownload = llamaState.download;
   const defaultDownloadState = String(defaultDownload.state || '');
@@ -380,9 +392,10 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
     if (jobRunning) return '正在准备';
     if (endpointLoading) return '正在加载';
     if (endpointRunning) return '已运行';
+    if (needsMtpUpgrade) return '可升级';
     if (hasModel && hasRuntime) return '可启动';
     return '待安装';
-  }, [endpointForeign, endpointLoading, endpointRunning, hasModel, hasRuntime, jobRunning]);
+  }, [endpointForeign, endpointLoading, endpointRunning, hasModel, hasRuntime, jobRunning, needsMtpUpgrade]);
 
   useEffect(() => {
     if (!jobRunning) return undefined;
@@ -397,17 +410,21 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
     const warning = hardwareWarnings.length ? `\n\n注意：${hardwareWarnings.join(' ')}` : '';
     const setupText = hasModel && hasRuntime
       ? 'Lynn 将启动本地 Qwen3.5-9B MTP 模型服务，并切换为本地模型。'
-      : 'Lynn 将在本机安装或定位 llama.cpp，下载 Qwen3.5-9B Q4_K_M imatrix MTP，并启动本地模型服务。\n\n模型约 5.78GB / 5.38GiB；新版 MTP 在 DGX Spark 单流从 36.61 提升到 60.95 TPS，thinking-on 和工具调用稳定性强于 4B。完成后可离线使用，不需要 API Key，不上传对话。';
+      : needsMtpUpgrade
+        ? 'Lynn 将保留旧版 9B 文件，并下载新版 Qwen3.5-9B MTP；完成后会启动 MTP 端点。\n\n模型约 5.78GB / 5.38GiB；旧文件不会被删除，你可以稍后手动清理。'
+        : 'Lynn 将在本机安装或定位 llama.cpp，下载 Qwen3.5-9B Q4_K_M imatrix MTP，并启动本地模型服务。\n\n模型约 5.78GB / 5.38GiB；新版 MTP 在 DGX Spark 单流从 36.61 提升到 60.95 TPS，thinking-on 和工具调用稳定性强于 4B。完成后可离线使用，不需要 API Key，不上传对话。';
     const ok = window.confirm(`${setupText}${profile}${warning}\n\n继续吗？`);
     if (!ok) return;
     if (platform?.llamacppStartDownload) {
       setSettingUp(true);
-      setActionStatus({
-        kind: 'info',
-        text: hasModel
-          ? '正在启动默认 Qwen3.5-9B；如果模型文件已完整，Lynn 会直接校验并拉起本地端点。'
-          : '正在下载默认 Qwen3.5-9B，进度会留在当前页面；下载完成后会自动启动本地端点。',
-      });
+        setActionStatus({
+          kind: 'info',
+          text: hasModel
+            ? '正在启动默认 Qwen3.5-9B；如果模型文件已完整，Lynn 会直接校验并拉起本地端点。'
+            : needsMtpUpgrade
+              ? '正在升级到默认 Qwen3.5-9B MTP；旧版文件会保留，新版校验完成后自动启动。'
+              : '正在下载默认 Qwen3.5-9B，进度会留在当前页面；下载完成后会自动启动本地端点。',
+        });
       try {
         const res = await platform.llamacppStartDownload({ modelId: 'qwen35-9b-q4km-imatrix' });
         if (!res?.ok) throw new Error(localModelActionErrorText(res?.reason, res?.detail));
@@ -416,7 +433,9 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
             ? '默认 9B 已在下载/启动队列中。'
             : hasModel
               ? '默认 Qwen3.5-9B 正在启动。'
-              : '默认 Qwen3.5-9B 已开始下载。',
+              : needsMtpUpgrade
+                ? '默认 Qwen3.5-9B MTP 升级已开始。'
+                : '默认 Qwen3.5-9B 已开始下载。',
           'info',
         );
         setActionStatus({
@@ -425,7 +444,9 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
             ? '默认 9B 已在下载/启动队列中，进度会自动刷新。'
             : hasModel
               ? '启动任务已提交。加载完成后会自动切换为本地模型。'
-              : '默认 9B 下载已启动，校验完成后会自动启动本地端点。',
+              : needsMtpUpgrade
+                ? '新版 MTP 下载已启动，校验完成后会自动启动本地端点。'
+                : '默认 9B 下载已启动，校验完成后会自动启动本地端点。',
         });
         await onRefresh();
         window.setTimeout(loadStatus, 1500);
@@ -676,8 +697,10 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
       </div>
 
       <div className={styles['pv-local-qwen-facts']}>
-        <span>模型 {hasModel ? '已就绪' : '待下载'}</span>
+        <span>模型 {hasModel ? '已就绪' : needsMtpUpgrade ? '可升级到 MTP' : '待下载'}</span>
         {modelFileName && <span title={modelPath}>模型文件 {modelFileName}</span>}
+        {needsMtpUpgrade && legacyModelFileName && <span title={legacyModelPath}>旧版 9B {legacyModelFileName}</span>}
+        {needsMtpUpgrade && <span>新版 MTP 待下载</span>}
         <span>llama.cpp {hasRuntime ? '已找到' : '待安装'}</span>
         {endpointForeign && <span>当前端点 {servedModelIds.join(', ') || '非默认 9B'}</span>}
         {(endpointActive || endpointForeign) && runtimeStats?.pid && <span>PID {runtimeStats.pid}</span>}
@@ -833,6 +856,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
               <strong>已有 GGUF / 模型目录</strong>
               <span>默认使用 Qwen3.5-9B MTP。4B 仅作为低配降级，thinking-on 可能长思考后无正文；也可以导入已经下载好的 35B 或其他 GGUF。</span>
               {modelPath && <code className={styles['pv-local-qwen-model-path']}>{modelPath}</code>}
+              {needsMtpUpgrade && legacyModelPath && <code className={styles['pv-local-qwen-model-path']}>旧版 9B：{legacyModelPath}</code>}
             </div>
             <div className={styles['pv-local-qwen-advanced-actions']}>
               <button type="button" className={styles['pv-verify-connection-btn']} onClick={openModelFolder}>
@@ -911,6 +935,8 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
                 ? '已启用，重新检查'
                 : hasModel && hasRuntime
                   ? '启动本地模型'
+                  : needsMtpUpgrade
+                    ? '升级到 9B MTP (5.78 GB)'
                   : !hasModel
                     ? '下载 9B 并启动 (5.78 GB)'
                     : '授权安装并启用'}

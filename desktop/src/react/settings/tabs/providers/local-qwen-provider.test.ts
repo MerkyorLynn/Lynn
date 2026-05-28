@@ -145,12 +145,34 @@ describe('Local Qwen provider UX guards', () => {
     const downloader = read('desktop/model-downloader.cjs');
     const route = read('server/routes/local-qwen35.ts');
     expect(profiles).toContain('Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf');
+    expect(profiles).toContain('revision: "2026-05-28-mtp"');
+    expect(profiles).toContain('supersedesFileNames');
+    expect(profiles).toContain('Qwen3.5-9B-Q4_K_M-imatrix.gguf');
     expect(profiles).toContain('0f292ba0d1058065a6624883a76a2adf00b266d07b9396ed67b155ff522e18d4');
     expect(downloader).toContain('Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP');
     expect(downloader).toContain('nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP');
     expect(route).toContain('Qwen3.5-9B Q4_K_M imatrix MTP');
     expect(route).toContain('Qwen3.5-4B Q4_K_M imatrix (低配降级)');
     expect(route).not.toContain('Qwen3.5-4B Q4_K_M (unsloth)');
+  });
+
+  it('detects older 9B GGUF files as upgrade candidates instead of default-ready MTP', () => {
+    const panel = read('desktop/src/react/settings/tabs/providers/ProviderDetail.tsx');
+    const bootstrap = read('scripts/local_qwen35_9b_client_bootstrap.py');
+    const setup = read('scripts/local_qwen35_9b_setup.sh');
+    expect(panel).toContain('isDefaultQwen35MtpFileName');
+    expect(panel).toContain('needs_model_upgrade');
+    expect(panel).toContain('升级到 9B MTP (5.78 GB)');
+    expect(panel).toContain('旧版 9B');
+    expect(panel).toContain('新版 MTP 待下载');
+    expect(bootstrap).toContain('DEFAULT_MODEL_FILE_NAME = "Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf"');
+    expect(bootstrap).toContain('LEGACY_MODEL_FILE_NAMES');
+    expect(bootstrap).toContain('"legacy_gguf"');
+    expect(bootstrap).toContain('"needs_model_upgrade"');
+    expect(bootstrap).toContain('Upgrade Qwen3.5-9B to Q4_K_M imatrix MTP GGUF');
+    expect(setup).toContain('find_legacy_gguf');
+    expect(setup).toContain('legacy 9B GGUF found but default requires MTP');
+    expect(setup).toContain('is_default_mtp_gguf_path "$candidate" || continue');
   });
 
   it('keeps local model progress out of model-visible thinking', () => {
