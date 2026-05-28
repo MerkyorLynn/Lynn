@@ -1,8 +1,8 @@
 {
   "id": "tts-bridge",
   "name": "TTS Bridge",
-  "version": "0.2.0",
-  "description": "文本转语音桥接：支持 Edge TTS（免费在线）、macOS say（本地）、CosyVoice 2、OpenAI TTS 和 MiMo V2.5 TTS（含音色克隆/文字定制）。生成音频保存到书桌，支持 Bridge 多平台推送。",
+  "version": "0.3.0",
+  "description": "文本转语音桥接：默认 Edge TTS（免费在线、流式低延迟），可选 macOS say（本地）、CosyVoice 2、OpenAI TTS、MiMo V2.5 TTS。MiMo 支持音色克隆（上传一段你的声音）和文字定制音色，自动路由切换。生成音频保存到书桌，支持 Bridge 多平台推送。",
   "contributes": {
     "configuration": {
       "properties": {
@@ -11,7 +11,7 @@
           "title": "TTS Provider",
           "default": "edge",
           "enum": ["edge", "say", "cosyvoice", "openai", "mimo"],
-          "description": "语音合成服务来源。edge 微软 Edge 在线 TTS（免费，需网络，流式低延迟）；say macOS 本地（离线，仅 Mac）；cosyvoice 阿里 CosyVoice 2；openai OpenAI TTS API；mimo 小米 MiMo V2.5 TTS（preset/voicedesign/voiceclone 三种 model，24kHz wav/pcm16，文档明示流式未上线）。"
+          "description": "语音合成服务来源。edge 微软 Edge 在线 TTS（免费，需网络，流式低延迟，推荐默认）；say macOS 本地（离线，仅 Mac）；cosyvoice 阿里 CosyVoice 2（本地服务）；openai OpenAI TTS API；mimo 小米 MiMo V2.5 TTS（preset 8 音色 + voicedesign + voiceclone，24kHz wav，文档明示流式未上线）。⚠️ 若填写下面的『音色克隆音频路径』或『音色文字描述』，会自动覆盖此项强制走 mimo。"
         },
         "default_voice": {
           "type": "string",
@@ -25,7 +25,25 @@
           "default": 1.0,
           "minimum": 0.5,
           "maximum": 2.0,
-          "description": "默认语速倍率。"
+          "description": "默认语速倍率。注意:MiMo 没有 numeric speed 参数,内部翻译成自然语言指令（如『稍快一点』）注入 user message。"
+        },
+        "voice_clone_audio_path": {
+          "type": "string",
+          "title": "音色克隆音频路径 (MiMo)",
+          "default": "",
+          "description": "可选。提供一段你的声音音频文件路径（5-15s wav/mp3 最佳），系统会自动切换到 MiMo voiceclone 模式合成专属音色。设置此项会自动覆盖 provider 选择强制走 mimo。留空 = 关闭克隆。"
+        },
+        "voice_description": {
+          "type": "string",
+          "title": "音色文字定制 (MiMo)",
+          "default": "",
+          "description": "可选。用一段自然语言描述想要的音色（如『年轻男声,温暖,带一点沙哑感』），系统会自动切换到 MiMo voicedesign 模式生成定制音色。设置此项会自动覆盖 provider 选择强制走 mimo。留空 = 关闭文字定制。注意:voice_clone_audio_path 优先级更高,两个都设时 clone 胜。"
+        },
+        "mimo_api_key": {
+          "type": "string",
+          "title": "MiMo API Key (仅 mimo provider 需要)",
+          "default": "",
+          "description": "MiMo Token Plan API key（tp-* 前缀）。也可通过环境变量 MIMO_TTS_KEY / MIMO_SEARCH_KEY 配置。"
         },
         "auto_tts_for_long_text": {
           "type": "boolean",

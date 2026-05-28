@@ -27,8 +27,35 @@
  *   voiceDescription  — design 模式文字描述,自动切到 -voicedesign model
  */
 import fs from "fs";
+import path from "path";
 
 const DEFAULT_PRESET_VOICES = ["mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean"];
+
+// 文件后缀 → MIME
+const MIME_MAP = {
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".ogg": "audio/ogg",
+  ".flac": "audio/flac",
+};
+
+/** 把本地音频文件读成 data URI(MiMo voiceclone 期望 audio.voice = data:...;base64,...) */
+function loadCloneAudioFromPath(filePath) {
+  if (!filePath) return "";
+  if (filePath.startsWith("data:")) return filePath;  // 已经是 data URI
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`voice clone audio file not found: ${filePath}`);
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = MIME_MAP[ext] || "audio/mpeg";
+  const buf = fs.readFileSync(filePath);
+  // MiMo 文档限制:克隆音频不超过 50MB
+  if (buf.length > 50 * 1024 * 1024) {
+    throw new Error(`voice clone audio too large: ${buf.length} bytes (limit 50MB)`);
+  }
+  return `data:${mime};base64,${buf.toString("base64")}`;
+}
 
 function speedToInstruction(speed) {
   if (typeof speed !== "number" || !Number.isFinite(speed)) return null;
@@ -40,24 +67,47 @@ function speedToInstruction(speed) {
 }
 
 export function createMiMoTTSProvider(config = {}) {
+  // API key 优先级:config.apiKey > config.mimo_api_key > env MIMO_TTS_KEY > env MIMO_SEARCH_KEY > env MIMO_KEY
   const apiKey =
     config?.apiKey ||
     config?.api_key ||
+    config?.mimo_api_key ||
     process.env.MIMO_TTS_KEY ||
     process.env.MIMO_SEARCH_KEY ||
+    process.env.MIMO_KEY ||
     "";
+  // Endpoint 优先级:config > MIMO_TTS_BASE > MIMO_BASE(token-plan,tp-* key 用)>
+  // MIMO_SEARCH_BASE > api.xiaomimimo.com(sk-* consumer key 用)
+  // 实测:tp-* key 只在 token-plan-cn.xiaomimimo.com 工作,api.xiaomimimo.com 401
   const baseUrl = (
     config?.baseUrl ||
     config?.base_url ||
     process.env.MIMO_TTS_BASE ||
+    process.env.MIMO_BASE ||
+    process.env.MIMO_SEARCH_BASE ||
     "https://api.xiaomimimo.com/v1"
   ).replace(/\/+$/, "");
   const defaultModel = config?.model || "mimo-v2.5-tts";
-  const defaultVoice = config?.voice || "冰糖";
+  const defaultVoice = config?.voice || config?.default_voice || "冰糖";
   const defaultFormat = config?.format || "wav";
   const defaultStyle = config?.style || "";
-  const cloneAudioDataUri = config?.cloneAudioDataUri || config?.clone_audio || "";
-  const voiceDescription = config?.voiceDescription || config?.voice_description || "";
+
+  // 克隆音频:优先 config.voice_clone_audio_path(文件路径,设置 UI 用),
+  // fallback cloneAudioDataUri / clone_audio(per-call API 用)
+  let cloneAudioDataUri = "";
+  const clonePath = config?.voice_clone_audio_path || "";
+  if (clonePath) {
+    try {
+      cloneAudioDataUri = loadCloneAudioFromPath(clonePath);
+    } catch (e) {
+      console.warn(`[mimo-tts] voice_clone_audio_path failed: ${e.message}`);
+    }
+  }
+  if (!cloneAudioDataUri) {
+    cloneAudioDataUri = config?.cloneAudioDataUri || config?.clone_audio || "";
+  }
+
+  const voiceDescription = config?.voice_description || config?.voiceDescription || "";
 
   return {
     name: "mimo-tts",
@@ -122,11 +172,13 @@ export function createMiMoTTSProvider(config = {}) {
 
       const body = { model, messages, audio };
 
+      // 文档说 api-key 头,但实测 token-plan endpoint 两个都接;tp-* key 通常配 Bearer 习惯
+      // 双 header 同时发,任一识别即通(网关只会 honor 第一个识别的)
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
-          // 文档指定 api-key 头;部分网关也接 Bearer,这里以文档为准
           "api-key": apiKey,
+          Authorization: "Bearer " + apiKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
