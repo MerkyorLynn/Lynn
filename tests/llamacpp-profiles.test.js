@@ -44,7 +44,7 @@ describe("llama.cpp model profile boundary", () => {
     expect(ids).toEqual([
       "qwen35-4b-q4km",
       "qwen35-9b-q4km-imatrix",
-      "qwen36-35b-a3b-q4km-imatrix",
+      "qwen36-35b-a3b-apex-mtp",
     ]);
   });
 

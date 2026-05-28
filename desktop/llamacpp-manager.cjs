@@ -6,8 +6,8 @@
  * 背景:
  *   5/20 战略 pivot 后 Lynn 客户端默认本地推理底层 = llama.cpp。
  *   Mac Q4_K_M GGUF / Linux CUDA Q4_K_M / Win x64 CUDA Q4_K_M 全平台 ship。
- *   2026-05-25 更新: 默认 ship 模型回到 Qwen3.5-9B Q4_K_M imatrix MTP
- *     (5.38GB,thinking-on 更稳,24GB 显存/统一内存推荐)。
+ *   2026-05-28 更新: 默认 ship 模型使用新版 Qwen3.5-9B Q4_K_M imatrix MTP
+ *     (5.78GB / 5.38GiB,DGX Spark 单流 36.61 → 60.95 TPS,24GB 显存/统一内存推荐)。
  *   4B Q4_K_M imatrix 保留为低配降级档,但 thinking-on 可能空正文长思考。
  *
  * 本模块策略:
@@ -48,7 +48,7 @@ const DEFAULT_CONFIG = Object.freeze({
   // 降级路径: 8~16G 设备可手动选 4B,但产品层会提示 thinking-on 风险。
   modelId: "qwen35-9b-q4km-imatrix",
   modelFileName: "Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
-  modelExpectedSize: 5_780_090_944, // ~5.38 GB
+  modelExpectedSize: 5_780_090_944, // 5.78 GB / 5.38 GiB
   // Product default: one comfortable 32K local slot. llama.cpp splits context
   // across parallel slots, so keep -np/--parallel at 1 for the local-first UX.
   serverArgs: [
@@ -136,21 +136,23 @@ function legacyModelPathCandidates(homeDir, modelId, fileName) {
     );
   }
   if (modelId === "qwen36-35b-a3b-q4km-imatrix") {
-    // 2026-05-24 canonical:Q4_K_M imatrix(21G,24G+ 加载)替换 APEX-MTP I-Balanced(26G,32G+);
-    // 老 APEX-MTP 路径保留为 fallback,已下载的用户不必重下。
+    // Legacy Q4_K_M id: keep old file discovery so existing users do not need
+    // to move files. New downloads map this id to the APEX-MTP profile.
     candidates.push(
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", "Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf"),
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", fileName),
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
+      path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "apex_mtp", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
+      path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B-APEX-MTP", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
     );
   }
   if (modelId === "qwen36-35b-a3b-apex-mtp") {
-    // legacy alias:APEX-MTP I-Balanced(2026-05-24 弃用,统一新装走 q4km-imatrix);老用户继续可用。
+    // 2026-05-28 canonical high-end local file: APEX-MTP I-Balanced.
     candidates.push(
-      path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", "Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf"),
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "apex_mtp", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
       path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B-APEX-MTP", "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf"),
+      path.join(homeDir, "Models", "Lynn", "Qwen3.6-35B-A3B", "q4_k_m", "Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf"),
     );
   }
   return [...new Set(candidates)];

@@ -24,7 +24,7 @@ describe('Local Qwen provider UX guards', () => {
     expect(source).toContain('selectGgufModel');
   });
 
-  it('advertises the local ladder (9B default → 4B downgrade → 35B 24GB+ Q4_K_M imatrix) with objective metrics', () => {
+  it('advertises the local ladder (9B default → 4B downgrade → 35B 32GB+ APEX-MTP) with objective metrics', () => {
     const source = read('server/routes/local-qwen35.ts');
     expect(source).not.toContain('qwen36-27b-q4km-imatrix');
     // 9B is the default local onboarding model.
@@ -35,16 +35,16 @@ describe('Local Qwen provider UX guards', () => {
     expect(source).toContain('qwen35-4b-q4km');
     expect(source).toContain('低配降级');
     expect(source).toContain('thinking-on 可能长思考后无正文');
-    // 35B = 24GB+ high-end (quality-first, 21GB Q4_K_M imatrix replaces the older 26GB/32GB+ package)
-    expect(source).toContain('qwen36-35b-a3b-q4km-imatrix');
-    expect(source).toContain('thinking-on 32K');
-    expect(source).toContain('MMLU Q4_K_M 90.40%');
-    expect(source).toContain('GPQA Diamond Q4_K_M 80.70%');
-    expect(source).toContain('R6000 参考 207 tok/s');
+    // 35B = 32GB+ high-end APEX-MTP with DGX Spark TPS clearly labeled.
+    expect(source).toContain('qwen36-35b-a3b-apex-mtp');
+    expect(source).toContain('DGX Spark thinking-on 75-85 TPS');
+    expect(source).toContain('DGX Spark 数学 84.69 TPS');
+    expect(source).toContain('DGX Spark 归纳证明 75.53 TPS');
+    expect(source).toContain('APEX I-Balanced');
     expect(source).not.toContain('Spark/远端兜底');
-    expect(source).toContain('https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-GGUF-imatrix');
+    expect(source).toContain('https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-APEX-MTP-GGUF');
     expect(source).toContain('下载到本机');
-    expect(source).toContain('Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf');
+    expect(source).toContain('Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf');
   });
 
   it('makes advanced local models actionable instead of passive cards', () => {
@@ -78,19 +78,19 @@ describe('Local Qwen provider UX guards', () => {
     expect(preload).toContain('llamacppStartCustomModel: (modelPath)');
   });
 
-  it('downloads the recommended 35B Q4_K_M imatrix model through Lynn with checksum and parallel ranges', () => {
+  it('downloads the recommended 35B APEX-MTP model through Lynn with checksum and parallel ranges', () => {
     const profiles = read('desktop/llamacpp-profiles.cjs');
     const downloader = read('desktop/model-downloader.cjs');
     const preload = read('desktop/preload.cjs');
-    // 2026-05-24: canonical 35B = Q4_K_M imatrix(21GB,24G+ 可加载);legacy id 保留为 alias backward compat。
-    expect(profiles).toContain('qwen36-35b-a3b-q4km-imatrix');
-    expect(profiles).toContain('21_166_758_272');
-    expect(profiles).toContain('3e398e6c53398de229ade3a38b04e0d626289651d6d8b49ecfccc2165816efa1');
+    // 2026-05-28: canonical 35B = APEX-MTP I-Balanced;old Q4_K_M id remains a backward-compatible alias.
+    expect(profiles).toContain('qwen36-35b-a3b-apex-mtp');
+    expect(profiles).toContain('26_059_443_808');
+    expect(profiles).toContain('9bf7d96bb3a9d363e645dd998aee9e9bff8e016a82aec7ff081e0e6cdb53419e');
     expect(profiles).toContain('parallelSegments: 4');
-    expect(profiles).toContain('Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf');
-    expect(profiles).toContain('Qwen3.6-35B-A3B-GGUF-imatrix');
-    // legacy alias still mapped for old installs
-    expect(profiles).toContain('"qwen36-35b-a3b-apex-mtp": "qwen36-35b-a3b-q4km-imatrix"');
+    expect(profiles).toContain('Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf');
+    expect(profiles).toContain('Qwen3.6-35B-A3B-APEX-MTP-GGUF');
+    // legacy alias still maps old stored ids to the new canonical profile.
+    expect(profiles).toContain('"qwen36-35b-a3b-q4km-imatrix": "qwen36-35b-a3b-apex-mtp"');
     expect(preload).toContain('llamacppStartDownload: (payload)');
     expect(downloader).toContain('_downloadFromSourceParallel');
     expect(downloader).toContain('"Range"');
@@ -146,8 +146,8 @@ describe('Local Qwen provider UX guards', () => {
     const route = read('server/routes/local-qwen35.ts');
     expect(profiles).toContain('Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf');
     expect(profiles).toContain('0f292ba0d1058065a6624883a76a2adf00b266d07b9396ed67b155ff522e18d4');
-    expect(downloader).toContain('Merkyor/Qwen3.5-9B-GGUF-imatrix');
-    expect(downloader).toContain('nerkyor/Qwen3.5-9B-GGUF-imatrix');
+    expect(downloader).toContain('Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP');
+    expect(downloader).toContain('nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP');
     expect(route).toContain('Qwen3.5-9B Q4_K_M imatrix MTP');
     expect(route).toContain('Qwen3.5-4B Q4_K_M imatrix (低配降级)');
     expect(route).not.toContain('Qwen3.5-4B Q4_K_M (unsloth)');

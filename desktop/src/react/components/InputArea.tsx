@@ -1752,7 +1752,7 @@ function InputAreaInner() {
               <span>
                 {localQwenHasModel && localQwenHasRuntime
                   ? '模型和 llama.cpp 已就绪，授权后即可启动本地离线端点。'
-                  : 'Qwen3.5-9B Q4_K_M imatrix MTP · 5.38GB · 32K 上下文；授权后自动准备，当前模型照常保留。'}
+                  : 'Qwen3.5-9B Q4_K_M imatrix MTP · 5.78GB / 5.38GiB · 32K 上下文；授权后自动准备，当前模型照常保留。'}
               </span>
             </div>
           </div>

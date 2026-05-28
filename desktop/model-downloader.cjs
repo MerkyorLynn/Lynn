@@ -1,7 +1,7 @@
 /**
- * model-downloader.cjs · Lynn V0.79 onboarding 2026-05-21 / 2026-05-25 默认回到 9B
+ * model-downloader.cjs · Lynn V0.79 onboarding 2026-05-21 / 2026-05-28 9B MTP release
  *
- * 跨平台大文件下载守护 — Qwen3.5-9B Q4_K_M imatrix MTP 5.38 GB GGUF。
+ * 跨平台大文件下载守护 — Qwen3.5-9B Q4_K_M imatrix MTP 5.78 GB / 5.38 GiB GGUF。
  *
  * 设计要点：
  *   1. HTTP/HTTPS Range 续传(用 .part 临时文件 + 已下载 byte offset);
@@ -20,8 +20,8 @@
  *   ~/.lynn/models/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf
  *
  * 默认源(可被 opts.sources 覆盖,顺序 = 国内优先):
- *   - https://modelscope.cn/models/Merkyor/Qwen3.5-9B-GGUF-imatrix/resolve/master/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf  (国内主源)
- *   - https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf          (国内 HF 镜像备)
+ *   - https://modelscope.cn/models/Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP/resolve/master/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf  (国内主源)
+ *   - https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf          (国内 HF 镜像备)
  *
  * sha256: 0f292ba0d1058065a6624883a76a2adf00b266d07b9396ed67b155ff522e18d4
  * size:   5_780_090_944 bytes (期望,允许 ±0.5% 偏差,实际以 sha256 为准)
@@ -48,12 +48,12 @@ const DEFAULT_SOURCES = Object.freeze([
   {
     id: "modelscope",
     label: "ModelScope (国内主源)",
-    url: "https://modelscope.cn/models/Merkyor/Qwen3.5-9B-GGUF-imatrix/resolve/master/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
+    url: "https://modelscope.cn/models/Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP/resolve/master/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
   },
   {
     id: "hf-mirror",
     label: "hf-mirror.com (国内 HF 镜像)",
-    url: "https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
+    url: "https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf",
   },
 ]);
 

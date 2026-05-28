@@ -29,7 +29,8 @@ const LLAMACPP_BASE_PROFILES = Object.freeze({
       { id: "hf-mirror", label: "hf-mirror.com (国内 HF 镜像)", url: "https://hf-mirror.com/nerkyor/Qwen3.5-4B-GGUF-imatrix/resolve/main/Qwen3.5-4B-Q4_K_M-imatrix.gguf" },
     ],
   },
-  // Product default. 9B MTP is the stable thinking-on local path for V0.79.1.
+  // Product default. 9B MTP is the stable thinking-on local path; the 2026-05-28
+  // release uses the dedicated MTP repos and measured DGX Spark 36.61 → 60.95 single TPS.
   [DEFAULT_MODEL_ID]: {
     modelId: DEFAULT_MODEL_ID,
     label: "Qwen3.5-9B Q4_K_M imatrix MTP",
@@ -40,19 +41,19 @@ const LLAMACPP_BASE_PROFILES = Object.freeze({
     autoStart: true,
     sources: MODEL_DOWNLOADER_SOURCES,
   },
-  // 35B Q4_K_M imatrix 24G+ high-end tier. This replaces the older
-  // APEX-MTP I-Balanced default path while still accepting its alias.
-  "qwen36-35b-a3b-q4km-imatrix": {
-    modelId: "qwen36-35b-a3b-q4km-imatrix",
-    label: "Qwen3.6-35B-A3B Q4_K_M imatrix",
-    fileName: "Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf",
-    expectedSize: 21_166_758_272,
-    expectedSha256: "3e398e6c53398de229ade3a38b04e0d626289651d6d8b49ecfccc2165816efa1",
+  // 35B APEX-MTP high-end tier. Old Q4_K_M ids remain aliases so existing UI
+  // and saved configs keep working while new downloads use the faster MTP file.
+  "qwen36-35b-a3b-apex-mtp": {
+    modelId: "qwen36-35b-a3b-apex-mtp",
+    label: "Qwen3.6-35B-A3B APEX-MTP I-Balanced",
+    fileName: "Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf",
+    expectedSize: 26_059_443_808,
+    expectedSha256: "9bf7d96bb3a9d363e645dd998aee9e9bff8e016a82aec7ff081e0e6cdb53419e",
     parallelSegments: 4,
     autoStart: false,
     sources: [
-      { id: "modelscope", label: "ModelScope (国内主源)", url: "https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-GGUF-imatrix/resolve/master/Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf" },
-      { id: "hf-mirror", label: "hf-mirror.com (国内 HF 镜像)", url: "https://hf-mirror.com/nerkyor/Qwen3.6-35B-A3B-GGUF-imatrix/resolve/main/Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf" },
+      { id: "modelscope", label: "ModelScope (国内主源)", url: "https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-APEX-MTP-GGUF/resolve/master/Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf" },
+      { id: "hf-mirror", label: "hf-mirror.com (国内 HF 镜像)", url: "https://hf-mirror.com/nerkyor/Qwen3.6-35B-A3B-APEX-MTP-GGUF/resolve/main/Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf" },
     ],
   },
 });
@@ -60,7 +61,7 @@ const LLAMACPP_BASE_PROFILES = Object.freeze({
 const LLAMACPP_ALIAS_MAP = Object.freeze({
   "local-qwen35-4b-q4km": "qwen35-4b-q4km",
   "local-qwen35-9b-q4km-imatrix": DEFAULT_MODEL_ID,
-  "qwen36-35b-a3b-apex-mtp": "qwen36-35b-a3b-q4km-imatrix",
+  "qwen36-35b-a3b-q4km-imatrix": "qwen36-35b-a3b-apex-mtp",
 });
 
 const LLAMACPP_DOWNLOAD_PROFILES = Object.freeze({

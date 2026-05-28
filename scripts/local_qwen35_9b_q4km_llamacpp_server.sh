@@ -252,10 +252,10 @@ Download options:
 
   # HuggingFace mirror:
   aria2c -x 16 -s 16 -c -d ~/Models \\
-    'https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf'
+    'https://hf-mirror.com/nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP/resolve/main/Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf'
 
   # ModelScope (China):
-  modelscope download Merkyor/Qwen3.5-9B-GGUF-imatrix Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf --local_dir ~/Models/Lynn/Qwen3.5-9B/q4_k_m
+  modelscope download Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf --local_dir ~/Models/Lynn/Qwen3.5-9B/q4_k_m
 
 Then rerun, or set GGUF=/path/to/model.gguf
 EOF

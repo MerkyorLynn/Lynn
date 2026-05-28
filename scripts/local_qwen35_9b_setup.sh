@@ -66,8 +66,8 @@ REGISTER_PROVIDER=1
 INSTALL_RUNTIME=0
 
 DL_BASE_URL="${DL_BASE_URL:-https://dl.merkyorlynn.com/models/qwen35-9b}"
-HF_REPO_Q4KM="${HF_REPO_Q4KM:-nerkyor/Qwen3.5-9B-GGUF-imatrix}"
-MS_REPO_Q4KM="${MS_REPO_Q4KM:-Merkyor/Qwen3.5-9B-GGUF-imatrix}"
+HF_REPO_Q4KM="${HF_REPO_Q4KM:-nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP}"
+MS_REPO_Q4KM="${MS_REPO_Q4KM:-Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP}"
 LYNN_PROVIDER_DIR="${LYNN_PROVIDER_DIR:-$HOME/.lynn-engine/providers}"
 LYNN_PROVIDER_CONFIG="${LYNN_PROVIDER_CONFIG:-$LYNN_PROVIDER_DIR/$ARTIFACT_ID.json}"
 
@@ -114,8 +114,8 @@ Options:
 
 Environment overrides:
   DL_BASE_URL           Lynn CDN base URL.
-  HF_REPO_Q4KM          Hugging Face repo id (default: nerkyor/Qwen3.5-9B-GGUF-imatrix).
-  MS_REPO_Q4KM          ModelScope repo id (default: Merkyor/Qwen3.5-9B-GGUF-imatrix).
+  HF_REPO_Q4KM          Hugging Face repo id (default: nerkyor/Qwen3.5-9B-GGUF-imatrix-MTP).
+  MS_REPO_Q4KM          ModelScope repo id (default: Merkyor/Qwen3.5-9B-GGUF-imatrix-MTP).
   Q4KM_FILE             GGUF file name.
   Q4KM_VARIANT          imatrix or default.
   LYNN_PROVIDER_DIR     Provider config directory.

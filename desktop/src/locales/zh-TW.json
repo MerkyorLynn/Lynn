@@ -1229,8 +1229,8 @@
     },
     "localModel": {
       "title": "下载 Lynn 默认本地模型",
-      "subtitle": "Lynn 預設模型 Qwen3.5-9B Q4_K_M imatrix MTP · 5.38GB · 32K 上下文 · 24GB+ 顯存推薦。\n完全離線，不需要任何 API Key，不上傳任何對話。",
-      "specsLine": "5.38 GB · Q4_K_M imatrix MTP · 32K 上下文 · 完全離線",
+      "subtitle": "Lynn 預設模型 Qwen3.5-9B Q4_K_M imatrix MTP · 5.78GB / 5.38GiB · 32K 上下文 · 24GB+ 顯存推薦。\n完全離線，不需要任何 API Key，不上傳任何對話。",
+      "specsLine": "5.78GB / 5.38GiB · Q4_K_M imatrix MTP · 32K 上下文 · 完全離線",
       "needsBinary": "缺少 llama.cpp 推理引擎，请先安装：~/.lynn/llamacpp/bin/llama-server",
       "needsBinaryHint": "请按文档安装 llama.cpp 后重试。",
       "alreadyHave": "本地模型已就绪",

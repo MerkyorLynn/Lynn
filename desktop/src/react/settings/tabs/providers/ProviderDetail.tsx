@@ -51,14 +51,14 @@ const LOCAL_QWEN35_4B_DOWNGRADE: LocalUpgradeOption = {
 };
 
 const LOCAL_QWEN36_35B_UPGRADE: LocalUpgradeOption = {
-  id: 'qwen36-35b-a3b-q4km-imatrix',
-  label: 'Qwen3.6-35B-A3B Q4_K_M imatrix',
-  profile: '24GB 显存/统一内存+ 推荐 · 综合最优',
-  metrics: ['thinking-on 32K', 'MMLU Q4_K_M 90.40% (500)', 'GPQA Diamond Q4_K_M 80.70%', 'R6000 参考 207 tok/s', '21 GB · imatrix 校准'],
-  reason: '高端质量档；24G 机器即可加载,thinking-on 32K 长上下文场景质量最佳。',
-  modelscope_url: 'https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-GGUF-imatrix',
+  id: 'qwen36-35b-a3b-apex-mtp',
+  label: 'Qwen3.6-35B-A3B APEX-MTP I-Balanced',
+  profile: '32GB 显存/统一内存+ 推荐 · thinking-on 长链最快',
+  metrics: ['DGX Spark thinking-on 75-85 TPS', 'DGX Spark 数学 84.69 TPS', 'DGX Spark 归纳证明 75.53 TPS', 'APEX I-Balanced', '24.27 GiB · MTP head'],
+  reason: '高端质量档；APEX-MTP 保留官方 MTP head，thinking-on 长链路比 no-MTP 基线提升约 20-30%。',
+  modelscope_url: 'https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-APEX-MTP-GGUF',
   download_label: '下载到本机',
-  file_name: 'Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf',
+  file_name: 'Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf',
 };
 
 function normalizeLocalUpgradeOptions(options: LocalUpgradeOption[] = [], memoryGib?: number | null) {
@@ -397,7 +397,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
     const warning = hardwareWarnings.length ? `\n\n注意：${hardwareWarnings.join(' ')}` : '';
     const setupText = hasModel && hasRuntime
       ? 'Lynn 将启动本地 Qwen3.5-9B MTP 模型服务，并切换为本地模型。'
-      : 'Lynn 将在本机安装或定位 llama.cpp，下载 Qwen3.5-9B Q4_K_M imatrix MTP，并启动本地模型服务。\n\n模型约 5.38GB，thinking-on 和工具调用稳定性强于 4B。完成后可离线使用，不需要 API Key，不上传对话。';
+      : 'Lynn 将在本机安装或定位 llama.cpp，下载 Qwen3.5-9B Q4_K_M imatrix MTP，并启动本地模型服务。\n\n模型约 5.78GB / 5.38GiB；新版 MTP 在 DGX Spark 单流从 36.61 提升到 60.95 TPS，thinking-on 和工具调用稳定性强于 4B。完成后可离线使用，不需要 API Key，不上传对话。';
     const ok = window.confirm(`${setupText}${profile}${warning}\n\n继续吗？`);
     if (!ok) return;
     if (platform?.llamacppStartDownload) {
@@ -536,7 +536,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
   };
 
   const startRecommendedDownload = async (option: LocalUpgradeOption) => {
-    const modelId = option.id || 'qwen36-35b-a3b-q4km-imatrix';
+    const modelId = option.id || 'qwen36-35b-a3b-apex-mtp';
     if (!platform?.llamacppStartDownload) {
       setActionStatus({ kind: 'error', text: '当前运行环境不支持本地模型下载。请使用桌面客户端。' });
       return;
@@ -639,7 +639,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
           <div className={styles['pv-local-qwen-kicker']}>默认本地 Qwen3.5-9B MTP，Lynn imatrix 校准 · 24GB 显存/统一内存推荐</div>
           <div className={styles['pv-local-qwen-title']}>Qwen3.5-9B Q4_K_M imatrix MTP</div>
           <div className={styles['pv-local-qwen-desc']}>
-            5.38GB · 32K 上下文 · MTP 加速 · Q4_K_M imatrix 校准 · thinking-on 稳定性优先。
+            5.78GB / 5.38GiB · 32K 上下文 · DGX Spark MTP 单流 36.61→60.95 TPS · Q4_K_M imatrix 校准 · thinking-on 稳定性优先。
             Lynn 会在用户授权后自动准备 llama.cpp、模型文件和本地 OpenAI 端点；完成后可离线使用，
             不需要 API Key，不上传对话。低配设备可在模型页手动选择 4B 降级档；Lynn 会提示 thinking-on 风险。
           </div>
@@ -664,7 +664,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
       </div>
 
       <div className={styles['pv-local-qwen-benefits']}>
-        <span>5.38GB</span>
+        <span>5.78GB / 5.38GiB</span>
         <span>32K 上下文</span>
         <span>MTP 加速</span>
         <span>Lynn imatrix 校准</span>
@@ -736,7 +736,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
         <div className={styles['pv-local-qwen-upgrade']}>
           <div className={styles['pv-local-qwen-hardware-title']}>可选本地模型</div>
           {upgradeOptions.map((option) => {
-            const optionId = option.id || 'qwen36-35b-a3b-q4km-imatrix';
+            const optionId = option.id || 'qwen36-35b-a3b-apex-mtp';
             const download = llamaState.download;
             const isThisDownload = download.modelId === optionId
               || (!!option.file_name && download.fileName === option.file_name);
@@ -749,7 +749,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
             return (
               <div key={option.id || option.label} className={styles['pv-local-qwen-upgrade-card']}>
                 <div className={styles['pv-local-qwen-upgrade-copy']}>
-                  <strong>{option.label || 'Qwen3.6-35B-A3B Q4_K_M imatrix'}</strong>
+                  <strong>{option.label || 'Qwen3.6-35B-A3B APEX-MTP I-Balanced'}</strong>
                   {option.profile && <em>{option.profile}</em>}
                   {Array.isArray(option.metrics) && option.metrics.length > 0 && (
                     <div className={styles['pv-local-qwen-upgrade-metrics']}>
@@ -912,7 +912,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
                 : hasModel && hasRuntime
                   ? '启动本地模型'
                   : !hasModel
-                    ? '下载 9B 并启动 (5.38 GB)'
+                    ? '下载 9B 并启动 (5.78 GB)'
                     : '授权安装并启用'}
         </button>
         <button className={styles['pv-verify-connection-btn']} onClick={() => loadStatus(false)} disabled={loading}>
