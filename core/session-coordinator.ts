@@ -30,19 +30,13 @@ import {
 import { resolveCompactionSettings } from "./compaction-settings.js";
 import { getUserFacingRoleModelLabel, resolveRoleDefaultModel } from "../shared/assistant-role-models.js";
 import {
-  classifyRouteIntent,
   ROUTE_INTENTS,
 } from "../shared/task-route-intent.js";
 import {
   isNativeToolCallingDisabled,
 } from "../shared/model-tool-capabilities.js";
 import {
-  buildAtInjectionPromptHint,
-  buildRouteAndScenarioHint,
-  buildScenarioHintContext,
-  buildSkillHintContext,
   getSteerPrefix,
-  shouldAttachSkillHint,
   toSessionPromptOptions,
 } from "./session-context-hints.js";
 import {
@@ -93,6 +87,10 @@ import {
   resolveIsolatedExecutionModel,
 } from "./session-isolated-runtime.js";
 import { createSessionResourceLoader } from "./session-resource-loader.js";
+import {
+  clearSessionTurnContext,
+  prepareSessionTurnContext,
+} from "./session-turn-context.js";
 import type { ResolvedModel } from "./types.js";
 
 export { PATROL_TOOLS_DEFAULT } from "./session-isolated-runtime.js";
@@ -514,34 +512,16 @@ export class SessionCoordinator {
     if (sp) {
       const entry = this._sessions.get(sp);
       if (entry) {
-        try {
-          const cwd = this._session?.sessionManager?.getCwd?.() || "";
-          const recallCtx = await agent.recallForMessage(text, cwd);
-          entry._lastRecallContext = recallCtx || "";
-        } catch {
-          entry._lastRecallContext = "";
-        }
-        entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
-        entry._routeIntentHintContext = buildRouteAndScenarioHint(
+        await prepareSessionTurnContext({
+          entry,
           text,
-          entry._routeIntentValue,
-          { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
-        );
-        entry._scenarioContractHintContext = buildScenarioHintContext(
-          text,
-          { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
-        );
-        try {
-          const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
-          entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
-            ? buildSkillHintContext(suggestions)
-            : "";
-        } catch {
-          entry._lastSkillHintContext = "";
-        }
-        entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
-        entry._turnInstructionHintContext = String(opts?.turnInstruction || "").trim();
-        await this._maybeRouteAroundBrokenToolModel(entry, entry._routeIntentValue, agent, sp);
+          agent,
+          imagesCount: opts?.images?.length || 0,
+          turnInstruction: opts?.turnInstruction,
+          locale: getLocale(),
+          getSkills: () => this._d.getSkills?.(),
+          routeAroundBrokenToolModel: (routeIntent) => this._maybeRouteAroundBrokenToolModel(entry, routeIntent, agent, sp),
+        });
       }
     }
 
@@ -584,15 +564,7 @@ export class SessionCoordinator {
     } finally {
       if (sp) {
         const entry = this._sessions.get(sp);
-        if (entry) {
-          entry._lastRecallContext = "";
-          entry._lastSkillHintContext = "";
-          entry._atInjectionHintContext = "";
-          entry._turnInstructionHintContext = "";
-          entry._routeIntentHintContext = "";
-          entry._scenarioContractHintContext = "";
-          entry._routeIntentValue = ROUTE_INTENTS.CHAT;
-        }
+        if (entry) clearSessionTurnContext(entry);
       }
     }
   }
@@ -631,34 +603,16 @@ export class SessionCoordinator {
 
     // Phase 1: 主动记忆召回
     const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
-    try {
-      const cwd = entry.session?.sessionManager?.getCwd?.() || "";
-      const recallCtx = await agent.recallForMessage(text, cwd);
-      entry._lastRecallContext = recallCtx || "";
-    } catch {
-      entry._lastRecallContext = "";
-    }
-    entry._routeIntentValue = classifyRouteIntent(text, { imagesCount: opts?.images?.length || 0 });
-    entry._routeIntentHintContext = buildRouteAndScenarioHint(
+    await prepareSessionTurnContext({
+      entry,
       text,
-      entry._routeIntentValue,
-      { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
-    );
-    entry._scenarioContractHintContext = buildScenarioHintContext(
-      text,
-      { locale: getLocale(), imagesCount: opts?.images?.length || 0 },
-    );
-    try {
-      const suggestions = this._d.getSkills?.()?.suggestSkillsForText?.(agent, text, 3) || [];
-      entry._lastSkillHintContext = shouldAttachSkillHint(entry._routeIntentValue)
-        ? buildSkillHintContext(suggestions)
-        : "";
-    } catch {
-      entry._lastSkillHintContext = "";
-    }
-    entry._atInjectionHintContext = buildAtInjectionPromptHint(text);
-    entry._turnInstructionHintContext = String(opts?.turnInstruction || "").trim();
-    await this._maybeRouteAroundBrokenToolModel(entry, entry._routeIntentValue, agent, sessionPath);
+      agent,
+      imagesCount: opts?.images?.length || 0,
+      turnInstruction: opts?.turnInstruction,
+      locale: getLocale(),
+      getSkills: () => this._d.getSkills?.(),
+      routeAroundBrokenToolModel: (routeIntent) => this._maybeRouteAroundBrokenToolModel(entry, routeIntent, agent, sessionPath),
+    });
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
     // 非 vision 模型：静默剥离图片（与 bridge-session-manager 保持一致）
@@ -690,13 +644,7 @@ export class SessionCoordinator {
       }
       agent?._memoryTicker?.notifyTurn(sessionPath);
     } finally {
-      entry._lastRecallContext = "";
-      entry._lastSkillHintContext = "";
-      entry._atInjectionHintContext = "";
-      entry._turnInstructionHintContext = "";
-      entry._routeIntentHintContext = "";
-      entry._scenarioContractHintContext = "";
-      entry._routeIntentValue = ROUTE_INTENTS.CHAT;
+      clearSessionTurnContext(entry);
     }
   }
 
