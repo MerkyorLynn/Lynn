@@ -302,10 +302,71 @@ async function probeMimoMultimodal(kind) {
   }
 }
 
+async function probeCosyVoice() {
+  // Spark CosyVoice 2 (lynn-tts docker, GB10 sm_121) — health + 轻量合成
+  // 文档:http://localhost:18021/v1/audio/speech (sync) + /v1/audio/speech/stream (chunked)
+  const base = (process.env.LYNN_COSYVOICE_URL || 'http://localhost:18021').replace(/\/+$/, '');
+  // 1. health endpoint
+  const healthT0 = Date.now();
+  const healthRes = await timedFetch(base + '/health', { method: 'GET' }, 5_000);
+  if (!healthRes.ok) {
+    return { ok: false, ms: healthRes.ms, reason: `health HTTP ${healthRes.status} ${(healthRes.body || healthRes.error || '').slice(0, 150)}` };
+  }
+  let healthInfo;
+  try {
+    healthInfo = JSON.parse(healthRes.body);
+  } catch {
+    return { ok: false, ms: healthRes.ms, reason: 'health response not JSON' };
+  }
+  if (healthInfo?.status !== 'ok') {
+    return { ok: false, ms: healthRes.ms, reason: `health status not ok: ${JSON.stringify(healthInfo).slice(0, 120)}` };
+  }
+  // 2. 轻量合成("你好" 2 字)— 真正验证 cuBLAS 没挂
+  const synthT0 = Date.now();
+  const synthRes = await timedFetch(base + '/v1/audio/speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: '你好',
+      voice: '中文女',
+      response_format: 'wav',
+    }),
+  }, 15_000);
+  if (!synthRes.ok) {
+    return {
+      ok: false,
+      ms: synthRes.ms,
+      reason: `synth HTTP ${synthRes.status} ${(synthRes.body || synthRes.error || '').slice(0, 200)}`,
+    };
+  }
+  // body 是 binary WAV,长度应该 > 1000B(2 字短 wav 一般 50KB)
+  const wavBytes = synthRes.body?.length || 0;
+  if (wavBytes < 1000) {
+    return {
+      ok: false,
+      ms: synthRes.ms,
+      reason: `synth returned suspiciously small wav (${wavBytes}B)`,
+    };
+  }
+  return {
+    ok: true,
+    ms: synthRes.ms,
+    speakers: (healthInfo.speakers || []).length,
+    bytes: wavBytes,
+    model: healthInfo.model || 'unknown',
+  };
+}
+
 async function probeMimoTTS() {
-  // MiMo TTS: api.xiaomimimo.com (不是 token-plan endpoint!)+ api-key 头
-  // 文档:https://platform.xiaomimimo.com/docs/zh-CN/usage-guide/speech-synthesis-v2.5
-  const ttsBase = process.env.MIMO_TTS_BASE || 'https://api.xiaomimimo.com/v1';
+  // MiMo TTS endpoint 优先级(跟 plugins/tts-bridge/lib/providers/mimo-tts.js 对齐):
+  //   MIMO_TTS_BASE > MIMO_BASE > MIMO_SEARCH_BASE > api.xiaomimimo.com (consumer 兜底)
+  // tp-* token-plan key 在 api.xiaomimimo.com 报 401,必须用 token-plan-cn 端点
+  const ttsBase = (
+    process.env.MIMO_TTS_BASE ||
+    process.env.MIMO_BASE ||
+    process.env.MIMO_SEARCH_BASE ||
+    'https://api.xiaomimimo.com/v1'
+  ).replace(/\/+$/, '');
   const ttsKey = process.env.MIMO_TTS_KEY || process.env.MIMO_SEARCH_KEY || process.env.MIMO_KEY || '';
   if (!ttsKey) {
     return { ok: false, skipped: true, reason: 'MIMO TTS key not configured' };
@@ -318,10 +379,15 @@ async function probeMimoTTS() {
     ],
     audio: { format: 'wav', voice: '冰糖' },
   };
-  const url = ttsBase.replace(/\/+$/, '') + '/chat/completions';
+  const url = ttsBase + '/chat/completions';
   const r = await timedFetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': ttsKey },
+    headers: {
+      'Content-Type': 'application/json',
+      // 同时发 api-key + Authorization Bearer(token-plan endpoint 两个都接,网关 honor 任一)
+      'api-key': ttsKey,
+      Authorization: 'Bearer ' + ttsKey,
+    },
     body: JSON.stringify(body),
   }, 30_000);
 
@@ -431,6 +497,15 @@ function formatReport(rows, brain, mm) {
     if (mm.image) lines.push(fmt('image', mm.image));
     if (mm.audio) lines.push(fmt('audio', mm.audio));
     if (mm.tts) lines.push(fmt('tts', mm.tts));
+    if (mm.cosyvoice) {
+      const r = mm.cosyvoice;
+      const ms = r.ms != null ? r.ms + 'ms' : '--';
+      let st;
+      if (r.skipped) st = `⊝ skip (${r.reason})`;
+      else if (r.ok) st = `✓ OK (${r.bytes}B wav, model=${r.model})`;
+      else st = `✗ ${r.reason}`;
+      lines.push('cosyvoice'.padEnd(16) + ms.padEnd(10) + st);
+    }
   }
   return lines.join('\n');
 }
@@ -455,7 +530,7 @@ async function main() {
   const brain = await brainSmoke();
   process.stderr.write(brain.ok ? `OK ${brain.ms}ms\n` : `FAIL ${brain.error}\n`);
 
-  // MiMo MM probes(image / audio / tts)— --skip-mm 关闭
+  // MiMo MM probes(image / audio / tts)+ CosyVoice — --skip-mm 关闭
   let mm = null;
   if (!SKIP_MM) {
     mm = {};
@@ -468,6 +543,9 @@ async function main() {
     process.stderr.write('  testing MiMo TTS probe...   ');
     mm.tts = await probeMimoTTS();
     process.stderr.write(mm.tts.ok ? `OK ${mm.tts.ms}ms\n` : mm.tts.skipped ? `skip\n` : `FAIL ${mm.tts.reason}\n`);
+    process.stderr.write('  testing CosyVoice probe...  ');
+    mm.cosyvoice = await probeCosyVoice();
+    process.stderr.write(mm.cosyvoice.ok ? `OK ${mm.cosyvoice.ms}ms (${mm.cosyvoice.bytes}B wav)\n` : `FAIL ${mm.cosyvoice.reason}\n`);
   }
 
   const report = formatReport(rows, brain, mm);

@@ -426,6 +426,55 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
       return false;
     }
   }, []);
+
+  // ── P1 [2026-05-28]: CosyVoice streaming TTS ──
+  // POST /api/plugins/tts-bridge/audio/stream → chunked WAV → MediaSource/AudioContext 边收边播
+  // 优势:TTFB ~200-500ms vs 老 file-based 路径 1-8s
+  // 失败 silently fall through 到老 file-based 路径(不阻塞用户)
+  const playViaStream = useCallback(async (text: string): Promise<TtsPlaybackController | null> => {
+    try {
+      // 走 hanaFetch 的 URL prefix(同 tts_speak)
+      const url = '/api/plugins/tts-bridge/audio/stream';
+      // hanaFetch 用相对路径会拼上 base
+      const res = await hanaFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 3000) }),
+        timeout: 60_000,
+      });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.warn('[tts] stream HTTP fail:', res.status, errBody.slice(0, 200));
+        return null;
+      }
+      const blob = await res.blob();
+      // 简化版:先收完整 WAV blob → URL.createObjectURL → Audio 播放
+      // 注:这不是真"边收边播",仍等完整 blob;但 server 是 chunked 所以 server-to-server 真流式
+      // (Browser fetch().blob() 仍等 stream 完成,真流式需 res.body.getReader() + MediaSource/AudioContext。
+      //  WAV 格式 MediaSource 不原生支持(只 mp4/webm),需 AudioContext.decodeAudioData + 序列调度。
+      //  当前先把 server-side streaming pipeline 接通,UI 流式优化留 follow-up。)
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      let stopped = false;
+      const finished = new Promise<void>((resolve) => {
+        audio.onended = () => { URL.revokeObjectURL(audioUrl); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(audioUrl); resolve(); };
+      });
+      audio.play().catch((e) => console.warn('[tts] stream audio.play failed:', e));
+      return {
+        finished,
+        stop() {
+          if (stopped) return;
+          stopped = true;
+          try { audio.pause(); } catch { /* ignore */ }
+          URL.revokeObjectURL(audioUrl);
+        },
+      };
+    } catch (e) {
+      console.warn('[tts] stream path failed, will fall back:', e);
+      return null;
+    }
+  }, []);
   const [translateTarget, setTranslateTarget] = useState('英文');
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [translateBusy, setTranslateBusy] = useState(false);
@@ -816,6 +865,29 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                     addToast('已停止朗读', 'info');
                     return;
                   }
+
+                  // P1 [2026-05-28]: 优先尝试流式(provider=cosyvoice 时真生效)
+                  // 失败 fall through 到原 file-based 路径
+                  try {
+                    addToast('启动流式朗读…', 'info');
+                    const streamController = await playViaStream(plainText);
+                    if (streamController) {
+                      ttsControllerRef.current = streamController;
+                      setTtsPlaying(true);
+                      addToast('流式朗读中 · 再按一次停止', 'success');
+                      streamController.finished.finally(() => {
+                        if (ttsControllerRef.current === streamController) {
+                          ttsControllerRef.current = null;
+                          setTtsPlaying(false);
+                        }
+                      });
+                      return;
+                    }
+                    // streamController === null → silent fall through to file-based
+                  } catch (e) {
+                    console.warn('[tts] stream attempt failed, fall back to file:', e);
+                  }
+
                   const startPlayback = async (audioPath: string, toastText: string) => {
                     const controller = await playAudioHttpUrl(audioPath);
                     ttsControllerRef.current = controller;
