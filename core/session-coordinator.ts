@@ -6,7 +6,6 @@
  * 不持有 engine 引用，通过构造器注入依赖。
  */
 import fs from "fs";
-import path from "path";
 import {
   createAgentSession,
   SessionManager,
@@ -91,6 +90,7 @@ import {
   clearSessionTurnContext,
   prepareSessionTurnContext,
 } from "./session-turn-context.js";
+import { readSessionSwitchMeta } from "./session-switch-meta.js";
 import type { ResolvedModel } from "./types.js";
 
 export { PATROL_TOOLS_DEFAULT } from "./session-isolated-runtime.js";
@@ -435,25 +435,11 @@ export class SessionCoordinator {
     }
 
     // 从 session-meta.json 恢复记忆开关 & 模型
-    let memoryEnabled = true;
-    let savedModelRef: { id: string; provider?: string } | null = null;  // {id, provider} or null
-    try {
-      const metaPath = path.join(this._d.getAgent().sessionDir, "session-meta.json");
-      const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
-      const sessKey = path.basename(sessionPath);
-      const metaEntry = meta[sessKey];
-      if (metaEntry?.memoryEnabled === false) memoryEnabled = false;
-      // 读取新格式 model:{id,provider} 或旧格式 modelId
-      if (metaEntry?.model && typeof metaEntry.model === "object") {
-        savedModelRef = metaEntry.model;
-      } else if (metaEntry?.modelId) {
-        savedModelRef = { id: metaEntry.modelId, provider: "" };
-      }
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        log.warn(`session-meta.json 读取失败: ${errMessage(err)}`);
-      }
-    }
+    const { memoryEnabled, savedModelRef } = readSessionSwitchMeta({
+      sessionPath,
+      sessionDir: this._d.getAgent().sessionDir,
+      onReadError: (err) => log.warn(`session-meta.json 读取失败: ${errMessage(err)}`),
+    });
 
     // 如果已在 map 中，切指针
     const existing = this._sessions.get(sessionPath);
