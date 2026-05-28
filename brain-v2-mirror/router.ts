@@ -10,6 +10,12 @@ import { getAdapter } from './wire-adapter/index.js';
 import { isServerTool, executeServerTool, mergeWithServerTools } from './tool-exec/index.js';
 import { applySearchContext, createSearchRequestCache, type SearchRequestCache } from './search-context.js';
 import { applyAudioTranscribe, createAudioRequestCache, type AudioRequestCache } from './audio-transcribe.js';
+import {
+  buildToolStormReflection,
+  createToolStormState,
+  observeToolCallStorm,
+  readToolStormConfigFromEnv,
+} from './tool-storm.js';
 import { errorMessage, type ChatMessage, type FallbackEntry, type Provider, type ProviderCapability, type ProviderId, type RouterRunOptions, type RouterRunResult, type ToolCall } from './types.js';
 
 type CapabilityRequired = Partial<Pick<ProviderCapability, 'vision' | 'audio' | 'video'>>;
@@ -260,6 +266,8 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
   const maxIter = MAX_ITERATIONS > 0 ? MAX_ITERATIONS : Infinity;
   const requestCache = createSearchRequestCache();
   const audioCache = createAudioRequestCache() as AudioRequestCache;
+  const toolStormConfig = readToolStormConfigFromEnv();
+  const toolStormState = createToolStormState();
 
   while (iter < maxIter) {
     iter++;
@@ -299,6 +307,36 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
       tool_calls: result.toolCalls,
     });
     for (const tc of serverCalls) {
+      const stormVerdict = observeToolCallStorm(toolStormState, tc, toolStormConfig);
+      if (stormVerdict.storm) {
+        log && log('warn', `tool storm suppressed: ${stormVerdict.toolName} repeat=${stormVerdict.seen} storms=${stormVerdict.stormCount}/${toolStormConfig.maxStorms}`);
+        await onChunk(
+          { type: 'tool_progress', event: 'start', name: tc.function.name },
+          { providerId: lastProviderId }
+        );
+        await onChunk(
+          { type: 'tool_progress', event: 'end', name: tc.function.name, ms: 0, ok: false },
+          { providerId: lastProviderId }
+        );
+        workingMessages.push({
+          role: 'tool',
+          tool_call_id: tc.id || ('tc-' + Math.random().toString(36).slice(2)),
+          content: buildToolStormReflection(stormVerdict),
+        });
+        if (stormVerdict.maxStormsReached) {
+          await onChunk(
+            { type: 'error', error: 'tool_storm_limit', tool: stormVerdict.toolName, storms: stormVerdict.stormCount },
+            { providerId: lastProviderId }
+          );
+          return {
+            ok: false,
+            providerId: lastProviderId,
+            iterations: iter,
+            error: 'tool_storm_limit',
+          };
+        }
+        continue;
+      }
       const t0 = Date.now();
       // 工具进度通过自定义 chunk type 表达,不污染 content stream (F5 fix)
       // Lynn UI 消费 type=tool_progress;非 Lynn 客户端 ignored。

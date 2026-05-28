@@ -50,6 +50,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.BRAIN_V2_PRE_SEARCH;
   delete process.env.MIMO_SEARCH_KEY;
+  delete process.env.BRAIN_V2_STORM_DETECT;
+  delete process.env.BRAIN_V2_STORM_THRESHOLD;
+  delete process.env.BRAIN_V2_STORM_MAX;
 });
 
 describe('Router', () => {
@@ -223,6 +226,45 @@ describe('Router', () => {
     expect(adapterMessages[0].role).toBe('system');
     expect(String(adapterMessages[0].content)).toContain('【实时信息上下文】');
     expect(adapterMessages[1].role).toBe('user');
+  });
+
+  it('suppresses repeated server tool calls when storm detection is enabled', async () => {
+    process.env.BRAIN_V2_STORM_DETECT = '1';
+    process.env.BRAIN_V2_STORM_THRESHOLD = '2';
+    process.env.BRAIN_V2_STORM_MAX = '3';
+    let adapterRuns = 0;
+    mockState.adapterFn = async function* () {
+      adapterRuns += 1;
+      yield {
+        type: 'tool_call_delta',
+        delta: [{
+          index: 0,
+          id: `tc-${adapterRuns}`,
+          type: 'function',
+          function: { name: 'unit_convert', arguments: '{"query":"100公里"}' },
+        }],
+      };
+      yield { type: 'finish', reason: 'tool_calls' };
+    };
+
+    const chunks = [];
+    const result = await run({
+      messages: [{ role: 'user', content: '重复换算测试' }],
+      onChunk: async (chunk) => chunks.push(chunk),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: 'tool_storm_limit',
+      providerId: 'p-mimo',
+      iterations: 4,
+    });
+    expect(adapterRuns).toBe(4);
+    expect(chunks.filter(c => c.type === 'error')).toEqual([
+      expect.objectContaining({ error: 'tool_storm_limit', tool: 'unit_convert', storms: 3 }),
+    ]);
+    expect(chunks.filter(c => c.type === 'tool_progress' && c.event === 'end').map(c => c.ok))
+      .toEqual([true, false, false, false]);
   });
 });
 
