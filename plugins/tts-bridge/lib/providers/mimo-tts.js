@@ -209,5 +209,16 @@ export function createMiMoTTSProvider(config = {}) {
   };
 }
 
+// ── P1 [2026-05-28] streaming scaffold(TODO 实现) ──────────────
+// MiMo TTS 文档明示"低延迟流式输出功能暂未上线",所以 streamSynthesize 暂时仍走非流式。
+// 等 MiMo 上线流式后,此处改为消费 SSE chunks(每 chunk 在 delta.audio.data base64),
+// 调用方用 MediaSource API 拼接播放,TTFB 可降到 200-500ms。
+// 当前实现 = synthesize 包装,不真流式。
+export async function streamSynthesize(opts) {
+  // Placeholder:wait for MiMo 流式上线,接 stream: true + SSE chunk delta.audio.data
+  // 现在仍调 synthesize() 拿全部 audio 后一次返回,只是接口签名先占好
+  throw new Error("MiMo TTS streaming not yet available (vendor doc 2026-05-27: 低延迟流式输出功能暂未上线)");
+}
+
 // for tests
-export const __testing__ = { speedToInstruction, DEFAULT_PRESET_VOICES };
+export const __testing__ = { speedToInstruction, DEFAULT_PRESET_VOICES, loadCloneAudioFromPath };

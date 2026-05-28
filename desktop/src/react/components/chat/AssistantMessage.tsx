@@ -377,6 +377,55 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   }, []);
   // 卸载时清理:防止用户切换/删除消息时音频还在跑
   useEffect(() => () => stopTtsPlayback(), [stopTtsPlayback]);
+
+  // ── P0 [2026-05-28]: TTS pre-synth on streaming end ──────────────
+  // streaming 结束时,如果用户开了 lynn-tts-auto-prefetch + 内容 > 50 字,后台
+  // fire-and-forget 调 tts_speak 把音频烤进 plugin cache。用户点喇叭时大概率
+  // 直接缓存命中,即时播放(0 等待)。短内容(<50字)不触发避免烧 quota。
+  const prefetchFiredRef = useRef(false);
+  useEffect(() => {
+    if (isStreamMsg) return;                          // 还在 streaming,等
+    if (prefetchFiredRef.current) return;             // 已 fire 过(防重)
+    if (!plainText || plainText.length < 50) return;  // 太短,不值得 prefetch
+    let enabled = false;
+    try { enabled = localStorage.getItem('lynn-tts-auto-prefetch') === '1'; } catch { /* localStorage may be unavailable */ }
+    if (!enabled) return;
+    prefetchFiredRef.current = true;
+    // Fire-and-forget,失败也不影响用户体验
+    hanaFetch('/api/tools/tts-bridge.tts_speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: plainText.slice(0, 3000),
+        filename: `msg_${message.id?.slice(-8) || Date.now()}`,
+      }),
+      timeout: 60_000,
+    })
+      .then(res => res.json())
+      .then(data => {
+        const audioPath = data?.details?.path || data?.result?.details?.path;
+        if (audioPath) setTtsAudioPath(audioPath);  // 预设 path 让用户点喇叭直接走 startPlayback 分支
+      })
+      .catch(() => { /* silent */ });
+  }, [isStreamMsg, plainText, message.id]);
+
+  // ── P2 [2026-05-28]: Browser SpeechSynthesis instant fallback ──
+  // Shift+click 喇叭 → 浏览器原生 TTS,TTFB <50ms,完全本地。音色弱但 draft 朗读 OK
+  const speakViaBrowser = useCallback((text: string) => {
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      // 中文 / 英文 自动选择
+      const isZh = /[一-鿿]/.test(text.slice(0, 100));
+      u.lang = isZh ? 'zh-CN' : 'en-US';
+      u.rate = 1.0;
+      window.speechSynthesis.cancel();  // 清掉前一个
+      window.speechSynthesis.speak(u);
+      return true;
+    } catch (e) {
+      console.warn('[tts] browser SpeechSynthesis failed:', e);
+      return false;
+    }
+  }, []);
   const [translateTarget, setTranslateTarget] = useState('英文');
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [translateBusy, setTranslateBusy] = useState(false);
@@ -748,7 +797,19 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
               </button>
               <button
                 className={styles.msgCopyBtn}
-                onClick={async () => {
+                onClick={async (e) => {
+                  // P2 [2026-05-28]: Shift+click → 浏览器原生 SpeechSynthesis(TTFB <50ms,本地)
+                  if (e.shiftKey) {
+                    if (window.speechSynthesis.speaking) {
+                      window.speechSynthesis.cancel();
+                      addToast('已停止浏览器朗读', 'info');
+                      return;
+                    }
+                    const ok = speakViaBrowser(plainText.slice(0, 3000));
+                    if (ok) addToast('浏览器朗读中(Shift+点击停止)', 'info');
+                    else addToast('浏览器 TTS 不可用', 'error');
+                    return;
+                  }
                   // [TTS-STOPPABLE v1 · 2026-05-02] toggle:正在朗读 → 立即停;否则启动播放
                   if (ttsPlaying) {
                     stopTtsPlayback();
@@ -804,7 +865,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
                     addToast(String(err), 'error');
                   }
                 }}
-                title={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读（右键打开音色设置）')}
+                title={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读 · Shift+点击=即时浏览器朗读 · 右键音色设置')}
                 aria-label={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读')}
                 aria-pressed={ttsPlaying}
                 onContextMenu={(e) => {

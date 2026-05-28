@@ -73,6 +73,7 @@ const SUITES = (arg('suite') ? String(arg('suite')).split(',').map(s => s.trim()
 const CONCURRENCY = Number(arg('concurrency', '4'));
 const MAX_TOKENS = Number(arg('max-tokens', '32768'));
 const THINKING = arg('thinking', 'enabled');  // enabled | disabled
+const PER_Q_TIMEOUT_MS = Number(arg('timeout-ms', '300000'));  // 单题 timeout,默认 300s(thinking-on 难题撞墙保护)
 const RESUME = flag('resume');
 const DRY_RUN = flag('dry-run');
 const DATA_DIR = arg('data-dir', 'tests/benchmarks/v9-comprehensive/data');
@@ -80,17 +81,26 @@ const MMLU_PATH = arg('mmlu-path', '');
 const GPQA_PATH = arg('gpqa-path', '');
 const HUMANEVAL_PATH = arg('humaneval-path', '');
 
-// Endpoint 优先级:MIMO_PRO_BASE → MIMO_BASE → MIMO_SEARCH_BASE → 公网 api.xiaomimimo.com
-// 注意:token-plan-cn.xiaomimimo.com 走 tp-* key;api.xiaomimimo.com 走 sk-* key。
-// 用户的 ~/.lynn/brain.env 通常配 MIMO_BASE=token-plan-cn... + MIMO_KEY=tp-...
-const BASE = (
-  process.env.MIMO_PRO_BASE ||
-  process.env.MIMO_BASE ||
-  process.env.MIMO_SEARCH_BASE ||
-  'https://api.xiaomimimo.com/v1'
-).replace(/\/+$/, '');
-const KEY = process.env.MIMO_PRO_KEY || process.env.MIMO_KEY || process.env.MIMO_SEARCH_KEY || '';
-const MODEL = process.env.MIMO_PRO_MODEL || process.env.MIMO_MODEL || 'mimo-v2.5-pro';
+// ── Provider 路由(--provider mimo | deepseek)──────────────────
+const PROVIDER = arg('provider', 'mimo');  // mimo (默认) | deepseek
+
+let BASE, KEY, MODEL;
+if (PROVIDER === 'deepseek') {
+  BASE = (process.env.DEEPSEEK_BASE || 'https://api.deepseek.com/v1').replace(/\/+$/, '');
+  KEY = process.env.DEEPSEEK_KEY || '';
+  MODEL = arg('model') || process.env.DEEPSEEK_MODEL_OVERRIDE || 'deepseek-v4-flash';
+} else {
+  // mimo:Endpoint 优先级 MIMO_PRO_BASE → MIMO_BASE → MIMO_SEARCH_BASE
+  // 注意:token-plan-cn.xiaomimimo.com 走 tp-* key;api.xiaomimimo.com 走 sk-* key
+  BASE = (
+    process.env.MIMO_PRO_BASE ||
+    process.env.MIMO_BASE ||
+    process.env.MIMO_SEARCH_BASE ||
+    'https://api.xiaomimimo.com/v1'
+  ).replace(/\/+$/, '');
+  KEY = process.env.MIMO_PRO_KEY || process.env.MIMO_KEY || process.env.MIMO_SEARCH_KEY || '';
+  MODEL = arg('model') || process.env.MIMO_PRO_MODEL || process.env.MIMO_MODEL || 'mimo-v2.5-pro';
+}
 
 // ── output prep ────────────────────────────────────────────────
 fs.mkdirSync(OUT, { recursive: true });
@@ -101,36 +111,46 @@ function log(...parts) {
   LOG.write(line + '\n');
 }
 
-// ── MiMo client ────────────────────────────────────────────────
-async function callMimo(prompt, { signal, timeout = 180_000 } = {}) {
-  if (!KEY) throw new Error('MIMO_PRO_KEY missing');
+// ── Provider client(支持 mimo / deepseek)──────────────────────
+function buildRequestBody(prompt) {
+  const base = {
+    model: MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.0,
+    stream: false,
+  };
+  if (PROVIDER === 'deepseek') {
+    // DeepSeek v4-flash/pro:thinking 默认开,reasoning_content 自动返回
+    // 不识别 enable_search / thinking field,加了会被忽略或 400
+    return { ...base, max_tokens: MAX_TOKENS };
+  }
+  // mimo
+  return {
+    ...base,
+    max_completion_tokens: MAX_TOKENS,
+    thinking: { type: THINKING },      // enabled / disabled
+    enable_search: false,              // eval 关搜索
+  };
+}
+
+async function callMimoOnce(prompt, { signal, timeout = PER_Q_TIMEOUT_MS } = {}) {
   const t0 = Date.now();
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(new Error('timeout')), timeout);
   if (signal) signal.addEventListener('abort', () => ctrl.abort(signal.reason));
-
   try {
     const res = await fetch(`${BASE}/chat/completions`, {
       method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + KEY,  // MiMo chat 走 Bearer(沿用 wire-adapter/mimo.ts)
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        max_completion_tokens: MAX_TOKENS,
-        temperature: 0.0,                // eval 用 greedy(deterministic)
-        stream: false,
-        thinking: { type: THINKING },    // 文档:enabled / disabled
-        enable_search: false,            // eval 关搜索(避免外部干扰)
-      }),
+      headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildRequestBody(prompt)),
       signal: ctrl.signal,
     });
     clearTimeout(t);
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${txt.slice(0, 300)}`);
+      const err = new Error(`HTTP ${res.status} ${txt.slice(0, 300)}`);
+      err.retryable = res.status >= 500 || res.status === 429 || res.status === 408;
+      throw err;
     }
     const data = await res.json();
     const msg = data?.choices?.[0]?.message || {};
@@ -143,6 +163,31 @@ async function callMimo(prompt, { signal, timeout = 180_000 } = {}) {
   } finally {
     clearTimeout(t);
   }
+}
+
+async function callMimo(prompt, { signal, timeout = PER_Q_TIMEOUT_MS, maxRetries = 3 } = {}) {
+  if (!KEY) throw new Error(`${PROVIDER.toUpperCase()}_KEY missing`);
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await callMimoOnce(prompt, { signal, timeout });
+    } catch (e) {
+      lastErr = e;
+      const msg = (e?.message || String(e)).toLowerCase();
+      // 可重试:fetch failed(网络/DNS/连接重置)/ 5xx / 429 / 超时
+      const retryable = e.retryable
+        || msg.includes('fetch failed')
+        || msg.includes('econnreset')
+        || msg.includes('etimedout')
+        || msg.includes('socket')
+        || msg.includes('network');
+      if (!retryable || attempt === maxRetries) throw e;
+      // exp backoff with jitter: 2s, 4s, 8s
+      const delay = (2 ** attempt) * 2000 + Math.random() * 1000;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
 }
 
 // ── suite registry ─────────────────────────────────────────────
@@ -162,15 +207,17 @@ const SUITE_DEFS = {
     files: HUMANEVAL_PATH ? [HUMANEVAL_PATH] : ['humaneval3.json'],
     promptOf: (q) => `Complete the following Python function. Write only the full function body in a single \`\`\`python\`\`\` code block.\n\n${q.problem}`,
     grade: (q, r) => {
-      // 提取 ```python``` 代码块
+      // 提取 ```python``` 代码块(可能有多个,取第一个)
       const m = r.content.match(/```python\n?([\s\S]*?)```/);
       const code = m ? m[1] : r.content;
-      // 在 sandbox 执行 prompt + 模型答案 + 测试(简化:用 Python subprocess 更稳妥,
-      // 但 worktree 没保证 python 环境;这里只做静态格式判:有 def + entry_point 名)
       const hasDef = code.includes(`def ${q.entry_point}`);
-      // 真实执行留给 user 用 Python harness,这里只做结构 sanity
-      // 完整 eval 用 evalplus harness,见 README
-      return { pred: code.slice(0, 200), correct: hasDef && code.length > 50, note: 'static sanity only — use evalplus for true eval' };
+      // 完整代码保留在 fullCode 字段(给 evalplus 转换用)
+      return {
+        pred: code.slice(0, 200),
+        correct: hasDef && code.length > 50,
+        note: 'static sanity only — use evalplus for true eval',
+        fullCode: code,  // 完整提取的代码,给 evalplus
+      };
     },
   },
   aime: {
@@ -285,11 +332,28 @@ async function runSuite(name) {
   const outFile = path.join(OUT, `${name}.jsonl`);
   let done = new Set();
   if (RESUME && fs.existsSync(outFile)) {
+    // 只有成功 entry 算 done(有 error 字段的不算,下次会重试)
+    const filteredLines = [];
+    let errorCount = 0;
     for (const line of fs.readFileSync(outFile, 'utf8').split('\n')) {
       if (!line.trim()) continue;
-      try { done.add(JSON.parse(line).qid); } catch { /* ignore */ }
+      try {
+        const d = JSON.parse(line);
+        if (d.error) {
+          errorCount++;
+          continue;  // 不写回 jsonl,不算 done,会被重试
+        }
+        done.add(d.qid);
+        filteredLines.push(line);
+      } catch { /* ignore */ }
     }
-    log(`  resuming: ${done.size} already done`);
+    if (errorCount > 0) {
+      // 重写 jsonl 删掉 error entries,下面 append 模式追加新结果
+      fs.writeFileSync(outFile, filteredLines.length ? filteredLines.join('\n') + '\n' : '');
+      log(`  resuming: ${done.size} successful, ${errorCount} errors purged for retry`);
+    } else {
+      log(`  resuming: ${done.size} already done (no errors)`);
+    }
   }
   const sink = fs.createWriteStream(outFile, { flags: 'a' });
 
@@ -314,11 +378,18 @@ async function runSuite(name) {
         latencies.push(r.ms);
         total++;
         if (judged.correct) correct++;
+        // HumanEval 保留完整 content(给 evalplus 转换);其他 suite 仍 excerpt
+        const isCode = name === 'humaneval';
         sink.write(JSON.stringify({
           qid: q.qid, subset: q.subset, prompt_excerpt: prompt.slice(0, 200),
-          response_excerpt: r.content.slice(0, 400), reasoning_excerpt: r.reasoning.slice(0, 200),
+          response: isCode ? r.content : undefined,
+          response_excerpt: isCode ? undefined : r.content.slice(0, 400),
+          reasoning_excerpt: r.reasoning.slice(0, 200),
           pred: judged.pred, answer: q.answer, correct: judged.correct,
           note: judged.note, ms: r.ms, usage: r.usage,
+          fullCode: isCode ? judged.fullCode : undefined,
+          entry_point: isCode ? q.entry_point : undefined,
+          task_id: isCode ? q.task_id : undefined,
         }) + '\n');
         if (total % 5 === 0 || total === questions.length - done.size) {
           log(`  [${name}] ${total}/${todo.length} progress, acc=${(correct / total * 100).toFixed(1)}%, avg ${(latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(0)}ms`);

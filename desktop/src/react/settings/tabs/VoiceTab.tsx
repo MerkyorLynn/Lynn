@@ -13,10 +13,23 @@ const ASR_PROVIDERS = [
 ];
 
 const TTS_PROVIDERS = [
-  { value: 'cosyvoice', label: 'CosyVoice (阿里・推荐)' },
-  { value: 'edge', label: 'Edge TTS (免费在线)' },
-  { value: 'say', label: 'macOS say (本地)' },
+  { value: 'edge', label: 'Edge TTS (免费在线・流式低延迟・默认推荐)' },
+  { value: 'cosyvoice', label: 'CosyVoice (阿里 · 本地服务)' },
+  { value: 'mimo', label: 'MiMo V2.5 TTS (preset / 文字定制 / 音色克隆)' },
   { value: 'openai', label: 'OpenAI TTS API (BYOK)' },
+  { value: 'say', label: 'macOS say (本地离线)' },
+];
+
+const MIMO_PRESET_VOICES = [
+  { value: '冰糖', label: '冰糖' },
+  { value: '茉莉', label: '茉莉' },
+  { value: '苏打', label: '苏打' },
+  { value: '白桦', label: '白桦' },
+  { value: 'Mia', label: 'Mia' },
+  { value: 'Chloe', label: 'Chloe' },
+  { value: 'Milo', label: 'Milo' },
+  { value: 'Dean', label: 'Dean' },
+  { value: 'mimo_default', label: 'mimo_default' },
 ];
 
 // CosyVoice SFT 7 个内置 speakers
@@ -71,10 +84,17 @@ export function VoiceTab() {
   const [asrKey, setAsrKey] = useState(voice.asr?.api_key || '');
   const [asrBaseUrl, setAsrBaseUrl] = useState(voice.asr?.base_url || '');
 
-  const [ttsProvider, setTtsProvider] = useState(voice.tts?.provider || 'cosyvoice');
+  const [ttsProvider, setTtsProvider] = useState(voice.tts?.provider || 'edge');
   const [ttsKey, setTtsKey] = useState(voice.tts?.api_key || '');
   const [ttsBaseUrl, setTtsBaseUrl] = useState(voice.tts?.base_url || '');
-  const [ttsVoice, setTtsVoice] = useState(voice.tts?.default_voice || '中文女');
+  const [ttsVoice, setTtsVoice] = useState(voice.tts?.default_voice || 'zh-CN-XiaoxiaoNeural');
+  // P0 [2026-05-28]: 流结束自动预合成,用户点喇叭即时播放(缓存命中)
+  const [ttsAutoPrefetch, setTtsAutoPrefetch] = useState(() => {
+    try { return localStorage.getItem('lynn-tts-auto-prefetch') === '1'; } catch { return false; }
+  });
+  // MiMo voice clone / design
+  const [mimoVoiceClonePath, setMimoVoiceClonePath] = useState<string>(String(voice.tts?.voice_clone_audio_path || ''));
+  const [mimoVoiceDescription, setMimoVoiceDescription] = useState<string>(String(voice.tts?.voice_description || ''));
 
   const [language, setLanguage] = useState(voice.language || 'auto');
   const [shortcutStatus, setShortcutStatus] = useState<ShortcutStatus | null>(null);
@@ -87,10 +107,12 @@ export function VoiceTab() {
     setAsrProvider(v.asr?.provider || 'sensevoice');
     setAsrKey(v.asr?.api_key || '');
     setAsrBaseUrl(v.asr?.base_url || '');
-    setTtsProvider(v.tts?.provider || 'cosyvoice');
+    setTtsProvider(v.tts?.provider || 'edge');
     setTtsKey(v.tts?.api_key || '');
     setTtsBaseUrl(v.tts?.base_url || '');
-    setTtsVoice(v.tts?.default_voice || '中文女');
+    setTtsVoice(v.tts?.default_voice || 'zh-CN-XiaoxiaoNeural');
+    setMimoVoiceClonePath(String(v.tts?.voice_clone_audio_path || ''));
+    setMimoVoiceDescription(String(v.tts?.voice_description || ''));
     setLanguage(v.language || 'auto');
   }, [settingsConfig?.voice]);
 
@@ -110,14 +132,21 @@ export function VoiceTab() {
   }, []);
 
   const needsAsrKey = asrProvider === 'openai' || asrProvider === 'azure';
-  const needsTtsKey = ttsProvider === 'openai';
+  const needsTtsKey = ttsProvider === 'openai' || ttsProvider === 'mimo';
 
   const handleSave = async () => {
     const payload: {
       voice: {
         language: string;
         asr: { provider: string; api_key?: string; base_url?: string };
-        tts: { provider: string; default_voice: string; api_key?: string; base_url?: string };
+        tts: {
+          provider: string;
+          default_voice: string;
+          api_key?: string;
+          base_url?: string;
+          voice_clone_audio_path?: string;
+          voice_description?: string;
+        };
       };
     } = {
       voice: {
@@ -132,6 +161,8 @@ export function VoiceTab() {
           default_voice: ttsVoice,
           ...(needsTtsKey ? { api_key: ttsKey || undefined } : {}),
           ...(ttsBaseUrl ? { base_url: ttsBaseUrl } : {}),
+          ...(ttsProvider === 'mimo' && mimoVoiceClonePath ? { voice_clone_audio_path: mimoVoiceClonePath } : {}),
+          ...(ttsProvider === 'mimo' && mimoVoiceDescription ? { voice_description: mimoVoiceDescription } : {}),
         },
       },
     };
@@ -248,6 +279,12 @@ export function VoiceTab() {
               value={ttsVoice}
               onChange={(v) => setTtsVoice(v)}
             />
+          ) : ttsProvider === 'mimo' ? (
+            <SelectWidget
+              options={MIMO_PRESET_VOICES}
+              value={ttsVoice || '冰糖'}
+              onChange={(v) => setTtsVoice(v)}
+            />
           ) : (
             <input
               className={styles['settings-input']}
@@ -261,10 +298,65 @@ export function VoiceTab() {
             {ttsProvider === 'cosyvoice'
               ? 'CosyVoice 2 部署在 Spark,内置音色:中文女 / 中文男 / 英文女 / 英文男 / 日语男 / 韩语女 / 粤语女(默认推荐)'
               : ttsProvider === 'edge'
-              ? 'Edge TTS 使用 Neural 音色 ID,如 zh-CN-XiaoxiaoNeural'
+              ? 'Edge TTS 使用 Neural 音色 ID,如 zh-CN-XiaoxiaoNeural,流式低延迟'
+              : ttsProvider === 'mimo'
+              ? 'MiMo V2.5 TTS 8 个 preset 音色;若填下面的克隆路径/文字定制会自动切到 voiceclone/voicedesign,覆盖此 preset 选择'
               : ttsProvider === 'openai'
               ? 'OpenAI TTS 使用内置音色 alloy / echo / onyx / nova'
               : '本地 say,音色取决于系统设置'}
+          </span>
+        </div>
+
+        {/* MiMo voice clone / design 专属字段 */}
+        {ttsProvider === 'mimo' && (
+          <>
+            <div className={styles['settings-field']}>
+              <label className={styles['settings-field-label']}>音色克隆音频路径(可选)</label>
+              <input
+                className={styles['settings-input']}
+                type="text"
+                value={mimoVoiceClonePath}
+                onChange={(e) => setMimoVoiceClonePath(e.target.value)}
+                placeholder="/path/to/your_voice.wav  (5-15s wav/mp3, ≤50MB)"
+              />
+              <span className={styles['settings-field-hint']}>
+                填本地音频路径 → 自动走 MiMo voiceclone 模式生成你的专属音色。留空 = 用 preset。
+              </span>
+            </div>
+            <div className={styles['settings-field']}>
+              <label className={styles['settings-field-label']}>音色文字定制(可选)</label>
+              <input
+                className={styles['settings-input']}
+                type="text"
+                value={mimoVoiceDescription}
+                onChange={(e) => setMimoVoiceDescription(e.target.value)}
+                placeholder="年轻男声,温暖,带一点沙哑感"
+              />
+              <span className={styles['settings-field-hint']}>
+                用自然语言描述 → 自动走 voicedesign 模式。注意:克隆路径优先级更高,两个都填时克隆胜。
+              </span>
+            </div>
+          </>
+        )}
+
+        {/* P0: 自动预合成 toggle */}
+        <div className={styles['settings-field']}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={ttsAutoPrefetch}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setTtsAutoPrefetch(v);
+                try { localStorage.setItem('lynn-tts-auto-prefetch', v ? '1' : '0'); } catch { /* localStorage may be unavailable */ }
+              }}
+            />
+            <span>消息流结束后自动预合成语音(点喇叭即时播放)</span>
+          </label>
+          <span className={styles['settings-field-hint']}>
+            开启后:每条 ≥50 字回复在 streaming 结束时后台 TTS 一次,缓存到磁盘。点喇叭命中缓存 0 等待。
+            注意:每条都烧 TTS quota,MiMo/OpenAI 收费 provider 慎开。Edge 免费可开。
+            ⚡ Shift+点击 喇叭 = 浏览器原生即时朗读(本地,&lt;50ms,无 quota)。
           </span>
         </div>
 
