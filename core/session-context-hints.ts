@@ -71,6 +71,14 @@ export function toSessionPromptOptions(images?: PromptImage[]) {
   };
 }
 
+export function stripUnsupportedPromptImagesForModel(opts: { images?: PromptImage[] } | null | undefined, modelOwner: AnyRecord, resolveModelOverrides?: (model: unknown, overrides: unknown) => AnyRecord | null | undefined) {
+  const resolved = resolveModelOverrides?.(modelOwner?.model, modelOwner?.config?.models?.overrides);
+  if (opts?.images?.length && resolved?.vision === false) {
+    opts.images = undefined;
+  }
+  return opts?.images;
+}
+
 function buildSkillToolCompatibilityHint(skillName: string | null | undefined) {
   const isZh = getLocale().startsWith("zh");
   const toolNames = "read, write, edit, bash, grep, find, ls";

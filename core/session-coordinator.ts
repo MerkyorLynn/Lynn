@@ -36,6 +36,7 @@ import {
 } from "../shared/model-tool-capabilities.js";
 import {
   getSteerPrefix,
+  stripUnsupportedPromptImagesForModel,
   toSessionPromptOptions,
 } from "./session-context-hints.js";
 import {
@@ -511,14 +512,10 @@ export class SessionCoordinator {
       }
     }
 
-    // 非 vision 模型：静默剥离图片，只发文字（与 bridge-session-manager 保持一致）
-    const _resolved = this._d.resolveModelOverrides?.(agent.model, agent.config?.models?.overrides);
-    if (opts?.images?.length && _resolved?.vision === false) {
-      opts.images = undefined;
-    }
     // [VISION-ARG-FIX v0.76.6] 当前 session.prompt() 使用 options 形态，
     // 图片需转为 { images: [{ type: "image", source: { type: "base64", mediaType, data } }] }。
-    const _promptOpts = toSessionPromptOptions(opts?.images);
+    // 非 vision 模型：静默剥离图片，只发文字（与 bridge-session-manager 保持一致）
+    const _promptOpts = toSessionPromptOptions(stripUnsupportedPromptImagesForModel(opts, agent, this._d.resolveModelOverrides));
     sanitizeActiveSessionContextForPrompt(this._session, sp);
     const runPromptAttempt = async (attemptText: string) => {
       const activeSession = this._session;
@@ -591,13 +588,9 @@ export class SessionCoordinator {
     });
 
     if (sessionPath === this.currentSessionPath) this._sessionStarted = true;
-    // 非 vision 模型：静默剥离图片（与 bridge-session-manager 保持一致）
-    const _resolvedSub = this._d.resolveModelOverrides?.(agent.model, agent.config?.models?.overrides);
-    if (opts?.images?.length && _resolvedSub?.vision === false) {
-      opts.images = undefined;
-    }
     // [VISION-ARG-FIX v0.76.6] session.prompt() 需要 options.images，且图片块走 source.base64。
-    const _promptOpts = toSessionPromptOptions(opts?.images);
+    // 非 vision 模型：静默剥离图片（与 bridge-session-manager 保持一致）
+    const _promptOpts = toSessionPromptOptions(stripUnsupportedPromptImagesForModel(opts, agent, this._d.resolveModelOverrides));
     sanitizeActiveSessionContextForPrompt(entry.session, sessionPath);
     const runPromptAttempt = async (attemptText: string) => {
       return runPromptWithIntegrity(entry.session, attemptText, _promptOpts, { passOptionsArgument: true });
