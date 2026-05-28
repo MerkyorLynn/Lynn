@@ -6,7 +6,7 @@ import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import styles from './Chat.module.css';
 import { extractToolDetail } from '../../utils/message-parser';
 import { useStore } from '../../stores';
-import type { ToolCall, ToolCallSummary } from '../../stores/chat-types';
+import type { ToolCall, ToolCallSummary, WebSearchSummary, WebSearchSource } from '../../stores/chat-types';
 
 interface Props {
   tools: ToolCall[];
@@ -240,10 +240,111 @@ const ToolOutputPreview = memo(function ToolOutputPreview({ name, summary }: { n
     );
   }
 
-  // web_search / default: plain preview
+  // web_search: rich rendering when brain-proxy returned structured details.
+  // Falls back to plain preview when only outputPreview is available
+  // (e.g. user-configured Tavily/Serper tier, or zero-config Bing/DDG).
+  if (name === 'web_search' && summary.webSearch && (summary.webSearch.summary || (summary.webSearch.sources?.length ?? 0) > 0)) {
+    return <WebSearchSourcesPanel data={summary.webSearch} fallbackPreview={preview} />;
+  }
+
+  // default: plain preview
   return (
     <div className={styles.toolOutputPreview}>
       <div className={styles.toolOutputText}>{preview}</div>
+    </div>
+  );
+});
+
+// ── WebSearchSourcesPanel — synthesized answer + collapsible per-source list ──
+//
+// Rendered for web_search results from the Lynn brain v2 /v1/web-search proxy.
+// Pattern matches ExecutionTraceBlock's native <details>/<summary> style.
+
+const WebSearchSourcesPanel = memo(function WebSearchSourcesPanel({
+  data,
+  fallbackPreview,
+}: {
+  data: WebSearchSummary;
+  fallbackPreview: string;
+}) {
+  const _t = window.t ?? ((p: string, vars?: Record<string, unknown>) => {
+    let s = p;
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+    return s;
+  });
+  const okSources = (data.sources || []).filter((s) => s.ok);
+  const sourceCount = okSources.length;
+  const [open, setOpen] = useState(false);
+  const toggle = useCallback(() => setOpen((v) => !v), []);
+
+  return (
+    <div className={styles.toolOutputPreview} data-style="web-search">
+      {data.summary ? (
+        <div className={styles.webSearchSummary}>{data.summary}</div>
+      ) : fallbackPreview ? (
+        <div className={styles.toolOutputText}>{fallbackPreview}</div>
+      ) : null}
+      {sourceCount > 0 && (
+        <details
+          className={styles.webSearchSources}
+          open={open}
+          onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary
+            className={styles.webSearchSourcesSummary}
+            onClick={(e) => { e.preventDefault(); toggle(); }}
+          >
+            <span className={`${styles.webSearchSourcesArrow}${open ? ` ${styles.webSearchSourcesArrowOpen}` : ''}`}>›</span>
+            <span className={styles.webSearchSourcesLabel}>
+              {_t('error.searchSources', { count: sourceCount })}
+            </span>
+            {data.provider && (
+              <span className={styles.webSearchProvider}>{data.provider}</span>
+            )}
+          </summary>
+          <div className={styles.webSearchSourcesBody}>
+            {okSources.map((source, i) => (
+              <WebSearchSourceItem key={`${source.name}-${i}`} source={source} />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+});
+
+const WebSearchSourceItem = memo(function WebSearchSourceItem({ source }: { source: WebSearchSource }) {
+  return (
+    <div className={styles.webSearchSource}>
+      <div className={styles.webSearchSourceHeader}>
+        <span className={styles.webSearchSourceName}>{source.name}</span>
+        {source.items.length > 0 && (
+          <span className={styles.webSearchSourceCount}>{source.items.length}</span>
+        )}
+      </div>
+      {source.summary && (
+        <div className={styles.webSearchSourceSynth}>{source.summary}</div>
+      )}
+      {source.items.length > 0 && (
+        <ul className={styles.webSearchSourceList}>
+          {source.items.map((item, i) => (
+            <li key={i} className={styles.webSearchSourceItem}>
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.webSearchSourceLink}
+                title={item.url}
+              >
+                {item.title || item.url}
+              </a>
+              {item.snippet && (
+                <div className={styles.webSearchSourceSnippet}>{item.snippet}</div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 });

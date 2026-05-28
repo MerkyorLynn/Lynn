@@ -2075,6 +2075,157 @@
     font-size: 0.72rem;
 }
 
+/* ── web_search synthesized answer + collapsible sources panel ── */
+
+.toolOutputPreview[data-style="web-search"] {
+    font-family: inherit;
+    max-height: 360px;
+}
+
+.webSearchSummary {
+    color: var(--text);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    border-left: 2px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.webSearchSources {
+    margin-top: 4px;
+}
+
+.webSearchSourcesSummary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    transition: background 0.12s ease;
+}
+
+.webSearchSourcesSummary:hover {
+    background: var(--overlay-subtle, rgba(0, 0, 0, 0.04));
+}
+
+.webSearchSourcesSummary::-webkit-details-marker {
+    display: none;
+}
+
+.webSearchSourcesArrow {
+    display: inline-block;
+    font-style: normal;
+    font-size: 0.78rem;
+    color: var(--text-dim, var(--text-muted));
+    transition: transform 0.15s ease;
+}
+
+.webSearchSourcesArrowOpen {
+    transform: rotate(90deg);
+}
+
+.webSearchSourcesLabel {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.webSearchProvider {
+    color: var(--text-dim, var(--text-muted));
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+}
+
+.webSearchSourcesBody {
+    margin-top: 6px;
+    padding: 6px 8px 6px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-left: 2px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+.webSearchSource {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.webSearchSourceHeader {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.webSearchSourceName {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.webSearchSourceCount {
+    color: var(--text-dim, var(--text-muted));
+    font-size: 0.7rem;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--overlay-subtle, rgba(0, 0, 0, 0.04));
+}
+
+.webSearchSourceSynth {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    line-height: 1.5;
+    font-style: italic;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.webSearchSourceList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.webSearchSourceItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.webSearchSourceLink {
+    color: var(--accent);
+    font-size: 0.76rem;
+    text-decoration: none;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.webSearchSourceLink:hover {
+    text-decoration: underline;
+}
+
+.webSearchSourceSnippet {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
 /* ── 文件输出卡片 ── */
 
 .fileOutputCard {

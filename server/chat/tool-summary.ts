@@ -35,6 +35,25 @@ interface ToolExecutionEvent {
   result?: ToolResultLike | null;
 }
 
+/**
+ * Per-source trace returned by Lynn brain v2's /v1/web-search proxy.
+ * Mirror of lib/tools/web-search.ts → SearchSourceTrace, declared here to
+ * avoid pulling agent-SDK types into the server boundary.
+ */
+export interface WebSearchSource {
+  name: string;
+  ok: boolean;
+  error?: string;
+  items: Array<{ title: string; url: string; snippet: string }>;
+  summary?: string;
+}
+
+export interface WebSearchPublicSummary {
+  provider?: string;
+  summary?: string;
+  sources?: WebSearchSource[];
+}
+
 export interface ToolPublicSummary {
   linesAdded?: number;
   linesRemoved?: number;
@@ -46,6 +65,12 @@ export interface ToolPublicSummary {
   truncated?: boolean;
   matchCount?: number;
   lineCount?: number;
+  /**
+   * Populated for `web_search` results when the brain-proxy tier wins. Carries
+   * the LLM-synthesized answer and per-source trace so the UI can render a
+   * collapsible "View sources (N)" panel below the synthesized answer.
+   */
+  webSearch?: WebSearchPublicSummary;
 }
 
 export interface ToolExecutionSummaryResult {
@@ -173,6 +198,52 @@ export function summarizeToolExecution(event: ToolExecutionEvent | null | undefi
   } else if (toolName === "web_search") {
     const text = extractText(event?.result?.content as Parameters<typeof extractText>[0]);
     if (text) summary.outputPreview = text.slice(0, 200);
+    // Surface brain-proxy structured summary + per-source trace when present.
+    // Source: lib/tools/web-search.ts createWebSearchTool.execute() returns
+    //   { content, details: { summary?, sources?, provider, ... } }
+    // We expose only the curated subset the UI needs (sources may be large).
+    const webDetails = (rawDetails as { summary?: unknown; sources?: unknown; provider?: unknown });
+    const webSummary: WebSearchPublicSummary = {};
+    if (typeof webDetails.summary === "string" && webDetails.summary.trim()) {
+      webSummary.summary = webDetails.summary;
+    }
+    if (typeof webDetails.provider === "string" && webDetails.provider.trim()) {
+      webSummary.provider = webDetails.provider;
+    }
+    if (Array.isArray(webDetails.sources)) {
+      const sources: WebSearchSource[] = [];
+      for (const raw of webDetails.sources) {
+        if (!raw || typeof raw !== "object") continue;
+        const entry = raw as { name?: unknown; ok?: unknown; error?: unknown; items?: unknown; summary?: unknown };
+        const name = typeof entry.name === "string" ? entry.name : "";
+        if (!name) continue;
+        const itemsRaw = Array.isArray(entry.items) ? entry.items : [];
+        const items = itemsRaw
+          .map((it) => {
+            if (!it || typeof it !== "object") return null;
+            const r = it as { title?: unknown; url?: unknown; snippet?: unknown };
+            return {
+              title: typeof r.title === "string" ? r.title : "",
+              url: typeof r.url === "string" ? r.url : "",
+              snippet: typeof r.snippet === "string" ? r.snippet : "",
+            };
+          })
+          .filter((it): it is { title: string; url: string; snippet: string } => it !== null);
+        sources.push({
+          name,
+          ok: entry.ok === true,
+          error: typeof entry.error === "string" ? entry.error : undefined,
+          items,
+          summary: typeof entry.summary === "string" ? entry.summary : undefined,
+        });
+      }
+      if (sources.length > 0) webSummary.sources = sources;
+    }
+    // Only surface webSearch when there is actually synthesized content the UI
+    // can render — provider alone is metadata, not actionable display data.
+    if (webSummary.summary || (webSummary.sources?.length ?? 0) > 0) {
+      summary.webSearch = webSummary;
+    }
   } else if (toolName === "read") {
     summary.filePath = (normalizedArgs.file_path || normalizedArgs.path || "") as string;
     const text = extractText(event?.result?.content as Parameters<typeof extractText>[0]);

@@ -10,6 +10,25 @@ import type { ComposerDraft, QuotedSelection } from './input-slice';
 
 // ── 工具调用 ──
 
+/**
+ * Per-source trace from Lynn brain v2's /v1/web-search proxy.
+ * Mirror of server/chat/tool-summary.ts → WebSearchSource (kept in sync;
+ * server is the source of truth for the SSE payload schema).
+ */
+export interface WebSearchSource {
+  name: string;
+  ok: boolean;
+  error?: string;
+  items: Array<{ title: string; url: string; snippet: string }>;
+  summary?: string;
+}
+
+export interface WebSearchSummary {
+  provider?: string;
+  summary?: string;
+  sources?: WebSearchSource[];
+}
+
 export interface ToolCallSummary {
   filePath?: string;
   linesAdded?: number;
@@ -21,6 +40,12 @@ export interface ToolCallSummary {
   lineCount?: number;
   totalLines?: number;
   truncated?: boolean;
+  /**
+   * Populated for `web_search` results when the brain-proxy tier wins.
+   * Drives the WebSearchSourcesPanel: synthesized answer + collapsible
+   * "View sources (N)" list with per-source items and per-source summary.
+   */
+  webSearch?: WebSearchSummary;
 }
 
 export interface ToolCall {
