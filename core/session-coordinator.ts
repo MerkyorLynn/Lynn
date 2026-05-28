@@ -15,14 +15,12 @@ import {
 import { createModuleLogger } from "../lib/debug-log.js";
 import { BrowserManager } from "../lib/browser/browser-manager.js";
 import { t, getLocale } from "../server/i18n.js";
-import { READ_ONLY_BUILTIN_TOOLS } from "./config-coordinator.js";
 import { findModel } from "../shared/model-ref.js";
 import { runReadToolPromptInjectionGuardrail } from "./claw-aegis-guardrails.js";
 import {
   SecurityMode,
   DEFAULT_SECURITY_MODE,
   normalizeSecurityMode,
-  SECURITY_MODE_CONFIG,
 } from "../shared/security-mode.js";
 import {
   buildClientAgentMetadata,
@@ -53,8 +51,9 @@ import {
   sanitizeActiveSessionContextForPrompt,
 } from "./session-prompt-sanitizer.js";
 import {
+  applySessionToolRuntime,
+  buildSessionToolsForEntry,
   filterCustomToolsByTier,
-  getBuiltinToolNames,
   normalizeCustomToolsForModel,
   resolveToolTier,
   shouldSuppressClientToolSchema,
@@ -768,16 +767,13 @@ export class SessionCoordinator {
   }
 
   _buildSessionTools(entry: SessionEntry, modeOverride: string | null = null) {
-    const cwd = entry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || process.cwd();
-    const sessionPath = entry.session?.sessionManager?.getSessionFile?.() || null;
-    const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
-    return this._d.buildTools(cwd, null, {
-      agentDir: this._d.getAgentById(entry.agentId)?.agentDir || this._d.getAgent().agentDir,
-      workspace: cwd,
-      mode: SECURITY_MODE_CONFIG[effectiveMode]?.sandboxMode,
-      getSessionPath: () => sessionPath,
-      // [2026-04-17] MCP 按需激活：sessionEntry.activeMcpServers 由 UI / command 维护
-      activeMcpServers: entry.activeMcpServers || null,
+    return buildSessionToolsForEntry({
+      entry,
+      modeOverride,
+      buildTools: (cwd, extra, options) => this._d.buildTools(cwd, extra, options),
+      getHomeCwd: () => this._d.getHomeCwd(),
+      getAgentById: (agentId) => agentId ? this._d.getAgentById(agentId) : null,
+      getFallbackAgent: () => this._d.getAgent(),
     });
   }
 
@@ -785,46 +781,15 @@ export class SessionCoordinator {
     const entry = this._sessions.get(sessionPath);
     if (!entry) return;
 
-    const effectiveMode = normalizeSecurityMode(modeOverride || entry.securityMode || DEFAULT_SECURITY_MODE);
-    const config = SECURITY_MODE_CONFIG[effectiveMode];
-    const { tools, customTools } = this._buildSessionTools(entry, effectiveMode);
-    const modelRef = entry.session?.model
-      || (entry.modelId ? { id: entry.modelId, provider: entry.modelProvider } : null);
-    const nativeToolsDisabled = isNativeToolCallingDisabled(modelRef);
-    const suppressClientTools = shouldSuppressClientToolSchema(modelRef);
-    if (nativeToolsDisabled) {
-      entry.nativeToolCallingDisabled = true;
-      entry.securityMode = effectiveMode;
-      entry.planMode = effectiveMode === SecurityMode.PLAN;
-      entry.session._customTools = [];
-      entry.session._baseToolsOverride = {};
-      entry.session._buildRuntime({ activeToolNames: [] });
-      log.warn(`[model-tools] runtime tools disabled for ${modelRef?.provider || "?"}/${modelRef?.id || modelRef?.name || "?"}`);
-      return;
-    }
-    if (suppressClientTools) {
-      entry.nativeToolCallingDisabled = false;
-      entry.securityMode = effectiveMode;
-      entry.planMode = effectiveMode === SecurityMode.PLAN;
-      entry.session._customTools = [];
-      entry.session._baseToolsOverride = {};
-      entry.session._buildRuntime({ activeToolNames: [] });
-      log.log(`[model-tools] runtime using Brain V2 internal tool chain for ${modelRef?.provider || "?"}/${modelRef?.id || modelRef?.name || "?"}; client tool schema suppressed`);
-      return;
-    }
-    const baseToolsOverride = Object.fromEntries(tools.map((tool: ToolLike) => [tool.name, tool]));
-    const normalizedCustomTools = normalizeCustomToolsForModel(customTools || [], modelRef);
-    const customNames = normalizedCustomTools.map((tool: ToolLike) => tool.name);
-    const activeToolNames = config.toolsRestricted
-      ? [...READ_ONLY_BUILTIN_TOOLS, ...customNames]
-      : [...getBuiltinToolNames(tools), ...customNames];
-
-    entry.securityMode = effectiveMode;
-    entry.planMode = effectiveMode === SecurityMode.PLAN;
-    entry.nativeToolCallingDisabled = false;
-    entry.session._customTools = normalizedCustomTools;
-    entry.session._baseToolsOverride = baseToolsOverride;
-    entry.session._buildRuntime({ activeToolNames });
+    applySessionToolRuntime({
+      entry,
+      modeOverride,
+      buildTools: (cwd, extra, options) => this._d.buildTools(cwd, extra, options),
+      getHomeCwd: () => this._d.getHomeCwd(),
+      getAgentById: (agentId) => agentId ? this._d.getAgentById(agentId) : null,
+      getFallbackAgent: () => this._d.getAgent(),
+      logger: log,
+    });
   }
 
   /** Set plan mode for the current (focused) session */
