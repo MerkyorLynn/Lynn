@@ -5,14 +5,12 @@
  * isolated 执行、session 标题、activity session 提升。
  * 不持有 engine 引用，通过构造器注入依赖。
  */
-import fs from "fs";
 import {
   createAgentSession,
   SessionManager,
   SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import { createModuleLogger } from "../lib/debug-log.js";
-import { BrowserManager } from "../lib/browser/browser-manager.js";
 import { t, getLocale } from "../server/i18n.js";
 import { findModel } from "../shared/model-ref.js";
 import { runReadToolPromptInjectionGuardrail } from "./claw-aegis-guardrails.js";
@@ -76,14 +74,7 @@ import {
   saveSessionTitleFile,
   type SessionTitleCacheEntry,
 } from "./session-title-meta.js";
-import {
-  prepareDryRunWorkspace,
-  runDryRunValidation,
-} from "./session-dry-run.js";
-import {
-  prepareIsolatedToolRuntime,
-  resolveIsolatedExecutionModel,
-} from "./session-isolated-runtime.js";
+import { executeIsolatedSession, type IsolatedExecutionOptions } from "./session-isolated-executor.js";
 import { createSessionResourceLoader } from "./session-resource-loader.js";
 import {
   clearSessionTurnContext,
@@ -147,17 +138,6 @@ type SessionCoordinatorDeps = AnyRecord & {
   getActivityStore: (agentId: string) => AnyRecord | null;
   getAgentById: (agentId: string) => AgentLike | null | undefined;
   listAgents: () => AgentLike[];
-};
-type IsolatedExecutionOptions = AnyRecord & {
-  agentId?: string;
-  signal?: AbortSignal;
-  persist?: string;
-  cwd?: string;
-  dryRun?: boolean;
-  model?: ModelLike;
-  toolFilter?: string[];
-  builtinFilter?: string[];
-  validateCommand?: unknown[];
 };
 
 function errMessage(err: unknown): string {
@@ -578,7 +558,7 @@ export class SessionCoordinator {
       imagesCount: opts?.images?.length || 0,
       turnInstruction: opts?.turnInstruction,
       locale: getLocale(),
-      getSkills: () => this._d.getSkills?.(),
+      getSkills: () => this._d.getSkills?.() || null,
       routeAroundBrokenToolModel: (routeIntent) => this._maybeRouteAroundBrokenToolModel(entry, routeIntent, agent, sessionPath),
     });
 
@@ -927,150 +907,24 @@ export class SessionCoordinator {
   // ── Isolated Execution ──
 
   async executeIsolated(prompt: string, opts: IsolatedExecutionOptions = {}) {
-    const targetAgent = opts.agentId ? this._d.getAgentById(opts.agentId) : this._d.getAgent();
-    if (!targetAgent) throw new Error(t("error.agentNotInitialized", { id: opts.agentId }));
-
-    // abort signal：提前中止检查
-    if (opts.signal?.aborted) {
-      return { sessionPath: null, replyText: "", error: "aborted" };
-    }
-
-    const bm = BrowserManager.instance();
-    const wasBrowserRunning = bm.isRunning;
-    this._headlessRefCount++;
-    if (this._headlessRefCount === 1) bm.setHeadless(true);
-    let tempSessionMgr: AnyRecord | null = null;
-    let dryRunWorkspace: string | null = null;
-    const cleanupTempSession = () => {
-      const sp = tempSessionMgr?.getSessionFile?.();
-      if (sp) {
-        try { fs.unlinkSync(sp); } catch {}
-      }
-    };
-    try {
-      const sessionDir = opts.persist || targetAgent.sessionDir;
-      fs.mkdirSync(sessionDir, { recursive: true });
-
-      const baseExecCwd = opts.cwd || this._d.getHomeCwd() || process.cwd();
-      if (opts.dryRun) {
-        dryRunWorkspace = await this._prepareDryRunWorkspace(baseExecCwd);
-      }
-      const execCwd = dryRunWorkspace || baseExecCwd;
-      const models = this._d.getModels();
-      const resolved = resolveIsolatedExecutionModel({
-        explicitModel: opts.model,
-        targetAgent,
-        availableModels: models.availableModels,
-        defaultModel: models.defaultModel,
-      });
-      const resolvedModel = resolved.model;
-      if (!resolvedModel) {
-        log.error(`[executeIsolated] agent "${targetAgent.agentName}" 未指定 models.chat，也没有可用的默认模型`);
-        throw new Error(t("error.executeIsolatedNoModel", { name: targetAgent.agentName }));
-      }
-      if (resolved.usedFallback && resolved.requestedModelId) {
-        log.log(`[executeIsolated] 模型 "${resolved.requestedModelId}" 不可用，fallback → ${resolvedModel.id}`);
-      }
-      const execModel = models.resolveExecutionModel(resolvedModel);
-      tempSessionMgr = SessionManager.create(execCwd, sessionDir);
-      const isolatedTools = prepareIsolatedToolRuntime({
-        execCwd,
-        targetAgent,
-        execModel,
-        buildTools: this._d.buildTools,
-        getSessionPath: () => tempSessionMgr?.getSessionFile?.() || null,
-        toolFilter: opts.toolFilter,
-        builtinFilter: opts.builtinFilter,
-      });
-      if (isolatedTools.suppressClientTools) {
-        log.log(`[executeIsolated] using Brain V2 internal tool chain for ${execModel?.provider || "?"}/${execModel?.id || execModel?.name || "?"}; client tool schema suppressed`);
-      }
-
-      const agent = this._d.getAgent();
-      const skills = this._d.getSkills?.();
-      const resourceLoader = this._d.getResourceLoader();
-      const execResourceLoader = (targetAgent === agent)
-        ? resourceLoader
-        : Object.create(resourceLoader, {
-            getSystemPrompt: { value: () => targetAgent.systemPrompt },
-            getSkills: { value: () => skills?.getSkillsForAgent?.(targetAgent) || [] },
-          });
-
-      const clientAgentKey = readClientAgentKeyFromPreferencesFile();
-      const clientAgentHeaders = readSignedClientAgentHeaders({
-        method: "POST",
-        pathname: "/chat/completions",
-      });
-      const clientAgentMetadata = buildClientAgentMetadata(clientAgentKey);
-      const { session } = await createAgentSession({
-        cwd: execCwd,
-        sessionManager: tempSessionMgr,
-        settingsManager: this._createSettings(execModel),
-        authStorage: models.authStorage,
-        modelRegistry: models.modelRegistry,
-        model: execModel,
-        thinkingLevel: models.resolveThinkingLevel(this._d.getPrefs().getThinkingLevel(), execModel),
-        resourceLoader: execResourceLoader,
-        tools: isolatedTools.tools,
-        customTools: isolatedTools.customTools,
-        ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
-        ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
-      } as any);
-
-      // abort signal：监听中止，转发到子 session
-      const abortHandler = () => session.abort();
-      opts.signal?.addEventListener("abort", abortHandler, { once: true });
-
-      // 二次检查：覆盖初始化期间 signal 已变 aborted 的竞争窗口
-      if (opts.signal?.aborted) {
-        opts.signal.removeEventListener("abort", abortHandler);
-        cleanupTempSession();
-        return { sessionPath: null, replyText: "", error: "aborted" };
-      }
-
-      let replyText = "";
-      try {
-        replyText = await runPromptWithIntegrity(session, prompt);
-      } finally {
-        opts.signal?.removeEventListener("abort", abortHandler);
-      }
-
-      const sessionPath = session.sessionManager?.getSessionFile?.() || null;
-      const dryRunValidation = opts.dryRun
-        ? this._runDryRunValidation(execCwd, opts.validateCommand)
-        : null;
-
-      if (!opts.persist && sessionPath) {
-        try { fs.unlinkSync(sessionPath); } catch {}
-        return {
-          sessionPath: null,
-          replyText,
-          error: null,
-          ...(dryRunWorkspace ? { dryRun: { workspacePath: dryRunWorkspace, validation: dryRunValidation } } : {}),
-        };
-      }
-
-      return {
-        sessionPath,
-        replyText,
-        error: null,
-        ...(dryRunWorkspace ? { dryRun: { workspacePath: dryRunWorkspace, validation: dryRunValidation } } : {}),
-      };
-    } catch (err) {
-      log.error(`isolated execution failed: ${errMessage(err)}`);
-      // 清理失败的临时 session 文件
-      if (!opts.persist && tempSessionMgr) {
-        cleanupTempSession();
-      }
-      return { sessionPath: null, replyText: "", error: errMessage(err) };
-    } finally {
-      this._headlessRefCount = Math.max(0, this._headlessRefCount - 1);
-      if (this._headlessRefCount === 0) bm.setHeadless(false);
-      const browserNowRunning = bm.isRunning;
-      if (browserNowRunning !== wasBrowserRunning) {
-        this._d.emitEvent({ type: "browser_bg_status", running: browserNowRunning, url: bm.currentUrl }, null);
-      }
-    }
+    return executeIsolatedSession(prompt, opts, {
+      getAgent: () => this._d.getAgent(),
+      getAgentById: (agentId) => this._d.getAgentById(agentId),
+      getHomeCwd: () => this._d.getHomeCwd(),
+      getModels: () => this._d.getModels(),
+      getPrefs: () => this._d.getPrefs(),
+      getSkills: () => this._d.getSkills?.() || null,
+      getResourceLoader: () => this._d.getResourceLoader(),
+      buildTools: (cwd, extra, options) => this._d.buildTools(cwd, extra, options),
+      createSettings: (model) => this._createSettings(model),
+      adjustHeadlessRefCount: (delta) => {
+        this._headlessRefCount = Math.max(0, this._headlessRefCount + delta);
+        return this._headlessRefCount;
+      },
+      emitEvent: (event, path) => this._d.emitEvent(event, path),
+      log,
+      t,
+    });
   }
 
   /** 创建 session 专用 settings（控制 compaction + max_completion_tokens） */
@@ -1129,11 +983,4 @@ export class SessionCoordinator {
     });
   }
 
-  async _prepareDryRunWorkspace(sourceDir: string) {
-    return prepareDryRunWorkspace(sourceDir);
-  }
-
-  _runDryRunValidation(cwd: string, validateCommand: unknown[] | undefined) {
-    return runDryRunValidation(cwd, validateCommand);
-  }
 }
