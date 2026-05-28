@@ -10,6 +10,7 @@ import { getAdapter } from './wire-adapter/index.js';
 import { isServerTool, executeServerTool, mergeWithServerTools } from './tool-exec/index.js';
 import { applySearchContext, createSearchRequestCache, type SearchRequestCache } from './search-context.js';
 import { applyAudioTranscribe, createAudioRequestCache, type AudioRequestCache } from './audio-transcribe.js';
+import { compactToolResults, readToolResultCompactionConfigFromEnv } from './context-compact.js';
 import {
   buildToolStormReflection,
   createToolStormState,
@@ -268,6 +269,7 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
   const audioCache = createAudioRequestCache() as AudioRequestCache;
   const toolStormConfig = readToolStormConfigFromEnv();
   const toolStormState = createToolStormState();
+  const toolResultCompactionConfig = readToolResultCompactionConfigFromEnv();
 
   while (iter < maxIter) {
     iter++;
@@ -323,6 +325,7 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
           tool_call_id: tc.id || ('tc-' + Math.random().toString(36).slice(2)),
           content: buildToolStormReflection(stormVerdict),
         });
+        workingMessages = compactToolResults(workingMessages, toolResultCompactionConfig);
         if (stormVerdict.maxStormsReached) {
           await onChunk(
             { type: 'error', error: 'tool_storm_limit', tool: stormVerdict.toolName, storms: stormVerdict.stormCount },
@@ -356,6 +359,7 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
         tool_call_id: tc.id || ('tc-' + Math.random().toString(36).slice(2)),
         content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
       });
+      workingMessages = compactToolResults(workingMessages, toolResultCompactionConfig);
     }
   }
   // 达 MAX_ITERATIONS 上限 → emit 显式 error chunk (不再撒谎成 finish:stop)

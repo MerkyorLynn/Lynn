@@ -53,6 +53,8 @@ afterEach(() => {
   delete process.env.BRAIN_V2_STORM_DETECT;
   delete process.env.BRAIN_V2_STORM_THRESHOLD;
   delete process.env.BRAIN_V2_STORM_MAX;
+  delete process.env.BRAIN_V2_TOOL_RESULT_CAP;
+  delete process.env.BRAIN_V2_TOOL_RESULT_KEEP_LATEST;
 });
 
 describe('Router', () => {
@@ -265,6 +267,44 @@ describe('Router', () => {
     ]);
     expect(chunks.filter(c => c.type === 'tool_progress' && c.event === 'end').map(c => c.ok))
       .toEqual([true, false, false, false]);
+  });
+
+  it('compacts older server tool results before subsequent provider rounds', async () => {
+    process.env.BRAIN_V2_TOOL_RESULT_CAP = '8';
+    let adapterRuns = 0;
+    const roundMessages = [];
+    mockState.adapterFn = async function* ({ messages }) {
+      adapterRuns += 1;
+      roundMessages.push(messages);
+      if (adapterRuns <= 3) {
+        yield {
+          type: 'tool_call_delta',
+          delta: [{
+            index: 0,
+            id: `tc-${adapterRuns}`,
+            type: 'function',
+            function: { name: 'unit_convert', arguments: `{"query":"${adapterRuns * 100}公里"}` },
+          }],
+        };
+        yield { type: 'finish', reason: 'tool_calls' };
+        return;
+      }
+      yield { type: 'content', delta: 'done' };
+      yield { type: 'finish', reason: 'stop' };
+    };
+
+    const result = await run({
+      messages: [{ role: 'user', content: '连续换算' }],
+      onChunk: async () => {},
+    });
+
+    expect(result).toMatchObject({ ok: true, iterations: 4 });
+    const fourthRoundToolMessages = roundMessages[3].filter(m => m.role === 'tool');
+    expect(fourthRoundToolMessages).toHaveLength(3);
+    expect(fourthRoundToolMessages[0].content).toContain('[brain-v2:tool-result-compacted]');
+    expect(fourthRoundToolMessages[1].content).toContain('[brain-v2:tool-result-compacted]');
+    expect(fourthRoundToolMessages[2].content).toContain('【单位换算】');
+    expect(fourthRoundToolMessages[2].content).not.toContain('[brain-v2:tool-result-compacted]');
   });
 });
 
