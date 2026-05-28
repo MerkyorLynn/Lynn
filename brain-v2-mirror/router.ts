@@ -9,11 +9,8 @@ import { universalOrder, getProvider, isInCooldown, markUnhealthy } from './prov
 import { getAdapter } from './wire-adapter/index.js';
 import { isServerTool, executeServerTool, mergeWithServerTools } from './tool-exec/index.js';
 import { applySearchContext, createSearchRequestCache, type SearchRequestCache } from './search-context.js';
-import { applyAudioTranscribe, createAudioRequestCache } from './audio-transcribe.js';
+import { applyAudioTranscribe, createAudioRequestCache, type AudioRequestCache } from './audio-transcribe.js';
 import { errorMessage, type ChatMessage, type FallbackEntry, type Provider, type ProviderCapability, type ProviderId, type RouterRunOptions, type RouterRunResult, type ToolCall } from './types.js';
-
-// audio-transcribe.js is intentionally untyped (.ts @ts-nocheck) — keep this as opaque type
-type AudioRequestCache = Map<string, string>;
 
 type CapabilityRequired = Partial<Pick<ProviderCapability, 'vision' | 'audio' | 'video'>>;
 type ProviderError = Error & { suppressBody?: boolean; cooldownMs?: number };
