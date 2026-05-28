@@ -19,6 +19,8 @@ function _agentFingerprint(key: unknown): string {
 
 // [deep-research v1 import]
 import { runDeepResearch } from './deep-research.js';
+// [web-search proxy v1 import] — server-side keys, client never sees MiMo/Zhipu API keys
+import { webSearchStructured } from './tool-exec/web_search.js';
 const PORT = Number(process.env.BRAIN_V2_PORT || 8790);
 const HOST = process.env.BRAIN_V2_HOST || '127.0.0.1';
 const VERSION = '0.0.1';
@@ -307,6 +309,48 @@ async function handleAgentCheckpoint(req: IncomingMessage, res: ServerResponse, 
 }
 // [/agent-checkpoint v1 handler]
 
+// [web-search proxy v1 handler]
+// Lynn desktop client's web_search tool calls this localhost endpoint so the
+// MiMo / Zhipu / Bocha / Tavily / Serper API keys can stay in this Node process
+// only and are never embedded in client code, renderer process, or distributed
+// binaries. Returns { ok, provider, items[], summary?, sources[] } so the UI
+// can render a synthesized answer plus a collapsible "View sources (N)" list.
+async function handleWebSearch(req: IncomingMessage, res: ServerResponse, _pathname: string): Promise<void> {
+  const remote = req.socket?.remoteAddress || '';
+  if (!isLocalRequestAddress(remote)) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'local_only', remote }));
+    return;
+  }
+
+  let body: JsonObject;
+  try {
+    body = await readJsonBody(req);
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'invalid request body: ' + errorMessage(e) }));
+    return;
+  }
+
+  const query = String(body.query || '').trim();
+  if (!query) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'empty query' }));
+    return;
+  }
+
+  try {
+    const result = await webSearchStructured(query, { log });
+    res.writeHead(result.ok ? 200 : 503, { 'Content-Type': 'application/json', 'X-Brain-Version': VERSION });
+    res.end(JSON.stringify(result));
+  } catch (err) {
+    log('error', 'web-search proxy failed: ' + errorMessage(err));
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: errorMessage(err) }));
+  }
+}
+// [/web-search proxy v1 handler]
+
 async function handleLocalQwen35(req: IncomingMessage, res: ServerResponse, pathname: string, method: 'GET' | 'POST'): Promise<void> {
   const remote = req.socket?.remoteAddress || '';
   if (!isLocalRequestAddress(remote)) {
@@ -411,6 +455,12 @@ const server = http.createServer(async (req, res) => {
   }
   // [/agent-checkpoint v1 route]
 
+  // [web-search proxy v1 route]
+  if (req.method === 'POST' && (url.pathname === '/v2/web-search' || url.pathname === '/v1/web-search')) {
+    return handleWebSearch(req, res, url.pathname);
+  }
+  // [/web-search proxy v1 route]
+
   if ((url.pathname === '/v2/local-qwen35-9b/plan' || url.pathname === '/v2/local-qwen35-9b/status' || url.pathname === '/v1/local-qwen35-9b/status') && req.method === 'GET') {
     return handleLocalQwen35(req, res, url.pathname, 'GET');
   }
@@ -428,7 +478,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       brain: 'v2', version: VERSION,
-      endpoints: ['POST /v1/chat/completions', 'POST /v2/chat/completions', 'POST /api/v1/chat/completions', 'GET /v2/local-qwen35-9b/status', 'POST /v2/local-qwen35-9b/setup', 'GET /health'],
+      endpoints: ['POST /v1/chat/completions', 'POST /v2/chat/completions', 'POST /api/v1/chat/completions', 'POST /v1/web-search', 'GET /v2/local-qwen35-9b/status', 'POST /v2/local-qwen35-9b/setup', 'GET /health'],
     }));
     return;
   }

@@ -1,9 +1,17 @@
 /**
- * web-search.js — web_search 自定义工具
+ * web-search.ts — web_search 客户端工具
  *
- * 对外暴露一个统一的 web_search tool，只使用显式配置的 provider。
+ * 优先级 cascade (2026-05-28 重构):
+ *   Tier 1: Lynn brain v2 proxy (POST /v1/web-search 到 BRAIN_V2_URL)
+ *           ← MiMo + GLM (Zhipu) 等 LLM-summarized 多源聚合,server 端持 key,
+ *             客户端零暴露。返回结构化 { items, summary, sources[] }。
+ *   Tier 2: 用户在 cfg.search 显式配置的 paid provider
+ *           (tavily / serper / brave / searxng,带用户自己的 key)
+ *   Tier 3: 零配置 HTML scrape 兜底
+ *           zh locale → Bing-first;其他 locale → DDG-first
+ *           (cn.bing.com 国内可直连,html.duckduckgo.com 国内常超时)
  *
- * 统一返回格式：[{ title, url, snippet }]
+ * 统一返回格式: SearchRunResult { results, provider, plan, summary?, sources? }
  */
 
 import { Type } from "@sinclair/typebox";
@@ -55,10 +63,22 @@ interface SearchRunOptions {
   sceneHint?: string;
 }
 
+export interface SearchSourceTrace {
+  name: string;
+  ok: boolean;
+  error?: string;
+  items: SearchResultItem[];
+  summary?: string;
+}
+
 interface SearchRunResult {
   results: SearchResultItem[];
   provider: string;
   plan: SearchPlan;
+  /** LLM-synthesized answer when tier 1 (brain proxy) wins. */
+  summary?: string;
+  /** Per-source trace from tier 1 (brain proxy) for collapsible UI display. */
+  sources?: SearchSourceTrace[];
   [key: string]: unknown;
 }
 
@@ -303,6 +323,78 @@ function buildPlanNotice(plan: SearchPlan | null | undefined): string {
   }
 
   return "";
+}
+
+// ════════════════════════════════════════
+// Tier 1: Lynn brain v2 proxy (server-side keys, MiMo/GLM LLM-summarized)
+// ════════════════════════════════════════
+
+interface BrainProxyResponse {
+  ok: boolean;
+  provider?: string;
+  items?: SearchResultItem[];
+  summary?: string;
+  sources?: SearchSourceTrace[];
+  error?: string;
+}
+
+interface BrainProxyResult {
+  results: SearchResultItem[];
+  provider: string;
+  summary?: string;
+  sources?: SearchSourceTrace[];
+}
+
+const BRAIN_PROXY_TIMEOUT_MS = 14_000;
+
+function resolveBrainProxyUrl(): string {
+  const raw = String(process.env.BRAIN_V2_URL || process.env.LYNN_BRAIN_URL || 'http://127.0.0.1:8790').trim();
+  return raw.replace(/\/+$/, '');
+}
+
+/**
+ * Call Lynn brain v2 mirror's /v1/web-search endpoint. The proxy holds all
+ * MiMo / Zhipu / Bocha / Tavily / Serper API keys server-side; this client
+ * function never sees them. Localhost-only by brain's enforcement.
+ */
+async function searchLynnBrainProxy(
+  query: string,
+  maxResults: number,
+  signal?: AbortSignal,
+): Promise<BrainProxyResult> {
+  const ctrl = new AbortController();
+  if (signal) signal.addEventListener('abort', () => ctrl.abort(), { once: true });
+  const timer = setTimeout(() => ctrl.abort(), BRAIN_PROXY_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${resolveBrainProxyUrl()}/v1/web-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, maxResults }),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const data = await safeParseResponse<BrainProxyResponse>(res, null);
+  if (!data) throw new Error(`brain proxy HTTP ${res.status}`);
+  if (!data.ok) throw new Error(`brain proxy: ${data.error || 'unknown error'}`);
+
+  const items = (data.items || []).slice(0, maxResults).map((it) => ({
+    title: String(it.title || ""),
+    url: String(it.url || ""),
+    snippet: String(it.snippet || ""),
+  }));
+  if (items.length === 0 && !data.summary) {
+    throw new Error('brain proxy returned no items and no summary');
+  }
+  return {
+    results: items,
+    provider: data.provider ? `lynn-brain/${data.provider}` : 'lynn-brain',
+    summary: data.summary,
+    sources: Array.isArray(data.sources) ? data.sources : undefined,
+  };
 }
 
 // ════════════════════════════════════════
@@ -560,36 +652,7 @@ export async function verifySearchKey(provider: string, apiKey: string, opts: Se
   return true;
 }
 
-async function doSearch(query: string, maxResults: number, opts: SearchRunOptions = {}): Promise<SearchRunResult> {
-  const plan = buildSearchPlan(query, opts.sceneHint);
-
-  const errors: string[] = [];
-  const noKeyVariants = normalizeNoKeySearchVariants(query, plan.expandedQuery);
-  for (const variant of noKeyVariants) {
-    try {
-      return {
-        results: await searchDuckDuckGoHtml(variant, maxResults),
-        provider: "duckduckgo-html",
-        plan,
-      };
-    } catch (fallbackErr) {
-      errors.push(t("error.searchFailed", { msg: errorMessage(fallbackErr) }));
-    }
-  }
-
-  for (const variant of noKeyVariants) {
-    try {
-      return {
-        results: await searchBingHtml(variant, maxResults),
-        provider: "bing-html",
-        plan,
-      };
-    } catch (fallbackErr) {
-      errors.push(t("error.searchFailed", { msg: errorMessage(fallbackErr) }));
-    }
-  }
-
-  // 优先从全局 resolver 获取搜索配置，否则从 agent config 读取
+function resolveUserSearchConfig(): { provider: string; baseUrl: string; apiKey: string } {
   let provider = "";
   let baseUrl = "";
   let apiKey = "";
@@ -606,28 +669,90 @@ async function doSearch(query: string, maxResults: number, opts: SearchRunOption
     if (!baseUrl) baseUrl = searchCfg.base_url || "";
     if (!apiKey) apiKey = searchCfg.api_key || "";
   }
+  return { provider, baseUrl, apiKey };
+}
+
+async function doSearch(query: string, maxResults: number, opts: SearchRunOptions = {}): Promise<SearchRunResult> {
+  const plan = buildSearchPlan(query, opts.sceneHint);
+  const errors: string[] = [];
+
+  // ── Tier 1: Lynn brain v2 proxy ────────────────────────────────────
+  // Server-side MiMo / Zhipu / Bocha / Tavily / Serper multi-source race.
+  // Returns LLM-synthesized summary + structured sources. No client keys.
+  // Set BRAIN_V2_URL='' or LYNN_DISABLE_BRAIN_SEARCH=1 to skip this tier.
+  const brainDisabled = String(process.env.LYNN_DISABLE_BRAIN_SEARCH || '').trim() === '1';
+  if (!brainDisabled) {
+    try {
+      const brain = await searchLynnBrainProxy(plan.expandedQuery, maxResults);
+      return {
+        results: brain.results,
+        provider: brain.provider,
+        plan,
+        summary: brain.summary,
+        sources: brain.sources,
+      };
+    } catch (brainErr) {
+      // Brain v2 may not be running (CLI / headless agent / brain disabled).
+      // Silently cascade to user-configured paid provider next.
+      errors.push(`brain-proxy: ${errorMessage(brainErr)}`);
+    }
+  }
+
+  // ── Tier 2: user-configured paid provider ─────────────────────────
+  const { provider, baseUrl, apiKey } = resolveUserSearchConfig();
+  if (provider) {
+    if (provider === "searxng" && !baseUrl) {
+      errors.push(t("error.searchProviderMissingBaseUrl", { provider }));
+    } else if (provider !== "searxng" && !PROVIDERS[provider]) {
+      errors.push(t("error.searchProviderUnknown", { provider }));
+    } else if (provider !== "searxng" && !apiKey) {
+      errors.push(t("error.searchProviderMissingKey", { provider }));
+    } else if (PROVIDERS[provider]) {
+      try {
+        return {
+          results: await PROVIDERS[provider](plan.expandedQuery, maxResults, apiKey, {
+            base_url: baseUrl,
+            scene: plan.scene,
+          }),
+          provider,
+          plan,
+        };
+      } catch (err) {
+        errors.push(t("error.searchFailed", { msg: errorMessage(err) }));
+      }
+    }
+  }
+
+  // ── Tier 3: zero-config HTML scrape ────────────────────────────────
+  // zh locale → Bing first (cn.bing.com is reachable from China);
+  // other locales → DDG first (html.duckduckgo.com is the historical default).
+  const noKeyVariants = normalizeNoKeySearchVariants(query, plan.expandedQuery);
+  const scrapeOrder: Array<{ name: string; fn: (q: string, n: number) => Promise<SearchResultItem[]> }> = isZhLocale()
+    ? [
+        { name: "bing-html", fn: searchBingHtml },
+        { name: "duckduckgo-html", fn: searchDuckDuckGoHtml },
+      ]
+    : [
+        { name: "duckduckgo-html", fn: searchDuckDuckGoHtml },
+        { name: "bing-html", fn: searchBingHtml },
+      ];
+
+  for (const scraper of scrapeOrder) {
+    for (const variant of noKeyVariants) {
+      try {
+        return {
+          results: await scraper.fn(variant, maxResults),
+          provider: scraper.name,
+          plan,
+        };
+      } catch (fallbackErr) {
+        errors.push(`${scraper.name}: ${errorMessage(fallbackErr)}`);
+      }
+    }
+  }
 
   if (!provider) {
     errors.push(t("error.searchProviderNotConfigured"));
-  } else if (provider === "searxng" && !baseUrl) {
-    errors.push(t("error.searchProviderMissingBaseUrl", { provider }));
-  } else if (provider !== "searxng" && !PROVIDERS[provider]) {
-    errors.push(t("error.searchProviderUnknown", { provider }));
-  } else if (provider !== "searxng" && !apiKey) {
-    errors.push(t("error.searchProviderMissingKey", { provider }));
-  } else if (PROVIDERS[provider]) {
-    try {
-      return {
-        results: await PROVIDERS[provider](plan.expandedQuery, maxResults, apiKey, {
-          base_url: baseUrl,
-          scene: plan.scene,
-        }),
-        provider,
-        plan,
-      };
-    } catch (err) {
-      errors.push(t("error.searchFailed", { msg: errorMessage(err) }));
-    }
   }
 
   throw new Error(errors[0] || t("error.searchProviderNotConfigured"));
@@ -666,12 +791,12 @@ export function createWebSearchTool() {
       }
 
       try {
-        const { results, provider, plan } = await doSearch(query, params.maxResults ?? 5);
+        const { results, provider, plan, summary, sources } = await doSearch(query, params.maxResults ?? 5);
 
-        if (results.length === 0) {
+        if (results.length === 0 && !summary) {
           return {
             content: [{ type: "text", text: t("error.searchNoResults", { provider }) }],
-            details: { scene: plan?.scene || "general" },
+            details: { scene: plan?.scene || "general", provider },
           };
         }
 
@@ -690,9 +815,19 @@ export function createWebSearchTool() {
         const followupHint = plan?.suggestDeepRead
           ? `\n\n${t("error.searchFollowupHint")}`
           : "";
+        const summaryBlock = summary
+          ? t("error.searchSynthesized", { summary }) + "\n\n"
+          : "";
+
+        const resultsText = results.length > 0
+          ? t("error.searchResults", { provider, results: formatted })
+          : "";
+        const body = [planNotice, summaryBlock + resultsText]
+          .filter((s) => String(s).trim())
+          .join("\n\n") + followupHint;
 
         return {
-          content: [{ type: "text", text: [planNotice, t("error.searchResults", { provider, results: formatted })].filter(Boolean).join("\n\n") + followupHint }],
+          content: [{ type: "text", text: body }],
           details: {
             scene: plan?.scene || "general",
             expandedQuery: plan?.expandedQuery || query,
@@ -701,6 +836,11 @@ export function createWebSearchTool() {
             preferredSources: plan?.preferredSources || [],
             requiresSpecializedData: !!plan?.requiresSpecializedData,
             shouldCrossVerify: !!plan?.shouldCrossVerify,
+            provider,
+            summary,
+            // Pass through structured per-source trace so the UI can render a
+            // collapsible "View sources (N)" panel below the synthesized answer.
+            sources,
           },
         };
       } catch (err) {

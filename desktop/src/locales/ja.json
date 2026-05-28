@@ -1323,6 +1323,8 @@
     "searchResults": "検索結果 (via {provider}):\n\n{results}",
     "searchFollowupHint": "正確な数値、本文の詳細、出典が必要なら、次に最も関連する 1〜2 件の URL に web_fetch を使ってください。",
     "searchError": "検索エラー: {msg}",
+    "searchSynthesized": "📋 まとめ回答：\n{summary}",
+    "searchSources": "出典を表示（{count} 件）",
     "fetchEmptyUrl": "取得する URL を入力してください。",
     "fetchHttpOnly": "http/https プロトコルの URL のみサポートしています。",
     "fetchInvalidUrl": "無効な URL: {url}",

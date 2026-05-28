@@ -1423,6 +1423,8 @@
     "searchResults": "搜尋結果 (via {provider}):\n\n{results}",
     "searchFollowupHint": "如果需要精確數字、正文細節或出處，請再對最相關的 1-2 個結果使用 web_fetch。",
     "searchError": "搜尋出錯: {msg}",
+    "searchSynthesized": "📋 綜合答案：\n{summary}",
+    "searchSources": "查看來源（{count} 個）",
     "fetchEmptyUrl": "請提供要抓取的 URL。",
     "fetchHttpOnly": "只支援 http/https 協定的 URL。",
     "fetchInvalidUrl": "無效的 URL: {url}",
