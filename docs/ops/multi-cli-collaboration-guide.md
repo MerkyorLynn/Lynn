@@ -98,6 +98,8 @@ npm run release:gate        # central runtime, release-facing UI, or before merg
 
 Avoid relying on PR descriptions as the spec. Reviewers should be able to understand expected behavior from the tests.
 
+Use `tests/STYLE.md` as the shared style contract for new test files. This matters more when 3-5 CLIs are producing tests in parallel: behavior names, mock cleanup, fixture shape, and assertion granularity should look like one project rather than five authors.
+
 ## No `@ts-nocheck` Without a Ticket
 
 `@ts-nocheck` hides debt in files that look migrated.
@@ -193,4 +195,3 @@ Before any release cut after parallel work:
 - Review `git log --oneline main --max-count=20` for accidental stats-only or scratch commits.
 - Verify no untracked local model artifacts were introduced.
 - Prefer a clean release commit/tag over shipping directly from a busy work branch.
-
