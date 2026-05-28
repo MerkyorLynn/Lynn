@@ -65,6 +65,14 @@ import {
   refreshMissingSessionIndexes,
 } from "./session-list-cache.js";
 import {
+  abortAllStreamingSessions,
+  abortCachedSessionByPath,
+  closeAllCachedSessions,
+  closeCachedSession,
+  getCachedSessionByPath,
+  isCachedSessionStreaming,
+} from "./session-lifecycle.js";
+import {
   formatRelaySummaryContext,
   resolveSessionRelayConfig,
   runSessionRelay,
@@ -901,47 +909,29 @@ export class SessionCoordinator {
 
   /** 中断所有正在 streaming 的 session */
   async abortAllStreaming() {
-    const tasks = [];
-    for (const [sp, entry] of this._sessions) {
-      if (entry.session.isStreaming) {
-        tasks.push(entry.session.abort().catch(() => {}));
-      }
-    }
-    await Promise.all(tasks);
-    return tasks.length;
+    return abortAllStreamingSessions(this._sessions);
   }
 
   // ── Session 关闭 ──
 
   async closeSession(sessionPath: string) {
-    const entry = this._sessions.get(sessionPath);
-    if (entry) {
-      const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
-      notifyMemorySessionEnd(agent, sessionPath, "close session");
-      if (entry.session.isStreaming) {
-        try { await entry.session.abort(); } catch {}
-      }
-      entry.unsub();
-      this._sessions.delete(sessionPath);
-
-      // 清理该 session 的 pending confirmation
-      this._d.getConfirmStore?.()?.abortBySession(sessionPath);
-    }
-    if (sessionPath === this.currentSessionPath) {
-      this._session = null;
-    }
+    return closeCachedSession({
+      sessions: this._sessions,
+      sessionPath,
+      currentSessionPath: this.currentSessionPath,
+      setCurrentSession: (session) => { this._session = session; },
+      getAgentById: (agentId) => this._d.getAgentById(agentId),
+      getFallbackAgent: () => this._d.getAgent(),
+      notifySessionEnd: notifyMemorySessionEnd,
+      getConfirmStore: () => this._d.getConfirmStore?.(),
+    });
   }
 
   async closeAllSessions() {
-    // abort all streaming sessions + unsub（记忆收尾由 disposeAll 带超时处理）
-    for (const [, entry] of this._sessions) {
-      if (entry.session.isStreaming) {
-        try { await entry.session.abort(); } catch {}
-      }
-      entry.unsub();
-    }
-    this._sessions.clear();
-    this._session = null;
+    return closeAllCachedSessions({
+      sessions: this._sessions,
+      setCurrentSession: (session) => { this._session = session; },
+    });
   }
 
   async cleanupSession() {
@@ -952,18 +942,15 @@ export class SessionCoordinator {
   // ── Session 查询 ──
 
   getSessionByPath(sessionPath: string) {
-    return this._sessions.get(sessionPath)?.session ?? null;
+    return getCachedSessionByPath(this._sessions, sessionPath);
   }
 
   isSessionStreaming(sessionPath: string) {
-    return !!this.getSessionByPath(sessionPath)?.isStreaming;
+    return isCachedSessionStreaming(this._sessions, sessionPath);
   }
 
   async abortSessionByPath(sessionPath: string) {
-    const session = this.getSessionByPath(sessionPath);
-    if (!session?.isStreaming) return false;
-    await session.abort();
-    return true;
+    return abortCachedSessionByPath(this._sessions, sessionPath);
   }
 
   async listSessions() {
