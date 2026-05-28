@@ -109,3 +109,26 @@ export function createReplyIntegrityTracker() {
 export function ensureValidReplyExecution(_tracker: ReturnType<typeof createReplyIntegrityTracker>) {
   return;
 }
+
+export async function runPromptWithIntegrity(
+  session: SessionLike,
+  text: string,
+  promptOptions?: unknown,
+  opts: { passOptionsArgument?: boolean } = {},
+) {
+  const tracker = createReplyIntegrityTracker();
+  const unsub = session.subscribe((event: AnyRecord) => {
+    tracker.handle(event);
+  });
+  try {
+    if (opts.passOptionsArgument || promptOptions !== undefined) {
+      await session.prompt(text, promptOptions);
+    } else {
+      await session.prompt(text);
+    }
+    ensureValidReplyExecution(tracker);
+    return tracker.replyText;
+  } finally {
+    unsub?.();
+  }
+}

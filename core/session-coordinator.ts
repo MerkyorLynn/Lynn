@@ -39,8 +39,7 @@ import {
   toSessionPromptOptions,
 } from "./session-context-hints.js";
 import {
-  createReplyIntegrityTracker,
-  ensureValidReplyExecution,
+  runPromptWithIntegrity,
   sanitizeActiveSessionContextForPrompt,
 } from "./session-prompt-sanitizer.js";
 import {
@@ -522,19 +521,9 @@ export class SessionCoordinator {
     const _promptOpts = toSessionPromptOptions(opts?.images);
     sanitizeActiveSessionContextForPrompt(this._session, sp);
     const runPromptAttempt = async (attemptText: string) => {
-      const tracker = createReplyIntegrityTracker();
       const activeSession = this._session;
       if (!activeSession) throw new Error(t("error.noActiveSessionPrompt"));
-      const unsub = activeSession.subscribe((event: AnyRecord) => {
-        tracker.handle(event);
-      });
-      try {
-        await activeSession.prompt(attemptText, _promptOpts);
-        ensureValidReplyExecution(tracker);
-        return tracker.replyText;
-      } finally {
-        unsub?.();
-      }
+      return runPromptWithIntegrity(activeSession, attemptText, _promptOpts, { passOptionsArgument: true });
     };
     try {
       const entry = sp ? this._sessions.get(sp) : null;
@@ -611,17 +600,7 @@ export class SessionCoordinator {
     const _promptOpts = toSessionPromptOptions(opts?.images);
     sanitizeActiveSessionContextForPrompt(entry.session, sessionPath);
     const runPromptAttempt = async (attemptText: string) => {
-      const tracker = createReplyIntegrityTracker();
-      const unsub = entry.session.subscribe((event: AnyRecord) => {
-        tracker.handle(event);
-      });
-      try {
-        await entry.session.prompt(attemptText, _promptOpts);
-        ensureValidReplyExecution(tracker);
-        return tracker.replyText;
-      } finally {
-        unsub?.();
-      }
+      return runPromptWithIntegrity(entry.session, attemptText, _promptOpts, { passOptionsArgument: true });
     };
     try {
       if (opts?.disableTools) {
@@ -1095,20 +1074,6 @@ export class SessionCoordinator {
         ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       } as any);
 
-      const runPromptAttempt = async (attemptPrompt: string) => {
-        const tracker = createReplyIntegrityTracker();
-        const unsub = session.subscribe((event: AnyRecord) => {
-          tracker.handle(event);
-        });
-        try {
-          await session.prompt(attemptPrompt);
-          ensureValidReplyExecution(tracker);
-          return tracker.replyText;
-        } finally {
-          unsub?.();
-        }
-      };
-
       // abort signal：监听中止，转发到子 session
       const abortHandler = () => session.abort();
       opts.signal?.addEventListener("abort", abortHandler, { once: true });
@@ -1122,7 +1087,7 @@ export class SessionCoordinator {
 
       let replyText = "";
       try {
-        replyText = await runPromptAttempt(prompt);
+        replyText = await runPromptWithIntegrity(session, prompt);
       } finally {
         opts.signal?.removeEventListener("abort", abortHandler);
       }
