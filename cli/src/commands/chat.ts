@@ -45,12 +45,12 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     }
     if (text === "/fast") {
       reasoning = { ...reasoning, effort: "off" };
-      output.write("Fast mode enabled: MiMo/Brain thinking is off for short low-latency replies.\n\n");
+      output.write(`${t("chat.fast")}\n\n`);
       return "continue";
     }
     if (text === "/think") {
       reasoning = { ...reasoning, effort: "high" };
-      output.write("Thinking mode enabled: reasoning effort is high.\n\n");
+      output.write(`${t("chat.think")}\n\n`);
       return "continue";
     }
     if (text === "/reasoning") {
@@ -78,7 +78,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     }
     if (text === "/clear") {
       messages.length = 0;
-      output.write("Context cleared.\n\n");
+      output.write(`${t("chat.cleared")}\n\n`);
       return "continue";
     }
 
@@ -121,7 +121,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     }
     md.end();
     messages.push({ role: "assistant", content: assistant });
-    output.write("\n\n");
+    output.write(`\n${dim(`· ${renderMode(mode)} · think ${reasoning.effort}`, supportsColor(output))}\n\n`);
     return "continue";
   }
 

@@ -141,12 +141,12 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
       }
       if (text === "/fast") {
         reasoning = { ...reasoning, effort: "off" };
-        output.write("✓ fast mode · thinking off\n\n");
+        output.write(`${t("code.fast")}\n\n`);
         continue;
       }
       if (text === "/think") {
         reasoning = { ...reasoning, effort: "high" };
-        output.write("✓ thinking mode · high\n\n");
+        output.write(`${t("code.think")}\n\n`);
         continue;
       }
       if (text === "/reasoning") {
