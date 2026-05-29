@@ -1,13 +1,13 @@
 /**
- * WorkerCard — one worker's live view: status, a code-change summary (aggregate
- * "N files changed +X -Y" plus a per-file list with verbs and +/- counts, the
- * file being written right now shown as in-progress), tests, log, finish/error,
- * a click-to-expand per-file diff drawer, and recovery actions
- * (Cancel / Retry / Open worktree / Copy logs).
+ * WorkerCard — one worker's live view: collapsible card with a status dot, a
+ * code-change summary, a per-file list, a click-to-expand colorized `git diff`
+ * drawer, tests, log, finish/error, a reasoning indicator, and recovery actions
+ * (Cancel / Retry / Open worktree / Copy logs) plus dismiss for finished workers.
  */
 import { useState } from 'react';
 import type { FleetWorkerView } from './fleet-reducer';
 import type { FleetChangedFile } from '../../../../../shared/fleet-events.js';
+import { classifyDiffLine } from './diff-format';
 import s from './Fleet.module.css';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -19,6 +19,8 @@ const STATUS_LABEL: Record<string, string> = {
   failed: 'failed',
   cancelled: 'cancelled',
 };
+
+const TERMINAL = ['completed', 'cancelled', 'failed'];
 
 function fileVerb(file: FleetChangedFile, active: boolean): string {
   const action = file.action ?? 'edit';
@@ -39,21 +41,26 @@ export function WorkerCard({
   onCancel,
   onRetry,
   onOpenWorktree,
+  onDismiss,
   fetchFileDiff,
 }: {
   worker: FleetWorkerView;
   onCancel?: (workerId: string) => void;
   onRetry?: (workerId: string) => void;
   onOpenWorktree?: (worker: FleetWorkerView) => void;
+  onDismiss?: (workerId: string) => void;
   fetchFileDiff?: (workerId: string, file: string) => Promise<string>;
 }) {
   const { diffStat } = worker;
   const fileCount = diffStat?.files ?? worker.changedFiles.length;
   const hasChanges = worker.changedFiles.length > 0 || diffStat != null;
+  const isTerminal = TERMINAL.includes(worker.status);
 
+  const [collapsed, setCollapsed] = useState(false);
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [diffText, setDiffText] = useState('');
   const [diffLoading, setDiffLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const toggleDiff = async (file: string) => {
     if (openFile === file) {
@@ -76,6 +83,8 @@ export function WorkerCard({
   const copyLogs = () => {
     try {
       void navigator.clipboard?.writeText(worker.log.join('\n'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch {
       /* clipboard unavailable */
     }
@@ -90,14 +99,29 @@ export function WorkerCard({
   return (
     <div className={s.workerCard} data-status={worker.status} data-blocked={worker.hasForbiddenEdit ? '1' : '0'}>
       <div className={s.workerHead}>
+        <button
+          className={s.collapseBtn}
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? 'expand' : 'collapse'}
+        >
+          {collapsed ? '▸' : '▾'}
+        </button>
+        <span className={s.statusDot} data-status={worker.status} />
         <span className={s.workerAgent}>{worker.agent ?? 'worker'}</span>
         <span className={s.workerBranch}>{worker.branch ?? worker.workerId}</span>
+        {worker.reasoningChunks > 0 && <span className={s.reasoningChip}>reasoning x{worker.reasoningChunks}</span>}
         {worker.hasForbiddenEdit && (
           <span className={s.badgeScope} title="out-of-scope edit">
             out-of-scope
           </span>
         )}
         <span className={s.workerStatus}>{STATUS_LABEL[worker.status] ?? worker.status}</span>
+        {onDismiss && isTerminal && (
+          <button className={s.dismissBtn} type="button" onClick={() => onDismiss(worker.workerId)} aria-label="dismiss">
+            ×
+          </button>
+        )}
       </div>
 
       {hasChanges && (
@@ -113,59 +137,73 @@ export function WorkerCard({
         </div>
       )}
 
-      {worker.changedFiles.length > 0 && (
-        <ul className={s.workerFiles}>
-          {worker.changedFiles.map((f) => {
-            const active = worker.status === 'running' && f.path === worker.activeFile;
-            const hasCounts = f.insertions != null || f.deletions != null;
-            return (
-              <li key={f.path} data-forbidden={f.forbidden ? '1' : '0'} data-active={active ? '1' : '0'}>
-                <button className={s.fileRow} type="button" onClick={() => toggleDiff(f.path)} title="view diff">
-                  <span className={s.fileVerb}>{fileVerb(f, active)}</span> {f.path}
-                  {hasCounts && (
-                    <>
-                      {' '}
-                      <span className={s.fileIns}>+{f.insertions ?? 0}</span>{' '}
-                      <span className={s.fileDel}>-{f.deletions ?? 0}</span>
-                    </>
-                  )}
-                  {f.forbidden ? '  (forbidden)' : ''}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {!collapsed && (
+        <>
+          {worker.changedFiles.length > 0 && (
+            <ul className={s.workerFiles}>
+              {worker.changedFiles.map((f) => {
+                const active = worker.status === 'running' && f.path === worker.activeFile;
+                const hasCounts = f.insertions != null || f.deletions != null;
+                return (
+                  <li key={f.path} data-forbidden={f.forbidden ? '1' : '0'} data-active={active ? '1' : '0'}>
+                    <button className={s.fileRow} type="button" onClick={() => toggleDiff(f.path)} title="view diff">
+                      <span className={s.fileVerb}>{fileVerb(f, active)}</span> {f.path}
+                      {hasCounts && (
+                        <>
+                          {' '}
+                          <span className={s.fileIns}>+{f.insertions ?? 0}</span>{' '}
+                          <span className={s.fileDel}>-{f.deletions ?? 0}</span>
+                        </>
+                      )}
+                      {f.forbidden ? '  (forbidden)' : ''}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-      {openFile && (
-        <pre className={s.diffDrawer}>
-          {diffLoading ? 'loading diff…' : diffText || 'no diff yet (worktree not materialized until the worker really runs)'}
-        </pre>
-      )}
+          {openFile && (
+            <div className={s.diffDrawer}>
+              {diffLoading ? (
+                <div className={s.diffMeta}>loading diff…</div>
+              ) : diffText ? (
+                diffText.split('\n').map((line, i) => (
+                  <div key={i} className={s.diffLine} data-kind={classifyDiffLine(line)}>
+                    {line || ' '}
+                  </div>
+                ))
+              ) : (
+                <div className={s.diffMeta}>no diff yet (worktree not materialized until the worker really runs)</div>
+              )}
+            </div>
+          )}
 
-      {worker.tests.length > 0 && (
-        <ul className={s.workerTests}>
-          {worker.tests.map((t, idx) => (
-            <li key={`${t.command}-${idx}`} data-ok={t.running ? 'run' : t.ok ? 'ok' : 'fail'}>
-              {t.command} — {t.running ? 'running…' : t.ok ? `ok${t.summary ? ` · ${t.summary}` : ''}` : 'failed'}
-            </li>
-          ))}
-        </ul>
-      )}
+          {worker.tests.length > 0 && (
+            <ul className={s.workerTests}>
+              {worker.tests.map((t, idx) => (
+                <li key={`${t.command}-${idx}`} data-ok={t.running ? 'run' : t.ok ? 'ok' : 'fail'}>
+                  {t.command} — {t.running ? 'running…' : t.ok ? `ok${t.summary ? ` · ${t.summary}` : ''}` : 'failed'}
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {worker.log.length > 0 && <div className={s.workerLog}>{worker.log.slice(-4).join('\n')}</div>}
+          {worker.log.length > 0 && <div className={s.workerLog}>{worker.log.slice(-4).join('\n')}</div>}
 
-      {worker.finished && (
-        <div className={s.workerFinished}>
-          {worker.finished.summary}
-          {worker.finished.commit ? ` (${worker.finished.commit})` : ''}
-        </div>
-      )}
+          {worker.finished && (
+            <div className={s.workerFinished}>
+              {worker.finished.summary}
+              {worker.finished.commit ? ` (${worker.finished.commit})` : ''}
+            </div>
+          )}
 
-      {worker.error && (
-        <div className={s.workerError}>
-          error {worker.error.code}: {worker.error.message}
-        </div>
+          {worker.error && (
+            <div className={s.workerError}>
+              error {worker.error.code}: {worker.error.message}
+            </div>
+          )}
+        </>
       )}
 
       {hasActions && (
@@ -187,7 +225,7 @@ export function WorkerCard({
           )}
           {canCopy && (
             <button className={s.fleetBtn} onClick={copyLogs}>
-              Copy logs
+              {copied ? 'Copied' : 'Copy logs'}
             </button>
           )}
         </div>

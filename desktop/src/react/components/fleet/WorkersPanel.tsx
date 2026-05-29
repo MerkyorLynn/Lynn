@@ -19,11 +19,20 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import type { CliEnvStatus } from '../../types';
 import type { FleetWorkerView } from './fleet-reducer';
 
+const STATUS_SHORT: Record<string, string> = {
+  running: 'running',
+  waiting_approval: 'review',
+  blocked: 'blocked',
+  failed: 'failed',
+};
+
 export function WorkersPanel() {
   const activePanel = useStore((st) => st.activePanel);
   const fleetWorkers = useStore((st) => st.fleetWorkers);
   const applyFleetEvent = useStore((st) => st.applyFleetEvent);
   const resetFleet = useStore((st) => st.resetFleet);
+  const removeWorker = useStore((st) => st.removeWorker);
+  const clearFinishedWorkers = useStore((st) => st.clearFinishedWorkers);
   const cancelRef = useRef<null | (() => void)>(null);
   const [showForm, setShowForm] = useState(false);
   const [cliEnv, setCliEnv] = useState<CliEnvStatus | null>(null);
@@ -42,6 +51,15 @@ export function WorkersPanel() {
     return () => {
       alive = false;
     };
+  }, [activePanel]);
+
+  useEffect(() => {
+    if (activePanel !== 'fleet') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') useStore.getState().setActivePanel(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [activePanel]);
 
   if (activePanel !== 'fleet') return null;
@@ -98,6 +116,12 @@ export function WorkersPanel() {
     { files: 0, ins: 0, del: 0 },
   );
 
+  const statusCounts = fleetWorkers.reduce<Record<string, number>>((acc, w) => {
+    acc[w.status] = (acc[w.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const finishedCount = fleetWorkers.filter((w) => ['completed', 'cancelled', 'failed'].includes(w.status)).length;
+
   return (
     <div className={fp.floatingPanel} onClick={close}>
       <div className={fp.floatingPanelInner} onClick={(e) => e.stopPropagation()}>
@@ -121,8 +145,20 @@ export function WorkersPanel() {
             <button className={s.fleetBtn} onClick={playMock}>
               Play mock worker
             </button>
+            {finishedCount > 0 && (
+              <button className={s.fleetBtn} onClick={clearFinishedWorkers}>
+                Clear finished ({finishedCount})
+              </button>
+            )}
             <span className={s.fleetHint}>
               {fleetWorkers.length} worker(s)
+              {(['running', 'waiting_approval', 'blocked', 'failed'] as const).map((st) =>
+                statusCounts[st] ? (
+                  <span key={st} className={s.statusChip} data-status={st}>
+                    {STATUS_SHORT[st]} {statusCounts[st]}
+                  </span>
+                ) : null,
+              )}
               {totals.files > 0 && (
                 <>
                   {' · '}
@@ -171,6 +207,7 @@ export function WorkersPanel() {
                   onCancel={cancelWorker}
                   onRetry={retryWorker}
                   onOpenWorktree={openWorktree}
+                  onDismiss={removeWorker}
                   fetchFileDiff={fetchFileDiff}
                 />
               ))}

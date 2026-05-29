@@ -194,7 +194,105 @@
   line-height: 1.45;
   max-height: 280px;
   overflow: auto;
+}
+
+.diffLine {
   white-space: pre;
+}
+
+.diffLine[data-kind='add'] {
+  color: #2ecc71;
+}
+
+.diffLine[data-kind='del'] {
+  color: #e74c3c;
+}
+
+.diffLine[data-kind='hunk'] {
+  color: #3498db;
+}
+
+.diffLine[data-kind='meta'] {
+  opacity: 0.5;
+}
+
+.diffMeta {
+  opacity: 0.6;
+}
+
+/* Status dot + head controls */
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+  flex: none;
+}
+
+.statusDot[data-status='running'] {
+  background: #3498db;
+}
+
+.statusDot[data-status='waiting_approval'],
+.statusDot[data-status='completed'] {
+  background: #27ae60;
+}
+
+.statusDot[data-status='blocked'],
+.statusDot[data-status='failed'] {
+  background: #e74c3c;
+}
+
+.collapseBtn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.dismissBtn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.dismissBtn:hover {
+  opacity: 0.9;
+}
+
+.reasoningChip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(241, 196, 15, 0.15);
+  color: #c79a12;
+}
+
+.statusChip {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.statusChip[data-status='running'] {
+  color: #3498db;
+}
+
+.statusChip[data-status='waiting_approval'] {
+  color: #27ae60;
+}
+
+.statusChip[data-status='blocked'],
+.statusChip[data-status='failed'] {
+  color: #e74c3c;
 }
 
 .workerLog {
