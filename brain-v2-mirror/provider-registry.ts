@@ -39,6 +39,20 @@ const PROVIDER_DEFS = {
     // (非 'off' / 'none')显式 opt-in 才走 thinking-on。
     default_thinking: false,
   },
+  // [step-3.7-flash v1] StepFun 云 198B-MoE/11B-A vision-language(step_plan 端点)。
+  // universalOrder 第 3 位:Spark APEX 之后、DeepSeek 之前。vision=true → 排在 mimo 之后、
+  // apex/deepseek(无 vision)被跳过,自动成为图片 fallback 第 2 顺位。
+  // reasoning-always(low/med/high 三档,无真 off);wire=openai(content + image_url + tools)。
+  'step-3.7-flash': {
+    id: providerId('step-3.7-flash'),
+    endpoint: env('STEP37_BASE', 'https://api.stepfun.com/step_plan/v1'),
+    apiKey: env('STEP37_KEY', ''),
+    model: envModel('STEP37_MODEL', 'step-3.7-flash'),
+    capability: { vision: true, audio: false, video: false, tools: true, thinking: true, native_search: false },
+    wire: 'openai',
+    cooldown_ms: 60_000,
+    default_thinking: false,
+  },
   'deepseek-chat': {
     id: providerId('deepseek-chat'),
     endpoint: env('DEEPSEEK_BASE', 'https://api.deepseek.com/v1'),
@@ -86,8 +100,9 @@ export const PROVIDERS: Record<string, Provider> = PROVIDER_DEFS;
 
 // universalOrder — 单一兜底链路,不按 prompt 内容分支
 export const universalOrder = [
-  providerId('mimo'),                  // 头位:enable_search:true 内置搜索 + thinking
+  providerId('mimo'),                  // 头位:enable_search:true 内置搜索 + thinking + vision
   providerId('apex-spark-i-balanced'), // MIMO fallback:Spark llama.cpp APEX-I-Balanced(127.0.0.1:18098 via frps)
+  providerId('step-3.7-flash'),        // 第3位:StepFun 云 198B-MoE vision(Spark 后 / DS 前;vision fallback 第2)
   providerId('deepseek-chat'),         // 云兜底 V4-flash
   providerId('deepseek-pro'),          // 云兜底 V4-pro
   providerId('glm-5-turbo'),           // 末位
