@@ -68,6 +68,11 @@ export class WorktreeManager {
     return { files, insertions, deletions };
   }
 
+  /** `git diff` for a single file in the worktree (read-only; for the GUI diff drawer). */
+  async fileDiff(worktreePath: string, file: string, baseRef = "HEAD"): Promise<string> {
+    return runGit(["diff", baseRef, "--", file], worktreePath).catch(() => "");
+  }
+
   async list(): Promise<WorktreeInfo[]> {
     const out = await runGit(["worktree", "list", "--porcelain"], this.repoRoot).catch(() => "");
     return parseWorktreePorcelain(out);

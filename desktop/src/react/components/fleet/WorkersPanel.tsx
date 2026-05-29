@@ -17,6 +17,7 @@ import { MOCK_WORKER_JSONL } from './fixtures';
 import { detectFleetConflicts } from './fleet-conflicts';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import type { CliEnvStatus } from '../../types';
+import type { FleetWorkerView } from './fleet-reducer';
 
 export function WorkersPanel() {
   const activePanel = useStore((st) => st.activePanel);
@@ -57,6 +58,30 @@ export function WorkersPanel() {
     void hanaFetch(`/api/fleet/workers/${encodeURIComponent(workerId)}/cancel`, { method: 'POST' }).catch(() => {
       /* server broadcasts the cancel result; ignore transport errors here */
     });
+  };
+
+  const retryWorker = (workerId: string) => {
+    void hanaFetch(`/api/fleet/workers/${encodeURIComponent(workerId)}/retry`, { method: 'POST' }).catch(() => {
+      /* server broadcasts the new worker; ignore transport errors here */
+    });
+  };
+
+  const openWorktree = (worker: FleetWorkerView) => {
+    if (!worker.worktree) return;
+    const abs = worker.cwd ? `${worker.cwd.replace(/\/+$/, '')}/${worker.worktree}` : worker.worktree;
+    window.hana?.openFolder?.(abs);
+  };
+
+  const fetchFileDiff = async (workerId: string, file: string): Promise<string> => {
+    try {
+      const res = await hanaFetch(
+        `/api/fleet/workers/${encodeURIComponent(workerId)}/diff?file=${encodeURIComponent(file)}`,
+      );
+      const data = (await res.json()) as { diff?: string };
+      return typeof data.diff === 'string' ? data.diff : '';
+    } catch {
+      return '';
+    }
   };
 
   const conflicts = detectFleetConflicts(fleetWorkers);
@@ -122,11 +147,32 @@ export function WorkersPanel() {
           )}
 
           {fleetWorkers.length === 0 ? (
-            <div className={s.fleetEmpty}>No workers yet. Dispatch one, or play a mock stream.</div>
+            <div className={s.fleetEmpty}>
+              <div className={s.emptyTitle}>No workers yet</div>
+              <p>Dispatch 3-5 CLI workers (codex / claude / qwen ...) into isolated git worktrees and supervise them here.</p>
+              <ol className={s.emptySteps}>
+                <li>
+                  <strong>Dispatch worker</strong> — write a brief: which files it owns, which are forbidden, the test commands.
+                </li>
+                <li>Each worker runs in its own worktree; this board shows its live log, per-file diff, and tests.</li>
+                <li>Out-of-scope edits and center-file conflicts are flagged red and block merge.</li>
+                <li>Cancel / retry / open the worktree from each card.</li>
+              </ol>
+              <p className={s.emptyHint}>
+                New here? Click <strong>Play mock worker</strong> to watch a simulated run end-to-end.
+              </p>
+            </div>
           ) : (
             <div className={s.fleetBoard}>
               {fleetWorkers.map((w) => (
-                <WorkerCard key={w.workerId} worker={w} onCancel={cancelWorker} />
+                <WorkerCard
+                  key={w.workerId}
+                  worker={w}
+                  onCancel={cancelWorker}
+                  onRetry={retryWorker}
+                  onOpenWorktree={openWorktree}
+                  fetchFileDiff={fetchFileDiff}
+                />
               ))}
             </div>
           )}

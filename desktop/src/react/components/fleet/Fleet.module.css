@@ -27,10 +27,30 @@
 }
 
 .fleetEmpty {
-  padding: 24px 8px;
+  padding: 20px 12px;
   font-size: 13px;
-  opacity: 0.6;
-  text-align: center;
+  opacity: 0.78;
+  line-height: 1.5;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.emptySteps {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.emptySteps li {
+  margin: 4px 0;
+}
+
+.emptyHint {
+  opacity: 0.7;
+  margin-top: 8px;
 }
 
 .fleetBoard {
@@ -146,6 +166,35 @@
 .workerFiles li[data-active='1'] .fileVerb {
   color: #f1c40f;
   opacity: 1;
+}
+
+.fileRow {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fileRow:hover {
+  text-decoration: underline;
+}
+
+.diffDrawer {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--code-bg, rgba(0, 0, 0, 0.3));
+  font-family: var(--mono-font, monospace);
+  font-size: 11px;
+  line-height: 1.45;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre;
 }
 
 .workerLog {

@@ -9,6 +9,7 @@
  * `lynn worker run --jsonl` is merged into the integration branch.
  */
 import type { FleetWorkerEvent, FleetAgentKind } from "../../shared/fleet-events.js";
+import path from "node:path";
 import { WorktreeManager } from "./worktree-manager.js";
 
 export interface FleetBrief {
@@ -33,6 +34,12 @@ export interface FleetWorkerRecord {
 }
 
 export type FleetBroadcast = (msg: unknown) => void;
+
+/** Reject absolute paths and `..` traversal before handing a file path to git. */
+function isSafeRelPath(p: string): boolean {
+  if (!p || path.isAbsolute(p)) return false;
+  return !p.split(/[\\/]/).includes("..");
+}
 
 export class FleetHub {
   private workers = new Map<string, FleetWorkerRecord>();
@@ -114,5 +121,30 @@ export class FleetHub {
       recoverable: false,
     });
     return true;
+  }
+
+  /** Re-dispatch a worker's brief as a fresh worker (recovery). */
+  async retry(id: string): Promise<FleetWorkerRecord | null> {
+    const rec = this.workers.get(id);
+    if (!rec) return null;
+    return this.dispatch(rec.brief);
+  }
+
+  /** Read-only single-file diff for the GUI drawer; never escapes the worktree. */
+  async getWorkerFileDiff(
+    id: string,
+    file: string,
+  ): Promise<{ file: string; diff: string; error?: string } | null> {
+    const rec = this.workers.get(id);
+    if (!rec) return null;
+    if (!isSafeRelPath(file)) return { file, diff: "", error: "invalid path" };
+    const worktree = path.isAbsolute(rec.brief.worktree)
+      ? rec.brief.worktree
+      : path.join(this.repoRoot, rec.brief.worktree);
+    try {
+      return { file, diff: await this.worktrees.fileDiff(worktree, file) };
+    } catch {
+      return { file, diff: "" };
+    }
   }
 }

@@ -79,3 +79,46 @@ describe("FleetHub.dispatch", () => {
     expect(sent.map((m) => m.event.type)).toEqual(["worker.started", "worker.claims", "worker.progress"]);
   });
 });
+
+const sampleBrief: FleetBrief = {
+  title: "t",
+  agent: "codex-cli",
+  objective: "o",
+  owned: ["a/**"],
+  forbidden: ["server/**"],
+  branch: "cli-1/x",
+  worktree: "worktrees/cli-1",
+};
+
+describe("FleetHub.retry", () => {
+  it("re-dispatches a brief as a fresh worker", async () => {
+    const hub = new FleetHub("/repo", () => {}, () => "T");
+    const first = await hub.dispatch(sampleBrief);
+    const again = await hub.retry(first.workerId);
+    expect(again).not.toBeNull();
+    expect(again && again.workerId).not.toBe(first.workerId);
+    expect(hub.listWorkers()).toHaveLength(2);
+  });
+
+  it("returns null for an unknown worker", async () => {
+    const hub = new FleetHub("/repo", () => {}, () => "T");
+    expect(await hub.retry("nope")).toBeNull();
+  });
+});
+
+describe("FleetHub.getWorkerFileDiff path guard", () => {
+  it("rejects path traversal without touching git", async () => {
+    const hub = new FleetHub("/repo", () => {}, () => "T");
+    const rec = await hub.dispatch(sampleBrief);
+    expect(await hub.getWorkerFileDiff(rec.workerId, "../../etc/passwd")).toEqual({
+      file: "../../etc/passwd",
+      diff: "",
+      error: "invalid path",
+    });
+  });
+
+  it("returns null for an unknown worker", async () => {
+    const hub = new FleetHub("/repo", () => {}, () => "T");
+    expect(await hub.getWorkerFileDiff("nope", "a.ts")).toBeNull();
+  });
+});
