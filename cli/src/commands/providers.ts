@@ -2,6 +2,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { type ParsedArgs, getStringFlag, hasFlag } from "../args.js";
 import { nowIso, writeJsonLine } from "../jsonl.js";
+import { t } from "../i18n.js";
 import { fetchLocalServerJson, readLocalServerInfo, type LocalServerLookup } from "../local-server.js";
 import {
   providerProfilePath,
@@ -48,9 +49,9 @@ export interface ProviderLine {
 
 export function providersInfo(partial: Partial<ProvidersInfo> = {}): ProvidersInfo {
   return {
-    defaultRoute: "MiMo via local Brain router (auto)",
-    byokEntry: "Open Lynn client GUI > Settings > Providers",
-    keyPolicy: "Provider keys stay in Lynn settings/server storage; the CLI does not print or store them.",
+    defaultRoute: t("providers.route.default"),
+    byokEntry: t("providers.byok.gui"),
+    keyPolicy: t("providers.keyPolicy"),
     brainUrl: process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790",
     server: { status: "missing", message: "Lynn client GUI server-info.json not found" },
     providers: [],
@@ -68,7 +69,7 @@ export function renderProvidersInfo(info: ProvidersInfo): string {
     ? `${info.cliProvider.profile.provider} / ${info.cliProvider.profile.model} @ ${info.cliProvider.profile.baseUrl} (${info.cliProvider.source || "file"}, key ${redactApiKey(info.cliProvider.profile.apiKey)})`
     : `not set${info.cliProvider?.path ? ` · ${info.cliProvider.path}` : ""}`;
   return [
-    "Lynn Providers / BYOK",
+    t("providers.title"),
     "",
     `Current route: ${active}`,
     `Default route: ${info.defaultRoute}`,
@@ -82,11 +83,7 @@ export function renderProvidersInfo(info: ProvidersInfo): string {
     "",
     info.keyPolicy,
     "",
-    "Default model: CLI uses MiMo through the local Brain/router when the Lynn client GUI is installed, running, and configured.",
-    "Without the client GUI, default model settings cannot be changed from CLI-only mode.",
-    "CLI-only: set a BYOK OpenAI-compatible endpoint with:",
-    "  Lynn providers set --base-url https://api.example.com/v1 --api-key <api-key> --model model-id",
-    "Use Lynn model or /model in chat to review this route. Use --brain-url to point at another local endpoint.",
+    t("providers.guide"),
   ].join("\n");
 }
 
@@ -108,8 +105,8 @@ export async function resolveProvidersInfo(args: ParsedArgs, timeoutMs = 1500): 
   const base = providersInfo({
     brainUrl,
     byokEntry: resolvedCliProvider
-      ? "CLI BYOK fallback configured; client GUI Settings > Providers controls the default Brain route"
-      : "Install/open Lynn client GUI > Settings > Providers for default route, or run Lynn providers set for CLI-only BYOK",
+      ? t("providers.byok.configured")
+      : t("providers.byok.unconfigured"),
     server: {
       status: lookup.status,
       url: lookup.url,

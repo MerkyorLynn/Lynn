@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "../src/args.js";
 import { activeRouteLabel, renderProvidersInfo, runProviders } from "../src/commands/providers.js";
 import { providerProfilePath, readCliProviderProfile } from "../src/provider-profile.js";
+import { setLang } from "../src/i18n.js";
+
+beforeEach(() => setLang("en"));
+afterEach(() => setLang(null));
 
 describe("providers command", () => {
   it("renders BYOK guidance without exposing keys", () => {

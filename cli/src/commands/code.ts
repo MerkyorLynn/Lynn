@@ -136,7 +136,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
         continue;
       }
       if (text === "/tools") {
-        output.write(`${CLIENT_TOOL_DEFINITIONS.map((tool) => `${tool.name}${tool.dangerous ? " (approval required)" : ""}: ${tool.description}`).join("\n")}\n\n`);
+        output.write(`${CLIENT_TOOL_DEFINITIONS.map((tool) => `${tool.name}${tool.dangerous ? t("tool.approval.suffix") : ""}: ${tool.description}`).join("\n")}\n\n`);
         continue;
       }
       if (text === "/fast") {
@@ -150,7 +150,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
         continue;
       }
       if (text === "/reasoning") {
-        output.write(`think: ${reasoning.effort} / display ${reasoning.display}\nUse /fast, /think, or /reasoning off|auto|low|medium|high|xhigh.\n\n`);
+        output.write(`${t("code.reasoning.show", { effort: reasoning.effort, display: reasoning.display })}\n\n`);
         continue;
       }
       if (text.startsWith("/reasoning ")) {
@@ -160,7 +160,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
         continue;
       }
       if (text === "/mode") {
-        output.write(`mode: ${renderMode(mode)}\nUse /mode yolo for full local tool permission or /mode ask for guarded mode.\n\n`);
+        output.write(`${t("code.mode.show", { mode: renderMode(mode) })}\n\n`);
         continue;
       }
       if (text.startsWith("/mode ")) {
@@ -347,19 +347,7 @@ export function renderCodeTaskHeader(inputData: {
 }
 
 function renderCodeHelp(): string {
-  return [
-    "/exit leave code mode",
-    "/tools list local coding tools",
-    "/fast low-latency MiMo/Brain replies",
-    "/think deeper MiMo/Brain reasoning",
-    "/reasoning show or set reasoning mode",
-    "/model show current Brain/BYOK route",
-    "/providers show provider and BYOK setup",
-    "/mode show permission mode",
-    "/mode ask guarded workspace-write mode",
-    "/mode yolo allow local writes and shell commands",
-    "",
-  ].join("\n");
+  return `${t("code.help")}\n`;
 }
 
 async function resolveCodeMode(args: ParsedArgs): Promise<ChatMode> {

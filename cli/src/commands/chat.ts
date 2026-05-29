@@ -40,7 +40,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     if (!text) return "continue";
     if (text === "/exit" || text === "/quit") return "break";
     if (text === "/help") {
-      output.write("/exit leave chat\n/clear reset context\n/model show model/BYOK route\n/providers show BYOK setup\n/fast low-latency replies\n/think deeper reasoning\n/reasoning show or set reasoning mode\n/mode show permission mode\n/mode ask|yolo|read-only|workspace|danger change permission mode\n/help show commands\n\n");
+      output.write(`${t("chat.help")}\n\n`);
       return "continue";
     }
     if (text === "/fast") {
@@ -54,7 +54,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
       return "continue";
     }
     if (text === "/reasoning") {
-      output.write(`reasoning: ${reasoning.effort} · display ${reasoning.display}\nUse /fast, /think, or /reasoning off|auto|low|medium|high|xhigh.\n\n`);
+      output.write(`${t("chat.reasoning.show", { effort: reasoning.effort, display: reasoning.display })}\n\n`);
       return "continue";
     }
     if (text.startsWith("/reasoning ")) {
@@ -64,7 +64,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
       return "continue";
     }
     if (text === "/mode") {
-      output.write(`mode: ${renderMode(mode)}\nUse /mode yolo for full local tool permission, /mode ask for guarded mode, or Shift+Tab to toggle.\n\n`);
+      output.write(`${t("chat.mode.show", { mode: renderMode(mode) })}\n\n`);
       return "continue";
     }
     if (text.startsWith("/mode ")) {
