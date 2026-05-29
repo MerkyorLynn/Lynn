@@ -11,7 +11,7 @@
 <h1 align="center">Lynn</h1>
 
 <p align="center"><strong>GUI 指挥台 · CLI Worker Fleet · 长期记忆 · 多 Agent 协作</strong></p>
-<p align="center">把编程、研究和业务任务放进同一个可视化调度台的开源桌面 AI Agent</p>
+<p align="center">开源桌面 AI Agent:用 GUI 指挥台并行调度多个代码 CLI(Codex / Claude / Qwen…),编程 / 研究 / 业务同台可视化编排——不是又一个聊天框,而是多 CLI 编排台</p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>

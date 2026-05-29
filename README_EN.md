@@ -9,7 +9,7 @@
 <h1 align="center">Lynn</h1>
 
 <p align="center"><strong>GUI command center · CLI Worker Fleet · Long-term memory · Multi-agent collaboration</strong></p>
-<p align="center">An open-source desktop AI agent for orchestrating coding, research, and business work in one visual workspace</p>
+<p align="center">An open-source desktop AI agent whose GUI command center dispatches multiple coding CLIs (Codex / Claude / Qwen ...) in parallel - coding, research, and business in one visual workspace, not another chat box</p>
 
 <p align="center"><a href="README.md">中文版 (默认)</a> | <strong>English</strong></p>
 
