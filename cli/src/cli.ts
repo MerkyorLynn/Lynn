@@ -22,7 +22,6 @@ async function main(argv = process.argv.slice(2)): Promise<number> {
     process.stdout.write(`${renderStartupBanner({
       brainUrl: providerInfo.brainUrl,
       brainStatus: brainReachable ? "online" : "offline",
-      byokLabel: providerInfo.byokEntry,
       modelLabel: activeRouteLabel(providerInfo),
       showTips: brainReachable,
     })}\n`);

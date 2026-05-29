@@ -1,4 +1,5 @@
 import { cyan, supportsColor } from "./terminal-style.js";
+import { t } from "./i18n.js";
 
 export class TerminalSpinner {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -7,7 +8,7 @@ export class TerminalSpinner {
 
   constructor(
     private readonly stream: NodeJS.WriteStream,
-    private readonly label = "Lynn is thinking",
+    private readonly label = t("spinner.thinking"),
   ) {}
 
   start(): void {

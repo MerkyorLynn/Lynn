@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { applyModeCommand, applyReasoningCommand, formatChatError, isModeToggleKeypress, renderMode, renderOfflineChatHint, toggleMode } from "../src/commands/chat.js";
 import { BrainConnectionError } from "../src/brain-client.js";
+import { setLang } from "../src/i18n.js";
+
+beforeEach(() => setLang("en"));
+afterEach(() => setLang(null));
 
 describe("chat mode controls", () => {
   it("toggles between guarded and yolo modes", () => {
@@ -40,8 +44,8 @@ describe("chat mode controls", () => {
     const hint = renderOfflineChatHint({ approval: "ask", sandbox: "workspace-write" }, "http://127.0.0.1:8790");
 
     expect(hint).toContain("Brain offline");
-    expect(hint).toContain("Lynn client GUI");
-    expect(hint).toContain("Lynn providers");
+    expect(hint).toContain("Lynn client");
+    expect(hint).toContain("lynn providers");
     expect(hint).toContain("--mock-brain");
   });
 

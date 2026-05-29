@@ -13,6 +13,7 @@ import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
 import { dangerLine, dim, red, supportsColor } from "../terminal-style.js";
 import { box, displayCwd, padLine } from "../startup.js";
+import { t } from "../i18n.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "../provider-profile.js";
 import { CLIENT_TOOL_DEFINITIONS, runClientTool } from "../tools/registry.js";
 import type { ClientToolName, ClientToolResult, ToolRunContext } from "../tools/types.js";
@@ -112,7 +113,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
   output.write(renderCodeIntro(mode, reasoning, { color: supportsColor(output) }));
   try {
     for (;;) {
-      const raw = await readCodeLine("", mode, { placeholder: "Describe a coding task, or type /help" });
+      const raw = await readCodeLine("", mode, { placeholder: t("code.placeholder") });
       if (raw === null) break;
       const text = raw.trim();
       if (!text) continue;
@@ -280,7 +281,7 @@ export function renderCodeIntro(
     "",
     dangerous
       ? `  ${dangerLine("YOLO mode can edit files and run shell commands without asking.", color)}`
-      : "  Tip: Use /fast for quick edits, /think for deeper MiMo reasoning, or /mode yolo to allow local edits.",
+      : `  ${t("code.tip")}`,
     "",
   ].join("\n");
 }
@@ -513,7 +514,7 @@ async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<string> 
       messages,
       reasoning: inputData.reasoning,
       json: inputData.json,
-      label: step === 0 ? "Lynn is coding" : "Lynn is reviewing tool output",
+      label: step === 0 ? t("spinner.coding") : t("spinner.reviewing"),
     });
     messages.push({ role: "assistant", content: assistantText });
     const toolRequest = parseCodeToolRequest(assistantText);
@@ -802,10 +803,9 @@ function buildCodePrompt(task: string, context: CodeContext): string {
 
 function renderMockCodeTask(task: string, context: CodeContext): string {
   return [
-    `Mock Lynn code task: ${task}`,
-    `CWD: ${context.cwd}`,
-    `Git: ${context.gitStatus ? "dirty" : "clean"}`,
-    `Files: ${context.topFiles.slice(0, 8).join(", ") || "(none)"}`,
+    t("mock.code", { task }),
+    t("mock.code.cwd", { cwd: context.cwd }),
+    t("mock.code.git", { status: context.gitStatus ? t("git.dirty") : t("git.clean") }),
   ].join("\n");
 }
 

@@ -1,7 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { renderStartupBanner } from "../src/startup.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { box, renderStartupBanner } from "../src/startup.js";
+import { setLang } from "../src/i18n.js";
 
 describe("startup banner", () => {
+  beforeEach(() => setLang("en"));
+  afterEach(() => setLang(null));
+
   it("renders model, brain route, and working directory", () => {
     const output = renderStartupBanner({
       cwd: process.env.HOME || "/tmp",
@@ -22,7 +26,7 @@ describe("startup banner", () => {
     expect(output).toContain("http://127.0.0.1:8790");
     expect(output).toContain("directory:");
     expect(output).toContain("~");
-    expect(output).toContain("Lynn help");
+    expect(output).toContain("lynn help");
   });
 
   it("can render a compact banner without tips", () => {
@@ -34,5 +38,15 @@ describe("startup banner", () => {
     expect(output).toContain("Lynn CLI");
     expect(output).toContain("brain:");
     expect(output).not.toContain("Tip:");
+  });
+
+  it("caps box width and wraps a long line instead of blowing out the frame", () => {
+    const longByok =
+      "Install/open Lynn client GUI > Settings > Providers for default route, or run Lynn providers set for CLI-only BYOK";
+    const rendered = box(["Lynn CLI", "", `BYOK: ${longByok}`]);
+    const widest = Math.max(
+      ...rendered.split("\n").map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").length),
+    );
+    expect(widest).toBeLessThanOrEqual(76);
   });
 });

@@ -1,6 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { readVersionInfo } from "./version.js";
+import { t } from "./i18n.js";
 
 export function displayCwd(cwd: string): string {
   const home = os.homedir();
@@ -23,11 +24,32 @@ function padVisible(value: string, width: number): string {
   return `${value}${" ".repeat(Math.max(0, width - visibleLength(value)))}`;
 }
 
+function wrapVisible(line: string, width: number): string[] {
+  if (visibleLength(line) <= width) return [line];
+  const out: string[] = [];
+  let current = "";
+  for (const word of line.split(" ")) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && visibleLength(candidate) > width) {
+      out.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) out.push(current);
+  return out;
+}
+
 export function box(lines: string[]): string {
-  const width = Math.max(...lines.map((line) => visibleLength(line)), 51);
+  // Cap width so one long line (e.g. BYOK guidance) can't blow the box out to
+  // the full terminal width; wrap long lines instead of widening the frame.
+  const cap = Math.min(Math.max((process.stdout.columns ?? 80) - 4, 44), 72);
+  const wrapped = lines.flatMap((line) => wrapVisible(line, cap));
+  const width = Math.max(...wrapped.map((line) => visibleLength(line)), Math.min(51, cap));
   const top = `╭${"─".repeat(width + 2)}╮`;
   const bottom = `╰${"─".repeat(width + 2)}╯`;
-  const body = lines.map((line) => `│ ${padVisible(line, width)} │`);
+  const body = wrapped.map((line) => `│ ${padVisible(line, width)} │`);
   return [top, ...body, bottom].join("\n");
 }
 
@@ -58,12 +80,7 @@ export function renderStartupBanner(input: {
   ];
   const out = [box(lines)];
   if (input.showTips !== false) {
-    out.push(
-      "",
-      "  Tip: Lynn -p \"prompt\" uses the local Brain router, which defaults to MiMo configured in the Lynn client GUI.",
-      "       In chat/code, use /fast for low latency or /think for deeper reasoning.",
-      "       Use Lynn providers for CLI-only BYOK setup, or Lynn help to see every command.",
-    );
+    out.push("", t("tips.banner"));
   }
   return out.join("\n");
 }

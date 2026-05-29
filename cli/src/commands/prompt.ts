@@ -6,6 +6,7 @@ import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { appendSessionTurn, resolveDataDir } from "../session/store.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
+import { t } from "../i18n.js";
 
 export interface PromptOptions {
   json?: boolean;
@@ -45,7 +46,7 @@ export async function runPrompt(args: ParsedArgs, options: PromptOptions = {}): 
   }
 
   if (options.mockBrain) {
-    const text = `Mock Lynn response: ${prompt}`;
+    const text = t("mock.response", { text: prompt });
     if (options.json) {
       writeJsonLine({ type: "assistant.delta", ts: nowIso(), text });
       writeJsonLine({ type: "run.finished", ts: nowIso(), ok: true });

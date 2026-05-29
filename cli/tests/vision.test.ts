@@ -5,9 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseArgs } from "../src/args.js";
 import { runVisionCommand, buildVisionPrompt } from "../src/commands/vision.js";
 import { buildImageContentParts, inferImageMime } from "../src/media.js";
+import { setLang } from "../src/i18n.js";
 
 let tmp = "";
 let png = "";
+
+beforeEach(() => setLang("en"));
+afterEach(() => setLang(null));
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-cli-vision-"));
@@ -49,7 +53,7 @@ describe("MiMo vision commands", () => {
     } finally {
       process.stdout.write = original;
     }
-    expect(output).toContain("Mock Lynn see");
+    expect(output).toContain("Mock see");
     expect(output).toContain("what is this");
   });
 });

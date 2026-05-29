@@ -6,8 +6,12 @@ import { parseArgs } from "../src/args.js";
 import { canPromptForDangerousTool, isDangerousClientTool, parseCodeToolRequest, renderCodeIntro, renderCodeTaskHeader, runCode } from "../src/commands/code.js";
 import { globToRegExp } from "../src/tools/glob.js";
 import { runClientTool } from "../src/tools/registry.js";
+import { setLang } from "../src/i18n.js";
 
 let tmp = "";
+
+beforeEach(() => setLang("en"));
+afterEach(() => setLang(null));
 
 beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-cli-tools-"));
@@ -253,7 +257,7 @@ describe("code tools", () => {
       process.stdout.write = original;
       process.stderr.write = originalErr;
     }
-    expect(output).toContain("Mock Lynn code task: review current diff");
-    expect(output).toContain("CWD:");
+    expect(output).toContain("Mock code task: review current diff");
+    expect(output).toContain("Directory:");
   });
 });

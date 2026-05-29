@@ -10,6 +10,7 @@ import { renderBrainEventForHuman, summarizeUsage, type HumanBrainRenderState } 
 import { dangerLine, red, supportsColor } from "../terminal-style.js";
 import { renderStartupBanner } from "../startup.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
+import { t } from "../i18n.js";
 
 export async function runChat(args: ParsedArgs, options: { intro?: boolean; brainReachable?: boolean } = {}): Promise<number> {
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
@@ -82,7 +83,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
 
     messages.push({ role: "user", content: text });
     if (mockBrain) {
-      const answer = `Mock Lynn response: ${text}`;
+      const answer = t("mock.response", { text });
       messages.push({ role: "assistant", content: answer });
       output.write(`${answer}\n\n`);
       return "continue";
@@ -167,18 +168,10 @@ export function renderMode(mode: ChatMode): string {
   return `${mode.approval} / ${mode.sandbox}`;
 }
 
-export function renderOfflineChatHint(mode: ChatMode, brainUrl = "http://127.0.0.1:8790"): string {
-  return [
-    "Brain offline. Install/open the Lynn client GUI to use and configure the default MiMo route.",
-    `brain: ${brainUrl}`,
-    `mode:  ${renderMode(mode)}`,
-    "",
-    "Next:",
-    "  Lynn doctor --offline",
-    "  Lynn providers",
-    "  Lynn providers set --base-url https://api.example.com/v1 --api-key <api-key> --model model-id",
-    "  Lynn -p \"hello\" --mock-brain",
-  ].join("\n");
+export function renderOfflineChatHint(_mode: ChatMode, _brainUrl = "http://127.0.0.1:8790"): string {
+  // The startup banner already shows brain URL + mode; keep this hint concise and
+  // non-redundant — just the localized next steps.
+  return t("offline.body");
 }
 
 export function applyModeCommand(mode: ChatMode, raw: string): string {

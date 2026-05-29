@@ -6,6 +6,7 @@ import { buildImageContentParts } from "../media.js";
 import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
+import { t } from "../i18n.js";
 
 export type VisionCommand = "see" | "ground" | "ui2code";
 
@@ -22,7 +23,7 @@ export async function runVisionCommand(args: ParsedArgs, command: VisionCommand,
   if (json) writeJsonLine({ type: "vision.started", ts: nowIso(), command, image: imagePath, prompt, reasoning });
 
   if (mockBrain) {
-    const text = `Mock Lynn ${command}: ${imagePath}${userText ? ` · ${userText}` : ""}`;
+    const text = `${t("mock.vision", { command, path: imagePath })}${userText ? ` · ${userText}` : ""}`;
     if (json) {
       writeJsonLine({ type: "assistant.delta", ts: nowIso(), text });
       writeJsonLine({ type: "vision.finished", ts: nowIso(), ok: true });
