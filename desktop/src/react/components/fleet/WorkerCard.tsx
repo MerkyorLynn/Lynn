@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { FleetWorkerView } from './fleet-reducer';
 import type { FleetChangedFile } from '../../../../../shared/fleet-events.js';
 import { classifyDiffLine } from './diff-format';
+import { formatVisualBox, groupVisualFiles, VISUAL_FILE_KINDS } from './visual-format';
 import s from './Fleet.module.css';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -101,8 +102,10 @@ export function WorkerCard({
   const canOpen = !!onOpenWorktree && !!worker.worktree;
   const canCopy = worker.log.length > 0;
   const hasActions = canCancel || canRetry || canOpen || canCopy;
-  const isVision = !!worker.taskType && worker.taskType !== 'code';
   const visualResult = worker.visualResult;
+  const visualTaskType = worker.taskType ?? visualResult?.taskType;
+  const visualImage = worker.image ?? visualResult?.image;
+  const isVision = (!!visualTaskType && visualTaskType !== 'code') || !!visualResult;
   const visualText = (visualResult?.summary || worker.assistant.trim() || worker.finished?.summary || '').trim();
   const rs = worker.runner?.source;
   const runnerSourceLabel =
@@ -150,8 +153,8 @@ export function WorkerCard({
       {isVision && (
         <div className={s.visualResult}>
           <div className={s.visualResultHead}>
-            visual · {worker.taskType}
-            {worker.image ? <span className={s.visualImage}> · {worker.image}</span> : null}
+            visual · {visualTaskType}
+            {visualImage ? <span className={s.visualImage}> · {visualImage}</span> : null}
           </div>
           {visualText ? (
             <div className={s.visualResultBody}>
@@ -160,11 +163,28 @@ export function WorkerCard({
                 {visualResult ? 'structured result' : 'unstructured preview'}
               </span>
               {visualResult?.boxes?.length ? (
-                <div className={s.visualMetaLine}>boxes: {visualResult.boxes.length}</div>
+                <ul className={s.visualBoxes}>
+                  {visualResult.boxes.map((b, i) => (
+                    <li key={i}>{formatVisualBox(b, i)}</li>
+                  ))}
+                </ul>
               ) : null}
               {visualResult?.files?.length ? (
-                <div className={s.visualMetaLine}>
-                  files: {visualResult.files.map((file) => `${file.kind}:${file.path}`).join(', ')}
+                <div className={s.visualFiles}>
+                  {VISUAL_FILE_KINDS.map((kind) => {
+                    const paths = groupVisualFiles(visualResult.files ?? [])[kind];
+                    if (!paths.length) return null;
+                    return (
+                      <div key={kind} className={s.visualFileGroup} data-kind={kind}>
+                        <span className={s.visualFileKind}>{kind}</span>
+                        {paths.map((p) => (
+                          <span key={p} className={s.visualFilePath}>
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
