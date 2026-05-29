@@ -43,6 +43,8 @@ export function WorkerCard({
   onOpenWorktree,
   onDismiss,
   fetchFileDiff,
+  collapsed: collapsedProp,
+  onToggleCollapse,
 }: {
   worker: FleetWorkerView;
   onCancel?: (workerId: string) => void;
@@ -50,13 +52,17 @@ export function WorkerCard({
   onOpenWorktree?: (worker: FleetWorkerView) => void;
   onDismiss?: (workerId: string) => void;
   fetchFileDiff?: (workerId: string, file: string) => Promise<string>;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const { diffStat } = worker;
   const fileCount = diffStat?.files ?? worker.changedFiles.length;
   const hasChanges = worker.changedFiles.length > 0 || diffStat != null;
   const isTerminal = TERMINAL.includes(worker.status);
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const collapsed = collapsedProp ?? localCollapsed;
+  const toggleCollapse = onToggleCollapse ?? (() => setLocalCollapsed((c) => !c));
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [diffText, setDiffText] = useState('');
   const [diffLoading, setDiffLoading] = useState(false);
@@ -102,7 +108,7 @@ export function WorkerCard({
         <button
           className={s.collapseBtn}
           type="button"
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={toggleCollapse}
           aria-label={collapsed ? 'expand' : 'collapse'}
         >
           {collapsed ? '▸' : '▾'}

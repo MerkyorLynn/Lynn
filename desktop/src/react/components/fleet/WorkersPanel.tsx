@@ -18,6 +18,7 @@ import { detectFleetConflicts } from './fleet-conflicts';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import type { CliEnvStatus } from '../../types';
 import type { FleetWorkerView } from './fleet-reducer';
+import { sortWorkersByAttention } from './fleet-sort';
 
 const STATUS_SHORT: Record<string, string> = {
   running: 'running',
@@ -36,6 +37,7 @@ export function WorkersPanel() {
   const cancelRef = useRef<null | (() => void)>(null);
   const [showForm, setShowForm] = useState(false);
   const [cliEnv, setCliEnv] = useState<CliEnvStatus | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     return () => {
@@ -122,6 +124,17 @@ export function WorkersPanel() {
   }, {});
   const finishedCount = fleetWorkers.filter((w) => ['completed', 'cancelled', 'failed'].includes(w.status)).length;
 
+  const sorted = sortWorkersByAttention(fleetWorkers);
+  const allCollapsed = fleetWorkers.length > 0 && fleetWorkers.every((w) => collapsedIds.has(w.workerId));
+  const toggleCard = (id: string) =>
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = () => setCollapsedIds(allCollapsed ? new Set() : new Set(fleetWorkers.map((w) => w.workerId)));
+
   return (
     <div className={fp.floatingPanel} onClick={close}>
       <div className={fp.floatingPanelInner} onClick={(e) => e.stopPropagation()}>
@@ -148,6 +161,11 @@ export function WorkersPanel() {
             {finishedCount > 0 && (
               <button className={s.fleetBtn} onClick={clearFinishedWorkers}>
                 Clear finished ({finishedCount})
+              </button>
+            )}
+            {fleetWorkers.length > 1 && (
+              <button className={s.fleetBtn} onClick={toggleAll}>
+                {allCollapsed ? 'Expand all' : 'Collapse all'}
               </button>
             )}
             <span className={s.fleetHint}>
@@ -199,8 +217,8 @@ export function WorkersPanel() {
               </p>
             </div>
           ) : (
-            <div className={s.fleetBoard}>
-              {fleetWorkers.map((w) => (
+            <div className={s.fleetBoard} data-grid={fleetWorkers.length > 1 ? '1' : '0'}>
+              {sorted.map((w) => (
                 <WorkerCard
                   key={w.workerId}
                   worker={w}
@@ -209,6 +227,8 @@ export function WorkersPanel() {
                   onOpenWorktree={openWorktree}
                   onDismiss={removeWorker}
                   fetchFileDiff={fetchFileDiff}
+                  collapsed={collapsedIds.has(w.workerId)}
+                  onToggleCollapse={() => toggleCard(w.workerId)}
                 />
               ))}
             </div>

@@ -59,6 +59,27 @@
   gap: 10px;
 }
 
+/* multi-worker grid: cards sit side by side when the panel is wide enough */
+.fleetBoard[data-grid='1'] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-items: start;
+}
+
+.fanOutRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.fanOutChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
 .workerCard {
   border: 1px solid var(--border-color, #333);
   border-radius: 8px;
