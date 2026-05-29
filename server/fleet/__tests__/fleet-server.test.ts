@@ -3,6 +3,7 @@ import { matchAnyGlob, evaluateScope, annotateChangedFiles } from "../forbidden-
 import { createLineParser } from "../worker-manager.js";
 import { parseWorktreePorcelain } from "../worktree-manager.js";
 import { FleetHub, type FleetBrief } from "../fleet-hub.js";
+import { resolveCliCommand, cliRuntimeAvailable } from "../worker-command.js";
 
 describe("forbidden-guard", () => {
   it("matches ** across segments and * within one", () => {
@@ -120,5 +121,71 @@ describe("FleetHub.getWorkerFileDiff path guard", () => {
   it("returns null for an unknown worker", async () => {
     const hub = new FleetHub("/repo", () => {}, () => "T");
     expect(await hub.getWorkerFileDiff("nope", "a.ts")).toBeNull();
+  });
+});
+
+describe("worker-command resolveCliCommand", () => {
+  it("uses LYNN_CLI_ENTRY from env (main-provided) + electron-as-node flag", () => {
+    const cmd = resolveCliCommand(["worker", "run", "--jsonl"], {
+      env: { LYNN_CLI_ENTRY: "/res/cli/lynn.mjs", LYNN_CLI_NODE: "/Lynn", LYNN_CLI_ELECTRON_AS_NODE: "1" },
+      fileExists: (p) => p === "/res/cli/lynn.mjs",
+    });
+    expect(cmd).not.toBeNull();
+    expect(cmd && cmd.command).toBe("/Lynn");
+    expect(cmd && cmd.args).toEqual(["/res/cli/lynn.mjs", "worker", "run", "--jsonl"]);
+    expect(cmd && cmd.env.ELECTRON_RUN_AS_NODE).toBe("1");
+  });
+
+  it("falls back to a dev cli build under the repo", () => {
+    const cmd = resolveCliCommand(["worker", "run"], {
+      repoRoot: "/repo",
+      execPath: "/usr/bin/node",
+      env: {},
+      fileExists: (p) => p === "/repo/cli/bin/lynn.mjs",
+    });
+    expect(cmd && cmd.command).toBe("/usr/bin/node");
+    expect(cmd && cmd.args[0]).toBe("/repo/cli/bin/lynn.mjs");
+  });
+
+  it("returns null when no CLI runtime is available", () => {
+    expect(cliRuntimeAvailable({ repoRoot: "/repo", env: {}, fileExists: () => false })).toBe(false);
+    expect(resolveCliCommand(["worker"], { repoRoot: "/repo", env: {}, fileExists: () => false })).toBeNull();
+  });
+});
+
+describe("FleetHub real spawn", () => {
+  it("spawns lynn worker run when a CLI runtime is available", async () => {
+    const sent: Array<{ type: string; event: { type: string } }> = [];
+    const spawnCalls: Array<{ command: string; args: string[] }> = [];
+    const hub = new FleetHub("/repo", (m) => sent.push(m as { type: string; event: { type: string } }), () => "T", {
+      available: () => true,
+      createWorktree: async () => {},
+      writeBrief: () => "/tmp/brief.md",
+      resolveCommand: (args) => ({ command: "node", args, env: {} }),
+      spawn: (opts, onEvent) => {
+        spawnCalls.push({ command: opts.command, args: opts.args });
+        onEvent({ type: "worker.progress", workerId: opts.workerId, message: "running" });
+        onEvent({ type: "worker.finished", workerId: opts.workerId, ok: true, exitCode: 0, summary: "done" });
+        return { workerId: opts.workerId, pid: 123, kill: () => {} };
+      },
+    });
+    const rec = await hub.dispatch(sampleBrief);
+    expect(rec.spawned).toBe(true);
+    expect(spawnCalls).toHaveLength(1);
+    expect(spawnCalls[0].command).toBe("node");
+    expect(spawnCalls[0].args).toContain("worker");
+    expect(spawnCalls[0].args).toContain("--jsonl");
+    expect(spawnCalls[0].args).toContain("--brief");
+    expect(sent.map((m) => m.event.type)).toContain("worker.finished");
+  });
+
+  it("falls back to a stub broadcast when no CLI runtime (cli/** not integrated yet)", async () => {
+    const sent: Array<{ event: { type: string } }> = [];
+    const hub = new FleetHub("/repo", (m) => sent.push(m as { event: { type: string } }), () => "T", {
+      available: () => false,
+    });
+    const rec = await hub.dispatch(sampleBrief);
+    expect(rec.spawned).toBe(false);
+    expect(sent.map((m) => m.event.type)).toEqual(["worker.started", "worker.claims", "worker.progress"]);
   });
 });

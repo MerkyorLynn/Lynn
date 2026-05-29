@@ -1,16 +1,20 @@
 /**
- * fleet-hub.ts — in-memory orchestration of worker dispatch + event fan-out (B-line).
+ * fleet-hub.ts - in-memory orchestration of worker dispatch + event fan-out (B-line).
  *
- * Holds worker records, owns a WorktreeManager, and broadcasts fleet events over the
- * existing server WebSocket (envelope `{ type: "fleet:event", event }`). v0.80 step-2
- * `dispatch` is a stub: it registers the worker and streams a started/claims/progress
- * sequence so the GUI board lights up end-to-end. Real process spawn (WorkerManager) +
- * worktree creation + the merge queue land in step 4, once the CLI lane's
- * `lynn worker run --jsonl` is merged into the integration branch.
+ * dispatch() really spawns `lynn worker run --jsonl` when a CLI runtime is resolvable
+ * (worker-command.ts: env from desktop main, or a dev cli build), streaming the
+ * worker's JSONL events over the existing server WebSocket ({ type: "fleet:event" }).
+ * When no CLI runtime is available (cli/** not yet integrated), it falls back to a
+ * stub broadcast so the GUI board still demos. Worktree creation + spawn + the brief
+ * file are injectable for tests.
  */
 import type { FleetWorkerEvent, FleetAgentKind } from "../../shared/fleet-events.js";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { WorktreeManager } from "./worktree-manager.js";
+import { spawnWorker, type WorkerHandle } from "./worker-manager.js";
+import { cliRuntimeAvailable, resolveCliCommand, type ResolvedCommand } from "./worker-command.js";
 
 export interface FleetBrief {
   title: string;
@@ -22,6 +26,9 @@ export interface FleetBrief {
   testCommands?: string[];
   branch: string;
   worktree: string;
+  /** Vision dispatch (Pillar 1): the task kind and the image the worker should see. */
+  taskType?: "code" | "see" | "ground" | "ui2code";
+  image?: string;
 }
 
 export interface FleetWorkerRecord {
@@ -30,10 +37,20 @@ export interface FleetWorkerRecord {
   status: string;
   brief: FleetBrief;
   createdAt: string;
+  spawned: boolean;
   events: FleetWorkerEvent[];
 }
 
 export type FleetBroadcast = (msg: unknown) => void;
+
+/** Injectable seams (defaults wire the real implementations; tests pass fakes). */
+export interface FleetHubDeps {
+  available?: () => boolean;
+  resolveCommand?: (workerArgs: string[]) => ResolvedCommand | null;
+  writeBrief?: (brief: FleetBrief, workerId: string) => string;
+  spawn?: (opts: { command: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; workerId: string }, onEvent: (e: FleetWorkerEvent) => void) => WorkerHandle;
+  createWorktree?: (relPath: string, branch: string, baseRef: string) => Promise<void>;
+}
 
 /** Reject absolute paths and `..` traversal before handing a file path to git. */
 function isSafeRelPath(p: string): boolean {
@@ -41,8 +58,34 @@ function isSafeRelPath(p: string): boolean {
   return !p.split(/[\\/]/).includes("..");
 }
 
+/**
+ * Markdown brief written for `lynn worker run --brief`. NOTE: this file format is a
+ * contract with the CLI lane's `--brief` parser - align with Codex before real spawn.
+ */
+function defaultWriteBrief(brief: FleetBrief, workerId: string): string {
+  const lines: string[] = [
+    `# ${brief.title}`,
+    ``,
+    `Worker: ${brief.agent} | Branch: ${brief.branch} | Worktree: ${brief.worktree}`,
+  ];
+  if (brief.taskType) lines.push(`Task type: ${brief.taskType}`);
+  if (brief.image) lines.push(`Image: ${brief.image}`);
+  lines.push(``, `## Objective`, brief.objective || "(none)", ``, `## Owned files`);
+  for (const f of brief.owned) lines.push(`- ${f}`);
+  lines.push(``, `## Forbidden files`);
+  for (const f of brief.forbidden) lines.push(`- ${f}`);
+  if (brief.testCommands?.length) {
+    lines.push(``, `## Test commands`);
+    for (const c of brief.testCommands) lines.push(`- ${c}`);
+  }
+  const p = path.join(os.tmpdir(), `lynn-fleet-${workerId}.md`);
+  fs.writeFileSync(p, lines.join("\n"), "utf8");
+  return p;
+}
+
 export class FleetHub {
   private workers = new Map<string, FleetWorkerRecord>();
+  private handles = new Map<string, WorkerHandle>();
   private seq = 0;
   readonly worktrees: WorktreeManager;
 
@@ -50,6 +93,7 @@ export class FleetHub {
     private repoRoot: string,
     private broadcast: FleetBroadcast,
     private now: () => string = () => new Date().toISOString(),
+    private deps: FleetHubDeps = {},
   ) {
     this.worktrees = new WorktreeManager(repoRoot);
   }
@@ -68,6 +112,16 @@ export class FleetHub {
     this.broadcast({ type: "fleet:event", event });
   }
 
+  private available(): boolean {
+    return this.deps.available ? this.deps.available() : cliRuntimeAvailable({ repoRoot: this.repoRoot });
+  }
+
+  private resolve(workerArgs: string[]): ResolvedCommand | null {
+    return this.deps.resolveCommand
+      ? this.deps.resolveCommand(workerArgs)
+      : resolveCliCommand(workerArgs, { repoRoot: this.repoRoot });
+  }
+
   async dispatch(brief: FleetBrief): Promise<FleetWorkerRecord> {
     const workerId = `w${++this.seq}`;
     const rec: FleetWorkerRecord = {
@@ -76,6 +130,7 @@ export class FleetHub {
       status: "queued",
       brief,
       createdAt: this.now(),
+      spawned: false,
       events: [],
     };
     this.workers.set(workerId, rec);
@@ -98,19 +153,63 @@ export class FleetHub {
       forbidden: brief.forbidden,
       centerLocks: brief.centerLocks ?? [],
     });
+
+    rec.status = "running";
+
+    // Real spawn path: only when a CLI runtime is resolvable (env from main, or a dev
+    // cli build). Until cli/** is integrated this is false and we use the stub below.
+    if (this.available()) {
+      try {
+        const create =
+          this.deps.createWorktree ?? ((p: string, b: string, base: string) => this.worktrees.create(p, b, base).then(() => undefined));
+        await create(brief.worktree, brief.branch, "HEAD");
+      } catch (e) {
+        this.emit(workerId, {
+          type: "worker.progress",
+          ts: this.now(),
+          workerId,
+          message: `worktree not created (${e instanceof Error ? e.message : String(e)})`,
+          level: "warning",
+        });
+      }
+      const writeBrief = this.deps.writeBrief ?? defaultWriteBrief;
+      const briefPath = writeBrief(brief, workerId);
+      const workerArgs = ["worker", "run", "--brief", briefPath, "--worktree", brief.worktree, "--jsonl"];
+      const cmd = this.resolve(workerArgs);
+      if (cmd) {
+        const spawn = this.deps.spawn ?? spawnWorker;
+        const handle = spawn(
+          { command: cmd.command, args: cmd.args, cwd: this.repoRoot, env: cmd.env, workerId },
+          (ev) => this.emit(workerId, ev),
+        );
+        this.handles.set(workerId, handle);
+        rec.spawned = true;
+        return rec;
+      }
+    }
+
+    // Stub fallback (no CLI runtime yet): keep the board demoable.
     this.emit(workerId, {
       type: "worker.progress",
       ts: this.now(),
       workerId,
-      message: `dispatched to ${brief.agent}; awaiting runner`,
+      message: `dispatched to ${brief.agent}; runner not available (stub - real spawn activates once the CLI is integrated)`,
     });
-    rec.status = "running";
     return rec;
   }
 
   cancel(id: string): boolean {
     const rec = this.workers.get(id);
     if (!rec) return false;
+    const handle = this.handles.get(id);
+    if (handle) {
+      try {
+        handle.kill();
+      } catch {
+        /* already gone */
+      }
+      this.handles.delete(id);
+    }
     rec.status = "cancelled";
     this.emit(id, {
       type: "worker.error",
