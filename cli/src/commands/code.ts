@@ -156,7 +156,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
       if (text.startsWith("/reasoning ")) {
         const result = applyReasoningCommand(reasoning, text.slice(11).trim());
         reasoning = result.reasoning;
-        output.write(`✓ ${result.message}\nthink: ${reasoning.effort} / display ${reasoning.display}\n\n`);
+        output.write(`✓ ${result.message}\n${t("code.reasoning.state", { effort: reasoning.effort, display: reasoning.display })}\n\n`);
         continue;
       }
       if (text === "/mode") {

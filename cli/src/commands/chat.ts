@@ -60,7 +60,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     if (text.startsWith("/reasoning ")) {
       const result = applyReasoningCommand(reasoning, text.slice(11).trim());
       reasoning = result.reasoning;
-      output.write(`${result.message}\nreasoning: ${reasoning.effort} · display ${reasoning.display}\n\n`);
+      output.write(`${result.message}\n${t("reasoning.state", { effort: reasoning.effort, display: reasoning.display })}\n\n`);
       return "continue";
     }
     if (text === "/mode") {
@@ -231,15 +231,15 @@ function renderInteractiveModeChange(message: string, mode: ChatMode, color: boo
 export function applyReasoningCommand(current: ReturnType<typeof parseReasoningOptions>, raw: string): { reasoning: ReturnType<typeof parseReasoningOptions>; message: string } {
   const value = raw.toLowerCase();
   if (value === "off" || value === "auto" || value === "low" || value === "medium" || value === "high" || value === "xhigh") {
-    return { reasoning: { ...current, effort: value }, message: `Reasoning effort set to ${value}.` };
+    return { reasoning: { ...current, effort: value }, message: t("reasoning.effortSet", { value }) };
   }
   if (value === "show" || value === "always") {
-    return { reasoning: { ...current, display: "always" }, message: "Reasoning display set to always." };
+    return { reasoning: { ...current, display: "always" }, message: t("reasoning.displayAlways") };
   }
   if (value === "hide" || value === "never") {
-    return { reasoning: { ...current, display: "never" }, message: "Reasoning display set to never." };
+    return { reasoning: { ...current, display: "never" }, message: t("reasoning.displayNever") };
   }
-  return { reasoning: current, message: `Unknown reasoning mode: ${raw || "(empty)"}.` };
+  return { reasoning: current, message: t("reasoning.unknown", { raw: raw || "(empty)" }) };
 }
 
 export function installModeHotkey({ input, output, readlineInterface, mode }: ModeHotkeyStreams): () => void {
