@@ -1,8 +1,10 @@
+import { t } from "./i18n.js";
+
 export function usage(): string {
   return [
     "Lynn CLI",
     "",
-    "Usage:",
+    t("help.usage"),
     "  Lynn version",
     "  Lynn doctor [--offline]",
     "  Lynn \"prompt\"",
@@ -28,10 +30,10 @@ export function usage(): string {
     "  Lynn sessions list --json",
     "  Lynn sessions show <path>",
     "",
-    "Alias:",
-    "  lynn is kept as a lowercase compatibility alias.",
+    t("help.alias"),
+    `  ${t("help.aliasDesc")}`,
     "",
-    "Common flags:",
+    t("help.flags"),
     "  --reasoning auto|off|low|medium|high|xhigh",
     "  --show-reasoning auto|always|never",
     "  --brain-url http://127.0.0.1:8790",
