@@ -11,6 +11,7 @@ import { dangerLine, dim, red, supportsColor } from "../terminal-style.js";
 import { renderStartupBanner } from "../startup.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
 import { t } from "../i18n.js";
+import { MarkdownStream } from "../markdown.js";
 
 export async function runChat(args: ParsedArgs, options: { intro?: boolean; brainReachable?: boolean } = {}): Promise<number> {
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
@@ -93,14 +94,18 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     const renderState: HumanBrainRenderState = {};
     const spinner = new TerminalSpinner(process.stderr);
     const renderReasoning = shouldRenderReasoning(reasoning.display, false);
+    const md = new MarkdownStream((s) => output.write(s), supportsColor(output));
     try {
       spinner.start();
       for await (const event of streamBrainChat({ brainUrl, messages, reasoning, fallbackProvider: cliProvider?.profile })) {
         if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) {
           spinner.stop();
         }
-        if (renderChatEvent(event, renderReasoning, renderState)) {
+        if (event.type === "assistant.delta") {
+          md.push(event.text);
           assistant += event.text;
+        } else {
+          renderChatEvent(event, renderReasoning, renderState);
         }
         if (event.type === "brain.error") {
           throw new Error(event.code ? `${event.error} (${event.code})` : event.error);
@@ -114,6 +119,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     } finally {
       spinner.stop();
     }
+    md.end();
     messages.push({ role: "assistant", content: assistant });
     output.write("\n\n");
     return "continue";

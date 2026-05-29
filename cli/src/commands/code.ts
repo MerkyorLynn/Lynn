@@ -13,6 +13,7 @@ import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
 import { bold, dangerLine, dim, green, red, supportsColor } from "../terminal-style.js";
 import { colorizePatch } from "../diff-format.js";
+import { renderMarkdown } from "../markdown.js";
 import { box, displayCwd, padLine } from "../startup.js";
 import { t } from "../i18n.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "../provider-profile.js";
@@ -444,7 +445,7 @@ async function runCodeTask(args: ParsedArgs, task: string, json: boolean, option
     if (final.trim()) writeJsonLine({ type: "assistant.delta", ts: nowIso(), text: final });
     writeJsonLine({ type: "code.task.finished", ts: nowIso(), ok: true, contentReturned: !!final.trim() });
   } else {
-    process.stdout.write(renderAssistantBlock(final.trim() || "(no answer)", renderCodeFooter({ context, mode, mockBrain, reasoning, fallbackProvider: cliProvider?.profile })));
+    process.stdout.write(renderAssistantBlock(renderMarkdown(final.trim() || "(no answer)", supportsColor(output)), renderCodeFooter({ context, mode, mockBrain, reasoning, fallbackProvider: cliProvider?.profile })));
   }
   return 0;
 }
