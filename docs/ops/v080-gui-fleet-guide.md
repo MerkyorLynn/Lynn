@@ -1,6 +1,6 @@
 # Lynn v0.80 - GUI CLI Worker Fleet (operator guide)
 
-Status: B-line (GUI + server fleet) implemented on branch `claude/v080-gui-fleet`.
+Status: B-line (GUI + server fleet) on the integration branch (tasks B1-B4 landed).
 Companion to the plan in `docs/ops/v0.80-gui-cli-worker-plan.md`.
 
 ## Positioning (one line)
@@ -25,6 +25,13 @@ a terminal; the GUI makes "five CLIs at once" a controlled engineering workflow.
   Copy logs.
 - **CLI runtime status line** - the Node runtime the GUI uses to run workers
   (reused bundled Node, or Electron-as-node). Zero terminal setup, zero download.
+- **Runner line** - each card shows whether the worker is a stub or really spawned
+  (via bundled Node / Electron-as-node), with the pid.
+- **Visual result** - MiMo vision workers (see / ground / ui2code) show their image
+  path, task type, and result text (an "unstructured preview" until a structured
+  grounding event lands - see the schema request).
+- **Permission badge** - the WorkersPanel shows the CLI's approval / sandbox profile,
+  read-only, from `~/.lynn/permissions/cli.json` (or "default guarded mode").
 
 ## How a worker runs (no terminal config)
 
@@ -32,27 +39,28 @@ The GUI never assumes `lynn` is on the user's PATH. It resolves a runtime via th
 CliEnvManager (`desktop/cli-env-manager.cjs`): the real bundled Node on mac/linux,
 Electron-as-node otherwise (always available). `getWorkerSpawnCommand()` returns the
 exact `{ command, args, env }` used to spawn `lynn worker run --jsonl` from the
-bundled CLI. (Wiring the live spawn is step 4, after the CLI lane merges into
-integration; until then dispatch streams a stub event sequence so the board is
-demoable.)
+bundled CLI. The FleetHub really spawns when a CLI runtime is resolvable, and falls
+back to a stub broadcast (shown as "stub - CLI bundle pending" on the runner line)
+otherwise.
 
 ## Acceptance checklist (operator POV)
 
 Open the app, then:
 
 - [ ] Sidebar -> "Workers" opens the fleet panel.
-- [ ] The CLI runtime line shows a Node version + source (bundled / electron).
-- [ ] "Play mock worker" streams a worker started -> ... -> done; the board shows
-      its diff summary, per-file +/-, tests, and the out-of-scope file in red with
-      the card blocked.
-- [ ] Click a changed file -> the diff drawer expands (mock shows a "no diff yet"
-      message; a real worktree shows the file diff).
-- [ ] "Dispatch worker" -> fill a brief -> a worker appears via the live WS path.
-- [ ] (After step 4 / integration) dispatch a real `lynn-cli` worker and watch real
-      events stream in.
-- [ ] Cancel a running worker -> card goes to "cancelled".
-- [ ] Retry a finished / failed worker -> a fresh worker is dispatched.
-- [ ] Copy logs copies the worker log; Open worktree opens the folder (real workers).
+- [ ] The CLI runtime line shows a Node version + source; the permission badge shows
+      the approval / sandbox profile (or "default guarded mode" + the set command).
+- [ ] Dispatch with fan-out to 3 agents -> 3 workers appear, each with its own
+      branch/worktree.
+- [ ] "Collapse all" / "Expand all" toggles every card.
+- [ ] Attention sort: blocked / failed / review cards float to the top.
+- [ ] Click a changed file -> the diff drawer expands (colorized +/-).
+- [ ] Each card shows a runner line ("stub - CLI bundle pending", or "spawned via
+      bundled Node / Electron-as-node" with a pid).
+- [ ] A MiMo vision task (see / ground / ui2code) shows its image path + task type and
+      a "visual result" block (unstructured preview until the structured event lands).
+- [ ] Cancel one worker -> card goes to "cancelled".
+- [ ] Retry one worker -> a fresh worker is dispatched.
 
 ## README positioning snippet (for the README lane to lift)
 

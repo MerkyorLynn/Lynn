@@ -101,6 +101,11 @@ export function WorkerCard({
   const canOpen = !!onOpenWorktree && !!worker.worktree;
   const canCopy = worker.log.length > 0;
   const hasActions = canCancel || canRetry || canOpen || canCopy;
+  const isVision = !!worker.taskType && worker.taskType !== 'code';
+  const visualText = (worker.assistant.trim() || worker.finished?.summary || '').trim();
+  const rs = worker.runner?.source;
+  const runnerSourceLabel =
+    rs === 'bundled' ? 'bundled Node' : rs === 'electron' ? 'Electron-as-node' : rs === 'dev' ? 'dev CLI' : rs;
 
   return (
     <div className={s.workerCard} data-status={worker.status} data-blocked={worker.hasForbiddenEdit ? '1' : '0'}>
@@ -129,6 +134,34 @@ export function WorkerCard({
           </button>
         )}
       </div>
+
+      {worker.runner && (
+        <div className={s.runnerLine} data-mode={worker.runner.mode}>
+          runner:{' '}
+          {worker.runner.mode === 'stub'
+            ? 'stub - CLI bundle pending'
+            : `spawned${runnerSourceLabel ? ` via ${runnerSourceLabel}` : ''}${
+                worker.runner.pid != null ? ` (pid ${worker.runner.pid})` : ''
+              }`}
+        </div>
+      )}
+
+      {isVision && (
+        <div className={s.visualResult}>
+          <div className={s.visualResultHead}>
+            visual · {worker.taskType}
+            {worker.image ? <span className={s.visualImage}> · {worker.image}</span> : null}
+          </div>
+          {visualText ? (
+            <div className={s.visualResultBody}>
+              {visualText}
+              <span className={s.unstructuredTag}>unstructured preview</span>
+            </div>
+          ) : (
+            <div className={s.visualResultPending}>waiting for result…</div>
+          )}
+        </div>
+      )}
 
       {hasChanges && (
         <div className={s.changeSummary}>

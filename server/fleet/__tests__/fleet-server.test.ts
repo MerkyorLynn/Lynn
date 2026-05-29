@@ -181,7 +181,7 @@ describe("FleetHub real spawn", () => {
       available: () => true,
       createWorktree: async () => {},
       writeBrief: () => "/tmp/brief.md",
-      resolveCommand: (args) => ({ command: "node", args, env: {} }),
+      resolveCommand: (args) => ({ command: "node", args, env: {}, source: "dev" }),
       spawn: (opts, onEvent) => {
         spawnCalls.push({ command: opts.command, args: opts.args });
         onEvent({ type: "worker.progress", workerId: opts.workerId, message: "running" });
@@ -214,7 +214,7 @@ describe("FleetHub real spawn", () => {
     const hub = new FleetHub("/repo", () => {}, () => "T", {
       available: () => true,
       createWorktree: async () => {},
-      resolveCommand: (args) => ({ command: "node", args, env: {} }),
+      resolveCommand: (args) => ({ command: "node", args, env: {}, source: "dev" }),
       spawn: (opts) => {
         const briefIndex = opts.args.indexOf("--brief");
         if (briefIndex >= 0) {

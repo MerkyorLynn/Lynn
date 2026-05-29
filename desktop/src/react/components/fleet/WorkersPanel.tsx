@@ -37,6 +37,7 @@ export function WorkersPanel() {
   const cancelRef = useRef<null | (() => void)>(null);
   const [showForm, setShowForm] = useState(false);
   const [cliEnv, setCliEnv] = useState<CliEnvStatus | null>(null);
+  const [perm, setPerm] = useState<{ exists: boolean; approval: string; sandbox: string; path: string } | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -50,6 +51,22 @@ export function WorkersPanel() {
     let alive = true;
     const p = window.hana?.cliEnvStatus?.();
     if (p) p.then((st) => { if (alive) setCliEnv(st); }).catch(() => { /* ipc unavailable */ });
+    return () => {
+      alive = false;
+    };
+  }, [activePanel]);
+
+  useEffect(() => {
+    if (activePanel !== 'fleet') return;
+    let alive = true;
+    hanaFetch('/api/fleet/permissions')
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d && typeof d.approval === 'string') setPerm(d);
+      })
+      .catch(() => {
+        /* route unavailable */
+      });
     return () => {
       alive = false;
     };
@@ -149,6 +166,20 @@ export function WorkersPanel() {
             <div className={s.cliEnv} data-ready={cliEnv.ready ? '1' : '0'}>
               CLI runtime: Node {cliEnv.node.version ?? '?'} ({cliEnv.node.source})
               {cliEnv.ready ? ' · ready' : cliEnv.cli.present ? '' : ' · CLI bundle pending integration'}
+            </div>
+          )}
+          {perm && (
+            <div className={s.permBadge} data-default={perm.exists ? '0' : '1'}>
+              {perm.exists ? (
+                <>
+                  perms: {perm.approval} · {perm.sandbox}
+                </>
+              ) : (
+                <>
+                  default guarded mode (ask · workspace-write) ·{' '}
+                  <code className={s.permCmd}>lynn permissions set --approval ask --sandbox workspace-write</code>
+                </>
+              )}
             </div>
           )}
           <div className={s.fleetToolbar}>

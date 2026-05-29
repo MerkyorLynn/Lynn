@@ -14,6 +14,16 @@ import type {
   FleetSeverity,
 } from '../../../../../shared/fleet-events.js';
 
+/** Structured payload the server attaches to worker.progress.data (B1 vision / B3 runner). */
+interface FleetProgressData {
+  kind?: 'vision' | 'runner';
+  taskType?: 'code' | 'see' | 'ground' | 'ui2code';
+  image?: string;
+  mode?: 'stub' | 'spawned';
+  source?: 'bundled' | 'electron' | 'dev';
+  pid?: number;
+}
+
 export interface FleetTestResult {
   command: string;
   running: boolean;
@@ -57,6 +67,11 @@ export interface FleetWorkerView {
   hasForbiddenEdit: boolean;
   error: { code: string; message: string; recoverable: boolean } | null;
   finished: { ok: boolean; exitCode: number; summary: string; commit?: string } | null;
+  /** Vision dispatch context (from a worker.progress data:{kind:'vision'} event). */
+  taskType?: 'code' | 'see' | 'ground' | 'ui2code';
+  image?: string;
+  /** How the worker was launched (from a worker.progress data:{kind:'runner'} event). */
+  runner?: { mode: 'stub' | 'spawned'; source?: 'bundled' | 'electron' | 'dev'; pid?: number };
   lastTs?: string;
 }
 
@@ -109,9 +124,19 @@ export function reduceFleetWorker(prev: FleetWorkerView, ev: FleetWorkerEvent): 
       next.forbidden = ev.forbidden;
       next.centerLocks = ev.centerLocks ?? [];
       return next;
-    case 'worker.progress':
+    case 'worker.progress': {
       next.log = [...prev.log, ev.message];
+      const data = ev.data as FleetProgressData | undefined;
+      if (data && typeof data === 'object') {
+        if (data.kind === 'vision') {
+          if (data.taskType) next.taskType = data.taskType;
+          if (data.image) next.image = data.image;
+        } else if (data.kind === 'runner') {
+          next.runner = { mode: data.mode ?? 'spawned', source: data.source, pid: data.pid };
+        }
+      }
       return next;
+    }
     case 'assistant.delta':
       next.assistant = prev.assistant + ev.text;
       return next;

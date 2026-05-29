@@ -83,6 +83,12 @@ function defaultWriteBrief(brief: FleetBrief, workerId: string): string {
   return p;
 }
 
+const RUNNER_LABEL: Record<string, string> = {
+  bundled: "bundled Node",
+  electron: "Electron-as-node",
+  dev: "dev CLI",
+};
+
 export class FleetHub {
   private workers = new Map<string, FleetWorkerRecord>();
   private handles = new Map<string, WorkerHandle>();
@@ -154,6 +160,16 @@ export class FleetHub {
       centerLocks: brief.centerLocks ?? [],
     });
 
+    if (brief.taskType && brief.taskType !== "code") {
+      this.emit(workerId, {
+        type: "worker.progress",
+        ts: this.now(),
+        workerId,
+        message: `vision task: ${brief.taskType}${brief.image ? ` (${brief.image})` : ""}`,
+        data: { kind: "vision", taskType: brief.taskType, image: brief.image },
+      });
+    }
+
     rec.status = "running";
 
     // Real spawn path: only when a CLI runtime is resolvable (env from main, or a dev
@@ -184,6 +200,13 @@ export class FleetHub {
         );
         this.handles.set(workerId, handle);
         rec.spawned = true;
+        this.emit(workerId, {
+          type: "worker.progress",
+          ts: this.now(),
+          workerId,
+          message: `spawned via ${RUNNER_LABEL[cmd.source] ?? cmd.source}${handle.pid != null ? ` (pid ${handle.pid})` : ""}`,
+          data: { kind: "runner", mode: "spawned", source: cmd.source, pid: handle.pid },
+        });
         return rec;
       }
     }
@@ -193,7 +216,8 @@ export class FleetHub {
       type: "worker.progress",
       ts: this.now(),
       workerId,
-      message: `dispatched to ${brief.agent}; runner not available (stub - real spawn activates once the CLI is integrated)`,
+      message: "stub - CLI bundle pending",
+      data: { kind: "runner", mode: "stub" },
     });
     return rec;
   }

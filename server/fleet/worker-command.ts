@@ -29,7 +29,9 @@ function defaultExists(p: string): boolean {
   }
 }
 
-function resolveEntry(opts: ResolveOpts): { node: string; entry: string; electronAsNode: boolean } | null {
+function resolveEntry(
+  opts: ResolveOpts,
+): { node: string; entry: string; electronAsNode: boolean; source: "bundled" | "electron" | "dev" } | null {
   const env = opts.env ?? process.env;
   const execPath = opts.execPath ?? process.execPath;
   const fileExists = opts.fileExists ?? defaultExists;
@@ -37,17 +39,19 @@ function resolveEntry(opts: ResolveOpts): { node: string; entry: string; electro
   // 1) main-process-provided (packaged): LYNN_CLI_ENTRY (+ node)
   const envEntry = env.LYNN_CLI_ENTRY;
   if (envEntry && fileExists(envEntry)) {
+    const electronAsNode = env.LYNN_CLI_ELECTRON_AS_NODE === "1";
     return {
       node: env.LYNN_CLI_NODE || execPath,
       entry: envEntry,
-      electronAsNode: env.LYNN_CLI_ELECTRON_AS_NODE === "1",
+      electronAsNode,
+      source: electronAsNode ? "electron" : "bundled",
     };
   }
   // 2) dev fallback: a cli build under the repo, run with the server's own node
   const repoRoot = opts.repoRoot ?? process.cwd();
   for (const rel of ["cli/dist/lynn.mjs", "cli/bin/lynn.mjs"]) {
     const p = path.join(repoRoot, rel);
-    if (fileExists(p)) return { node: execPath, entry: p, electronAsNode: false };
+    if (fileExists(p)) return { node: execPath, entry: p, electronAsNode: false, source: "dev" };
   }
   return null;
 }
@@ -72,7 +76,12 @@ function resolveLegacyRunner(
   if (env.LYNN_FLEET_RUNNER_ELECTRON_AS_NODE === "1") {
     resolvedEnv.ELECTRON_RUN_AS_NODE = "1";
   }
-  return { command, args: [...prefix, ...workerArgs], env: resolvedEnv };
+  return {
+    command,
+    args: [...prefix, ...workerArgs],
+    env: resolvedEnv,
+    source: env.LYNN_FLEET_RUNNER_ELECTRON_AS_NODE === "1" ? "electron" : "bundled",
+  };
 }
 
 export function cliRuntimeAvailable(opts: ResolveOpts = {}): boolean {
@@ -83,6 +92,8 @@ export interface ResolvedCommand {
   command: string;
   args: string[];
   env: NodeJS.ProcessEnv;
+  /** Where the runtime came from, for the GUI runner line (B3). */
+  source: "bundled" | "electron" | "dev";
 }
 
 export function resolveCliCommand(workerArgs: string[], opts: ResolveOpts = {}): ResolvedCommand | null {
@@ -90,5 +101,5 @@ export function resolveCliCommand(workerArgs: string[], opts: ResolveOpts = {}):
   if (!r) return resolveLegacyRunner(workerArgs, opts);
   const env = { ...(opts.env ?? process.env) };
   if (r.electronAsNode) env.ELECTRON_RUN_AS_NODE = "1";
-  return { command: r.node, args: [r.entry, ...workerArgs], env };
+  return { command: r.node, args: [r.entry, ...workerArgs], env, source: r.source };
 }

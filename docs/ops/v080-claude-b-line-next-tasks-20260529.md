@@ -130,3 +130,17 @@ instead of editing `shared/fleet-events.ts` directly. Suggested shape:
 
 Codex will decide whether this becomes a first-class protocol event or stays inside
 `worker.finished.data`.
+
+### Claude follow-up (2026-05-29, after B1)
+
+B1 shipped WITHOUT editing the protocol. Interim mechanism: the server (FleetHub
+dispatch) attaches `worker.progress.data = { kind: "vision", taskType, image }` (and a
+`{ kind: "runner", mode, source, pid }` variant for B3) using the EXISTING
+`worker.progress.data` field, and the GUI reducer renders an "unstructured preview"
+from `worker.assistant` / `worker.finished.summary`.
+
+Request: promote the `worker.visual_result` event above to first-class (or land it in
+`worker.finished.data`) so the GUI can render structured `boxes` (grounding
+coordinates) and `files` (ui2code outputs) instead of raw text. No rush - the
+unstructured preview is sufficient until then. When it lands, the GUI change is small:
+the reducer reads the structured fields and WorkerCard draws boxes/files.

@@ -425,3 +425,82 @@
   color: #2ecc71;
   opacity: 0.9;
 }
+
+/* B3: runner status line */
+.runnerLine {
+  margin-top: 4px;
+  font-size: 11px;
+  font-family: var(--mono-font, monospace);
+  opacity: 0.7;
+}
+
+.runnerLine[data-mode='stub'] {
+  color: #e67e22;
+  opacity: 0.9;
+}
+
+/* B1: vision worker result surface */
+.visualResult {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #333);
+  background: rgba(155, 89, 182, 0.08);
+}
+
+.visualResultHead {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+}
+
+.visualImage {
+  font-family: var(--mono-font, monospace);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.85;
+}
+
+.visualResultBody {
+  margin-top: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.visualResultPending {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.unstructuredTag {
+  margin-left: 8px;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(241, 196, 15, 0.15);
+  color: #c79a12;
+  white-space: nowrap;
+}
+
+/* B2: CLI permission profile badge */
+.permBadge {
+  margin: 0 4px 8px;
+  font-size: 11px;
+  font-family: var(--mono-font, monospace);
+  opacity: 0.72;
+}
+
+.permBadge[data-default='1'] {
+  color: #e67e22;
+  opacity: 0.9;
+}
+
+.permCmd {
+  font-family: var(--mono-font, monospace);
+  background: var(--code-bg, rgba(0, 0, 0, 0.25));
+  padding: 1px 5px;
+  border-radius: 4px;
+  user-select: all;
+}
