@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { box, renderStartupBanner } from "../src/startup.js";
+import { box, displayWidth, renderStartupBanner } from "../src/startup.js";
 import { setLang } from "../src/i18n.js";
 
 describe("startup banner", () => {
@@ -20,7 +20,7 @@ describe("startup banner", () => {
     expect(output).toContain("mode:");
     expect(output).toContain("Shift+Tab to toggle");
     expect(output).toContain("BYOK:");
-    expect(output).toContain("Lynn providers");
+    expect(output).toContain("lynn providers");
     expect(output).toContain("brain:");
     expect(output).toContain("offline");
     expect(output).toContain("http://127.0.0.1:8790");
@@ -48,5 +48,11 @@ describe("startup banner", () => {
       ...rendered.split("\n").map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").length),
     );
     expect(widest).toBeLessThanOrEqual(76);
+  });
+
+  it("counts CJK characters as two columns", () => {
+    expect(displayWidth("abc")).toBe(3);
+    expect(displayWidth("模型")).toBe(4);
+    expect(displayWidth("模型:abc")).toBe(8);
   });
 });

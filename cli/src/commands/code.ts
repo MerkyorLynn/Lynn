@@ -302,8 +302,8 @@ export function renderCodeIntro(
   const lines = [
     `Lynn Code (${version})`,
     "",
-    padLine("model", "MiMo", "/model to change"),
-    padLine("directory", displayCwd(process.cwd())),
+    padLine(t("banner.label.model"), "MiMo", t("banner.hint.model")),
+    padLine(t("banner.label.dir"), displayCwd(process.cwd())),
   ];
   const dangerous = mode.approval === "yolo" || mode.sandbox === "danger-full-access";
   return [
@@ -333,14 +333,14 @@ export function renderCodeTaskHeader(inputData: {
   maxSteps: number;
   mockBrain?: boolean;
 }): string {
-  const route = inputData.mockBrain ? "mock Brain" : "MiMo via local Brain router";
+  const route = inputData.mockBrain ? t("code.route.mock") : t("code.route.brain");
   return [
     box([
       `Lynn Code · ${route}`,
       "",
-      padLine("directory", displayCwd(inputData.cwd)),
-      padLine("mode", `${inputData.approval} / ${inputData.sandbox}`),
-      padLine("think", `${inputData.reasoning.effort} · max steps ${inputData.maxSteps}`),
+      padLine(t("banner.label.dir"), displayCwd(inputData.cwd)),
+      padLine(t("banner.label.mode"), `${inputData.approval} / ${inputData.sandbox}`),
+      padLine(t("code.label.think"), `${inputData.reasoning.effort} · ${t("code.maxsteps", { n: inputData.maxSteps })}`),
     ]),
     "",
   ].join("\n");
