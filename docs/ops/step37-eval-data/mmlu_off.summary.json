@@ -1,0 +1,239 @@
+{
+  "model": "step-3.7-flash",
+  "endpoint": "https://api.stepfun.com/step_plan/v1",
+  "n": 500,
+  "subset": "all",
+  "shots": 5,
+  "correct": 433,
+  "accuracy": 0.866,
+  "elapsed_sec": 475.301,
+  "qps": 1.052,
+  "by_subject": {
+    "abstract_algebra": {
+      "acc": 1.0,
+      "n": 4
+    },
+    "anatomy": {
+      "acc": 0.8,
+      "n": 5
+    },
+    "astronomy": {
+      "acc": 0.6,
+      "n": 5
+    },
+    "business_ethics": {
+      "acc": 1.0,
+      "n": 5
+    },
+    "clinical_knowledge": {
+      "acc": 0.8889,
+      "n": 9
+    },
+    "college_biology": {
+      "acc": 1.0,
+      "n": 5
+    },
+    "college_chemistry": {
+      "acc": 1.0,
+      "n": 2
+    },
+    "college_computer_science": {
+      "acc": 0.6,
+      "n": 5
+    },
+    "college_mathematics": {
+      "acc": 1.0,
+      "n": 3
+    },
+    "college_medicine": {
+      "acc": 0.6667,
+      "n": 6
+    },
+    "computer_security": {
+      "acc": 0.9,
+      "n": 10
+    },
+    "conceptual_physics": {
+      "acc": 1.0,
+      "n": 6
+    },
+    "econometrics": {
+      "acc": 0.7143,
+      "n": 7
+    },
+    "electrical_engineering": {
+      "acc": 0.8333,
+      "n": 6
+    },
+    "elementary_mathematics": {
+      "acc": 1.0,
+      "n": 5
+    },
+    "formal_logic": {
+      "acc": 1.0,
+      "n": 4
+    },
+    "global_facts": {
+      "acc": 0.875,
+      "n": 8
+    },
+    "high_school_biology": {
+      "acc": 0.8889,
+      "n": 9
+    },
+    "high_school_chemistry": {
+      "acc": 0.8571,
+      "n": 7
+    },
+    "high_school_computer_science": {
+      "acc": 1.0,
+      "n": 2
+    },
+    "high_school_european_history": {
+      "acc": 0.5714,
+      "n": 7
+    },
+    "high_school_geography": {
+      "acc": 1.0,
+      "n": 6
+    },
+    "high_school_government_and_politics": {
+      "acc": 0.875,
+      "n": 8
+    },
+    "high_school_macroeconomics": {
+      "acc": 0.9091,
+      "n": 11
+    },
+    "high_school_mathematics": {
+      "acc": 0.9231,
+      "n": 13
+    },
+    "high_school_microeconomics": {
+      "acc": 1.0,
+      "n": 12
+    },
+    "high_school_physics": {
+      "acc": 1.0,
+      "n": 4
+    },
+    "high_school_psychology": {
+      "acc": 1.0,
+      "n": 18
+    },
+    "high_school_statistics": {
+      "acc": 0.75,
+      "n": 12
+    },
+    "high_school_us_history": {
+      "acc": 0.7143,
+      "n": 7
+    },
+    "high_school_world_history": {
+      "acc": 0.8889,
+      "n": 9
+    },
+    "human_aging": {
+      "acc": 0.5556,
+      "n": 9
+    },
+    "human_sexuality": {
+      "acc": 1.0,
+      "n": 3
+    },
+    "international_law": {
+      "acc": 1.0,
+      "n": 2
+    },
+    "jurisprudence": {
+      "acc": 1.0,
+      "n": 1
+    },
+    "logical_fallacies": {
+      "acc": 1.0,
+      "n": 2
+    },
+    "machine_learning": {
+      "acc": 0.8333,
+      "n": 6
+    },
+    "management": {
+      "acc": 1.0,
+      "n": 6
+    },
+    "marketing": {
+      "acc": 0.75,
+      "n": 12
+    },
+    "medical_genetics": {
+      "acc": 1.0,
+      "n": 1
+    },
+    "miscellaneous": {
+      "acc": 1.0,
+      "n": 30
+    },
+    "moral_disputes": {
+      "acc": 1.0,
+      "n": 13
+    },
+    "moral_scenarios": {
+      "acc": 0.9268,
+      "n": 41
+    },
+    "nutrition": {
+      "acc": 1.0,
+      "n": 11
+    },
+    "philosophy": {
+      "acc": 0.9167,
+      "n": 12
+    },
+    "prehistory": {
+      "acc": 0.8,
+      "n": 10
+    },
+    "professional_accounting": {
+      "acc": 0.8889,
+      "n": 9
+    },
+    "professional_law": {
+      "acc": 0.7193,
+      "n": 57
+    },
+    "professional_medicine": {
+      "acc": 0.9091,
+      "n": 11
+    },
+    "professional_psychology": {
+      "acc": 0.8667,
+      "n": 15
+    },
+    "public_relations": {
+      "acc": 1.0,
+      "n": 2
+    },
+    "security_studies": {
+      "acc": 0.7857,
+      "n": 14
+    },
+    "sociology": {
+      "acc": 1.0,
+      "n": 3
+    },
+    "us_foreign_policy": {
+      "acc": 1.0,
+      "n": 3
+    },
+    "virology": {
+      "acc": 0.3333,
+      "n": 3
+    },
+    "world_religions": {
+      "acc": 0.75,
+      "n": 4
+    }
+  },
+  "parse_fail": 0,
+  "errors": 0
+}
