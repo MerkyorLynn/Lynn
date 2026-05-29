@@ -1,0 +1,36 @@
+{"id":"real-tool-storm","category":"real-lynn","file":"brain-v2-mirror/tool-storm.ts","pass":true,"secs":12,"cb":"All 6 tests pass. The fix: changed `seen > config.threshold` to `seen >= config.threshold` at `tool-storm.ts:95`, so `threshold=2` correctly"}
+{"id":"real-search-ctx","category":"real-lynn","file":"brain-v2-mirror/search-context.ts","pass":true,"secs":9,"cb":"改动：`search-context.ts:100` 将 `value.length < 40` 改为 `value.length < 4`，恢复正常短查询阈值。"}
+{"id":"real-tsc-types","category":"real-lynn","file":"brain-v2-mirror/types.ts","pass":true,"secs":13,"cb":"Fixed. `ProviderCapability.audio` was typed as `number` — changed it to `boolean`. `tsc --noEmit` now passes cleanly (exit code 0, zero erro"}
+{"id":"real-router-cap","category":"real-lynn","file":"brain-v2-mirror/router.ts","pass":true,"secs":10,"cb":"现在与 `audio`/`video` 的判断一致：required 但 provider 不具备时才 skip。21 个测试全部通过。"}
+{"id":"real-websearch","category":"real-lynn","file":"lib/tools/web-search.ts","pass":true,"secs":27,"cb":"**验证**：运行 `npm run typecheck:runtime`，零错误退出。"}
+{"id":"lp-cascade","category":"sandbox","lang":"TS","type":"Lynn-pattern: provider cascade","pass":true,"secs":9,"cb":"`cascade.ts` 已创建，`pick` 返回第一个 `cooldown===false` 的 provider id，否则返回 `null`。`deno run --check verify.ts` 输出 `ALL_PASS`。"}
+{"id":"lp-retry","category":"sandbox","lang":"TS","type":"Lynn-pattern: retry backoff","pass":true,"secs":13,"cb":"The function retries the async function up to `maxAttempts` times, throwing the last error if all attempts fail."}
+{"id":"lp-lru","category":"sandbox","lang":"TS","type":"Lynn-pattern: LRU","pass":true,"secs":14,"cb":"- `get()`：命中后 delete + set 来刷新为最近使用，返回 `V | undefined`"}
+{"id":"lp-sse","category":"sandbox","lang":"JS","type":"Lynn-pattern: SSE parser","pass":true,"secs":11,"cb":"不需要改动任何东西，验证已经通过。"}
+{"id":"lp-ratelimit","category":"sandbox","lang":"TS","type":"Lynn-pattern: token bucket","pass":true,"secs":9,"cb":"`TokenBucket` 在构造函数中将 `#tokens` 初始化为 `capacity`，`tryTake()` 有令牌时减一并返回 `true`，否则返回 `false`。"}
+{"id":"lp-stablejson","category":"sandbox","lang":"TS","type":"Lynn-pattern: stable stringify","pass":true,"secs":8,"cb":"`stable.ts` 创建完成。`deno run --check verify.ts` 输出 `ALL_PASS`。"}
+{"id":"lp-capgate","category":"sandbox","lang":"TS","type":"Lynn-pattern: capability filter","pass":true,"secs":12,"cb":"- 保持原数组顺序"}
+{"id":"lp-debounce","category":"sandbox","lang":"JS","type":"Lynn-pattern: debounce","pass":true,"secs":8,"cb":"运行 `node verify.js` 输出：`ALL_PASS`"}
+{"id":"lp-emitter","category":"sandbox","lang":"TS","type":"Lynn-pattern: event emitter","pass":true,"secs":9,"cb":"`em.ts` 用 `Set` 存监听器，`on` 返回删除该监听器的闭包，`emit` 遍历调用全部回调。"}
+{"id":"lp-asyncpool","category":"sandbox","lang":"JS","type":"Lynn-pattern: async concurrency pool","pass":true,"secs":15,"cb":"ALL_PASS。`pool.js` 已创建，使用 `concurrency` 个 worker 并发消费 thunk 数组，结果按原始顺序返回。"}
+{"id":"lp-diffapply","category":"sandbox","lang":"JS","type":"Lynn-pattern: SEARCH/REPLACE apply","pass":true,"secs":8,"cb":"已完成。`apply.js` 使用 `String.prototype.replace`（不带全局标志）替换第一处匹配，不存在则原样返回。运行 `node verify.js` 输出 `ALL_PASS`。"}
+{"id":"lp-circular","category":"sandbox","lang":"TS","type":"Lynn-pattern: ring buffer","pass":true,"secs":10,"cb":"- `toArray` 按 `head → size` 顺序读取，保证插入顺序"}
+{"id":"algo-mergeintervals","category":"sandbox","lang":"Python","type":"algo: merge intervals","pass":true,"secs":7,"cb":"核心思路：按区间左端点排序，然后逐个合并（当前区间左端点 ≤ 上一个合并区间的右端点则扩展右端点，否则追加新区间）。"}
+{"id":"algo-topo","category":"sandbox","lang":"Python","type":"algo: topological sort","pass":true,"secs":9,"cb":"```"}
+{"id":"algo-trie","category":"sandbox","lang":"TS","type":"algo: trie","pass":true,"secs":8,"cb":"- `startsWith(p)` — 前缀匹配，只需路径存在即可"}
+{"id":"algo-bfs","category":"sandbox","lang":"Python","type":"algo: shortest path BFS","pass":true,"secs":11,"cb":"`python3 test.py` 输出 `ALL_PASS`。"}
+{"id":"algo-kth","category":"sandbox","lang":"JS","type":"algo: kth largest","pass":true,"secs":10,"cb":"输出 `ALL_PASS`，测试通过。"}
+{"id":"algo-editdist","category":"sandbox","lang":"Python","type":"algo: edit distance","pass":true,"secs":9,"cb":"`edit(a, b)` 使用经典动态规划（Levenshtein 距离），时间复杂度 O(mn)，空间复杂度 O(mn)。"}
+{"id":"algo-slidemax","category":"sandbox","lang":"JS","type":"algo: sliding window max","pass":true,"secs":7,"cb":"ALL_PASS"}
+{"id":"cl-py-memoize","category":"sandbox","lang":"Python","type":"cross: decorator","pass":true,"secs":14,"cb":"- 以 `(args, sorted(kwargs.items()))` 作为缓存键，兼顾位置参数和关键字参数"}
+{"id":"cl-py-ctxmgr","category":"sandbox","lang":"Python","type":"cross: context manager","pass":true,"secs":8,"cb":"```"}
+{"id":"cl-rust-parse","category":"sandbox","lang":"Rust","type":"cross: Result parse","pass":true,"secs":10,"cb":"- `.sum()` 对 `Result` 迭代器求和：全部成功返回 `Ok(total)`，任一解析失败则返回第一个 `Err`"}
+{"id":"cl-rust-iter","category":"sandbox","lang":"Rust","type":"cross: iterator chain","pass":true,"secs":11,"cb":"Done. `even_squares` now uses an iterator chain — filter evens, map to squares, collect — and prints `ALL_PASS` with no warnings."}
+{"id":"cl-c-reverse","category":"sandbox","lang":"C","type":"cross: linked list reverse","pass":true,"secs":8,"cb":"实现完成。`reverse` 使用原地三指针迭代法（`prev`/`curr`/`next`），编译通过并输出 `ALL_PASS`。"}
+{"id":"cl-ts-union","category":"sandbox","lang":"TS","type":"cross: discriminated union","pass":true,"secs":9,"cb":"- Deno 严格类型检查通过，switch 覆盖了 `circle` 和 `rect` 两个分支"}
+{"id":"cl-py-async","category":"sandbox","lang":"Python","type":"cross: asyncio gather","pass":true,"secs":8,"cb":"Done. `sol.py` created and test passes (`ALL_PASS`)."}
+{"id":"cl-js-eventbus","category":"sandbox","lang":"JS","type":"cross: typed-ish event bus","pass":true,"secs":8,"cb":"`node verify.js` outputs `ALL_PASS`."}
+{"id":"algo-quickselect2","category":"sandbox","lang":"Python","type":"algo: running median","pass":true,"secs":7,"cb":"已创建 `sol.py`，使用双堆（大顶堆 + 小顶堆）维护中位数，`add` 时间复杂度 O(log n)，`median` 时间复杂度 O(1)。`python3 test.py` 输出 `ALL_PASS`。"}
+{"id":"lp-jsonpatch","category":"sandbox","lang":"JS","type":"Lynn-pattern: deep merge","pass":true,"secs":8,"cb":"- `Array.isArray` 判断让数组走覆盖分支，符合常见预期"}
+{"id":"lp-cooldownmap","category":"sandbox","lang":"TS","type":"Lynn-pattern: cooldown tracker","pass":true,"secs":9,"cb":"`deno run --check verify.ts` → **ALL_PASS**"}
+{"id":"real-audio-trans","category":"real-lynn","file":"brain-v2-mirror/audio-transcribe.ts","pass":true,"secs":8,"cb":"已修复。将 `audio-transcribe.ts:123` 的 `audio_urlX` 改为 `audio_url`，16 个测试全部通过。"}

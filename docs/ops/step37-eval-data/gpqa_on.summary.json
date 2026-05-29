@@ -1,0 +1,11 @@
+{
+  "model": "step-3.7-flash",
+  "endpoint": "https://api.stepfun.com/step_plan/v1",
+  "n": 198,
+  "correct": 118,
+  "accuracy": 0.5959595959595959,
+  "elapsed_sec": 2153.663,
+  "qps": 0.0919,
+  "parse_fail": 11,
+  "errors": 0
+}

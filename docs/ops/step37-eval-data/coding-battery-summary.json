@@ -1,0 +1,15 @@
+{
+  "total": 36,
+  "passed": 36,
+  "byCategory": {
+    "real-lynn": [
+      6,
+      6
+    ],
+    "sandbox": [
+      30,
+      30
+    ]
+  },
+  "ts": "done"
+}
