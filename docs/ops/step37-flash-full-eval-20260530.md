@@ -28,7 +28,7 @@ Model: step-3.7-flash(198B MoE / ~11B active,vision-language,256K ctx,MTP-3)
 | **MMLU 500**(5-shot) | **91.4%** | 86.6% | 0 |
 | **GPQA Diamond 198** | **59.6%**(excl-pf 63.1%) | 50.0% | on=11 / off=13 |
 
-- thinking 增益:GPQA **+9.6pp**(硬科学推理),MMLU **+~5.6pp**(知识)—— 难题上 thinking 价值更大
+- thinking 增益:GPQA **+9.6pp**(硬科学推理),MMLU **+4.8pp**(知识)—— 难题上 thinking 价值更大
 - parse_fail 来自硬题 reasoning 吃满 16384 token 未输出字母(已用 reasoning-tail fallback 提取救回大部分)
 
 ### 对比 Lynn 现役模型(canonical)
