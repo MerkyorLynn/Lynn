@@ -14,6 +14,8 @@ import { TerminalSpinner } from "../terminal-spinner.js";
 import { bold, dangerLine, dim, green, red, supportsColor } from "../terminal-style.js";
 import { colorizePatch } from "../diff-format.js";
 import { renderMarkdown } from "../markdown.js";
+import { HistoryNavigator, appendHistory, historyPath, loadHistory } from "../history.js";
+import { completeSlash } from "../completion.js";
 import { box, displayCwd, padLine } from "../startup.js";
 import { t } from "../i18n.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "../provider-profile.js";
@@ -113,12 +115,21 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
   const mode = await resolveCodeMode(args);
   let reasoning = parseReasoningOptions(args);
   output.write(renderCodeIntro(mode, reasoning, { color: supportsColor(output) }));
+  const histFile = historyPath();
+  const history = loadHistory(histFile);
+  const slashCommands = ["/exit", "/quit", "/help", "/tools", "/fast", "/think", "/reasoning", "/mode", "/model", "/providers"];
   try {
     for (;;) {
-      const raw = await readCodeLine("", mode, { placeholder: t("code.placeholder") });
+      const raw = await readCodeLine("", mode, {
+        placeholder: t("code.placeholder"),
+        history: new HistoryNavigator(history),
+        completions: slashCommands,
+      });
       if (raw === null) break;
       const text = raw.trim();
       if (!text) continue;
+      history.push(text);
+      appendHistory(text, histFile);
       if (text === "/exit" || text === "/quit") break;
       if (text === "/help") {
         output.write(renderCodeHelp());
@@ -186,7 +197,7 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
   return 0;
 }
 
-async function readCodeLine(prompt: string, mode: ChatMode, options: { placeholder?: string } = {}): Promise<string | null> {
+async function readCodeLine(prompt: string, mode: ChatMode, options: { placeholder?: string; history?: HistoryNavigator; completions?: string[] } = {}): Promise<string | null> {
   if (!input.isTTY || !output.isTTY || typeof input.setRawMode !== "function") {
     const rl = readline.createInterface({ input, output, terminal: false });
     try {
@@ -252,6 +263,23 @@ async function readCodeLine(prompt: string, mode: ChatMode, options: { placehold
           buffer = Array.from(buffer).slice(0, -1).join("");
           redraw();
         }
+        return;
+      }
+      if (text === "\u001b[A" && options.history) {
+        buffer = options.history.prev(buffer);
+        redraw();
+        return;
+      }
+      if (text === "\u001b[B" && options.history) {
+        buffer = options.history.next();
+        redraw();
+        return;
+      }
+      if (text === "\t" && options.completions) {
+        const completion = completeSlash(buffer, options.completions);
+        if (completion.matches.length > 1) output.write(`\n${completion.matches.join("  ")}\n`);
+        buffer = completion.completed;
+        redraw();
         return;
       }
       if (text.startsWith("\u001b")) return;
