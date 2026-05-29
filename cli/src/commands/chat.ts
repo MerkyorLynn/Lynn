@@ -7,7 +7,7 @@ import { renderProvidersInfo, resolveProvidersInfo } from "./providers.js";
 import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
 import { renderBrainEventForHuman, summarizeUsage, type HumanBrainRenderState } from "../brain-render.js";
-import { dangerLine, red, supportsColor } from "../terminal-style.js";
+import { dangerLine, dim, red, supportsColor } from "../terminal-style.js";
 import { renderStartupBanner } from "../startup.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
 import { t } from "../i18n.js";
@@ -263,7 +263,7 @@ function renderChatEvent(event: BrainStreamEvent, renderReasoning: boolean, rend
     return true;
   }
   if (event.type === "reasoning.delta" && renderReasoning) {
-    process.stderr.write(event.text);
+    process.stderr.write(dim(event.text, supportsColor(process.stderr)));
   } else if (event.type === "usage") {
     const summary = summarizeUsage(event.usage);
     if (summary) process.stderr.write(`\nusage: ${summary}\n`);

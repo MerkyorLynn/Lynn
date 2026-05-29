@@ -11,7 +11,8 @@ import { nowIso, writeJsonLine } from "../jsonl.js";
 import { resolveEffectivePermissions } from "../permissions.js";
 import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
 import { TerminalSpinner } from "../terminal-spinner.js";
-import { dangerLine, dim, red, supportsColor } from "../terminal-style.js";
+import { bold, dangerLine, dim, green, red, supportsColor } from "../terminal-style.js";
+import { colorizePatch } from "../diff-format.js";
 import { box, displayCwd, padLine } from "../startup.js";
 import { t } from "../i18n.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "../provider-profile.js";
@@ -88,7 +89,7 @@ export async function runCode(args: ParsedArgs): Promise<number> {
       path: getStringFlag(args.flags, "path") || undefined,
       text: getStringFlag(args.flags, "text", "content") || args.positionals.join(" ") || undefined,
       command: getStringFlag(args.flags, "command") || args.positionals.join(" ") || undefined,
-    }),
+    }, supportsColor(errorOutput)),
   });
   const result = await runClientTool(
     { cwd: toolCwd, approval: toolApproval, sandbox: toolMode.sandbox, timeoutMs: timeoutMs(args) },
@@ -348,6 +349,7 @@ interface ToolApprovalRequest {
   input: NodeJS.ReadStream;
   output: NodeJS.WriteStream;
   preview?: string;
+  session?: { approveAll: boolean };
 }
 
 export function isDangerousClientTool(tool: ClientToolName): boolean {
@@ -360,7 +362,7 @@ export function canPromptForDangerousTool(inputStream: Pick<NodeJS.ReadStream, "
 
 async function resolveToolApproval(request: ToolApprovalRequest): Promise<ToolApprovalRequest["approval"]> {
   if (!isDangerousClientTool(request.tool)) return request.approval;
-  if (request.approval === "yolo") return "yolo";
+  if (request.approval === "yolo" || request.session?.approveAll) return "yolo";
   if (request.approval === "never") {
     throw new Error(`${request.tool} requires approval; current mode is never`);
   }
@@ -370,8 +372,12 @@ async function resolveToolApproval(request: ToolApprovalRequest): Promise<ToolAp
   const rl = readline.createInterface({ input: request.input, output: request.output, terminal: true });
   try {
     if (request.preview) request.output.write(`${request.preview}\n`);
-    const answer = await rl.question(`Allow ${request.tool} in ${request.cwd}? [y/N] `);
-    if (/^(y|yes)$/i.test(answer.trim())) return "yolo";
+    const answer = (await rl.question(t("approval.prompt", { tool: request.tool, cwd: request.cwd }))).trim().toLowerCase();
+    if (answer === "a" || answer === "always") {
+      if (request.session) request.session.approveAll = true;
+      return "yolo";
+    }
+    if (/^(y|yes)$/.test(answer)) return "yolo";
     throw new Error(`${request.tool} cancelled by user`);
   } finally {
     rl.close();
@@ -507,6 +513,7 @@ async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<string> 
     { role: "user", content: buildCodePrompt(inputData.task, inputData.context) },
   ];
   let finalText = "";
+  const approvalSession = { approveAll: false };
   for (let step = 0; step < inputData.maxSteps; step += 1) {
     const assistantText = await collectBrainText({
       brainUrl: inputData.brainUrl,
@@ -533,7 +540,8 @@ async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<string> 
         json: inputData.json,
         input: inputData.input,
         output: inputData.output,
-        preview: formatDangerousToolPreview(toolRequest.tool, toolRequest.args),
+        preview: formatDangerousToolPreview(toolRequest.tool, toolRequest.args, supportsColor(inputData.output)),
+        session: approvalSession,
       });
       toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval }, {
         name: toolRequest.tool,
@@ -579,7 +587,7 @@ async function collectBrainText(inputData: {
       if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) {
         spinner.stop();
       }
-      if (event.type === "reasoning.delta" && renderReasoning) process.stderr.write(event.text);
+      if (event.type === "reasoning.delta" && renderReasoning) process.stderr.write(dim(event.text, supportsColor(process.stderr)));
       if (event.type === "assistant.delta") text += event.text;
       if (inputData.json && (event.type === "provider" || event.type === "tool_progress" || event.type === "brain.error" || event.type === "usage")) {
         if (event.type === "usage") writeJsonLine({ type: "usage", ts: nowIso(), usage: event.usage });
@@ -706,27 +714,24 @@ function renderClientToolStart(request: CodeToolRequest): void {
 }
 
 function renderClientToolResult(result: ClientToolResult): void {
-  const symbol = result.ok ? "✓" : "×";
+  const color = supportsColor(process.stderr);
+  const symbol = result.ok ? green("✓", color) : red("×", color);
   const detail = result.error || summarizeToolOutput(result.output);
-  process.stderr.write(`╰─ ${symbol} ${oneLine(detail, 120)}\n`);
+  process.stderr.write(`╰─ ${symbol} ${oneLine(detail, 400)}\n`);
 }
 
-function formatDangerousToolPreview(tool: ClientToolName, args: { path?: string; text?: string; command?: string }): string {
+function formatDangerousToolPreview(tool: ClientToolName, args: { path?: string; text?: string; command?: string }, color: boolean): string {
   if (!isDangerousClientTool(tool)) return "";
   if (tool === "apply_patch") {
     const patch = args.text || "";
-    const lines = patch.split(/\r?\n/).slice(0, 24).join("\n");
-    return [
-      "Patch preview:",
-      lines || "(empty patch)",
-      patch.split(/\r?\n/).length > 24 ? "... (truncated)" : "",
-    ].filter(Boolean).join("\n");
+    if (!patch.trim()) return dim("(empty patch)", color);
+    return `${bold("patch preview", color)}\n${colorizePatch(patch, color)}`;
   }
   if (tool === "write_file") {
-    return `Write preview: ${args.path || "(unknown path)"}\n${oneLine(args.text || "", 500)}`;
+    return `${bold("write preview", color)} ${args.path || "(unknown path)"}\n${green(oneLine(args.text || "", 500), color)}`;
   }
   if (tool === "bash") {
-    return `Command preview: ${args.command || "(empty command)"}`;
+    return `${bold("command", color)} ${args.command || "(empty command)"}`;
   }
   return "";
 }
@@ -822,6 +827,6 @@ function handleCodeBrainEvent(event: BrainStreamEvent, opts: { json: boolean; re
   if (event.type === "assistant.delta") {
     process.stdout.write(event.text);
   } else if (event.type === "reasoning.delta" && opts.renderReasoning) {
-    process.stderr.write(event.text);
+    process.stderr.write(dim(event.text, supportsColor(process.stderr)));
   }
 }
