@@ -61,6 +61,9 @@ const PROVIDER_DEFS = {
     cooldown_ms: 60_000,
     default_thinking: true,
     default_reasoning_effort: (env('STEP37_REASONING_EFFORT', 'high') as 'low' | 'medium' | 'high'),
+    // high 推理 token 预算要给够:reasoning-always + effort=high 时光思考就可能 >4096,
+    // 256K 上下文不该被 4096 default 饿到空答。默认 32K(env STEP37_MAX_TOKENS 可调)。
+    max_tokens: Number(env('STEP37_MAX_TOKENS', '32768')),
   },
   'deepseek-chat': {
     id: providerId('deepseek-chat'),
