@@ -24,22 +24,38 @@
 
 ---
 
-## 🧠 Lynn 模型与引擎路线
+## 🧠 Lynn 模型与推理路线
 
-Lynn 现在不只是桌面端 Agent。配套的模型、量化和自研推理引擎已经形成一条独立路线,用于把 Lynn 的本地长期记忆 / 多 Agent / 工具调用能力跑在可控的私有模型栈上。
+Lynn 的本地推理分两层：**生产服务层**（已稳定运行）和**自研引擎层**（持续开发中）。
+
+### 生产服务（当前实际运行）
 
 | 方向 | 当前状态 |
 |---|---|
-| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M 变体已完成发布与回归;Q4 工具调用模板热修已同步 HF / ModelScope。 |
-| **Lynn 27B-A3B 基座** | 从 Qwen3.6-35B-A3B BASE 走 variable-expert pruning + Router-FT + Recovery LoRA,当前选定 **step5000 final**。BF16 评测:V8 strict 33/34 = 97.06%,V9 adjusted 37/59 = 62.71%。 |
-| **Lynn-native NVFP4** | 27B variable-expert NVFP4 artifact 约 20GB,用于 Lynn Engine 自研 runtime。它不是 GGUF,也不是公开通用框架的 compressed-tensors v8-RTN。 |
-| **Lynn Engine** | 自研 Blackwell/R6000 推理引擎已跑通 27B NVFP4。当前 R6000 strict full path **103.44 tok/s**,serving replay **107.23 tok/s**;下一目标是生产稳定 100+ TPS 与 native FP4 kernel。 |
+| **Spark APEX-MTP 服务** | llama.cpp（CUDA sm_121）serving **Qwen3.6-35B-A3B-APEX-MTP** Q4_K_M imatrix，`:18098` 端点，**79 TPS**（c=1 think-on 4K），MTP accept ~60%，ctx 256K，24×7 运行。 |
+| **本地桌面默认** | Qwen3.5-9B Q4_K_M imatrix MTP，llama.cpp，约 5.4 GB，推荐 24GB+ 统一内存，thinking-on 稳定。 |
+| **本地高端可选** | Qwen3.6-35B-A3B Q4_K_M imatrix，21 GB，MMLU 90.40% / GPQA Diamond 80.70%（含 Lynn 校准）。 |
+
+### 模型发布状态
+
+| 模型 | 状态 |
+|---|---|
+| **Qwen3.6-35B-A3B APEX-MTP GGUF** | 生产运行，MTP sidecar 基于官方 NextN head，BF16 / Q4_K_M imatrix 变体已发布 HF / ModelScope。 |
+| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M 变体已发布，Q4 工具调用模板热修已同步。 |
+| **Lynn 27B-A3B 基座** | 从 Qwen3.6-35B-A3B 走 variable-expert pruning + Router-FT + Recovery LoRA，BF16 评测 V8 strict 97.06%，当前不作为主力部署。 |
+
+### 自研推理引擎（研发中）
+
+| 方向 | 当前状态 |
+|---|---|
+| **Lynn Engine** | 针对 Blackwell（Spark GB10 sm_121）与 R6000（sm_120a）的自研 native kernel，目标 W4A8 + FP8 MMA + MTP。主要难点：sm_121 无原生 FP4 MMA，走 FP8 mirror 路径。**当前处于研发阶段，生产服务仍由 llama.cpp 承担。** |
 
 相关仓库:
-- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine):Lynn 27B-A3B NVFP4 自研推理引擎。
-- [MerkyorLynn/lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit):蒸馏、评测、量化与发布工具链。
+- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine)：自研 Blackwell/R6000 推理引擎（研发中）。
+- [MerkyorLynn/lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit)：蒸馏、评测、量化与发布工具链。
 
-> 说明:27B Lynn-native NVFP4 是给 Lynn Engine 的内部/垂直 runtime artifact;通用用户仍建议从 V4 / V Flash 的 BF16、NVFP4 v8-RTN 或 Q4_K_M 版本开始。
+> 当前生产推理后端：**llama.cpp**（Spark GB10 sm_121）serving Qwen3.6-35B-A3B APEX-MTP Q4_K_M。
+> Lynn Engine 为自研内核研发项目，未来计划替换生产后端以突破 llama.cpp 的性能上限。
 
 ## 🆕 近期更新
 
