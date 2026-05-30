@@ -142,6 +142,8 @@ async function runRound({
     let anyEmit = false;
     let finishReason: string | null = null;
     let contentAccum = '';
+    let reasoningAccum = '';
+    let bufferedFinish: Extract<StreamChunk, { type: 'finish' }> | null = null;
     const toolCallsAcc: ToolCall[] = [];
     try {
       log && log('info', `→ provider ${providerId}`);
@@ -181,6 +183,13 @@ async function runRound({
           await onChunk(chunk, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
           continue;
         }
+        // 累积 reasoning(thinking 模型),仍照常流给 client(GUI thinking 块)。
+        // 用于 empty-content 兜底:reasoning 有内容但 content 空时把它提升为答案。
+        if (chunk.type === 'reasoning') {
+          reasoningAccum += chunk.delta;
+          await onChunk(chunk, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
+          continue;
+        }
         if (chunk.type === 'tool_call_delta') {
           for (const d of (chunk.delta || [])) {
             const idx = d.index ?? 0;
@@ -194,10 +203,30 @@ async function runRound({
         }
         if (chunk.type === 'finish') {
           finishReason = chunk.reason;
-          await onChunk(chunk, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
+          // 终止类 finish(非 tool_calls)缓冲,等 empty-content 兜底可能先注入 content;
+          // tool_calls finish 照常透传(外层 run() 接着跑工具循环,不能延迟)。
+          if (chunk.reason === 'tool_calls') {
+            await onChunk(chunk, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
+          } else {
+            bufferedFinish = chunk;
+          }
           continue;
         }
         await onChunk(chunk, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
+      }
+      // Empty-content 兜底:reasoning 模型(MiMo thinking-on / step-3.7 reasoning-always 等)
+      // 有时把答案全放 reasoning_content、content 为空 → GUI 主答案区空白("搜索/思考跑了但
+      // 结果没出")。content 空 + 无 tool_call + reasoning 有内容时,提升 reasoning 尾部为 content。
+      // GUI thinking 块默认折叠,主区因此能显示答案。BRAIN_V2_REASONING_FALLBACK=0 可关。
+      if (bufferedFinish) {
+        if (!contentAccum.trim() && toolCallsAcc.filter(Boolean).length === 0
+            && reasoningAccum.trim() && process.env.BRAIN_V2_REASONING_FALLBACK !== '0') {
+          const tail = reasoningAccum.trim().slice(-2000);
+          contentAccum = tail;
+          await onChunk({ type: 'content', delta: tail }, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
+          log && log('info', `provider ${providerId} empty content + reasoning(${reasoningAccum.length}c) → promoted ${tail.length}c reasoning tail to content`);
+        }
+        await onChunk(bufferedFinish, { providerId, fallback_from: fallbackChain.length > 0 ? [...fallbackChain] : undefined });
       }
       // anyEmit=false 表示 transport 层零 SSE chunks (真正 wire 失败)。
       // 注意: 这不是检测 "content 为空" — 一个 finish_reason=stop+空 content 仍算正常,因为 chunks≥1。

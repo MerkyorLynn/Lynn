@@ -72,6 +72,39 @@ describe('Router', () => {
     expect(chunks.map(c => c.type)).toEqual(['content', 'finish']);
   });
 
+  it('promotes reasoning to content when content is empty (search/think ran but no answer)', async () => {
+    mockState.adapterFn = async function* () {
+      yield { type: 'reasoning', delta: '让我分析一下。' };
+      yield { type: 'reasoning', delta: '根据搜索结果,答案是 42。' };
+      yield { type: 'finish', reason: 'stop' };
+    };
+    const chunks = [];
+    const r = await run({ messages: [{ role: 'user', content: 'q' }], onChunk: async c => chunks.push(c) });
+    expect(r.ok).toBe(true);
+    // reasoning 照常流给 client(GUI thinking 块)
+    expect(chunks.filter(c => c.type === 'reasoning').length).toBe(2);
+    // content 空 → 兜底注入 reasoning 尾部为 content,且在 finish 之前
+    const types = chunks.map(c => c.type);
+    expect(types).toContain('content');
+    expect(types.indexOf('content')).toBeLessThan(types.indexOf('finish'));
+    const promoted = chunks.find(c => c.type === 'content');
+    expect(promoted.delta).toContain('答案是 42');
+  });
+
+  it('does NOT promote reasoning when content is present', async () => {
+    mockState.adapterFn = async function* () {
+      yield { type: 'reasoning', delta: 'thinking...' };
+      yield { type: 'content', delta: '正常答案' };
+      yield { type: 'finish', reason: 'stop' };
+    };
+    const chunks = [];
+    await run({ messages: [{ role: 'user', content: 'q' }], onChunk: async c => chunks.push(c) });
+    // 只有 1 个 content chunk(原始的),没有重复注入
+    const contents = chunks.filter(c => c.type === 'content');
+    expect(contents.length).toBe(1);
+    expect(contents[0].delta).toBe('正常答案');
+  });
+
   it('falls back on HTTP error (markUnhealthy + try next)', async () => {
     let callIdx = 0;
     mockState.adapterFn = async function* ({ provider }) {
