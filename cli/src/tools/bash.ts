@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { ClientToolResult, ToolRunContext } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -22,12 +25,27 @@ const WORKSPACE_BASH_FORBIDDEN = [
   /(^|[\s"'`=])~(\/|$)/,
   /(^|[\s"'`=])\/(Users|private|tmp|var|etc|opt|System|Library)\b/,
   />\s*\//,
+  // Allowlisted binaries (find / git) that can still destroy the tree.
+  /\bfind\b[^;&|]*\s-delete\b/,
+  /\bfind\b[^;&|]*-exec\b[^;&|]*\brm\b/,
+  /\bgit\s+clean\b/,
 ];
 
 function appendLimited(current: string, next: string): string {
   const combined = current + next;
   if (Buffer.byteLength(combined, "utf8") <= MAX_STREAM_BYTES) return combined;
   return combined.slice(-MAX_STREAM_BYTES);
+}
+
+/** Best-effort append to ~/.lynn/bash-audit.log so executed shell is auditable. */
+export function auditBash(command: string, cwd: string): void {
+  try {
+    const file = path.join(os.homedir(), ".lynn", "bash-audit.log");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.appendFileSync(file, `${new Date().toISOString()}\t${cwd}\t${command}\n`);
+  } catch {
+    /* auditing is non-critical */
+  }
 }
 
 export function assertWorkspaceBashAllowed(command: string, sandbox: ToolRunContext["sandbox"]): void {
@@ -48,6 +66,7 @@ export async function bashTool(ctx: ToolRunContext, command: string): Promise<Cl
     throw new Error("bash requires YOLO approval. Run /mode yolo in interactive code mode or pass --approval yolo.");
   }
   assertWorkspaceBashAllowed(command, ctx.sandbox || "workspace-write");
+  auditBash(command, ctx.cwd);
   return new Promise((resolve) => {
     const child = spawn(command, {
       cwd: ctx.cwd,
