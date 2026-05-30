@@ -41,6 +41,48 @@ Lynn 现在不只是桌面端 Agent。配套的模型、量化和自研推理引
 
 > 说明:27B Lynn-native NVFP4 是给 Lynn Engine 的内部/垂直 runtime artifact;通用用户仍建议从 V4 / V Flash 的 BF16、NVFP4 v8-RTN 或 Q4_K_M 版本开始。
 
+---
+
+## ⚡ Lynn CLI · Agent Quick Contract
+
+`Lynn` 是 Lynn 的 CLI / worker-runner（v0.80 alpha）。定位：**Codex / Claude 指挥，Lynn worker 执行**。
+
+```bash
+# 安装（npm 包未发布，从 Lynn 镜像 tarball 装；--force 替换旧 shim）
+npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-latest.tgz
+
+Lynn doctor --offline             # 自检
+Lynn -p "总结这个 repo" --json     # 单次任务，JSONL 输出
+Lynn code "review the diff"        # 代码 agent 模式
+Lynn chat                          # 交互 REPL
+```
+
+**Fleet worker（GUI Fleet 与各家 coding CLI 的统一适配器）：**
+
+```bash
+Lynn worker run --brief task.md --worktree . --jsonl                 # step-3.7 (via Brain)
+Lynn worker run --brief task.md --worktree . --agent codex-cli --jsonl
+Lynn worker run --brief task.md --worktree . --agent claude-code --jsonl
+Lynn worker run --brief task.md --worktree . --agent qwen-cli --jsonl
+```
+
+一个 `--agent` 把任务派给 codex / claude-code / qwen / kimi / opencode，统一吐 Fleet JSONL。
+**安全边界守在 Lynn 侧**（ownership / forbidden-glob / diff 校验），不靠外部 worker 的 `--yolo`。
+
+**Fleet JSONL 事件（逐行，每条带 workerId + agent）：**
+
+```jsonl
+{"type":"assistant.delta","workerId":"w1","agent":"step-3.7","text":"Here is the fix..."}
+{"type":"tool.finished","workerId":"w1","agent":"step-3.7","name":"write_file","ok":true}
+{"type":"shell.finished","workerId":"w1","agent":"step-3.7","command":"npm test","exitCode":0,"ok":true}
+{"type":"gate.finished","workerId":"w1","agent":"step-3.7","ok":true}
+```
+
+成功信号 = `gate.finished.ok`；硬失败 = `worker.violation` 或 `worker.error{recoverable:false}`。
+
+完整规范（BYOK 配置 / agent 适配表 / 全事件 schema / code tools）：
+→ [`docs/ops/lynn-cli-agent-contract.md`](docs/ops/lynn-cli-agent-contract.md)
+
 ## 🆕 近期更新
 
 <details>
