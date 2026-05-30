@@ -192,6 +192,33 @@ describe('Router', () => {
     expect(mockState.adapterCalls).toEqual(['p-vision']);
   });
 
+  it('routes audio + video requests to a multimodal-capable provider (CLI omni input is consumed)', async () => {
+    // The omni provider gains audio/video so the capability gate can land on it.
+    mockState.providers['p-vision'] = makeProvider('p-vision', { vision: true, audio: true, video: true });
+    mockState.adapterFn = async function* ({ provider }) {
+      mockState.adapterCalls.push(provider.id);
+      yield { type: 'content', delta: 'omni ok' };
+    };
+
+    const audio = await run({ messages: [{ role: 'user', content: 'transcribe this' }], capabilityRequired: { audio: true }, onChunk: async () => {} });
+    expect(audio.providerId).toBe('p-vision');
+
+    mockState.adapterCalls = [];
+    const video = await run({ messages: [{ role: 'user', content: 'watch this' }], capabilityRequired: { video: true }, onChunk: async () => {} });
+    expect(video.providerId).toBe('p-vision');
+    expect(mockState.adapterCalls).toEqual(['p-vision']);
+  });
+
+  it('errors loudly when an audio request has no audio-capable provider (no silent text fallback)', async () => {
+    // None of the default mock providers support audio → the gate must refuse,
+    // not quietly answer with a text-only model.
+    mockState.adapterFn = async function* () { yield { type: 'content', delta: 'should not run' }; };
+    await expect(
+      run({ messages: [{ role: 'user', content: 'transcribe' }], capabilityRequired: { audio: true }, onChunk: async () => {} }),
+    ).rejects.toThrow(/CAPABILITY_NOT_SUPPORTED/);
+    expect(mockState.adapterCalls).toEqual([]);
+  });
+
   it('throws when all providers fail with errors collected', async () => {
     mockState.adapterFn = async function* ({ provider }) {
       throw new Error(`${provider.id} dead`);
