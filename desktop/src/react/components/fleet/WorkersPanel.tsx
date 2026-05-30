@@ -125,11 +125,11 @@ export function WorkersPanel() {
     });
   };
 
-  const integrateWorker = (workerId: string) => {
+  const integrateWorker = (workerId: string, force = false) => {
     void hanaFetch(`/api/fleet/workers/${encodeURIComponent(workerId)}/integrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch: 'fleet/integration' }),
+      body: JSON.stringify({ branch: 'fleet/integration', force }),
     }).catch(() => {
       /* server broadcasts the integration result; ignore transport errors here */
     });

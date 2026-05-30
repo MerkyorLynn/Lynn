@@ -133,6 +133,21 @@ export interface FleetWorkerView {
   lastTs?: string;
 }
 
+export interface FleetGateView {
+  passed: boolean;
+  reasons: string[];
+}
+
+/** Mirror the server-side merge gate from the worker events the GUI already tracks. */
+export function deriveGate(worker: FleetWorkerView): FleetGateView {
+  const reasons: string[] = [];
+  if (worker.hasForbiddenEdit) reasons.push('out-of-scope edits');
+  const failedTests = worker.tests.filter((t) => t.ok === false).length;
+  if (failedTests) reasons.push(`${failedTests} test${failedTests === 1 ? '' : 's'} failed`);
+  if (worker.gate?.ok === false) reasons.push('gate failed');
+  return { passed: reasons.length === 0, reasons };
+}
+
 export interface FleetWorkerRecordSnapshot {
   workerId: string;
   agent?: string;

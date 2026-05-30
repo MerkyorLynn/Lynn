@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import type { FleetWorkerView } from './fleet-reducer';
+import { deriveGate } from './fleet-reducer';
 import type { FleetChangedFile } from '../../../../../shared/fleet-events.js';
 import { classifyDiffLine } from './diff-format';
 import { formatVisualBox, groupVisualFiles, visualBoxStyle, visualImageSrc, VISUAL_FILE_KINDS } from './visual-format';
@@ -56,7 +57,7 @@ export function WorkerCard({
   onRetry?: (workerId: string) => void;
   onResume?: (workerId: string) => void;
   onApprove?: (workerId: string) => void;
-  onIntegrate?: (workerId: string) => void;
+  onIntegrate?: (workerId: string, force?: boolean) => void;
   onDiscard?: (workerId: string) => void;
   onOpenWorktree?: (worker: FleetWorkerView) => void;
   onDismiss?: (workerId: string) => void;
@@ -108,6 +109,8 @@ export function WorkerCard({
   const canCancel = !!onCancel && ['queued', 'running', 'waiting_approval', 'blocked'].includes(worker.status);
   const canApprove = !!onApprove && worker.status === 'waiting_approval' && !worker.hasForbiddenEdit && worker.gate?.ok !== false;
   const canIntegrate = !!onIntegrate && worker.review?.action === 'approved' && !!worker.review.commit;
+  const gate = deriveGate(worker);
+  const showGate = worker.tests.length > 0 || !!worker.gate || worker.hasForbiddenEdit;
   const canDiscard = !!onDiscard && ['waiting_approval', 'blocked', 'failed', 'completed', 'cancelled'].includes(worker.status);
   const canRetry = !!onRetry && ['failed', 'cancelled', 'blocked', 'completed'].includes(worker.status);
   const canResume = !!onResume && !!worker.checkpoint?.path && ['failed', 'cancelled', 'blocked', 'completed'].includes(worker.status);
@@ -149,6 +152,15 @@ export function WorkerCard({
         {worker.hasForbiddenEdit && (
           <span className={s.badgeScope} title="out-of-scope edit">
             out-of-scope
+          </span>
+        )}
+        {showGate && (
+          <span
+            className={s.gateBadge}
+            data-pass={gate.passed ? '1' : '0'}
+            title={gate.passed ? 'all checks passed' : gate.reasons.join('; ')}
+          >
+            {gate.passed ? 'gate ✓' : `gate ✗ · ${gate.reasons.length}`}
           </span>
         )}
         <span className={s.workerStatus}>{STATUS_LABEL[worker.status] ?? worker.status}</span>
@@ -370,8 +382,17 @@ export function WorkerCard({
             </button>
           )}
           {canIntegrate && (
-            <button className={s.approveBtn} onClick={() => onIntegrate?.(worker.workerId)} title="Cherry-pick into fleet/integration">
+            <button className={s.approveBtn} onClick={() => onIntegrate?.(worker.workerId)} title="Cherry-pick into fleet/integration (gated: tests + scope must pass)">
               Integrate
+            </button>
+          )}
+          {canIntegrate && !gate.passed && (
+            <button
+              className={s.forceMergeBtn}
+              onClick={() => onIntegrate?.(worker.workerId, true)}
+              title={`Override the gate and merge anyway — ${gate.reasons.join('; ')}`}
+            >
+              Force merge
             </button>
           )}
           {canDiscard && (
