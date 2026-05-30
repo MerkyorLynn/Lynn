@@ -40,6 +40,19 @@ function isProviderConfigured(provider: Provider | null): boolean {
 // Tool loop guard. Default raised to 50 — long research / agentic chains need 20-30 turns.
 // Set BRAIN_V2_MAX_ITERATIONS=0 for unlimited (only abort on real errors).
 const MAX_ITERATIONS = Number(process.env.BRAIN_V2_MAX_ITERATIONS || 50);
+// Chain tool hint: when BRAIN_V2_CHAIN_TOOL_HINT=1 and the request carries tools,
+// prepend a lightweight system message that anchors the model to actual tool results.
+// Fixes chain-tool drift where the model reverts to memorised values between hops.
+// Off by default to preserve BYOK-equality; opt-in per deployment.
+const CHAIN_TOOL_HINT_ENABLED = process.env.BRAIN_V2_CHAIN_TOOL_HINT === '1';
+const CHAIN_TOOL_HINT: ChatMessage = {
+  role: 'system',
+  content:
+    'When a task requires multiple tool calls, you MUST:\n' +
+    '1. Use the EXACT values returned by each tool — never estimate or use training knowledge for numeric results.\n' +
+    '2. Before each subsequent tool call, briefly restate what the previous tool returned.\n' +
+    '3. If a tool returns an error, report it honestly — do not substitute a plausible-sounding value.',
+};
 // P1#4: empty_response 不立即 cooldown。短期 cooldown,需累计 ≥ 2 次 transport-empty(零 SSE chunks)
 // 注: 此判断只看 transport 层 anyEmit,不窥探 content。一个 finish_reason=stop+空 content 不会触发。
 const EMPTY_RESPONSE_COOLDOWN_MS = Number(process.env.BRAIN_V2_EMPTY_COOLDOWN_MS || 30_000);
@@ -262,6 +275,19 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
 
   const mergedTools = mergeWithServerTools(tools);
   let workingMessages: ChatMessage[] = [...(messages || [])];
+
+  // Inject chain-tool hint as first system message when tools are present.
+  // Only added if the conversation doesn't already open with a system message,
+  // so BYOK callers that supply their own system prompt are unaffected.
+  if (
+    CHAIN_TOOL_HINT_ENABLED &&
+    mergedTools.length > 0 &&
+    workingMessages[0]?.role !== 'system'
+  ) {
+    workingMessages = [CHAIN_TOOL_HINT, ...workingMessages];
+    log && log('info', '[chain-tool-hint] injected');
+  }
+
   let lastProviderId: ProviderId | null = null;
   let iter = 0;
   const maxIter = MAX_ITERATIONS > 0 ? MAX_ITERATIONS : Infinity;
