@@ -41,6 +41,24 @@ Model: step-3.7-flash(198B MoE / ~11B active,vision-language,256K ctx,MTP-3)
 
 **step-3.7-flash MMLU +5pp / GPQA +10–14pp,两项都明显高于 cascade 第 2 位的 35B-APEX。**
 
+### 对比 MiMo v2.5-pro(cascade 第 2 位,同口径全集实测 2026-05-30)
+
+同 Spark / 同数据集 / 同 think-on 口径,MiMo v2.5-pro(token-plan)全集实测:
+
+| Benchmark | step-3.7-flash | MiMo v2.5-pro | Δ |
+|---|---|---|---|
+| MMLU 500(5-shot) | 91.4% | **91.8%** | 平(MiMo +0.4) |
+| GPQA Diamond 198 | 59.6%(excl-pf 63.1%) | **66.67%**(excl-err 68.75%) | **MiMo +7.07pp** |
+| 单流 TPS | **~220** | ~34 | **step-3.7 ~6×** |
+| eval 耗时 / 健康度 | — | GPQA 155min(net err 6)/ MMLU 34min(parse_fail 0) | MMLU 干净;GPQA 长(reasoning 长 + token-plan 限速) |
+
+**结论:质量上 MMLU 打平、GPQA MiMo 明显更强(+7pp);step-3.7 的护城河是速度(~6×),不是质量。** 正好印证 cascade 设计:
+
+- **step-3.7 首位** = 普通用户的**高速快车道**(纯文本主路,reasoning-always 仍 ~220 TPS)
+- **MiMo 第 2 位** = 多模态兜底 + native search + **硬推理(GPQA 类)质量反而更高**的回退
+
+即:**日常问答走 step-3.7 享速度;难题/多模态溢出到 MiMo,反而拿到更高质量** —— 互补而非替代。MiMo GPQA 6 个 net error 是 token-plan 网络超时(计入分母),非模型能力;按"全集铁律"仍记 66.67%。
+
 ---
 
 ## 3. Agentic 工具使用(端到端循环,5/5)
@@ -98,16 +116,25 @@ Model: step-3.7-flash(198B MoE / ~11B active,vision-language,256K ctx,MTP-3)
 ## 7. 最终定位
 
 ```
-质量:  step-3.7-flash (MMLU 91 / GPQA 60) > 35B-APEX (86/45) > 9B (76/44)
-速度:  step-3.7 (220) > 35B-APEX (79) > 9B本地 (78) > 本地Q3_K_M (26)
-编码:  step-3.7 36/36 全过(真 Lynn 代码 + 算法 + 5 语言)
+质量(全集 think-on,2026-05-30 双跑):
+  MMLU   step-3.7 91.4 ≈ MiMo 91.8 > 35B-APEX 86 > 9B 76     ← 第一梯队打平
+  GPQA   MiMo 66.7 > step-3.7 59.6 > 35B-APEX(Q4) 50 > 9B 44  ← 硬推理 MiMo 更强 (+7pp)
+速度(单流 TPS):
+  step-3.7 220 > 35B-APEX 79 ≈ 9B本地 78 > MiMo token-plan 34 > 本地 Q3_K_M 26
+编码:  step-3.7 36/36 ≈ MiMo 36/36(同 CodeBuddy 口径)
 ```
 
-step-3.7-flash 作 Brain v2 cascade **第 3 顺位** 合理:质量速度都超第 2 位的 35B,但 35B 守第 2 因**本地零 API 成本 + 隐私 + 无 plan 配额风险**。step-3.7 是"Spark 也扛不住时的高质量快速云兜底"。
+**cascade 排位(2026-05-30 定稿,branch `claude/brain-step37-provider`):step-3.7-flash = 首位,MiMo = 第 2,35B-APEX = 第 3。**
+
+- **step-3.7 首位**:纯文本主路,reasoning-always 仍 ~220 TPS —— 给普通用户**开箱高速**体验(MMLU 与 MiMo 打平,质量不亏)。`vision=false`,图片/音/视频 capability-gate 自动落 MiMo。
+- **MiMo 第 2**:全多模态 + native search + **GPQA 类硬推理质量反而更高(+7pp)** —— step-3.7 配额满 / 超 RPM / 多模态时的高质量回退。
+- **35B-APEX 第 3**:本地零 API 成本 + 隐私 + 无 plan 配额风险,云端全断时的容量底座。
+
+> 关键:step-3.7 的护城河是**速度(~6× MiMo)**,不是质量;质量与 MiMo 打平、GPQA 还略输。首位选它是为"普通用户高速体验",难题/多模态由 MiMo 兜回更高质量 —— 两者**互补**。
 
 **对 v0.80 lynn-cli / Worker Fleet:step-3.7-flash 是验证扎实的 fast coding backend**(220 TPS + 编码 36/36),CodeBuddy 已可直接用,可作 DeepSeek V4 Pro 之外的并行 worker 后端选项。
 
-唯一要盯:**step_plan 是订阅档,确认 key 的月度配额上限**,跑满会断。
+唯一要盯:**step_plan 是订阅档(RPM=10 / 5h-1500prompt 配额),多人用先到顶 → cascade 平滑落 MiMo / APEX**(实测 ~5 活跃用户高速档)。
 
 ---
 
@@ -115,4 +142,5 @@ step-3.7-flash 作 Brain v2 cascade **第 3 顺位** 合理:质量速度都超�
 
 - TPS / agentic / 编码 battery 脚本:`/tmp/stepfun-eval/`(overnight_step37_battery.mjs / agentic_tooluse_test.mjs / cb_multilang_battery.mjs)
 - 学术 eval(Spark):`~/stepfun-eval/cloud-step37/`(gpqa/mmlu on+off jsonl + summary.json)
+- MiMo 对比 eval(Spark,2026-05-30):`~/stepfun-eval/mimo-eval/`(gpqa.jsonl 198 + mmlu.jsonl 500 + summary.json,同 harness/数据集/think-on 口径)
 - 全程 APEX 生产服务未受影响(云 eval 纯 HTTP,不占 Spark GPU)
