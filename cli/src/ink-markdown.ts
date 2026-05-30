@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { highlightCodeLine } from "./code-highlight.js";
+import { visibleLength } from "./startup.js";
 
 export type InkMarkdownLine =
   | { kind: "heading"; text: string }
@@ -9,6 +10,7 @@ export type InkMarkdownLine =
   | { kind: "quote"; text: string }
   | { kind: "fence"; open: boolean; lang?: string }
   | { kind: "code"; text: string; lang?: string }
+  | { kind: "table"; rows: string[][] }
   | { kind: "blank" }
   | { kind: "text"; text: string };
 
@@ -25,7 +27,19 @@ export function parseInkMarkdown(text: string): InkMarkdownLine[] {
   const parsed: InkMarkdownLine[] = [];
   let inFence = false;
   let fenceLang: string | undefined;
+  let tableRows: string[][] = [];
+  const flushTable = () => {
+    if (tableRows.length) {
+      parsed.push({ kind: "table", rows: tableRows });
+      tableRows = [];
+    }
+  };
   for (const raw of lines) {
+    if (!inFence && /^\s*\|.*\|\s*$/.test(raw)) {
+      tableRows.push(splitTableRow(raw));
+      continue;
+    }
+    flushTable();
     const fence = /^\s*```(.*)$/.exec(raw);
     if (fence) {
       inFence = !inFence;
@@ -63,6 +77,7 @@ export function parseInkMarkdown(text: string): InkMarkdownLine[] {
     }
     parsed.push({ kind: "text", text: raw });
   }
+  flushTable();
   return parsed;
 }
 
@@ -116,6 +131,7 @@ function renderMarkdownLine(line: InkMarkdownLine, key: number, error: boolean):
   if (line.kind === "quote") return React.createElement(Text, { key, color: "gray" }, `▏ ${line.text}`);
   if (line.kind === "fence") return React.createElement(Text, { key, color: "gray" }, line.open ? `┌─${line.lang ? ` ${line.lang}` : ""}` : "└─");
   if (line.kind === "code") return renderDiffAwareCodeLine(line.text, key, line.lang);
+  if (line.kind === "table") return renderTable(line.rows, key);
   if (line.kind === "bullet") {
     return React.createElement(Text, { key }, line.indent,
       React.createElement(Text, { color: "cyan" }, "•"),
@@ -168,9 +184,41 @@ function lineText(line: InkMarkdownLine): string {
   if (line.kind === "bullet") return `${line.indent}• ${line.text}`;
   if (line.kind === "numbered") return `${line.indent}${line.number}. ${line.text}`;
   if (line.kind === "quote") return `▏ ${line.text}`;
+  if (line.kind === "table") return line.rows.map((row) => row.join(" | ")).join("\n");
   return line.text;
 }
 
 function stripStrongMarkers(text: string): string {
   return text.replace(/\*\*/g, "");
+}
+
+function splitTableRow(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((cell) => cell.trim());
+}
+
+function isSeparatorRow(cells: string[]): boolean {
+  return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell.trim()));
+}
+
+function renderTable(rows: string[][], key: number): React.ReactElement {
+  const dataRows = rows.filter((row) => !isSeparatorRow(row));
+  if (!dataRows.length) return React.createElement(Text, { key }, " ");
+  const cols = Math.max(...dataRows.map((row) => row.length));
+  const widths = Array.from({ length: cols }, (_, c) =>
+    Math.max(3, ...dataRows.map((row) => visibleLength(row[c] ?? ""))));
+  const pad = (text: string, c: number) => `${text}${" ".repeat(Math.max(0, widths[c] - visibleLength(text)))}`;
+  const rowText = (cells: string[]) =>
+    Array.from({ length: cols }, (_, c) => pad(cells[c] ?? "", c)).join(" │ ");
+  const divider = widths.map((w) => "─".repeat(w)).join("─┼─");
+  const out: React.ReactElement[] = [
+    React.createElement(Text, { key: "h", bold: true }, rowText(dataRows[0])),
+    React.createElement(Text, { key: "d", color: "gray" }, divider),
+  ];
+  for (let i = 1; i < dataRows.length; i += 1) {
+    out.push(React.createElement(Text, { key: i }, rowText(dataRows[i])));
+  }
+  return React.createElement(Box, { key, flexDirection: "column" }, ...out);
 }

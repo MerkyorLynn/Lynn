@@ -52,6 +52,12 @@ describe("parseInkInline", () => {
     const parsed = parseInkMarkdown("```ts\nconst x = 1;\n```");
     expect(parsed[1]).toEqual({ kind: "code", text: "const x = 1;", lang: "ts" });
   });
+
+  it("groups a pipe table into a single table block", () => {
+    expect(parseInkMarkdown("| A | B |\n| --- | --- |\n| 1 | 2 |")).toEqual([
+      { kind: "table", rows: [["A", "B"], ["---", "---"], ["1", "2"]] },
+    ]);
+  });
 });
 
 describe("classifyDiffLine", () => {
