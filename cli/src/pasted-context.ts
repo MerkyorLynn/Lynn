@@ -1,7 +1,8 @@
 import path from "node:path";
 import { currentLang, t, type Lang } from "./i18n.js";
 
-const IMAGE_PATH_RE = /(?:file:\/\/)?(?:"([^"]+\.(?:png|jpe?g|webp|gif))"|'([^']+\.(?:png|jpe?g|webp|gif))'|(\S+\.(?:png|jpe?g|webp|gif)))/gi;
+const MEDIA_EXT = "png|jpe?g|webp|gif|mp3|wav|m4a|aac|ogg|flac|mp4|mov|avi|wmv|webm|mkv";
+const IMAGE_PATH_RE = new RegExp(`(?:file://)?(?:"([^"]+\\.(?:${MEDIA_EXT}))"|'([^']+\\.(?:${MEDIA_EXT}))'|(\\S+\\.(?:${MEDIA_EXT})))`, "gi");
 
 export interface PastedImageRef {
   raw: string;
@@ -112,8 +113,8 @@ function summarizeContextParts(options: {
   const parts: string[] = [];
   if (options.imageCount) {
     const label = options.lang === "zh"
-      ? `${options.imageCount} 张图片`
-      : `${options.imageCount} image${options.imageCount === 1 ? "" : "s"}`;
+      ? `${options.imageCount} 个附件`
+      : `${options.imageCount} attachment${options.imageCount === 1 ? "" : "s"}`;
     const names = options.imageNames.slice(0, 3).join(", ");
     const extra = options.imageNames.length > 3
       ? (options.lang === "zh" ? ` 等 ${options.imageNames.length} 个文件` : ` +${options.imageNames.length - 3}`)

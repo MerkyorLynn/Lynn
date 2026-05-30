@@ -27,7 +27,7 @@ describe("pasted context helpers", () => {
       "/repo/screens/a.png",
       "/tmp/b.webp",
     ]);
-    expect(summarizePastedContext(info)).toContain("2 images");
+    expect(summarizePastedContext(info)).toContain("2 attachments");
     expect(summarizePastedContext(info)).toContain("a.png");
     expect(summarizePastedContext(info)).toContain("b.webp");
     expect(summarizePastedContext(info)).toContain("2 lines");
@@ -50,7 +50,7 @@ describe("pasted context helpers", () => {
       prompt: "explain this",
     });
     expect(command?.imageRefs.map((ref) => ref.path)).toEqual(["/repo/screen shot.png"]);
-    expect(summarizeImageRefs(command?.imageRefs || [])).toBe("1 image: screen shot.png");
+    expect(summarizeImageRefs(command?.imageRefs || [])).toBe("1 attachment: screen shot.png");
   });
 
   it("uses a default prompt for image commands without text", () => {
@@ -64,6 +64,6 @@ describe("pasted context helpers", () => {
     setLang("zh");
     const info = analyzePastedContext("第一段\n第二行\n/tmp/a.png");
 
-    expect(summarizePastedContext(info)).toBe("1 张图片: a.png · 2 行");
+    expect(summarizePastedContext(info)).toBe("1 个附件: a.png · 2 行");
   });
 });
