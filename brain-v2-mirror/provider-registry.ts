@@ -101,10 +101,10 @@ export const PROVIDERS: Record<string, Provider> = PROVIDER_DEFS;
 
 // universalOrder — 单一兜底链路,不按 prompt 内容分支
 export const universalOrder = [
-  providerId('mimo'),                  // 头位:enable_search:true 内置搜索 + thinking + vision + 全多模态(不可替代)
-  providerId('step-3.7-flash'),        // 第2位:StepFun 云 198B-MoE,实测质量(MMLU 91.4/GPQA 59.6)+ 速度(220 TPS)
-                                       //        双超 Spark APEX,作 MiMo 后首选;vision fallback 第2(mimo 后)
-  providerId('apex-spark-i-balanced'), // 第3位:Spark llama.cpp APEX-MTP(127.0.0.1:18098 via frps)。本地零成本 + 隐私兜底
+  providerId('step-3.7-flash'),        // 头位(2026-05-30):220 TPS + MMLU 91.4/GPQA 59.6,文本/图片高速主路。
+                                       //   依赖 BRAIN_V2_PRE_SEARCH=1 保留"自动搜索"体感(无 native search,靠预搜索注入 + tool-call)
+  providerId('mimo'),                  // 第2位:native search + 全多模态(audio/video step-3.7 缺 → capability gate 自动落这)
+  providerId('apex-spark-i-balanced'), // 第3位:Spark APEX-MTP,本地零成本 + 隐私兜底(step-3.7 配额满时接住)
   providerId('deepseek-chat'),         // 云兜底 V4-flash
   providerId('deepseek-pro'),          // 云兜底 V4-pro
   providerId('glm-5-turbo'),           // 末位
