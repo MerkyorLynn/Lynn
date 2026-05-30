@@ -39,17 +39,20 @@ const PROVIDER_DEFS = {
     // (非 'off' / 'none')显式 opt-in 才走 thinking-on。
     default_thinking: false,
   },
-  // [step-3.7-flash v1] StepFun 云 198B-MoE/11B-A vision-language(step_plan 端点)。
-  // universalOrder 第 2 位(2026-05-30 提升):MiMo 之后、Spark APEX 之前。
-  // 依据:实测质量 MMLU 91.4 / GPQA Diamond 59.6 + 速度 220 TPS,双超 Spark APEX 35B
-  // (86.4 / 45.45 / 79 TPS)。vision=true → 图片 fallback 第 2 顺位(mimo 后)。
-  // reasoning-always(low/med/high 三档,无真 off);wire=openai(content + image_url + tools)。
+  // [step-3.7-flash v1] StepFun 云 198B-MoE/11B-A(step_plan 端点)。
+  // universalOrder 头位(2026-05-30):依据实测 220 TPS + MMLU 91.4 / GPQA 59.6,
+  // 文本主路高速体验优于 MiMo(token-plan ~34 TPS)。
+  // capability 全 false(纯文本):图片/音/视 capability-gate 自动落 mimo(proven 全多模态)。
+  // 无 native search → 靠 BRAIN_V2_PRE_SEARCH 预搜索注入 + tool-call web_search 补。
+  // reasoning-always(low/med/high 三档,无真 off);wire=openai。
   'step-3.7-flash': {
     id: providerId('step-3.7-flash'),
     endpoint: env('STEP37_BASE', 'https://api.stepfun.com/step_plan/v1'),
     apiKey: env('STEP37_KEY', ''),
     model: envModel('STEP37_MODEL', 'step-3.7-flash'),
-    capability: { vision: true, audio: false, video: false, tools: true, thinking: true, native_search: false },
+    // vision=false(2026-05-30):step-3.7 当 head 专注文本高速;图片/音/视全部 capability-gate
+    // 自动落 mimo(proven 全多模态)。step-3.7 vision 未对标 MiMo,不赌,纯文本主路。
+    capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: false,
@@ -101,7 +104,7 @@ export const PROVIDERS: Record<string, Provider> = PROVIDER_DEFS;
 
 // universalOrder — 单一兜底链路,不按 prompt 内容分支
 export const universalOrder = [
-  providerId('step-3.7-flash'),        // 头位(2026-05-30):220 TPS + MMLU 91.4/GPQA 59.6,文本/图片高速主路。
+  providerId('step-3.7-flash'),        // 头位(2026-05-30):220 TPS + MMLU 91.4/GPQA 59.6,纯文本高速主路(vision=false,图片落 mimo)。
                                        //   依赖 BRAIN_V2_PRE_SEARCH=1 保留"自动搜索"体感(无 native search,靠预搜索注入 + tool-call)
   providerId('mimo'),                  // 第2位:native search + 全多模态(audio/video step-3.7 缺 → capability gate 自动落这)
   providerId('apex-spark-i-balanced'), // 第3位:Spark APEX-MTP,本地零成本 + 隐私兜底(step-3.7 配额满时接住)
