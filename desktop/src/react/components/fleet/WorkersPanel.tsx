@@ -19,6 +19,7 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import type { CliEnvStatus } from '../../types';
 import type { FleetWorkerView } from './fleet-reducer';
 import { sortWorkersByAttention } from './fleet-sort';
+import { deriveGate } from './fleet-reducer';
 import { resolveWorkerWorktreePath } from './worktree-path';
 
 const STATUS_SHORT: Record<string, string> = {
@@ -125,11 +126,11 @@ export function WorkersPanel() {
     });
   };
 
-  const integrateWorker = (workerId: string, force = false) => {
+  const integrateWorker = (workerId: string, opts: { force?: boolean; branch?: string } = {}) => {
     void hanaFetch(`/api/fleet/workers/${encodeURIComponent(workerId)}/integrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch: 'fleet/integration', force }),
+      body: JSON.stringify({ branch: opts.branch || 'fleet/integration', force: !!opts.force }),
     }).catch(() => {
       /* server broadcasts the integration result; ignore transport errors here */
     });
@@ -177,6 +178,10 @@ export function WorkersPanel() {
     return acc;
   }, {});
   const finishedCount = fleetWorkers.filter((w) => ['completed', 'cancelled', 'failed'].includes(w.status)).length;
+  const mergeable = fleetWorkers.filter((w) => w.review?.action === 'approved' && !!w.review.commit && deriveGate(w).passed);
+  const mergeApprovedToMain = () => {
+    for (const w of mergeable) integrateWorker(w.workerId, { branch: 'main' });
+  };
 
   const sorted = sortWorkersByAttention(fleetWorkers);
   const allCollapsed = fleetWorkers.length > 0 && fleetWorkers.every((w) => collapsedIds.has(w.workerId));
@@ -234,6 +239,11 @@ export function WorkersPanel() {
             {fleetWorkers.length > 1 && (
               <button className={s.fleetBtn} onClick={toggleAll}>
                 {allCollapsed ? 'Expand all' : 'Collapse all'}
+              </button>
+            )}
+            {mergeable.length > 0 && (
+              <button className={s.fleetBtn} onClick={mergeApprovedToMain} title="Gated merge of every approved, passing worker into main">
+                Merge approved → main ({mergeable.length})
               </button>
             )}
             <span className={s.fleetHint}>
