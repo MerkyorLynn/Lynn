@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Text, render, useApp, useInput } from "ink";
+import { Box, Static, Text, render, useApp, useInput } from "ink";
+import { detectImageProtocol, renderImageThumbnail } from "./terminal-image.js";
 import { getStringFlag, hasFlag, type ParsedArgs } from "./args.js";
 import { streamBrainChat, type BrainStreamEvent, type ChatMessage } from "./brain-client.js";
 import { formatBrainErrorForHuman, summarizeUsage } from "./brain-render.js";
@@ -56,6 +57,21 @@ export async function runInkChat(args: ParsedArgs): Promise<number> {
   return 0;
 }
 
+type Thumb = { id: number; esc: string };
+
+async function emitThumbnails(text: string, setThumbs: (updater: (prev: Thumb[]) => Thumb[]) => void): Promise<void> {
+  const protocol = detectImageProtocol();
+  if (!protocol) return;
+  const refs = analyzePastedContext(text).imageRefs;
+  if (!refs.length) return;
+  const next: Thumb[] = [];
+  for (const ref of refs) {
+    const esc = await renderImageThumbnail(ref.path, protocol, { widthCells: 28, heightCells: 8, maxBytes: 6_000_000 });
+    if (esc) next.push({ id: Date.now() + next.length, esc });
+  }
+  if (next.length) setThumbs((prev) => [...prev, ...next]);
+}
+
 function InkChatApp(props: InkChatProps): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -68,6 +84,7 @@ function InkChatApp(props: InkChatProps): React.ReactElement {
   const [fallbackProvider, setFallbackProvider] = useState<CliProviderProfile | null>(props.fallbackProvider || null);
   const [provider, setProvider] = useState(chatRouteLabel(props.fallbackProvider));
   const [usage, setUsage] = useState<string | null>(null);
+  const [thumbs, setThumbs] = useState<Thumb[]>([]);
   const [history] = useState(() => new HistoryNavigator(loadHistory(historyPath())));
   const messages = useMemo<ChatMessage[]>(() => resetCliRuntimeMessages(chatRouteLabel(props.fallbackProvider)), [props.fallbackProvider]);
 
@@ -120,6 +137,7 @@ function InkChatApp(props: InkChatProps): React.ReactElement {
     if (key.return) {
       const prefix = newlineIndex >= 0 ? value.slice(0, newlineIndex) : "";
       const submitted = `${input}${prefix}`;
+      void emitThumbnails(submitted, setThumbs);
       void submitInput({
         text: submitted,
         setInput,
@@ -164,6 +182,13 @@ function InkChatApp(props: InkChatProps): React.ReactElement {
 
   const recentTurns = turns.slice(-8);
   return React.createElement(Box, { flexDirection: "column", paddingX: 1 },
+    React.createElement(Static, {
+      items: thumbs,
+      children: (item: unknown) => {
+        const thumb = item as Thumb;
+        return React.createElement(Box, { key: thumb.id, height: 8 }, React.createElement(Text, null, thumb.esc));
+      },
+    }),
     React.createElement(Box, { borderStyle: "round", borderColor: "gray", paddingX: 1, flexDirection: "column" },
       React.createElement(Text, { bold: true }, "Lynn CLI"),
       React.createElement(Text, null, `模型: ${provider}`),
