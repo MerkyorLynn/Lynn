@@ -44,18 +44,24 @@ Lynn 的本地推理分两层：**生产服务层**（已稳定运行）和**自
 | **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M 变体已发布，Q4 工具调用模板热修已同步。 |
 | **Lynn 27B-A3B 基座** | 从 Qwen3.6-35B-A3B 走 variable-expert pruning + Router-FT + Recovery LoRA，BF16 评测 V8 strict 97.06%，当前不作为主力部署。 |
 
-### 自研推理引擎（研发中）
+### 自研推理引擎（持续科研）
 
-| 方向 | 当前状态 |
+生产后端当前由 llama.cpp 承担，但 Lynn Engine 的内核研究**持续推进，未暂停**。目标是在 llama.cpp 的性能天花板之上再上一层。
+
+| 方向 | 当前进展 |
 |---|---|
-| **Lynn Engine** | 针对 Blackwell（Spark GB10 sm_121）与 R6000（sm_120a）的自研 native kernel，目标 W4A8 + FP8 MMA + MTP。主要难点：sm_121 无原生 FP4 MMA，走 FP8 mirror 路径。**当前处于研发阶段，生产服务仍由 llama.cpp 承担。** |
+| **Lynn-native NVFP4** | W4A16 NVFP4 packed format，Qwen3.6-35B-A3B 完整 4-quadrant 质量矩阵已建立（MMLU 84.40% / GPQA 49.49%）；R6000 严格全路径实测 **116.9 TPS**，推理引擎 determinism 极高（stddev 0.09）。 |
+| **FP8 / W4A8 内核** | Spark sm_121（GB10）FP8 Phase 2 build 推进中：dense fused gate/up kernel、MoE expert variant、offline repack 管线持续迭代；目标 55–70 TPS（较 llama.cpp baseline 1.4–1.8×）。 |
+| **MTP 加速** | Qwen3.6 官方 NextN MTP head 接入验证完成，c=1 think-on 实测 accept 率 60.6%，单流 79 TPS；已部署为 Spark 生产 APEX-MTP 服务底座。 |
+
+硬件路线：**Spark GB10 sm_121**（FP8 MMA，无原生 FP4）为 FP8 mirror 内核主战场；R6000 sm_120a（原生 FP4 MMA）为 W4A4/W4A8 长期目标平台。
 
 相关仓库:
-- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine)：自研 Blackwell/R6000 推理引擎（研发中）。
+- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine)：自研 Blackwell/R6000 推理引擎（持续科研）。
 - [MerkyorLynn/lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit)：蒸馏、评测、量化与发布工具链。
 
-> 当前生产推理后端：**llama.cpp**（Spark GB10 sm_121）serving Qwen3.6-35B-A3B APEX-MTP Q4_K_M。
-> Lynn Engine 为自研内核研发项目，未来计划替换生产后端以突破 llama.cpp 的性能上限。
+> **生产后端**：llama.cpp serving Qwen3.6-35B-A3B APEX-MTP Q4_K_M @ Spark GB10。
+> **科研方向**：Lynn Engine native FP8/W4A8 内核，目标替代 llama.cpp 突破当前 TPS 上限。两条线并行，互不阻塞。
 
 ## 🆕 近期更新
 
