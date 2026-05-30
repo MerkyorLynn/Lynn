@@ -750,7 +750,7 @@ describe("code tools", () => {
     expect(JSON.stringify(resumed)).not.toContain("call_big");
   });
 
-  it("strips incomplete assistant tool calls from resumable history", async () => {
+  it("repairs incomplete tool chains by synthesizing the missing tool result", async () => {
     const sessionFile = path.join(tmp, "incomplete-tool-session.jsonl");
     const turns = [
       { type: "user", content: "try a tool" },
@@ -773,7 +773,12 @@ describe("code tools", () => {
     const assistant = resumed.find((message) => message.role === "assistant" && typeof message.content === "string" && message.content.includes("about to inspect"));
 
     expect(assistant).toBeTruthy();
-    expect(assistant?.tool_calls).toBeUndefined();
-    expect(JSON.stringify(resumed)).not.toContain("call_missing");
+    // Frame restoration: the tool_call is preserved and the interrupted result is
+    // synthesized, so the resumed sequence stays valid (every tool_call answered)
+    // instead of dropping the partial work.
+    expect(assistant?.tool_calls?.length).toBe(1);
+    const synth = resumed.find((message) => message.role === "tool"
+      && (message as { tool_call_id?: string }).tool_call_id === "call_missing") as { content: string } | undefined;
+    expect(synth?.content).toContain("did not finish");
   });
 });

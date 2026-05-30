@@ -1090,7 +1090,7 @@ export async function loadResumeMessages(sessionPath: string, maxChars = 24_000)
   return selected;
 }
 
-function buildResumableMessageGroups(turns: ChatMessage[]): ChatMessage[][] {
+export function buildResumableMessageGroups(turns: ChatMessage[]): ChatMessage[][] {
   const groups: ChatMessage[][] = [];
   for (let i = 0; i < turns.length; i += 1) {
     const turn = turns[i];
@@ -1109,9 +1109,21 @@ function buildResumableMessageGroups(turns: ChatMessage[]): ChatMessage[][] {
       }
       if (found.size === required.size) {
         groups.push([turn, ...tools]);
-      } else if (typeof turn.content === "string" && turn.content.trim()) {
-        const { tool_calls: _toolCalls, ...assistantWithoutToolCalls } = turn;
-        groups.push([assistantWithoutToolCalls]);
+      } else {
+        // Interrupted mid-tool: keep the assistant turn + whatever results DID
+        // complete, and synthesize a placeholder for each missing tool_call so
+        // the resumed sequence stays valid (every tool_call has a matching tool
+        // result) instead of dropping the partial work. This is the resume
+        // validation / frame restoration step.
+        const missing: ChatMessage[] = (turn.tool_calls || [])
+          .filter((toolCall) => !found.has(toolCall.id))
+          .map((toolCall) => ({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            name: toolCall.function?.name,
+            content: `Tool result for ${toolCall.function?.name || "tool"}:\n[Lynn CLI: this tool did not finish — the task was interrupted before resume. Re-run it if its result is needed.]`,
+          }));
+        groups.push([turn, ...tools, ...missing]);
       }
       i = Math.max(i, j - 1);
       continue;
