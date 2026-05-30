@@ -19,6 +19,7 @@ export function InkInputLine({ value, placeholder, danger, commands = [], contex
   const hint = slashHint(value, commands, width - visibleLength(prompt));
   const palette = slashPalette(value, commands);
   const visibleText = value || placeholder;
+  const multiline = value.includes("\n");
   const rawWidth = visibleLength(`${prompt}${visibleText}${hint ? ` ${hint}` : ""}`);
   const pad = Math.max(0, width - rawWidth);
   const borderColor = danger ? "red" : "gray";
@@ -28,8 +29,8 @@ export function InkInputLine({ value, placeholder, danger, commands = [], contex
     React.createElement(Box, { borderStyle: "single", borderColor, paddingX: 1 },
       React.createElement(Text, { color: "white" }, prompt),
       React.createElement(Text, { color: value ? "white" : "gray" }, visibleText),
-      hint ? React.createElement(Text, { color: "gray" }, ` ${hint}`) : null,
-      pad ? React.createElement(Text, null, " ".repeat(pad)) : null,
+      !multiline && hint ? React.createElement(Text, { color: "gray" }, ` ${hint}`) : null,
+      !multiline && pad ? React.createElement(Text, null, " ".repeat(pad)) : null,
     ),
   );
 }

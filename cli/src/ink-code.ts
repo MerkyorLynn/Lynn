@@ -160,6 +160,14 @@ function InkCodeApp(props: InkCodeProps): React.ReactElement {
       setInput((current) => appendPastedText(current, value));
       return;
     }
+    if (key.return && (key.shift || key.meta)) {
+      setInput((current) => `${current}\n`);
+      return;
+    }
+    if (key.return && input.endsWith("\\")) {
+      setInput((current) => `${current.slice(0, -1)}\n`);
+      return;
+    }
     if (key.return) {
       const prefix = newlineIndex >= 0 ? value.slice(0, newlineIndex) : "";
       void submitInput(`${input}${prefix}`);
