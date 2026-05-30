@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { matchAnyGlob, evaluateScope, annotateChangedFiles } from "../forbidden-guard.js";
 import { createLineParser, mapKnownCliJsonLine, spawnWorker } from "../worker-manager.js";
 import { parseWorktreePorcelain } from "../worktree-manager.js";
-import { FleetHub, type FleetBrief } from "../fleet-hub.js";
+import { FleetHub, evaluateGate, type FleetBrief } from "../fleet-hub.js";
 import { resolveCliCommand, cliRuntimeAvailable } from "../worker-command.js";
 import { DEFAULT_FLEET_REGISTRY, configuredCliProviderPreset, resolveFleetRegistry } from "../registry.js";
 import { createFleetRoute } from "../../routes/fleet.js";
@@ -758,6 +758,7 @@ describe("FleetHub review actions", () => {
       branch: "fleet/test",
       commit: "def5678",
       sourceCommit: "abc1234",
+      gate: { passed: true, reasons: [], testsFailed: 0, gatesFailed: 0, violations: 0, ran: false },
     });
     expect(integrated).toEqual([{ commit: "abc1234", branch: "fleet/test" }]);
     expect(sent).toContainEqual(expect.objectContaining({
@@ -767,6 +768,35 @@ describe("FleetHub review actions", () => {
         data: expect.objectContaining({ kind: "review", action: "integrated", commit: "def5678", sourceCommit: "abc1234", branch: "fleet/test" }),
       }),
     }));
+  });
+
+  it("blocks integrate when the gate fails, and force overrides it", async () => {
+    const hub = new FleetHub("/repo", () => {}, () => "T", {
+      integrateCommit: async (commit, branch) => ({ branch, commit: "def5678", sourceCommit: commit }),
+    });
+    const rec = await hub.dispatch(sampleBrief);
+    rec.events.push({ type: "worker.progress", workerId: rec.workerId, message: "approved", data: { kind: "review", action: "approved", commit: "abc1234", changed: true } });
+    rec.events.push({ type: "test.finished", workerId: rec.workerId, command: "npm test", ok: false });
+    rec.status = "completed";
+
+    const blocked = await hub.integrate(rec.workerId, "main");
+    expect(blocked).toMatchObject({ ok: false, error: expect.stringContaining("gate not passed") });
+    expect(blocked?.gate).toMatchObject({ passed: false, testsFailed: 1 });
+
+    const forced = await hub.integrate(rec.workerId, "main", { force: true });
+    expect(forced).toMatchObject({ ok: true, branch: "main", commit: "def5678" });
+  });
+
+  it("evaluateGate categorizes test / gate / violation failures", () => {
+    expect(evaluateGate([])).toMatchObject({ passed: true, reasons: [] });
+    const failed = evaluateGate([
+      { type: "test.finished", command: "x", ok: false },
+      { type: "worker.violation", code: "forbidden_file", message: "x" },
+    ] as never);
+    expect(failed.passed).toBe(false);
+    expect(failed.testsFailed).toBe(1);
+    expect(failed.violations).toBe(1);
+    expect(failed.reasons.length).toBe(2);
   });
 
   it("rejects integrate before a worker is approved", async () => {
@@ -849,7 +879,7 @@ describe("fleet review HTTP route", () => {
     });
 
     expect(integrated.status).toBe(200);
-    expect(await integrated.json()).toEqual({ ok: true, branch: "fleet/test", commit: "def5678", sourceCommit: "abc1234" });
+    expect(await integrated.json()).toEqual({ ok: true, branch: "fleet/test", commit: "def5678", sourceCommit: "abc1234", gate: { passed: true, reasons: [], testsFailed: 0, gatesFailed: 0, violations: 0, ran: false } });
   });
 });
 

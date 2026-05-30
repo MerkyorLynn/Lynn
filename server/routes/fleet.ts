@@ -91,16 +91,22 @@ export function createFleetRoute(hub: FleetHub, options: FleetRouteOptions = {})
   });
 
   route.post("/fleet/workers/:id/integrate", async (c) => {
-    let body: { branch?: string } = {};
+    let body: { branch?: string; force?: boolean } = {};
     try {
-      body = await safeJson<{ branch?: string }>(c);
+      body = await safeJson<{ branch?: string; force?: boolean }>(c);
     } catch {
       body = {};
     }
-    const result = await hub.integrate(c.req.param("id"), body.branch || "fleet/integration");
+    const result = await hub.integrate(c.req.param("id"), body.branch || "fleet/integration", { force: !!body.force });
     if (!result) return c.json({ error: "worker not found" }, 404);
-    if (!result.ok) return c.json({ error: result.error || "worker cannot be integrated" }, 409);
-    return c.json({ ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit });
+    if (!result.ok) return c.json({ error: result.error || "worker cannot be integrated", gate: result.gate }, 409);
+    return c.json({ ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, gate: result.gate });
+  });
+
+  route.get("/fleet/workers/:id/gate", (c) => {
+    const gate = hub.gateStatus(c.req.param("id"));
+    if (!gate) return c.json({ error: "worker not found" }, 404);
+    return c.json(gate);
   });
 
   route.post("/fleet/workers/:id/discard", async (c) => {

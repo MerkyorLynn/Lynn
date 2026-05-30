@@ -383,12 +383,20 @@ export class FleetHub {
   async integrate(
     id: string,
     targetBranch = "fleet/integration",
-  ): Promise<{ ok: boolean; error?: string; branch?: string; commit?: string; sourceCommit?: string } | null> {
+    opts: { force?: boolean } = {},
+  ): Promise<{ ok: boolean; error?: string; branch?: string; commit?: string; sourceCommit?: string; gate?: FleetGateResult } | null> {
     const rec = this.workers.get(id);
     if (!rec) return null;
     const sourceCommit = latestApprovedCommit(rec.events);
     if (!sourceCommit) return { ok: false, error: "worker has no approved commit to integrate" };
 
+    // Test gate: never merge a worker that failed tests/gates or touched forbidden
+    // files unless the operator explicitly forces it. This is what makes the
+    // dispatch -> run -> review -> merge loop *verifiable*.
+    const gate = evaluateGate(rec.events);
+    if (!gate.passed && !opts.force) {
+      return { ok: false, error: `gate not passed: ${gate.reasons.join("; ")}`, gate };
+    }
     try {
       const integrate = this.deps.integrateCommit ?? ((commit: string, branch: string) => this.worktrees.integrateCommit(commit, branch));
       const result = await integrate(sourceCommit, targetBranch);
@@ -406,7 +414,7 @@ export class FleetHub {
           changed: true,
         },
       });
-      return { ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit };
+      return { ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, gate };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       this.emit(id, {
@@ -418,6 +426,13 @@ export class FleetHub {
       });
       return { ok: false, error: `review integrate failed: ${message}` };
     }
+  }
+
+  /** Merge gate for the GUI: tests/gates passing and scope clean? */
+  gateStatus(id: string): FleetGateResult | null {
+    const rec = this.workers.get(id);
+    if (!rec) return null;
+    return evaluateGate(rec.events);
   }
 
   /** Read-only single-file diff for the GUI drawer; never escapes the worktree. */
@@ -490,6 +505,38 @@ function latestCheckpointPath(events: FleetWorkerEvent[]): string | undefined {
     if (typeof data?.path === "string" && data.path) return data.path;
   }
   return undefined;
+}
+
+export interface FleetGateResult {
+  passed: boolean;
+  reasons: string[];
+  testsFailed: number;
+  gatesFailed: number;
+  violations: number;
+  ran: boolean;
+}
+
+/** Derive the merge gate from a worker's events: tests + gates + scope violations. */
+export function evaluateGate(events: FleetWorkerEvent[]): FleetGateResult {
+  let testsFailed = 0;
+  let gatesFailed = 0;
+  let gatesRan = 0;
+  let violations = 0;
+  for (const event of events) {
+    if (event.type === "test.finished" && !event.ok) testsFailed += 1;
+    if (event.type === "gate.finished") {
+      gatesRan += 1;
+      if (!event.ok) gatesFailed += 1;
+    }
+    if (event.type === "worker.violation" && (event.code === "forbidden_file" || event.code === "center_lock")) {
+      violations += 1;
+    }
+  }
+  const reasons: string[] = [];
+  if (violations) reasons.push(`${violations} forbidden / center-lock violation(s)`);
+  if (testsFailed) reasons.push(`${testsFailed} test(s) failed`);
+  if (gatesFailed) reasons.push(`${gatesFailed} gate(s) failed`);
+  return { passed: reasons.length === 0, reasons, testsFailed, gatesFailed, violations, ran: gatesRan > 0 };
 }
 
 function latestApprovedCommit(events: FleetWorkerEvent[]): string | undefined {
