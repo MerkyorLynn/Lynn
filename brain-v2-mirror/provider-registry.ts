@@ -45,6 +45,10 @@ const PROVIDER_DEFS = {
   // capability 全 false(纯文本):图片/音/视 capability-gate 自动落 mimo(proven 全多模态)。
   // 无 native search → 靠 BRAIN_V2_PRE_SEARCH 预搜索注入 + tool-call web_search 补。
   // reasoning-always(low/med/high 三档,无真 off);wire=openai。
+  // 2026-05-30:默认推理档 = high(env STEP37_REASONING_EFFORT 可调)。step-3.7 解码速度
+  // 与档位无关(~220 TPS 恒定),high 只是多吐 reasoning token → 答案质量↑、单答延迟↑。
+  // default_thinking:true 以跳过 openai-compat 的 Qwen enable_thinking 逻辑(StepFun 不认该模板字段,
+  // 且短答砍 max_tokens=512 会让 reasoning-always 的 3.7 空答)。档位归一化由 default_reasoning_effort 触发。
   'step-3.7-flash': {
     id: providerId('step-3.7-flash'),
     endpoint: env('STEP37_BASE', 'https://api.stepfun.com/step_plan/v1'),
@@ -55,7 +59,8 @@ const PROVIDER_DEFS = {
     capability: { vision: false, audio: false, video: false, tools: true, thinking: true, native_search: false },
     wire: 'openai',
     cooldown_ms: 60_000,
-    default_thinking: false,
+    default_thinking: true,
+    default_reasoning_effort: (env('STEP37_REASONING_EFFORT', 'high') as 'low' | 'medium' | 'high'),
   },
   'deepseek-chat': {
     id: providerId('deepseek-chat'),

@@ -44,6 +44,9 @@ export interface Provider {
   health_path?: string;
   health_probe_ms?: number;
   default_thinking: boolean;
+  // StepFun-class(reasoning-always,OpenAI 标准 reasoning_effort ∈ low/medium/high)provider 的默认推理档。
+  // 设了它的 provider:openai-compat 会把 client 档位归一化到三档,缺省/auto 用此默认,并跳过 Qwen enable_thinking 逻辑。
+  default_reasoning_effort?: 'low' | 'medium' | 'high' | null;
   authType?: 'none' | 'bearer';
   max_tokens?: number;
   temperature?: number;

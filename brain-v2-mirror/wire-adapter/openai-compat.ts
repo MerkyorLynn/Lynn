@@ -42,6 +42,18 @@ function shouldAutoThink(messages?: ChatMessage[]): boolean {
   return text.length > 80;
 }
 
+// StepFun-class(reasoning-always):reasoning_effort 仅认 low/medium/high。
+// 把 Lynn ThinkingLevelButton(off/auto/high/xhigh)+ 任意 caller 值归一化到三档,
+// 缺省 / 'auto' → provider 默认(step-3.7 = high)。避免 'auto'/'xhigh'/'off' 原样发给 StepFun 触发 400。
+function normalizeReasoningEffort(effort: string | null | undefined, fallback: 'low' | 'medium' | 'high'): 'low' | 'medium' | 'high' {
+  const v = String(effort || '').toLowerCase().trim();
+  if (!v || v === 'auto') return fallback;
+  if (v === 'off' || v === 'none' || v === 'disabled' || v === 'minimal' || v === 'low') return 'low';
+  if (v === 'medium' || v === 'mid' || v === 'normal') return 'medium';
+  if (v === 'high' || v === 'xhigh' || v === 'on' || v === 'max') return 'high';
+  return fallback;
+}
+
 type OpenAICompatRequestBody = Record<string, unknown> & {
   model: ModelId;
   messages?: ChatMessage[];
@@ -66,6 +78,16 @@ export async function* call({ provider, messages, tools, signal, extraBody, reas
   // F11: reasoning_effort BYOK 透传 — server.js 抽到 arg,extraBody 没的话从 arg 回灌
   if (reasoningEffort && !body.reasoning_effort) {
     body.reasoning_effort = reasoningEffort;
+  }
+  // 2026-05-30: StepFun-class(default_reasoning_effort 已设)— reasoning-always,只认 low/medium/high。
+  // 归一化 caller 档位到三档,缺省/auto 用 provider 默认(step-3.7=high);并删掉 Qwen 模板字段。
+  // 走这条的 provider 一律 default_thinking:true,不会进下面的 enable_thinking 分支。
+  if (provider.default_reasoning_effort) {
+    body.reasoning_effort = normalizeReasoningEffort(
+      body.reasoning_effort as string | undefined,
+      provider.default_reasoning_effort,
+    );
+    if ('chat_template_kwargs' in body) delete body.chat_template_kwargs;
   }
   // 2026-05-25: provider.default_thinking === false 时(例如 apex-spark Brain v2 fallback),
   // 默认关 thinking,跟 MiMo 行为对齐。避免短 max_tokens 工况下 35B 长 reasoning 吃光
