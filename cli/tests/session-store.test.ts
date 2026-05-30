@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { appendSessionLine, appendSessionMetadata, appendSessionTurn, latestSessionPath, listSessions, readSessionLines, resolveDataDir, sessionIndexPath } from "../src/session/store.js";
+import { appendSessionLine, appendSessionMetadata, appendSessionTurn, latestSessionPath, listSessions, readSessionLines, readSessionLinesResult, resolveDataDir, sessionIndexPath } from "../src/session/store.js";
 import { computeSessionStats } from "../src/session/stats.js";
 
 const originalDataDir = process.env.LYNN_DATA_DIR;
@@ -42,6 +42,24 @@ describe("CLI session store", () => {
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.agentId).toBe("cli");
     expect(sessions[0]?.path).toBe(sessionPath);
+  });
+
+  it("tolerates a crash-torn JSONL line instead of failing the whole read", async () => {
+    const sessionPath = await appendSessionTurn({
+      dataDir: tmp,
+      cwd: "/repo",
+      prompt: "long task",
+      assistant: "step 1",
+    });
+    // Simulate a crash mid-append: a valid line, then a half-written trailing one.
+    await fs.appendFile(sessionPath, `${JSON.stringify({ type: "user", content: "step 2", ts: "x" })}\n`, "utf8");
+    await fs.appendFile(sessionPath, '{"type":"assistant","content":"step 2 par', "utf8");
+
+    const result = await readSessionLinesResult(sessionPath);
+    expect(result.skipped).toBe(1);
+    expect(result.lines.map((line) => line.content)).toEqual(["long task", "step 1", "step 2"]);
+    // The convenience wrapper still returns the recoverable lines.
+    expect(await readSessionLines(sessionPath)).toHaveLength(3);
   });
 
   it("appends metadata lines for resumable code tasks", async () => {

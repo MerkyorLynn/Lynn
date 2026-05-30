@@ -669,10 +669,13 @@ describe("code tools", () => {
 
     const resumed = await loadResumeMessages(sessionFile, 80);
 
+    // P2a: the original task is now pinned at the very front so a long task never
+    // loses its goal to compaction; the explanatory note follows it.
     expect(resumed[0]).toMatchObject({
       role: "user",
-      content: expect.stringContaining("Earlier transcript turns were compacted"),
+      content: expect.stringContaining("old user"),
     });
+    expect(JSON.stringify(resumed)).toContain("Earlier transcript turns were compacted");
     expect(JSON.stringify(resumed)).not.toContain("old assistant");
     expect(JSON.stringify(resumed)).toContain("latest user detail");
     expect(JSON.stringify(resumed)).toContain("latest assistant detail");

@@ -24,11 +24,12 @@ import { modelLabelWithId } from "../provider-presets.js";
 import { CLIENT_TOOL_DEFINITIONS, runClientTool } from "../tools/registry.js";
 import type { ClientToolName, ClientToolResult, ToolRunContext } from "../tools/types.js";
 import { normalizePlanItems, renderPlanItems, type CodePlanItem } from "../plan-tool.js";
+import { createGitSnapshot } from "../git-checkpoint.js";
 import { applyModeCommand, applyReasoningCommand, buildChatProviderArgs, renderMode, shouldRefreshProviderRoute, shouldShowProviderSetUsage, toggleMode, type ChatMode } from "./chat.js";
 import { renderBrainModelChoices, renderProvidersInfo, resolveProvidersInfo, runProviders } from "./providers.js";
 import { readVersionInfo } from "../version.js";
 import { buildImagesContentParts, parseImageList } from "../media.js";
-import { appendSessionLine, appendSessionMetadata, appendSessionTurn, latestSessionPath, readSessionLines, resolveDataDir } from "../session/store.js";
+import { appendSessionLine, appendSessionMetadata, appendSessionTurn, latestSessionPath, listSessions, readSessionLines, readSessionLinesResult, resolveDataDir } from "../session/store.js";
 import { buildMemoryContextFrameSync } from "../session/memory.js";
 import { buildCodeContextMessages, computeCodeContextLayerDiagnostics } from "../context-layers.js";
 import type { RuntimeInstructionFrame } from "../../../shared/runtime-instruction-frames.js";
@@ -518,6 +519,8 @@ async function runCodeTask(
   const resumePath = await resolveCodeResumePath(getStringFlag(args.flags, "resume"), dataDir);
   const resumeMessages = resumePath ? await loadResumeMessages(resumePath) : [];
   const resumeDiag = resumePath ? summarizeResumeMessages(resumeMessages) : null;
+  const resumeInfo = resumePath ? await readResumeSessionInfo(resumePath) : null;
+  const resumePlan = resumePath ? extractLatestPlan(resumeMessages) : [];
   const saveSession = shouldSaveCodeSession(args, { json, mockBrain, resumePath });
   const sessionPath = getStringFlag(args.flags, "session") || resumePath;
   const title = getStringFlag(args.flags, "title") || task;
@@ -534,14 +537,36 @@ async function runCodeTask(
     }));
   }
   if (resumeDiag && !json && !options.compact && !options.onEvent) {
+    if (resumeInfo?.firstPrompt) {
+      errorOutput.write(`${t("code.resume.task", { task: truncateForResume(resumeInfo.firstPrompt) })}\n`);
+    }
     let detail = "";
     if (resumeDiag.repairedTools > 0) detail += t("code.resume.repaired", { n: resumeDiag.repairedTools });
     if (resumeDiag.compacted) detail += t("code.resume.compacted");
+    if (resumeDiag.tornLines > 0) detail += t("code.resume.torn", { n: resumeDiag.tornLines });
     errorOutput.write(`${t("code.resume.summary", { messages: resumeDiag.messages, detail })}\n`);
+    if (resumePlan.length) errorOutput.write(`${renderPlanItems(resumePlan)}\n`);
+    if (resumeInfo?.cwd && path.resolve(resumeInfo.cwd) !== path.resolve(context.cwd)) {
+      errorOutput.write(`${t("code.resume.cwdDrift", { saved: resumeInfo.cwd, current: context.cwd })}\n`);
+    }
+    if (resumeInfo?.gitSnapshot) {
+      errorOutput.write(`${t("code.resume.snapshot", { sha: resumeInfo.gitSnapshot.slice(0, 12) })}\n`);
+    }
+    // When we auto-picked the latest session, name a couple of recent alternatives
+    // so resume is an informed choice, not a silent guess.
+    if (["last", "latest"].includes((getStringFlag(args.flags, "resume") || "").trim())) {
+      const others = (await listSessions(dataDir))
+        .filter((entry) => path.resolve(entry.path) !== path.resolve(resumePath as string))
+        .slice(0, 2);
+      if (others.length) {
+        const list = others.map((entry) => truncateForResume(entry.title || entry.firstMessage || entry.path, 40)).join(" · ");
+        errorOutput.write(`${t("code.resume.others", { list })}\n`);
+      }
+    }
   }
   if (json) {
     writeJsonLine({ type: "code.task.started", ts: nowIso(), task, context });
-    if (resumePath) writeJsonLine({ type: "session.resumed", ts: nowIso(), path: resumePath, messages: resumeMessages.length, repairedTools: resumeDiag?.repairedTools ?? 0, compacted: resumeDiag?.compacted ?? false });
+    if (resumePath) writeJsonLine({ type: "session.resumed", ts: nowIso(), path: resumePath, messages: resumeMessages.length, repairedTools: resumeDiag?.repairedTools ?? 0, compacted: resumeDiag?.compacted ?? false, tornLines: resumeDiag?.tornLines ?? 0, plan: resumePlan, gitSnapshot: resumeInfo?.gitSnapshot ?? null });
   }
 
   if (mockBrain) {
@@ -639,6 +664,13 @@ async function runCodeTask(
       modelProvider: cliProvider?.profile.provider || "brain",
       modelId: cliProvider?.profile.model || "lynn-brain-router",
     });
+    // Pair the conversation checkpoint with a non-destructive snapshot of the
+    // working tree, so a paused/continued task can also restore its files.
+    const fileSnapshot = await createGitSnapshot(context.cwd);
+    if (fileSnapshot) {
+      if (json) writeJsonLine({ type: "session.snapshot", ts: nowIso(), sha: fileSnapshot.sha, dirtyFiles: fileSnapshot.dirtyFiles });
+      else if (!options.onEvent && !options.compact) errorOutput.write(`${t("code.snapshot.saved", { sha: fileSnapshot.sha.slice(0, 12), files: fileSnapshot.dirtyFiles })}\n`);
+    }
     await appendSessionMetadata({
       dataDir,
       sessionPath: savedSessionPath,
@@ -653,6 +685,8 @@ async function runCodeTask(
         usageSummary: final.usageSummary,
         usageRecords: final.usageRecords,
         resumedFrom: resumePath || null,
+        gitSnapshot: fileSnapshot?.sha ?? null,
+        gitSnapshotFiles: fileSnapshot?.dirtyFiles ?? 0,
       },
     });
     if (json) writeJsonLine({ type: "session.saved", ts: nowIso(), path: savedSessionPath });
@@ -1061,11 +1095,14 @@ async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<CodeAgen
 export const RESUME_REPAIR_NOTE = "this tool did not finish — the task was interrupted before resume";
 /** Marker embedded in the resume prefix when older transcript turns were dropped to fit the budget. */
 export const RESUME_COMPACTION_NOTE = "Earlier transcript turns were compacted to keep the continuation stable";
+/** Marker embedded when the JSONL reader skipped crash-torn lines while loading the session. */
+export const RESUME_TORN_NOTE = "some transcript lines were unreadable (likely a crash mid-write) and were skipped";
 
 export interface ResumeDiagnostics {
   messages: number;
   repairedTools: number;
   compacted: boolean;
+  tornLines: number;
 }
 
 /**
@@ -1077,16 +1114,79 @@ export interface ResumeDiagnostics {
 export function summarizeResumeMessages(messages: ChatMessage[]): ResumeDiagnostics {
   let repairedTools = 0;
   let compacted = false;
+  let tornLines = 0;
   for (const message of messages) {
     if (typeof message.content !== "string") continue;
-    if (message.role === "tool" && message.content.includes(RESUME_REPAIR_NOTE)) repairedTools += 1;
-    else if (message.role === "user" && message.content.includes(RESUME_COMPACTION_NOTE)) compacted = true;
+    if (message.role === "tool" && message.content.includes(RESUME_REPAIR_NOTE)) {
+      repairedTools += 1;
+    } else if (message.role === "user") {
+      if (message.content.includes(RESUME_COMPACTION_NOTE)) compacted = true;
+      const torn = /torn-lines=(\d+)/.exec(message.content);
+      if (torn) tornLines = Number(torn[1]);
+    }
   }
-  return { messages: messages.length, repairedTools, compacted };
+  return { messages: messages.length, repairedTools, compacted, tornLines };
+}
+
+/**
+ * Recover the most recent plan/todo state from resumed messages. The plan lives in
+ * update_plan tool calls (already persisted as assistant tool_calls), so the latest
+ * one reconstructs the ✓●○ checklist — letting resume show "where the task was",
+ * not just how many messages it had.
+ */
+export function extractLatestPlan(messages: ChatMessage[]): CodePlanItem[] {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role !== "assistant" || !message.tool_calls?.length) continue;
+    for (let j = message.tool_calls.length - 1; j >= 0; j -= 1) {
+      const call = message.tool_calls[j];
+      if (call.function?.name !== "update_plan") continue;
+      try {
+        const items = normalizePlanItems(JSON.parse(call.function.arguments || "{}"));
+        if (items.length) return items;
+      } catch {
+        // malformed plan args — keep scanning older calls
+      }
+    }
+  }
+  return [];
+}
+
+/** Collapse a saved prompt to a single tidy line for the resume header. */
+export function truncateForResume(text: string, max = 72): string {
+  const oneLine = text.replace(/\s+/g, " ").trim();
+  return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+export interface ResumeSessionInfo {
+  cwd: string | null;
+  gitSnapshot: string | null;
+  firstPrompt: string | null;
+}
+
+/**
+ * Read the session's persisted metadata (cwd + git snapshot) and original prompt,
+ * for the resume header: confirming WHICH task was picked, warning on cwd drift,
+ * and surfacing a restorable file snapshot. Uses the crash-tolerant reader.
+ */
+export async function readResumeSessionInfo(sessionPath: string): Promise<ResumeSessionInfo> {
+  const { lines } = await readSessionLinesResult(sessionPath);
+  let cwd: string | null = null;
+  let gitSnapshot: string | null = null;
+  let firstPrompt: string | null = null;
+  for (const line of lines) {
+    if (line.type === "metadata" && line.data) {
+      if (typeof line.data.cwd === "string") cwd = line.data.cwd;
+      if (typeof line.data.gitSnapshot === "string") gitSnapshot = line.data.gitSnapshot;
+    } else if (!firstPrompt && line.type === "user" && typeof line.content === "string" && line.content.trim()) {
+      firstPrompt = line.content.trim();
+    }
+  }
+  return { cwd, gitSnapshot, firstPrompt };
 }
 
 export async function loadResumeMessages(sessionPath: string, maxChars = 24_000): Promise<ChatMessage[]> {
-  const lines = await readSessionLines(sessionPath);
+  const { lines, skipped } = await readSessionLinesResult(sessionPath);
   const turns = lines
     .flatMap((line): ChatMessage[] => {
       if (line.type === "user" && typeof line.content === "string" && line.content.trim()) {
@@ -1113,17 +1213,30 @@ export async function loadResumeMessages(sessionPath: string, maxChars = 24_000)
   const groups = buildResumableMessageGroups(turns);
   const selected: ChatMessage[] = [];
   let chars = 0;
+  let firstIncluded = groups.length; // index of the oldest group that fit the budget
   for (let i = groups.length - 1; i >= 0; i -= 1) {
     const group = groups[i];
     const len = group.reduce((sum, turn) => sum + resumeMessageCost(turn), 0);
     if (selected.length && chars + len > maxChars) break;
     selected.unshift(...group);
     chars += len;
+    firstIncluded = i;
   }
-  if (selected.length < turns.length || selected.length < groups.flat().length) {
+  const droppedGroups = firstIncluded; // groups[0..firstIncluded-1] didn't fit
+  if (droppedGroups > 0) {
+    // Compaction note explains the gap, sitting just before the recent window...
     selected.unshift({
       role: "user",
-      content: `[Lynn CLI resumed this coding task from ${sessionPath}. ${RESUME_COMPACTION_NOTE}; ask the user or inspect files if missing details matter.]`,
+      content: `[Lynn CLI resumed this coding task from ${sessionPath}. ${RESUME_COMPACTION_NOTE}: ${droppedGroups} earlier turn group(s) dropped — the original task above is pinned. Ask the user or inspect files if missing details matter.]`,
+    });
+    // ...and the original task (groups[0]) is pinned at the very front so a long
+    // task never loses sight of its own goal, no matter how much history is trimmed.
+    if (groups.length > 0) selected.unshift(...groups[0]);
+  }
+  if (skipped > 0) {
+    selected.unshift({
+      role: "user",
+      content: `[Lynn CLI torn-lines=${skipped}: ${RESUME_TORN_NOTE}. Earlier history may have gaps — inspect files or ask the user if a detail seems missing.]`,
     });
   }
   return selected;

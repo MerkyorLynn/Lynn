@@ -113,12 +113,36 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function readSessionLines(sessionPath: string): Promise<CliSessionLine[]> {
+export interface SessionReadResult {
+  lines: CliSessionLine[];
+  /** Count of non-empty lines that failed to parse (e.g. a line torn by a crash mid-append). */
+  skipped: number;
+}
+
+/**
+ * Read a session JSONL file, tolerating malformed lines instead of failing the
+ * whole read. The most likely corruption is a half-written trailing line from a
+ * crash — which is exactly the case resume exists to recover — so one bad line
+ * must never make an entire session unreadable. Returns the parsed lines plus a
+ * count of how many were skipped, for transparency on resume.
+ */
+export async function readSessionLinesResult(sessionPath: string): Promise<SessionReadResult> {
   const raw = await fs.readFile(sessionPath, "utf8");
-  return raw
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as CliSessionLine);
+  const lines: CliSessionLine[] = [];
+  let skipped = 0;
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line) continue;
+    try {
+      lines.push(JSON.parse(line) as CliSessionLine);
+    } catch {
+      skipped += 1;
+    }
+  }
+  return { lines, skipped };
+}
+
+export async function readSessionLines(sessionPath: string): Promise<CliSessionLine[]> {
+  return (await readSessionLinesResult(sessionPath)).lines;
 }
 
 export async function appendSessionTurn(input: {
