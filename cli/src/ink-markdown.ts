@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { highlightCodeLine } from "./code-highlight.js";
 
 export type InkMarkdownLine =
   | { kind: "heading"; text: string }
@@ -7,28 +8,33 @@ export type InkMarkdownLine =
   | { kind: "numbered"; indent: string; number: string; text: string }
   | { kind: "quote"; text: string }
   | { kind: "fence"; open: boolean; lang?: string }
-  | { kind: "code"; text: string }
+  | { kind: "code"; text: string; lang?: string }
   | { kind: "blank" }
   | { kind: "text"; text: string };
 
 export type InkInlineSegment =
   | { kind: "text"; text: string }
   | { kind: "code"; text: string }
-  | { kind: "bold"; text: string };
+  | { kind: "bold"; text: string }
+  | { kind: "italic"; text: string }
+  | { kind: "strike"; text: string }
+  | { kind: "link"; text: string; url: string };
 
 export function parseInkMarkdown(text: string): InkMarkdownLine[] {
   const lines = text.split(/\r?\n/);
   const parsed: InkMarkdownLine[] = [];
   let inFence = false;
+  let fenceLang: string | undefined;
   for (const raw of lines) {
     const fence = /^\s*```(.*)$/.exec(raw);
     if (fence) {
       inFence = !inFence;
-      parsed.push({ kind: "fence", open: inFence, lang: fence[1]?.trim() || undefined });
+      fenceLang = inFence ? (fence[1]?.trim() || undefined) : undefined;
+      parsed.push({ kind: "fence", open: inFence, lang: fenceLang });
       continue;
     }
     if (inFence) {
-      parsed.push({ kind: "code", text: raw });
+      parsed.push({ kind: "code", text: raw, lang: fenceLang });
       continue;
     }
     if (!raw) {
@@ -62,13 +68,16 @@ export function parseInkMarkdown(text: string): InkMarkdownLine[] {
 
 export function parseInkInline(text: string): InkInlineSegment[] {
   const out: InkInlineSegment[] = [];
-  const pattern = /(`([^`]+)`)|(\*\*([^*]+)\*\*)/g;
+  const pattern = /(`([^`]+)`)|(\*\*([^*]+)\*\*)|(~~([^~]+)~~)|(\[([^\]]+)\]\(([^)\s]+)\))|(\*([^*\n]+)\*)/g;
   let cursor = 0;
   for (const match of text.matchAll(pattern)) {
     const index = match.index ?? 0;
     if (index > cursor) out.push({ kind: "text", text: text.slice(cursor, index) });
     if (match[2] !== undefined) out.push({ kind: "code", text: match[2] });
     else if (match[4] !== undefined) out.push({ kind: "bold", text: match[4] });
+    else if (match[6] !== undefined) out.push({ kind: "strike", text: match[6] });
+    else if (match[8] !== undefined) out.push({ kind: "link", text: match[8], url: match[9] ?? "" });
+    else if (match[11] !== undefined) out.push({ kind: "italic", text: match[11] });
     cursor = index + match[0].length;
   }
   if (cursor < text.length) out.push({ kind: "text", text: text.slice(cursor) });
@@ -106,7 +115,7 @@ function renderMarkdownLine(line: InkMarkdownLine, key: number, error: boolean):
   if (line.kind === "heading") return React.createElement(Text, { key, color: "cyan", bold: true }, line.text);
   if (line.kind === "quote") return React.createElement(Text, { key, color: "gray" }, `▏ ${line.text}`);
   if (line.kind === "fence") return React.createElement(Text, { key, color: "gray" }, line.open ? `┌─${line.lang ? ` ${line.lang}` : ""}` : "└─");
-  if (line.kind === "code") return renderDiffAwareCodeLine(line.text, key);
+  if (line.kind === "code") return renderDiffAwareCodeLine(line.text, key, line.lang);
   if (line.kind === "bullet") {
     return React.createElement(Text, { key }, line.indent,
       React.createElement(Text, { color: "cyan" }, "•"),
@@ -120,16 +129,35 @@ function renderMarkdownLine(line: InkMarkdownLine, key: number, error: boolean):
   return React.createElement(Text, { key }, ...renderInline(line.text));
 }
 
-function renderDiffAwareCodeLine(text: string, key: number): React.ReactElement {
+function renderDiffAwareCodeLine(text: string, key: number, lang?: string): React.ReactElement {
+  const isDiffLang = lang === "diff" || lang === "patch";
   const kind = classifyDiffLine(text);
-  const color = kind === "add" ? "green" : kind === "remove" ? "red" : kind === "hunk" ? "cyan" : "gray";
-  return React.createElement(Text, { key, color }, text || " ");
+  // Diff-color for explicit diff/patch blocks, or unlabeled blocks that look like
+  // a diff. A real language always syntax-highlights (so `-1` in JS stays code).
+  if (isDiffLang || (!lang && kind !== "context")) {
+    const color = kind === "add" ? "green" : kind === "remove" ? "red" : kind === "hunk" ? "cyan" : "gray";
+    return React.createElement(Text, { key, color }, text || " ");
+  }
+  if (!text) return React.createElement(Text, { key }, " ");
+  return React.createElement(Text, { key },
+    ...highlightCodeLine(text, lang).map((seg, i) =>
+      React.createElement(Text, { key: i, color: seg.color }, seg.text),
+    ),
+  );
 }
 
 function renderInline(text: string): React.ReactElement[] {
   return parseInkInline(text).map((segment, index) => {
     if (segment.kind === "code") return React.createElement(Text, { key: index, color: "cyan" }, segment.text);
     if (segment.kind === "bold") return React.createElement(Text, { key: index, bold: true }, segment.text);
+    if (segment.kind === "italic") return React.createElement(Text, { key: index, italic: true }, segment.text);
+    if (segment.kind === "strike") return React.createElement(Text, { key: index, strikethrough: true }, segment.text);
+    if (segment.kind === "link") {
+      return React.createElement(Text, { key: index },
+        React.createElement(Text, { color: "cyan", underline: true }, segment.text),
+        React.createElement(Text, { dimColor: true }, ` (${segment.url})`),
+      );
+    }
     return React.createElement(Text, { key: index }, segment.text);
   });
 }

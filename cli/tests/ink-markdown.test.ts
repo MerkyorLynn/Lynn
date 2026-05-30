@@ -19,9 +19,9 @@ describe("parseInkMarkdown", () => {
       { kind: "numbered", indent: "", number: "1", text: "run **tests**" },
       { kind: "quote", text: "note" },
       { kind: "fence", open: true, lang: "diff" },
-      { kind: "code", text: "@@ -1 +1 @@" },
-      { kind: "code", text: "-old" },
-      { kind: "code", text: "+new" },
+      { kind: "code", text: "@@ -1 +1 @@", lang: "diff" },
+      { kind: "code", text: "-old", lang: "diff" },
+      { kind: "code", text: "+new", lang: "diff" },
       { kind: "fence", open: false, lang: undefined },
     ]);
   });
@@ -35,6 +35,22 @@ describe("parseInkInline", () => {
       { kind: "text", text: " then " },
       { kind: "bold", text: "test" },
     ]);
+  });
+
+  it("extracts italic, strikethrough, and links", () => {
+    expect(parseInkInline("see *here*, ~~old~~, [docs](https://x.io)")).toEqual([
+      { kind: "text", text: "see " },
+      { kind: "italic", text: "here" },
+      { kind: "text", text: ", " },
+      { kind: "strike", text: "old" },
+      { kind: "text", text: ", " },
+      { kind: "link", text: "docs", url: "https://x.io" },
+    ]);
+  });
+
+  it("tags fenced code lines with their language for highlighting", () => {
+    const parsed = parseInkMarkdown("```ts\nconst x = 1;\n```");
+    expect(parsed[1]).toEqual({ kind: "code", text: "const x = 1;", lang: "ts" });
   });
 });
 
