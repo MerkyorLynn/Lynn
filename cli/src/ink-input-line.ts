@@ -17,19 +17,26 @@ export function InkInputLine({ value, placeholder, danger, commands = [], contex
   const prompt = "› ";
   const width = Math.max(20, (stdout.columns || 80) - 2);
   const hint = slashHint(value, commands, width - visibleLength(prompt));
-  const palette = slashPalette(value, commands);
+  const paletteItems = slashPaletteItems(value, commands);
+  const showUnknownSlash = !paletteItems.length && normalizeSlashInput(value).startsWith("/") && commands.length > 0;
   const visibleText = value || placeholder;
   const multiline = value.includes("\n");
   const rawWidth = visibleLength(`${prompt}${visibleText}${hint ? ` ${hint}` : ""}`);
   const pad = Math.max(0, width - rawWidth);
   const borderColor = danger ? "red" : "gray";
   return React.createElement(Box, { marginTop: 1, flexDirection: "column" },
-    palette ? React.createElement(Text, { color: "gray" }, palette) : null,
+    paletteItems.length
+      ? React.createElement(Text, null, ...paletteItems.flatMap((item, i) => [
+          i ? React.createElement(Text, { key: `sep${i}`, color: "gray" }, "   ") : null,
+          React.createElement(Text, { key: `cmd${i}`, color: "cyan" }, item.command),
+          item.label ? React.createElement(Text, { key: `lbl${i}`, dimColor: true }, ` ${item.label}`) : null,
+        ].filter(Boolean)))
+      : showUnknownSlash ? React.createElement(Text, { color: "yellow" }, t("slash.unknown")) : null,
     contextSummary ? React.createElement(Text, { color: "cyan" }, `已加入本轮上下文: ${contextSummary}`) : null,
     React.createElement(Box, { borderStyle: "single", borderColor, paddingX: 1 },
       React.createElement(Text, { color: "white" }, prompt),
       React.createElement(Text, { color: value ? "white" : "gray" }, visibleText),
-      !multiline && hint ? React.createElement(Text, { color: "gray" }, ` ${hint}`) : null,
+      !multiline && hint ? React.createElement(Text, { color: "cyan", dimColor: true }, ` ${hint}`) : null,
       !multiline && pad ? React.createElement(Text, null, " ".repeat(pad)) : null,
     ),
   );
@@ -54,6 +61,14 @@ export function slashPalette(input: string, commands: string[], maxItems = 6): s
     .slice(0, maxItems)
     .map((command) => `${command} ${slashCommandLabel(command)}`.trim())
     .join("   ");
+}
+
+export function slashPaletteItems(input: string, commands: string[], maxItems = 6): { command: string; label: string }[] {
+  const normalized = normalizeSlashInput(input);
+  if (!normalized.startsWith("/") || !commands.length) return [];
+  const completion = completeSlash(normalized, commands);
+  if (!completion.matches.length) return [];
+  return completion.matches.slice(0, maxItems).map((command) => ({ command, label: slashCommandLabel(command) }));
 }
 
 function slashCommandLabel(command: string): string {

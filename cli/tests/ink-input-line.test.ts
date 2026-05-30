@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeSlashInput } from "../src/completion.js";
-import { slashHint, slashPalette } from "../src/ink-input-line.js";
+import { slashHint, slashPalette, slashPaletteItems } from "../src/ink-input-line.js";
 
 describe("Ink input slash hints", () => {
   it("shows command candidates when the user starts slash input", () => {
@@ -29,6 +29,13 @@ describe("Ink input slash hints", () => {
 
   it("shows an unknown-command guard for unmatched slash input", () => {
     expect(slashPalette("/bad", ["/help", "/model"])).toContain("未知命令");
+  });
+
+  it("returns structured palette items (command + label) for two-tone rendering", () => {
+    const items = slashPaletteItems("/mod", ["/help", "/model", "/providers"]);
+    expect(items.map((item) => item.command)).toEqual(["/model"]);
+    expect(items[0].label.length).toBeGreaterThan(0);
+    expect(slashPaletteItems("hello", ["/help"])).toEqual([]);
   });
 
   it("normalizes full-width slash from Chinese IMEs", () => {
