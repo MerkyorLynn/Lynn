@@ -6,6 +6,7 @@ import { readVersionInfo } from "../version.js";
 import { brainRouteReadiness, fetchBrainProviderStatus, type BrainProviderStatus } from "../brain-status.js";
 import { parseBrainStreamPayload, parseSsePayloads } from "../brain-client.js";
 import { signedBrainHeaders } from "../brain-auth.js";
+import { brainEndpointUrl, resolveDefaultBrainUrl } from "../brain-url.js";
 
 export interface DoctorResult {
   ok: boolean;
@@ -35,7 +36,7 @@ export interface BrainRouteSmokeResult {
 
 export async function runDoctor(args: ParsedArgs): Promise<DoctorResult> {
   const version = readVersionInfo();
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const dataDir = resolveDataDir(getStringFlag(args.flags, "data-dir"));
   const profile = await readCliProviderProfile(dataDir);
   const profilePath = providerProfilePath(dataDir);
@@ -56,18 +57,16 @@ export async function runDoctor(args: ParsedArgs): Promise<DoctorResult> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 1500);
     try {
-      const res = await fetch(new URL("/health", brainUrl), { signal: ctrl.signal });
+      const res = await fetch(brainEndpointUrl(brainUrl, "/health"), { signal: ctrl.signal });
       brain = res.ok ? "ok" : "unreachable";
       checks.push({ name: "brain", ok: res.ok, message: `${res.status} ${res.statusText}`.trim() });
       if (res.ok) {
         const providerStatus = await fetchBrainProviderStatus(brainUrl, 1500);
         brainProviders = providerStatus;
-        const readiness = brainRouteReadiness(providerStatus);
-        checks.push({
-          name: "brain-route",
-          ok: readiness.usable,
-          message: readiness.message,
-        });
+        const readiness = providerStatus
+          ? brainRouteReadiness(providerStatus)
+          : { usable: true, message: "provider status unavailable; verifying route with chat smoke" };
+        checks.push({ name: "brain-route", ok: readiness.usable, message: readiness.message });
         if (readiness.usable) {
           if (hasFlag(args.flags, "no-route-smoke")) {
             checks.push({ name: "brain-smoke", ok: true, message: "skipped (--no-route-smoke)" });
@@ -118,7 +117,7 @@ export async function smokeBrainRoute(brainUrl: string, timeoutMs = 5000): Promi
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let activeProvider = "";
   try {
-    const response = await fetch(new URL("/v1/chat/completions", brainUrl), {
+    const response = await fetch(brainEndpointUrl(brainUrl, "/v1/chat/completions"), {
       method: "POST",
       headers: {
         "content-type": "application/json",

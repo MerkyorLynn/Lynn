@@ -3,6 +3,7 @@ import type { ChatContentPart } from "./media.js";
 import type { CliProviderProfile } from "./provider-profile.js";
 import { t } from "./i18n.js";
 import { signedBrainHeaders } from "./brain-auth.js";
+import { brainEndpointUrl } from "./brain-url.js";
 
 export interface BrainChatRequest {
   brainUrl: string;
@@ -82,7 +83,7 @@ export async function checkBrainReachable(brainUrl: string, timeoutMs = 350): Pr
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(new URL("/health", brainUrl), {
+    const response = await fetch(brainEndpointUrl(brainUrl, "/health"), {
       method: "GET",
       signal: controller.signal,
     });
@@ -262,7 +263,7 @@ async function* streamBrainOnlyChat(request: BrainChatRequest): AsyncGenerator<B
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), brainRequestTimeoutMs(!!request.fallbackProvider));
   try {
-    response = await fetch(new URL("/v1/chat/completions", request.brainUrl), {
+    response = await fetch(brainEndpointUrl(request.brainUrl, "/v1/chat/completions"), {
       method: "POST",
       headers: { "content-type": "application/json", ...signedBrainHeaders({ pathname: "/v1/chat/completions" }) },
       body: JSON.stringify(body),

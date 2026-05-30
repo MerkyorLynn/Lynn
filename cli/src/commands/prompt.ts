@@ -10,6 +10,7 @@ import { t } from "../i18n.js";
 import { buildImagesContentParts, parseImageList } from "../media.js";
 import { resetCliRuntimeMessages } from "../runtime-context.js";
 import { chatRouteLabel } from "./chat.js";
+import { resolveDefaultBrainUrl } from "../brain-url.js";
 
 export interface PromptOptions {
   json?: boolean;
@@ -37,7 +38,7 @@ export async function runPrompt(args: ParsedArgs, options: PromptOptions = {}): 
     throw new Error("prompt is required");
   }
   const reasoning = parseReasoningOptions(args);
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const saveSession = hasFlag(args.flags, "save-session", "session") || !!process.env.LYNN_CLI_SAVE_SESSION;
   const sessionPath = getStringFlag(args.flags, "session");
   const dataDir = resolveDataDir(getStringFlag(args.flags, "data-dir"));

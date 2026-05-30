@@ -8,6 +8,7 @@ import { TerminalSpinner } from "../terminal-spinner.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
 import { t } from "../i18n.js";
 import { extractGroundingBoxes, renderGroundingSummary } from "../vision-result.js";
+import { resolveDefaultBrainUrl } from "../brain-url.js";
 
 export type VisionCommand = "see" | "ground" | "ui2code";
 
@@ -17,7 +18,7 @@ export async function runVisionCommand(args: ParsedArgs, command: VisionCommand,
   if (!imagePaths.length) throw new Error(t("vision.error.imageRequired", { command }));
   const prompt = buildVisionPrompt(command, userText);
   const reasoning = parseReasoningOptions(args);
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
   const cliProvider = await resolveCliProviderProfile(args);
 

@@ -19,6 +19,7 @@ import { listProviderPresets, modelDisplayName, modelLabelWithId, resolveProvide
 import { chatCompletionsUrl } from "../brain-client.js";
 import { fetchBrainProviderStatus, summarizeBrainProviderStatus, type BrainProviderStatus } from "../brain-status.js";
 import type { ProviderPreset } from "../provider-presets.js";
+import { defaultBrainUrl, resolveDefaultBrainUrl } from "../brain-url.js";
 
 export interface ProvidersInfo {
   defaultRoute: string;
@@ -98,7 +99,7 @@ export function providersInfo(partial: Partial<ProvidersInfo> = {}): ProvidersIn
     defaultRoute: t("providers.route.default"),
     byokEntry: t("providers.byok.gui"),
     keyPolicy: t("providers.keyPolicy"),
-    brainUrl: process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790",
+    brainUrl: process.env.LYNN_BRAIN_URL || defaultBrainUrl(),
     server: { status: "missing", message: "Lynn client GUI server-info.json not found" },
     providers: [],
     presets: listProviderPresets(),
@@ -173,7 +174,7 @@ export function activeRouteLabel(info: Pick<ProvidersInfo, "activeProvider" | "a
 }
 
 export async function resolveProvidersInfo(args: ParsedArgs, timeoutMs = 1500): Promise<ProvidersInfo> {
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const dataDir = getStringFlag(args.flags, "data-dir");
   const serverUrl = getStringFlag(args.flags, "server-url") || process.env.LYNN_SERVER_URL || "";
   let lookup: LocalServerLookup = serverUrl

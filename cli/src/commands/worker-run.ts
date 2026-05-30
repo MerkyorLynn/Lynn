@@ -19,6 +19,7 @@ import { buildVisionPrompt, type VisionCommand } from "./vision.js";
 import { nowIso, writeJsonLine } from "../jsonl.js";
 import { readEnvProviderProfile, resolveCliProviderProfile } from "../provider-profile.js";
 import { resolveEffectivePermissions, type PermissionProfile } from "../permissions.js";
+import { resolveDefaultBrainUrl } from "../brain-url.js";
 export { extractGroundingBoxes } from "../vision-result.js";
 import { extractGroundingBoxes } from "../vision-result.js";
 
@@ -728,7 +729,7 @@ async function runLynnAnswerOnlyWorker(input: {
 }): Promise<number> {
   emit({ type: "shell.started", workerId: input.workerId, agent: input.agent, command: "Lynn answer", approval: "auto" });
   const started = Date.now();
-  const brainUrl = getStringFlag(input.args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(input.args);
   const profileDefaults = workerProfileDefaults(input.agent);
   const reasoning = parseReasoningOptions({
     ...input.args,
@@ -821,7 +822,7 @@ async function runLynnVisionWorker(input: {
   const imagePath = path.isAbsolute(input.brief.image) ? input.brief.image : path.resolve(input.worktree, input.brief.image);
   const prompt = buildVisionPrompt(input.brief.taskType, input.brief.objective || input.brief.title);
   const content = await buildImageContentParts(imagePath, prompt);
-  const brainUrl = getStringFlag(input.args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(input.args);
   const profileDefaults = workerProfileDefaults(input.agent);
   const reasoning = parseReasoningOptions({
     ...input.args,

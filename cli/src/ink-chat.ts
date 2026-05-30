@@ -23,6 +23,7 @@ import { buildImagesContentParts } from "./media.js";
 import { buildMemoryContextFrameSync, handleMemorySlashCommand } from "./session/memory.js";
 import { resolveDataDir } from "./session/store.js";
 import { rotatingPlaceholder } from "./ink-placeholders.js";
+import { resolveDefaultBrainUrl } from "./brain-url.js";
 
 type Turn = {
   id: number;
@@ -44,7 +45,7 @@ interface InkChatProps {
 
 export async function runInkChat(args: ParsedArgs): Promise<number> {
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const initialReasoning = parseReasoningOptions(args);
   const permissions = await resolveEffectivePermissions(args);
   const initialMode: ChatMode = { approval: permissions.approval, sandbox: permissions.sandbox };

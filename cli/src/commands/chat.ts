@@ -22,6 +22,7 @@ import { buildImagesContentParts } from "../media.js";
 import { parseImagePromptCommand, summarizeImageRefs } from "../pasted-context.js";
 import { buildMemoryContextFrameSync, handleMemorySlashCommand } from "../session/memory.js";
 import { resolveDataDir } from "../session/store.js";
+import { resolveDefaultBrainUrl } from "../brain-url.js";
 
 export const CHAT_SLASH_COMMANDS = [
   "/exit",
@@ -72,7 +73,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     return runInkChat(args);
   }
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const chatCwd = getStringFlag(args.flags, "cwd") || process.cwd();
   let reasoning = parseReasoningOptions(args);
   const mode = await resolveChatMode(args);

@@ -62,6 +62,33 @@ describe("doctor command", () => {
     expect(rendered).toContain("brain-smoke: route returned assistant output via step-3.7-flash");
   });
 
+  it("uses chat smoke when hosted Brain does not expose provider route status", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: URL | string) => {
+      const href = String(url);
+      if (href.endsWith("/health")) return new Response(JSON.stringify({ ok: true }), { status: 200, statusText: "OK" });
+      if (href.endsWith("/v1/providers/status")) return new Response("not found", { status: 404, statusText: "Not Found" });
+      if (href.endsWith("/v1/chat/completions")) {
+        return new Response([
+          'data: {"object":"lynn.provider","meta":{"active_provider":"mimo"}}',
+          "",
+          'data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}',
+          "",
+        ].join("\n"), { status: 200, statusText: "OK" });
+      }
+      return new Response("not found", { status: 404, statusText: "Not Found" });
+    }));
+
+    const result = await runDoctor(parseArgs(["doctor", "--brain-url", "https://api.merkyorlynn.com/api/v2"]));
+    const rendered = renderDoctor(result);
+
+    expect(result.brain).toBe("ok");
+    expect(result.ok).toBe(true);
+    expect(result.brainProviders).toBeNull();
+    expect(result.brainSmoke).toMatchObject({ ok: true, provider: "mimo" });
+    expect(rendered).toContain("brain-route: provider status unavailable; verifying route with chat smoke");
+    expect(rendered).toContain("brain-smoke: route returned assistant output via mimo");
+  });
+
   it("fails Brain route diagnostics when no provider in the route is configured", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: URL | string) => {
       const href = String(url);

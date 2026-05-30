@@ -35,6 +35,7 @@ import { buildCodeContextMessages, computeCodeContextLayerDiagnostics } from "..
 import { renderToolLedger, toolLedgerEntry, type ToolLedgerEntry } from "../tool-ledger.js";
 import { prepareCodeTaskInput } from "../code-input.js";
 import type { RuntimeInstructionFrame } from "../../../shared/runtime-instruction-frames.js";
+import { resolveDefaultBrainUrl } from "../brain-url.js";
 
 const pExecFile = promisify(execFile);
 
@@ -573,7 +574,7 @@ async function runCodeTask(
   const mediaPaths = codeMediaPaths(args, preparedInput.mediaPaths);
   const reasoning = parseReasoningOptions(args);
   const stepBudget = maxSteps(args);
-  const brainUrl = getStringFlag(args.flags, "brain-url") || process.env.LYNN_BRAIN_URL || "http://127.0.0.1:8790";
+  const brainUrl = await resolveDefaultBrainUrl(args);
   const mockBrain = hasFlag(args.flags, "mock-brain", "mock");
   const mode = await resolveCodeMode(args);
   const cliProvider = await resolveCliProviderProfile(args);

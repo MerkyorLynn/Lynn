@@ -1,4 +1,5 @@
 import { modelDisplayName } from "./provider-presets.js";
+import { brainEndpointUrl } from "./brain-url.js";
 
 export interface BrainProviderStatusEntry {
   id: string;
@@ -31,7 +32,7 @@ export async function fetchBrainProviderStatus(brainUrl: string, timeoutMs = 150
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(new URL("/v1/providers/status", brainUrl), { signal: ctrl.signal });
+    const res = await fetch(brainEndpointUrl(brainUrl, "/v1/providers/status"), { signal: ctrl.signal });
     if (!res.ok) return null;
     const parsed = await res.json() as Partial<BrainProviderStatus>;
     if (parsed?.ok !== true || !Array.isArray(parsed.route) || !Array.isArray(parsed.providers)) return null;

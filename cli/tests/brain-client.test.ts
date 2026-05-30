@@ -4,6 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { BrainConnectionError, chatCompletionsUrl, checkBrainReachable, parseBrainStreamPayload, parseSsePayloads, streamBrainChat } from "../src/brain-client.js";
+import { brainEndpointUrl, HOSTED_BRAIN_URL, LOCAL_BRAIN_URL, resolveDefaultBrainUrl } from "../src/brain-url.js";
 import { parseArgs } from "../src/args.js";
 import { applyReasoningToBody, parseReasoningOptions, shouldRenderReasoning } from "../src/reasoning.js";
 import { setLang } from "../src/i18n.js";
@@ -164,6 +165,42 @@ describe("brain-client stream parser", () => {
 
   it("returns false when the Brain health probe cannot connect", async () => {
     await expect(checkBrainReachable("http://127.0.0.1:1", 50)).resolves.toBe(false);
+  });
+
+  it("preserves hosted Brain path prefixes when building endpoints", () => {
+    expect(brainEndpointUrl("https://api.merkyorlynn.com/api/v2", "/health").toString())
+      .toBe("https://api.merkyorlynn.com/api/v2/health");
+    expect(brainEndpointUrl("https://api.merkyorlynn.com/api/v2/", "/v1/chat/completions").toString())
+      .toBe("https://api.merkyorlynn.com/api/v2/v1/chat/completions");
+  });
+
+  it("prefers hosted Brain for default startup when reachable", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | string) => {
+      const href = String(url);
+      if (href === `${HOSTED_BRAIN_URL}/health`) return new Response("{}", { status: 200 });
+      return new Response("nope", { status: 500 });
+    }) as typeof fetch;
+    try {
+      await expect(resolveDefaultBrainUrl(undefined, 50)).resolves.toBe(HOSTED_BRAIN_URL);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("falls back to local Brain when hosted Brain is unreachable", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | string) => {
+      const href = String(url);
+      if (href === `${HOSTED_BRAIN_URL}/health`) throw new Error("hosted down");
+      if (href === `${LOCAL_BRAIN_URL}/health`) return new Response("{}", { status: 200 });
+      return new Response("nope", { status: 500 });
+    }) as typeof fetch;
+    try {
+      await expect(resolveDefaultBrainUrl(undefined, 50)).resolves.toBe(LOCAL_BRAIN_URL);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("falls back to a CLI BYOK OpenAI-compatible provider when Brain is offline", async () => {
