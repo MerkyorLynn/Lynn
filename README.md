@@ -63,6 +63,43 @@ Lynn 的本地推理分两层：**生产服务层**（已稳定运行）和**自
 > **生产后端**：llama.cpp serving Qwen3.6-35B-A3B APEX-MTP Q4_K_M @ Spark GB10。
 > **科研方向**：Lynn Engine native FP8/W4A8 内核，目标替代 llama.cpp 突破当前 TPS 上限。两条线并行，互不阻塞。
 
+---
+
+## ⚡ Lynn CLI · Agent Quick Contract
+
+`lynnc` 是 Lynn 的 CLI 前端，定位：**Codex / Claude 指挥，lynnc 执行**。
+
+```bash
+npx lynnc -p "TASK" --yes --json          # 单次任务，JSONL 流输出
+lynnc code -p "TASK" --yes --workspace /repo --json   # 代码 agent 模式
+lynnc --contract                           # 打印完整 Agent 调用规范
+```
+
+**Fleet worker 最小调用（无交互、JSONL 输出、自动授权）：**
+
+```bash
+lynnc code \
+  -p "Fix the failing test in src/__tests__/auth.test.ts" \
+  --yes --no-interactive \
+  --workspace /repo \
+  --json 2>&1
+# exit 0 = done · exit 1 = startup error · exit 2 = task error · exit 3 = permission denied
+```
+
+**JSONL 输出格式（逐行）：**
+
+```jsonl
+{"type":"session","id":"sess_abc","model":"step-3.7-flash"}
+{"type":"thinking","delta":"..."}
+{"type":"content","delta":"..."}
+{"type":"tool_call","id":"tc_1","name":"write_file","args":{...}}
+{"type":"tool_result","id":"tc_1","content":"written","error":null}
+{"type":"finish","reason":"stop","usage":{"input":1820,"output":312}}
+```
+
+完整规范（权限模型 / 并行 fleet 模式 / 环境变量 / Session 共享）：
+→ [`docs/ops/lynn-cli-agent-contract.md`](docs/ops/lynn-cli-agent-contract.md)
+
 ## 🆕 近期更新
 
 <details>
