@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, render, useApp, useInput } from "ink";
 import { getStringFlag, hasFlag, type ParsedArgs } from "./args.js";
-import { completeSlash, normalizeSlashInput } from "./completion.js";
+import { completeSlash, completeAtMention, extractMentionPrefix, normalizeSlashInput } from "./completion.js";
+import { listMentionCandidates } from "./mentions.js";
 import { parseCodeResumeSlash, withLongRunCodeFlags, type CodeAgentApprovalRequest, type CodeAgentEvent } from "./commands/code.js";
 import { applyModeCommand, applyReasoningCommand, renderMode, toggleMode, type ChatMode } from "./commands/chat.js";
 import { displayCwd } from "./startup.js";
@@ -196,6 +197,13 @@ function InkCodeApp(props: InkCodeProps): React.ReactElement {
       return;
     }
     if (key.tab) {
+      if (extractMentionPrefix(input)) {
+        const token = extractMentionPrefix(input)?.token ?? "";
+        const completion = completeAtMention(input, listMentionCandidates(effectiveCwd, token));
+        if (completion.matches.length > 1) pushItem({ kind: "system", text: completion.matches.slice(0, 12).join("  ") });
+        setInput(completion.completed);
+        return;
+      }
       const completion = completeSlash(input, CODE_SLASH_COMMANDS);
       if (completion.matches.length > 1) pushItem({ kind: "system", text: completion.matches.join("  ") });
       setInput(completion.completed);

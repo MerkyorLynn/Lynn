@@ -6,8 +6,9 @@ import { streamBrainChat, type BrainStreamEvent, type ChatMessage } from "./brai
 import { formatBrainErrorForHuman, summarizeUsage } from "./brain-render.js";
 import { HistoryNavigator, appendHistory, historyPath, loadHistory } from "./history.js";
 import { t } from "./i18n.js";
-import { completeSlash } from "./completion.js";
+import { completeSlash, completeAtMention, extractMentionPrefix } from "./completion.js";
 import { normalizeSlashInput } from "./completion.js";
+import { listMentionCandidates } from "./mentions.js";
 import { parseReasoningOptions, shouldRenderReasoning, type ReasoningOptions } from "./reasoning.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "./provider-profile.js";
 import { resolveEffectivePermissions } from "./permissions.js";
@@ -182,6 +183,15 @@ function InkChatApp(props: InkChatProps): React.ReactElement {
       return;
     }
     if (key.tab) {
+      if (extractMentionPrefix(input)) {
+        const token = extractMentionPrefix(input)?.token ?? "";
+        const completion = completeAtMention(input, listMentionCandidates(process.cwd(), token));
+        if (completion.matches.length > 1) {
+          setTurns((current) => [...current, { id: Date.now(), role: "system", text: completion.matches.slice(0, 12).join("  "), meta: "completions" }]);
+        }
+        setInput(completion.completed);
+        return;
+      }
       const completion = completeSlash(input, CHAT_SLASH_COMMANDS);
       if (completion.matches.length > 1) {
         setTurns((current) => [...current, { id: Date.now(), role: "system", text: completion.matches.join("  "), meta: "completions" }]);

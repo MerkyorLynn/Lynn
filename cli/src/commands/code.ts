@@ -517,6 +517,7 @@ async function runCodeTask(
   const memoryFrame = buildMemoryContextFrameSync(dataDir, task);
   const resumePath = await resolveCodeResumePath(getStringFlag(args.flags, "resume"), dataDir);
   const resumeMessages = resumePath ? await loadResumeMessages(resumePath) : [];
+  const resumeDiag = resumePath ? summarizeResumeMessages(resumeMessages) : null;
   const saveSession = shouldSaveCodeSession(args, { json, mockBrain, resumePath });
   const sessionPath = getStringFlag(args.flags, "session") || resumePath;
   const title = getStringFlag(args.flags, "title") || task;
@@ -532,9 +533,15 @@ async function runCodeTask(
       fallbackProvider: cliProvider?.profile,
     }));
   }
+  if (resumeDiag && !json && !options.compact && !options.onEvent) {
+    let detail = "";
+    if (resumeDiag.repairedTools > 0) detail += t("code.resume.repaired", { n: resumeDiag.repairedTools });
+    if (resumeDiag.compacted) detail += t("code.resume.compacted");
+    errorOutput.write(`${t("code.resume.summary", { messages: resumeDiag.messages, detail })}\n`);
+  }
   if (json) {
     writeJsonLine({ type: "code.task.started", ts: nowIso(), task, context });
-    if (resumePath) writeJsonLine({ type: "session.resumed", ts: nowIso(), path: resumePath, messages: resumeMessages.length });
+    if (resumePath) writeJsonLine({ type: "session.resumed", ts: nowIso(), path: resumePath, messages: resumeMessages.length, repairedTools: resumeDiag?.repairedTools ?? 0, compacted: resumeDiag?.compacted ?? false });
   }
 
   if (mockBrain) {
@@ -1050,6 +1057,34 @@ async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<CodeAgen
   };
 }
 
+/** Marker embedded in a synthesized tool result when a tool call was interrupted before resume. */
+export const RESUME_REPAIR_NOTE = "this tool did not finish — the task was interrupted before resume";
+/** Marker embedded in the resume prefix when older transcript turns were dropped to fit the budget. */
+export const RESUME_COMPACTION_NOTE = "Earlier transcript turns were compacted to keep the continuation stable";
+
+export interface ResumeDiagnostics {
+  messages: number;
+  repairedTools: number;
+  compacted: boolean;
+}
+
+/**
+ * Inspect the messages produced by {@link loadResumeMessages} and report what the
+ * frame-restoration pass had to do: how many interrupted tool calls were repaired
+ * with a placeholder, and whether older turns were compacted away. Surfaced to the
+ * user (and the JSON event stream) so a resumed long task is transparent, not silent.
+ */
+export function summarizeResumeMessages(messages: ChatMessage[]): ResumeDiagnostics {
+  let repairedTools = 0;
+  let compacted = false;
+  for (const message of messages) {
+    if (typeof message.content !== "string") continue;
+    if (message.role === "tool" && message.content.includes(RESUME_REPAIR_NOTE)) repairedTools += 1;
+    else if (message.role === "user" && message.content.includes(RESUME_COMPACTION_NOTE)) compacted = true;
+  }
+  return { messages: messages.length, repairedTools, compacted };
+}
+
 export async function loadResumeMessages(sessionPath: string, maxChars = 24_000): Promise<ChatMessage[]> {
   const lines = await readSessionLines(sessionPath);
   const turns = lines
@@ -1088,7 +1123,7 @@ export async function loadResumeMessages(sessionPath: string, maxChars = 24_000)
   if (selected.length < turns.length || selected.length < groups.flat().length) {
     selected.unshift({
       role: "user",
-      content: `[Lynn CLI resumed this coding task from ${sessionPath}. Earlier transcript turns were compacted to keep the continuation stable; ask the user or inspect files if missing details matter.]`,
+      content: `[Lynn CLI resumed this coding task from ${sessionPath}. ${RESUME_COMPACTION_NOTE}; ask the user or inspect files if missing details matter.]`,
     });
   }
   return selected;
@@ -1125,7 +1160,7 @@ export function buildResumableMessageGroups(turns: ChatMessage[]): ChatMessage[]
             role: "tool",
             tool_call_id: toolCall.id,
             name: toolCall.function?.name,
-            content: `Tool result for ${toolCall.function?.name || "tool"}:\n[Lynn CLI: this tool did not finish — the task was interrupted before resume. Re-run it if its result is needed.]`,
+            content: `Tool result for ${toolCall.function?.name || "tool"}:\n[Lynn CLI: ${RESUME_REPAIR_NOTE}. Re-run it if its result is needed.]`,
           }));
         groups.push([turn, ...tools, ...missing]);
       }
