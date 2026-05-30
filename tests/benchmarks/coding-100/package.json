@@ -1,0 +1,14 @@
+{
+  "name": "coding-100-benchmark",
+  "private": true,
+  "description": "Lynn coding-100 — multi-language execution-verified coding benchmark (10 langs x 10 hard problems).",
+  "scripts": {
+    "selftest": "SELFTEST=1 node harness.mjs",
+    "eval": "node harness.mjs"
+  },
+  "devDependencies": {
+    "css-tree": "*",
+    "jsdom": "*",
+    "typescript": "*"
+  }
+}
