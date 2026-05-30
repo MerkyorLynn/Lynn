@@ -37,6 +37,11 @@ export interface WorktreeIntegrateResult {
   branch: string;
   commit: string;
   sourceCommit: string;
+  /** Whether the integrated branch was pushed to a remote (close the loop off-machine). */
+  pushed: boolean;
+  pushRemote?: string;
+  /** Set when a requested push failed — the cherry-pick still landed locally. */
+  pushError?: string;
 }
 
 export class WorktreeManager {
@@ -118,9 +123,12 @@ export class WorktreeManager {
     sourceCommit: string,
     targetBranch = "fleet/integration",
     baseRef = "HEAD",
+    opts: { push?: boolean; remote?: string } = {},
   ): Promise<WorktreeIntegrateResult> {
     if (!isSafeBranchName(targetBranch)) throw new Error(`invalid target branch: ${targetBranch}`);
     if (!/^[0-9a-f]{6,40}$/i.test(sourceCommit)) throw new Error(`invalid source commit: ${sourceCommit}`);
+    const remote = opts.remote || "origin";
+    if (opts.push && !/^[A-Za-z0-9._/-]+$/.test(remote)) throw new Error(`invalid remote: ${remote}`);
 
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-fleet-integrate-"));
     let added = false;
@@ -135,7 +143,20 @@ export class WorktreeManager {
       added = true;
       await runGit(["cherry-pick", sourceCommit], tmp);
       const commit = await runGit(["rev-parse", "--short", "HEAD"], tmp);
-      return { branch: targetBranch, commit, sourceCommit };
+      // Optionally push the integrated branch to a remote — this is what closes
+      // the fleet loop off the local machine. A push failure is non-fatal: the
+      // cherry-pick already landed locally, so we report it rather than abort.
+      let pushed = false;
+      let pushError: string | undefined;
+      if (opts.push) {
+        try {
+          await runGit(["push", remote, `HEAD:refs/heads/${targetBranch}`], tmp);
+          pushed = true;
+        } catch (pushErr) {
+          pushError = pushErr instanceof Error ? pushErr.message : String(pushErr);
+        }
+      }
+      return { branch: targetBranch, commit, sourceCommit, pushed, ...(opts.push ? { pushRemote: remote } : {}), ...(pushError ? { pushError } : {}) };
     } catch (e) {
       if (added) await runGit(["cherry-pick", "--abort"], tmp).catch(() => "");
       throw e;

@@ -341,6 +341,70 @@ describe("worktree commit review helper", () => {
     }
   });
 
+  it("pushes the integrated branch to a remote when push is requested (closing the loop off-machine)", async () => {
+    const { WorktreeManager } = await import("../worktree-manager.js");
+    const remote = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-fleet-remote-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-fleet-push-"));
+    try {
+      await execGit(["init", "--bare"], remote);
+      await execGit(["init"], tmp);
+      await execGit(["config", "user.email", "fleet@example.test"], tmp);
+      await execGit(["config", "user.name", "Fleet Test"], tmp);
+      await execGit(["remote", "add", "origin", remote], tmp);
+      fs.writeFileSync(path.join(tmp, "README.md"), "one\n", "utf8");
+      await execGit(["add", "README.md"], tmp);
+      await execGit(["commit", "-m", "initial"], tmp);
+      const mainBranch = await execGit(["branch", "--show-current"], tmp);
+      await execGit(["push", "origin", mainBranch], tmp);
+
+      await execGit(["checkout", "-b", "worker/change"], tmp);
+      fs.writeFileSync(path.join(tmp, "README.md"), "two\n", "utf8");
+      await execGit(["commit", "-am", "worker change"], tmp);
+      const workerCommit = await execGit(["rev-parse", "--short", "HEAD"], tmp);
+      await execGit(["checkout", mainBranch], tmp);
+
+      const result = await new WorktreeManager(tmp).integrateCommit(workerCommit, "fleet/pushed", "HEAD", { push: true });
+
+      expect(result).toMatchObject({ branch: "fleet/pushed", sourceCommit: workerCommit, pushed: true, pushRemote: "origin" });
+      expect(result.pushError).toBeUndefined();
+      // the bare remote actually received the integrated branch — the loop closed off-machine
+      expect(await execGit(["log", "-1", "--pretty=%s", "fleet/pushed"], remote)).toBe("worker change");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+      fs.rmSync(remote, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a push failure without aborting the local cherry-pick", async () => {
+    const { WorktreeManager } = await import("../worktree-manager.js");
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-fleet-pushfail-"));
+    try {
+      await execGit(["init"], tmp);
+      await execGit(["config", "user.email", "fleet@example.test"], tmp);
+      await execGit(["config", "user.name", "Fleet Test"], tmp);
+      fs.writeFileSync(path.join(tmp, "README.md"), "one\n", "utf8");
+      await execGit(["add", "README.md"], tmp);
+      await execGit(["commit", "-m", "initial"], tmp);
+      const mainBranch = await execGit(["branch", "--show-current"], tmp);
+      await execGit(["checkout", "-b", "worker/change"], tmp);
+      fs.writeFileSync(path.join(tmp, "README.md"), "two\n", "utf8");
+      await execGit(["commit", "-am", "worker change"], tmp);
+      const workerCommit = await execGit(["rev-parse", "--short", "HEAD"], tmp);
+      await execGit(["checkout", mainBranch], tmp);
+
+      // push requested but there is no 'origin' remote → push fails, cherry-pick must stay
+      const result = await new WorktreeManager(tmp).integrateCommit(workerCommit, "fleet/local", "HEAD", { push: true });
+
+      expect(result.pushed).toBe(false);
+      expect(result.pushError).toBeTruthy();
+      expect(result.commit).toMatch(/^[0-9a-f]+$/);
+      // the local cherry-pick still landed despite the push failure
+      expect(await execGit(["log", "-1", "--pretty=%s", "fleet/local"], tmp)).toBe("worker change");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it("integrates an approved commit into a staging branch without switching the main checkout", async () => {
     const { WorktreeManager } = await import("../worktree-manager.js");
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-fleet-integrate-"));
@@ -741,7 +805,7 @@ describe("FleetHub review actions", () => {
     const hub = new FleetHub("/repo", (m) => sent.push(m as { event: { type: string; message?: string; data?: unknown } }), () => "T", {
       integrateCommit: async (commit, branch) => {
         integrated.push({ commit, branch });
-        return { branch, commit: "def5678", sourceCommit: commit };
+        return { branch, commit: "def5678", sourceCommit: commit, pushed: false };
       },
     });
     const rec = await hub.dispatch(sampleBrief);
@@ -758,6 +822,7 @@ describe("FleetHub review actions", () => {
       branch: "fleet/test",
       commit: "def5678",
       sourceCommit: "abc1234",
+      pushed: false,
       gate: { passed: true, reasons: [], testsFailed: 0, gatesFailed: 0, violations: 0, ran: false },
     });
     expect(integrated).toEqual([{ commit: "abc1234", branch: "fleet/test" }]);
@@ -772,7 +837,7 @@ describe("FleetHub review actions", () => {
 
   it("blocks integrate when the gate fails, and force overrides it", async () => {
     const hub = new FleetHub("/repo", () => {}, () => "T", {
-      integrateCommit: async (commit, branch) => ({ branch, commit: "def5678", sourceCommit: commit }),
+      integrateCommit: async (commit, branch) => ({ branch, commit: "def5678", sourceCommit: commit, pushed: false }),
     });
     const rec = await hub.dispatch(sampleBrief);
     rec.events.push({ type: "worker.progress", workerId: rec.workerId, message: "approved", data: { kind: "review", action: "approved", commit: "abc1234", changed: true } });
@@ -859,7 +924,7 @@ describe("fleet review HTTP route", () => {
   it("integrates approved workers through REST endpoints", async () => {
     const app = new Hono();
     const hub = new FleetHub("/repo", () => {}, () => "T", {
-      integrateCommit: async (commit, branch) => ({ branch, commit: "def5678", sourceCommit: commit }),
+      integrateCommit: async (commit, branch) => ({ branch, commit: "def5678", sourceCommit: commit, pushed: false }),
     });
     app.route("/api", createFleetRoute(hub, { registry: availableSampleRegistry }));
 
@@ -879,7 +944,7 @@ describe("fleet review HTTP route", () => {
     });
 
     expect(integrated.status).toBe(200);
-    expect(await integrated.json()).toEqual({ ok: true, branch: "fleet/test", commit: "def5678", sourceCommit: "abc1234", gate: { passed: true, reasons: [], testsFailed: 0, gatesFailed: 0, violations: 0, ran: false } });
+    expect(await integrated.json()).toEqual({ ok: true, branch: "fleet/test", commit: "def5678", sourceCommit: "abc1234", pushed: false, gate: { passed: true, reasons: [], testsFailed: 0, gatesFailed: 0, violations: 0, ran: false } });
   });
 });
 

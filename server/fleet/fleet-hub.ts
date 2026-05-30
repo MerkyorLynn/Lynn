@@ -63,7 +63,7 @@ export interface FleetHubDeps {
   createWorktree?: (relPath: string, branch: string, baseRef: string) => Promise<void>;
   removeWorktree?: (worktreePath: string) => Promise<void>;
   commitWorktree?: (worktreePath: string, message: string) => Promise<WorktreeCommitResult>;
-  integrateCommit?: (commit: string, branch: string) => Promise<WorktreeIntegrateResult>;
+  integrateCommit?: (commit: string, branch: string, opts?: { push?: boolean; remote?: string }) => Promise<WorktreeIntegrateResult>;
 }
 
 /** Reject absolute paths and `..` traversal before handing a file path to git. */
@@ -383,8 +383,8 @@ export class FleetHub {
   async integrate(
     id: string,
     targetBranch = "fleet/integration",
-    opts: { force?: boolean } = {},
-  ): Promise<{ ok: boolean; error?: string; branch?: string; commit?: string; sourceCommit?: string; gate?: FleetGateResult } | null> {
+    opts: { force?: boolean; push?: boolean; remote?: string } = {},
+  ): Promise<{ ok: boolean; error?: string; branch?: string; commit?: string; sourceCommit?: string; pushed?: boolean; pushError?: string; gate?: FleetGateResult } | null> {
     const rec = this.workers.get(id);
     if (!rec) return null;
     const sourceCommit = latestApprovedCommit(rec.events);
@@ -398,23 +398,27 @@ export class FleetHub {
       return { ok: false, error: `gate not passed: ${gate.reasons.join("; ")}`, gate };
     }
     try {
-      const integrate = this.deps.integrateCommit ?? ((commit: string, branch: string) => this.worktrees.integrateCommit(commit, branch));
-      const result = await integrate(sourceCommit, targetBranch);
+      const integrate = this.deps.integrateCommit ?? ((commit: string, branch: string, integrateOpts?: { push?: boolean; remote?: string }) => this.worktrees.integrateCommit(commit, branch, "HEAD", integrateOpts));
+      const result = await integrate(sourceCommit, targetBranch, { push: opts.push, remote: opts.remote });
+      const pushSuffix = opts.push ? (result.pushed ? ` (pushed → ${result.pushRemote})` : ` (push failed: ${result.pushError})`) : "";
       this.emit(id, {
         type: "worker.progress",
         ts: this.now(),
         workerId: id,
-        message: `review integrated: ${result.branch}@${result.commit}`,
+        message: `review integrated: ${result.branch}@${result.commit}${pushSuffix}`,
+        level: opts.push && !result.pushed ? "warning" : undefined,
         data: {
           kind: "review",
           action: "integrated",
           commit: result.commit,
           sourceCommit: result.sourceCommit,
           branch: result.branch,
+          pushed: result.pushed,
+          ...(result.pushError ? { pushError: result.pushError } : {}),
           changed: true,
         },
       });
-      return { ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, gate };
+      return { ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, pushed: result.pushed, ...(result.pushError ? { pushError: result.pushError } : {}), gate };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       this.emit(id, {

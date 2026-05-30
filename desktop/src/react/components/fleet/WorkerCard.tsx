@@ -57,7 +57,7 @@ export function WorkerCard({
   onRetry?: (workerId: string) => void;
   onResume?: (workerId: string) => void;
   onApprove?: (workerId: string) => void;
-  onIntegrate?: (workerId: string, opts?: { force?: boolean; branch?: string }) => void;
+  onIntegrate?: (workerId: string, opts?: { force?: boolean; branch?: string; push?: boolean }) => void;
   onDiscard?: (workerId: string) => void;
   onOpenWorktree?: (worker: FleetWorkerView) => void;
   onDismiss?: (workerId: string) => void;
@@ -387,14 +387,14 @@ export function WorkerCard({
             </button>
           )}
           {canIntegrate && gate.passed && (
-            <button className={s.approveBtn} onClick={() => onIntegrate?.(worker.workerId, { branch: 'main' })} title="Gated merge into main (tests + scope must pass)">
+            <button className={s.approveBtn} onClick={() => onIntegrate?.(worker.workerId, { branch: 'main', push: true })} title="Gated merge into main + push to remote (tests + scope must pass)">
               Merge to main
             </button>
           )}
           {canIntegrate && !gate.passed && (
             <button
               className={s.forceMergeBtn}
-              onClick={() => onIntegrate?.(worker.workerId, { branch: 'main', force: true })}
+              onClick={() => onIntegrate?.(worker.workerId, { branch: 'main', force: true, push: true })}
               title={`Override the gate and merge into main anyway — ${gate.reasons.join('; ')}`}
             >
               Force merge

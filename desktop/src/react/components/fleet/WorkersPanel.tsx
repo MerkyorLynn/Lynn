@@ -126,11 +126,11 @@ export function WorkersPanel() {
     });
   };
 
-  const integrateWorker = (workerId: string, opts: { force?: boolean; branch?: string } = {}) => {
+  const integrateWorker = (workerId: string, opts: { force?: boolean; branch?: string; push?: boolean } = {}) => {
     void hanaFetch(`/api/fleet/workers/${encodeURIComponent(workerId)}/integrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch: opts.branch || 'fleet/integration', force: !!opts.force }),
+      body: JSON.stringify({ branch: opts.branch || 'fleet/integration', force: !!opts.force, push: !!opts.push }),
     }).catch(() => {
       /* server broadcasts the integration result; ignore transport errors here */
     });
@@ -180,7 +180,7 @@ export function WorkersPanel() {
   const finishedCount = fleetWorkers.filter((w) => ['completed', 'cancelled', 'failed'].includes(w.status)).length;
   const mergeable = fleetWorkers.filter((w) => w.review?.action === 'approved' && !!w.review.commit && deriveGate(w).passed);
   const mergeApprovedToMain = () => {
-    for (const w of mergeable) integrateWorker(w.workerId, { branch: 'main' });
+    for (const w of mergeable) integrateWorker(w.workerId, { branch: 'main', push: true });
   };
 
   const sorted = sortWorkersByAttention(fleetWorkers);

@@ -91,16 +91,19 @@ export function createFleetRoute(hub: FleetHub, options: FleetRouteOptions = {})
   });
 
   route.post("/fleet/workers/:id/integrate", async (c) => {
-    let body: { branch?: string; force?: boolean } = {};
+    let body: { branch?: string; force?: boolean; push?: boolean; remote?: string } = {};
     try {
-      body = await safeJson<{ branch?: string; force?: boolean }>(c);
+      body = await safeJson<{ branch?: string; force?: boolean; push?: boolean; remote?: string }>(c);
     } catch {
       body = {};
     }
-    const result = await hub.integrate(c.req.param("id"), body.branch || "fleet/integration", { force: !!body.force });
+    // Push closes the loop off-machine. Honor an explicit request; otherwise fall
+    // back to the LYNN_FLEET_PUSH env flag so operators can opt in globally.
+    const push = body.push ?? (process.env.LYNN_FLEET_PUSH === "1");
+    const result = await hub.integrate(c.req.param("id"), body.branch || "fleet/integration", { force: !!body.force, push, remote: body.remote });
     if (!result) return c.json({ error: "worker not found" }, 404);
     if (!result.ok) return c.json({ error: result.error || "worker cannot be integrated", gate: result.gate }, 409);
-    return c.json({ ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, gate: result.gate });
+    return c.json({ ok: true, branch: result.branch, commit: result.commit, sourceCommit: result.sourceCommit, pushed: result.pushed, pushError: result.pushError, gate: result.gate });
   });
 
   route.get("/fleet/workers/:id/gate", (c) => {
