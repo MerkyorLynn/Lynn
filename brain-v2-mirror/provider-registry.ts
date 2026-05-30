@@ -40,8 +40,9 @@ const PROVIDER_DEFS = {
     default_thinking: false,
   },
   // [step-3.7-flash v1] StepFun 云 198B-MoE/11B-A vision-language(step_plan 端点)。
-  // universalOrder 第 3 位:Spark APEX 之后、DeepSeek 之前。vision=true → 排在 mimo 之后、
-  // apex/deepseek(无 vision)被跳过,自动成为图片 fallback 第 2 顺位。
+  // universalOrder 第 2 位(2026-05-30 提升):MiMo 之后、Spark APEX 之前。
+  // 依据:实测质量 MMLU 91.4 / GPQA Diamond 59.6 + 速度 220 TPS,双超 Spark APEX 35B
+  // (86.4 / 45.45 / 79 TPS)。vision=true → 图片 fallback 第 2 顺位(mimo 后)。
   // reasoning-always(low/med/high 三档,无真 off);wire=openai(content + image_url + tools)。
   'step-3.7-flash': {
     id: providerId('step-3.7-flash'),
@@ -100,9 +101,10 @@ export const PROVIDERS: Record<string, Provider> = PROVIDER_DEFS;
 
 // universalOrder — 单一兜底链路,不按 prompt 内容分支
 export const universalOrder = [
-  providerId('mimo'),                  // 头位:enable_search:true 内置搜索 + thinking + vision
-  providerId('apex-spark-i-balanced'), // MIMO fallback:Spark llama.cpp APEX-I-Balanced(127.0.0.1:18098 via frps)
-  providerId('step-3.7-flash'),        // 第3位:StepFun 云 198B-MoE vision(Spark 后 / DS 前;vision fallback 第2)
+  providerId('mimo'),                  // 头位:enable_search:true 内置搜索 + thinking + vision + 全多模态(不可替代)
+  providerId('step-3.7-flash'),        // 第2位:StepFun 云 198B-MoE,实测质量(MMLU 91.4/GPQA 59.6)+ 速度(220 TPS)
+                                       //        双超 Spark APEX,作 MiMo 后首选;vision fallback 第2(mimo 后)
+  providerId('apex-spark-i-balanced'), // 第3位:Spark llama.cpp APEX-MTP(127.0.0.1:18098 via frps)。本地零成本 + 隐私兜底
   providerId('deepseek-chat'),         // 云兜底 V4-flash
   providerId('deepseek-pro'),          // 云兜底 V4-pro
   providerId('glm-5-turbo'),           // 末位
