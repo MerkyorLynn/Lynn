@@ -16,6 +16,8 @@ describe("pasted context helpers", () => {
       "/tmp/b.webp",
     ]);
     expect(summarizePastedContext(info)).toContain("2 images");
+    expect(summarizePastedContext(info)).toContain("a.png");
+    expect(summarizePastedContext(info)).toContain("b.webp");
     expect(summarizePastedContext(info)).toContain("2 lines");
   });
 

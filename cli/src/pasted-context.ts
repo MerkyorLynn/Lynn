@@ -58,7 +58,11 @@ export function analyzePastedContext(value: string, cwd = process.cwd()): Pasted
 
 export function summarizePastedContext(info: PastedContextInfo): string {
   const parts: string[] = [];
-  if (info.imageRefs.length) parts.push(`${info.imageRefs.length} image${info.imageRefs.length === 1 ? "" : "s"}`);
+  if (info.imageRefs.length) {
+    const names = info.imageRefs.map((ref) => path.basename(ref.path)).slice(0, 3);
+    const more = info.imageRefs.length > 3 ? ` +${info.imageRefs.length - 3}` : "";
+    parts.push(`${info.imageRefs.length} image${info.imageRefs.length === 1 ? "" : "s"} (${names.join(", ")}${more})`);
+  }
   if (info.hasMultilineText) {
     parts.push(`${info.lineCount} lines`);
     if (info.segmentCount > 1) parts.push(`${info.segmentCount} segments`);
