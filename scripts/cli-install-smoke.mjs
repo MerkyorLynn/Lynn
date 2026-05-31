@@ -165,6 +165,17 @@ try {
   assertIncludes(mock.name, mock.stdout, "你好");
   assertNotIncludes(mock.name, mock.stdout, "Cannot find module");
 
+  const localRuntime = await run("Lynn local runtime answer", lynnBin, ["-p", "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], { cwd: installDir, env: { LYNN_DATA_DIR: dataDir } });
+  assertIncludes(localRuntime.name, localRuntime.stdout, "\"local\":true");
+  assertIncludes(localRuntime.name, localRuntime.stdout, "Lynn CLI 版本");
+  assertIncludes(localRuntime.name, localRuntime.stdout, "0.80.3");
+  assertNotIncludes(localRuntime.name, localRuntime.stdout + localRuntime.stderr, "fetch failed");
+
+  const nonRuntime = await run("Lynn non-version prompt", lynnBin, ["-p", "write a semantic version comparator", "--mock-brain", "--json", "--brain-url", "http://127.0.0.1:1"], { cwd: installDir, env: { LYNN_DATA_DIR: dataDir } });
+  assertIncludes(nonRuntime.name, nonRuntime.stdout, "semantic version comparator");
+  assertNotIncludes(nonRuntime.name, nonRuntime.stdout, "\"local\":true");
+  assertNotIncludes(nonRuntime.name, nonRuntime.stdout, "Lynn CLI 版本");
+
   const tools = await run("Lynn code list tools", lynnBin, ["code", "--list-tools"], { cwd: installDir, env: { LYNN_DATA_DIR: dataDir } });
   assertIncludes(tools.name, tools.stdout, "read_file");
   assertIncludes(tools.name, tools.stdout, "apply_patch");
