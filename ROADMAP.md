@@ -23,20 +23,27 @@
 - KIMI Provider Registry 框架
 - B 模式长按锁定
 
+### V0.79 — Jarvis 语音运行时 ✅
+- 全双工 / 半双工 / 增强语音三档体验承诺 (可降级、可验证)
+- Qwen3-ASR-0.6B + CosyVoice 2.0-SFT + emotion2vec+ base
+- Cmd+Shift+L 主入口 + webrtc-audio-processing AEC
+- (原计划的「生图」延后, 见 Future Candidates)
+
 ---
 
 ## In Progress (当前版本)
 
-### V0.79 — 生图能力
-- ComfyUI + CogView4-6B (中文 prompt, ~22GB)
-- 80 行 FastAPI shim → OpenAI Image API
-- 串行 GPU 调度 + TTS "正在画" 掩盖延迟
+### V0.80 — GUI 指挥台 + CLI Worker Fleet
+- GUI 指挥台并行调度多个 CLI worker (Codex / Claude / Qwen…), 每个 worker 独立 worktree
+- `@lynn/cli` npm 包: `Lynn -p` / `Lynn code` / `Lynn agents` / `Lynn worker run`
+- Fleet 门禁 (测试 + 越界) → review → gated merge-to-main + 远端 push
+- 默认 Brain V2 路由: StepFun 3.7 Flash → MiMo → Spark
 
 ---
 
 ## Planned (逐版本上线, 一次只做一个)
 
-### V0.80 — 地图/出行
+### 地图/出行 (版本待重排)
 - 高德 MCP (`@amap/amap-maps-mcp-server`, 12 tools)
 - maps-bridge 抽象层 (provider: Amap → 备 Tencent → Google)
 - 场景: 路径规划 / POI 周边 / 天气 / IP 定位
