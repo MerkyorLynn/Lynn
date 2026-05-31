@@ -1,8 +1,25 @@
-import { describe, expect, it } from "vitest";
-import { renderShimmerText, renderSweepFrame } from "../src/terminal-spinner.js";
+import { describe, expect, it, vi } from "vitest";
+import {
+  renderShimmerText,
+  renderSweepFrame,
+  renderSoftShimmer,
+  renderQuietShimmer,
+  brailleGlyph,
+  renderCard,
+  renderPlanCard,
+  TerminalSpinner,
+} from "../src/terminal-spinner.js";
 
 function stripAnsi(value: string): string {
   return value.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+function mockStream(columns: number, isTTY = true) {
+  return { isTTY, columns, write: vi.fn() } as unknown as NodeJS.WriteStream;
+}
+
+function calls(stream: NodeJS.WriteStream): unknown[][] {
+  return (stream.write as unknown as ReturnType<typeof vi.fn>).mock.calls;
 }
 
 describe("terminal spinner sweep", () => {
@@ -33,55 +50,114 @@ describe("terminal spinner sweep", () => {
   it("supports low frequency mode for Apple Terminal safety", () => {
     const normalFrame1 = stripAnsi(renderSweepFrame(12, 0, false));
     const normalFrame2 = stripAnsi(renderSweepFrame(12, 1, false));
-    const lowFreqFrame1 = stripAnsi(renderSweepFrame(12, 0, false, true));
-    const lowFreqFrame2 = stripAnsi(renderSweepFrame(12, 1, false, true));
-    const lowFreqFrame3 = stripAnsi(renderSweepFrame(12, 2, false, true));
-
-    // 低频模式下，连续帧应该相同，直到帧数间隔足够大
-    expect(lowFreqFrame1).toBe(lowFreqFrame2);
-    expect(lowFreqFrame1).not.toBe(lowFreqFrame3);
-    // 正常模式应该有更快的动画
+    // 低频 frame/3:frame 0/1/2 是同一低频帧,frame 3 才前进
+    const lowFreq0 = stripAnsi(renderSweepFrame(12, 0, false, true));
+    const lowFreq2 = stripAnsi(renderSweepFrame(12, 2, false, true));
+    const lowFreq3 = stripAnsi(renderSweepFrame(12, 3, false, true));
+    expect(lowFreq0).toBe(lowFreq2);
+    expect(lowFreq0).not.toBe(lowFreq3);
     expect(normalFrame1).not.toBe(normalFrame2);
   });
 });
 
-describe("TerminalSpinner class", () => {
-  it("should handle narrow terminal width by falling back to static text", async () => {
-    // 模拟窄终端（小于12个字符可用宽度）
-    const mockStream = {
-      isTTY: true,
-      columns: 20,
-      write: vi.fn(),
-    };
-
-    const { TerminalSpinner } = await import("../src/terminal-spinner.js");
-    const spinner = new TerminalSpinner(mockStream, "思考中");
-
-    // 手动调用render方法测试宽度降级
-    spinner.render();
-
-    // 检查是否调用了write方法
-    expect(mockStream.write).toHaveBeenCalled();
+describe("low-noise shimmer (流光扫描低噪音版)", () => {
+  it("renderSoftShimmer keeps plain text intact and uses a dim base + single highlight", () => {
+    expect(renderSoftShimmer("思考中", 1, false)).toBe("思考中"); // 无色 → 原样
+    const colored = renderSoftShimmer("Lynn", 0, true);
+    expect(stripAnsi(colored)).toBe("Lynn");
+    expect(colored).toContain("\x1b[2m"); // dim 基底(低噪音)
+    expect(colored).toContain("\x1b[1;36m"); // 仅一个移动高光
   });
 
-  it("should handle low frequency animation for Apple Terminal safety", async () => {
-    const mockStream = {
-      isTTY: true,
-      columns: 80,
-      write: vi.fn(),
-    };
+  it("brailleGlyph cycles a single low-noise spinner glyph", () => {
+    const frames = Array.from({ length: 10 }, (_, f) => brailleGlyph(f));
+    expect(new Set(frames).size).toBeGreaterThan(1); // 会动
+    expect(brailleGlyph(0)).toBe(brailleGlyph(10)); // 循环
+    expect(Array.from(brailleGlyph(3)).length).toBe(1); // 单字符
+  });
 
-    // 模拟Apple Terminal安全模式
-    vi.stubEnv("TERM_PROGRAM", "Apple_Terminal");
-    vi.stubEnv("LYNN_CLI_APPLE_TERMINAL_FULL_TUI", undefined);
+  it("renderQuietShimmer = glyph + soft label, with no full-width sweep bar", () => {
+    const out = stripAnsi(renderQuietShimmer("Thinking", 2, true));
+    expect(out).toContain("Thinking");
+    expect(out).not.toContain("━"); // 低噪音:无满宽扫描条
+    expect(out).not.toContain("─");
+  });
+});
 
-    const { TerminalSpinner } = await import("../src/terminal-spinner.js");
-    const spinner = new TerminalSpinner(mockStream);
+describe("colored cards (统一彩色卡片)", () => {
+  it("draws a colored left gutter, glyph, bold title and dim body", () => {
+    const card = renderCard({ kind: "tool", title: "web_search · done", body: ["3 results"] }, true);
+    const plain = stripAnsi(card);
+    expect(plain).toContain("│ 🔧 web_search · done");
+    expect(plain).toContain("│   3 results");
+    expect(card).toContain("\x1b[36m│\x1b[0m"); // tool → cyan gutter
+    // 只有左 gutter:每行至多一个 │(无右边框 → 无滚动残骸)
+    for (const lineText of plain.split("\n")) {
+      expect((lineText.match(/│/g) || []).length).toBeLessThanOrEqual(1);
+    }
+  });
 
-    // 测试低频动画间隔
+  it("colors gutters by kind (ok=green, error=red, plan=yellow)", () => {
+    expect(renderCard({ kind: "ok", title: "x" }, true)).toContain("\x1b[32m│\x1b[0m");
+    expect(renderCard({ kind: "error", title: "x" }, true)).toContain("\x1b[31m│\x1b[0m");
+    expect(renderPlanCard([{ status: "completed", text: "a" }], true)).toContain("\x1b[33m│\x1b[0m");
+  });
+
+  it("renderPlanCard renders ✓ / ● / ○ for completed / in_progress / pending", () => {
+    const plan = stripAnsi(renderPlanCard([
+      { status: "completed", text: "done step" },
+      { status: "in_progress", text: "current step" },
+      { status: "pending", text: "todo step" },
+    ], true));
+    expect(plan).toContain("✓ done step");
+    expect(plan).toContain("● current step");
+    expect(plan).toContain("○ todo step");
+  });
+
+  it("degrades to plain text when color is off", () => {
+    expect(renderCard({ kind: "error", title: "boom" }, false)).toBe("│ ✗ boom");
+  });
+});
+
+describe("TerminalSpinner class", () => {
+  it("writes an animated frame on render() for a normal-width TTY", () => {
+    const stream = mockStream(80);
+    new TerminalSpinner(stream, "思考中").render();
+    expect(calls(stream)).toHaveLength(1);
+    expect(calls(stream)[0][0]).toContain("\r");
+  });
+
+  it("falls back to a static label when the available width is too small", () => {
+    const stream = mockStream(80);
+    const longLabel = "思".repeat(64); // visibleLength 远超可用宽 → 静态降级
+    new TerminalSpinner(stream, longLabel).render();
+    expect(calls(stream)[0][0]).toBe(`\r${longLabel}`);
+  });
+
+  it("quiet mode renders the low-noise line (no sweep bar)", () => {
+    const stream = mockStream(80);
+    new TerminalSpinner(stream, "Thinking", { quiet: true }).render();
+    const written = stripAnsi(calls(stream)[0][0] as string);
+    expect(written).toContain("Thinking");
+    expect(written).not.toContain("━");
+  });
+
+  it("start() animates and stop() clears the line without residue", () => {
+    const stream = mockStream(80);
+    const spinner = new TerminalSpinner(stream, "x", { quiet: true });
     spinner.start();
-    // 这里应该使用270ms间隔而不是90ms
+    expect(calls(stream).length).toBeGreaterThan(0);
+    spinner.stop();
+    const last = calls(stream).at(-1)?.[0] as string;
+    expect(last.startsWith("\r")).toBe(true);
+    expect(last.trim()).toBe(""); // 清场:仅 \r + 空格
+  });
 
-    vi.unstubAllEnvs();
+  it("no-ops on a non-TTY stream", () => {
+    const stream = mockStream(80, false);
+    const spinner = new TerminalSpinner(stream);
+    spinner.start();
+    expect(calls(stream)).toHaveLength(0);
+    spinner.stop(); // 安全
   });
 });
