@@ -15,6 +15,10 @@ if (!existsSync(bin)) {
 
 const serial = Number.parseInt(process.env.LYNN_CLI_STRESS_SERIAL || "40", 10);
 const parallel = Number.parseInt(process.env.LYNN_CLI_STRESS_PARALLEL || "8", 10);
+const appleTurns = Number.parseInt(process.env.LYNN_CLI_STRESS_APPLE_TURNS || "1", 10);
+if (!Number.isFinite(appleTurns) || appleTurns < 1) {
+  throw new Error("LYNN_CLI_STRESS_APPLE_TURNS must be a positive number");
+}
 
 for (let i = 0; i < serial; i += 1) {
   await runPromptVersion(i);
@@ -30,7 +34,7 @@ if (process.platform !== "win32") {
   await runAppleTerminalMockConversationPty();
 }
 
-console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks + non-version smoke${process.platform === "win32" ? "" : " + Apple Terminal stable PTY + Apple Terminal mock conversation"}`);
+console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks + non-version smoke${process.platform === "win32" ? "" : ` + Apple Terminal stable PTY + Apple Terminal mock conversation (${appleTurns} turn${appleTurns === 1 ? "" : "s"})`}`);
 
 async function runPromptVersion(index) {
   const result = await run(process.execPath, [bin, "-p", index % 2 ? "what version are you?" : "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], {
@@ -194,16 +198,21 @@ env["LYNN_BRAIN_URL"] = "http://127.0.0.1:1"
 proc = subprocess.Popen([node_bin, cli_bin, "--mock-brain"], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True)
 os.close(slave)
 buf = b""
-steps = [
-    ("你好,测试中文输入", "模拟回复"),
+turns = int(os.environ.get("LYNN_CLI_STRESS_APPLE_TURNS", "1"))
+steps = []
+for i in range(turns):
+    steps.append((f"你好,测试中文输入{i + 1}", "模拟回复"))
+steps.extend([
     ("/think", "思考模式"),
     ("/reasoning off", "推理强度已设为 off"),
     ("/yolo", "YOLO 静默"),
     ("/help", "/exit"),
     ("/exit", None),
-]
+])
 sent = 0
-deadline = time.time() + 35
+waiting_marker = None
+last_send_offset = 0
+deadline = time.time() + max(35, turns * 4 + 30)
 while time.time() < deadline:
     readable, _, _ = select.select([master], [], [], 0.1)
     if readable:
@@ -215,9 +224,14 @@ while time.time() < deadline:
             break
         buf += chunk
         text = buf.decode("utf-8", errors="replace")
-        if sent < len(steps) and ("›" in text or ">" in text) and (sent == 0 or steps[sent - 1][1] is None or steps[sent - 1][1] in text):
-            command, _ = steps[sent]
+        recent = text[last_send_offset:]
+        if waiting_marker is not None and waiting_marker in recent:
+            waiting_marker = None
+        if sent < len(steps) and waiting_marker is None and ("›" in text[-2000:] or ">" in text[-2000:]):
+            command, marker = steps[sent]
             os.write(master, (command + "\r").encode("utf-8"))
+            waiting_marker = marker
+            last_send_offset = len(text)
             sent += 1
     if sent >= len(steps) and proc.poll() is not None:
         break
@@ -232,6 +246,9 @@ text = buf.decode("utf-8", errors="replace")
 sys.stdout.write(text)
 if proc.returncode not in (0, None):
     sys.exit(proc.returncode)
+if text.count("模拟回复") < turns:
+    sys.stderr.write(f"expected at least {turns} mock replies, saw {text.count('模拟回复')}\n")
+    sys.exit(18)
 required = ["模拟回复", "思考模式", "推理强度已设为 off", "yolo", "/exit"]
 missing = [item for item in required if item.lower() not in text.lower()]
 if missing:
@@ -243,7 +260,7 @@ sys.exit(0)
 `;
   const result = await run(python, ["-c", script, process.execPath, bin], {
     env: process.env,
-    timeoutMs: 40_000,
+    timeoutMs: Math.max(45_000, appleTurns * 5_000 + 35_000),
   });
   if (result.code !== 0) {
     throw new Error(`Apple Terminal mock conversation stress exited ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
