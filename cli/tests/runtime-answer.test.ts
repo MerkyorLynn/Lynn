@@ -8,6 +8,8 @@ describe("runtime answer", () => {
     expect(isLocalRuntimeQuestion("你的版本号")).toBe(true);
     expect(isLocalRuntimeQuestion("what version are you?")).toBe(true);
     expect(isLocalRuntimeQuestion("帮我写一个版本比较函数")).toBe(false);
+    expect(isLocalRuntimeQuestion("bump the package version in package.json")).toBe(false);
+    expect(isLocalRuntimeQuestion("write a semantic version comparator")).toBe(false);
   });
 
   it("renders the local CLI version instead of asking the model", () => {

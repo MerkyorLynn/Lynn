@@ -25,6 +25,7 @@ import { buildMemoryContextFrameSync, handleMemorySlashCommand } from "../sessio
 import { resolveDataDir } from "../session/store.js";
 import { resolveDefaultBrainUrl } from "../brain-url.js";
 import { shouldUseInkTui } from "../terminal-safety.js";
+import { createDecodeSpeedTracker } from "../decode-speed.js";
 
 export const CHAT_SLASH_COMMANDS = [
   "/exit",
@@ -243,6 +244,8 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     const renderReasoning = shouldRenderReasoning(reasoning.display, false);
     const md = new MarkdownStream((s) => output.write(s), supportsColor(output));
     const turnStarted = Date.now();
+    const decodeTracker = createDecodeSpeedTracker(turnStarted);
+    let decodeTps: string | null = null;
     try {
       spinner.start();
       for await (const event of streamBrainChat({ brainUrl, messages, reasoning, fallbackProvider: cliProvider?.profile })) {
@@ -254,6 +257,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
         }
         if (event.type === "assistant.delta") {
           md.push(event.text);
+          decodeTps = decodeTracker.add(event.text) || decodeTps;
           assistant += event.text;
         } else {
           if (event.type === "usage") latestUsage = summarizeUsage(event.usage, { durationMs: Date.now() - turnStarted });
@@ -276,6 +280,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
       mode: renderMode(mode),
       reasoning: reasoning.effort,
       usage: latestUsage,
+      decodeTps,
       color: supportsColor(output),
     })}\n\n`);
     return "continue";

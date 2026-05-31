@@ -23,12 +23,13 @@ await Promise.all(Array.from({ length: parallel }, (_, i) => runPromptVersion(i 
 for (let i = 0; i < Math.max(4, Math.floor(serial / 4)); i += 1) {
   await runCodePromptVersion(i);
 }
+await runPromptNonVersionSmoke();
 
 if (process.platform !== "win32") {
   await runAppleTerminalStablePty();
 }
 
-console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks${process.platform === "win32" ? "" : " + Apple Terminal stable PTY"}`);
+console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks + non-version smoke${process.platform === "win32" ? "" : " + Apple Terminal stable PTY"}`);
 
 async function runPromptVersion(index) {
   const result = await run(process.execPath, [bin, "-p", index % 2 ? "what version are you?" : "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], {
@@ -70,6 +71,26 @@ async function runCodePromptVersion(index) {
   }
 }
 
+async function runPromptNonVersionSmoke() {
+  const result = await run(process.execPath, [bin, "-p", "write a semantic version comparator", "--mock-brain", "--json", "--brain-url", "http://127.0.0.1:1"], {
+    env: {
+      ...process.env,
+      LYNN_LANG: "en",
+      NO_COLOR: "1",
+    },
+    timeoutMs: 10_000,
+  });
+  if (result.code !== 0) {
+    throw new Error(`non-version smoke exited ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+  if (result.stdout.includes('"local":true') || /Lynn CLI (版本|version)/.test(result.stdout)) {
+    throw new Error(`non-version smoke was incorrectly intercepted as runtime question:\n${result.stdout}`);
+  }
+  if (!/Mock (Lynn response|reply)/.test(result.stdout)) {
+    throw new Error(`non-version smoke did not reach mock brain path:\n${result.stdout}`);
+  }
+}
+
 async function runAppleTerminalStablePty() {
   const python = await findPython();
   if (!python) {
@@ -95,6 +116,7 @@ proc = subprocess.Popen([node_bin, cli_bin], stdin=slave, stdout=slave, stderr=s
 os.close(slave)
 buf = b""
 sent_version = False
+sent_yolo = False
 sent_exit = False
 deadline = time.time() + 20
 while time.time() < deadline:
@@ -111,7 +133,10 @@ while time.time() < deadline:
         if (not sent_version) and ("Lynn CLI" in text) and ("›" in text or ">" in text):
             os.write(master, "/version\r".encode("utf-8"))
             sent_version = True
-        elif sent_version and (not sent_exit) and ("Lynn CLI 版本" in text or "Lynn CLI version" in text) and ("›" in text or ">" in text):
+        elif sent_version and (not sent_yolo) and ("Lynn CLI 版本" in text or "Lynn CLI version" in text) and ("›" in text or ">" in text):
+            os.write(master, "/yolo\r".encode("utf-8"))
+            sent_yolo = True
+        elif sent_yolo and (not sent_exit) and ("yolo" in text.lower()) and ("›" in text or ">" in text):
             os.write(master, "/exit\r".encode("utf-8"))
             sent_exit = True
     if sent_exit and proc.poll() is not None:
@@ -131,6 +156,8 @@ if "Lynn CLI 版本" not in text and "Lynn CLI version" not in text:
     sys.exit(13)
 if "fetch failed" in text or "all providers failed" in text:
     sys.exit(14)
+if "yolo" not in text.lower():
+    sys.exit(15)
 sys.exit(0)
 `;
   const result = await run(python, ["-c", script, process.execPath, bin], {
