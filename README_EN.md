@@ -41,7 +41,7 @@ Cursor solves "I am editing this piece of code." Claude Code / Codex CLI solve "
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.2-apple-terminal-stable.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.3.tgz"
 
 # 3. Launch.
 Lynn          # interactive chat TUI
@@ -82,7 +82,7 @@ Related repositories:
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>CLI v0.80.2</strong> · 2026-05-31 · Apple Terminal stability + TUI UX hotfix <em>(CLI latest)</em></summary>
+<summary><strong>CLI v0.80.3</strong> · 2026-05-31 · Apple Terminal stability + TUI UX hotfix <em>(CLI latest)</em></summary>
 
 **CLI-only hotfix; the desktop app remains v0.80.1**:
 - **Apple Terminal / Chinese IME stability**: Lynn keeps the Ink TUI, input box, status bar, and decode TPS, while Apple Terminal uses a conservative profile with high-frequency shimmer/sweep, rotating placeholders, and inline image escapes disabled.
@@ -91,10 +91,10 @@ Related repositories:
 - **Fresh CLI installs can chat**: a standalone CLI install uses the hosted Lynn Brain by default; the desktop app, local Brain, and BYOK remain optional.
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.2-apple-terminal-stable.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.3.tgz"
 ```
 
-[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.2)
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.3)
 
 </details>
 
@@ -118,7 +118,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 **Lynn's programming-focused release**:
 - **Lynn CLI / Lynn Code**:new `@lynn/cli` package with Ink TUI, markdown/code rendering, real diff preview, multimodal input, `Lynn code -p ... --json`, and `Lynn agents`.
 - **GUI Worker Fleet**:fan-out tasks to multiple CLI workers, inspect logs/diffs/tests/gates, and perform gated merges.
-- **Brain V2 route**:StepFun 3.7 Flash high+32K → MiMo V2.5 Pro/Omni → Spark Qwen 3.6 35B A3B.
+- **Brain V2 route**:StepFun 3.7 Flash (high reasoning + 32K reasoning/generation budget) → MiMo V2.5 Pro/Omni → Spark Qwen 3.6 35B A3B.
 - **Long-run stability**:tool-result reinforcement, chain-tool hints, tool-storm guard, session checkpointing, frame repair, git snapshots, and stable context layers.
 - **Local 9B opt-in**:Qwen3.5-9B MTP no longer auto-starts on app launch; users explicitly enable it when they want local inference.
 - **Release gates**:CLI install docs, mirror tarball, packaged CLI runtime, and headless agent contract are part of the release checks.

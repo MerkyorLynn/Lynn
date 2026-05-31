@@ -117,6 +117,7 @@ async function runStaticChecks({ level }) {
   const pkg = JSON.parse(await fs.readFile(path.join(ROOT, "package.json"), "utf8"));
   const version = pkg.version;
   const cliPkg = JSON.parse(await fs.readFile(path.join(ROOT, "cli", "package.json"), "utf8"));
+  const cliVersion = cliPkg.version || "";
 
   const requiredScripts = [
     "test",
@@ -155,17 +156,18 @@ async function runStaticChecks({ level }) {
     Boolean(pkg.scripts?.["release:preflight"]
       && pkg.scripts["release:preflight"].includes("test:cli")
       && pkg.scripts["release:preflight"].includes("test:cli-install")
+      && pkg.scripts["release:preflight"].includes("stress:cli")
       && pkg.scripts["release:preflight"].includes("test:cli-fleet")),
-    "release:preflight runs CLI smoke, install, and Fleet gates",
+    "release:preflight runs CLI smoke, install, stress, and Fleet gates",
     String(pkg.scripts?.["release:preflight"] || ""),
   ));
 
   checks.push(makeCheck(
-    "static-cli-version-sync",
+    "static-cli-version-valid",
     "blocker",
-    cliPkg.version === version,
-    `cli/package.json version equals package version ${version}`,
-    cliPkg.version ? `cli=${cliPkg.version}` : "missing cli version",
+    /^\d+\.\d+\.\d+$/.test(cliVersion),
+    "cli/package.json has an independent semver version",
+    cliVersion ? `cli=${cliVersion}; app=${version}` : "missing cli version",
   ));
   checks.push(makeCheck(
     "static-cli-package-bin",
@@ -260,12 +262,12 @@ async function runStaticChecks({ level }) {
       `${rel} does not send binary downloads to GitHub`,
       githubBinaryLinks.join("\n"),
     ));
-    const staleVersions = findSemverRefs(text).filter((ref) => ref !== version);
+    const staleVersions = findSemverRefs(text).filter((ref) => ref !== version && ref !== cliVersion);
     checks.push(makeCheck(
       `static-site-${rel}-current-version`,
       "blocker",
       staleVersions.length === 0,
-      `${rel} only references current package version ${version}`,
+      `${rel} only references current app version ${version} or CLI version ${cliVersion}`,
       staleVersions.join(", "),
     ));
   }
@@ -299,13 +301,27 @@ async function runStaticChecks({ level }) {
     releaseNotes.includes(version),
     `README.md mentions current package version ${version}`,
   ));
-  const readmeBadgeVersion = releaseNotes.match(/img\.shields\.io\/badge\/version-([0-9]+\.[0-9]+\.[0-9]+)-/i)?.[1] || "";
   checks.push(makeCheck(
-    "static-readme-version-badge",
+    "static-readme-cli-version",
     "critical",
-    readmeBadgeVersion === version,
-    `README.md version badge equals package version ${version}`,
-    readmeBadgeVersion ? `badge=${readmeBadgeVersion}` : "badge not found",
+    releaseNotes.includes(cliVersion),
+    `README.md mentions current CLI version ${cliVersion}`,
+  ));
+  const readmeAppBadgeVersion = releaseNotes.match(/img\.shields\.io\/badge\/App-([0-9]+\.[0-9]+\.[0-9]+)-/i)?.[1] || "";
+  checks.push(makeCheck(
+    "static-readme-app-version-badge",
+    "critical",
+    readmeAppBadgeVersion === version,
+    `README.md App badge equals package version ${version}`,
+    readmeAppBadgeVersion ? `badge=${readmeAppBadgeVersion}` : "App badge not found",
+  ));
+  const readmeCliBadgeVersion = releaseNotes.match(/img\.shields\.io\/badge\/CLI-([0-9]+\.[0-9]+\.[0-9]+)-/i)?.[1] || "";
+  checks.push(makeCheck(
+    "static-readme-cli-version-badge",
+    "critical",
+    readmeCliBadgeVersion === cliVersion,
+    `README.md CLI badge equals CLI version ${cliVersion}`,
+    readmeCliBadgeVersion ? `badge=${readmeCliBadgeVersion}` : "CLI badge not found",
   ));
 
   const cliReadme = await readTextIfExists(path.join(ROOT, "cli", "README.md"));
@@ -314,7 +330,7 @@ async function runStaticChecks({ level }) {
     "blocker",
     cliReadme.includes("Node.js 20 LTS")
       && cliReadme.includes("npm install -g --force")
-      && cliReadme.includes(`lynn-cli-${version}.tgz`)
+      && cliReadme.includes(`lynn-cli-${cliVersion}.tgz`)
       && cliReadme.includes("Lynn code -p"),
     "cli/README.md documents Node requirement, CDN install, and headless code usage",
   ));
@@ -333,7 +349,7 @@ async function runStaticChecks({ level }) {
     "static-cli-mirror-snippet",
     "blocker",
     installSnippet.includes("Node.js 20 LTS")
-      && installSnippet.includes(`lynn-cli-${version}.tgz`)
+      && installSnippet.includes(`lynn-cli-${cliVersion}.tgz`)
       && installSnippet.includes("Lynn agents"),
     "CLI mirror/release snippet includes Node requirement, CDN install, and launch commands",
   ));
@@ -343,7 +359,7 @@ async function runStaticChecks({ level }) {
     "blocker",
     downloadPage.includes("Node.js 20 LTS")
       && downloadPage.includes("npm install -g --force")
-      && downloadPage.includes(`lynn-cli-${version}.tgz`)
+      && downloadPage.includes(`lynn-cli-${cliVersion}.tgz`)
       && downloadPage.includes("Lynn code")
       && downloadPage.includes("Lynn agents")
       && downloadPage.includes("data-copy-target=\"cli-install\"")
