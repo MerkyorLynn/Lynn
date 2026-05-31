@@ -45,6 +45,7 @@
     "test:cli-install:remote": "node scripts/cli-install-smoke.mjs --remote",
     "test:cli-pressure": "npm run build:cli && node scripts/cli-p-stress.mjs",
     "test:cli-terminal-app": "npm run build:cli && node scripts/cli-terminal-app-smoke.mjs",
+    "test:cli-terminal-ime": "npm run build:cli && node scripts/cli-terminal-ime-smoke.mjs",
     "test:packaged-cli": "node scripts/packaged-cli-runtime-smoke.mjs",
     "test:cli-fleet": "npm --prefix cli test -- code-tools code-agent-loop worker-run providers brain-render status-bar vision && npm test -- --run server/fleet/__tests__/fleet-server.test.ts desktop/src/react/components/fleet/__tests__ --reporter=dot && node scripts/cli-longrun-smoke.mjs",
     "voice:smoke": "node --import tsx scripts/voice-runtime-smoke.ts",
