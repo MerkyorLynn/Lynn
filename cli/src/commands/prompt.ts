@@ -9,6 +9,7 @@ import { resolveCliProviderProfile } from "../provider-profile.js";
 import { t } from "../i18n.js";
 import { buildImagesContentParts, parseImageList } from "../media.js";
 import { resetCliRuntimeMessages } from "../runtime-context.js";
+import { isLocalRuntimeQuestion, localeForText, renderLocalRuntimeAnswer } from "../runtime-answer.js";
 import { chatRouteLabel } from "./chat.js";
 import { resolveDefaultBrainUrl } from "../brain-url.js";
 
@@ -48,6 +49,26 @@ export async function runPrompt(args: ParsedArgs, options: PromptOptions = {}): 
 
   if (options.json) {
     writeJsonLine({ type: "run.started", ts: nowIso(), prompt, reasoning, ...(imagePaths.length ? { images: imagePaths } : {}) });
+  }
+
+  if (!imagePaths.length && isLocalRuntimeQuestion(prompt)) {
+    const text = renderLocalRuntimeAnswer({
+      routeLabel: chatRouteLabel(cliProvider?.profile),
+      brainUrl,
+      cwd: process.cwd(),
+      reasoning: reasoning.effort,
+    }, localeForText(prompt));
+    if (options.json) {
+      writeJsonLine({ type: "assistant.delta", ts: nowIso(), text });
+      writeJsonLine({ type: "run.finished", ts: nowIso(), ok: true, local: true });
+    } else {
+      process.stdout.write(`${text}\n`);
+    }
+    if (saveSession) {
+      const savedPath = await appendSessionTurn({ dataDir, sessionPath, cwd: process.cwd(), title, prompt, assistant: text, modelProvider: "lynn-cli", modelId: "local-runtime" });
+      if (options.json) writeJsonLine({ type: "session.saved", ts: nowIso(), path: savedPath });
+    }
+    return 0;
   }
 
   if (options.mockBrain) {
@@ -99,7 +120,7 @@ export async function runPrompt(args: ParsedArgs, options: PromptOptions = {}): 
         fallbackProvider: cliProvider?.profile,
       })) {
         const renderReasoning = shouldRenderReasoning(reasoning.display, !!options.json);
-        if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) {
+        if (!options.json && eventWritesHumanOutput(event, renderReasoning)) {
           spinner.stop();
         }
         if (event.type === "brain.error") {
@@ -190,6 +211,15 @@ export async function runPrompt(args: ParsedArgs, options: PromptOptions = {}): 
     process.stdout.write("\n");
   }
   return 0;
+}
+
+function eventWritesHumanOutput(event: BrainStreamEvent, renderReasoning: boolean): boolean {
+  return event.type === "assistant.delta"
+    || event.type === "provider"
+    || event.type === "tool_progress"
+    || event.type === "brain.error"
+    || event.type === "usage"
+    || (event.type === "reasoning.delta" && renderReasoning);
 }
 
 function promptImagePaths(args: ParsedArgs): string[] {

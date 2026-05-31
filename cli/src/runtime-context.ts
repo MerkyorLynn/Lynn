@@ -1,12 +1,16 @@
 import type { ChatMessage } from "./brain-client.js";
+import { readVersionInfo } from "./version.js";
 
 export function buildCliRuntimeSystemMessage(routeLabel: string, memoryFrame = ""): ChatMessage {
+  const version = readVersionInfo();
+  const build = version.build ? ` (${version.build})` : "";
   return {
     role: "system",
     content: [
       "You are Lynn CLI, the terminal interface for Lynn.",
+      `Current Lynn CLI version: ${version.version}${build}.`,
       `Current model route shown to the user: ${routeLabel}.`,
-      "If the user asks which model, route, or runtime you are using, answer from this runtime context instead of saying the model is unknown.",
+      "If the user asks which model, route, CLI version, or runtime you are using, answer from this runtime context instead of saying the model is unknown or that Lynn CLI has no independent version.",
       "The default online route is StepFun 3.7 Flash first (256K context; high reasoning with a 32K reasoning/generation budget) through the local Lynn Brain router, with MiMo V2.5 Pro as the multimodal/native-search fallback and Spark Qwen 3.6 35B A3B as the local third fallback.",
       "StepFun 3.7 Flash is the text/coding head route. MiMo V2.5 Pro owns image/audio/video and native search fallback.",
       "The user can change CLI-only BYOK with /model, /providers, or /setup; those slash commands are handled by Lynn locally.",

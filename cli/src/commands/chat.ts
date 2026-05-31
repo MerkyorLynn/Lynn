@@ -17,6 +17,7 @@ import { resolveEffectivePermissions } from "../permissions.js";
 import { HistoryNavigator } from "../history.js";
 import { readInteractiveLine } from "../interactive-line.js";
 import { refreshCliRuntimeSystemMessage, resetCliRuntimeMessages } from "../runtime-context.js";
+import { isLocalRuntimeQuestion, localeForText, renderLocalRuntimeAnswer } from "../runtime-answer.js";
 import { modelDisplayName, modelLabelWithId } from "../provider-presets.js";
 import { buildImagesContentParts } from "../media.js";
 import { parseImagePromptCommand, summarizeImageRefs } from "../pasted-context.js";
@@ -29,6 +30,8 @@ export const CHAT_SLASH_COMMANDS = [
   "/exit",
   "/quit",
   "/help",
+  "/version",
+  "/about",
   "/fast",
   "/think",
   "/reasoning",
@@ -101,6 +104,16 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     if (text === "/exit" || text === "/quit") return "break";
     if (text === "/help") {
       output.write(`${t("chat.help")}\n\n`);
+      return "continue";
+    }
+    if (isLocalRuntimeQuestion(text)) {
+      output.write(`${renderLocalRuntimeAnswer({
+        routeLabel: chatRouteLabel(cliProvider?.profile),
+        brainUrl,
+        cwd: chatCwd,
+        mode: renderMode(mode),
+        reasoning: reasoning.effort,
+      }, localeForText(text))}\n\n`);
       return "continue";
     }
     if (text === "/fast") {
@@ -233,7 +246,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     try {
       spinner.start();
       for await (const event of streamBrainChat({ brainUrl, messages, reasoning, fallbackProvider: cliProvider?.profile })) {
-        if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) {
+        if (eventWritesHumanOutput(event, renderReasoning)) {
           spinner.stop();
         }
         if (event.type === "brain.error") {
@@ -291,6 +304,15 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
     rl?.close();
   }
   return 0;
+}
+
+function eventWritesHumanOutput(event: BrainStreamEvent, renderReasoning: boolean): boolean {
+  return event.type === "assistant.delta"
+    || event.type === "provider"
+    || event.type === "tool_progress"
+    || event.type === "brain.error"
+    || event.type === "usage"
+    || (event.type === "reasoning.delta" && renderReasoning);
 }
 
 export interface ChatMode {

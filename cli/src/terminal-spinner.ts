@@ -1,6 +1,7 @@
 import { brightCyan, cyan, dim, supportsColor } from "./terminal-style.js";
 import { t } from "./i18n.js";
 import { visibleLength } from "./startup.js";
+import { terminalTuiProfile } from "./terminal-safety.js";
 
 export function renderSweepFrame(width: number, frame: number, color: boolean): string {
   const safeWidth = Math.max(8, width);
@@ -42,6 +43,7 @@ export class TerminalSpinner {
     if (this.active || !this.stream.isTTY) return;
     this.active = true;
     this.render();
+    if (!terminalTuiProfile().animation) return;
     this.timer = setInterval(() => this.render(), 90);
   }
 

@@ -23,6 +23,30 @@ describe("prompt stdin handling", () => {
     expect(mergePromptAndStdin("", "hello")).toBe("hello");
   });
 
+  it("answers local CLI version questions without contacting Brain", async () => {
+    const original = process.stdout.write;
+    let output = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      output += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await expect(runPrompt(parseArgs([
+        "-p",
+        "你的版本号",
+        "--json",
+        "--brain-url",
+        "http://127.0.0.1:1",
+      ]), { json: true })).resolves.toBe(0);
+    } finally {
+      process.stdout.write = original;
+    }
+
+    expect(output).toContain("\"type\":\"assistant.delta\"");
+    expect(output).toContain("Lynn CLI 版本");
+    expect(output).toContain("\"local\":true");
+  });
+
   it("runs prompt mode through CLI BYOK when local Brain is offline", async () => {
     const provider = http.createServer((request, response) => {
       expect(request.url).toBe("/v1/chat/completions");

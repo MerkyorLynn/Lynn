@@ -18,6 +18,7 @@ import { InkMarkdown } from "./ink-markdown.js";
 import { handleInkProviderCommand } from "./ink-provider-commands.js";
 import { InkInputLine } from "./ink-input-line.js";
 import { refreshCliRuntimeSystemMessage, resetCliRuntimeMessages } from "./runtime-context.js";
+import { isLocalRuntimeQuestion, localeForText, renderLocalRuntimeAnswer } from "./runtime-answer.js";
 import { analyzePastedContext, appendPastedText, parseImagePromptCommand, summarizeImageRefs, summarizePastedContext } from "./pasted-context.js";
 import { buildImagesContentParts } from "./media.js";
 import { buildMemoryContextFrameSync, handleMemorySlashCommand } from "./session/memory.js";
@@ -370,6 +371,27 @@ async function submitInput(inputData: {
   }
   if (text === "/help") {
     inputData.setTurns((current) => [...current, { id: Date.now(), role: "system", text: t("chat.help") }]);
+    return;
+  }
+  if (isLocalRuntimeQuestion(text)) {
+    const answer = renderLocalRuntimeAnswer({
+      routeLabel: chatRouteLabel(inputData.fallbackProvider),
+      brainUrl: inputData.props.brainUrl,
+      cwd: inputData.cwd,
+      mode: renderMode(inputData.mode),
+      reasoning: inputData.reasoning.effort,
+    }, localeForText(text));
+    if (text.startsWith("/")) {
+      inputData.setTurns((current) => [...current, { id: Date.now(), role: "system", text: answer }]);
+      return;
+    }
+    inputData.messages.push({ role: "user", content: text }, { role: "assistant", content: answer });
+    const userId = Date.now();
+    inputData.setTurns((current) => [
+      ...current,
+      { id: userId, role: "user", text },
+      { id: userId + 1, role: "assistant", text: answer },
+    ]);
     return;
   }
   if (text === "/clear") {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBrainErrorForHuman, summarizeUsage } from "../src/brain-render.js";
+import { formatBrainErrorForHuman, renderBrainEventForHuman, summarizeUsage, type HumanBrainRenderState } from "../src/brain-render.js";
 
 describe("brain render usage summary", () => {
   it("shows tokens, cache hit ratio, and TPS when usage timing is available", () => {
@@ -41,5 +41,28 @@ describe("formatBrainErrorForHuman", () => {
     const text = formatBrainErrorForHuman("all providers failed");
     expect(text).toContain("provider");
     expect(text).toContain("Lynn providers set --preset stepfun");
+  });
+});
+
+describe("renderBrainEventForHuman", () => {
+  it("renders route and tool progress as stable cards", () => {
+    let output = "";
+    const stream = {
+      isTTY: false,
+      write(chunk: string) {
+        output += chunk;
+        return true;
+      },
+    } as unknown as NodeJS.WriteStream;
+    const state: HumanBrainRenderState = {};
+
+    renderBrainEventForHuman({ type: "provider", activeProvider: "step-3.7-flash" }, state, stream);
+    renderBrainEventForHuman({ type: "tool_progress", event: "start", name: "web_search" }, state, stream);
+    renderBrainEventForHuman({ type: "tool_progress", event: "end", name: "web_search", ok: true, ms: 5134 }, state, stream);
+
+    expect(output).toContain("route: step-3.7-flash");
+    expect(output).toContain("╭─ tool web_search");
+    expect(output).toContain("✓ tool web_search done 5134ms");
+    expect(output).not.toContain("server tool:");
   });
 });

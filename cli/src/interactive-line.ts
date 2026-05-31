@@ -4,6 +4,7 @@ import { completeSlash } from "./completion.js";
 import { HistoryNavigator } from "./history.js";
 import { renderInputBand } from "./tui-input.js";
 import { supportsColor } from "./terminal-style.js";
+import { terminalTuiProfile } from "./terminal-safety.js";
 
 export interface InteractiveLineMode {
   approval: "ask" | "on-failure" | "never" | "yolo";
@@ -29,6 +30,9 @@ export async function readInteractiveLine(
     } finally {
       rl.close();
     }
+  }
+  if (shouldUseNativeLineInput()) {
+    return readNativeTerminalLine(prompt, options);
   }
 
   const rawBefore = input.isRaw;
@@ -112,4 +116,34 @@ export async function readInteractiveLine(
     };
     input.on("data", onData);
   });
+}
+
+export function shouldUseNativeLineInput(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.LYNN_CLI_APPLE_TERMINAL_RAW_INPUT === "1") return false;
+  const profile = terminalTuiProfile(env);
+  return profile.appleTerminal && !profile.animation;
+}
+
+async function readNativeTerminalLine(prompt: string, options: InteractiveLineOptions): Promise<string | null> {
+  const width = Math.max(80, typeof output.columns === "number" ? output.columns : 0);
+  const color = supportsColor(output);
+  output.write(`${renderInputBand({ prompt: "", value: "", width, color })}\r`);
+  const rl = readline.createInterface({
+    input,
+    output,
+    terminal: true,
+    completer: options.completions
+      ? (line: string) => {
+          const completion = completeSlash(line, options.completions || []);
+          return [completion.matches.length ? completion.matches : [], line] as [string[], string];
+        }
+      : undefined,
+  });
+  try {
+    return await rl.question(prompt);
+  } catch {
+    return null;
+  } finally {
+    rl.close();
+  }
 }

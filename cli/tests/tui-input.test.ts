@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readInteractiveLine } from "../src/interactive-line.js";
+import { readInteractiveLine, shouldUseNativeLineInput } from "../src/interactive-line.js";
 import { renderInputBand } from "../src/tui-input.js";
 import { visibleLength } from "../src/startup.js";
 
@@ -24,5 +24,11 @@ describe("renderInputBand", () => {
 describe("readInteractiveLine", () => {
   it("exports the shared input reader used by chat and code modes", () => {
     expect(typeof readInteractiveLine).toBe("function");
+  });
+
+  it("uses native line input for Apple Terminal stable mode", () => {
+    expect(shouldUseNativeLineInput({ TERM_PROGRAM: "Apple_Terminal" })).toBe(true);
+    expect(shouldUseNativeLineInput({ TERM_PROGRAM: "Apple_Terminal", LYNN_CLI_APPLE_TERMINAL_RAW_INPUT: "1" })).toBe(false);
+    expect(shouldUseNativeLineInput({ TERM_PROGRAM: "iTerm.app" })).toBe(false);
   });
 });

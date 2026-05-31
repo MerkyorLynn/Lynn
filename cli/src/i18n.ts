@@ -86,6 +86,7 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     "chat.help":
       "/exit 退出聊天\n" +
       "/clear 清空上下文\n" +
+      "/version 查看 Lynn CLI 本地版本和当前 Brain 路由\n" +
       "/model 查看 Brain 三段模型路由; /model stepfun|mimo|spark 切换 StepFun 3.7 Flash / MiMo V2.5 Pro / Spark Qwen 3.6 35B A3B\n" +
       "/memory 查看长期记忆; /memory add <事实> 保存长期事实; /memory forget <id> 删除\n" +
       "/cwd 查看工作目录;默认是启动 Lynn 时终端所在目录,可先 cd 或用 --cwd 指定\n" +
@@ -135,6 +136,7 @@ const STRINGS: Record<Lang, Record<string, string>> = {
       "/resume [last|session.jsonl] [说明] 继续上次长任务\n" +
       "/memory 查看长期记忆; /memory add <事实> 保存长期事实; /memory forget <id> 删除\n" +
       "/cwd 查看工作目录;默认是启动 Lynn 时终端所在目录,可先 cd 或用 --cwd 指定\n" +
+      "/version 查看 Lynn CLI 本地版本和当前 Brain 路由\n" +
       "/model 查看 Brain 三段模型路由; /model stepfun|mimo|spark 切换 StepFun 3.7 Flash / MiMo V2.5 Pro / Spark Qwen 3.6 35B A3B\n" +
       "/setup 打开 CLI-only BYOK 三步向导\n" +
       "/providers 查看提供方和 BYOK 设置\n" +
@@ -351,6 +353,7 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     "chat.help":
       "/exit leave chat\n" +
       "/clear reset context\n" +
+      "/version show the local Lynn CLI version and current Brain route\n" +
       "/model show the three Brain model choices; /model stepfun|mimo|spark switches StepFun 3.7 Flash / MiMo V2.5 Pro / Spark Qwen 3.6 35B A3B\n" +
       "/memory show durable memory; /memory add <fact> save a durable fact; /memory forget <id> delete\n" +
       "/cwd show working directory; default is the terminal directory where Lynn started, use cd or --cwd to change\n" +
@@ -400,6 +403,7 @@ const STRINGS: Record<Lang, Record<string, string>> = {
       "/resume [last|session.jsonl] [note] continue a saved long task\n" +
       "/memory show durable memory; /memory add <fact> save a durable fact; /memory forget <id> delete\n" +
       "/cwd show working directory; default is the terminal directory where Lynn started, use cd or --cwd to change\n" +
+      "/version show the local Lynn CLI version and current Brain route\n" +
       "/model show the three Brain model choices; /model stepfun|mimo|spark switches StepFun 3.7 Flash / MiMo V2.5 Pro / Spark Qwen 3.6 35B A3B\n" +
       "/setup open the CLI-only BYOK three-step wizard\n" +
       "/providers show provider and BYOK setup\n" +

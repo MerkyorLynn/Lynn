@@ -49,7 +49,7 @@ export async function runVisionCommand(args: ParsedArgs, command: VisionCommand,
       fallbackProvider: cliProvider?.profile,
     })) {
       const renderReasoning = shouldRenderReasoning(reasoning.display, json);
-      if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) spinner.stop();
+      if (!json && eventWritesHumanOutput(event, renderReasoning)) spinner.stop();
       if (event.type === "brain.error") {
         if (json) renderVisionEvent(event, { json, renderReasoning, renderState, startedAt });
         throw new Error(formatBrainErrorForHuman(event.error, event.code));
@@ -73,6 +73,15 @@ export async function runVisionCommand(args: ParsedArgs, command: VisionCommand,
     process.stdout.write("\n");
   }
   return 0;
+}
+
+function eventWritesHumanOutput(event: BrainStreamEvent, renderReasoning: boolean): boolean {
+  return event.type === "assistant.delta"
+    || event.type === "provider"
+    || event.type === "tool_progress"
+    || event.type === "brain.error"
+    || event.type === "usage"
+    || (event.type === "reasoning.delta" && renderReasoning);
 }
 
 function resolveVisionInput(args: ParsedArgs): { imagePaths: string[]; userText: string } {

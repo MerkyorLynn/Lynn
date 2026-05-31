@@ -1511,7 +1511,7 @@ async function collectBrainText(inputData: {
       tools: codeToolDefinitions(),
     })) {
       const renderReasoning = shouldRenderReasoning(inputData.reasoning.display, inputData.json);
-      if (event.type === "assistant.delta" || (event.type === "reasoning.delta" && renderReasoning)) {
+      if (eventWritesHumanOutput(event, renderReasoning, !!inputData.json || !!inputData.onEvent)) {
         spinner.stop();
       }
       if (event.type === "reasoning.delta" && renderReasoning) {
@@ -1559,6 +1559,16 @@ async function collectBrainText(inputData: {
     spinner.stop();
   }
   return { text, usageSummary, usageRecords, toolCalls: streamedToolCalls.toToolCalls() };
+}
+
+function eventWritesHumanOutput(event: BrainStreamEvent, renderReasoning: boolean, structuredOutput: boolean): boolean {
+  if (structuredOutput) return false;
+  return event.type === "assistant.delta"
+    || event.type === "provider"
+    || event.type === "tool_progress"
+    || event.type === "brain.error"
+    || event.type === "usage"
+    || (event.type === "reasoning.delta" && renderReasoning);
 }
 
 export function codeToolDefinitions(): ChatToolDefinition[] {
