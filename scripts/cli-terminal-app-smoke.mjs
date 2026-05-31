@@ -52,7 +52,8 @@ end run
 `;
 
 await fs.writeFile(appleScriptPath, appleScript, "utf8");
-await execFileAsync("osascript", [appleScriptPath, root, statusPath, transcriptPath, String(commands.length)], { timeout: 45_000 });
+const appleScriptTimeoutMs = Math.max(45_000, commands.length * 1_500 + 15_000);
+await execFileAsync("osascript", [appleScriptPath, root, statusPath, transcriptPath, String(commands.length)], { timeout: appleScriptTimeoutMs });
 
 const deadline = Date.now() + Math.max(45_000, turns * 4_000 + 20_000);
 while (Date.now() < deadline) {
