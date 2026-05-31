@@ -37,6 +37,7 @@ import { renderToolLedger, toolLedgerEntry, type ToolLedgerEntry } from "../tool
 import { prepareCodeTaskInput } from "../code-input.js";
 import type { RuntimeInstructionFrame } from "../../../shared/runtime-instruction-frames.js";
 import { resolveDefaultBrainUrl } from "../brain-url.js";
+import { isLocalRuntimeQuestion, localeForText, renderLocalRuntimeAnswer } from "../runtime-answer.js";
 
 const pExecFile = promisify(execFile);
 
@@ -126,6 +127,7 @@ export async function runCode(args: ParsedArgs): Promise<number> {
   const tool = getStringFlag(args.flags, "tool") as ClientToolName | null;
   if (!tool) {
     const task = codeTaskPrompt(args);
+    if (task && isLocalRuntimeQuestion(task)) return runCodeLocalRuntimeAnswer(args, task, json);
     if (task) return runCodeTask(args, task, json);
     if (!json && input.isTTY && output.isTTY) {
       if (shouldUseInkTui(args)) {
@@ -179,6 +181,43 @@ export function codeTaskPrompt(args: ParsedArgs): string {
   ].filter((part): part is string => !!part && !!part.trim()).join("\n\n").trim();
 }
 
+async function runCodeLocalRuntimeAnswer(args: ParsedArgs, task: string, json: boolean): Promise<number> {
+  const mode = await resolveCodeMode(args);
+  const reasoning = parseReasoningOptions(args);
+  const cliProvider = await resolveCliProviderProfile(args);
+  const text = await renderCodeLocalRuntimeAnswer(args, task, mode, reasoning, cliProvider?.profile);
+  if (json) {
+    writeJsonLine({ type: "code.task.started", ts: nowIso(), task, local: true });
+    writeJsonLine({ type: "assistant.delta", ts: nowIso(), text });
+    writeJsonLine({ type: "code.task.finished", ts: nowIso(), ok: true, local: true, contentReturned: true });
+  } else {
+    process.stdout.write(renderAssistantBlock(text, renderCodeFooter({
+      context: { cwd: cwd(args), gitStatus: "unknown", gitDiffStat: "", topFiles: [], packageScripts: {} },
+      mode,
+      mockBrain: false,
+      reasoning,
+      fallbackProvider: cliProvider?.profile,
+    })));
+  }
+  return 0;
+}
+
+async function renderCodeLocalRuntimeAnswer(
+  args: ParsedArgs,
+  text: string,
+  mode: ChatMode,
+  reasoning: ReturnType<typeof parseReasoningOptions>,
+  fallbackProvider?: CliProviderProfile,
+): Promise<string> {
+  return renderLocalRuntimeAnswer({
+    routeLabel: codeRouteLabel(false, fallbackProvider),
+    brainUrl: await resolveDefaultBrainUrl(args),
+    cwd: cwd(args),
+    mode: renderMode(mode),
+    reasoning: reasoning.effort,
+  }, localeForText(text));
+}
+
 export function renderCodeHeadlessHelp(): string {
   const version = readVersionInfo().version || "0.80.0";
   return [
@@ -228,6 +267,8 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
     "/exit",
     "/quit",
     "/help",
+    "/version",
+    "/about",
     "/tools",
     "/fast",
     "/think",
@@ -267,6 +308,10 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
       if (text === "/exit" || text === "/quit") break;
       if (text === "/help") {
         output.write(`${t("code.help")}\n\n`);
+        continue;
+      }
+      if (isLocalRuntimeQuestion(text)) {
+        output.write(`${await renderCodeLocalRuntimeAnswer(args, text, mode, reasoning, cliProvider?.profile)}\n\n`);
         continue;
       }
       if (text === "/tools") {

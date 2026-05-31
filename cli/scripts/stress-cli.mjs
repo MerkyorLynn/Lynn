@@ -20,12 +20,15 @@ for (let i = 0; i < serial; i += 1) {
   await runPromptVersion(i);
 }
 await Promise.all(Array.from({ length: parallel }, (_, i) => runPromptVersion(i + serial)));
+for (let i = 0; i < Math.max(4, Math.floor(serial / 4)); i += 1) {
+  await runCodePromptVersion(i);
+}
 
 if (process.platform !== "win32") {
   await runAppleTerminalStablePty();
 }
 
-console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs${process.platform === "win32" ? "" : " + Apple Terminal stable PTY"}`);
+console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks${process.platform === "win32" ? "" : " + Apple Terminal stable PTY"}`);
 
 async function runPromptVersion(index) {
   const result = await run(process.execPath, [bin, "-p", index % 2 ? "what version are you?" : "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], {
@@ -44,6 +47,26 @@ async function runPromptVersion(index) {
   }
   if (/fetch failed|Brain offline|all providers failed/i.test(result.stdout + result.stderr)) {
     throw new Error(`-p stress ${index} unexpectedly contacted Brain:\n${result.stdout}\n${result.stderr}`);
+  }
+}
+
+async function runCodePromptVersion(index) {
+  const result = await run(process.execPath, [bin, "code", "-p", index % 2 ? "what version are you?" : "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], {
+    env: {
+      ...process.env,
+      LYNN_LANG: index % 2 ? "en" : "zh",
+      NO_COLOR: "1",
+    },
+    timeoutMs: 10_000,
+  });
+  if (result.code !== 0) {
+    throw new Error(`code -p stress ${index} exited ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+  if (!result.stdout.includes('"local":true') || !/Lynn CLI (版本|version)/.test(result.stdout)) {
+    throw new Error(`code -p stress ${index} did not use local runtime answer:\n${result.stdout}`);
+  }
+  if (/fetch failed|Brain offline|all providers failed/i.test(result.stdout + result.stderr)) {
+    throw new Error(`code -p stress ${index} unexpectedly contacted Brain:\n${result.stdout}\n${result.stderr}`);
   }
 }
 

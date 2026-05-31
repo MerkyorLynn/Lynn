@@ -516,6 +516,31 @@ describe("code tools", () => {
     expect(output).toContain("code.tools");
   });
 
+  it("answers code headless version questions locally", async () => {
+    const original = process.stdout.write;
+    let output = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      output += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await expect(runCode(parseArgs([
+        "code",
+        "-p",
+        "你的版本号",
+        "--json",
+        "--brain-url",
+        "http://127.0.0.1:1",
+      ]))).resolves.toBe(0);
+    } finally {
+      process.stdout.write = original;
+    }
+    expect(output).toContain("\"type\":\"assistant.delta\"");
+    expect(output).toContain("Lynn CLI 版本");
+    expect(output).toContain("\"local\":true");
+    expect(output).not.toContain("fetch failed");
+  });
+
   it("renders an interactive code-mode intro with full model route and permission mode", () => {
     const intro = renderCodeIntro({ approval: "ask", sandbox: "workspace-write" });
 
