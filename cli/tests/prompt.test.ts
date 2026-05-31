@@ -47,6 +47,32 @@ describe("prompt stdin handling", () => {
     expect(output).toContain("\"local\":true");
   });
 
+  it("answers local model route questions without contacting Brain", async () => {
+    const original = process.stdout.write;
+    let output = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      output += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await expect(runPrompt(parseArgs([
+        "-p",
+        "你现在工作模型是什么模型",
+        "--json",
+        "--brain-url",
+        "http://127.0.0.1:1",
+      ]), { json: true })).resolves.toBe(0);
+    } finally {
+      process.stdout.write = original;
+    }
+
+    expect(output).toContain("\"type\":\"assistant.delta\"");
+    expect(output).toContain("模型路由:StepFun 3.7 Flash");
+    expect(output).toContain("Lynn CLI 版本");
+    expect(output).toContain("\"local\":true");
+    expect(output).not.toContain("fetch failed");
+  });
+
   it("runs prompt mode through CLI BYOK when local Brain is offline", async () => {
     const provider = http.createServer((request, response) => {
       expect(request.url).toBe("/v1/chat/completions");

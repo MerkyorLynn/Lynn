@@ -17,11 +17,21 @@ const VERSION_PATTERNS = [
   /\b(?:what|which|show|tell|current|your|runtime|cli|lynn)\b.{0,28}\b(?:version|about)\b/i,
 ];
 
+const MODEL_ROUTE_PATTERNS = [
+  /(^|\s)\/model(\s|$)/i,
+  /(?:你|当前|现在|本地|运行时|命令行|cli|lynn).{0,16}(?:模型|model|路由|route)/i,
+  /(?:工作|使用|正在用|当前).{0,12}(?:模型|model)/i,
+  /(?:模型|model).{0,12}(?:是什么|是哪|哪个|\broute\b|using|running)/i,
+  /\b(?:what|which|show|tell|current|your|runtime|cli|lynn)\b.{0,32}\b(?:model|route)\b/i,
+  /\b(?:model|route)\b.{0,24}\b(?:using|running|current|active)\b/i,
+];
+
 export function isLocalRuntimeQuestion(text: string): boolean {
   const value = text.trim();
   if (!value) return false;
   if (/^(?:version|about)$/i.test(value)) return true;
-  return VERSION_PATTERNS.some((pattern) => pattern.test(value));
+  return VERSION_PATTERNS.some((pattern) => pattern.test(value))
+    || MODEL_ROUTE_PATTERNS.some((pattern) => pattern.test(value));
 }
 
 export function renderLocalRuntimeAnswer(input: RuntimeAnswerContext, locale: "zh" | "en" = "zh"): string {

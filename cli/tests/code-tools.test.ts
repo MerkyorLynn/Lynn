@@ -541,6 +541,31 @@ describe("code tools", () => {
     expect(output).not.toContain("fetch failed");
   });
 
+  it("answers code headless model route questions locally", async () => {
+    const original = process.stdout.write;
+    let output = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      output += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await expect(runCode(parseArgs([
+        "code",
+        "-p",
+        "你现在工作模型是什么模型",
+        "--json",
+        "--brain-url",
+        "http://127.0.0.1:1",
+      ]))).resolves.toBe(0);
+    } finally {
+      process.stdout.write = original;
+    }
+    expect(output).toContain("\"type\":\"assistant.delta\"");
+    expect(output).toContain("模型路由:StepFun 3.7 Flash");
+    expect(output).toContain("\"local\":true");
+    expect(output).not.toContain("fetch failed");
+  });
+
   it("renders an interactive code-mode intro with full model route and permission mode", () => {
     const intro = renderCodeIntro({ approval: "ask", sandbox: "workspace-write" });
 
