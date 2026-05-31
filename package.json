@@ -54,7 +54,7 @@
     "test:release:nightly": "node scripts/run-release-regression.mjs --mode all --level nightly",
     "test:release:ui": "node --import tsx scripts/run-electron-ui-smoke.ts",
     "release:gate": "node scripts/release-gate.mjs",
-    "release:preflight": "npm test && npm run test:brain-v2 && npm run typecheck && npm run typecheck:runtime && npm run test:cli && npm run test:cli-install && npm run test:cli-fleet && npm run build:server && npm run build:main && npm run build:renderer && npm run test:release:static && npm run test:release:ui",
+    "release:preflight": "npm test && npm run test:brain-v2 && npm run typecheck && npm run typecheck:runtime && npm run test:cli && npm run test:cli-install && npm --prefix cli run stress:cli && npm run test:cli-fleet && npm run build:server && npm run build:main && npm run build:renderer && npm run test:release:static && npm run test:release:ui",
     "build:server": "node scripts/build-server.mjs",
     "build:server:win": "node scripts/build-server.mjs win32 x64",
     "release:manifest": "node --import tsx scripts/generate-update-manifest.ts",
