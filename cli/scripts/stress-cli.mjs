@@ -27,9 +27,10 @@ await runPromptNonVersionSmoke();
 
 if (process.platform !== "win32") {
   await runAppleTerminalStablePty();
+  await runAppleTerminalMockConversationPty();
 }
 
-console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks + non-version smoke${process.platform === "win32" ? "" : " + Apple Terminal stable PTY"}`);
+console.log(`[stress-cli] ok: ${serial} serial + ${parallel} parallel -p runs + code -p local checks + non-version smoke${process.platform === "win32" ? "" : " + Apple Terminal stable PTY + Apple Terminal mock conversation"}`);
 
 async function runPromptVersion(index) {
   const result = await run(process.execPath, [bin, "-p", index % 2 ? "what version are you?" : "你的版本号", "--json", "--brain-url", "http://127.0.0.1:1"], {
@@ -136,7 +137,7 @@ while time.time() < deadline:
         elif sent_version and (not sent_yolo) and ("Lynn CLI 版本" in text or "Lynn CLI version" in text) and ("›" in text or ">" in text):
             os.write(master, "/yolo\r".encode("utf-8"))
             sent_yolo = True
-        elif sent_yolo and (not sent_exit) and ("yolo" in text.lower()) and ("›" in text or ">" in text):
+        elif sent_yolo and (not sent_exit) and ("YOLO 静默" in text or "danger-full-access" in text or "zero-prompt" in text) and ("›" in text or ">" in text):
             os.write(master, "/exit\r".encode("utf-8"))
             sent_exit = True
     if sent_exit and proc.poll() is not None:
@@ -166,6 +167,86 @@ sys.exit(0)
   });
   if (result.code !== 0) {
     throw new Error(`Apple Terminal stable PTY stress exited ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
+}
+
+async function runAppleTerminalMockConversationPty() {
+  const python = await findPython();
+  if (!python) {
+    console.log("[stress-cli] skip Apple Terminal mock conversation: python3 not found");
+    return;
+  }
+  const script = String.raw`
+import os
+import pty
+import select
+import subprocess
+import sys
+import time
+
+node_bin, cli_bin = sys.argv[1], sys.argv[2]
+master, slave = pty.openpty()
+env = os.environ.copy()
+env["TERM_PROGRAM"] = "Apple_Terminal"
+env["NO_COLOR"] = "1"
+env["LYNN_LANG"] = "zh"
+env["LYNN_BRAIN_URL"] = "http://127.0.0.1:1"
+proc = subprocess.Popen([node_bin, cli_bin, "--mock-brain"], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True)
+os.close(slave)
+buf = b""
+steps = [
+    ("你好,测试中文输入", "模拟回复"),
+    ("/think", "思考模式"),
+    ("/reasoning off", "推理强度已设为 off"),
+    ("/yolo", "YOLO 静默"),
+    ("/help", "/exit"),
+    ("/exit", None),
+]
+sent = 0
+deadline = time.time() + 35
+while time.time() < deadline:
+    readable, _, _ = select.select([master], [], [], 0.1)
+    if readable:
+        try:
+            chunk = os.read(master, 4096)
+        except OSError:
+            break
+        if not chunk:
+            break
+        buf += chunk
+        text = buf.decode("utf-8", errors="replace")
+        if sent < len(steps) and ("›" in text or ">" in text) and (sent == 0 or steps[sent - 1][1] is None or steps[sent - 1][1] in text):
+            command, _ = steps[sent]
+            os.write(master, (command + "\r").encode("utf-8"))
+            sent += 1
+    if sent >= len(steps) and proc.poll() is not None:
+        break
+if proc.poll() is None:
+    proc.terminate()
+    try:
+        proc.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+text = buf.decode("utf-8", errors="replace")
+sys.stdout.write(text)
+if proc.returncode not in (0, None):
+    sys.exit(proc.returncode)
+required = ["模拟回复", "思考模式", "推理强度已设为 off", "yolo", "/exit"]
+missing = [item for item in required if item.lower() not in text.lower()]
+if missing:
+    sys.stderr.write("missing expected Apple Terminal mock markers: " + ", ".join(missing) + "\n")
+    sys.exit(16)
+if "fetch failed" in text or "all providers failed" in text:
+    sys.exit(17)
+sys.exit(0)
+`;
+  const result = await run(python, ["-c", script, process.execPath, bin], {
+    env: process.env,
+    timeoutMs: 40_000,
+  });
+  if (result.code !== 0) {
+    throw new Error(`Apple Terminal mock conversation stress exited ${result.code}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   }
 }
 
