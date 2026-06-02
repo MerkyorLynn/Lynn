@@ -41,6 +41,9 @@ model:
 - Automatic chat compaction for long ordinary `Lynn` conversations.
 - Tool ledger summaries so chained tool calls keep exact paths, values, exit
   codes, and snippets.
+- Runtime state compression frames (`lynn.runtime_state_compression.v1`) that
+  preserve the original goal, latest plan, completed tools, and Lynn-touched
+  files without adding hidden system prompts.
 - Checkpoint and resume for long coding tasks, including torn-line tolerant
   session replay.
 - Finish gates for code mode: postcondition checks, auto-verify, plan contract,
@@ -64,12 +67,15 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
+For black-light factory or Fleet workers, use an isolated git worktree with
+`--approval yolo --sandbox danger-full-access`. `workspace-write` is for guarded
+human sessions and can block shell self-checks.

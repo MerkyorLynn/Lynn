@@ -32,16 +32,17 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 # GUI Fleet adapter. Emits Fleet JSONL.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 Rules for agents: use `--json` or `--jsonl`, always pass `--cwd` or
-`--worktree`, and use `--approval yolo --sandbox workspace-write` only inside an
-isolated git worktree.
+`--worktree`, and use `--approval yolo --sandbox danger-full-access` only inside
+an isolated git worktree. `workspace-write` is a guarded human mode and may block
+the shell checks autonomous workers need.

@@ -115,7 +115,10 @@ describe("code agent loop · core & approvals", () => {
     expect(compacted).toBeGreaterThan(0);
     expect(messages[0]).toMatchObject({ role: "system", content: "stable prefix" });
     expect(messages[1]).toMatchObject({ role: "user", content: "ORIGINAL TASK: keep me" });
-    expect(JSON.stringify(messages)).toContain("runtime compaction");
+    const serialized = JSON.stringify(messages);
+    expect(serialized).toContain("<<<LYNN_RUNTIME_STATE_COMPRESSION>>>");
+    expect(serialized).toContain("schema: lynn.runtime_state_compression.v1");
+    expect(serialized).toContain("original_goal: ORIGINAL TASK: keep me");
     expect(JSON.stringify(messages)).toContain("old turn 19");
   });
 

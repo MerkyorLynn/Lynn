@@ -40,7 +40,7 @@ Lynn code -p "fix the failing tests, run tests, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 # Long background task with resumable checkpoints.
@@ -48,7 +48,7 @@ Lynn code -p "complete the migration until tests pass" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --long \
   --max-steps 1000 \
   --save-session
@@ -57,7 +57,7 @@ Lynn code -p "complete the migration until tests pass" \
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 
 # Wrap a different CLI under Lynn Fleet.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
@@ -70,8 +70,9 @@ Rules for agents:
 
 - Use `--json` or `--jsonl`; never parse the human terminal TUI.
 - Always pass `--cwd` / `--worktree`.
-- Use `--approval yolo --sandbox workspace-write` only in an isolated git
-  worktree.
+- Use `--approval yolo --sandbox danger-full-access` only in an isolated git
+  worktree. `workspace-write` is a guarded human mode and may block shell
+  self-checks that autonomous workers need.
 - Read `code.task.finished.resumeCommand` if max steps are reached.
 - Ignore unknown event types; key off `type`.
 - Treat `code.tool.ledger` as source-of-truth for chained tool values.
@@ -108,7 +109,7 @@ Lynn code -p "fix the failing tests, run the suite, and summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --max-steps 20 \
   --save-session
 ```
@@ -120,7 +121,7 @@ Lynn code -p "complete this migration until tests pass" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --long \
   --max-steps 1000 \
   --save-session
@@ -170,9 +171,11 @@ profile:
 
 - `--approval ask --sandbox read-only`: safest review mode.
 - `--approval ask --sandbox workspace-write`: interactive human mode.
-- `--approval yolo --sandbox workspace-write`: autonomous worker mode inside an
-  isolated worktree.
-- `--sandbox danger-full-access`: only for trusted local debugging.
+- `--approval yolo --sandbox danger-full-access`: autonomous worker mode inside
+  an isolated worktree. This avoids blocked shell self-checks while Lynn/Fleet
+  still validates ownership, forbidden globs, tests, and the final diff.
+- `--approval yolo --sandbox workspace-write`: only for constrained experiments
+  where shell self-checks are not required.
 
 For GUI Fleet, use isolated git worktrees and let Fleet validate ownership,
 forbidden globs, tests, and the final diff before merge.

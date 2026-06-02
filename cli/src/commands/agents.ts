@@ -28,9 +28,9 @@ export function buildAgentsHeadlessContract(url = installUrl()): AgentsHeadlessC
       "Lynn agents",
     ],
     headless: [
-      'Lynn code -p "fix tests" --json --cwd /repo --approval yolo --sandbox workspace-write --save-session',
-      "Lynn worker run --brief task.md --worktree /repo --jsonl --approval yolo --sandbox workspace-write",
-      'Lynn worker run --brief task.md --worktree /repo --agent custom --agent-command "your command" --jsonl',
+      'Lynn code -p "fix tests" --json --cwd /repo --approval yolo --sandbox danger-full-access --save-session',
+      "Lynn worker run --brief task.md --worktree /repo --jsonl --approval yolo --sandbox danger-full-access",
+      'Lynn worker run --brief task.md --worktree /repo --agent custom --agent-command "your command" --jsonl --approval yolo --sandbox danger-full-access',
     ],
   };
 }

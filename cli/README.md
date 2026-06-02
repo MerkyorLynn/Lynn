@@ -102,7 +102,7 @@ When another agent asks what Lynn CLI does locally, the concise answer is:
   tool ledgers for chained work, checkpoint/resume, finish gates, workspace
   snapshots, and Fleet JSONL events.
 - For copyable headless usage, use `Lynn -p "prompt" --json` or
-  `Lynn code -p "task" --json --cwd /path --approval yolo --sandbox workspace-write`.
+  `Lynn code -p "task" --json --cwd /path --approval yolo --sandbox danger-full-access`.
 
 The longer repo-side reference is `docs/ops/lynn-cli-runtime-knowledge.md`.
 
@@ -190,14 +190,14 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 # Fleet JSONL adapter.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 For write-capable background work, make the permission mode explicit:
@@ -207,7 +207,7 @@ Lynn code -p "fix the failing tests, run the test suite, and report the diff" \
   --json \
   --cwd /path/to/repo \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --max-steps 20 \
   --save-session
 ```
@@ -227,8 +227,10 @@ Recommended agent defaults:
 - Use `--cwd` so the worktree is explicit.
 - Use `--save-session` for tasks that may exceed one turn.
 - Use `--long --max-steps 1000` only for deliberate endurance runs.
-- Use `--approval yolo --sandbox workspace-write` only inside an isolated
-  worktree. Keep `ask` or `read-only` for shared checkouts.
+- Use `--approval yolo --sandbox danger-full-access` only inside an isolated
+  worktree. Keep `ask` or `read-only` for shared checkouts. `workspace-write`
+  is a guarded human mode and can block the shell self-checks autonomous agents
+  need.
 
 See `docs/ops/lynn-code-headless-agent-contract.md` for the full contract.
 

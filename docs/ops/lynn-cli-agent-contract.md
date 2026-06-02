@@ -2,7 +2,7 @@
 
 > Machine-readable invocation spec for orchestrators and Fleet workers.
 > Command is `Lynn` (uppercase; `lynn` also resolves on case-insensitive filesystems like macOS — use `Lynn` on Linux/CI).
-> v0.80.6. Verified against `cli/` on branch `codex/v0806-cli-tool-trace`.
+> v0.80.7. Verified against `cli/` on branch `codex/v0807-mcp-state-compress`.
 
 ---
 
@@ -24,7 +24,10 @@ npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0
 **Long-run cache discipline:** Lynn Code keeps stable prompt layers fixed for
 Reasonix-style prefix-cache hits. Machine output may include
 `code.runtime.compacted` when older turns are compressed; callers should treat it
-as informational and continue parsing later JSONL events.
+as informational and continue parsing later JSONL events. The runtime compression
+frame is a user-role memory frame with explicit `lynn.runtime_state_compression.v1`
+markers; it is not a hidden system prompt and it must not be treated as a new user
+request.
 
 ---
 
@@ -99,6 +102,13 @@ ownership, forbidden globs, and the resulting diff. The `--yolo` /
 `--dangerously-*` flags on wrapped CLIs only stop them stalling on interactive
 approval — they do not relax Lynn's boundary checks.
 
+**Black-light factory rule:** autonomous workers that must edit files and run
+their own checks should use an isolated git worktree plus
+`--approval yolo --sandbox danger-full-access`. `workspace-write` is a guarded
+human mode; it can block shell self-checks and make a worker loop or report that
+it cannot run tests. Isolation comes from the worktree and Lynn/Fleet gates, not
+from starving the worker of shell access.
+
 ---
 
 ## Fleet JSONL Event Stream
@@ -106,7 +116,7 @@ approval — they do not relax Lynn's boundary checks.
 Newline-delimited JSON. Every event carries `workerId` and `agent`.
 
 ```jsonl
-{"type":"worker.started","workerId":"w1","agent":"step-3.7","cwd":".","worktree":".","branch":"fleet/w1","approval":"yolo","sandbox":"workspace-write"}
+{"type":"worker.started","workerId":"w1","agent":"step-3.7","cwd":".","worktree":".","branch":"fleet/w1","approval":"yolo","sandbox":"danger-full-access"}
 {"type":"reasoning.delta","workerId":"w1","agent":"step-3.7","text":"...","hidden":true}
 {"type":"assistant.delta","workerId":"w1","agent":"step-3.7","text":"Here is the fix..."}
 {"type":"tool.started","workerId":"w1","agent":"step-3.7","name":"write_file"}
@@ -160,6 +170,40 @@ Lynn code --tool write_file ... --approval yolo
 `bash` and `write_file` require `--approval yolo`. Bash defaults to 120s timeout,
 stdout/stderr capped to keep stuck commands from blocking Fleet workers.
 
+For autonomous code workers, prefer `--approval yolo --sandbox danger-full-access`
+inside a disposable worktree. For shared checkouts or human sessions, keep
+`ask`/`workspace-write`.
+
+---
+
+## External MCP Arms
+
+Lynn can coordinate external specialists through MCP instead of merging their
+code into the CLI. Treat them as arms, not as dependencies to copy into the repo.
+
+Example: StepFun `gelab-zero` is a Python/ADB phone GUI agent with its own MCP
+server. Lynn/StepFun can plan the task while the external arm performs GUI
+grounding and device actions.
+
+```json
+{
+  "id": "gelab-zero",
+  "command": "python",
+  "args": ["mcp_server/detailed_gelab_mcp_server.py"],
+  "capabilities": ["device"],
+  "cwd": "/path/to/gelab-zero"
+}
+```
+
+Rules for external MCP arms:
+
+- Do not merge external Python/ADB/device code into Lynn CLI.
+- Keep the arm in its own checkout/environment and connect it through MCP.
+- Lynn remains responsible for orchestration, Fleet JSONL, gates, and user-visible
+  state.
+- The external arm should return structured observations/actions; Lynn should not
+  invent fallback actions when the arm fails.
+
 ---
 
 ## Health Check
@@ -172,4 +216,4 @@ Lynn -p "ping" --json                    # end-to-end smoke
 
 ---
 
-*Contract v0.3 · Lynn CLI v0.80.6 · verified against cli/ source 2026-06-01*
+*Contract v0.4 · Lynn CLI v0.80.7 · verified against cli/ source 2026-06-02*

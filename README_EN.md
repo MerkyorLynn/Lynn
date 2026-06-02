@@ -58,11 +58,14 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 ```
 
-Agents should parse JSONL, not the human terminal TUI. See [`docs/ops/lynn-code-headless-agent-contract.md`](docs/ops/lynn-code-headless-agent-contract.md).
+Black-light factory/Fleet workers should run in an isolated git worktree with
+`--approval yolo --sandbox danger-full-access`; `workspace-write` can block shell
+self-checks and make agents loop. Agents should parse JSONL, not the human
+terminal TUI. See [`docs/ops/lynn-code-headless-agent-contract.md`](docs/ops/lynn-code-headless-agent-contract.md).
 
 ## 🧠 Lynn Models And Engine Roadmap
 
@@ -122,7 +125,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 - **Lynn CLI / Lynn Code**:new `@lynn/cli` package with Ink TUI, markdown/code rendering, real diff preview, multimodal input, `Lynn code -p ... --json`, and `Lynn agents`.
 - **GUI Worker Fleet**:fan-out tasks to multiple CLI workers, inspect logs/diffs/tests/gates, and perform gated merges.
 - **Brain V2 route**:StepFun 3.7 Flash (high reasoning + 32K reasoning/generation budget) → MiMo V2.5 Pro/Omni → Spark Qwen 3.6 35B A3B.
-- **Long-run stability**:tool-result reinforcement, chain-tool hints, tool-storm guard, session checkpointing, frame repair, git snapshots, and stable context layers.
+- **Long-run stability**:atomic tool steps, tool ledgers, runtime state compression, tool-storm guard, session checkpointing, frame repair, safe touched-file snapshots, and stable context layers.
 - **Local 9B opt-in**:Qwen3.5-9B MTP no longer auto-starts on app launch; users explicitly enable it when they want local inference.
 - **Release gates**:CLI install docs, mirror tarball, packaged CLI runtime, and headless agent contract are part of the release checks.
 
