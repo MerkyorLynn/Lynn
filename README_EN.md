@@ -41,7 +41,7 @@ Cursor solves "I am editing this piece of code." Claude Code / Codex CLI solve "
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 
 # 3. Launch.
 Lynn          # interactive chat TUI
@@ -58,7 +58,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 ```
 
@@ -84,7 +84,25 @@ Related repositories:
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · prefix-cache visibility + long-run stability hotfix <em>(CLI latest)</em></summary>
+<summary><strong>GUI v0.80.2 / CLI v0.80.7</strong> · 2026-06-03 · desktop boot recovery + native CLI checkpoints <em>(latest)</em></summary>
+
+**GUI and CLI ship together**:
+- **Desktop server-process ownership**:`desktop/server-process.cjs` now owns the server pid, port, token, logs, and restart state; `main.cjs` reads those values through the controller instead of racing legacy globals.
+- **True App boot/restart gate**: release gates now launch the real Electron app, wait for `[desktop] Server ready`, kill the bundled server, and require `server crashed` → `auto restart` → `server restarted` → `server-restarted sent to ... window(s)`.
+- **Lynn-branded splash fallback**: splash fallback defaults to `yuan: "lynn"` and no longer falls back to Hanako-era copy or imagery.
+- **Native CLI toolchain line**:`web_scan`, `update_working_checkpoint`, skill crystallization/recall, browser computer-use audit, and SSRF protection remain on the stable native path.
+- **Stronger release gates**: CLI install/pack/PTY/toolchain gates and GUI server bundle/main/renderer/runtime/full tests run together before release.
+
+```bash
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
+```
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.7)
+
+</details>
+
+<details>
+<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · prefix-cache visibility + long-run stability hotfix</summary>
 
 **CLI-only hotfix; the desktop app remains v0.80.1**:
 - **Prefix-cache visibility**: Reasonix-style stable prefix / resume history / volatile runtime / current user layers remain deterministic; usage, sessions, replay, and `Lynn cache doctor --json` now surface `prefix-cache ... hit` without adding a context-budget anxiety meter.
@@ -94,7 +112,7 @@ Related repositories:
 - **Release gate covers compaction**: `cli-longrun-smoke` now forces large tool results and requires a `code.runtime.compacted` event, so long-run stability is verified outside narrow unit tests.
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 ```
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.6)
@@ -814,11 +832,11 @@ Read/write files, run terminal commands, browse the web, search the internet, ta
 
 **macOS (Apple Silicon / Intel):** download the latest `.dmg` from [Releases](https://github.com/MerkyorLynn/Lynn/releases).
 
-V0.80.1 macOS artifacts are signed, notarized, stapled, and Gatekeeper-validated for both Apple Silicon and Intel.
+V0.80.2 macOS artifacts are signed, notarized, stapled, and Gatekeeper-validated for both Apple Silicon and Intel.
 
 **Windows:** download the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases) and run it directly.
 
-> **Windows SmartScreen notice:** The v0.80.1 installer is code-signed. Windows Defender SmartScreen may still show a first-run reputation prompt for a new release.
+> **Windows SmartScreen notice:** The v0.80.2 installer is code-signed. Windows Defender SmartScreen may still show a first-run reputation prompt for a new release.
 
 Linux builds are planned.
 
@@ -881,7 +899,7 @@ tests/          Vitest test suite
 
 | Platform | Status |
 |----------|--------|
-| macOS (Apple Silicon) | Supported (V0.80.1 signed + notarized DMG) |
+| macOS (Apple Silicon) | Supported (V0.80.2 signed + notarized DMG) |
 | macOS (Intel) | Supported |
 | Windows | Beta |
 | Linux | Planned |

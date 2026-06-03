@@ -6,7 +6,7 @@
 
 ## 一句话
 
-用 `Lynn code -p "<任务>" --json --cwd <worktree>` 启动无交互编码任务,从 stdout 读取 JSONL 事件;需要无人值守改文件时,在隔离 git worktree 里加 `--approval yolo --sandbox workspace-write`。
+用 `Lynn code -p "<任务>" --json --cwd <worktree>` 启动无交互编码任务,从 stdout 读取 JSONL 事件;需要无人值守改文件时,在隔离 git worktree 里加 `--approval yolo --sandbox danger-full-access`。
 
 ## 最短可复制命令
 
@@ -15,7 +15,7 @@
 node -v
 
 # 2. 安装或覆盖升级 Lynn CLI
-npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz
+npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz
 
 # 3. 检查本地命令
 Lynn version
@@ -34,7 +34,7 @@ Lynn code -p "修复失败测试,运行测试,总结 diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 # 7. 长任务。会保存断点,达到步数上限时可 resume。
@@ -42,7 +42,7 @@ Lynn code -p "持续完成迁移直到测试通过" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --long \
   --max-steps 1000 \
   --save-session
@@ -51,14 +51,14 @@ Lynn code -p "持续完成迁移直到测试通过" \
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 ## 其他智能体必须遵守的规则
 
 - 机器调用必须使用 `--json` 或 `--jsonl`,不要解析人类 TUI。
 - 必须显式传 `--cwd` 或 `--worktree`。
-- `--approval yolo --sandbox workspace-write` 只用于隔离 git worktree。
+- `--approval yolo --sandbox danger-full-access` 只用于隔离 git worktree。
 - 看到未知 JSONL event type 时应忽略,按 `type` 字段分发。
 - `code.tool.ledger` 是链式工具结果的压缩事实源。
 - 长任务必须加 `--save-session`;如果 `code.task.finished` 里有 `resumeCommand`,应继续调用它。
@@ -70,7 +70,7 @@ Lynn worker run --brief task.md --worktree /path/to/worktree \
 | --- | --- |
 | 只读审查 | `--approval ask --sandbox read-only` |
 | 人类交互改代码 | `--approval ask --sandbox workspace-write` |
-| Fleet/CI 无人值守 | `--approval yolo --sandbox workspace-write` |
+| Fleet/CI 无人值守 | `--approval yolo --sandbox danger-full-access` |
 | 本机可信调试 | `--approval yolo --sandbox danger-full-access` |
 
 ask 模式会弹授权卡片。yolo 模式不会逐条询问,适合黑灯工厂,但必须由外层 worktree / Fleet gate 承担隔离和验收。
@@ -110,7 +110,7 @@ Lynn 无交互输出是 JSONL,每行一个 JSON 对象。常见事件:
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 Fleet 只信 Lynn 侧门禁:ownership、forbidden globs、测试结果、最终 diff。外部 CLI 的 `--yolo` 或 `--dangerously-*` 只是不让 worker 卡在交互审批,不代表可以绕过 Lynn 的合并 gate。

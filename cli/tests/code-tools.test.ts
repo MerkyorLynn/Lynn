@@ -710,7 +710,7 @@ describe("code tools", () => {
   it("renders copyable headless help for agent callers", async () => {
     const help = renderCodeHeadlessHelp();
     expect(help).toContain("Lynn code -p \"fix tests");
-    expect(help).toContain("--approval yolo --sandbox workspace-write");
+    expect(help).toContain("--approval yolo --sandbox danger-full-access");
     expect(help).toContain("交互式 ask 模式会逐次弹出授权");
     expect(help).toContain("Lynn worker run --brief task.md");
     expect(help).toContain("code.tool.ledger");

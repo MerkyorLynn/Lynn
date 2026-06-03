@@ -53,11 +53,11 @@ export function assertWorkspaceBashAllowed(command: string, sandbox: ToolRunCont
   if (sandbox === "danger-full-access") return;
   const trimmed = command.trim();
   if (!WORKSPACE_BASH_ALLOWED.test(trimmed)) {
-    throw new Error("bash command is not allowed in workspace-write sandbox; use /mode yolo for danger-full-access shell access");
+    throw new Error("bash command is not allowed in workspace-write sandbox; use /yolo for danger-full-access shell access, or run headless/Fleet with --approval yolo --sandbox danger-full-access");
   }
   const hit = WORKSPACE_BASH_FORBIDDEN.find((pattern) => pattern.test(trimmed));
   if (hit) {
-    throw new Error("bash command may escape the workspace; use /mode yolo only if you trust this command");
+    throw new Error("bash command may escape the workspace; use /yolo if you trust this command, or run headless/Fleet with --approval yolo --sandbox danger-full-access");
   }
 }
 

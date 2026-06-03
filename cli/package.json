@@ -1,6 +1,6 @@
 {
   "name": "@lynn/cli",
-  "version": "0.80.6",
+  "version": "0.80.7",
   "private": false,
   "type": "module",
   "description": "Lynn command line interface and worker runner",

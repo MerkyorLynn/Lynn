@@ -30,7 +30,7 @@ winget install OpenJS.NodeJS.LTS
 Install from the Lynn Tencent mirror:
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 ```
 
 The package installs the `Lynn` command. If you installed an older preview that
@@ -49,7 +49,7 @@ If npm dependency downloads are slow in mainland China, keep the Lynn tarball UR
 as-is and add a registry mirror for third-party dependencies:
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz" \
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz" \
   --registry=https://registry.npmmirror.com
 ```
 
@@ -57,7 +57,7 @@ Release maintainers can smoke-test the exact CDN tarball before inviting
 external testers:
 
 ```bash
-LYNN_CLI_TARBALL_URL="https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz" \
+LYNN_CLI_TARBALL_URL="https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz" \
   npm run test:cli-install:remote
 ```
 
@@ -102,7 +102,7 @@ When another agent asks what Lynn CLI does locally, the concise answer is:
   tool ledgers for chained work, checkpoint/resume, finish gates, workspace
   snapshots, and Fleet JSONL events.
 - For copyable headless usage, use `Lynn -p "prompt" --json` or
-  `Lynn code -p "task" --json --cwd /path --approval yolo --sandbox workspace-write`.
+  `Lynn code -p "task" --json --cwd /path --approval yolo --sandbox danger-full-access`.
 
 The longer repo-side reference is `docs/ops/lynn-cli-runtime-knowledge.md`.
 
@@ -175,7 +175,7 @@ Agent quick contract:
 # Requires Node.js 20 LTS or 22 LTS with npm.
 
 # Install/update.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 
 # Human launch commands.
 Lynn
@@ -190,14 +190,14 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 # Fleet JSONL adapter.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 For write-capable background work, make the permission mode explicit:
@@ -207,7 +207,7 @@ Lynn code -p "fix the failing tests, run the test suite, and report the diff" \
   --json \
   --cwd /path/to/repo \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --max-steps 20 \
   --save-session
 ```
@@ -227,7 +227,7 @@ Recommended agent defaults:
 - Use `--cwd` so the worktree is explicit.
 - Use `--save-session` for tasks that may exceed one turn.
 - Use `--long --max-steps 1000` only for deliberate endurance runs.
-- Use `--approval yolo --sandbox workspace-write` only inside an isolated
+- Use `--approval yolo --sandbox danger-full-access` only inside an isolated
   worktree. Keep `ask` or `read-only` for shared checkouts.
 
 See `docs/ops/lynn-code-headless-agent-contract.md` for the full contract.
@@ -277,10 +277,12 @@ interactive approval prompts.
 
 ## Code tools
 
-`Lynn code --tool bash` and `write_file` require `--approval yolo`. Bash commands
+`Lynn code --tool bash` and `write_file` require approval. Human operators can
+approve the card in `ask` mode; autonomous workers should run inside an isolated
+worktree with `--approval yolo --sandbox danger-full-access`. Bash commands
 default to a 120 second timeout and cap captured stdout/stderr to keep stuck
 commands from blocking Fleet workers:
 
 ```bash
-Lynn code --tool bash --command "npm test" --approval yolo --timeout-ms 300000 --json
+Lynn code --tool bash --command "npm test" --approval yolo --sandbox danger-full-access --timeout-ms 300000 --json
 ```

@@ -63,6 +63,40 @@ describe("CLI permission profile", () => {
     expect(renderPermissions(permissions)).toContain("警告");
   });
 
+  it("infers danger-full-access for explicit headless yolo when sandbox is omitted", async () => {
+    const dir = path.join(tmp, "permissions");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "cli.json"), JSON.stringify({ approval: "ask", sandbox: "workspace-write" }), "utf8");
+
+    const permissions = await resolveEffectivePermissions(parseArgs([
+      "permissions",
+      "--data-dir",
+      tmp,
+      "--approval",
+      "yolo",
+    ]));
+
+    expect(permissions.approval).toBe("yolo");
+    expect(permissions.sandbox).toBe("danger-full-access");
+    expect(permissions.source).toBe("flags");
+  });
+
+  it("respects an explicit sandbox even when approval is yolo", async () => {
+    const permissions = await resolveEffectivePermissions(parseArgs([
+      "permissions",
+      "--data-dir",
+      tmp,
+      "--approval",
+      "yolo",
+      "--sandbox",
+      "workspace-write",
+    ]));
+
+    expect(permissions.approval).toBe("yolo");
+    expect(permissions.sandbox).toBe("workspace-write");
+    expect(permissions.source).toBe("flags");
+  });
+
   it("renders English when LYNN_LANG is set to en", async () => {
     setLang("en");
     const permissions = await resolveEffectivePermissions(parseArgs(["permissions", "--data-dir", tmp]));

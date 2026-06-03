@@ -436,7 +436,12 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
             inputData.onEvent?.({ type: "checkpoint.updated", chars: workingCheckpoint.length });
             toolResult = { ok: true, tool: toolRequest.tool, output: workingCheckpointObservation(workingCheckpoint) };
           } else {
-            toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval }, {
+            const effectiveSandbox = toolRequest.tool === "bash"
+              && inputData.toolCtx.approval === "ask"
+              && effectiveApproval === "yolo"
+                ? "danger-full-access"
+                : inputData.toolCtx.sandbox;
+            toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval, sandbox: effectiveSandbox }, {
               name: toolRequest.tool,
               ...toolRequest.args,
             });

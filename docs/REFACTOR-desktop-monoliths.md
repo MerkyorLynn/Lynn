@@ -3,6 +3,7 @@
 > 目标:把不可测的巨石拆成**框架无关的纯逻辑模块(可单测)+ 薄的 Electron/React 胶水**。
 > 不可测的根因:纯逻辑和框架绑定(Electron `app`/IPC、React render)揉在一起。**抽出纯逻辑 = 立刻可测。**
 > 已验证的范式:`desktop/browser-url-guard.cjs` —— 把 main.cjs 里 1 个不可测内联函数抽成 **6 单测**的模块(commit `a8270d1`)。
+> 状态迁移细案见 [`docs/REFACTOR-desktop-state-migration.md`](./REFACTOR-desktop-state-migration.md):server-process / browser-agent / IPC 各自的状态 owner、迁移顺序和门禁。
 
 ## 0. 实测巨石排行(源码,排 bundle/dist)
 
