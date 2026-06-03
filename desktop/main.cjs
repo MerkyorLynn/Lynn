@@ -1455,10 +1455,10 @@ function createBrowserViewerWindow(opts = {}) {
 // DOM 遍历脚本：生成页面快照（类似 AXTree）
 // 优化：同构兄弟（≥3）压缩为单行，保留全部 ref 和关键文本；超 30k 字符头尾截断
 const { SNAPSHOT_SCRIPT } = require("./browser-snapshot.cjs");
-
-function _ensureBrowser() {
-  if (!_browserWebView) throw new Error("Browser not launched. Call start first.");
-}
+// View-action browser commands (navigate/snapshot/click/type/…) live in
+// browser-actions.cjs — pure over a webContents. Lifecycle commands (launch/close/
+// suspend/resume/show/destroyView) stay below (window + view-map coupled).
+const { runBrowserAction } = require("./browser-actions.cjs");
 
 function _delay(ms) {
   return new Promise(function(r) { setTimeout(r, ms); });
@@ -1613,163 +1613,6 @@ async function handleBrowserCommand(cmd, params) {
       return { found: true, url };
     }
 
-    // ── navigate ──
-    case "navigate": {
-      if (!isAllowedBrowserUrl(params.url)) {
-        throw new Error("Only http/https URLs are allowed");
-      }
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      await wc.loadURL(params.url);
-      await _delay(500);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { url: snap.currentUrl, title: snap.title, snapshot: snap.text };
-    }
-
-    // ── snapshot ──
-    case "snapshot": {
-      _ensureBrowser();
-      const snap = await _browserWebView.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { currentUrl: snap.currentUrl, text: snap.text };
-    }
-
-    // ── screenshot ──
-    case "screenshot": {
-      _ensureBrowser();
-      const img = await _browserWebView.webContents.capturePage();
-      const jpeg = img.toJPEG(75);
-      return { base64: jpeg.toString("base64") };
-    }
-
-    // ── thumbnail ──
-    case "thumbnail": {
-      _ensureBrowser();
-      const img = await _browserWebView.webContents.capturePage();
-      const resized = img.resize({ width: 400 });
-      const jpeg = resized.toJPEG(60);
-      return { base64: jpeg.toString("base64") };
-    }
-
-    // ── click ──
-    case "click": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      const clickRef = Number(params.ref);
-      await wc.executeJavaScript(
-        "(function(){ var el = document.querySelector('[data-hana-ref=\"" + clickRef + "\"]');" +
-        " if (!el) throw new Error('Element [" + clickRef + "] not found');" +
-        " el.scrollIntoView({block:'center'}); el.click(); })()"
-      );
-      await _delay(800);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { currentUrl: snap.currentUrl, text: snap.text };
-    }
-
-    // ── type ──
-    case "type": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      if (params.ref != null) {
-        const typeRef = Number(params.ref);
-        await wc.executeJavaScript(
-          "(function(){ var el = document.querySelector('[data-hana-ref=\"" + typeRef + "\"]');" +
-          " if (!el) throw new Error('Element [" + typeRef + "] not found');" +
-          " el.scrollIntoView({block:'center'}); el.focus();" +
-          " if (el.select) el.select(); })()"
-        );
-        await _delay(100);
-      }
-      await wc.insertText(params.text);
-      if (params.pressEnter) {
-        await _delay(100);
-        wc.sendInputEvent({ type: "keyDown", keyCode: "Return" });
-        wc.sendInputEvent({ type: "keyUp", keyCode: "Return" });
-        await _delay(800);
-      }
-      await _delay(300);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { currentUrl: snap.currentUrl, text: snap.text };
-    }
-
-    // ── scroll ──
-    case "scroll": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      const delta = (params.direction === "up" ? -1 : 1) * (params.amount || 3) * 300;
-      await wc.executeJavaScript("window.scrollBy({top:" + delta + ",behavior:'smooth'})");
-      await _delay(500);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { text: snap.text };
-    }
-
-    // ── select ──
-    case "select": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      const selRef = Number(params.ref);
-      const safeValue = JSON.stringify(params.value);
-      await wc.executeJavaScript(
-        "(function(){ var el = document.querySelector('[data-hana-ref=\"" + selRef + "\"]');" +
-        " if (!el) throw new Error('Element [" + selRef + "] not found');" +
-        " el.value = " + safeValue + ";" +
-        " el.dispatchEvent(new Event('change',{bubbles:true})); })()"
-      );
-      await _delay(300);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { text: snap.text };
-    }
-
-    // ── pressKey ──
-    case "pressKey": {
-      _ensureBrowser();
-      const wc = _browserWebView.webContents;
-      const parts = params.key.split("+");
-      const keyCode = parts[parts.length - 1];
-      const modifiers = parts.slice(0, -1).map(function(m) { return m.toLowerCase(); });
-      const keyMap = { Enter: "Return", Escape: "Escape", Tab: "Tab", Backspace: "Backspace", Delete: "Delete", Space: "Space" };
-      const mappedKey = keyMap[keyCode] || keyCode;
-      wc.sendInputEvent({ type: "keyDown", keyCode: mappedKey, modifiers });
-      wc.sendInputEvent({ type: "keyUp", keyCode: mappedKey, modifiers });
-      await _delay(300);
-      const snap = await wc.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { text: snap.text };
-    }
-
-    // ── wait ──
-    case "wait": {
-      _ensureBrowser();
-      const timeout = Math.min(params.timeout || 5000, 10000);
-      await _delay(timeout);
-      const snap = await _browserWebView.webContents.executeJavaScript(SNAPSHOT_SCRIPT);
-      return { text: snap.text };
-    }
-
-    // ── evaluate ──
-    // 2026-05-25 P1-3 (security hardening):
-    // 1. 长度上限 10000 → 4000 字符(合法页面操作 < 1KB,>4KB 几乎确定可疑)
-    // 2. **完整 expression** 进 audit log(之前只 log 头 200 字,exfil-script 截不到尾)
-    // 3. LYNN_BROWSER_EVAL_DENY_SENSITIVE=1 时拒绝含 cookie / localStorage / sessionStorage /
-    //    indexedDB / document.domain 等 exfil 关键词的 expression。默认关(向后兼容),
-    //    生产高 paranoia 部署可 opt-in。
-    case "evaluate": {
-      if (!params.expression || params.expression.length > 4000) {
-        throw new Error("Expression too long (max 4000 chars; was 10000 — tightened 2026-05-25 P1-3 security)");
-      }
-      // 完整 expression audit log,而不是头 200 字 — exfil 脚本常把敏感操作藏在尾部
-      console.log(`[browser:evaluate audit][${new Date().toISOString()}][len=${params.expression.length}] ${params.expression}`);
-      // 高 paranoia 模式:阻断典型 cookie / 存储 exfil 关键词
-      if (process.env.LYNN_BROWSER_EVAL_DENY_SENSITIVE === "1") {
-        const sensitivePatterns = /\b(document\.cookie|localStorage|sessionStorage|indexedDB|document\.domain|navigator\.credentials)\b/i;
-        if (sensitivePatterns.test(params.expression)) {
-          throw new Error("browser:evaluate denied — expression accesses sensitive storage (LYNN_BROWSER_EVAL_DENY_SENSITIVE=1)");
-        }
-      }
-      _ensureBrowser();
-      const result = await _browserWebView.webContents.executeJavaScript(params.expression);
-      const serialized = typeof result === "string" ? result : JSON.stringify(result, null, 2);
-      return { value: serialized || "undefined" };
-    }
-
     // ── show ──
     case "show": {
       if (browserViewerWindow && !browserViewerWindow.isDestroyed()) {
@@ -1811,7 +1654,16 @@ async function handleBrowserCommand(cmd, params) {
     }
 
     default:
-      throw new Error("Unknown browser command: " + cmd);
+      // navigate / snapshot / screenshot / thumbnail / click / type / scroll /
+      // select / pressKey / wait / evaluate → browser-actions.cjs.
+      // runBrowserAction throws "Unknown browser command" for anything else.
+      return runBrowserAction(cmd, params, {
+        getWebContents: () => (_browserWebView ? _browserWebView.webContents : null),
+        snapshotScript: SNAPSHOT_SCRIPT,
+        isAllowedBrowserUrl,
+        delay: _delay,
+        env: process.env,
+      });
   }
 }
 
