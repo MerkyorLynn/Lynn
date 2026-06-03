@@ -4,6 +4,7 @@ import { nowIso, writeJsonLine } from "../jsonl.js";
 import { presetNameForProviderProfile } from "../provider-presets.js";
 import { resolveCliProviderProfile } from "../provider-profile.js";
 import { t } from "../i18n.js";
+import { buildExternalArmBrokerContract, type ExternalArmBrokerContract } from "../mcp-external-arm.js";
 import { readVersionInfo } from "../version.js";
 
 function installUrl(): string {
@@ -16,6 +17,7 @@ export interface AgentsHeadlessContract {
   install: string;
   launch: string[];
   headless: string[];
+  externalArms: ExternalArmBrokerContract;
 }
 
 export function buildAgentsHeadlessContract(url = installUrl()): AgentsHeadlessContract {
@@ -32,6 +34,7 @@ export function buildAgentsHeadlessContract(url = installUrl()): AgentsHeadlessC
       "Lynn worker run --brief task.md --worktree /repo --jsonl --approval yolo --sandbox danger-full-access",
       'Lynn worker run --brief task.md --worktree /repo --agent custom --agent-command "your command" --jsonl --approval yolo --sandbox danger-full-access',
     ],
+    externalArms: buildExternalArmBrokerContract(),
   };
 }
 
@@ -61,6 +64,11 @@ export async function runAgents(args: ParsedArgs, json: boolean): Promise<number
   lines.push("");
   lines.push(`  ${t("agents.headless.commands")}`);
   for (const command of contract.headless) lines.push(`  ${command}`);
+  lines.push("");
+  lines.push(`  ${t("agents.externalArms.title")}`);
+  lines.push(`  ${contract.externalArms.requestType}: ${contract.externalArms.actions.join(", ")}`);
+  lines.push(`  ${t("agents.externalArms.summary")}`);
+  lines.push(`  ${contract.externalArms.tokenPolicy}`);
   lines.push("", t("agents.tip"));
   process.stdout.write(`${lines.join("\n")}\n`);
   return 0;

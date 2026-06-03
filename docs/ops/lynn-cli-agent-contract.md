@@ -181,6 +181,12 @@ inside a disposable worktree. For shared checkouts or human sessions, keep
 Lynn can coordinate external specialists through MCP instead of merging their
 code into the CLI. Treat them as arms, not as dependencies to copy into the repo.
 
+**Use the low-token broker mode.** Do not expose a full MCP tool schema, raw
+screenshots, raw device traces, or long Python/ADB logs directly to the model.
+Expose one compact request/response envelope and keep bulky evidence as artifact
+handles. This preserves the Reasonix-style stable prefix discipline and avoids
+spending the prompt budget on tool metadata.
+
 Example: StepFun `gelab-zero` is a Python/ADB phone GUI agent with its own MCP
 server. Lynn/StepFun can plan the task while the external arm performs GUI
 grounding and device actions.
@@ -195,6 +201,55 @@ grounding and device actions.
 }
 ```
 
+Machine-readable broker contract:
+
+```json
+{
+  "type": "external_arm.broker_contract",
+  "protocol": "lynn.external_arm.broker.v1",
+  "armId": "gelab-zero",
+  "capability": "device",
+  "actions": ["start", "step", "status", "cancel", "artifacts"],
+  "requestType": "external_arm.request",
+  "responseType": "external_arm.response",
+  "tokenPolicy": "Expose one compact broker request/response envelope. Do not expose full MCP tool schemas or raw GUI traces to the model."
+}
+```
+
+Request envelope:
+
+```json
+{
+  "type": "external_arm.request",
+  "protocol": "lynn.external_arm.broker.v1",
+  "armId": "gelab-zero",
+  "capability": "device",
+  "action": "start",
+  "goal": "Open the target app, inspect the screen, and report the next actionable GUI step.",
+  "constraints": ["return concise observations", "store screenshots as artifacts"],
+  "maxArtifacts": 3
+}
+```
+
+Response envelope:
+
+```json
+{
+  "type": "external_arm.response",
+  "protocol": "lynn.external_arm.broker.v1",
+  "armId": "gelab-zero",
+  "action": "step",
+  "taskId": "task-123",
+  "ok": true,
+  "status": "running",
+  "summary": "Observed the login screen and clicked the username field.",
+  "actions": ["click username field"],
+  "artifacts": [
+    { "id": "screen-1", "kind": "screenshot", "path": "/tmp/gelab/screen-1.png", "summary": "login screen" }
+  ]
+}
+```
+
 Rules for external MCP arms:
 
 - Do not merge external Python/ADB/device code into Lynn CLI.
@@ -203,6 +258,10 @@ Rules for external MCP arms:
   state.
 - The external arm should return structured observations/actions; Lynn should not
   invent fallback actions when the arm fails.
+- Keep screenshots, traces, and logs as artifacts. The model sees concise
+  summaries and artifact handles, not full raw traces.
+- If the arm is expensive or long-running, use `status` and `artifacts` polling
+  instead of streaming every internal action into the conversation.
 
 ---
 

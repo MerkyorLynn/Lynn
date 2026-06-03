@@ -43,5 +43,12 @@ describe("agent registry", () => {
     expect(contract.headless).toContain('Lynn code -p "fix tests" --json --cwd /repo --approval yolo --sandbox danger-full-access --save-session');
     expect(contract.headless).toContain("Lynn worker run --brief task.md --worktree /repo --jsonl --approval yolo --sandbox danger-full-access");
     expect(contract.headless).toContain('Lynn worker run --brief task.md --worktree /repo --agent custom --agent-command "your command" --jsonl --approval yolo --sandbox danger-full-access');
+    expect(contract.externalArms).toMatchObject({
+      type: "external_arm.broker_contract",
+      protocol: "lynn.external_arm.broker.v1",
+      requestType: "external_arm.request",
+      actions: ["start", "step", "status", "cancel", "artifacts"],
+    });
+    expect(contract.externalArms.tokenPolicy).toContain("Do not expose full MCP tool schemas");
   });
 });
