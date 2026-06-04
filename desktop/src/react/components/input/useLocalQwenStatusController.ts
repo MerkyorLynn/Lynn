@@ -401,3 +401,5 @@ export function useLocalQwenStatusController({
     setPanelOpen,
   };
 }
+
+export type LocalQwenStatusController = ReturnType<typeof useLocalQwenStatusController>;

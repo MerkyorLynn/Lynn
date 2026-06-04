@@ -1,7 +1,7 @@
 import type { LocalQwen35RuntimeStatus } from './local-qwen-status';
 import styles from './InputArea.module.css';
 
-interface LocalQwenStatusStackProps {
+export interface LocalQwenStatusStackProps {
   status: LocalQwen35RuntimeStatus | null;
   visible: boolean;
   active: boolean;

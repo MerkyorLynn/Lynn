@@ -105,11 +105,13 @@ export function restoreWorkspaceSnapshot(cwd: string, snapshot: WorkspaceSnapsho
   const manifest = readManifest(snapshot);
   if (!manifest) return { ok: false, message: "snapshot manifest is missing or unreadable" };
   let restored = 0;
+  let trashed = 0;
   for (const entry of manifest.entries) {
     const target = safeTarget(cwd, entry.path);
     if (!target) continue;
     if (!entry.existed) {
-      fs.rmSync(target, { force: true });
+      // Reversible delete: move the task-created file to the trash, never unlink.
+      if (trashFile(manifest.id, entry.path, target)) trashed += 1;
       restored += 1;
       continue;
     }
@@ -119,7 +121,8 @@ export function restoreWorkspaceSnapshot(cwd: string, snapshot: WorkspaceSnapsho
     restored += 1;
   }
   const suffix = manifest.skipped.length ? ` (${manifest.skipped.length} oversized/non-file path(s) were not snapshotted)` : "";
-  return { ok: true, message: `restored ${restored} touched file(s) from snapshot ${manifest.id.slice(0, 12)}${suffix}` };
+  const trashNote = trashed ? `; ${trashed} created file(s) moved to ${trashRoot(manifest.id)} (recoverable)` : "";
+  return { ok: true, message: `restored ${restored} touched file(s) from snapshot ${manifest.id.slice(0, 12)}${suffix}${trashNote}` };
 }
 
 export function readWorkspaceSnapshotManifest(ref: string): WorkspaceSnapshotManifest | null {
@@ -182,12 +185,39 @@ export function mergeWorkspaceSnapshots(refs: string[]): WorkspaceSnapshot {
   }
 }
 
-export function autoRollbackEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.LYNN_CLI_AUTO_ROLLBACK === "1";
+export function autoRollbackEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+  opts: { sandbox?: string } = {},
+): boolean {
+  if (env.LYNN_CLI_AUTO_ROLLBACK === "0") return false;
+  if (env.LYNN_CLI_AUTO_ROLLBACK === "1") return true;
+  // Default-on only in the autonomous, disposable context (isolated worktree with
+  // full access, per the headless contract); off for shared / interactive checkouts.
+  return opts.sandbox === "danger-full-access";
 }
 
 function snapshotRoot(): string {
   return path.join(os.homedir(), ".lynn", "cli-snapshots");
+}
+
+function trashRoot(id: string): string {
+  return path.join(os.homedir(), ".lynn", "cli-trash", id);
+}
+
+/** Move a task-created file into the trash so an auto-rollback delete is reversible. */
+function trashFile(id: string, rel: string, absTarget: string): boolean {
+  try {
+    if (!fs.existsSync(absTarget)) return false;
+    const dest = path.join(trashRoot(id), rel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.renameSync(absTarget, dest);
+    return true;
+  } catch {
+    // Cross-device or permission failure: fall back to an unlink so the rollback
+    // still leaves the workspace in the verified-good pre-task state.
+    try { fs.rmSync(absTarget, { force: true }); } catch { /* ignore */ }
+    return false;
+  }
 }
 
 function snapshotFile(ref: string): string {

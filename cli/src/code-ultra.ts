@@ -41,6 +41,8 @@ export interface UltraSubtaskResult {
   text: string;
   maxStepsReached?: boolean;
   error?: string;
+  /** An independent refuter doubted this (advisory — does NOT fail the sub-task). */
+  verifyConcern?: string;
   /** True when a dependency failed and this sub-task was never run. */
   skipped?: boolean;
 }
@@ -63,7 +65,8 @@ export interface UltraOptions {
   maxConcurrency?: number;
   /** Below this many sub-tasks we just run a single worker (default 2). */
   minSubtasks?: number;
-  /** Run an independent refuter on each ok sub-task; a refuted sub-task is downgraded to failed. */
+  /** Run an independent refuter on each ok sub-task that changed files; a refuted
+   * sub-task is flagged as an advisory concern for the synthesizer (not failed). */
   adversarialVerify?: boolean;
 }
 
@@ -93,6 +96,8 @@ export interface UltraWorkerOutput {
   text: string;
   maxStepsReached?: boolean;
   error?: string;
+  /** The worker changed at least one file (used to scope adversarial verify). */
+  mutated?: boolean;
 }
 
 export interface UltraRunInput {
@@ -315,7 +320,10 @@ export function buildSynthesisPrompt(task: string, results: UltraSubtaskResult[]
     const body = r.skipped
       ? "(not executed)"
       : r.text.trim() || (r.error ? `(no output; error: ${r.error})` : "(no output)");
-    return [`### ${r.id} — ${r.title} [${status}]`, body].join("\n");
+    const concern = r.verifyConcern
+      ? `\n⚠ FLAGGED by an independent refuter — scrutinize before trusting: ${r.verifyConcern}`
+      : "";
+    return [`### ${r.id} — ${r.title} [${status}]`, `${body}${concern}`].join("\n");
   });
   return [
     "You are the SYNTHESIZER for Lynn's ultra mode. Several worker agents each completed one sub-task in parallel. Combine their results into one correct, coherent answer for the original task.",
@@ -323,7 +331,8 @@ export function buildSynthesisPrompt(task: string, results: UltraSubtaskResult[]
     "Do this rigorously:",
     "1. CROSS-CHECK: if two workers contradict each other, call it out and resolve it — do not paper over conflicts.",
     "2. COMPLETENESS CRITIC: list anything still missing, unverified, or assumed. If a sub-task was SKIPPED or FAILED, state the resulting gap plainly.",
-    "3. SYNTHESIZE: give the integrated final answer the user asked for. Be concrete; reference the relevant sub-task ids.",
+    "3. SCRUTINIZE FLAGS: any sub-task marked FLAGGED was doubted by an independent refuter — do not trust it blindly; validate or correct it in your answer.",
+    "4. SYNTHESIZE: give the integrated final answer the user asked for. Be concrete; reference the relevant sub-task ids.",
     "",
     "Original task:",
     task.trim(),
@@ -389,16 +398,17 @@ export async function runUltraTask(input: UltraRunInput): Promise<UltraResult> {
               maxStepsReached: output.maxStepsReached,
               error: output.error,
             };
-            // Adversarial verify: an ok sub-task must survive an independent
-            // refuter. A refuted sub-task is downgraded to failed, so anything
-            // depending on it is skipped rather than built on a bad result.
-            if (output.ok && options.adversarialVerify && input.verifySubtask) {
+            // Adversarial verify (advisory): an ok sub-task that CHANGED files is
+            // checked by an independent refuter. A refuted sub-task is flagged as a
+            // concern for the synthesizer — NOT downgraded — so one over-zealous
+            // refuter can't fail a good result or cascade-skip its dependents.
+            // Read-only sub-tasks are skipped to bound the extra model calls.
+            if (output.ok && output.mutated && options.adversarialVerify && input.verifySubtask) {
               try {
                 const verdict = await input.verifySubtask(subtask, output);
                 input.onEvent?.({ type: "ultra.subtask.verified", id: subtask.id, title: subtask.title, pass: verdict.pass, reason: verdict.reason });
                 if (!verdict.pass) {
-                  result.ok = false;
-                  result.error = `adversarial verify refuted: ${verdict.reason || "no reason given"}`;
+                  result.verifyConcern = verdict.reason || "no reason given";
                 }
               } catch {
                 // A verifier failure must not crash the run; keep the worker's verdict.

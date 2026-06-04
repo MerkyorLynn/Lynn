@@ -30,12 +30,14 @@ describe("sidecar workspace snapshots", () => {
     expect(fs.readFileSync(path.join(dir, "busy.bin"), "utf8")).toBe("v2\n");
   });
 
-  it("removes files created by Lynn when rewinding before their creation", () => {
+  it("reversibly trashes files created by Lynn when rewinding before their creation", () => {
     let snap = createWorkspaceSnapshot(dir);
     snap = recordWorkspaceSnapshotForRequest(dir, snap, { tool: "write_file", args: { path: "new.ts", text: "created\n" } });
     fs.writeFileSync(path.join(dir, "new.ts"), "created\n");
 
-    expect(restoreWorkspaceSnapshot(dir, snap).ok).toBe(true);
+    const result = restoreWorkspaceSnapshot(dir, snap);
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/recoverable/); // moved to trash, not unlinked
     expect(fs.existsSync(path.join(dir, "new.ts"))).toBe(false);
   });
 
@@ -78,9 +80,15 @@ describe("sidecar workspace snapshots", () => {
   });
 });
 
-describe("autoRollbackEnabled", () => {
-  it("is opt-in via LYNN_CLI_AUTO_ROLLBACK=1", () => {
+describe("autoRollbackEnabled (default-on for danger-full-access)", () => {
+  it("defaults on only under the danger-full-access sandbox", () => {
     expect(autoRollbackEnabled({})).toBe(false);
+    expect(autoRollbackEnabled({}, { sandbox: "workspace-write" })).toBe(false);
+    expect(autoRollbackEnabled({}, { sandbox: "read-only" })).toBe(false);
+    expect(autoRollbackEnabled({}, { sandbox: "danger-full-access" })).toBe(true);
+  });
+  it("honors the env override either way", () => {
     expect(autoRollbackEnabled({ LYNN_CLI_AUTO_ROLLBACK: "1" })).toBe(true);
+    expect(autoRollbackEnabled({ LYNN_CLI_AUTO_ROLLBACK: "0" }, { sandbox: "danger-full-access" })).toBe(false);
   });
 });

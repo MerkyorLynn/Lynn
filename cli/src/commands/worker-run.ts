@@ -534,7 +534,7 @@ async function runLynnCliWorker(input: {
     cwd: input.worktree,
     approval: getStringFlag(input.args.flags, "approval") || input.permissions.approval,
     sandbox: getStringFlag(input.args.flags, "sandbox") || input.permissions.sandbox,
-    "max-steps": getStringFlag(input.args.flags, "max-steps", "steps") || profileDefaults.maxSteps || "8",
+    "max-steps": getStringFlag(input.args.flags, "max-steps", "steps") || profileDefaults.maxSteps || "100",
     "save-session": true,
     title: input.brief.title,
     json: true,

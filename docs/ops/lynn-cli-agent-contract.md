@@ -10,10 +10,10 @@
 
 ```bash
 # Lynn mirror tarball (npm registry package not yet published)
-npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz
+npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz
 
 # Slow deps in mainland China:
-npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz \
+npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz \
   --registry=https://registry.npmmirror.com
 ```
 
@@ -153,12 +153,14 @@ Newline-delimited JSON. Every event carries `workerId` and `agent`.
 ## Code Tools (direct, outside worker mode)
 
 ```bash
-Lynn code --tool bash --command "npm test" --approval yolo --timeout-ms 300000 --json
+Lynn code --tool bash --command "npm test" --approval yolo --sandbox danger-full-access --timeout-ms 300000 --json
 Lynn code --tool write_file ... --approval yolo
 ```
 
-`bash` and `write_file` require `--approval yolo`. Bash defaults to 120s timeout,
-stdout/stderr capped to keep stuck commands from blocking Fleet workers.
+`bash` and `write_file` require approval. For autonomous workers, use
+`--approval yolo --sandbox danger-full-access` inside an isolated worktree. Bash
+defaults to 120s timeout, stdout/stderr capped to keep stuck commands from
+blocking Fleet workers.
 
 ---
 

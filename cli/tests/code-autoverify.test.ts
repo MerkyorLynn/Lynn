@@ -14,25 +14,28 @@ describe("resolveAutoVerifyPlan", () => {
     expect(resolveAutoVerifyPlan(cwd, { LYNN_CLI_AUTOVERIFY: "0" }).enabled).toBe(false);
   });
 
-  it("honors a custom command", () => {
+  it("honors a custom command but marks it non-deterministic (no auto-rollback on its own)", () => {
     const plan = resolveAutoVerifyPlan(cwd, { LYNN_CLI_AUTOVERIFY_CMD: "make check" });
     expect(plan.enabled).toBe(true);
     expect(plan.command).toEqual(["make", "check"]);
+    expect(plan.deterministic).toBe(false);
   });
 
-  it("prefers the project's own typecheck script", () => {
+  it("prefers the project's own typecheck script (deterministic — rollback-eligible)", () => {
     fs.writeFileSync(path.join(cwd, "package.json"), JSON.stringify({ scripts: { typecheck: "tsc --noEmit" } }));
     const plan = resolveAutoVerifyPlan(cwd, {});
     expect(plan.enabled).toBe(true);
     expect(plan.command).toContain("typecheck");
     expect(plan.label).toBe("typecheck");
+    expect(plan.deterministic).toBe(true);
   });
 
-  it("falls back to tsc --noEmit when only a tsconfig exists", () => {
+  it("falls back to tsc --noEmit when only a tsconfig exists (deterministic)", () => {
     fs.writeFileSync(path.join(cwd, "tsconfig.json"), "{}");
     const plan = resolveAutoVerifyPlan(cwd, {});
     expect(plan.enabled).toBe(true);
     expect(plan.command).toContain("tsc");
+    expect(plan.deterministic).toBe(true);
   });
 
   it("is disabled for a project with no detectable check", () => {

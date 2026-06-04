@@ -41,7 +41,7 @@ export function codeArgsForRoute(args: ParsedArgs, route: ClassifiedTaskRoute): 
   if (route.kind === "goal") {
     flags.long = flags.long ?? true;
     flags["save-session"] = flags["save-session"] ?? true;
-    flags["max-steps"] = flags["max-steps"] ?? "1000";
+    flags["max-steps"] = flags["max-steps"] ?? "300";
   }
   return {
     ...args,

@@ -1,6 +1,6 @@
 {
   "name": "lynn",
-  "version": "0.80.1",
+  "version": "0.80.2",
   "type": "module",
   "description": "Lynn - a personal AI agent with memory and soul",
   "license": "Apache-2.0",
@@ -47,6 +47,7 @@
     "test:cli-install:remote": "node scripts/cli-install-smoke.mjs --remote",
     "test:cli-pressure": "npm run build:cli && node scripts/cli-p-stress.mjs",
     "test:cli-real": "npm run build:cli && node scripts/cli-real-model-soak.mjs",
+    "test:cli-toolchain": "npm run build:cli && node scripts/cli-toolchain-stress.mjs",
     "test:cli-cache-usage": "npm run build:cli && node scripts/cli-cache-usage-smoke.mjs",
     "test:cli-file-size": "node scripts/check-cli-file-size.mjs",
     "test:cli-nightly": "node scripts/v0804-cli-nightly.mjs --mode quick",

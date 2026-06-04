@@ -125,6 +125,7 @@ describe("code tools", () => {
       "apply_patch",
       "write_file",
       "bash",
+      "web_scan",
     ]);
     expect(tools.find((tool) => tool.function.name === "apply_patch")?.function.parameters).toMatchObject({
       type: "object",
@@ -322,7 +323,7 @@ describe("code tools", () => {
   });
 
   it("builds long-running code flags for goal mode without clobbering explicit step budgets", () => {
-    expect(withLongRunCodeFlags({})).toMatchObject({ long: true, "save-session": true, "max-steps": "1000" });
+    expect(withLongRunCodeFlags({})).toMatchObject({ long: true, "save-session": true, "max-steps": "300" });
     expect(withLongRunCodeFlags({ "max-steps": "42" })).toMatchObject({ long: true, "save-session": true, "max-steps": "42" });
   });
 
@@ -710,7 +711,7 @@ describe("code tools", () => {
   it("renders copyable headless help for agent callers", async () => {
     const help = renderCodeHeadlessHelp();
     expect(help).toContain("Lynn code -p \"fix tests");
-    expect(help).toContain("--approval yolo --sandbox workspace-write");
+    expect(help).toContain("--approval yolo --sandbox danger-full-access");
     expect(help).toContain("交互式 ask 模式会逐次弹出授权");
     expect(help).toContain("Lynn worker run --brief task.md");
     expect(help).toContain("code.tool.ledger");

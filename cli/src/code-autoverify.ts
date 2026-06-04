@@ -10,6 +10,10 @@ export interface AutoVerifyPlan {
   command: string[];
   label: string;
   timeoutMs: number;
+  /** True only for the built-in typecheck (deterministic on the same code). A custom
+   * LYNN_CLI_AUTOVERIFY_CMD may be a flaky test suite, so on its own it must not
+   * trigger a destructive auto-rollback. */
+  deterministic?: boolean;
 }
 
 export interface AutoVerifyOutcome {
@@ -29,7 +33,7 @@ export interface AutoVerifyEvent {
   output?: string;
 }
 
-const DISABLED: AutoVerifyPlan = { enabled: false, command: [], label: "auto-verify", timeoutMs: DEFAULT_TIMEOUT_MS };
+const DISABLED: AutoVerifyPlan = { enabled: false, command: [], label: "auto-verify", timeoutMs: DEFAULT_TIMEOUT_MS, deterministic: false };
 const VERIFY_COMMAND_RE = /\b(typecheck|tsc\b|vitest\b|jest\b|mocha\b|ava\b|pytest\b|cargo\s+test|go\s+test|deno\s+(?:test|check)|npm\s+(?:run\s+)?(?:test|typecheck)|pnpm\s+(?:run\s+)?(?:test|typecheck)|yarn\s+(?:run\s+)?(?:test|typecheck)|bun\s+(?:test|run\s+typecheck))\b/i;
 
 function tokenize(command: string): string[] {
@@ -51,11 +55,13 @@ export function resolveAutoVerifyPlan(cwd: string, env: NodeJS.ProcessEnv = proc
   const custom = env.LYNN_CLI_AUTOVERIFY_CMD?.trim();
   if (custom) {
     const command = tokenize(custom);
-    return command.length ? { enabled: true, command, label: "auto-verify", timeoutMs } : DISABLED;
+    // A user-supplied command may be a non-deterministic test suite, so it gates
+    // finishing but does not, by itself, license a destructive rollback.
+    return command.length ? { enabled: true, command, label: "auto-verify", timeoutMs, deterministic: false } : DISABLED;
   }
   const scripts = readPackageScripts(cwd);
-  if (scripts?.typecheck) return { enabled: true, command: ["npm", "run", "--silent", "typecheck"], label: "typecheck", timeoutMs };
-  if (fs.existsSync(path.join(cwd, "tsconfig.json"))) return { enabled: true, command: ["npx", "--no-install", "tsc", "--noEmit"], label: "typecheck", timeoutMs };
+  if (scripts?.typecheck) return { enabled: true, command: ["npm", "run", "--silent", "typecheck"], label: "typecheck", timeoutMs, deterministic: true };
+  if (fs.existsSync(path.join(cwd, "tsconfig.json"))) return { enabled: true, command: ["npx", "--no-install", "tsc", "--noEmit"], label: "typecheck", timeoutMs, deterministic: true };
   return DISABLED;
 }
 

@@ -32,8 +32,8 @@ export function SplashApp() {
   const [avatarSrc, setAvatarSrc] = useState('assets/Lynn-512-opt.png');
   const [text, setText] = useState('');
   const [switching, setSwitching] = useState(false);
-  const [symbol, setSymbol] = useState(YUAN_SYMBOLS.hanako);
-  const [accentColor, setAccentColor] = useState(YUAN_COLORS.hanako);
+  const [symbol, setSymbol] = useState(YUAN_SYMBOLS.lynn);
+  const [accentColor, setAccentColor] = useState(YUAN_COLORS.lynn);
   const linesRef = useRef<string[]>([]);
   const indexRef = useRef(0);
 
@@ -43,7 +43,7 @@ export function SplashApp() {
     (async () => {
       let locale = 'zh';
       let name = DEFAULT_NAME;
-      let yuan = 'hanako';
+      let yuan = 'lynn';
 
       try {
         const hana = window.hana;
@@ -62,8 +62,8 @@ export function SplashApp() {
         if (splashInfo?.locale?.startsWith('en')) locale = 'en';
         if (splashInfo?.yuan) yuan = splashInfo.yuan;
 
-        setSymbol(YUAN_SYMBOLS[yuan] || YUAN_SYMBOLS.hanako);
-        setAccentColor(YUAN_COLORS[yuan] || YUAN_COLORS.hanako);
+        setSymbol(YUAN_SYMBOLS[yuan] || YUAN_SYMBOLS.lynn);
+        setAccentColor(YUAN_COLORS[yuan] || YUAN_COLORS.lynn);
       } catch (err) {
         console.warn('[splash] failed to load splash info:', err);
       }
@@ -83,9 +83,9 @@ export function SplashApp() {
 
       if (!lines.length) {
         lines = [
-          `${name} remembers the evening light`,
-          'Some words sprouted in her memory',
-          'She found your silhouette in memories',
+          `${name} is getting the workspace ready`,
+          'Old context is settling, new clues are emerging',
+          'The next turn is almost ready',
         ];
       }
 

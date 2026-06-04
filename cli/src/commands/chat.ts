@@ -93,6 +93,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
   const chatCwd = getStringFlag(args.flags, "cwd") || process.cwd();
   let reasoning = parseReasoningOptions(args);
   const mode = await resolveChatMode(args);
+  const approvalSession = { approveAll: false };
   let cliProvider = await resolveCliProviderProfile(args);
   const dataDir = resolveDataDir(getStringFlag(args.flags, "data-dir"));
   let memoryFrame = buildMemoryContextFrameSync(dataDir);
@@ -502,9 +503,15 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
         output,
         preview,
         args: request.args,
+        session: approvalSession,
       });
+      const effectiveSandbox = request.tool === "bash"
+        && mode.approval === "ask"
+        && effectiveApproval === "yolo"
+        ? "danger-full-access"
+        : mode.sandbox;
       maybeRecordChatRewindSnapshot(rewindState, chatCwd, request);
-      const result = await runClientTool({ cwd: chatCwd, approval: effectiveApproval, sandbox: mode.sandbox }, {
+      const result = await runClientTool({ cwd: chatCwd, approval: effectiveApproval, sandbox: effectiveSandbox }, {
         name: request.tool,
         ...request.args,
       });

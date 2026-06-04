@@ -1,10 +1,6 @@
 [English](README_EN.md) | **中文**
 
 <p align="center">
-  <img src=".github/assets/banner.png" width="100%" alt="Lynn Banner">
-</p>
-
-<p align="center">
   <img src="desktop/src/assets/Lynn.png" width="80" alt="Lynn">
 </p>
 
@@ -15,8 +11,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.80.1-brightgreen" alt="App Version"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.80.6-7bcad3" alt="CLI Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.80.2-brightgreen" alt="App Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.80.7-7bcad3" alt="CLI Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -24,6 +20,30 @@
 </p>
 
 ---
+
+## 🧠 Lynn 自研推理引擎 · 对标 llama.cpp(重启)
+
+Lynn 不只是桌面 Agent。自研推理引擎已**重启为认真的主线**——目标不是「用 llama.cpp」,而是**对标 llama.cpp**:同模型同硬件把速度做到接近,乃至在 FP4-MMA 卡(R6000 一代)上**超过**它,同时保留 NVFP4 + MoE 原生 layout、跨设备内核 moat 这些 vendor 框架给不了的东西。
+
+**🆕 今天迭代(2026-06-03 · Spark sm_121 / Qwen3.6-35B-A3B NVFP4)**
+
+- **decode 启动开销战役:38.96 → ~45 tok/s(+26%)**,一连串 RC-validated launch-fusion(RMSNorm / full-attn / shared-expert / g-beta / bf16-out),40/40 贪心输出与 baseline 逐 token 一致。
+- **Banked:60 GiB「decode-only 显存」红利** —— decode 根本不读 BF16 shadow,常驻 **88→28 GiB**(release 后 token-exact 继续解码),需新 prefill 时再从常驻 packed NVFP4 反量化重建(~24s/请求)。在共享 128 GB Spark 上腾出 60 GiB 给 KV / 长上下文 / batch。
+- **诚实口径**:Spark sm_121 **无 FP4 MMA**,decode 是 launch-bound,结构性卡 **~45**;同硬件 llama.cpp Q4_K_M = **69.77**。read-4bit 其实已做、reusable decode graph 净负(0.75×)→ **Spark 不是追平 69.77 的战场**。
+
+**终局 = 自己把内核啃下来。** 把带宽墙真正推倒、逼近(乃至在 R6000 上超过)llama.cpp 的主路 = 融合 4-bit / 零-shadow 内核,分阶段啃、每阶段 gate + RC:**单投影 PoC → 全 dense 投影 + 删 shadow → MoE grouped 专家 → 融合减 launch**。这条路的收益兑现在 FP4-MMA 硅(R6000 一代)+ ggml 级低-dispatch CUDA;同一套 NVFP4 权重挪到那张卡即 native。**做引擎,要做就自己把内核啃下来。**
+
+| 方向 | 当前状态 |
+|---|---|
+| **Lynn Engine(自研)** | R6000 strict full path **103.44 tok/s** / serving replay 107.23(历史最佳);Spark sm_121 NVFP4 decode **~45**(结构性上限,无 FP4 MMA);终局 = 融合 4-bit / 零-shadow 内核。 |
+| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M 变体已发布与回归;Q4 工具调用模板热修已同步 HF / ModelScope。 |
+| **Lynn 27B-A3B 基座** | Qwen3.6-35B-A3B BASE → variable-expert pruning + Router-FT + Recovery LoRA,选定 **step5000 final**;BF16 V8 strict 97.06% / V9 adjusted 62.71%。 |
+| **Lynn-native NVFP4** | 27B/35B variable-expert NVFP4 artifact(~20GB),Lynn Engine 专用 runtime,非 GGUF、非通用框架 v8-RTN。 |
+| **客户端默认后端** | 短期仍走 llama.cpp / GGUF 全平台——**务实默认,非放弃引擎**;引擎作为并行主线对标它。 |
+
+相关仓库:[lynn-engine](https://github.com/MerkyorLynn/lynn-engine)(自研推理引擎)· [lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit)(蒸馏 / 评测 / 量化 / 发布)。详见 [decode launch-overhead campaign](https://github.com/MerkyorLynn/lynn-engine/blob/main/reports/qwen36_35b/DECODE_LAUNCH_OVERHEAD_CAMPAIGN_20260603.md)。
+
+> 说明:Lynn-native NVFP4 是给 Lynn Engine 的内部 / 垂直 runtime artifact;通用用户仍建议从 V4 / V Flash 的 BF16、NVFP4 v8-RTN 或 Q4_K_M 版本开始。
 
 ## 🔭 V0.80:GUI + CLI Worker Fleet
 
@@ -51,12 +71,12 @@ V0.80 的 CLI 是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror. --force is safe for first install too.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 
 # 3. Launch.
 Lynn            # interactive chat TUI
 Lynn code       # coding-agent TUI
-Lynn --version  # should print 0.80.6
+Lynn --version  # should print 0.80.7
 Lynn agents     # copyable headless/Fleet commands for other agents
 ```
 
@@ -71,7 +91,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 ```
 
@@ -97,27 +117,28 @@ Lynn worker run --brief task.md --worktree . --agent qwen-cli --jsonl
 
 成功信号 = `gate.finished.ok`;硬失败 = `worker.violation` 或 `worker.error{recoverable:false}`。完整规范(BYOK 配置 / agent 适配表 / 全事件 schema / code tools)见 [`docs/ops/lynn-cli-agent-contract.md`](docs/ops/lynn-cli-agent-contract.md)。
 
-## 🧠 Lynn 模型与引擎路线
-
-Lynn 现在不只是桌面端 Agent。配套的模型、量化和自研推理引擎已经形成一条独立路线,用于把 Lynn 的本地长期记忆 / 多 Agent / 工具调用能力跑在可控的私有模型栈上。
-
-| 方向 | 当前状态 |
-|---|---|
-| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M 变体已完成发布与回归;Q4 工具调用模板热修已同步 HF / ModelScope。 |
-| **Lynn 27B-A3B 基座** | 从 Qwen3.6-35B-A3B BASE 走 variable-expert pruning + Router-FT + Recovery LoRA,当前选定 **step5000 final**。BF16 评测:V8 strict 33/34 = 97.06%,V9 adjusted 37/59 = 62.71%。 |
-| **Lynn-native NVFP4** | 27B variable-expert NVFP4 artifact 约 20GB,用于 Lynn Engine 自研 runtime。它不是 GGUF,也不是公开通用框架的 compressed-tensors v8-RTN。 |
-| **Lynn Engine** | 自研 Blackwell/R6000 推理引擎已跑通 27B NVFP4。当前 R6000 strict full path **103.44 tok/s**,serving replay **107.23 tok/s**;下一目标是生产稳定 100+ TPS 与 native FP4 kernel。 |
-
-相关仓库:
-- [MerkyorLynn/lynn-engine](https://github.com/MerkyorLynn/lynn-engine):Lynn 27B-A3B NVFP4 自研推理引擎。
-- [MerkyorLynn/lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit):蒸馏、评测、量化与发布工具链。
-
-> 说明:27B Lynn-native NVFP4 是给 Lynn Engine 的内部/垂直 runtime artifact;通用用户仍建议从 V4 / V Flash 的 BF16、NVFP4 v8-RTN 或 Q4_K_M 版本开始。
-
 ## 🆕 近期更新
 
 <details>
-<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · 前置缓存可见 + 长任务稳定性热修 <em>(CLI 最新)</em></summary>
+<summary><strong>GUI v0.80.2 / CLI v0.80.7</strong> · 2026-06-03 · 桌面启动自愈 + CLI 原生工作检查点 <em>(最新)</em></summary>
+
+**GUI 与 CLI 同步发版**:
+- 🧭 **桌面 Server 进程所有权收口**:`desktop/server-process.cjs` 现在统一持有 server pid、端口、token、日志和重启状态;`main.cjs` 只通过 controller 读取状态,避免旧全局变量与新重启路径抢状态。
+- 🔁 **真 App 崩溃自愈门禁**:真实启动 Electron App,观察 `[desktop] Server 就绪，端口:`;杀掉内置 server 后必须看到 `Server 意外退出` → `自动重启` → `Server 重启成功` → `server-restarted sent to ... window(s)`。
+- 🪪 **启动页回到 Lynn 品牌**:splash fallback 默认 `yuan: "lynn"`,不再退回 Hanako 时代文案或图标。
+- 🧰 **CLI 工具链继续原生化**:`web_scan`、`update_working_checkpoint`、技能结晶/召回、浏览器 computer-use 安全审计和 SSRF 防护进入同一条稳定线。
+- 🧪 **打包发版门禁升级**:CLI install/pack/PTY/toolchain 门禁 + GUI server bundle/main/renderer/runtime/full test + 真 App boot/restart 一起作为发布前阻塞项。
+
+```bash
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
+```
+
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.7)
+
+</details>
+
+<details>
+<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · 前置缓存可见 + 长任务稳定性热修</summary>
 
 **CLI-only 热修,GUI 仍为 v0.80.1**:
 - 💾 **前置缓存命中可见**:借鉴 Reasonix 的 prefix-cache 思路,stable prefix / resume history / volatile runtime / current user 分层固定;usage、session、replay 和 `Lynn cache doctor --json` 会显示 `prefix-cache ... hit`,但不在聊天 UI 里显示 ctx% 焦虑条。
@@ -127,7 +148,7 @@ Lynn 现在不只是桌面端 Agent。配套的模型、量化和自研推理引
 - 🧪 **门禁覆盖长跑压缩路径**:`cli-longrun-smoke` 会制造大工具结果并要求出现 `code.runtime.compacted`,避免长任务稳定性只停留在单测。
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.7.tgz"
 ```
 
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.6)
@@ -1028,11 +1049,11 @@ Agent 也可以从 GitHub 安装技能或自己编写新技能，安装经独立
 
 ### 下载安装
 
-**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。V0.80.1 的 Apple Silicon / Intel DMG 会完成签名、公证、stapled,并通过 Gatekeeper 校验。
+**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。V0.80.2 的 Apple Silicon / Intel DMG 会完成签名、公证、stapled,并通过 Gatekeeper 校验。
 
 **Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe`，直接运行。
 
-> **Windows SmartScreen 提示：** V0.80.1 安装包会完成代码签名；首次运行仍可能因为新版应用声誉积累不足出现 SmartScreen 确认提示。
+> **Windows SmartScreen 提示：** V0.80.2 安装包会完成代码签名；首次运行仍可能因为新版应用声誉积累不足出现 SmartScreen 确认提示。
 
 Linux 版本计划中。
 
@@ -1100,7 +1121,7 @@ tests/          Vitest 测试
 
 | 平台 | 状态 |
 |------|------|
-| macOS (Apple Silicon) | 已支持（V0.80.1 签名 + 公证 DMG） |
+| macOS (Apple Silicon) | 已支持（V0.80.2 签名 + 公证 DMG） |
 | macOS (Intel) | 已支持 |
 | Windows x64 | Beta |
 | Linux | 计划中 |
@@ -1162,7 +1183,7 @@ npm run dist:local            # 本地打包（macOS DMG，跳过公证）
 
 ### Q5：Windows 能用吗？
 
-可以。V0.80.1 的 **Windows 安装包会完成代码签名**，但 SmartScreen 仍可能因为新版应用声誉积累不足而提示确认；macOS Apple Silicon / Intel DMG 均会签名、公证并通过 Gatekeeper 校验。
+可以。V0.80.2 的 **Windows 安装包会完成代码签名**，但 SmartScreen 仍可能因为新版应用声誉积累不足而提示确认；macOS Apple Silicon / Intel DMG 均会签名、公证并通过 Gatekeeper 校验。
 
 ### Q6：能改模型吗？接自己的 API？
 

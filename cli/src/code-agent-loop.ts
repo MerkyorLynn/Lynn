@@ -21,7 +21,9 @@ import { augmentToolResultSection } from "./code-tool-verify.js";
 import { resolveAutoVerifyPlan, runAutoVerify, formatAutoVerifyFeedback, buildAutoVerifyEvent, formatAutoVerifyObservation, isLikelyVerificationCommand } from "./code-autoverify.js";
 import { checkPlanContract, defaultToolBudget, checkToolBudget } from "./code-plan-contract.js";
 import { createWorkspaceSnapshot, recordWorkspaceSnapshotForRequest, restoreWorkspaceSnapshot, autoRollbackEnabled, type WorkspaceSnapshot } from "./code-snapshot.js";
+import { captureGitRestorePoint, restoreGitRestorePoint, type GitRestorePoint } from "./code-git-snapshot.js";
 import { selfVerifyEnabled, buildSelfVerifyPrompt, parseSelfVerifyVerdict, formatSelfVerifyCritique } from "./code-self-verify.js";
+import { applyWorkingCheckpoint, formatWorkingCheckpointFrame, workingCheckpointObservation } from "./code-working-checkpoint.js";
 
 const MAX_AUTOVERIFY_REVERIFIES = 3;
 const MAX_PLAN_REMINDERS = 2;
@@ -35,6 +37,8 @@ export interface CodeAgentLoopInput {
   reasoning: ReturnType<typeof parseReasoningOptions>;
   json: boolean;
   maxSteps: number;
+  /** Offer the working-checkpoint scratchpad tool (default-on for long runs). */
+  workingCheckpoint?: boolean;
   toolCtx: ToolRunContext;
   input: NodeJS.ReadStream;
   output: NodeJS.WriteStream;
@@ -69,6 +73,7 @@ export type CodeAgentEvent =
   | { type: "rollback"; ok: boolean; message: string }
   | { type: "self.verify"; pass: boolean }
   | { type: "plan.updated"; items: CodePlanItem[] }
+  | { type: "checkpoint.updated"; chars: number }
   | { type: "runtime.compacted"; messages: number }
   | { type: "session.resumed"; path: string; messages: number }
   | { type: "session.checkpoint"; path: string; line: "user" | "assistant" | "tool" }
@@ -81,6 +86,10 @@ export interface CodeAgentLoopResult {
   maxStepsReached: boolean;
   usageSummary: string | null;
   usageRecords: Array<{ usage: unknown; durationMs: number }>;
+  /** The run changed at least one file via write_file / apply_patch. */
+  mutated: boolean;
+  /** The last auto-verify passed, or no verify command applied to this run. */
+  verifyClean: boolean;
 }
 
 interface ClientToolStormState {
@@ -137,8 +146,13 @@ function isReadOnlyToolRequest(request: CodeToolRequest): boolean {
   return request.tool === "read_file" || request.tool === "grep" || request.tool === "glob";
 }
 
+/** Meta tools touch no files and don't count as real actions (plan, working checkpoint). */
+function isMetaTool(tool: ClientToolName): boolean {
+  return tool === "update_plan" || tool === "update_working_checkpoint";
+}
+
 function observeClientToolRequest(state: ClientToolStormState, request: CodeToolRequest): ClientToolStormVerdict {
-  if (request.tool === "update_plan") return { suppress: false, repeatCount: 1 };
+  if (isMetaTool(request.tool)) return { suppress: false, repeatCount: 1 };
   const fingerprint = toolRequestFingerprint(request);
   const previous = state.recent.filter((entry) => entry.fingerprint === fingerprint).length;
   if (previous > 0) {
@@ -149,7 +163,7 @@ function observeClientToolRequest(state: ClientToolStormState, request: CodeTool
 }
 
 function rememberClientToolRequest(state: ClientToolStormState, request: CodeToolRequest): void {
-  if (request.tool === "update_plan") return;
+  if (isMetaTool(request.tool)) return;
   const readOnly = isReadOnlyToolRequest(request);
   if (!readOnly) {
     state.recent = state.recent.filter((entry) => !entry.readOnly);
@@ -231,18 +245,36 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
   let snapshot: WorkspaceSnapshot | null = null;
   let snapshotAnnounced = false;
   let rolledBack = false;
+  // Capture a git restore point up front (when rollback is active) so a failed-task
+  // rollback can undo EVERYTHING in the tree — including bash-made changes — not just
+  // the files the file-snapshot tracked. Null outside a git work tree (file fallback).
+  const rollbackOn = autoRollbackEnabled(process.env, { sandbox: inputData.toolCtx.sandbox });
+  const rollbackForced = process.env.LYNN_CLI_AUTO_ROLLBACK === "1";
+  const gitRestore: GitRestorePoint | null = rollbackOn ? captureGitRestorePoint(inputData.toolCtx.cwd) : null;
   let selfVerifyPasses = 0;
+  let workingCheckpoint = "";
+  let compactionOccurred = false;
   for (let step = 0; step < inputData.maxSteps; step += 1) {
     const label = step === 0 ? t("spinner.coding") : t("spinner.reviewing");
     inputData.onEvent?.({ type: "step.started", step, label });
+    // Pin the working checkpoint (if any) as the freshest, last thing the model
+    // sees — re-derived from state each turn, so it survives history compaction
+    // without polluting the persistent transcript.
+    // Lazy pin: only inject the checkpoint once history has been compacted. Before
+    // compaction the full transcript (including the model's own checkpoint writes)
+    // is still visible, so pinning would just duplicate up to 4k chars every turn.
+    const turnMessages = workingCheckpoint && compactionOccurred
+      ? [...messages, { role: "user" as const, content: formatWorkingCheckpointFrame(workingCheckpoint) }]
+      : messages;
     const result = await collectBrainText({
       brainUrl: inputData.brainUrl,
       fallbackProvider: inputData.fallbackProvider,
-      messages,
+      messages: turnMessages,
       reasoning: inputData.reasoning,
       json: inputData.json,
       label,
       danger: inputData.toolCtx.approval === "yolo" || inputData.toolCtx.sandbox === "danger-full-access",
+      workingCheckpoint: inputData.workingCheckpoint,
       onEvent: inputData.onEvent,
     });
     const assistantText = result.text;
@@ -285,13 +317,18 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
         }
         const feedback = formatAutoVerifyFeedback(outcome);
         if (feedback) {
-          if (autoRollbackEnabled() && snapshot?.available && !rolledBack && autoVerifyReverifies + 1 >= MAX_AUTOVERIFY_REVERIFIES) {
-            const restore = restoreWorkspaceSnapshot(inputData.toolCtx.cwd, snapshot);
+          // Only auto-destroy work when the failure is trustworthy: a deterministic
+          // verify (the built-in typecheck), or an explicit LYNN_CLI_AUTO_ROLLBACK=1.
+          // A flaky custom test command must not trigger a rollback on its own.
+          if (rollbackOn && (rollbackForced || autoVerifyPlan.deterministic) && !rolledBack && autoVerifyReverifies + 1 >= MAX_AUTOVERIFY_REVERIFIES && (gitRestore || snapshot?.available)) {
+            const restore = gitRestore
+              ? restoreGitRestorePoint(gitRestore)
+              : restoreWorkspaceSnapshot(inputData.toolCtx.cwd, snapshot);
             rolledBack = true;
             autoVerifyReverifies = 0;
             if (inputData.json) writeJsonLine({ type: "code.rollback", ts: nowIso(), ok: restore.ok, message: restore.message });
             inputData.onEvent?.({ type: "rollback", ok: restore.ok, message: restore.message });
-            const rollbackMsg = `${feedback}\n↩ Lynn rolled the workspace back to the pre-task snapshot (${restore.message}). The previous edits could not be made to pass — start over with a smaller, different approach.`;
+            const rollbackMsg = `${feedback}\n↩ Lynn rolled the workspace back to the pre-task state (${restore.message}). The previous edits could not be made to pass — start over with a smaller, different approach.`;
             messages.push({ role: "user", content: rollbackMsg });
             if (inputData.onCheckpoint) await inputData.onCheckpoint({ type: "user", content: rollbackMsg });
             continue;
@@ -355,11 +392,11 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
         continue;
       }
       const stormVerdict = observeClientToolRequest(toolStorm, toolRequest);
-      if (toolRequest.tool !== "update_plan") toolCallCount += 1;
+      if (!isMetaTool(toolRequest.tool)) toolCallCount += 1;
       if (inputData.json) writeJsonLine({ type: "code.tool.requested", ts: nowIso(), tool: toolRequest.tool, args: redactToolArgs(toolRequest) });
       const preview = formatDangerousToolPreview(toolRequest.tool, toolRequest.args, supportsColor(inputData.output));
       inputData.onEvent?.({ type: "tool.requested", tool: toolRequest.tool, args: redactToolArgs(toolRequest) as CodeToolRequest["args"], preview });
-      if (!inputData.json && !inputData.onEvent && toolRequest.tool !== "update_plan") renderClientToolStart(toolRequest);
+      if (!inputData.json && !inputData.onEvent && !isMetaTool(toolRequest.tool)) renderClientToolStart(toolRequest);
       let toolResult: ClientToolResult;
       if (stormVerdict.suppress) {
         toolResult = {
@@ -414,10 +451,24 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
               inputData.onEvent?.({ type: "snapshot", ref: snapshot.ref, restoreCommand: snapshot.restoreCommand });
             }
           }
-          toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval }, {
-            name: toolRequest.tool,
-            ...toolRequest.args,
-          });
+          if (toolRequest.tool === "update_working_checkpoint") {
+            // Meta tool: never reaches the file/exec registry. Just update the
+            // pinned scratchpad state and hand back a confirmation observation.
+            workingCheckpoint = applyWorkingCheckpoint(toolRequest.args.content);
+            if (inputData.json) writeJsonLine({ type: "code.checkpoint.updated", ts: nowIso(), chars: workingCheckpoint.length });
+            inputData.onEvent?.({ type: "checkpoint.updated", chars: workingCheckpoint.length });
+            toolResult = { ok: true, tool: toolRequest.tool, output: workingCheckpointObservation(workingCheckpoint) };
+          } else {
+            const effectiveSandbox = toolRequest.tool === "bash"
+              && inputData.toolCtx.approval === "ask"
+              && effectiveApproval === "yolo"
+                ? "danger-full-access"
+                : inputData.toolCtx.sandbox;
+            toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval, sandbox: effectiveSandbox }, {
+              name: toolRequest.tool,
+              ...toolRequest.args,
+            });
+          }
         } catch (error) {
           if (inputData.json && error instanceof ToolApprovalRequiredError) {
             writeJsonLine({
@@ -503,7 +554,7 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
       }
       if (inputData.json) writeJsonLine({ type: "code.tool.result", ts: nowIso(), ...toolResult });
       inputData.onEvent?.({ type: "tool.result", result: toolResult });
-      if (!inputData.json && !inputData.onEvent && toolRequest.tool !== "update_plan") renderClientToolResult(toolResult, process.stderr, toolRequest);
+      if (!inputData.json && !inputData.onEvent && !isMetaTool(toolRequest.tool)) renderClientToolResult(toolResult, process.stderr, toolRequest);
       toolLedgerEntries.push(toolLedgerEntry(toolResult));
       const baseSection = [
         `Tool result for ${toolRequest.tool}:`,
@@ -563,6 +614,7 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
     }
     const compactedMessages = compactRuntimeMessages(messages, undefined, undefined, runtimeAnchorCount);
     if (compactedMessages > 0) {
+      compactionOccurred = true;
       if (inputData.json) writeJsonLine({ type: "code.runtime.compacted", ts: nowIso(), messages: compactedMessages });
       inputData.onEvent?.({ type: "runtime.compacted", messages: compactedMessages });
       if (!inputData.json && !inputData.onEvent) {
@@ -595,6 +647,8 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
     maxStepsReached,
     usageSummary: latestUsageSummary,
     usageRecords,
+    mutated,
+    verifyClean: !autoVerifyPlan.enabled || lastMutationVerifyOk,
   };
 }
 
@@ -682,6 +736,7 @@ async function collectBrainText(inputData: {
   label: string;
   danger?: boolean;
   noTools?: boolean;
+  workingCheckpoint?: boolean;
   onEvent?: (event: CodeAgentEvent) => void;
 }): Promise<BrainTextResult> {
   let text = "";
@@ -698,7 +753,7 @@ async function collectBrainText(inputData: {
       reasoning: inputData.reasoning,
       messages: inputData.messages,
       fallbackProvider: inputData.fallbackProvider,
-      tools: inputData.noTools ? undefined : codeToolDefinitions(),
+      tools: inputData.noTools ? undefined : codeToolDefinitions({ workingCheckpoint: inputData.workingCheckpoint }),
     })) {
       const renderReasoning = shouldRenderReasoning(inputData.reasoning.display, inputData.json);
       if (eventWritesHumanOutput(event, renderReasoning, !!inputData.json || !!inputData.onEvent)) {

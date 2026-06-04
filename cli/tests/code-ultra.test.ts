@@ -346,7 +346,7 @@ describe("runUltraTask", () => {
     expect(result.synthesis).toBe("ran-anyway");
   });
 
-  it("downgrades a refuted sub-task and skips its dependents (adversarial verify)", async () => {
+  it("flags a refuted sub-task as an advisory concern without cascading (adversarial verify)", async () => {
     const verified: Array<{ id: string; pass: boolean }> = [];
     const result = await runUltraTask({
       task: "verify chain",
@@ -358,9 +358,8 @@ describe("runUltraTask", () => {
               { id: "t2", title: "dependent", brief: "build on impl", dependsOn: ["t1"] },
             ])
           : "SYNTH",
-      runSubtask: async (subtask): Promise<UltraWorkerOutput> => ({ ok: true, text: `${subtask.id} done` }),
+      runSubtask: async (subtask): Promise<UltraWorkerOutput> => ({ ok: true, text: `${subtask.id} done`, mutated: true }),
       verifySubtask: async (subtask) => {
-        // t1's work is refuted; t2 would pass but never runs.
         const pass = subtask.id !== "t1";
         verified.push({ id: subtask.id, pass });
         return { pass, reason: pass ? undefined : "incomplete" };
@@ -368,11 +367,32 @@ describe("runUltraTask", () => {
     });
     const t1 = result.results.find((r) => r.id === "t1");
     const t2 = result.results.find((r) => r.id === "t2");
-    expect(t1?.ok).toBe(false); // refuted -> downgraded
-    expect(t1?.error).toContain("refuted");
-    expect(t2?.skipped).toBe(true); // dependent skipped because t1 failed verification
-    expect(verified).toEqual([{ id: "t1", pass: false }]); // t2 never reached the verifier
-    expect(result.ok).toBe(false);
+    expect(t1?.ok).toBe(true); // advisory only — not downgraded
+    expect(t1?.verifyConcern).toContain("incomplete");
+    expect(t2?.skipped).toBeFalsy(); // dependent still runs — no cascade
+    expect(verified).toEqual([{ id: "t1", pass: false }, { id: "t2", pass: true }]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("refutes only sub-tasks that changed files (cost bound)", async () => {
+    const verified: string[] = [];
+    await runUltraTask({
+      task: "mixed",
+      options: { adversarialVerify: true },
+      complete: async (_p, kind) =>
+        kind === "decompose"
+          ? planJson([
+              { id: "t1", title: "writes", brief: "edit a file", dependsOn: [] },
+              { id: "t2", title: "reads", brief: "analyze only", dependsOn: [] },
+            ])
+          : "S",
+      runSubtask: async (subtask): Promise<UltraWorkerOutput> => ({ ok: true, text: subtask.id, mutated: subtask.id === "t1" }),
+      verifySubtask: async (subtask) => {
+        verified.push(subtask.id);
+        return { pass: true };
+      },
+    });
+    expect(verified).toEqual(["t1"]); // t2 changed no files → refuter skipped
   });
 
   it("does not verify when adversarialVerify is off", async () => {

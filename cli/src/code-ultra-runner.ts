@@ -97,6 +97,7 @@ export async function runUltraCodeTask(input: UltraRunnerInput): Promise<UltraRe
       ok: !result.maxStepsReached && Boolean(result.text.trim()),
       text: result.text,
       maxStepsReached: result.maxStepsReached,
+      mutated: result.mutated,
     };
   };
 

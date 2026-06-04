@@ -6,23 +6,17 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { flushSync } from 'react-dom';
 import { useStore } from '../stores';
-import { hanaFetch } from '../hooks/use-hana-fetch';
 import { useI18n } from '../hooks/use-i18n';
-import { ensureSession, showSidebarToast } from '../stores/session-actions';
+import { showSidebarToast } from '../stores/session-actions';
 import { getWebSocket, manualReconnect } from '../services/websocket';
 import { sendPrompt, submitPromptTask } from '../stores/prompt-actions';
-import type { ThinkingLevel } from '../stores/model-slice';
-import { TodoDisplay } from './input/TodoDisplay';
-import { AttachedFilesBar } from './input/AttachedFilesBar';
 import { ComposerTextarea } from './input/ComposerTextarea';
 import { SubmitArea } from './input/SubmitArea';
-import { LocalQwenStatusStack } from './input/LocalQwenStatusStack';
-import { SlashCommandMenu } from './input/SlashCommandMenu';
-import { AtMentionMenu } from './input/AtMentionMenu';
-import { QuotedSelectionCard } from './input/QuotedSelectionCard';
-import { DeepResearchPanel } from './input/DeepResearchPanel';
+import { DeepResearchLauncher } from './input/DeepResearchLauncher';
+import { InputStatusBars } from './input/InputStatusBars';
+import { InputDiscoveryHints } from './input/InputDiscoveryHints';
+import { InputContextOverlays } from './input/InputContextOverlays';
 import { JARVIS_RUNTIME_START_EVENT } from '../services/jarvis-runtime-events';
 import { loadModels } from '../utils/ui-helpers';
 import {
@@ -31,25 +25,20 @@ import {
   type SlashCommand,
 } from './input/slash-commands';
 import {
-  DEEP_RESEARCH_FETCH_TIMEOUT_MS,
-  DEEP_RESEARCH_TIMEOUT_MS,
-  formatDeepResearchAssistantText,
-  normalizeDeepResearchArtifact,
-  normalizeDeepResearchErrorMessage,
-  type DeepResearchArtifact,
-} from './input/deep-research';
-import {
-  buildRunCommandPrompt,
-  deriveRunRisk,
-  runRiskLabel,
-} from './input/run-risk';
+  useDeepResearchRunner,
+} from './input/useDeepResearchRunner';
 import { useLocalQwenStatusController } from './input/useLocalQwenStatusController';
 import {
   formatVisionUnsupportedMessage,
-  isImageLikeFile,
   modelDisplayName,
   modelSupportsVision,
 } from './input/multimodal-guard';
+import { useAttachmentHandlers } from './input/useAttachmentHandlers';
+import { useInputEventBridge } from './input/useInputEventBridge';
+import { usePlaceholderRotation } from './input/usePlaceholderRotation';
+import { useGitContext } from './input/useGitContext';
+import { useConfiguredThinkingLevel } from './input/useConfiguredThinkingLevel';
+import { useTextareaAutoResize } from './input/useTextareaAutoResize';
 import { detectInlineFileSuggestion } from './input/file-context-suggestions';
 import { computeComposerTextUpdate, type ComposerInsertMode } from './input/composer-text';
 import {
@@ -59,10 +48,8 @@ import {
 import {
   prepareComposerTask,
   type ComposerTaskMode,
-  type GitContextSnapshot,
 } from '../utils/prompt-task';
 import { resolveUiI18nText } from '../utils/ui-i18n';
-import type { ContentBlock } from '../stores/chat-types';
 import styles from './input/InputArea.module.css';
 
 export type { SlashCommand };
@@ -164,7 +151,7 @@ function InputAreaInner() {
   const [atQuery, setAtQuery] = useState('');
   const [atSelected, setAtSelected] = useState(0);
   const [atResults, setAtResults] = useState<Array<{ name: string; path: string; rel: string; isDir: boolean }>>([]);
-  const [gitContext, setGitContext] = useState<GitContextSnapshot | null>(null);
+  const gitContext = useGitContext({ deskBasePath, deskCurrentPath, pendingNewSession, selectedFolder });
   const [inputValue, setInputValue] = useState(composerText);
   const [deepResearchOpen, setDeepResearchOpen] = useState(false);
   const [deepResearchBusy, setDeepResearchBusy] = useState(false);
@@ -212,42 +199,10 @@ function InputAreaInner() {
     setInlineError,
     setInlineNotice,
   });
-  const {
-    status: localQwenStatus,
-    visible: localQwenStatusVisible,
-    active: localQwenActive,
-    dismissed: localQwenDismissed,
-    panelOpen: localQwenPanelOpen,
-    statusBarClass: localQwenStatusBarClass,
-    warmupTitle: localQwenWarmupTitle,
-    warmupCopy: localQwenWarmupCopy,
-    endpoint: localQwenEndpoint,
-    endpointOccupied: localQwenEndpointOccupied,
-    running: localQwenRunning,
-    loading: localQwenLoading,
-    current: localQwenCurrent,
-    coldStartLikely: localQwenColdStartLikely,
-    canSwitch: localQwenCanSwitch,
-    canShowStopped: localQwenCanShowStopped,
-    canShowInstallPrompt: localQwenCanShowInstallPrompt,
-    hasModel: localQwenHasModel,
-    hasRuntime: localQwenHasRuntime,
-    tpsSummary: localQwenTpsSummary,
-    metricSummary: localQwenMetricSummary,
-    slotSummary: localQwenSlotSummary,
-    servedModelIds: localQwenServedModelIds,
-    ensureCurrentReady: ensureCurrentLocalQwenReady,
-    switchToLocal: switchToLocalQwen,
-    refresh: refreshLocalQwenStatus,
-    openDashboard: openLocalQwenDashboard,
-    stop: stopLocalQwen,
-    dismiss: dismissLocalQwenStatus,
-    showStatus: showLocalQwenStatus,
-    start: startLocalQwen,
-    openSettings: openLocalQwenSettings,
-    snoozePrompt: snoozeLocalQwenPrompt,
-    setPanelOpen: setLocalQwenPanelOpen,
-  } = localQwen;
+  const localQwenEndpoint = localQwen.endpoint;
+  const localQwenRunning = localQwen.running;
+  const localQwenLoading = localQwen.loading;
+  const ensureCurrentLocalQwenReady = localQwen.ensureCurrentReady;
 
   useEffect(() => {
     if (inputFocusTrigger > 0) textareaRef.current?.focus();
@@ -293,200 +248,25 @@ function InputAreaInner() {
     return sendPrompt({ text, displayText });
   }, [pendingNewSession]);
 
-  const renderAssistantText = useCallback(async (plainText: string): Promise<ContentBlock[]> => {
-    const { renderMarkdown } = await import('../utils/markdown');
-    return [{ type: 'text' as const, html: renderMarkdown(plainText), plainText }];
-  }, []);
-
-  const patchLocalAssistantMessage = useCallback(async (
-    sessionPath: string,
-    messageId: string,
-    plainText: string,
-    artifact?: DeepResearchArtifact | null,
-  ) => {
-    const blocks = await renderAssistantText(plainText);
-    const normalizedArtifact = normalizeDeepResearchArtifact(artifact);
-    const nextBlocks: ContentBlock[] = normalizedArtifact
-      ? [
-        ...blocks,
-        {
-          type: 'artifact',
-          artifactId: normalizedArtifact.artifactId,
-          artifactType: normalizedArtifact.artifactType,
-          title: normalizedArtifact.title,
-          content: normalizedArtifact.content,
-          language: normalizedArtifact.language,
-        },
-      ]
-      : blocks;
-    useStore.setState((state) => {
-      const session = state.chatSessions[sessionPath];
-      if (!session) return {};
-      return {
-        chatSessions: {
-          ...state.chatSessions,
-          [sessionPath]: {
-            ...session,
-            items: session.items.map((item) => {
-              if (item.type !== 'message' || item.data.id !== messageId) return item;
-              return {
-                type: 'message' as const,
-                data: {
-                  ...item.data,
-                  text: plainText,
-                  blocks: nextBlocks,
-                },
-              };
-            }),
-          },
-        },
-      };
-    });
-  }, [renderAssistantText]);
-
-  const handleDeepResearchRun = useCallback(async () => {
-    const latestPromptValue = textareaRef.current?.value ?? useStore.getState().composerText ?? inputValue;
-    if (latestPromptValue !== inputValue) setInputValue(latestPromptValue);
-    if (latestPromptValue !== composerText) setComposerText(latestPromptValue);
-    const prompt = latestPromptValue.trim();
-    setDeepResearchOpen(true);
-    if (!prompt) {
-      useStore.getState().addToast?.('先输入一个调研问题，再点“开始深研”', 'info', 3200, {
-        dedupeKey: 'deep-research-empty',
-      });
-      requestInputFocus();
-      return;
-    }
-    if (deepResearchBusy || isStreaming) return;
-    if (!serverReady) {
-      showSidebarToast(t('chat.serverStarting') || 'Lynn 还在启动中', 4000);
-      return;
-    }
-
-    const selectedProvider = String(activeModelInfo?.provider || '').trim();
-    const selectedModel = String(activeModelInfo?.id || '').trim();
-    const selectedModelLabel = String(activeModelInfo?.name || selectedModel || '当前模型').trim();
-    const useLocalDeepResearch = /^local-qwen35-/u.test(selectedProvider);
-    const useDefaultBrainDeepResearch = selectedProvider === 'brain';
-    flushSync(() => {
-      setDeepResearchBusy(true);
-      setInlineNotice(`深研已启动：正在用 ${selectedModelLabel} 生成答案…`);
-      setInlineError(null);
-    });
-    try {
-      if (pendingNewSession && !useStore.getState().selectedFolder && useStore.getState().homeFolder) {
-        useStore.setState({ selectedFolder: useStore.getState().homeFolder });
-      }
-      if (useStore.getState().pendingNewSession) {
-        const ok = await ensureSession();
-        if (!ok) throw new Error('无法创建新会话');
-      }
-      const sessionPath = useStore.getState().currentSessionPath;
-      if (!sessionPath) throw new Error('当前没有可用会话');
-
-      const renderMarkdown = (await import('../utils/markdown')).renderMarkdown;
-      const now = Date.now();
-      const userId = `deep-user-${now}`;
-      const assistantId = `deep-assistant-${now}`;
-      const thinkingText = `深度调研正在使用 ${selectedModelLabel}。`;
-      const thinkingBlocks = await renderAssistantText(thinkingText);
-      const session = useStore.getState().chatSessions[sessionPath];
-      if (!session) {
-        useStore.getState().initSession(sessionPath, [], false);
-      }
-      flushSync(() => {
-        useStore.getState().appendItem(sessionPath, {
-          type: 'message',
-          data: {
-            id: userId,
-            role: 'user',
-            taskMode: 'prompt',
-            text: prompt,
-            textHtml: renderMarkdown(prompt),
-            requestText: prompt,
-          },
-        });
-        useStore.getState().appendItem(sessionPath, {
-          type: 'message',
-          data: {
-            id: assistantId,
-            role: 'assistant',
-            text: thinkingText,
-            blocks: thinkingBlocks,
-            model: '深度调研',
-            timestamp: now,
-          },
-        });
-        setComposerText('');
-        setInputValue('');
-        setDeepResearchOpen(false);
-        useStore.setState({ welcomeVisible: false });
-      });
-
-      const response = await hanaFetch('/api/deep-research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        timeout: DEEP_RESEARCH_FETCH_TIMEOUT_MS,
-        body: JSON.stringify({
-          prompt,
-          sessionPath,
-          candidates: useLocalDeepResearch
-            ? [selectedProvider]
-            : undefined,
-          provider: selectedProvider || undefined,
-          model: selectedModel || undefined,
-          sourceLabel: useDefaultBrainDeepResearch ? '默认工作模型' : selectedModelLabel,
-          localBaseUrl: useLocalDeepResearch ? localQwenEndpoint : undefined,
-          timeoutMs: DEEP_RESEARCH_TIMEOUT_MS,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data?.error || `深度调研请求失败 (${response.status})`);
-      }
-
-      await patchLocalAssistantMessage(
-        sessionPath,
-        assistantId,
-        formatDeepResearchAssistantText(data),
-        data?.artifact,
-      );
-      setInlineNotice(null);
-    } catch (err) {
-      const message = normalizeDeepResearchErrorMessage(err);
-      const sessionPath = useStore.getState().currentSessionPath;
-      const session = sessionPath ? useStore.getState().chatSessions[sessionPath] : null;
-      const lastAssistant = session?.items.slice().reverse().find(
-        (item) => item.type === 'message' && item.data.role === 'assistant' && item.data.id.startsWith('deep-assistant-'),
-      );
-      if (sessionPath && lastAssistant?.type === 'message') {
-        await patchLocalAssistantMessage(sessionPath, lastAssistant.data.id, `深度调研启动失败：${message}`);
-      } else {
-        useStore.getState().addToast?.(`深度调研启动失败：${message}`, 'error', 5000);
-      }
-      setInlineNotice(null);
-    } finally {
-      setDeepResearchBusy(false);
-    }
-  }, [
+  const handleDeepResearchRun = useDeepResearchRunner({
+    activeModelInfo,
+    composerText,
     deepResearchBusy,
+    inputValue,
     isStreaming,
-    patchLocalAssistantMessage,
+    localQwenEndpoint,
     pendingNewSession,
-    renderAssistantText,
     requestInputFocus,
     serverReady,
-    activeModelInfo?.id,
-    activeModelInfo?.name,
-    activeModelInfo?.provider,
-    composerText,
-    inputValue,
-    localQwenEndpoint,
     setComposerText,
+    setDeepResearchBusy,
+    setDeepResearchOpen,
     setInlineError,
     setInlineNotice,
+    setInputValue,
     t,
-  ]);
+    textareaRef,
+  });
 
   const showSlashResult = useCallback((text: string, type: 'success' | 'error') => {
     setSlashBusy(null);
@@ -710,114 +490,22 @@ function InputAreaInner() {
     });
   }, [requestInputFocus, setComposerText]);
 
-  useEffect(() => {
-    const handlePasteToInput = (event: Event) => {
-      const detail = (event as CustomEvent<{ text?: string; editResend?: boolean }>).detail || {};
-      const current = textareaRef.current?.value ?? useStore.getState().composerText;
-      const editResend = !!detail.editResend;
-      if (editResend && current.trim() && current.trim() !== String(detail.text || '').trim()) {
-        useStore.getState().addToast?.('已用上一条消息替换当前输入。', 'info', 3600, {
-          dedupeKey: 'edit-resend-replaced-draft',
-        });
-      }
-      setComposerTextFromEvent(detail.text || '', {
-        mode: editResend ? 'replace' : 'insert',
-        appendSpacer: !editResend,
-      });
-      if (editResend) {
-        setInlineNotice('已载入上一条消息。修改后按 Enter 重新发送。');
-      }
-    };
-    window.addEventListener('hana-paste-to-input', handlePasteToInput);
-    return () => window.removeEventListener('hana-paste-to-input', handlePasteToInput);
-  }, [setComposerTextFromEvent, setInlineNotice]);
+  useInputEventBridge({
+    deskBasePath,
+    deskCurrentPath,
+    securityMode,
+    selectedFolder,
+    setComposerTextFromEvent,
+    setInlineNotice,
+    setPendingConfirm,
+    t,
+    textareaRef,
+  });
 
-  useEffect(() => {
-    const handleRunCommand = (event: Event) => {
-      const detail = (event as CustomEvent<{ command?: string; language?: string }>).detail || {};
-      const command = String(detail.command || '').trim();
-      if (!command) return;
+  useTextareaAutoResize({ inputValue, isComposing, textareaRef });
 
-      const cwd = deskBasePath
-        ? (deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath)
-        : (selectedFolder || useStore.getState().homeFolder || null);
-      const risk = deriveRunRisk(command);
-      const riskText = runRiskLabel(risk, t);
-      const modeText = securityMode === 'safe'
-        ? (t('security.mode.safe') || '只读')
-        : securityMode === 'plan'
-          ? (t('security.mode.plan') || '规划')
-          : (t('security.mode.authorized') || '执行');
-
-      setPendingConfirm({
-        title: t('markdown.runConfirm.title') || '执行代码块命令',
-        message: (t('markdown.runConfirm.message') || '将把这段命令发给 Lynn 执行。').replace('{mode}', modeText),
-        detail: [
-          `${t('markdown.runConfirm.cwd') || '工作目录'}: ${cwd || (t('markdown.runConfirm.cwdUnknown') || '未指定')}`,
-          `${t('markdown.runConfirm.risk') || '风险级别'}: ${riskText}`,
-          command,
-        ].join('\n'),
-        confirmLabel: t('markdown.runConfirm.confirm') || '继续执行',
-        cancelLabel: t('common.cancel') || '取消',
-        tone: risk === 'high' ? 'danger' : 'default',
-        onConfirm: async () => {
-          const ok = await submitPromptTask({
-            mode: 'prompt',
-            text: command,
-            displayText: command,
-            requestText: buildRunCommandPrompt(command, cwd),
-          });
-          if (!ok) {
-            throw new Error(t('chat.needWsConnection') || '连接未就绪');
-          }
-        },
-      });
-    };
-
-    window.addEventListener('hana-run-command', handleRunCommand);
-    return () => window.removeEventListener('hana-run-command', handleRunCommand);
-  }, [deskBasePath, deskCurrentPath, securityMode, selectedFolder, setPendingConfirm, t]);
-
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    // IME 组合态不要 resize，避免中文输入法候选框飞到左下角。
-    if (isComposing.current) return;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }, [inputValue]);
-
-  const placeholderHints = useMemo(() => {
-    const yuanPh = t(`yuan.placeholder.${agentYuan}`);
-    const base = (yuanPh && !yuanPh.startsWith('yuan.')) ? yuanPh : t('input.placeholder');
-    const h = (key: string, fallback: string) => {
-      const v = t(key);
-      return (v && v !== key && !v.startsWith('input.hint')) ? v : fallback;
-    };
-    return [
-      base,
-      h('input.hintAnalyzeExcel', '帮我分析桌面上的 Excel...'),
-      h('input.hintGoal', '输入 /goal 设定一个不达成不停的目标'),
-      h('input.hintSlash', '输入 / 查看快捷命令'),
-      h('input.hintScanStock', '扫描一下今天 A 股有什么异动...'),
-      h('input.hintDrag', '拖拽文件到此处附加上下文'),
-      h('input.hintOrganize', '把这个文件夹里的文档整理一下...'),
-      h('input.hintAt', '输入 @ 引用文件或文件夹'),
-      h('input.hintDesk', 'Cmd+J 打开任务清单'),
-    ];
-  }, [agentYuan, t]);
-
-  const [phIndex, setPhIndex] = useState(0);
   const [textareaFocused, setTextareaFocused] = useState(false);
-  useEffect(() => {
-    // [2026-04-26 IME-FIX] textarea focused 时暂停 placeholder 轮播 ——
-    // macOS 中文 IME 期间 placeholder 属性 DOM 变更会让候选窗 detach 飞到屏幕左下角
-    if (inputValue.trim() || textareaFocused) return;
-    const timer = setInterval(() => setPhIndex(i => (i + 1) % placeholderHints.length), 6000);
-    return () => clearInterval(timer);
-  }, [inputValue, textareaFocused, placeholderHints.length]);
-
-  const placeholder = placeholderHints[phIndex] || placeholderHints[0];
+  const placeholder = usePlaceholderRotation({ agentYuan, inputValue, t, textareaFocused });
 
   const inlineFileSuggestion = useMemo(() => {
     if (atInlineHintSeen >= 3) return null;
@@ -865,112 +553,15 @@ function InputAreaInner() {
     });
   }, [inlineFileSuggestion, inputValue, markAtDiscoverySeen, markAtInlineHintSeen, requestInputFocus, setComposerText]);
 
-  const handleFileInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    let warnedVisionUnsupported = false;
-    for (const file of Array.from(files)) {
-      if (useStore.getState().attachedFiles.length >= 9) break;
-      if (!supportsVision && isImageLikeFile(file)) {
-        if (!warnedVisionUnsupported) {
-          warnVisionUnsupported();
-          warnedVisionUnsupported = true;
-        }
-        continue;
-      }
-      const filePath = await window.platform?.getFilePath?.(file);
-      if (filePath) {
-        addAttachedFile({ path: filePath, name: file.name });
-      } else if (isImageLikeFile(file)) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
-          if (!match) return;
-          const [, mimeType, base64Data] = match;
-          addAttachedFile({
-            path: `local-${Date.now()}-${file.name}`,
-            name: file.name,
-            base64Data,
-            mimeType,
-          });
-        };
-        reader.readAsDataURL(file);
-      } else {
-        addAttachedFile({ path: file.name, name: file.name });
-      }
-    }
-    e.target.value = '';
-  }, [addAttachedFile, supportsVision, warnVisionUnsupported]);
+  const { handleFileInputChange, handlePaste } = useAttachmentHandlers({
+    addAttachedFile,
+    setComposerTextFromEvent,
+    supportsVision,
+    t,
+    warnVisionUnsupported,
+  });
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    const text = e.clipboardData?.getData('text/plain') || '';
-    const imageItem = items ? Array.from(items).find(item => item.type.startsWith('image/')) : null;
-
-    if (text) {
-      e.preventDefault();
-      setComposerTextFromEvent(text);
-      return;
-    }
-
-    if (!imageItem) return;
-    if (!supportsVision) {
-      e.preventDefault();
-      warnVisionUnsupported();
-      return;
-    }
-    e.preventDefault();
-    const file = imageItem.getAsFile();
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
-      if (!match) return;
-      const [, mimeType, base64Data] = match;
-      const ext = mimeType.split('/')[1] || 'png';
-      addAttachedFile({
-        path: `clipboard-${Date.now()}.${ext}`,
-        name: `${t('input.pastedImage')}.${ext}`,
-        base64Data,
-        mimeType,
-      });
-    };
-    reader.readAsDataURL(file);
-  }, [addAttachedFile, setComposerTextFromEvent, t, supportsVision, warnVisionUnsupported]);
-
-  useEffect(() => {
-    hanaFetch('/api/config')
-      .then(r => r.json())
-      .then(d => { if (d.thinking_level) setThinkingLevel(d.thinking_level as ThinkingLevel); })
-      .catch((err: unknown) => console.warn('[InputArea] load config failed', err));
-  }, [setThinkingLevel]);
-
-  useEffect(() => {
-    const dir = deskBasePath
-      ? (deskCurrentPath ? `${deskBasePath}/${deskCurrentPath}` : deskBasePath)
-      : (pendingNewSession ? selectedFolder : null);
-    if (!dir) {
-      setGitContext(null);
-      return;
-    }
-
-    let cancelled = false;
-    const params = new URLSearchParams({ dir });
-    hanaFetch(`/api/desk/git-context?${params.toString()}`)
-      .then(r => r.json())
-      .then((data) => {
-        if (!cancelled) setGitContext(data?.available ? data : null);
-      })
-      .catch(() => {
-        if (!cancelled) setGitContext(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [deskBasePath, deskCurrentPath, pendingNewSession, selectedFolder]);
+  useConfiguredThinkingLevel(setThinkingLevel);
 
   const canSteer = isStreaming && inputValue.trim().length > 0;
 
@@ -1154,180 +745,66 @@ function InputAreaInner() {
 
   return (
     <>
-      {slashBusy && (
-        <div className={styles['slash-busy-bar']}>
-          <span className={styles['slash-busy-dot']} />
-          <span>{slashCommands.find(c => c.name === slashBusy)?.busyLabel || t('common.executing')}</span>
-        </div>
-      )}
-      {compacting && (
-        <div className={`${styles['slash-busy-bar']} ${styles['slash-busy-bar-soft']}`}>
-          <span className={styles['slash-busy-dot']} />
-          <span>{t('chat.compacting')}，输入会保留；完成后可继续发送</span>
-        </div>
-      )}
-      {recoveryMessage && (
-        <div className={styles['connection-recovery-bar']}>
-          <span>{recoveryMessage}</span>
-          <div className={styles['recovery-actions']}>
-            {recoverableDraft && (
-              <button className={styles['recovery-action']} onClick={handleRestoreLastDraft}>
-                {t('input.restoreDraft') || '恢复草稿'}
-              </button>
-            )}
-            {wsState !== 'connected' && (
-              <button className={styles['recovery-action']} onClick={() => manualReconnect()}>
-                {t('status.reconnect')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      {!recoveryMessage && taskRecoveryMessage && (
-        <div className={styles['connection-recovery-bar']}>
-          <span>{taskRecoveryMessage}</span>
-          <div className={styles['recovery-actions']}>
-            <button className={styles['recovery-action']} onClick={() => setActivePanel('activity')}>
-              {t('activity.openRecoveredTasks')}
-            </button>
-          </div>
-        </div>
-      )}
-      {translatedInlineNotice && !recoveryMessage && !taskRecoveryMessage && (
-        <div className={styles['slash-notice-bar']}>
-          <span className={styles['slash-notice-dot']} />
-          <span>{translatedInlineNotice}</span>
-        </div>
-      )}
-      {inlineError && !recoverableDraft && (
-        <div className={styles['slash-error-bar']}>
-          <span className={styles['slash-error-dot']} />
-          <span>{inlineError}</span>
-        </div>
-      )}
-      {!slashBusy && !compacting && !inlineError && !inlineNotice && slashResult && (
-        <div className={styles['slash-busy-bar']}><span>{slashResult.text}</span></div>
-      )}
-      <LocalQwenStatusStack
-        status={localQwenStatus}
-        visible={localQwenStatusVisible}
-        active={localQwenActive}
-        dismissed={localQwenDismissed}
-        panelOpen={localQwenPanelOpen}
-        statusBarClass={localQwenStatusBarClass}
-        warmupTitle={localQwenWarmupTitle}
-        warmupCopy={localQwenWarmupCopy}
-        endpoint={localQwenEndpoint}
-        endpointOccupied={localQwenEndpointOccupied}
-        running={localQwenRunning}
-        loading={localQwenLoading}
-        current={localQwenCurrent}
-        coldStartLikely={localQwenColdStartLikely}
-        canSwitch={localQwenCanSwitch}
-        canShowStopped={localQwenCanShowStopped}
-        canShowInstallPrompt={localQwenCanShowInstallPrompt}
-        hasModel={localQwenHasModel}
-        hasRuntime={localQwenHasRuntime}
-        tpsSummary={localQwenTpsSummary}
-        metricSummary={localQwenMetricSummary}
-        slotSummary={localQwenSlotSummary}
-        servedModelIds={localQwenServedModelIds}
-        onSwitch={switchToLocalQwen}
-        onRefresh={() => refreshLocalQwenStatus(true)}
-        onOpenDashboard={openLocalQwenDashboard}
-        onStop={stopLocalQwen}
-        onDismiss={dismissLocalQwenStatus}
-        onRestore={showLocalQwenStatus}
-        onStart={startLocalQwen}
-        onOpenSettings={openLocalQwenSettings}
-        onSnooze={snoozeLocalQwenPrompt}
-        onSetPanelOpen={setLocalQwenPanelOpen}
+      <InputStatusBars
+        compacting={compacting}
+        inlineError={inlineError}
+        inlineNotice={inlineNotice}
+        localQwen={localQwen}
+        onOpenActivity={() => setActivePanel('activity')}
+        onReconnect={() => manualReconnect()}
+        onRestoreLastDraft={handleRestoreLastDraft}
+        recoverableDraft={recoverableDraft}
+        recoveryMessage={recoveryMessage}
+        slashBusy={slashBusy}
+        slashCommands={slashCommands}
+        slashResult={slashResult}
+        t={t}
+        taskRecoveryMessage={taskRecoveryMessage}
+        translatedInlineNotice={translatedInlineNotice}
+        wsState={wsState}
       />
-      {(quotedSelection || sessionTodos.length > 0) && (
-        <div className={styles['input-context-row']}>
-          <div className={styles['input-context-left']}>
-            <QuotedSelectionCard />
-          </div>
-          <TodoDisplay todos={sessionTodos} />
-        </div>
-      )}
-      {slashMenuOpen && filteredCommands.length > 0 && (
-        <SlashCommandMenu commands={filteredCommands} selected={slashSelected} busy={slashBusy}
-          onSelect={(cmd) => cmd.execute()} onHover={(i) => setSlashSelected(i)} />
-      )}
-      {atMenuOpen && (
-        <AtMentionMenu
-          query={atQuery}
-          selected={atSelected}
-          onSelect={handleAtSelect}
-          onHover={(i) => setAtSelected(i)}
-          onResultsChange={setAtResults}
-        />
-      )}
-      {attachedFiles.length > 0 && (
-        <AttachedFilesBar files={attachedFiles} onRemove={removeAttachedFile} />
-      )}
-      {showAtDiscovery && !inputValue.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !inlineNotice && !slashBusy && !compacting && (
-        <div className={styles['at-discovery-row']}>
-          <button type="button" className={styles['at-discovery-pill']} onClick={handleTryAtInjection}>
-            <span className={styles['at-discovery-badge']}>@</span>
-            <span className={styles['at-discovery-copy']}>
-              <strong>{t('input.atDiscovery.title') || '试试 @ 引用文件或文件夹'}</strong>
-              <span>{t('input.atDiscovery.subtitle') || '例如：@App.tsx 帮我看这段路由'}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className={styles['at-discovery-dismiss']}
-            onClick={markAtDiscoverySeen}
-            aria-label={t('common.close') || '关闭'}
-            title={t('common.close') || '关闭'}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {inlineFileSuggestion && (
-        <div className={styles['at-inline-hint']}>
-          <button type="button" className={styles['at-inline-hint-main']} onClick={handleUseInlineAtHint}>
-            <span>{t('input.atDiscovery.inlineHint', { name: inlineFileSuggestion }) || `💡 输入 @${inlineFileSuggestion} 可以直接让 Lynn 看这个文件`}</span>
-            <span className={styles['at-inline-hint-action']}>{t('input.atDiscovery.inlineAction') || '改成 @ 引用'}</span>
-          </button>
-          <button
-            type="button"
-            className={styles['at-inline-hint-dismiss']}
-            onClick={markAtInlineHintSeen}
-            aria-label={t('common.close') || '关闭'}
-            title={t('common.close') || '关闭'}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {deepResearchOpen && !recoveryMessage && !taskRecoveryMessage && !inlineError && (
-        <DeepResearchPanel
-          busy={deepResearchBusy}
-          isStreaming={isStreaming}
-          onClose={() => setDeepResearchOpen(false)}
-          onFillTemplate={() => {
-            const next = '为我做一份深度调研：';
-            if (readLatestInputValue().trim()) {
-              useStore.getState().addToast?.('输入框已有内容，未覆盖模板；可以直接开始深研。', 'info', 3000, {
-                dedupeKey: 'deep-research-template-kept',
-              });
-              requestInputFocus();
-              return;
-            }
-            setInputValue(next);
-            setComposerText(next);
-            useStore.getState().addToast?.('已填入深度调研模板。', 'success', 2200, {
-              dedupeKey: 'deep-research-template-filled',
-            });
-            requestInputFocus();
-          }}
-          onStart={handleDeepResearchRun}
-        />
-      )}
+      <InputContextOverlays
+        attachedFiles={attachedFiles}
+        atMenuOpen={atMenuOpen}
+        atQuery={atQuery}
+        atResults={atResults}
+        atSelected={atSelected}
+        filteredCommands={filteredCommands}
+        onAtHover={setAtSelected}
+        onAtResultsChange={setAtResults}
+        onAtSelect={handleAtSelect}
+        onAttachmentRemove={removeAttachedFile}
+        onSlashHover={setSlashSelected}
+        onSlashSelect={(cmd) => cmd.execute()}
+        quotedSelection={quotedSelection}
+        sessionTodos={sessionTodos}
+        slashBusy={slashBusy}
+        slashMenuOpen={slashMenuOpen}
+        slashSelected={slashSelected}
+      />
+      <InputDiscoveryHints
+        inlineFileSuggestion={inlineFileSuggestion}
+        onDismissAtDiscovery={markAtDiscoverySeen}
+        onDismissInlineHint={markAtInlineHintSeen}
+        onTryAtInjection={handleTryAtInjection}
+        onUseInlineAtHint={handleUseInlineAtHint}
+        showAtDiscovery={showAtDiscovery && !inputValue.trim() && attachedFiles.length === 0 && !quotedSelection && !recoveryMessage && !taskRecoveryMessage && !inlineError && !inlineNotice && !slashBusy && !compacting}
+        t={t}
+      />
+      <DeepResearchLauncher
+        busy={deepResearchBusy}
+        inlineError={inlineError}
+        isStreaming={isStreaming}
+        onClose={() => setDeepResearchOpen(false)}
+        onStart={handleDeepResearchRun}
+        readLatestInputValue={readLatestInputValue}
+        recoveryMessage={recoveryMessage}
+        requestInputFocus={requestInputFocus}
+        setComposerText={setComposerText}
+        setInputValue={setInputValue}
+        taskRecoveryMessage={taskRecoveryMessage}
+        visible={deepResearchOpen}
+      />
       <div className={`${styles['input-wrapper']} ${styles[`input-wrapper-${securityMode}`] || ''}`}>
         <ComposerTextarea
           textareaRef={textareaRef}

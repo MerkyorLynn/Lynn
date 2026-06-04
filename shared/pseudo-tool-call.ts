@@ -326,3 +326,37 @@ export function countPseudoToolMarkers(raw: unknown): number {
 export function stripPseudoToolCallMarkup(raw: unknown): string {
   return String(raw || "");
 }
+
+// ── Observe-only corpus scan ──
+// IMPORTANT: this is read-only telemetry. It runs the PSEUDO_PATTERNS registry purely to
+// LABEL text (which malformed-tool-call shapes appear + how many), and NEVER alters or
+// suppresses output. It is intentionally separate from the suppression API above
+// (containsPseudoToolSimulation / stripPseudoToolCallMarkup), which v0.79.3 deliberately
+// turned into pass-throughs to avoid false-positive suppression of legit model text.
+// A false positive here is harmless (filtered at corpus-curation time); it must never be
+// wired into control flow (turn invalidation / stripping).
+
+export type PseudoToolMarkerScan = {
+  total: number;
+  patterns: Array<{ name: string; count: number }>;
+};
+
+export function scanPseudoToolMarkers(raw: unknown): PseudoToolMarkerScan {
+  const text = String(raw || "");
+  if (!text) return { total: 0, patterns: [] };
+  const patterns: Array<{ name: string; count: number }> = [];
+  let total = 0;
+  for (const p of PSEUDO_PATTERNS) {
+    let count = 0;
+    try {
+      count = p.count(text);
+    } catch {
+      count = 0;
+    }
+    if (count > 0) {
+      patterns.push({ name: p.name, count });
+      total += count;
+    }
+  }
+  return { total, patterns };
+}

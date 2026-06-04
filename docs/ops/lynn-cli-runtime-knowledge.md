@@ -64,12 +64,12 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 

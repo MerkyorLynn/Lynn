@@ -52,7 +52,7 @@ Lynn worker run --brief task.md --worktree /path/to/worktree \
   --sandbox workspace-write
 ```
 
-Rules for agents:use `--json` or `--jsonl`,always pass `--cwd` or `--worktree`,and use `--approval yolo --sandbox workspace-write` only inside an isolated git worktree.
+Rules for agents:use `--json` or `--jsonl`,always pass `--cwd` or `--worktree`,and use `--approval yolo --sandbox danger-full-access` only inside an isolated git worktree.
 
 ## 回归门禁
 

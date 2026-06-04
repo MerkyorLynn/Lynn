@@ -24,6 +24,8 @@ env.update({
   "LYNN_CLI_UPDATE_CHECK": "0",
   "LYNN_LANG": "zh",
 })
+if os.environ.get("LYNN_CLI_PTY_FULL_TUI") == "1":
+  env["LYNN_CLI_APPLE_TERMINAL_FULL_TUI"] = "1"
 
 pid, fd = pty.fork()
 if pid == 0:

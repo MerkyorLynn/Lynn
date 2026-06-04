@@ -24,7 +24,7 @@ The static page and binary downloads do not live in the same directory.
 2. Upload the exact tarball to the nginx alias directory:
 
    ```bash
-   VERSION=0.80.6
+   VERSION=<cli-version>
    scp /tmp/lynn-cli-pack/lynn-cli-${VERSION}.tgz tencent:/tmp/
    ssh tencent "sudo install -m 0644 /tmp/lynn-cli-${VERSION}.tgz /opt/lobster-brain/public/downloads/cli/lynn-cli-${VERSION}.tgz"
    ```
@@ -32,7 +32,7 @@ The static page and binary downloads do not live in the same directory.
 3. Verify the public URL, not just the server file:
 
    ```bash
-   VERSION=0.80.6
+   VERSION=<cli-version>
    curl -fsSIL https://download.merkyorlynn.com/downloads/cli/lynn-cli-${VERSION}.tgz
    curl -fsSL https://download.merkyorlynn.com/downloads/cli/lynn-cli-${VERSION}.tgz -o /tmp/lynn-cli.remote.tgz
    shasum -a 256 /tmp/lynn-cli.remote.tgz
@@ -41,7 +41,7 @@ The static page and binary downloads do not live in the same directory.
 4. Run the remote install smoke:
 
    ```bash
-   VERSION=0.80.6
+   VERSION=<cli-version>
    LYNN_CLI_TARBALL_URL=https://download.merkyorlynn.com/downloads/cli/lynn-cli-${VERSION}.tgz npm run test:cli-install:remote
    ```
 

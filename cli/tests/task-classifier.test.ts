@@ -14,7 +14,7 @@ describe("task classifier", () => {
     expect(routed.flags).toMatchObject({
       long: true,
       "save-session": true,
-      "max-steps": "1000",
+      "max-steps": "300",
     });
   });
 
@@ -31,7 +31,7 @@ describe("task classifier", () => {
     const args = parseArgs(["今晚连续工作直到完成 CLI"]);
     const route = classifyTaskRoute(args);
     expect(route.kind).toBe("goal");
-    expect(codeArgsForRoute(args, route).flags["max-steps"]).toBe("1000");
+    expect(codeArgsForRoute(args, route).flags["max-steps"]).toBe("300");
   });
 
   it("routes image paths and image flags to vision", () => {
