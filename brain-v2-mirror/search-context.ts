@@ -11,9 +11,10 @@ import { webSearch } from './tool-exec/web_search.js';
 import type { ChatMessage, LogFn, Provider } from './types.js';
 
 const PRE_SEARCH_FLAG = 'BRAIN_V2_PRE_SEARCH';
-// Primary always-on search source key gate. Optional racers (Bocha/Tavily/Serper)
-// have their own keys; Zhipu is the baseline so we gate the broker on it.
-const SEARCH_KEY_ENV = 'ZHIPU_KEY';
+// Run the broker when at least one summary-capable search source is configured.
+// MiMo (paid platform web_search) and Zhipu both carry an LLM-synthesized summary;
+// the optional racers (Bocha/Tavily/Serper) ride along when their own keys are set.
+const SEARCH_KEY_ENVS = ['MIMO_SEARCH_KEY', 'ZHIPU_KEY'];
 const MAX_QUERY_CHARS = 200;
 const MAX_CONTEXT_CHARS = 6_000;
 
@@ -211,8 +212,8 @@ export async function applySearchContext({
     return { messages, meta: { applied: false, skipReason: classification.reason } };
   }
 
-  if (!process.env[SEARCH_KEY_ENV]) {
-    log?.('warn', 'search-context: ZHIPU_KEY missing, skip');
+  if (!SEARCH_KEY_ENVS.some((k) => process.env[k])) {
+    log?.('warn', 'search-context: no search source key (MIMO_SEARCH_KEY/ZHIPU_KEY), skip');
     return { messages, meta: { applied: false, skipReason: 'no-search-key' } };
   }
 

@@ -109,6 +109,27 @@ describe('web_search aggregator', () => {
     expect(r).toContain('── bocha ──');
     delete process.env.BOCHA_KEY;
   });
+
+  it('includes MiMo (platform web_search) with api-key header + web_search tool when MIMO_SEARCH_KEY is set', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.cache.clear();
+    const seen = {};
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      if (String(url).includes('xiaomimimo')) {
+        const body = JSON.parse(opts.body);
+        seen.apiKey = opts.headers['api-key'];
+        seen.tool = body.tools?.[0]?.type;
+        return Promise.resolve(jsonResp({ choices: [{ message: { content: 'MiMo 摘要', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm-snip' }] } }] }));
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+    });
+    const r = await webSearch('实时新闻');
+    expect(seen.apiKey).toBe('test-mimo');   // api-key header per MiMo platform docs
+    expect(seen.tool).toBe('web_search');    // web_search tool enabled
+    expect(r).toContain('── mimo ──');
+    expect(r).toContain('http://m');
+    delete process.env.MIMO_SEARCH_KEY;
+  });
 });
 
 describe('webSearchStructured (Lynn brain proxy backend)', () => {
@@ -190,5 +211,24 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     const b = await webSearchStructured('cache-key-q');
     expect(a).toBe(b);
     expect(calls).toBe(1);  // zhipu only, on first call
+  });
+
+  it('prefers MiMo (paid platform search) as the primary provider over Zhipu', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.structuredCache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('xiaomimimo')) {
+        return Promise.resolve(jsonResp({ choices: [{ message: { content: 'MiMo 综合答案', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm-snip' }] } }] }));
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu 答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+    });
+    const r = await webSearchStructured('结构化 mimo');
+    expect(r.ok).toBe(true);
+    expect(r.provider).toBe('mimo');          // MiMo preferred over Zhipu for the summary
+    expect(r.summary).toMatch(/综合答案/);
+    const urls = r.items.map((it) => it.url);
+    expect(urls).toContain('http://m');
+    expect(urls).toContain('http://z');       // merged across sources
+    delete process.env.MIMO_SEARCH_KEY;
   });
 });

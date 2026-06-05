@@ -203,7 +203,54 @@ async function searchSerperStructured(query, signal) {
   return { items };
 }
 
+// ── MiMo (platform web_search · api.xiaomimimo.com) ─────────────
+// Xiaomi MiMo's paid web_search tool. This is the platform SEARCH API — separate
+// from the (removed, expired) MiMo Token Plan LLM. Auth via the `api-key` header
+// per the MiMo platform docs; results arrive as message.annotations url_citations.
+// Used as the preferred high-quality pre-search source for StepFun.
+async function searchMimoStructured(query, signal) {
+  const key = envOr('MIMO_SEARCH_KEY');
+  if (!key) throw new Error('MIMO_SEARCH_KEY missing');
+  const base = envOr('MIMO_SEARCH_BASE', 'https://api.xiaomimimo.com/v1');
+  const model = envOr('MIMO_SEARCH_MODEL', 'mimo-v2-flash');
+  const resp = await fetch(base + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api-key': key, Authorization: 'Bearer ' + key },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: query }],
+      tools: [{ type: 'web_search', max_keyword: 3, force_search: true }],
+      max_completion_tokens: 2000,
+      thinking: { type: 'disabled' },
+      stream: false,
+    }),
+    signal,
+  });
+  if (!resp.ok) throw new Error('mimo HTTP ' + resp.status);
+  const data = await resp.json();
+  const msg = data.choices?.[0]?.message;
+  if (!msg) throw new Error('mimo empty msg');
+  const items = [];
+  for (const ann of (msg.annotations || [])) {
+    if (ann.type === 'url_citation' && ann.url) {
+      items.push({ title: String(ann.title || ''), url: String(ann.url), snippet: String(ann.summary || '').slice(0, 240) });
+    }
+  }
+  const summary = String(msg.content || '').trim() || undefined;
+  if (!items.length && !summary) throw new Error('mimo empty result');
+  return { items, summary };
+}
+
+async function searchMimo(query, signal) {
+  const { items, summary } = await searchMimoStructured(query, signal);
+  const info = items.map((it, i) => (i + 1) + '. ' + it.title + NL + '   ' + it.url + NL + '   ' + it.snippet).join(NL);
+  const out = (info || '') + (summary ? (info ? NL : '') + '摘要: ' + summary : '');
+  if (!out.trim()) throw new Error('mimo empty result');
+  return out.trim();
+}
+
 const STRUCTURED_RACERS = [
+  { source: 'mimo',   fn: (q, s) => searchMimoStructured(q, s), optional: true, envKey: 'MIMO_SEARCH_KEY' },
   { source: 'zhipu',  fn: (q, s) => searchZhipuStructured(q, s) },
   { source: 'bocha',  fn: (q, s) => searchBochaStructured(q, s),  optional: true, envKey: 'BOCHA_KEY' },
   { source: 'tavily', fn: (q, s) => searchTavilyStructured(q, s), optional: true, envKey: 'TAVILY_KEY' },
@@ -256,8 +303,9 @@ export async function webSearchStructured(query, { log } = {}) {
     return { ok: false, error: 'all search sources failed', sources };
   }
 
-  // Prefer Zhipu because it carries the LLM-synthesized summary.
-  const llmWinner = sources.find((s) => s.ok && s.summary && s.name === 'zhipu');
+  // Prefer MiMo (paid platform search), then Zhipu — both carry an LLM-synthesized summary.
+  const llmWinner = sources.find((s) => s.ok && s.summary && s.name === 'mimo')
+    || sources.find((s) => s.ok && s.summary && s.name === 'zhipu');
   const primary = llmWinner || sources.find((s) => s.ok);
 
   // Merge items across all successful sources, de-dup by URL.
@@ -288,6 +336,7 @@ export async function webSearchStructured(query, { log } = {}) {
 // ── public webSearch ───────────────────────────────────────────
 
 const RACERS = [
+  { source: 'mimo',   fn: (q, s) => searchMimo(q, s), optional: true, envKey: 'MIMO_SEARCH_KEY' },
   { source: 'zhipu',  fn: (q, s) => searchZhipu(q, s) },
   { source: 'bocha',  fn: (q, s) => searchBocha(q, s),  optional: true, envKey: 'BOCHA_KEY' },
   { source: 'tavily', fn: (q, s) => searchTavily(q, s), optional: true, envKey: 'TAVILY_KEY' },
@@ -324,7 +373,7 @@ export async function webSearch(query, { log } = {}) {
 }
 
 export const __testing__ = {
-  searchZhipu, searchBocha, searchTavily, searchSerper, cache,
+  searchZhipu, searchBocha, searchTavily, searchSerper, searchMimo, cache,
   searchZhipuStructured, searchBochaStructured,
-  searchTavilyStructured, searchSerperStructured, structuredCache,
+  searchTavilyStructured, searchSerperStructured, searchMimoStructured, structuredCache,
 };
