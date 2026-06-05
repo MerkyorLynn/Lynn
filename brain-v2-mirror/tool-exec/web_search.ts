@@ -9,12 +9,13 @@
 //      (for the /v1/web-search HTTP endpoint used by Lynn desktop's client-side
 //       web_search tool — keeps Zhipu API keys server-side, client only
 //       sees the structured result back through localhost.)
-import { makeLruCache, aggregateAllSettled, withTimeout } from './_helpers.js';
+import { makeLruCache } from './_helpers.js';
 
 const cache = makeLruCache(200, 5 * 60 * 1000);
 const structuredCache = makeLruCache(200, 5 * 60 * 1000);
 const BUDGET_MS = 14_000;
-const MIMO_PREFERRED_TIMEOUT_MS = Number(process.env.MIMO_SEARCH_TIMEOUT_MS || 10_000);
+const PRIMARY_SEARCH_BUDGET_MS = Number(process.env.WEB_SEARCH_PRIMARY_BUDGET_MS || 8_000);
+const SEARCH_SETTLE_WINDOW_MS = Number(process.env.WEB_SEARCH_SETTLE_WINDOW_MS || 50);
 const NL = String.fromCharCode(10);
 
 function envOr(name, fallback = '') { return process.env[name] || fallback; }
@@ -250,40 +251,84 @@ async function searchMimo(query, signal) {
   return out.trim();
 }
 
-async function runPreferredMimoStructured(query, { log } = {}) {
-  const ctrl = new AbortController();
-  try {
-    const value = await withTimeout(
-      searchMimoStructured(query, ctrl.signal),
-      MIMO_PREFERRED_TIMEOUT_MS,
-      'mimo',
-    );
-    return { source: 'mimo', ok: true, value };
-  } catch (error) {
-    const message = error?.message || String(error);
-    log && log('warn', 'tool-exec/web_search_structured mimo preferred failed: ' + message);
-    return { source: 'mimo', ok: false, error: message };
-  } finally {
-    ctrl.abort();
-  }
+function usefulItems(items) {
+  return (Array.isArray(items) ? items : []).filter((item) => String(item?.url || '').trim());
 }
 
-async function runPreferredMimoText(query, { log } = {}) {
-  const ctrl = new AbortController();
-  try {
-    const value = await withTimeout(
-      searchMimo(query, ctrl.signal),
-      MIMO_PREFERRED_TIMEOUT_MS,
-      'mimo',
-    );
-    return { source: 'mimo', ok: true, value };
-  } catch (error) {
-    const message = error?.message || String(error);
-    log && log('warn', 'tool-exec/web_search mimo preferred failed: ' + message);
-    return { source: 'mimo', ok: false, error: message };
-  } finally {
-    ctrl.abort();
-  }
+function isUsableStructuredResult(value) {
+  const items = usefulItems(value?.items);
+  const summary = String(value?.summary || '').trim();
+  return (items.length >= 1 && summary.length > 0) || items.length >= 2;
+}
+
+function requireUsableStructured(source, value) {
+  if (!isUsableStructuredResult(value)) throw new Error(source + ' unusable result');
+  return value;
+}
+
+function requireUsableText(source, value) {
+  const text = String(value || '').trim();
+  if (!text) throw new Error(source + ' empty result');
+  return text;
+}
+
+async function raceUsableSources(racers, budgetMs, { settleWindowMs = SEARCH_SETTLE_WINDOW_MS } = {}) {
+  const list = Array.isArray(racers) ? racers : [];
+  if (!list.length) return [];
+  return new Promise((resolve) => {
+    let done = false;
+    let pending = list.length;
+    let success = 0;
+    let settleTimer = null;
+    const entries = [];
+    const pendingSources = new Set(list.map((r) => r.source));
+
+    function finish(reason) {
+      if (done) return;
+      done = true;
+      clearTimeout(budgetTimer);
+      clearTimeout(settleTimer);
+      for (const source of pendingSources) {
+        entries.push({
+          source,
+          ok: false,
+          error: reason === 'timeout'
+            ? source + ' timeout ' + budgetMs + 'ms'
+            : source + ' aborted after faster usable source answered',
+        });
+      }
+      resolve(entries);
+    }
+
+    function scheduleFinish() {
+      if (done || settleTimer) return;
+      if (settleWindowMs <= 0) {
+        finish('settled');
+        return;
+      }
+      settleTimer = setTimeout(() => finish('settled'), settleWindowMs);
+    }
+
+    const budgetTimer = setTimeout(() => finish('timeout'), budgetMs);
+
+    list.forEach(({ source, fn }) => {
+      Promise.resolve()
+        .then(() => fn())
+        .then(
+          (value) => ({ source, ok: true, value }),
+          (error) => ({ source, ok: false, error: error?.message || String(error) }),
+        )
+        .then((entry) => {
+          if (done) return;
+          pendingSources.delete(source);
+          entries.push(entry);
+          pending--;
+          if (entry.ok) success++;
+          if (pending === 0) finish('all');
+          else if (success > 0) scheduleFinish();
+        });
+    });
+  });
 }
 
 const STRUCTURED_RACERS = [
@@ -302,8 +347,8 @@ const STRUCTURED_RACERS = [
  *   ok=false → { ok, error, sources[] }
  *
  * `provider` is the source whose items + summary populate the top-level fields
- * (MiMo paid platform search is preferred when configured; Zhipu and others are
- * fallbacks when MiMo is absent, fails, or times out).
+ * (MiMo paid platform search and Zhipu race first; whichever returns a usable
+ * result first wins. Other engines are slower/lower-context fallbacks.)
  * `items` is the union of all successful sources, de-duped by URL.
  * `sources` records every racer's outcome (ok + items + per-source summary),
  * so the UI can render a collapsible "View sources (N)" list and the model
@@ -318,62 +363,52 @@ export async function webSearchStructured(query, { log } = {}) {
     return cached;
   }
 
-  const preferredMimo = envOr('MIMO_SEARCH_KEY') ? await runPreferredMimoStructured(q, { log }) : null;
-  if (preferredMimo?.ok) {
-    const value = preferredMimo.value || {};
-    const result = {
-      ok: true,
-      provider: 'mimo',
-      items: Array.isArray(value.items) ? value.items : [],
-      summary: value.summary,
-      sources: [{
-        name: 'mimo',
-        ok: true,
-        items: Array.isArray(value.items) ? value.items : [],
-        summary: value.summary,
-      }],
-    };
-    structuredCache.set(q.toLowerCase(), result);
-    return result;
+  const ctrl = new AbortController();
+  const primaryRacers = STRUCTURED_RACERS
+    .filter((r) => r.source === 'mimo' || r.source === 'zhipu')
+    .filter((r) => !r.optional || envOr(r.envKey))
+    .map((r) => ({
+      source: r.source,
+      fn: () => r.fn(q, ctrl.signal).then((value) => requireUsableStructured(r.source, value)),
+    }));
+
+  log && log('info', 'tool-exec/web_search_structured primary race q=' + q + ' racers=' + primaryRacers.map((r) => r.source).join(','));
+  let settled = await raceUsableSources(primaryRacers, PRIMARY_SEARCH_BUDGET_MS);
+  let anyOk = settled.some((s) => s.ok);
+
+  if (!anyOk) {
+    const fallbackCtrl = new AbortController();
+    ctrl.abort();
+    const fallbackRacers = STRUCTURED_RACERS
+      .filter((r) => r.source !== 'mimo' && r.source !== 'zhipu')
+      .filter((r) => !r.optional || envOr(r.envKey))
+      .map((r) => ({
+        source: r.source,
+        fn: () => r.fn(q, fallbackCtrl.signal).then((value) => requireUsableStructured(r.source, value)),
+      }));
+    log && log('info', 'tool-exec/web_search_structured fallback race q=' + q + ' racers=' + fallbackRacers.map((r) => r.source).join(','));
+    const fallbackSettled = await raceUsableSources(fallbackRacers, BUDGET_MS);
+    fallbackCtrl.abort();
+    settled = [...settled, ...fallbackSettled];
+    anyOk = settled.some((s) => s.ok);
+  } else {
+    ctrl.abort();
   }
 
-  const ctrl = new AbortController();
-  const racers = STRUCTURED_RACERS
-    .filter((r) => r.source !== 'mimo')
-    .filter((r) => !r.optional || envOr(r.envKey))
-    .map((r) => ({ source: r.source, fn: () => r.fn(q, ctrl.signal) }));
-
-  log && log('info', 'tool-exec/web_search_structured start q=' + q + ' racers=' + racers.map((r) => r.source).join(','));
-  const settled = await aggregateAllSettled(racers, BUDGET_MS);
-  ctrl.abort();
-
-  const sources = [
-    ...(preferredMimo ? [{
-      name: 'mimo',
-      ok: false,
-      error: preferredMimo.error,
-      items: [],
-      summary: undefined,
-    }] : []),
-    ...settled.map((s) => ({
+  const sources = settled.map((s) => ({
     name: s.source,
     ok: s.ok,
     error: s.ok ? undefined : s.error,
     items: s.ok && Array.isArray(s.value?.items) ? s.value.items : [],
     summary: s.ok && s.value?.summary ? s.value.summary : undefined,
-  })),
-  ];
+  }));
 
-  const anyOk = sources.some((s) => s.ok);
   if (!anyOk) {
     log && log('warn', 'tool-exec/web_search_structured all racers failed');
     return { ok: false, error: 'all search sources failed', sources };
   }
 
-  // Prefer MiMo (paid platform search), then Zhipu — both carry an LLM-synthesized summary.
-  const llmWinner = sources.find((s) => s.ok && s.summary && s.name === 'mimo')
-    || sources.find((s) => s.ok && s.summary && s.name === 'zhipu');
-  const primary = llmWinner || sources.find((s) => s.ok);
+  const primary = sources.find((s) => s.ok);
 
   // Merge items across all successful sources, de-dup by URL.
   const seenUrls = new Set();
@@ -419,24 +454,32 @@ export async function webSearch(query, { log } = {}) {
     return cached;
   }
 
-  const preferredMimo = envOr('MIMO_SEARCH_KEY') ? await runPreferredMimoText(q, { log }) : null;
-  if (preferredMimo?.ok && preferredMimo.value && String(preferredMimo.value).trim()) {
-    const aggregated = '── mimo ──' + NL + preferredMimo.value;
-    cache.set(q.toLowerCase(), aggregated);
-    return aggregated;
+  const ctrl = new AbortController();
+  const primaryRacers = RACERS
+    .filter(r => r.source === 'mimo' || r.source === 'zhipu')
+    .filter(r => !r.optional || envOr(r.envKey))
+    .map(r => ({ source: r.source, fn: () => r.fn(q, ctrl.signal).then((value) => requireUsableText(r.source, value)) }));
+
+  log && log('info', 'tool-exec/web_search primary race q=' + q + ' racers=' + primaryRacers.map(r => r.source).join(','));
+  let settled = await raceUsableSources(primaryRacers, PRIMARY_SEARCH_BUDGET_MS);
+  let wins = settled.filter(s => s.ok && s.value && String(s.value).trim());
+
+  if (wins.length === 0) {
+    const fallbackCtrl = new AbortController();
+    ctrl.abort();
+    const fallbackRacers = RACERS
+      .filter(r => r.source !== 'mimo' && r.source !== 'zhipu')
+      .filter(r => !r.optional || envOr(r.envKey))
+      .map(r => ({ source: r.source, fn: () => r.fn(q, fallbackCtrl.signal).then((value) => requireUsableText(r.source, value)) }));
+    log && log('info', 'tool-exec/web_search fallback race q=' + q + ' racers=' + fallbackRacers.map(r => r.source).join(','));
+    const fallbackSettled = await raceUsableSources(fallbackRacers, 14_000);
+    fallbackCtrl.abort();
+    settled = [...settled, ...fallbackSettled];
+    wins = settled.filter(s => s.ok && s.value && String(s.value).trim());
+  } else {
+    ctrl.abort();  // cancel any laggards
   }
 
-  const ctrl = new AbortController();
-  const racers = RACERS
-    .filter(r => r.source !== 'mimo')
-    .filter(r => !r.optional || envOr(r.envKey))
-    .map(r => ({ source: r.source, fn: () => r.fn(q, ctrl.signal) }));
-
-  log && log('info', 'tool-exec/web_search start q=' + q + ' racers=' + racers.map(r => r.source).join(','));
-  const settled = await aggregateAllSettled(racers, 14_000);
-  ctrl.abort();  // cancel any laggards
-
-  const wins = settled.filter(s => s.ok && s.value && String(s.value).trim());
   if (wins.length === 0) {
     log && log('warn', 'tool-exec/web_search all racers failed: ' + settled.map(s => s.source + (s.ok ? '✓' : '✗:' + s.error)).join(', '));
     return JSON.stringify({ error: 'all search sources failed', detail: settled.map(s => ({ source: s.source, ok: s.ok, error: s.error })) });

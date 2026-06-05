@@ -18,7 +18,7 @@ describe('web_search aggregator', () => {
     __testing__.cache.clear();
   });
 
-  it('returns aggregated results when Zhipu and an optional source succeed', async () => {
+  it('returns the first usable primary result without waiting for optional fallbacks', async () => {
     process.env.BOCHA_KEY = 'test-bocha';
     __testing__.cache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
@@ -31,11 +31,10 @@ describe('web_search aggregator', () => {
     });
     const r = await webSearch('test query');
     expect(r).toContain('── zhipu ──');
-    expect(r).toContain('── bocha ──');
     expect(r).toContain('Zhipu summary');
-    expect(r).toContain('Bocha Page');
     expect(r).toContain('http://a');
-    expect(r).toContain('http://b');
+    expect(r).not.toContain('── bocha ──');
+    expect(r).not.toContain('http://b');
     delete process.env.BOCHA_KEY;
   });
 
@@ -105,8 +104,8 @@ describe('web_search aggregator', () => {
       return Promise.resolve(jsonResp({ choices: [{ message: { content: 'x', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'X', link: 'http://x', content: 'x' }] } }] } }] }));
     });
     const r = await webSearch('with-bocha');
-    expect(calls).toBe(2);  // zhipu + bocha
-    expect(r).toContain('── bocha ──');
+    expect(calls).toBe(1);  // zhipu wins the primary race; bocha is only a fallback
+    expect(r).not.toContain('── bocha ──');
     delete process.env.BOCHA_KEY;
   });
 
@@ -130,6 +129,24 @@ describe('web_search aggregator', () => {
     expect(r).toContain('http://m');
     delete process.env.MIMO_SEARCH_KEY;
   });
+
+  it('answers with Zhipu when MiMo is configured but slower', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.cache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('xiaomimimo')) {
+        return new Promise((resolve) => setTimeout(() => resolve(jsonResp({
+          choices: [{ message: { content: 'Slow MiMo', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm' }] } }],
+        })), 120));
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Fast Zhipu', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+    });
+    const r = await webSearch('slow-mimo');
+    expect(r).toContain('── zhipu ──');
+    expect(r).toContain('Fast Zhipu');
+    expect(r).not.toContain('── mimo ──');
+    delete process.env.MIMO_SEARCH_KEY;
+  });
 });
 
 describe('webSearchStructured (Lynn brain proxy backend)', () => {
@@ -139,12 +156,15 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     __testing__.structuredCache.clear();
   });
 
-  it('returns structured items + summary + per-source trace when Zhipu and an optional source succeed', async () => {
+  it('returns the first usable primary structured result without waiting for optional fallbacks', async () => {
     process.env.BOCHA_KEY = 'test-bocha';
     __testing__.structuredCache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
       if (url.includes('bochaai')) {
-        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha Article', url: 'http://b', snippet: 'b-snip' }] } } }));
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [
+          { name: 'Bocha Article', url: 'http://b', snippet: 'b-snip' },
+          { name: 'Bocha Backup', url: 'http://b2', snippet: 'b2-snip' },
+        ] } } }));
       }
       return Promise.resolve(jsonResp({  // zhipu
         choices: [{ message: { content: 'GLM 综合答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z-snip' }] } }] } }],
@@ -155,13 +175,12 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     // primary should be Zhipu (the only LLM-summarized source)
     expect(r.provider).toBe('zhipu');
     expect(r.summary).toMatch(/综合答案/);
-    // items deduped across sources
     const urls = r.items.map((it) => it.url);
     expect(urls).toContain('http://z');
-    expect(urls).toContain('http://b');
-    // sources trace contains both racers
+    expect(urls).not.toContain('http://b');
+    // sources trace contains the primary race only; optional sources run only as fallback
     const names = r.sources.map((s) => s.name).sort();
-    expect(names).toEqual(['bocha', 'zhipu']);
+    expect(names).toEqual(['zhipu']);
     expect(r.sources.every((s) => s.ok)).toBe(true);
     delete process.env.BOCHA_KEY;
   });
@@ -171,7 +190,10 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     __testing__.structuredCache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
       if (url.includes('bochaai')) {
-        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha Article', url: 'http://b', snippet: 'b-snip' }] } } }));
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [
+          { name: 'Bocha Article', url: 'http://b', snippet: 'b-snip' },
+          { name: 'Bocha Backup', url: 'http://b2', snippet: 'b2-snip' },
+        ] } } }));
       }
       return Promise.resolve({ ok: false, status: 500, text: async () => 'down', json: async () => ({}) });
     });
@@ -181,6 +203,7 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     expect(r.summary).toBeUndefined();
     expect(r.items).toEqual([
       { title: 'Bocha Article', url: 'http://b', snippet: 'b-snip' },
+      { title: 'Bocha Backup', url: 'http://b2', snippet: 'b2-snip' },
     ]);
     delete process.env.BOCHA_KEY;
   });
@@ -213,22 +236,49 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     expect(calls).toBe(1);  // zhipu only, on first call
   });
 
-  it('prefers MiMo (paid platform search) as the primary provider over Zhipu', async () => {
+  it('uses MiMo when the paid platform search returns first', async () => {
     process.env.MIMO_SEARCH_KEY = 'test-mimo';
     __testing__.structuredCache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
       if (String(url).includes('xiaomimimo')) {
         return Promise.resolve(jsonResp({ choices: [{ message: { content: 'MiMo 综合答案', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm-snip' }] } }] }));
       }
-      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu 答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+      return new Promise((resolve) => setTimeout(() => resolve(jsonResp({ choices: [{ message: { content: 'Zhipu 答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] })), 120));
     });
     const r = await webSearchStructured('结构化 mimo');
     expect(r.ok).toBe(true);
-    expect(r.provider).toBe('mimo');          // MiMo preferred over Zhipu for the summary
+    expect(r.provider).toBe('mimo');
     expect(r.summary).toMatch(/综合答案/);
     const urls = r.items.map((it) => it.url);
     expect(urls).toContain('http://m');
-    expect(urls).not.toContain('http://z');   // MiMo success short-circuits fallback sources
+    expect(urls).not.toContain('http://z');
+    expect(r.sources.map((s) => [s.name, s.ok])).toEqual([
+      ['mimo', true],
+      ['zhipu', false],
+    ]);
+    expect(r.sources[1].error).toMatch(/aborted after faster usable source answered/);
+    delete process.env.MIMO_SEARCH_KEY;
+  });
+
+  it('uses Zhipu when MiMo is configured but slower', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.structuredCache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('xiaomimimo')) {
+        return new Promise((resolve) => setTimeout(() => resolve(jsonResp({ choices: [{ message: { content: 'MiMo 慢答案', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm-snip' }] } }] })), 120));
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu 快答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+    });
+    const r = await webSearchStructured('结构化 zhipu fast');
+    expect(r.ok).toBe(true);
+    expect(r.provider).toBe('zhipu');
+    expect(r.summary).toMatch(/快答案/);
+    expect(r.items.map((it) => it.url)).toEqual(['http://z']);
+    expect(r.sources.map((s) => [s.name, s.ok])).toEqual([
+      ['zhipu', true],
+      ['mimo', false],
+    ]);
+    expect(r.sources[1].error).toMatch(/aborted after faster usable source answered/);
     delete process.env.MIMO_SEARCH_KEY;
   });
 
