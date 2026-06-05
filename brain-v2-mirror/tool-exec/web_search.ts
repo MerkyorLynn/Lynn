@@ -437,13 +437,42 @@ export async function webSearchStructured(query, { log } = {}) {
 
 // ── public webSearch ───────────────────────────────────────────
 
-const RACERS = [
-  { source: 'mimo',   fn: (q, s) => searchMimo(q, s), optional: true, envKey: 'MIMO_SEARCH_KEY' },
-  { source: 'zhipu',  fn: (q, s) => searchZhipu(q, s) },
-  { source: 'bocha',  fn: (q, s) => searchBocha(q, s),  optional: true, envKey: 'BOCHA_KEY' },
-  { source: 'tavily', fn: (q, s) => searchTavily(q, s), optional: true, envKey: 'TAVILY_KEY' },
-  { source: 'serper', fn: (q, s) => searchSerper(q, s), optional: true, envKey: 'SERPER_KEY' },
-];
+function formatStructuredSearchForTool(result) {
+  if (!result || result.ok === false) {
+    return JSON.stringify(result || { error: 'all search sources failed' });
+  }
+
+  const lines = [];
+  if (result.provider) lines.push('provider: ' + result.provider);
+  if (result.summary) lines.push('摘要: ' + String(result.summary).trim());
+
+  const items = usefulItems(result.items).slice(0, 8);
+  if (items.length) {
+    if (lines.length) lines.push('');
+    lines.push('搜索结果:');
+    items.forEach((item, index) => {
+      lines.push((index + 1) + '. ' + String(item.title || item.url || 'source').trim());
+      lines.push('   ' + String(item.url || '').trim());
+      const snippet = String(item.snippet || item.summary || '').replace(/\s+/g, ' ').trim();
+      if (snippet) lines.push('   ' + snippet.slice(0, 240));
+    });
+  }
+
+  const sourceStatus = (Array.isArray(result.sources) ? result.sources : [])
+    .map((source) => {
+      const name = String(source?.name || 'source');
+      if (source?.ok) return name + '✓';
+      const error = String(source?.error || '').trim();
+      return name + '✗' + (error ? '(' + error.slice(0, 120) + ')' : '');
+    })
+    .filter(Boolean);
+  if (sourceStatus.length) {
+    if (lines.length) lines.push('');
+    lines.push('来源状态: ' + sourceStatus.join(' · '));
+  }
+
+  return lines.join(NL).trim() || JSON.stringify(result);
+}
 
 export async function webSearch(query, { log } = {}) {
   const q = String(query || '').trim();
@@ -454,44 +483,15 @@ export async function webSearch(query, { log } = {}) {
     return cached;
   }
 
-  const ctrl = new AbortController();
-  const primaryRacers = RACERS
-    .filter(r => r.source === 'mimo' || r.source === 'zhipu')
-    .filter(r => !r.optional || envOr(r.envKey))
-    .map(r => ({ source: r.source, fn: () => r.fn(q, ctrl.signal).then((value) => requireUsableText(r.source, value)) }));
-
-  log && log('info', 'tool-exec/web_search primary race q=' + q + ' racers=' + primaryRacers.map(r => r.source).join(','));
-  let settled = await raceUsableSources(primaryRacers, PRIMARY_SEARCH_BUDGET_MS);
-  let wins = settled.filter(s => s.ok && s.value && String(s.value).trim());
-
-  if (wins.length === 0) {
-    const fallbackCtrl = new AbortController();
-    ctrl.abort();
-    const fallbackRacers = RACERS
-      .filter(r => r.source !== 'mimo' && r.source !== 'zhipu')
-      .filter(r => !r.optional || envOr(r.envKey))
-      .map(r => ({ source: r.source, fn: () => r.fn(q, fallbackCtrl.signal).then((value) => requireUsableText(r.source, value)) }));
-    log && log('info', 'tool-exec/web_search fallback race q=' + q + ' racers=' + fallbackRacers.map(r => r.source).join(','));
-    const fallbackSettled = await raceUsableSources(fallbackRacers, 14_000);
-    fallbackCtrl.abort();
-    settled = [...settled, ...fallbackSettled];
-    wins = settled.filter(s => s.ok && s.value && String(s.value).trim());
-  } else {
-    ctrl.abort();  // cancel any laggards
-  }
-
-  if (wins.length === 0) {
-    log && log('warn', 'tool-exec/web_search all racers failed: ' + settled.map(s => s.source + (s.ok ? '✓' : '✗:' + s.error)).join(', '));
-    return JSON.stringify({ error: 'all search sources failed', detail: settled.map(s => ({ source: s.source, ok: s.ok, error: s.error })) });
-  }
-  log && log('info', 'tool-exec/web_search ' + wins.length + '/' + settled.length + ' sources OK');
-  const aggregated = wins.map(w => '── ' + w.source + ' ──' + NL + w.value).join(NL + NL);
-  cache.set(q.toLowerCase(), aggregated);
-  return aggregated;
+  const structured = await webSearchStructured(q, { log });
+  const formatted = formatStructuredSearchForTool(structured);
+  cache.set(q.toLowerCase(), formatted);
+  return formatted;
 }
 
 export const __testing__ = {
   searchZhipu, searchBocha, searchTavily, searchSerper, searchMimo, cache,
   searchZhipuStructured, searchBochaStructured,
-  searchTavilyStructured, searchSerperStructured, searchMimoStructured, structuredCache,
+  searchTavilyStructured, searchSerperStructured, searchMimoStructured,
+  structuredCache, formatStructuredSearchForTool,
 };

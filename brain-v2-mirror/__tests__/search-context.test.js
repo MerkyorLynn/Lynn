@@ -51,7 +51,12 @@ function zhipuJsonResponse(content = '【实时摘要】') {
           tool_calls: [
             {
               type: 'web_search',
-              web_search: { search_result: [{ title: 't', link: 'https://x', content: 's' }] },
+              web_search: {
+                search_result: [
+                  { title: 't', link: 'https://x', content: 's' },
+                  { title: 't2', link: 'https://x2', content: 's2' },
+                ],
+              },
             },
           ],
         },
@@ -94,6 +99,7 @@ describe('applySearchContext — gating', () => {
     vi.restoreAllMocks();
     __testing__.lru.clear();
     webSearchTesting.cache.clear();
+    webSearchTesting.structuredCache.clear();
     delete process.env.BRAIN_V2_PRE_SEARCH;
     delete process.env.ZHIPU_KEY;
   });
@@ -146,6 +152,7 @@ describe('applySearchContext — applied path', () => {
     vi.restoreAllMocks();
     __testing__.lru.clear();
     webSearchTesting.cache.clear();
+    webSearchTesting.structuredCache.clear();
     process.env.BRAIN_V2_PRE_SEARCH = '1';
     process.env.ZHIPU_KEY = 'k';
     // Optional racers off so the aggregator only fires Zhipu (single fetch).

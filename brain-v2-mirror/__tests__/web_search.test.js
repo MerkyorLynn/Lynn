@@ -16,6 +16,7 @@ describe('web_search aggregator', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     __testing__.cache.clear();
+    __testing__.structuredCache.clear();
   });
 
   it('returns the first usable primary result without waiting for optional fallbacks', async () => {
@@ -30,10 +31,10 @@ describe('web_search aggregator', () => {
       }));
     });
     const r = await webSearch('test query');
-    expect(r).toContain('── zhipu ──');
+    expect(r).toContain('provider: zhipu');
     expect(r).toContain('Zhipu summary');
     expect(r).toContain('http://a');
-    expect(r).not.toContain('── bocha ──');
+    expect(r).not.toContain('provider: bocha');
     expect(r).not.toContain('http://b');
     delete process.env.BOCHA_KEY;
   });
@@ -43,13 +44,16 @@ describe('web_search aggregator', () => {
     __testing__.cache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
       if (url.includes('bochaai')) {
-        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha only', url: 'http://b', snippet: 'b' }] } } }));
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [
+          { name: 'Bocha only', url: 'http://b', snippet: 'b' },
+          { name: 'Bocha backup', url: 'http://b2', snippet: 'b2' },
+        ] } } }));
       }
       return Promise.resolve({ ok: false, status: 500, text: async () => 'down', json: async () => ({}) });  // zhipu fail
     });
     const r = await webSearch('q');
-    expect(r).toContain('── bocha ──');
-    expect(r).not.toContain('── zhipu ──');
+    expect(r).toContain('provider: bocha');
+    expect(r).not.toContain('provider: zhipu');
     expect(r).toContain('Bocha only');
     delete process.env.BOCHA_KEY;
   });
@@ -60,7 +64,7 @@ describe('web_search aggregator', () => {
     const r = await webSearch('q');
     const parsed = JSON.parse(r);
     expect(parsed.error).toBe('all search sources failed');
-    expect(parsed.detail).toHaveLength(1);  // only zhipu racer when no optional keys
+    expect(parsed.sources).toHaveLength(1);  // only zhipu racer when no optional keys
   });
 
   it('caches successful results (5min LRU)', async () => {
@@ -105,7 +109,7 @@ describe('web_search aggregator', () => {
     });
     const r = await webSearch('with-bocha');
     expect(calls).toBe(1);  // zhipu wins the primary race; bocha is only a fallback
-    expect(r).not.toContain('── bocha ──');
+    expect(r).not.toContain('provider: bocha');
     delete process.env.BOCHA_KEY;
   });
 
@@ -125,7 +129,7 @@ describe('web_search aggregator', () => {
     const r = await webSearch('实时新闻');
     expect(seen.apiKey).toBe('test-mimo');   // api-key header per MiMo platform docs
     expect(seen.tool).toBe('web_search');    // web_search tool enabled
-    expect(r).toContain('── mimo ──');
+    expect(r).toContain('provider: mimo');
     expect(r).toContain('http://m');
     delete process.env.MIMO_SEARCH_KEY;
   });
@@ -142,9 +146,29 @@ describe('web_search aggregator', () => {
       return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Fast Zhipu', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
     });
     const r = await webSearch('slow-mimo');
-    expect(r).toContain('── zhipu ──');
+    expect(r).toContain('provider: zhipu');
     expect(r).toContain('Fast Zhipu');
-    expect(r).not.toContain('── mimo ──');
+    expect(r).not.toContain('provider: mimo');
+    delete process.env.MIMO_SEARCH_KEY;
+  });
+
+  it('does not let a summary-only Zhipu answer hide traceable MiMo citations', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.cache.clear();
+    __testing__.structuredCache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('xiaomimimo')) {
+        return new Promise((resolve) => setTimeout(() => resolve(jsonResp({
+          choices: [{ message: { content: 'MiMo 带来源摘要', annotations: [{ type: 'url_citation', title: 'MiMo Source', url: 'http://mimo-source', summary: 'traceable' }] } }],
+        })), 30));
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu 只有文字没有来源', tool_calls: [] } }] }));
+    });
+    const r = await webSearch('zhipu-summary-only');
+    expect(r).toContain('provider: mimo');
+    expect(r).toContain('MiMo 带来源摘要');
+    expect(r).toContain('http://mimo-source');
+    expect(r).toContain('zhipu✗(zhipu unusable result)');
     delete process.env.MIMO_SEARCH_KEY;
   });
 });
