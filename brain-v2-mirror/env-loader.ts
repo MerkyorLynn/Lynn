@@ -21,10 +21,6 @@ const LEGACY_ALIASES: Record<string, string[]> = {
   STEP37_BASE: ['STEP_BASE'],
   STEP37_KEY: ['STEP_KEY'],
   STEP37_MODEL: ['STEP_TEXT_MODEL'],
-  // MiMo platform web_search (paid search — separate from the removed MiMo LLM).
-  MIMO_SEARCH_BASE: ['MIMO_BASE'],
-  MIMO_SEARCH_KEY: ['MIMO_KEY', 'MIMO_API_KEY'],
-  MIMO_SEARCH_MODEL: ['MIMO_MODEL'],
 };
 
 function stripQuotes(value: string): string {

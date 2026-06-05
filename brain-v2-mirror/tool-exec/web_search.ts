@@ -9,11 +9,12 @@
 //      (for the /v1/web-search HTTP endpoint used by Lynn desktop's client-side
 //       web_search tool — keeps Zhipu API keys server-side, client only
 //       sees the structured result back through localhost.)
-import { makeLruCache, aggregateAllSettled } from './_helpers.js';
+import { makeLruCache, aggregateAllSettled, withTimeout } from './_helpers.js';
 
 const cache = makeLruCache(200, 5 * 60 * 1000);
 const structuredCache = makeLruCache(200, 5 * 60 * 1000);
 const BUDGET_MS = 14_000;
+const MIMO_PREFERRED_TIMEOUT_MS = Number(process.env.MIMO_SEARCH_TIMEOUT_MS || 10_000);
 const NL = String.fromCharCode(10);
 
 function envOr(name, fallback = '') { return process.env[name] || fallback; }
@@ -249,6 +250,42 @@ async function searchMimo(query, signal) {
   return out.trim();
 }
 
+async function runPreferredMimoStructured(query, { log } = {}) {
+  const ctrl = new AbortController();
+  try {
+    const value = await withTimeout(
+      searchMimoStructured(query, ctrl.signal),
+      MIMO_PREFERRED_TIMEOUT_MS,
+      'mimo',
+    );
+    return { source: 'mimo', ok: true, value };
+  } catch (error) {
+    const message = error?.message || String(error);
+    log && log('warn', 'tool-exec/web_search_structured mimo preferred failed: ' + message);
+    return { source: 'mimo', ok: false, error: message };
+  } finally {
+    ctrl.abort();
+  }
+}
+
+async function runPreferredMimoText(query, { log } = {}) {
+  const ctrl = new AbortController();
+  try {
+    const value = await withTimeout(
+      searchMimo(query, ctrl.signal),
+      MIMO_PREFERRED_TIMEOUT_MS,
+      'mimo',
+    );
+    return { source: 'mimo', ok: true, value };
+  } catch (error) {
+    const message = error?.message || String(error);
+    log && log('warn', 'tool-exec/web_search mimo preferred failed: ' + message);
+    return { source: 'mimo', ok: false, error: message };
+  } finally {
+    ctrl.abort();
+  }
+}
+
 const STRUCTURED_RACERS = [
   { source: 'mimo',   fn: (q, s) => searchMimoStructured(q, s), optional: true, envKey: 'MIMO_SEARCH_KEY' },
   { source: 'zhipu',  fn: (q, s) => searchZhipuStructured(q, s) },
@@ -265,7 +302,8 @@ const STRUCTURED_RACERS = [
  *   ok=false → { ok, error, sources[] }
  *
  * `provider` is the source whose items + summary populate the top-level fields
- * (Zhipu preferred because it carries an LLM-synthesized summary).
+ * (MiMo paid platform search is preferred when configured; Zhipu and others are
+ * fallbacks when MiMo is absent, fails, or times out).
  * `items` is the union of all successful sources, de-duped by URL.
  * `sources` records every racer's outcome (ok + items + per-source summary),
  * so the UI can render a collapsible "View sources (N)" list and the model
@@ -280,8 +318,28 @@ export async function webSearchStructured(query, { log } = {}) {
     return cached;
   }
 
+  const preferredMimo = envOr('MIMO_SEARCH_KEY') ? await runPreferredMimoStructured(q, { log }) : null;
+  if (preferredMimo?.ok) {
+    const value = preferredMimo.value || {};
+    const result = {
+      ok: true,
+      provider: 'mimo',
+      items: Array.isArray(value.items) ? value.items : [],
+      summary: value.summary,
+      sources: [{
+        name: 'mimo',
+        ok: true,
+        items: Array.isArray(value.items) ? value.items : [],
+        summary: value.summary,
+      }],
+    };
+    structuredCache.set(q.toLowerCase(), result);
+    return result;
+  }
+
   const ctrl = new AbortController();
   const racers = STRUCTURED_RACERS
+    .filter((r) => r.source !== 'mimo')
     .filter((r) => !r.optional || envOr(r.envKey))
     .map((r) => ({ source: r.source, fn: () => r.fn(q, ctrl.signal) }));
 
@@ -289,13 +347,22 @@ export async function webSearchStructured(query, { log } = {}) {
   const settled = await aggregateAllSettled(racers, BUDGET_MS);
   ctrl.abort();
 
-  const sources = settled.map((s) => ({
+  const sources = [
+    ...(preferredMimo ? [{
+      name: 'mimo',
+      ok: false,
+      error: preferredMimo.error,
+      items: [],
+      summary: undefined,
+    }] : []),
+    ...settled.map((s) => ({
     name: s.source,
     ok: s.ok,
     error: s.ok ? undefined : s.error,
     items: s.ok && Array.isArray(s.value?.items) ? s.value.items : [],
     summary: s.ok && s.value?.summary ? s.value.summary : undefined,
-  }));
+  })),
+  ];
 
   const anyOk = sources.some((s) => s.ok);
   if (!anyOk) {
@@ -352,8 +419,16 @@ export async function webSearch(query, { log } = {}) {
     return cached;
   }
 
+  const preferredMimo = envOr('MIMO_SEARCH_KEY') ? await runPreferredMimoText(q, { log }) : null;
+  if (preferredMimo?.ok && preferredMimo.value && String(preferredMimo.value).trim()) {
+    const aggregated = '── mimo ──' + NL + preferredMimo.value;
+    cache.set(q.toLowerCase(), aggregated);
+    return aggregated;
+  }
+
   const ctrl = new AbortController();
   const racers = RACERS
+    .filter(r => r.source !== 'mimo')
     .filter(r => !r.optional || envOr(r.envKey))
     .map(r => ({ source: r.source, fn: () => r.fn(q, ctrl.signal) }));
 

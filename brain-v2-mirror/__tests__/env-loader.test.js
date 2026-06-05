@@ -62,4 +62,23 @@ describe('brain env loader', () => {
       'STEP_TEXT_MODEL->STEP37_MODEL',
     ]));
   });
+
+  it('does not map removed MiMo Token Plan LLM env names into platform search', () => {
+    const env = {
+      MIMO_KEY: 'tp-legacy-token-plan-key',
+      MIMO_BASE: 'https://token-plan-cn.xiaomimimo.com/v1',
+      MIMO_MODEL: 'mimo-v2.5-pro',
+    };
+
+    const result = loadBrainEnvFiles({ env, paths: [] });
+
+    expect(env.MIMO_SEARCH_KEY).toBeUndefined();
+    expect(env.MIMO_SEARCH_BASE).toBeUndefined();
+    expect(env.MIMO_SEARCH_MODEL).toBeUndefined();
+    expect(result.aliases).not.toEqual(expect.arrayContaining([
+      'MIMO_KEY->MIMO_SEARCH_KEY',
+      'MIMO_BASE->MIMO_SEARCH_BASE',
+      'MIMO_MODEL->MIMO_SEARCH_MODEL',
+    ]));
+  });
 });

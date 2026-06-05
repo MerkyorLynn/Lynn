@@ -228,7 +228,27 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     expect(r.summary).toMatch(/综合答案/);
     const urls = r.items.map((it) => it.url);
     expect(urls).toContain('http://m');
-    expect(urls).toContain('http://z');       // merged across sources
+    expect(urls).not.toContain('http://z');   // MiMo success short-circuits fallback sources
+    delete process.env.MIMO_SEARCH_KEY;
+  });
+
+  it('falls back to Zhipu when preferred MiMo search fails', async () => {
+    process.env.MIMO_SEARCH_KEY = 'test-mimo';
+    __testing__.structuredCache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (String(url).includes('xiaomimimo')) {
+        return Promise.resolve({ ok: false, status: 401, text: async () => 'bad key', json: async () => ({}) });
+      }
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'Zhipu fallback', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z' }] } }] } }] }));
+    });
+    const r = await webSearchStructured('mimo-down');
+    expect(r.ok).toBe(true);
+    expect(r.provider).toBe('zhipu');
+    expect(r.summary).toMatch(/fallback/);
+    expect(r.sources.map((s) => [s.name, s.ok])).toEqual([
+      ['mimo', false],
+      ['zhipu', true],
+    ]);
     delete process.env.MIMO_SEARCH_KEY;
   });
 });
