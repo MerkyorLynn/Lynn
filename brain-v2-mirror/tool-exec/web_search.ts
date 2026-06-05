@@ -14,7 +14,7 @@ import { makeLruCache } from './_helpers.js';
 const cache = makeLruCache(200, 5 * 60 * 1000);
 const structuredCache = makeLruCache(200, 5 * 60 * 1000);
 const BUDGET_MS = 14_000;
-const PRIMARY_SEARCH_BUDGET_MS = Number(process.env.WEB_SEARCH_PRIMARY_BUDGET_MS || 8_000);
+const PRIMARY_SEARCH_BUDGET_MS = Number(process.env.WEB_SEARCH_PRIMARY_BUDGET_MS || 10_000);
 const SEARCH_SETTLE_WINDOW_MS = Number(process.env.WEB_SEARCH_SETTLE_WINDOW_MS || 50);
 const NL = String.fromCharCode(10);
 
