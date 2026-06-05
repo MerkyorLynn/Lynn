@@ -18,10 +18,10 @@ describe("doctor command", () => {
     expect(result.brain).toBe("skipped");
     expect(result.checks.some((check) => check.name === "node")).toBe(true);
     expect(result.cliProvider.configured).toBe(false);
-    expect(result.presets).toContain("mimo:mimo-v2.5-pro");
+    expect(result.presets).toContain("stepfun:step-3.7-flash");
     expect(renderDoctor(result)).toContain("optional CLI-only BYOK");
     expect(renderDoctor(result)).toContain("Lynn providers set --preset stepfun --api-key <api-key>");
-    expect(renderDoctor(result)).toContain("mimo:mimo-v2.5-pro");
+    expect(renderDoctor(result)).toContain("stepfun:step-3.7-flash");
   });
 
   it("reads Brain v2 provider route status without requiring CLI BYOK", async () => {
@@ -31,10 +31,9 @@ describe("doctor command", () => {
       if (href.endsWith("/v1/providers/status")) {
         return new Response(JSON.stringify({
           ok: true,
-          route: ["step-3.7-flash", "mimo", "apex-spark-i-balanced"],
+          route: ["step-3.7-flash", "apex-spark-i-balanced"],
           providers: [
             { id: "step-3.7-flash", model: "step-3.7-flash", endpoint: "https://api.stepfun.com/step_plan/v1", wire: "openai", credential: "set", configured: true, local: false, inRoute: true },
-            { id: "mimo", model: "mimo-v2.5-pro", endpoint: "https://token-plan-cn.xiaomimimo.com/v1", wire: "mimo", credential: "set", configured: true, local: false, inRoute: true },
             { id: "apex-spark-i-balanced", model: "qwen36", endpoint: "http://127.0.0.1:18098/v1", wire: "openai", credential: "not_required", configured: true, local: true, inRoute: true },
           ],
         }), { status: 200, statusText: "OK" });
@@ -57,8 +56,8 @@ describe("doctor command", () => {
     expect(result.ok).toBe(true);
     expect(result.brainSmoke).toMatchObject({ ok: true, provider: "step-3.7-flash" });
     expect(result.brainProviders?.route[0]).toBe("step-3.7-flash");
-    expect(rendered).toContain("brain-route: StepFun 3.7 Flash:key -> MiMo V2.5 Pro:key -> Spark Qwen 3.6 35B A3B:local");
-    expect(rendered).toContain("head ready: StepFun 3.7 Flash; fallback ready: MiMo V2.5 Pro, Spark Qwen 3.6 35B A3B");
+    expect(rendered).toContain("brain-route: StepFun 3.7 Flash:key -> Spark Qwen 3.6 35B A3B:local");
+    expect(rendered).toContain("head ready: StepFun 3.7 Flash; fallback ready: Spark Qwen 3.6 35B A3B");
     expect(rendered).toContain("brain-smoke: route returned assistant output via step-3.7-flash");
   });
 
@@ -69,7 +68,7 @@ describe("doctor command", () => {
       if (href.endsWith("/v1/providers/status")) return new Response("not found", { status: 404, statusText: "Not Found" });
       if (href.endsWith("/v1/chat/completions")) {
         return new Response([
-          'data: {"object":"lynn.provider","meta":{"active_provider":"mimo"}}',
+          'data: {"object":"lynn.provider","meta":{"active_provider":"step-3.7-flash"}}',
           "",
           'data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}',
           "",
@@ -84,9 +83,9 @@ describe("doctor command", () => {
     expect(result.brain).toBe("ok");
     expect(result.ok).toBe(true);
     expect(result.brainProviders).toBeNull();
-    expect(result.brainSmoke).toMatchObject({ ok: true, provider: "mimo" });
+    expect(result.brainSmoke).toMatchObject({ ok: true, provider: "step-3.7-flash" });
     expect(rendered).toContain("brain-route: provider status unavailable; verifying route with chat smoke");
-    expect(rendered).toContain("brain-smoke: route returned assistant output via mimo");
+    expect(rendered).toContain("brain-smoke: route returned assistant output via step-3.7-flash");
   });
 
   it("fails Brain route diagnostics when no provider in the route is configured", async () => {
@@ -96,10 +95,10 @@ describe("doctor command", () => {
       if (href.endsWith("/v1/providers/status")) {
         return new Response(JSON.stringify({
           ok: true,
-          route: ["step-3.7-flash", "mimo"],
+          route: ["step-3.7-flash", "deepseek"],
           providers: [
             { id: "step-3.7-flash", model: "step-3.7-flash", endpoint: "https://api.stepfun.com/step_plan/v1", wire: "openai", credential: "missing", configured: false, local: false, inRoute: true },
-            { id: "mimo", model: "mimo-v2.5-pro", endpoint: "https://token-plan-cn.xiaomimimo.com/v1", wire: "mimo", credential: "missing", configured: false, local: false, inRoute: true },
+            { id: "deepseek", model: "deepseek-chat", endpoint: "https://api.deepseek.com/v1", wire: "openai", credential: "missing", configured: false, local: false, inRoute: true },
           ],
         }), { status: 200, statusText: "OK" });
       }
@@ -121,10 +120,10 @@ describe("doctor command", () => {
       if (href.endsWith("/v1/providers/status")) {
         return new Response(JSON.stringify({
           ok: true,
-          route: ["step-3.7-flash", "mimo"],
+          route: ["step-3.7-flash", "apex-spark-i-balanced"],
           providers: [
             { id: "step-3.7-flash", model: "step-3.7-flash", endpoint: "https://api.stepfun.com/step_plan/v1", wire: "openai", credential: "set", configured: true, local: false, inRoute: true },
-            { id: "mimo", model: "mimo-v2.5-pro", endpoint: "https://token-plan-cn.xiaomimimo.com/v1", wire: "mimo", credential: "set", configured: true, local: false, inRoute: true },
+            { id: "apex-spark-i-balanced", model: "qwen36", endpoint: "http://127.0.0.1:18098/v1", wire: "openai", credential: "not_required", configured: true, local: true, inRoute: true },
           ],
         }), { status: 200, statusText: "OK" });
       }
@@ -152,9 +151,9 @@ describe("doctor command", () => {
     const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-cli-doctor-"));
     await writeCliProviderProfile(dataDir, {
       provider: "openai-compatible",
-      baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-      model: "mimo-v2.5-pro",
-      apiKey: "mimo-doctor-secret",
+      baseUrl: "https://api.stepfun.com/step_plan/v1",
+      model: "step-3.7-flash",
+      apiKey: "step-doctor-secret",
     });
 
     const result = await runDoctor(parseArgs(["doctor", "--offline", "--data-dir", dataDir]));
@@ -163,11 +162,11 @@ describe("doctor command", () => {
     expect(result.cliProvider).toMatchObject({
       configured: true,
       provider: "openai-compatible",
-      baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-      model: "mimo-v2.5-pro",
+      baseUrl: "https://api.stepfun.com/step_plan/v1",
+      model: "step-3.7-flash",
     });
-    expect(result.cliProvider.apiKey).not.toBe("mimo-doctor-secret");
-    expect(rendered).toContain("mimo-v2.5-pro");
-    expect(rendered).not.toContain("mimo-doctor-secret");
+    expect(result.cliProvider.apiKey).not.toBe("step-doctor-secret");
+    expect(rendered).toContain("step-3.7-flash");
+    expect(rendered).not.toContain("step-doctor-secret");
   });
 });

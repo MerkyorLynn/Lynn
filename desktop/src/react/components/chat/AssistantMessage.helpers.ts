@@ -71,7 +71,6 @@ export function formatProviderRouteName(id?: string | null): string {
   const raw = String(id || '').trim();
   if (!raw) return '';
   const lower = raw.toLowerCase();
-  if (lower.includes('mimo')) return 'MiMo';
   if (lower.includes('spark') || lower.includes('apex')) return 'Spark';
   if (lower.includes('deepseek')) return 'DeepSeek';
   if (lower.includes('openai') || lower.includes('gpt')) return 'OpenAI';

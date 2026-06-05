@@ -101,7 +101,7 @@ winget install OpenJS.NodeJS.LTS</code></pre>
             <div class="cli-install-copy">
               <span class="pill pill-soft">启动命令</span>
               <h3>3. 启动 Lynn</h3>
-              <p>默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到远端 Brain。模型级联是 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → MiMo → Spark。如果只想给其他智能体或脚本调用,请使用 <code>Lynn code -p ... --json</code>。</p>
+              <p>默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到远端 Brain。模型级联是 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → Spark。如果只想给其他智能体或脚本调用,请使用 <code>Lynn code -p ... --json</code>。</p>
             </div>
             <div class="code-copy-block">
               <button class="copy-button" type="button" data-copy-target="cli-start">复制</button>
@@ -235,7 +235,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
               <li>前置缓存命中可见:usage、session、replay 和 <code>Lynn cache doctor --json</code> 统一显示 <code>prefix-cache ... hit</code>,不增加 ctx% 焦虑条</li>
               <li>长任务运行时压缩:旧轮次自动压缩,保留原始目标、当前计划和最近工具结果,JSONL 发出 <code>code.runtime.compacted</code></li>
               <li>Brain 早期断流自动重试:SSE 在可见输出前断开会退避重试,输出开始后不重试以避免重复半轮工具调用</li>
-              <li>Brain 默认路由为 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → MiMo → Spark Qwen 3.6 35B A3B</li>
+              <li>Brain 默认路由为 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → Spark Qwen 3.6 35B A3B</li>
               <li>CLI 镜像安装、headless agent contract、longrun 压缩 smoke 和 Fleet 门禁进入发布流程</li>
             </ul>
             <a

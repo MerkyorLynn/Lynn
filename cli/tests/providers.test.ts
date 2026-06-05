@@ -20,7 +20,7 @@ afterEach(() => setLang(null));
 describe("providers command", () => {
   it("renders BYOK guidance without exposing keys", () => {
     const output = renderProvidersInfo({
-      defaultRoute: "StepFun 3.7 Flash → MiMo V2.5 Pro via local Brain router (auto)",
+      defaultRoute: "StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via local Brain router (auto)",
       byokEntry: "Open Lynn GUI > Settings > Providers",
       keyPolicy: "Provider keys stay private.",
       brainUrl: "http://127.0.0.1:8790",
@@ -34,7 +34,7 @@ describe("providers command", () => {
     });
 
     expect(output).toContain("Lynn Providers / BYOK");
-    expect(output).toContain("MiMo");
+    expect(output).toContain("StepFun");
     expect(output).toContain("OpenAI");
     expect(output).not.toContain("secret");
     expect(output).toContain("Settings > Providers");
@@ -56,7 +56,7 @@ describe("providers command", () => {
     }
 
     expect(output).toContain("\"type\":\"providers.info\"");
-    expect(output).toContain("MiMo");
+    expect(output).toContain("StepFun");
     expect(output).toContain("\"name\":\"stepfun\"");
     expect(output).toContain("\"model\":\"step-3.7-flash\"");
     expect(output).not.toContain("apiKey");
@@ -82,7 +82,7 @@ describe("providers command", () => {
   it("renders localized provider guidance in Chinese", () => {
     setLang("zh");
     const output = renderProvidersInfo({
-      defaultRoute: "StepFun 3.7 Flash → MiMo V2.5 Pro via local Brain router (auto)",
+      defaultRoute: "StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via local Brain router (auto)",
       byokEntry: "Lynn 客户端 > 设置 > Providers",
       keyPolicy: "Provider keys stay private.",
       brainUrl: "http://127.0.0.1:8790",
@@ -108,12 +108,10 @@ describe("providers command", () => {
       process.stdout.write = original;
     }
 
-    expect(output).toContain("mimo");
-    expect(output).toContain("mimo-v2.5-pro");
     expect(output).toContain("stepfun");
     expect(output).toContain("step-3.7-flash");
-    expect(output).toContain("Lynn providers set --preset mimo --api-key <api-key>");
     expect(output).toContain("Lynn providers set --preset stepfun --api-key <api-key>");
+    expect(output).not.toContain("mimo");
   });
 
   it("prints provider presets as JSON when requested", async () => {
@@ -130,31 +128,30 @@ describe("providers command", () => {
     }
 
     expect(output).toContain("\"type\":\"providers.presets\"");
-    expect(output).toContain("\"name\":\"mimo\"");
     expect(output).toContain("\"name\":\"stepfun\"");
+    expect(output).not.toContain("\"name\":\"mimo\"");
     expect(output).not.toContain("apiKey");
   });
 
   it("renders provider presets without embedding keys", () => {
     const rendered = renderProviderPresets();
 
-    expect(rendered).toContain("MiMo");
-    expect(rendered).toContain("mimo-v2.5-pro");
     expect(rendered).toContain("StepFun");
     expect(rendered).toContain("step-3.7-flash");
+    expect(rendered).not.toContain("MiMo");
     expect(rendered).toContain("<api-key>");
     expect(rendered).not.toContain("sk-");
   });
 
   it("formats the active route for the startup banner", () => {
     expect(activeRouteLabel({
-      defaultRoute: "StepFun 3.7 Flash → MiMo V2.5 Pro via local Brain router (auto)",
-      activeProvider: "mimo",
-      activeModel: "mimo-v2.5-pro",
-    })).toBe("MiMo V2.5 Pro (mimo-v2.5-pro)");
+      defaultRoute: "StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via local Brain router (auto)",
+      activeProvider: "stepfun",
+      activeModel: "step-3.7-flash",
+    })).toBe("StepFun 3.7 Flash (step-3.7-flash)");
     expect(activeRouteLabel({
-      defaultRoute: "StepFun 3.7 Flash → MiMo V2.5 Pro via local Brain router (auto)",
-    })).toBe("StepFun 3.7 Flash → MiMo V2.5 Pro via local Brain router (auto)");
+      defaultRoute: "StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via local Brain router (auto)",
+    })).toBe("StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via local Brain router (auto)");
   });
 
   it("saves a CLI BYOK provider profile without printing the raw key", async () => {
@@ -247,49 +244,6 @@ describe("providers command", () => {
     expect(event.type).toBe("providers.unset");
     expect(event.deleted).toBe(false);
     expect(event.path).toBe(providerProfilePath(dataDir));
-  });
-
-  it("supports MiMo as a CLI BYOK preset without bundling a key", async () => {
-    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-cli-mimo-"));
-    const original = process.stdout.write;
-    process.stdout.write = (() => true) as typeof process.stdout.write;
-    try {
-      await expect(runProviders(parseArgs([
-        "providers",
-        "set",
-        "--data-dir",
-        dataDir,
-        "--preset",
-        "mimo",
-        "--api-key",
-        "mimo-secret",
-      ]), false)).resolves.toBe(0);
-    } finally {
-      process.stdout.write = original;
-    }
-
-    await expect(readCliProviderProfile(dataDir)).resolves.toMatchObject({
-      provider: "openai-compatible",
-      baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-      model: "mimo-v2.5-pro",
-      apiKey: "mimo-secret",
-    });
-    await expect(resolveCliProviderProfile(parseArgs([
-      "code",
-      "review this",
-      "--data-dir",
-      dataDir,
-      "--preset",
-      "mimo",
-    ]))).resolves.toMatchObject({
-      source: "flags",
-      profile: {
-        provider: "openai-compatible",
-        baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-        model: "mimo-v2.5-pro",
-        apiKey: "mimo-secret",
-      },
-    });
   });
 
   it("supports StepFun as a CLI BYOK preset without bundling a key", async () => {
@@ -479,22 +433,6 @@ sys.exit(proc.returncode if proc.returncode is not None else 124)
       await expect(resolveCliProviderProfile(parseArgs([
         "code",
         "review this",
-        "--preset",
-        "mimo",
-        "--data-dir",
-        await fs.mkdtemp(path.join(os.tmpdir(), "lynn-cli-mimo-key-")),
-      ]))).resolves.toMatchObject({
-        source: "flags",
-        profile: {
-          baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-          model: "mimo-v2.5-pro",
-          apiKey: undefined,
-        },
-      });
-
-      await expect(resolveCliProviderProfile(parseArgs([
-        "code",
-        "review this",
         "--base-url",
         "https://api.example.com/v1",
         "--model",
@@ -523,15 +461,6 @@ sys.exit(proc.returncode if proc.returncode is not None else 124)
       baseUrl: "https://api.stepfun.com/step_plan/v1",
       model: "step-3.7-flash",
       apiKey: "step-env-key",
-    });
-
-    expect(readEnvProviderProfile({
-      LYNN_CLI_PRESET: "mimo",
-      MIMO_API_KEY: "mimo-env-key",
-    })).toMatchObject({
-      baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-      model: "mimo-v2.5-pro",
-      apiKey: "mimo-env-key",
     });
 
     expect(readEnvProviderProfile({

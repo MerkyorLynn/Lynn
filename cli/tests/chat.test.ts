@@ -151,7 +151,7 @@ describe("chat mode controls", () => {
 
   it("surfaces CLI BYOK fallback in the chat startup route label", () => {
     expect(chatRouteLabel({ provider: "openai-compatible", model: "step-3.7-flash" })).toBe("CLI BYOK: StepFun 3.7 Flash (step-3.7-flash)");
-    expect(chatRouteLabel(null)).toBe("StepFun 3.7 Flash → MiMo V2.5 Pro → Spark Qwen 3.6 35B A3B via Brain router (auto)");
+    expect(chatRouteLabel(null)).toBe("StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B via Brain router (auto)");
   });
 
   it("renders CLI BYOK fallback in startup copy", () => {
@@ -163,7 +163,7 @@ describe("chat mode controls", () => {
     expect(hint).toContain("step-3.7-flash");
   });
 
-  it("updates reasoning mode for fast and deep MiMo turns", () => {
+  it("updates reasoning mode for fast and deep turns", () => {
     const current = { effort: "auto" as const, display: "auto" as const };
 
     expect(applyReasoningCommand(current, "off").reasoning).toMatchObject({ effort: "off" });

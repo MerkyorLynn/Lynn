@@ -29,7 +29,6 @@ describe("parseMessageModelRef", () => {
 
 describe("formatProviderRouteName", () => {
   it("maps vendors and tidies qwen ids", () => {
-    expect(formatProviderRouteName("mimo-v2.5")).toBe("MiMo");
     expect(formatProviderRouteName("spark-apex")).toBe("Spark");
     expect(formatProviderRouteName("gpt-5")).toBe("OpenAI");
     expect(formatProviderRouteName("qwen35-9b")).toBe("Qwen 9b");
@@ -38,9 +37,9 @@ describe("formatProviderRouteName", () => {
 });
 
 describe("providerRoute label/title", () => {
-  const route = { activeProvider: "spark", fallbackFrom: [{ id: "mimo", reason: "timeout" }] } as any;
+  const route = { activeProvider: "spark", fallbackFrom: [{ id: "deepseek", reason: "timeout" }] } as any;
   it("builds a de-duped fallback chain label", () => {
-    expect(providerRouteLabel(route)).toBe("MiMo -> Spark");
+    expect(providerRouteLabel(route)).toBe("DeepSeek -> Spark");
     expect(providerRouteLabel({ activeProvider: "x", fallbackFrom: [] } as any)).toBeNull();
   });
   it("builds a hover title with hop reasons", () => {

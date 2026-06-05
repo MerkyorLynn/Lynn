@@ -266,7 +266,6 @@ const ToolOutputPreview = memo(function ToolOutputPreview({ name, summary }: { n
 function sourceDisplayName(source: ToolSearchSourceTrace): string {
   const name = String(source.name || '').trim();
   if (!name) return 'source';
-  if (name.toLowerCase() === 'mimo') return 'MiMo';
   if (name.toLowerCase() === 'zhipu') return 'GLM';
   return name;
 }

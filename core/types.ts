@@ -16,7 +16,6 @@ export type BuiltinProviderId =
   | "minimax"
   | "minimax-coding"
   | "minimax-oauth"
-  | "mimo"
   | "mistral"
   | "modelscope"
   | "moonshot"

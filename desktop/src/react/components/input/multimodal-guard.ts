@@ -30,16 +30,16 @@ export function modelDisplayName(model: Pick<Model, 'id' | 'name' | 'provider'> 
 export function formatVisionUnsupportedMessage(modelLabel: string, locale?: string): string {
   const normalized = String(locale || '').toLowerCase();
   if (normalized.startsWith('en')) {
-    return `Current model (${modelLabel}) does not support image understanding. Switch to MiMo or another vision-capable model, or send text only.`;
+    return `Current model (${modelLabel}) does not support image understanding. Switch to a vision-capable model, or send text only.`;
   }
   if (normalized.startsWith('ja')) {
-    return `現在のモデル（${modelLabel}）は画像認識に対応していません。MiMo などの画像対応モデルに切り替えるか、テキストのみ送信してください。`;
+    return `現在のモデル（${modelLabel}）は画像認識に対応していません。画像対応モデルに切り替えるか、テキストのみ送信してください。`;
   }
   if (normalized.startsWith('ko')) {
-    return `현재 모델(${modelLabel})은 이미지 인식을 지원하지 않아요. MiMo 또는 비전 지원 모델로 전환하거나 텍스트만 보내 주세요.`;
+    return `현재 모델(${modelLabel})은 이미지 인식을 지원하지 않아요. 비전 지원 모델로 전환하거나 텍스트만 보내 주세요.`;
   }
   if (normalized.startsWith('zh-tw') || normalized.startsWith('zh-hk')) {
-    return `目前模型（${modelLabel}）不支援圖片識別。請切換到 MiMo 或其他視覺模型，或只傳文字。`;
+    return `目前模型（${modelLabel}）不支援圖片識別。請切換到視覺模型，或只傳文字。`;
   }
-  return `当前模型（${modelLabel}）不支持图像识别。请切换到 MiMo 或其他视觉模型，或仅发送文字。`;
+  return `当前模型（${modelLabel}）不支持图像识别。请切换到视觉模型，或仅发送文字。`;
 }

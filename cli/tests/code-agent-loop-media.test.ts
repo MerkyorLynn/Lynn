@@ -104,7 +104,7 @@ async function withRawBrainServer(handler: (body: unknown, count: number) => str
 }
 
 describe("code agent loop · multimodal & BYOK subprocess", () => {
-  it("sends attached images through code mode for multimodal MiMo tasks", async () => {
+  it("sends attached images through code mode for multimodal tasks", async () => {
     const image = path.join(tmp, "shot.png");
     await fs.writeFile(image, Buffer.from("89504e470d0a1a0a", "hex"));
     const original = process.stdout.write;

@@ -1,5 +1,5 @@
 /**
- * visual-format.ts — pure display helpers for a MiMo vision worker's structured
+ * visual-format.ts — pure display helpers for a vision worker's structured
  * result (worker.visual_result). Coordinates are normalized [0,1] (see the v0.80
  * decision), rendered as percentages. Pure + testable (no DOM, mirrors the
  * buildFleetDispatchPayload pattern).

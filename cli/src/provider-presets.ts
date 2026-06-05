@@ -7,13 +7,6 @@ export interface ProviderPreset {
 }
 
 export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
-  mimo: {
-    provider: "openai-compatible",
-    baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-    model: "mimo-v2.5-pro",
-    displayName: "MiMo V2.5 Pro",
-    description: "MiMo V2.5 Pro Token Plan route (multimodal/native-search fallback in Lynn Brain)",
-  },
   stepfun: {
     provider: "openai-compatible",
     baseUrl: "https://api.stepfun.com/step_plan/v1",
@@ -45,10 +38,6 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
 };
 
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  mimo: "MiMo V2.5 Pro",
-  "mimo-v2.5-pro": "MiMo V2.5 Pro",
-  "mimo-v2.5": "MiMo V2.5",
-  "mimo-v2-omni": "MiMo V2 Omni",
   stepfun: "StepFun 3.7 Flash",
   "step-3.7-flash": "StepFun 3.7 Flash",
   spark: "Spark Qwen 3.6 35B A3B",

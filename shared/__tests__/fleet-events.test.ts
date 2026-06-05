@@ -14,7 +14,7 @@ describe("fleet-events protocol", () => {
       schemaVersion: FLEET_EVENT_SCHEMA_VERSION,
       type: "worker.started",
       workerId: "w1",
-      agent: "mimo-vl",
+      agent: "lynn-cli",
       cwd: "/repo",
       worktree: "/repo/worktrees/w1",
       branch: "cli-1/task",
@@ -84,7 +84,7 @@ describe("fleet-events protocol", () => {
     const result = validateFleetWorkerEvent({
       type: "worker.visual_result",
       workerId: "w-vision",
-      agent: "mimo-vl",
+      agent: "lynn-cli",
       taskType: "ground",
       image: "/tmp/shot.png",
       summary: "Submit button is near the lower-right corner.",

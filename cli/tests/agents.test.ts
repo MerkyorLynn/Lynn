@@ -10,7 +10,7 @@ describe("agent registry", () => {
       fileExists: (file) => file === "/bin/codex",
     });
     expect(agents.find((agent) => agent.id === "lynn-cli")).toMatchObject({ available: true, availability: "current binary", kind: "built-in" });
-    expect(agents.find((agent) => agent.id === "mimo-vl")).toMatchObject({ available: true, availability: "built-in profile - vision", kind: "built-in" });
+    expect(agents.find((agent) => agent.id === "mimo-vl")).toBeUndefined();
     expect(agents.find((agent) => agent.id === "stepfun-flash")).toMatchObject({
       available: false,
       availability: "requires: Lynn providers set --preset stepfun --api-key <api-key>",

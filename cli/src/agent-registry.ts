@@ -14,9 +14,6 @@ export interface CliAgentEntry {
 
 const AGENTS: Array<Omit<CliAgentEntry, "available" | "availability"> & { profileHint?: string }> = [
   { id: "lynn-cli", label: "Lynn CLI", bin: "Lynn", enabled: true, kind: "built-in", profileHint: "current binary" },
-  { id: "mimo-vl", label: "MiMo Vision (mimo-v2.5)", bin: "Lynn", enabled: true, kind: "built-in", profileHint: "built-in profile - vision" },
-  { id: "mimo-pro", label: "MiMo Pro (long endurance)", bin: "Lynn", enabled: true, kind: "built-in", profileHint: "built-in profile - long task" },
-  { id: "mimo-fast", label: "MiMo Fast", bin: "Lynn", enabled: true, kind: "built-in", profileHint: "built-in profile - fast" },
   { id: "stepfun-flash", label: "StepFun 3.7 Flash", bin: "Lynn", enabled: true, kind: "built-in", profileHint: "built-in profile - BYOK preset stepfun", requiresPreset: "stepfun" },
   { id: "codex-cli", label: "Codex", bin: "codex", enabled: true, kind: "external" },
   { id: "claude-code", label: "Claude Code", bin: "claude", enabled: true, kind: "external" },

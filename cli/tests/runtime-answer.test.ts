@@ -25,7 +25,7 @@ describe("runtime answer", () => {
 
   it("renders the local CLI version instead of asking the model", () => {
     const text = renderLocalRuntimeAnswer({
-      routeLabel: "StepFun 3.7 Flash → MiMo V2.5 Pro",
+      routeLabel: "StepFun 3.7 Flash → Spark Qwen 3.6 35B A3B",
       brainUrl: "https://api.merkyorlynn.com/api/v2",
       cwd: "/tmp/project",
       mode: "ask / workspace-write",

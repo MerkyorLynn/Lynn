@@ -1,7 +1,6 @@
 export type Brand<T, Name extends string> = T & { readonly __brand: Name };
 
 export type ProviderIdLiteral =
-  | 'mimo'
   | 'apex-spark-i-balanced'
   | 'step-3.7-flash'
   | 'deepseek-chat'
@@ -10,9 +9,6 @@ export type ProviderIdLiteral =
   | 'glm-coding';
 
 export type ModelIdLiteral =
-  | 'mimo-v2.5-pro'
-  | 'mimo-v2.5'
-  | 'mimo-v2-omni'
   | 'qwen36-35b-a3b-apex-mtp'
   | 'step-3.7-flash'   // StepFun 198B-MoE/11B-A text/coding fallback, step_plan 端点
   | 'deepseek-v4-flash'
@@ -22,7 +18,7 @@ export type ModelIdLiteral =
 export type ProviderId = Brand<ProviderIdLiteral, 'ProviderId'>;
 export type ModelId = Brand<ModelIdLiteral, 'ModelId'>;
 
-export type WireName = 'mimo' | 'sglang' | 'openai' | 'openai-compat';
+export type WireName = 'sglang' | 'openai' | 'openai-compat';
 
 export interface ProviderCapability {
   vision: boolean;
@@ -80,7 +76,7 @@ export type StreamChunk =
   | { type: 'usage'; usage: unknown }
   | { type: 'finish'; reason: string }
   | { type: 'tool_progress'; event: 'start' | 'end'; name: string; ms?: number; ok?: boolean; summary?: string; details?: string[] }
-  | { type: 'pre_search'; source: 'mimo'; query: string; hit: boolean; ms: number; cached: 'request' | 'lru' | null }
+  | { type: 'pre_search'; source: 'search'; query: string; hit: boolean; ms: number; cached: 'request' | 'lru' | null }
   | { type: 'audio_fallback'; source: string; transcripts: number; total: number; ms: number }
   | ({ type: 'error'; error: string } & Record<string, unknown>);
 

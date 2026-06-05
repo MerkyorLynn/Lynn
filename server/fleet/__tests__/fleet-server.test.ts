@@ -479,7 +479,7 @@ describe("FleetHub.dispatch", () => {
     })).toBeNull();
   });
 
-  it("detects StepFun and MiMo presets from node-only environment variables", () => {
+  it("detects StepFun presets from node-only environment variables", () => {
     expect(configuredCliProviderPreset({
       env: {
         LYNN_CLI_PRESET: "stepfun",
@@ -489,15 +489,6 @@ describe("FleetHub.dispatch", () => {
         throw new Error("profile should not be read when env preset is complete");
       },
     })).toBe("stepfun");
-
-    expect(configuredCliProviderPreset({
-      env: {
-        LYNN_CLI_BASE_URL: "https://token-plan-cn.xiaomimimo.com/v1",
-        LYNN_CLI_MODEL: "mimo-v2.5-pro",
-        LYNN_CLI_API_KEY: "mimo-key",
-      },
-      readFileSync: () => "{}",
-    })).toBe("mimo");
 
     expect(configuredCliProviderPreset({
       env: {
@@ -1151,7 +1142,7 @@ describe("FleetHub real spawn", () => {
     });
     await hub.dispatch({
       ...sampleBrief,
-      agent: "mimo-vl",
+      agent: "lynn-cli",
       taskType: "ground",
       image: "screenshots/login.png",
       objective: "Find the login button.",

@@ -87,18 +87,18 @@ describe("brain-client stream parser", () => {
     expect(parseBrainStreamPayload(JSON.stringify({
       object: "lynn.provider",
       meta: {
-        active_provider: "mimo",
+        active_provider: "step-3.7-flash",
         fallback_from: [{ id: "spark", reason: "probe-failed" }],
       },
     }))).toEqual([
-      { type: "provider", activeProvider: "mimo", fallbackFrom: [{ id: "spark", reason: "probe-failed" }] },
+      { type: "provider", activeProvider: "step-3.7-flash", fallbackFrom: [{ id: "spark", reason: "probe-failed" }] },
     ]);
 
     expect(parseBrainStreamPayload(JSON.stringify({
       object: "lynn.tool_progress",
-      tool_progress: { event: "end", name: "web_search", ms: 120, ok: true, summary: "MiMo summary", details: ["[Source](https://example.test): snippet"] },
+      tool_progress: { event: "end", name: "web_search", ms: 120, ok: true, summary: "search summary", details: ["[Source](https://example.test): snippet"] },
     }))).toEqual([
-      { type: "tool_progress", event: "end", name: "web_search", ms: 120, ok: true, summary: "MiMo summary", details: ["[Source](https://example.test): snippet"] },
+      { type: "tool_progress", event: "end", name: "web_search", ms: 120, ok: true, summary: "search summary", details: ["[Source](https://example.test): snippet"] },
     ]);
 
     expect(parseBrainStreamPayload(JSON.stringify({

@@ -16,21 +16,8 @@ const ASR_PROVIDERS = [
 const TTS_PROVIDERS = [
   { value: 'cosyvoice', label: 'CosyVoice (Spark · 真流式 · 默认推荐)' },
   { value: 'edge', label: 'Edge TTS (免费在线・备用)' },
-  { value: 'mimo', label: 'MiMo V2.5 TTS (preset / 文字定制 / 音色克隆)' },
   { value: 'openai', label: 'OpenAI TTS API (BYOK)' },
   { value: 'say', label: 'macOS say (本地离线)' },
-];
-
-const MIMO_PRESET_VOICES = [
-  { value: '冰糖', label: '冰糖' },
-  { value: '茉莉', label: '茉莉' },
-  { value: '苏打', label: '苏打' },
-  { value: '白桦', label: '白桦' },
-  { value: 'Mia', label: 'Mia' },
-  { value: 'Chloe', label: 'Chloe' },
-  { value: 'Milo', label: 'Milo' },
-  { value: 'Dean', label: 'Dean' },
-  { value: 'mimo_default', label: 'mimo_default' },
 ];
 
 // CosyVoice SFT 7 个内置 speakers
@@ -54,7 +41,6 @@ const LANGUAGES = [
 
 function defaultTtsVoice(provider: string): string {
   if (provider === 'cosyvoice') return '中文女';
-  if (provider === 'mimo') return '冰糖';
   return 'zh-CN-XiaoxiaoNeural';
 }
 
@@ -102,9 +88,6 @@ export function VoiceTab() {
   const setTtsStreamingEnabled = useStore((s) => s.setTtsStreamingEnabled);
   const setTtsBrowserFallbackEnabled = useStore((s) => s.setTtsBrowserFallbackEnabled);
   const setTtsProviderPreference = useStore((s) => s.setTtsProviderPreference);
-  // MiMo voice clone / design
-  const [mimoVoiceClonePath, setMimoVoiceClonePath] = useState<string>(String(voice.tts?.voice_clone_audio_path || ''));
-  const [mimoVoiceDescription, setMimoVoiceDescription] = useState<string>(String(voice.tts?.voice_description || ''));
 
   const [language, setLanguage] = useState(voice.language || 'auto');
   const [shortcutStatus, setShortcutStatus] = useState<ShortcutStatus | null>(null);
@@ -123,8 +106,6 @@ export function VoiceTab() {
     setTtsKey(v.tts?.api_key || '');
     setTtsBaseUrl(v.tts?.base_url || '');
     setTtsVoice(v.tts?.default_voice || defaultTtsVoice(nextTtsProvider));
-    setMimoVoiceClonePath(String(v.tts?.voice_clone_audio_path || ''));
-    setMimoVoiceDescription(String(v.tts?.voice_description || ''));
     setLanguage(v.language || 'auto');
   }, [settingsConfig?.voice, setTtsProviderPreference]);
 
@@ -144,7 +125,7 @@ export function VoiceTab() {
   }, []);
 
   const needsAsrKey = asrProvider === 'openai' || asrProvider === 'azure';
-  const needsTtsKey = ttsProvider === 'openai' || ttsProvider === 'mimo';
+  const needsTtsKey = ttsProvider === 'openai';
 
   const handleSave = async () => {
     const payload: {
@@ -156,8 +137,6 @@ export function VoiceTab() {
           default_voice: string;
           api_key?: string;
           base_url?: string;
-          voice_clone_audio_path?: string;
-          voice_description?: string;
         };
       };
     } = {
@@ -173,8 +152,6 @@ export function VoiceTab() {
           default_voice: ttsVoice,
           ...(needsTtsKey ? { api_key: ttsKey || undefined } : {}),
           ...(ttsBaseUrl ? { base_url: ttsBaseUrl } : {}),
-          ...(ttsProvider === 'mimo' && mimoVoiceClonePath ? { voice_clone_audio_path: mimoVoiceClonePath } : {}),
-          ...(ttsProvider === 'mimo' && mimoVoiceDescription ? { voice_description: mimoVoiceDescription } : {}),
         },
       },
     };
@@ -295,12 +272,6 @@ export function VoiceTab() {
               value={ttsVoice}
               onChange={(v) => setTtsVoice(v)}
             />
-          ) : ttsProvider === 'mimo' ? (
-            <SelectWidget
-              options={MIMO_PRESET_VOICES}
-              value={ttsVoice || '冰糖'}
-              onChange={(v) => setTtsVoice(v)}
-            />
           ) : (
             <input
               className={styles['settings-input']}
@@ -315,45 +286,11 @@ export function VoiceTab() {
               ? 'CosyVoice 2 部署在 Spark,短文本低延迟,支持真流式播放。内置音色:中文女 / 中文男 / 英文女 / 英文男 / 日语男 / 韩语女 / 粤语女。'
               : ttsProvider === 'edge'
               ? 'Edge TTS 使用 Neural 音色 ID,如 zh-CN-XiaoxiaoNeural,适合作为网络备用。'
-              : ttsProvider === 'mimo'
-              ? 'MiMo V2.5 TTS 8 个 preset 音色;若填下面的克隆路径/文字定制会自动切到 voiceclone/voicedesign,覆盖此 preset 选择'
               : ttsProvider === 'openai'
               ? 'OpenAI TTS 使用内置音色 alloy / echo / onyx / nova'
               : '本地 say,音色取决于系统设置'}
           </span>
         </div>
-
-        {/* MiMo voice clone / design 专属字段 */}
-        {ttsProvider === 'mimo' && (
-          <>
-            <div className={styles['settings-field']}>
-              <label className={styles['settings-field-label']}>音色克隆音频路径(可选)</label>
-              <input
-                className={styles['settings-input']}
-                type="text"
-                value={mimoVoiceClonePath}
-                onChange={(e) => setMimoVoiceClonePath(e.target.value)}
-                placeholder="/path/to/your_voice.wav  (5-15s wav/mp3, ≤50MB)"
-              />
-              <span className={styles['settings-field-hint']}>
-                填本地音频路径 → 自动走 MiMo voiceclone 模式生成你的专属音色。留空 = 用 preset。
-              </span>
-            </div>
-            <div className={styles['settings-field']}>
-              <label className={styles['settings-field-label']}>音色文字定制(可选)</label>
-              <input
-                className={styles['settings-input']}
-                type="text"
-                value={mimoVoiceDescription}
-                onChange={(e) => setMimoVoiceDescription(e.target.value)}
-                placeholder="年轻男声,温暖,带一点沙哑感"
-              />
-              <span className={styles['settings-field-hint']}>
-                用自然语言描述 → 自动走 voicedesign 模式。注意:克隆路径优先级更高,两个都填时克隆胜。
-              </span>
-            </div>
-          </>
-        )}
 
         {/* P0: 自动预合成 toggle */}
         <div className={styles['settings-field']}>
@@ -367,7 +304,7 @@ export function VoiceTab() {
           </label>
           <span className={styles['settings-field-hint']}>
             开启后:每条 ≥50 字回复在 streaming 结束时后台 TTS 一次,缓存到磁盘。点喇叭命中缓存 0 等待。
-            注意:每条都烧 TTS quota,MiMo/OpenAI 收费 provider 慎开。CosyVoice/Edge 免费可开。
+            注意:每条都烧 TTS quota,OpenAI 收费 provider 慎开。CosyVoice/Edge 免费可开。
             ⚡ Shift+点击 喇叭 = 浏览器原生即时朗读(本地,&lt;50ms,无 quota)。
           </span>
         </div>

@@ -20,7 +20,7 @@ function _agentFingerprint(key: unknown): string {
 
 // [deep-research v1 import]
 import { runDeepResearch } from './deep-research.js';
-// [web-search proxy v1 import] — server-side keys, client never sees MiMo/Zhipu API keys
+// [web-search proxy v1 import] — server-side keys, client never sees Zhipu/search API keys
 import { webSearchStructured } from './tool-exec/web_search.js';
 const PORT = Number(process.env.BRAIN_V2_PORT || 8790);
 const HOST = process.env.BRAIN_V2_HOST || '127.0.0.1';
@@ -371,7 +371,7 @@ async function handleDeviceRegister(req: IncomingMessage, res: ServerResponse): 
 
 // [web-search proxy v1 handler]
 // Lynn desktop client's web_search tool calls this localhost endpoint so the
-// MiMo / Zhipu / Bocha / Tavily / Serper API keys can stay in this Node process
+// Zhipu / Bocha / Tavily / Serper API keys can stay in this Node process
 // only and are never embedded in client code, renderer process, or distributed
 // binaries. Returns { ok, provider, items[], summary?, sources[] } so the UI
 // can render a synthesized answer plus a collapsible "View sources (N)" list.

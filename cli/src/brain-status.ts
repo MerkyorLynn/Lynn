@@ -102,7 +102,7 @@ export function brainRouteReadiness(status: BrainProviderStatus | null): BrainRo
 
   let detail = "";
   if (!usable) {
-    detail = "no configured provider in route; configure MiMo/StepFun in the Lynn client or CLI BYOK";
+    detail = "no configured provider in route; configure StepFun in the Lynn client or CLI BYOK";
   } else if (!headReady) {
     detail = `head ${labelFor(headId)} not configured; fallback ready: ${readyProviders.map(labelFor).join(", ")}`;
   } else {

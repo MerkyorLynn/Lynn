@@ -124,13 +124,6 @@
     "codestral-latest"
   ],
 
-  "mimo": [
-    "mimo-v2-pro",
-    "mimo-v2-flash",
-    "mimo-v2-omni",
-    "mimo-v2-tts"
-  ],
-
   "modelscope": [
     "Qwen/Qwen3-235B-A22B"
   ],

@@ -33,16 +33,16 @@ describe("startup banner", () => {
     setLang("zh");
     const output = renderStartupBanner({
       brainStatus: "offline",
-      modelLabel: "MiMo",
+      modelLabel: "StepFun",
       showTips: false,
     });
 
     expect(output).toContain("模型:");
-    expect(output).toContain("MiMo");
+    expect(output).toContain("StepFun");
     expect(output).toContain("BYOK:");
     expect(output).toContain("客户端 Providers");
     expect(output).toContain("Lynn providers");
-    expect(output).not.toContain("MiMo via local Brain router");
+    expect(output).not.toContain("StepFun via local Brain router");
     expect(Math.max(...output.split("\n").map(visibleLength))).toBeLessThanOrEqual(76);
   });
 
@@ -89,7 +89,7 @@ describe("startup banner", () => {
     expect(visibleLength("模型")).toBe(4);
     expect(visibleLength("\u001b[31m模型\u001b[0m")).toBe(4);
     expect(displayWidth("模型:abc")).toBe(8);
-    const rendered = box(["模型: MiMo", "目录: ~/项目"]);
+    const rendered = box(["模型: StepFun", "目录: ~/项目"]);
     const body = rendered.split("\n").slice(1, -1);
     expect(body.every((line) => visibleLength(line) === visibleLength(body[0]))).toBe(true);
   });

@@ -3,7 +3,7 @@
  *
  * 优先级 cascade (2026-05-28 重构):
  *   Tier 1: Lynn brain v2 proxy (POST /v1/web-search 到 BRAIN_V2_URL)
- *           ← MiMo + GLM (Zhipu) 等 LLM-summarized 多源聚合,server 端持 key,
+ *           ← GLM (Zhipu) 等 LLM-summarized 多源聚合,server 端持 key,
  *             客户端零暴露。返回结构化 { items, summary, sources[] }。
  *   Tier 2: 用户在 cfg.search 显式配置的 paid provider
  *           (tavily / serper / brave / searxng,带用户自己的 key)
@@ -326,7 +326,7 @@ function buildPlanNotice(plan: SearchPlan | null | undefined): string {
 }
 
 // ════════════════════════════════════════
-// Tier 1: Lynn brain v2 proxy (server-side keys, MiMo/GLM LLM-summarized)
+// Tier 1: Lynn brain v2 proxy (server-side keys, GLM LLM-summarized)
 // ════════════════════════════════════════
 
 interface BrainProxyResponse {
@@ -354,7 +354,7 @@ function resolveBrainProxyUrl(): string {
 
 /**
  * Call Lynn brain v2 mirror's /v1/web-search endpoint. The proxy holds all
- * MiMo / Zhipu / Bocha / Tavily / Serper API keys server-side; this client
+ * Zhipu / Bocha / Tavily / Serper API keys server-side; this client
  * function never sees them. Localhost-only by brain's enforcement.
  */
 async function searchLynnBrainProxy(
@@ -677,7 +677,7 @@ async function doSearch(query: string, maxResults: number, opts: SearchRunOption
   const errors: string[] = [];
 
   // ── Tier 1: Lynn brain v2 proxy ────────────────────────────────────
-  // Server-side MiMo / Zhipu / Bocha / Tavily / Serper multi-source race.
+  // Server-side Zhipu / Bocha / Tavily / Serper multi-source race.
   // Returns LLM-synthesized summary + structured sources. No client keys.
   // Set BRAIN_V2_URL='' or LYNN_DISABLE_BRAIN_SEARCH=1 to skip this tier.
   const brainDisabled = String(process.env.LYNN_DISABLE_BRAIN_SEARCH || '').trim() === '1';

@@ -361,8 +361,6 @@ export class LynnEngine {
     if (!model) return null;
     // v0.77.7 (2026-05-05): brain provider 默认 reasoning=true 让 Pi SDK 透传
     // Lynn ThinkingLevelButton 'off' → Pi SDK reasoning_effort: 'off'
-    // brain v2 mimo wire 翻译 → MiMo thinking:{type:disabled} 关思考(快速模式)
-    // 见 wire-adapter/mimo.js reasoningEffortToMimoThinking()
     const isBrain = String(model.provider || "").trim() === BRAIN_PROVIDER_ID;
     const ov = (overrides || this.config?.models?.overrides)?.[model.id];
     if (!ov) {

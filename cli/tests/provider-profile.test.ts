@@ -101,13 +101,13 @@ describe("CLI provider profile", () => {
     });
 
     expect(readEnvProviderProfile({
-      LYNN_CLI_PRESET: "mimo",
-      LYNN_CLI_MODEL: "mimo-v2.5",
-      LYNN_CLI_API_KEY: "mimo-secret",
+      LYNN_CLI_PRESET: "stepfun",
+      LYNN_CLI_MODEL: "step-3.7-flash-override",
+      LYNN_CLI_API_KEY: "step-secret",
     })).toMatchObject({
-      baseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
-      model: "mimo-v2.5",
-      apiKey: "mimo-secret",
+      baseUrl: "https://api.stepfun.com/step_plan/v1",
+      model: "step-3.7-flash-override",
+      apiKey: "step-secret",
     });
   });
 

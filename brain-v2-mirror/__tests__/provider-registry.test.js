@@ -5,10 +5,16 @@ describe('provider registry', () => {
   it('keeps StepFun high+32K in the intended universal fallback head position', () => {
     expect(universalOrder.map(String).slice(0, 4)).toEqual([
       'step-3.7-flash',
-      'mimo',
       'apex-spark-i-balanced',
       'deepseek-chat',
+      'deepseek-pro',
     ]);
+  });
+
+  it('no longer registers the removed MiMo provider', () => {
+    expect(getProvider('mimo')).toBeNull();
+    expect(universalOrder.map(String)).not.toContain('mimo');
+    expect(Object.keys(PROVIDERS)).not.toContain('mimo');
   });
 
   it('registers StepFun as a cloud text/tools fallback without native search', () => {
@@ -39,17 +45,20 @@ describe('provider registry', () => {
     expect(getProvider('deepseek-chat').thinking_control).toBeUndefined();
   });
 
-  it('keeps StepFun as the text head while multimodal capability falls through to MiMo', () => {
+  it('keeps StepFun as the text head and exposes no multimodal-capable provider after MiMo removal', () => {
+    // No provider declares vision/audio/video anymore. The capability path still
+    // returns universalOrder (router.run pre-flight raises CAPABILITY_NOT_SUPPORTED),
+    // but the capable-after-gate set is empty.
     const visionOrder = providerOrderForCapability({ vision: true })
       .map((id) => PROVIDERS[id])
       .filter((provider) => provider?.capability?.vision)
       .map((provider) => String(provider.id));
 
-    expect(visionOrder[0]).toBe('mimo');
-    expect(visionOrder).not.toContain('step-3.7-flash');
-    expect(universalOrder.map(String).slice(0, 3)).toEqual(['step-3.7-flash', 'mimo', 'apex-spark-i-balanced']);
-    expect(visionOrder).not.toContain('apex-spark-i-balanced');
-    expect(visionOrder).not.toContain('deepseek-chat');
+    expect(visionOrder).toEqual([]);
+    expect(universalOrder.map(String).slice(0, 3)).toEqual(['step-3.7-flash', 'apex-spark-i-balanced', 'deepseek-chat']);
+    // capability path does not crash and returns the universal cascade unchanged
+    expect(providerOrderForCapability({ vision: true }).map(String)).toEqual(universalOrder.map(String));
+    expect(Object.values(PROVIDERS).every((p) => !p.capability.vision && !p.capability.audio && !p.capability.video)).toBe(true);
   });
 
   it('exposes a sanitized provider status snapshot without leaking keys', () => {
@@ -57,7 +66,7 @@ describe('provider registry', () => {
     const step = snapshot.providers.find((provider) => provider.id === 'step-3.7-flash');
     const spark = snapshot.providers.find((provider) => provider.id === 'apex-spark-i-balanced');
 
-    expect(snapshot.route.slice(0, 3)).toEqual(['step-3.7-flash', 'mimo', 'apex-spark-i-balanced']);
+    expect(snapshot.route.slice(0, 3)).toEqual(['step-3.7-flash', 'apex-spark-i-balanced', 'deepseek-chat']);
     expect(step).toMatchObject({ id: 'step-3.7-flash', credential: expect.any(String), inRoute: true });
     expect(spark).toMatchObject({ credential: 'not_required', configured: true, local: true });
     expect(JSON.stringify(snapshot)).not.toContain('apiKey');

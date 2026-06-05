@@ -152,8 +152,6 @@ function matchingEnvApiKey(flagProfile: CliProviderProfile, envProfile: CliProvi
 
 function presetApiKey(presetName: string | null, env: NodeJS.ProcessEnv): string | undefined {
   switch ((presetName || "").trim().toLowerCase()) {
-    case "mimo":
-      return env.MIMO_API_KEY || env.MIMO_SEARCH_KEY || undefined;
     case "stepfun":
       return env.STEPFUN_API_KEY || env.STEP_API_KEY || undefined;
     case "spark":

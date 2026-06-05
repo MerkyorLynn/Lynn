@@ -4,7 +4,7 @@ import { renderStatusBar } from "../src/status-bar.js";
 describe("status bar", () => {
   it("renders model, cwd, mode, reasoning, and usage", () => {
     const rendered = renderStatusBar({
-      model: "MiMo",
+      model: "StepFun",
       cwd: process.cwd(),
       mode: "ask / workspace-write",
       reasoning: "auto",
@@ -14,7 +14,7 @@ describe("status bar", () => {
       color: false,
     });
 
-    expect(rendered).toContain("MiMo");
+    expect(rendered).toContain("StepFun");
     expect(rendered).toContain("ask / workspace-write");
     expect(rendered).toContain("think auto");
     expect(rendered).toContain("decode 42 TPS");

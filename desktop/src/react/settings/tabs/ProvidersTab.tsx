@@ -91,7 +91,6 @@ const API_PROVIDER_ORDER = [
   'groq',
   'mistral',
   'openrouter',
-  'mimo',
   'ollama',
 ];
 

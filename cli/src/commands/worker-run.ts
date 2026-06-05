@@ -482,7 +482,7 @@ function buildLynnCodeWorkerTask(brief: WorkerBrief): string {
 }
 
 function isBuiltInLynnWorker(agent: string): boolean {
-  return agent === "lynn-cli" || agent === "mimo-vl" || agent === "mimo-pro" || agent === "mimo-fast" || agent === "stepfun-flash";
+  return agent === "lynn-cli" || agent === "stepfun-flash";
 }
 
 export function isAnswerOnlyWorkerBrief(brief: Pick<WorkerBrief, "title" | "objective" | "tests">): boolean {
@@ -507,9 +507,6 @@ function isVisionTask(taskType: WorkerBrief["taskType"]): taskType is "see" | "g
 }
 
 export function workerProfileDefaults(agent: string): { reasoning?: "off" | "high" | "xhigh"; maxSteps?: string; long?: boolean } {
-  if (agent === "mimo-fast") return { reasoning: "off", maxSteps: "6" };
-  if (agent === "mimo-pro") return { reasoning: "high", maxSteps: "100", long: true };
-  if (agent === "mimo-vl") return { reasoning: "high" };
   if (agent === "stepfun-flash") return { reasoning: "high", maxSteps: "100", long: true };
   return {};
 }
@@ -664,7 +661,7 @@ async function runLynnVisionWorker(input: {
       workerId: input.workerId,
       agent: input.agent,
       code: "vision_image_missing",
-      message: "MiMo vision worker requires an Image section in the brief",
+      message: "Lynn vision worker requires an Image section in the brief",
       recoverable: true,
     });
     return 2;
@@ -709,7 +706,7 @@ async function runLynnVisionWorker(input: {
       agent: input.agent,
       taskType: input.brief.taskType,
       image: input.brief.image,
-      summary: assistantText.trim() || "MiMo vision worker completed without visible text.",
+      summary: assistantText.trim() || "Lynn vision worker completed without visible text.",
       ...(input.brief.taskType === "ground" ? { boxes: extractGroundingBoxes(assistantText) } : {}),
     });
     emit({ type: "shell.finished", workerId: input.workerId, agent: input.agent, command: `Lynn ${input.brief.taskType}`, ok: true, exitCode: 0, ms: Date.now() - started });

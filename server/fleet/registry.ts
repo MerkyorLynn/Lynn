@@ -25,11 +25,6 @@ export interface FleetAgentEntry {
 
 export const DEFAULT_FLEET_REGISTRY: FleetAgentEntry[] = [
   { id: "lynn-cli", label: "Lynn CLI", bin: "lynn", supportsJsonl: true, enabled: true },
-  // MiMo profiles of the lynn CLI: the MiMo agent/model is selected via the worker
-  // brief, not a separate binary, so bin stays `lynn`.
-  { id: "mimo-vl", label: "MiMo Vision (mimo-v2.5)", bin: "lynn", supportsJsonl: true, enabled: true },
-  { id: "mimo-pro", label: "MiMo Pro (long-endurance)", bin: "lynn", supportsJsonl: true, enabled: true },
-  { id: "mimo-fast", label: "MiMo Fast", bin: "lynn", supportsJsonl: true, enabled: true },
   { id: "stepfun-flash", label: "StepFun 3.7 Flash (fast coding)", bin: "lynn", supportsJsonl: true, enabled: true, requiresPreset: "stepfun" },
   { id: "codex-cli", label: "Codex", bin: "codex", supportsJsonl: true, enabled: true },
   { id: "claude-internal", label: "Claude (internal)", bin: "claude-internal", supportsJsonl: false, enabled: true },
@@ -93,7 +88,6 @@ export function configuredCliProviderPreset(opts: { lynnHome?: string; readFileS
     const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : "";
     if (!apiKey) return null;
     if (baseUrl === "https://api.stepfun.com/step_plan/v1" && model === "step-3.7-flash") return "stepfun";
-    if (baseUrl === "https://token-plan-cn.xiaomimimo.com/v1" && model.startsWith("mimo-")) return "mimo";
     return null;
   } catch {
     return null;
@@ -108,7 +102,6 @@ function configuredPresetFromEnv(env: NodeJS.ProcessEnv): string | null {
   const model = env.LYNN_CLI_MODEL || "";
   if (!apiKey.trim()) return null;
   if (baseUrl === "https://api.stepfun.com/step_plan/v1" && model === "step-3.7-flash") return "stepfun";
-  if (baseUrl === "https://token-plan-cn.xiaomimimo.com/v1" && model.startsWith("mimo-")) return "mimo";
   return null;
 }
 

@@ -1,6 +1,7 @@
 // Brain v2 · Search Context Broker tests
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { applySearchContext, createSearchRequestCache, classifyForSearch, __testing__ } from '../search-context.js';
+import { __testing__ as webSearchTesting } from '../tool-exec/web_search.js';
 import { mockFetch } from './helpers.ts';
 
 const providerSpark = {
@@ -14,14 +15,15 @@ const providerSpark = {
   default_thinking: false,
 };
 
-const providerMimo = {
-  id: 'mimo',
+// A provider that declares native search — the broker should skip pre-search for it.
+const providerNativeSearch = {
+  id: 'glm-5-turbo',
   endpoint: 'https://example.com/v1',
   apiKey: 'k',
-  model: 'mimo-v2.5-pro',
+  model: 'GLM-5-Turbo',
   capability: { vision: false, audio: false, tools: true, thinking: true, native_search: true },
-  wire: 'mimo',
-  cooldown_ms: 300_000,
+  wire: 'openai',
+  cooldown_ms: 60_000,
   default_thinking: true,
 };
 
@@ -38,13 +40,20 @@ function jsonResponse(payload, status = 200) {
   };
 }
 
-function mimoJsonResponse(content = '【MiMo 摘要】') {
+// webSearch() pre-search broker now goes through the multi-source aggregator,
+// whose always-on racer is Zhipu (parses tool_calls[].web_search.search_result).
+function zhipuJsonResponse(content = '【实时摘要】') {
   return jsonResponse({
     choices: [
       {
         message: {
           content,
-          annotations: [{ type: 'url_citation', title: 't', url: 'https://x', summary: 's' }],
+          tool_calls: [
+            {
+              type: 'web_search',
+              web_search: { search_result: [{ title: 't', link: 'https://x', content: 's' }] },
+            },
+          ],
         },
       },
     ],
@@ -84,12 +93,13 @@ describe('applySearchContext — gating', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     __testing__.lru.clear();
+    webSearchTesting.cache.clear();
     delete process.env.BRAIN_V2_PRE_SEARCH;
-    delete process.env.MIMO_SEARCH_KEY;
+    delete process.env.ZHIPU_KEY;
   });
 
   it('skips when flag is off', async () => {
-    process.env.MIMO_SEARCH_KEY = 'k';
+    process.env.ZHIPU_KEY = 'k';
     const result = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: createSearchRequestCache() });
     expect(result.meta.applied).toBe(false);
     expect(result.meta.skipReason).toBe('flag-off');
@@ -98,22 +108,22 @@ describe('applySearchContext — gating', () => {
 
   it('skips on native_search provider', async () => {
     process.env.BRAIN_V2_PRE_SEARCH = '1';
-    process.env.MIMO_SEARCH_KEY = 'k';
-    const result = await applySearchContext({ messages: msgsTime, provider: providerMimo, requestCache: createSearchRequestCache() });
+    process.env.ZHIPU_KEY = 'k';
+    const result = await applySearchContext({ messages: msgsTime, provider: providerNativeSearch, requestCache: createSearchRequestCache() });
     expect(result.meta.applied).toBe(false);
     expect(result.meta.skipReason).toBe('provider-native-search');
   });
 
-  it('skips when no MIMO_SEARCH_KEY is configured', async () => {
+  it('skips when no ZHIPU_KEY is configured', async () => {
     process.env.BRAIN_V2_PRE_SEARCH = '1';
     const result = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: createSearchRequestCache() });
     expect(result.meta.applied).toBe(false);
-    expect(result.meta.skipReason).toBe('no-mimo-key');
+    expect(result.meta.skipReason).toBe('no-search-key');
   });
 
   it('skips code and non-trigger messages', async () => {
     process.env.BRAIN_V2_PRE_SEARCH = '1';
-    process.env.MIMO_SEARCH_KEY = 'k';
+    process.env.ZHIPU_KEY = 'k';
     const r1 = await applySearchContext({ messages: msgsCode, provider: providerSpark, requestCache: createSearchRequestCache() });
     expect(r1.meta.applied).toBe(false);
     expect(r1.meta.skipReason).toBe('excluded');
@@ -124,7 +134,7 @@ describe('applySearchContext — gating', () => {
 
   it('skips when no user message exists', async () => {
     process.env.BRAIN_V2_PRE_SEARCH = '1';
-    process.env.MIMO_SEARCH_KEY = 'k';
+    process.env.ZHIPU_KEY = 'k';
     const result = await applySearchContext({ messages: [{ role: 'system', content: 'hi' }], provider: providerSpark, requestCache: createSearchRequestCache() });
     expect(result.meta.applied).toBe(false);
     expect(result.meta.skipReason).toBe('no-user-msg');
@@ -135,22 +145,27 @@ describe('applySearchContext — applied path', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     __testing__.lru.clear();
+    webSearchTesting.cache.clear();
     process.env.BRAIN_V2_PRE_SEARCH = '1';
-    process.env.MIMO_SEARCH_KEY = 'k';
+    process.env.ZHIPU_KEY = 'k';
+    // Optional racers off so the aggregator only fires Zhipu (single fetch).
+    delete process.env.BOCHA_KEY;
+    delete process.env.TAVILY_KEY;
+    delete process.env.SERPER_KEY;
   });
 
   afterEach(() => {
     delete process.env.BRAIN_V2_PRE_SEARCH;
-    delete process.env.MIMO_SEARCH_KEY;
+    delete process.env.ZHIPU_KEY;
   });
 
-  it('calls MiMo on cache miss and injects protected user context before the last user message', async () => {
-    const fetchMock = mockFetch(mimoJsonResponse('A 股小幅震荡'));
+  it('runs web search on cache miss and injects protected user context before the last user message', async () => {
+    const fetchMock = mockFetch(zhipuJsonResponse('A 股小幅震荡'));
     const cache = createSearchRequestCache();
     const result = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: cache });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.meta.applied).toBe(true);
-    expect(result.meta.source).toBe('mimo');
+    expect(result.meta.source).toBe('search');
     expect(result.meta.cached).toBe(null);
     expect(result.messages).not.toBe(msgsTime);
     expect(result.messages).toHaveLength(msgsTime.length + 1);
@@ -164,7 +179,7 @@ describe('applySearchContext — applied path', () => {
   });
 
   it('request cache avoids repeated searches during the same fallback chain', async () => {
-    const fetchMock = mockFetch(mimoJsonResponse('foo'));
+    const fetchMock = mockFetch(zhipuJsonResponse('foo'));
     const cache = createSearchRequestCache();
     await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: cache });
     const second = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: cache });
@@ -174,7 +189,7 @@ describe('applySearchContext — applied path', () => {
   });
 
   it('LRU cache reuses results across requests within TTL', async () => {
-    const fetchMock = mockFetch(mimoJsonResponse('bar'));
+    const fetchMock = mockFetch(zhipuJsonResponse('bar'));
     await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: createSearchRequestCache() });
     const second = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: createSearchRequestCache() });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -190,16 +205,18 @@ describe('applySearchContext — applied path', () => {
     expect(result.messages).toBe(msgsTime);
   });
 
-  it('empty result returns original messages', async () => {
-    mockFetch(jsonResponse({ choices: [{ message: { content: '', annotations: [] } }] }));
+  it('empty search result does not block the selected provider', async () => {
+    // Zhipu returns no summary and no search_result → searchZhipu throws "empty result"
+    // internally → aggregator reports all-sources-failed → broker maps to search-failed.
+    mockFetch(jsonResponse({ choices: [{ message: { content: '', tool_calls: [] } }] }));
     const result = await applySearchContext({ messages: msgsTime, provider: providerSpark, requestCache: createSearchRequestCache(), log: () => {} });
     expect(result.meta.applied).toBe(false);
-    expect(result.meta.skipReason).toBe('empty-result');
+    expect(result.meta.skipReason).toBe('search-failed');
     expect(result.messages).toBe(msgsTime);
   });
 
   it('keeps the last user message at the end after injection', async () => {
-    mockFetch(mimoJsonResponse('snippet'));
+    mockFetch(zhipuJsonResponse('snippet'));
     const messages = [
       { role: 'system', content: 'persona' },
       { role: 'user', content: 'hello' },

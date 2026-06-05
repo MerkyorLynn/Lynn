@@ -3,8 +3,8 @@
  * Posts to POST /api/fleet/dispatch; the server FleetHub broadcasts fleet events
  * back over the WS, so a dispatched worker appears on the board with no extra wiring.
  *
- * Supports MiMo vision dispatch (task type + image) and fan-out: one brief dispatched
- * to several agents in parallel (each gets its own worker + worktree).
+ * Supports fan-out: one brief dispatched to several agents in parallel (each gets
+ * its own worker + worktree).
  */
 import { useEffect, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
@@ -19,7 +19,7 @@ interface AgentEntry {
   availability?: string;
 }
 
-type FleetTaskType = 'code' | 'see' | 'ground' | 'ui2code';
+type FleetTaskType = 'code';
 type FleetApprovalMode = 'ask' | 'on-failure' | 'never' | 'yolo';
 type FleetSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
 
@@ -40,9 +40,6 @@ interface FleetDispatchFormState {
 
 const FALLBACK_AGENTS: AgentEntry[] = [
   { id: 'lynn-cli', label: 'Lynn CLI', enabled: true },
-  { id: 'mimo-vl', label: 'MiMo Vision (mimo-v2.5)', enabled: true },
-  { id: 'mimo-pro', label: 'MiMo Pro (long-endurance)', enabled: true },
-  { id: 'mimo-fast', label: 'MiMo Fast', enabled: true },
   { id: 'stepfun-flash', label: 'StepFun 3.7 Flash (fast coding)', enabled: true },
   { id: 'codex-cli', label: 'Codex', enabled: true },
   { id: 'claude-code', label: 'Claude Code', enabled: true },
@@ -69,10 +66,6 @@ function toLines(value: string): string[] {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
-}
-
-function isVisionTask(taskType: FleetTaskType): boolean {
-  return taskType === 'see' || taskType === 'ground' || taskType === 'ui2code';
 }
 
 export function agentOptionLabel(agent: AgentEntry): string {
@@ -119,7 +112,6 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
   const [approval, setApproval] = useState<FleetApprovalMode>('ask');
   const [sandbox, setSandbox] = useState<FleetSandboxMode>('workspace-write');
   const [fanOut, setFanOut] = useState<string[]>([]);
-  const [image, setImage] = useState('');
   const [objective, setObjective] = useState('');
   const [owned, setOwned] = useState(INITIAL_SCOPE_DEFAULTS.owned);
   const [forbidden, setForbidden] = useState(INITIAL_SCOPE_DEFAULTS.forbidden);
@@ -172,18 +164,15 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  const isVision = isVisionTask(taskType);
-  const writesFiles = taskType === 'code' || taskType === 'ui2code';
+  const writesFiles = taskType === 'code';
   const targets = Array.from(new Set([agent, ...fanOut.filter((a) => a !== agent)]));
   const needsExternalFullAccess = externalTargetsNeedFullAccess({ targets, approval, sandbox });
-  const baseBranch = branch || (isVision ? `vision/${taskType}` : '');
-  const baseWorktree = worktree || (isVision ? `worktrees/vision-${taskType}` : '');
-  const canSubmit = !!title.trim() && !!baseBranch.trim() && !!baseWorktree.trim() && (!isVision || !!image.trim()) && !needsExternalFullAccess;
+  const baseBranch = branch;
+  const baseWorktree = worktree;
+  const canSubmit = !!title.trim() && !!baseBranch.trim() && !!baseWorktree.trim() && !needsExternalFullAccess;
 
   const setTaskKind = (value: FleetTaskType) => {
     setTaskType(value);
-    if (isVisionTask(value) && !agent.startsWith('mimo-')) setAgent('mimo-vl');
-    if (value === 'code' && agent === 'mimo-vl') setAgent(DEFAULT_FLEET_AGENT);
   };
 
   const applyScopePreset = (presetId: string) => {
@@ -207,7 +196,7 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
           title,
           agent: target,
           taskType,
-          image,
+          image: '',
           approval,
           sandbox,
           objective,
@@ -258,9 +247,6 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
           <label className={s.formLabel}>Task type</label>
           <select className={s.formInput} value={taskType} onChange={(e) => setTaskKind(e.target.value as FleetTaskType)}>
             <option value="code">Code / text work</option>
-            <option value="see">MiMo see image</option>
-            <option value="ground">MiMo ground UI element</option>
-            <option value="ui2code">MiMo UI to code</option>
           </select>
         </div>
       </div>
@@ -301,18 +287,6 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {isVision && (
-        <div className={s.formField}>
-          <label className={s.formLabel}>Image path</label>
-          <input
-            className={s.formInput}
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            placeholder="/Users/lynn/Desktop/screenshot.png"
-          />
-          <div className={s.formHint}>The path is passed to `Lynn worker run`; the CLI reads the image locally and routes it through MiMo vision.</div>
-        </div>
-      )}
       <div className={s.formRow}>
         <div className={s.formField}>
           <label className={s.formLabel}>Approval</label>
@@ -345,18 +319,18 @@ export function TaskBriefForm({ onClose }: { onClose: () => void }) {
       {targets.some(isExternalFleetAgent) && (
         <div className={needsExternalFullAccess ? s.formDangerHint : s.formHint}>
           External CLI adapters run their own shell/process. To launch them from Fleet, explicitly set Approval=yolo and
-          Sandbox=danger-full-access. Built-in Lynn, MiMo, and StepFun workers can stay guarded.
+          Sandbox=danger-full-access. Built-in Lynn and StepFun workers can stay guarded.
         </div>
       )}
       <div className={s.formRow}>
         <div className={s.formField}>
           <label className={s.formLabel}>Branch</label>
-          <input className={s.formInput} value={branch} onChange={(e) => setBranch(e.target.value)} placeholder={isVision ? baseBranch : 'cli-2/inputarea'} />
+          <input className={s.formInput} value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="cli-2/inputarea" />
         </div>
       </div>
       <div className={s.formField}>
         <label className={s.formLabel}>Worktree</label>
-        <input className={s.formInput} value={worktree} onChange={(e) => setWorktree(e.target.value)} placeholder={isVision ? baseWorktree : 'worktrees/cli-2-inputarea'} />
+        <input className={s.formInput} value={worktree} onChange={(e) => setWorktree(e.target.value)} placeholder="worktrees/cli-2-inputarea" />
       </div>
       <div className={s.formField}>
         <label className={s.formLabel}>Objective</label>

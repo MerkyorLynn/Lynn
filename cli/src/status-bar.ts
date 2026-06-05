@@ -14,7 +14,7 @@ export interface StatusBarInput {
 
 export function renderStatusBar(input: StatusBarInput): string {
   const parts = [
-    input.model || "MiMo/Brain",
+    input.model || "StepFun/Brain",
     displayCwd(input.cwd || process.cwd()),
     input.mode,
     input.reasoning ? `think ${input.reasoning}` : null,

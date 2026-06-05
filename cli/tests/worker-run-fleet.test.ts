@@ -530,7 +530,7 @@ describe("worker-run · run, diff & gate", () => {
         "--worktree",
         repo,
         "--agent",
-        "mimo-vl",
+        "lynn-cli",
         "--brain-url",
         `http://127.0.0.1:${address.port}`,
         "--approval",
@@ -560,7 +560,7 @@ describe("worker-run · run, diff & gate", () => {
     expect(lines.some((line) => line.type === "worker.finished" && line.summary === "lynn-cli worker completed")).toBe(true);
   });
 
-  it("runs MiMo vision workers through the Brain multimodal path", async () => {
+  it("runs vision workers through the Brain multimodal path", async () => {
     const repo = await makeTempGitRepo();
     await fs.writeFile(path.join(repo, "shot.png"), Buffer.from("89504e470d0a1a0a", "hex"));
     const briefPath = path.join(repo, "brief.md");
@@ -617,7 +617,7 @@ describe("worker-run · run, diff & gate", () => {
         "--worktree",
         repo,
         "--agent",
-        "mimo-vl",
+        "lynn-cli",
         "--brain-url",
         `http://127.0.0.1:${address.port}`,
       ]));
@@ -638,7 +638,7 @@ describe("worker-run · run, diff & gate", () => {
       image?: string;
       boxes?: Array<{ x: number; y: number; confidence?: number }>;
     });
-    expect(lines.some((line) => line.type === "worker.started" && line.agent === "mimo-vl")).toBe(true);
+    expect(lines.some((line) => line.type === "worker.started" && line.agent === "lynn-cli")).toBe(true);
     expect(lines.some((line) => line.type === "assistant.delta" && line.text?.includes("\"x\""))).toBe(true);
     expect(lines.some((line) => (
       line.type === "worker.visual_result"
@@ -691,7 +691,7 @@ describe("worker-run · run, diff & gate", () => {
         "--worktree",
         repo,
         "--agent",
-        "mimo-vl",
+        "lynn-cli",
         "--mock",
       ]));
       expect(code).toBe(0);

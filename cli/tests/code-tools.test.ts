@@ -572,7 +572,7 @@ describe("code tools", () => {
 
     expect(intro).toContain("Lynn Code");
     expect(intro).toContain("StepFun");
-    expect(intro).toContain("MiMo");
+    expect(intro).not.toContain("MiMo");
     expect(intro).toContain("directory:");
     expect(intro).toContain("/fast");
     expect(intro).toContain("/think");
@@ -628,7 +628,7 @@ describe("code tools", () => {
       maxSteps: 8,
     });
 
-    expect(header).toContain("StepFun 3.7 Flash→MiMo V2.5 Pro via local Brain router");
+    expect(header).toContain("StepFun 3.7 Flash via local Brain router");
     expect(header).toContain("/repo");
     expect(header).toContain("ask / workspace-write");
     expect(header).toContain("think:");

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Set env keys BEFORE importing the module so racers register correctly
 process.env.ZHIPU_KEY = 'test-zhipu';
-process.env.MIMO_SEARCH_KEY = 'test-mimo';
 delete process.env.BOCHA_KEY;
 delete process.env.TAVILY_KEY;
 delete process.env.SERPER_KEY;
@@ -19,55 +18,62 @@ describe('web_search aggregator', () => {
     __testing__.cache.clear();
   });
 
-  it('returns aggregated results when both Zhipu and MiMo succeed', async () => {
-    global.fetch = vi.fn()
-      .mockResolvedValueOnce(jsonResp({  // zhipu
+  it('returns aggregated results when Zhipu and an optional source succeed', async () => {
+    process.env.BOCHA_KEY = 'test-bocha';
+    __testing__.cache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('bochaai')) {
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha Page', url: 'http://b', snippet: 'b-snippet' }] } } }));
+      }
+      return Promise.resolve(jsonResp({  // zhipu
         choices: [{ message: { content: 'Zhipu summary', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'A', link: 'http://a', content: 'a-snippet' }] } }] } }],
-      }))
-      .mockResolvedValueOnce(jsonResp({  // mimo
-        choices: [{ message: { content: 'MiMo summary', annotations: [{ type: 'url_citation', title: 'B', url: 'http://b', summary: 'b-snippet' }] } }],
       }));
+    });
     const r = await webSearch('test query');
     expect(r).toContain('── zhipu ──');
-    expect(r).toContain('── mimo ──');
+    expect(r).toContain('── bocha ──');
     expect(r).toContain('Zhipu summary');
-    expect(r).toContain('MiMo summary');
+    expect(r).toContain('Bocha Page');
     expect(r).toContain('http://a');
     expect(r).toContain('http://b');
+    delete process.env.BOCHA_KEY;
   });
 
   it('returns when only one source succeeds', async () => {
-    global.fetch = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'down', json: async () => ({}) })  // zhipu fail
-      .mockResolvedValueOnce(jsonResp({  // mimo OK
-        choices: [{ message: { content: 'mimo only', annotations: [] } }],
-      }));
+    process.env.BOCHA_KEY = 'test-bocha';
+    __testing__.cache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('bochaai')) {
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha only', url: 'http://b', snippet: 'b' }] } } }));
+      }
+      return Promise.resolve({ ok: false, status: 500, text: async () => 'down', json: async () => ({}) });  // zhipu fail
+    });
     const r = await webSearch('q');
-    expect(r).toContain('── mimo ──');
+    expect(r).toContain('── bocha ──');
     expect(r).not.toContain('── zhipu ──');
-    expect(r).toContain('mimo only');
+    expect(r).toContain('Bocha only');
+    delete process.env.BOCHA_KEY;
   });
 
   it('returns error JSON when all sources fail', async () => {
     global.fetch = vi.fn()
-      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => '', json: async () => ({}) })
-      .mockResolvedValueOnce({ ok: false, status: 502, text: async () => '', json: async () => ({}) });
+      .mockResolvedValueOnce({ ok: false, status: 500, text: async () => '', json: async () => ({}) });
     const r = await webSearch('q');
     const parsed = JSON.parse(r);
     expect(parsed.error).toBe('all search sources failed');
-    expect(parsed.detail).toHaveLength(2);
+    expect(parsed.detail).toHaveLength(1);  // only zhipu racer when no optional keys
   });
 
   it('caches successful results (5min LRU)', async () => {
     let fetchCount = 0;
     global.fetch = vi.fn().mockImplementation(() => {
       fetchCount++;
-      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'cached!', annotations: [] } }] }));
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'cached!', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'C', link: 'http://c', content: 'c' }] } }] } }] }));
     });
     const r1 = await webSearch('cache-test');
     const r2 = await webSearch('cache-test');
     expect(r1).toBe(r2);
-    expect(fetchCount).toBe(2);  // only Zhipu+MiMo on first call (no Bocha/Tavily/Serper)
+    expect(fetchCount).toBe(1);  // only Zhipu on first call (no optional racers), cache on second
   });
 
   it('returns error for empty query without calling fetch', async () => {
@@ -77,14 +83,14 @@ describe('web_search aggregator', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('skips optional racers when env keys absent (only zhipu+mimo called)', async () => {
+  it('skips optional racers when env keys absent (only zhipu called)', async () => {
     let calls = 0;
     global.fetch = vi.fn().mockImplementation(() => {
       calls++;
-      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'x', annotations: [] } }] }));
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'x', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'X', link: 'http://x', content: 'x' }] } }] } }] }));
     });
     await webSearch('opt-test');
-    expect(calls).toBe(2);  // only zhipu + mimo, no bocha/tavily/serper
+    expect(calls).toBe(1);  // only zhipu, no bocha/tavily/serper
   });
 
   it('includes optional racers when their env key is set', async () => {
@@ -96,10 +102,10 @@ describe('web_search aggregator', () => {
       if (url.includes('bochaai')) {
         return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha', url: 'http://bo', snippet: 'bo!' }] } } }));
       }
-      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'x', annotations: [] } }] }));
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'x', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'X', link: 'http://x', content: 'x' }] } }] } }] }));
     });
     const r = await webSearch('with-bocha');
-    expect(calls).toBe(3);  // zhipu + mimo + bocha
+    expect(calls).toBe(2);  // zhipu + bocha
     expect(r).toContain('── bocha ──');
     delete process.env.BOCHA_KEY;
   });
@@ -112,30 +118,34 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     __testing__.structuredCache.clear();
   });
 
-  it('returns structured items + summary + per-source trace when MiMo and Zhipu succeed', async () => {
-    global.fetch = vi.fn()
-      .mockResolvedValueOnce(jsonResp({  // zhipu
+  it('returns structured items + summary + per-source trace when Zhipu and an optional source succeed', async () => {
+    process.env.BOCHA_KEY = 'test-bocha';
+    __testing__.structuredCache.clear();
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url.includes('bochaai')) {
+        return Promise.resolve(jsonResp({ data: { webPages: { value: [{ name: 'Bocha Article', url: 'http://b', snippet: 'b-snip' }] } } }));
+      }
+      return Promise.resolve(jsonResp({  // zhipu
         choices: [{ message: { content: 'GLM 综合答案', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'Z', link: 'http://z', content: 'z-snip' }] } }] } }],
-      }))
-      .mockResolvedValueOnce(jsonResp({  // mimo
-        choices: [{ message: { content: 'MiMo 综合答案', annotations: [{ type: 'url_citation', title: 'M', url: 'http://m', summary: 'm-snip' }] } }],
       }));
+    });
     const r = await webSearchStructured('结构化测试');
     expect(r.ok).toBe(true);
-    // primary should be MiMo or Zhipu (LLM-summarized), not random
-    expect(['mimo', 'zhipu']).toContain(r.provider);
+    // primary should be Zhipu (the only LLM-summarized source)
+    expect(r.provider).toBe('zhipu');
     expect(r.summary).toMatch(/综合答案/);
     // items deduped across sources
     const urls = r.items.map((it) => it.url);
-    expect(urls).toContain('http://m');
     expect(urls).toContain('http://z');
+    expect(urls).toContain('http://b');
     // sources trace contains both racers
     const names = r.sources.map((s) => s.name).sort();
-    expect(names).toEqual(['mimo', 'zhipu']);
+    expect(names).toEqual(['bocha', 'zhipu']);
     expect(r.sources.every((s) => s.ok)).toBe(true);
+    delete process.env.BOCHA_KEY;
   });
 
-  it('falls back to non-summary source when MiMo and Zhipu both fail and Bocha is configured', async () => {
+  it('falls back to non-summary source when Zhipu fails and Bocha is configured', async () => {
     process.env.BOCHA_KEY = 'test-bocha';
     __testing__.structuredCache.clear();
     global.fetch = vi.fn().mockImplementation((url) => {
@@ -144,7 +154,7 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
       }
       return Promise.resolve({ ok: false, status: 500, text: async () => 'down', json: async () => ({}) });
     });
-    const r = await webSearchStructured('mimo-zhipu-down');
+    const r = await webSearchStructured('zhipu-down');
     expect(r.ok).toBe(true);
     expect(r.provider).toBe('bocha');
     expect(r.summary).toBeUndefined();
@@ -174,11 +184,11 @@ describe('webSearchStructured (Lynn brain proxy backend)', () => {
     let calls = 0;
     global.fetch = vi.fn().mockImplementation(() => {
       calls++;
-      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'cached', annotations: [{ type: 'url_citation', title: 'C', url: 'http://c', summary: 'c-snip' }] } }] }));
+      return Promise.resolve(jsonResp({ choices: [{ message: { content: 'cached', tool_calls: [{ type: 'web_search', web_search: { search_result: [{ title: 'C', link: 'http://c', content: 'c-snip' }] } }] } }] }));
     });
     const a = await webSearchStructured('cache-key-q');
     const b = await webSearchStructured('cache-key-q');
     expect(a).toBe(b);
-    expect(calls).toBe(2);  // zhipu + mimo, only on first call
+    expect(calls).toBe(1);  // zhipu only, on first call
   });
 });

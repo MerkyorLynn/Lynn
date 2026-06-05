@@ -1,4 +1,4 @@
-export type TtsProviderPreference = 'cosyvoice' | 'edge' | 'mimo' | 'openai' | 'say' | string;
+export type TtsProviderPreference = 'cosyvoice' | 'edge' | 'openai' | 'say' | string;
 
 const TTS_AUTO_PREFETCH_KEY = 'lynn-tts-auto-prefetch';
 const TTS_STREAMING_KEY = 'lynn-tts-streaming-enabled';

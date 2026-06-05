@@ -46,7 +46,7 @@ export function makeSSEEmitter(res: ServerResponse, { id, model = 'lynn-v2' }: S
     if (meta.providerId && meta.providerId !== currentProviderId) {
       currentProviderId = meta.providerId;
       // 2026-05-25 P0-1: 在 provider 切换(包括 first emit)时,把 fallback chain 一并发给 UI,
-      // 让用户看到"MiMo → Spark fallback (probe-failed)"。fallback_from 来自 router 的
+      // 让用户看到"StepFun → Spark fallback (probe-failed)"。fallback_from 来自 router 的
       // fallbackChain 数组(skipped/failed providers 顺序列表 [{id, reason}])。
       const providerMeta: ProviderMeta = { active_provider: meta.providerId };
       if (Array.isArray(meta.fallback_from) && meta.fallback_from.length > 0) {

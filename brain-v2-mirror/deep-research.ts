@@ -15,7 +15,7 @@ const DEFAULT_CANDIDATES = String(process.env.DEEP_RESEARCH_CANDIDATES || '')
   .map((s) => s.trim())
   .filter(Boolean);
 if (DEFAULT_CANDIDATES.length === 0) {
-  DEFAULT_CANDIDATES.push('mimo', 'apex-spark-i-balanced', 'deepseek-chat');
+  DEFAULT_CANDIDATES.push('step-3.7-flash', 'apex-spark-i-balanced', 'deepseek-chat');
 }
 const CANDIDATE_TIMEOUT_MS = Number(process.env.DEEP_RESEARCH_CANDIDATE_TIMEOUT_MS || 60_000);
 

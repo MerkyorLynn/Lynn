@@ -6,7 +6,7 @@ import { createWorkerView, reduceFleetWorker, summarizeFleetUsage } from '../fle
 // shared protocol change.
 describe('worker.progress data (vision + runner context)', () => {
   it('captures vision taskType + image from data:{kind:vision}', () => {
-    let v = createWorkerView('w1', 'mimo-vl');
+    let v = createWorkerView('w1', 'lynn-cli');
     v = reduceFleetWorker(v, {
       type: 'worker.progress',
       workerId: 'w1',
@@ -123,11 +123,11 @@ describe('worker.progress data (vision + runner context)', () => {
   });
 
   it('captures structured worker.visual_result events', () => {
-    let v = createWorkerView('w1', 'mimo-vl');
+    let v = createWorkerView('w1', 'lynn-cli');
     v = reduceFleetWorker(v, {
       type: 'worker.visual_result',
       workerId: 'w1',
-      agent: 'mimo-vl',
+      agent: 'lynn-cli',
       taskType: 'ground',
       image: '/shot.png',
       summary: 'Button is at bottom right.',

@@ -83,7 +83,7 @@ export async function* call({ provider, messages, tools, signal, extraBody, reas
     body.reasoning_effort = effectiveReasoningEffort;
   }
   // 2026-05-25: provider.default_thinking === false 时(例如 apex-spark Brain v2 fallback),
-  // 默认关 thinking,跟 MiMo 行为对齐。避免短 max_tokens 工况下 35B 长 reasoning 吃光
+  // 默认关 thinking。避免短 max_tokens 工况下 35B 长 reasoning 吃光
   // 预算返回空 content。client 通过 reasoning_effort('low'/'medium'/'high'/'on')显式
   // opt-in,或 extraBody.chat_template_kwargs.enable_thinking 直接覆盖。
   if (provider.default_thinking === false

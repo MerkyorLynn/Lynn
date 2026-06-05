@@ -238,7 +238,7 @@ async function runRound({
 }: Required<Pick<RouterRunOptions, 'onChunk'>> & Omit<RouterRunOptions, 'onChunk'> & { requestCache?: SearchRequestCache; audioCache?: AudioRequestCache }): Promise<RunRoundResult> {
   const errors: Array<{ providerId: ProviderId; error: string }> = [];
   // 2026-05-25 P0-1: track fallback chain so SSE consumer 可显示给 user
-  // (例:"MiMo → Spark fallback"),不再让 cascade decision 对 UI 不可见。
+  // (例:"StepFun → Spark fallback"),不再让 cascade decision 对 UI 不可见。
   const fallbackChain: FallbackEntry[] = [];
   for (const providerId of providerOrderForCapability(capabilityRequired)) {
     const provider = getProvider(providerId);
@@ -295,7 +295,7 @@ async function runRound({
         await onChunk(
           {
             type: 'pre_search',
-            source: 'mimo',
+            source: 'search',
             query: searchContext.meta.query,
             hit: searchContext.meta.hit,
             ms: searchContext.meta.ms,

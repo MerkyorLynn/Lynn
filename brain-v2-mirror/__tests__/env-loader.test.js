@@ -27,7 +27,7 @@ describe('brain env loader', () => {
     fs.mkdirSync(cwd, { recursive: true });
     const explicit = path.join(dir, 'explicit.env');
     fs.writeFileSync(explicit, 'STEP37_KEY=from-explicit\nKEEP=explicit\n');
-    fs.writeFileSync(path.join(home, '.lynn', 'brain.env'), 'MIMO_SEARCH_KEY="from-user"\nKEEP=user\n');
+    fs.writeFileSync(path.join(home, '.lynn', 'brain.env'), 'ZHIPU_KEY="from-user"\nKEEP=user\n');
     fs.writeFileSync(path.join(cwd, '.env'), "DEEPSEEK_KEY='from-cwd'\n");
 
     const env = { BRAIN_V2_ENV_FILE: explicit, KEEP: 'shell' };
@@ -39,7 +39,7 @@ describe('brain env loader', () => {
       path.resolve(path.join(cwd, '.env')),
     ]);
     expect(env.STEP37_KEY).toBe('from-explicit');
-    expect(env.MIMO_SEARCH_KEY).toBe('from-user');
+    expect(env.ZHIPU_KEY).toBe('from-user');
     expect(env.DEEPSEEK_KEY).toBe('from-cwd');
     expect(env.KEEP).toBe('shell');
   });
@@ -49,7 +49,6 @@ describe('brain env loader', () => {
       STEP_KEY: 'legacy-step',
       STEP_BASE: 'https://legacy-step.example/v1',
       STEP_TEXT_MODEL: 'step-legacy',
-      MIMO_KEY: 'legacy-mimo',
     };
 
     const result = loadBrainEnvFiles({ env, paths: [] });
@@ -57,12 +56,10 @@ describe('brain env loader', () => {
     expect(env.STEP37_KEY).toBe('legacy-step');
     expect(env.STEP37_BASE).toBe('https://legacy-step.example/v1');
     expect(env.STEP37_MODEL).toBe('step-legacy');
-    expect(env.MIMO_SEARCH_KEY).toBe('legacy-mimo');
     expect(result.aliases).toEqual(expect.arrayContaining([
       'STEP_KEY->STEP37_KEY',
       'STEP_BASE->STEP37_BASE',
       'STEP_TEXT_MODEL->STEP37_MODEL',
-      'MIMO_KEY->MIMO_SEARCH_KEY',
     ]));
   });
 });

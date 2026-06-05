@@ -24,8 +24,8 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
-describe("MiMo vision commands", () => {
-  it("builds image content parts for MiMo multimodal routing", async () => {
+describe("vision commands", () => {
+  it("builds image content parts for multimodal routing", async () => {
     const parts = await buildImageContentParts(png, "describe");
 
     expect(parts[0]).toEqual({ type: "text", text: "describe" });

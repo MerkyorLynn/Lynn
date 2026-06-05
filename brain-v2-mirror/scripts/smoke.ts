@@ -112,7 +112,7 @@ add('S3 server-side web_search (BTC 价格)', async () => {
   if (toolProgress.length === 0) throw new Error('no lynn_tool_progress markers (server tool exec missing)');
   const cleaned = assertCleanContent(events, 'S3');
   if (cleaned.length < 5) throw new Error('final content too short: ' + cleaned);
-  // 验证 model 字段切换:第一个非 role 应该是 mimo
+  // 验证 model 字段切换:第一个非 role chunk 应带活跃 provider 标识
   const firstModelChunk = events.find(e => e.model && e.model !== 'lynn-v2');
   return `${Date.now() - t0}ms  tools=${toolCallChunks.length}  progress=${toolProgress.length}  provider=${firstModelChunk?.model}  content="${cleaned.slice(0, 40)}..."`;
 });

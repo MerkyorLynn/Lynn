@@ -120,7 +120,7 @@ export async function getLocalQwen35Plan(options: LocalQwen35Options = {}) {
       ok: false,
       error: 'bootstrap_not_found',
       searched: candidateBootstrapPaths(),
-      fallback_provider: 'mimo',
+      fallback_provider: 'step-3.7-flash',
     };
   }
   try {

@@ -324,7 +324,6 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
     "/about",
     "/reasoning",
     "/continue",
-    "/model mimo",
     "/model stepfun",
   "/model spark",
   "/setup",
@@ -1099,7 +1098,7 @@ function renderCodeFooter(inputData: {
   usage?: string | null;
 }): string {
   const color = supportsColor(output);
-  const model = inputData.mockBrain ? "mock Brain" : inputData.fallbackProvider ? `CLI BYOK:${modelLabelWithId(inputData.fallbackProvider.model)}` : "StepFun 3.7 Flash→MiMo V2.5 Pro";
+  const model = inputData.mockBrain ? "mock Brain" : inputData.fallbackProvider ? `CLI BYOK:${modelLabelWithId(inputData.fallbackProvider.model)}` : "StepFun 3.7 Flash";
   const mode = renderMode(inputData.mode);
   return dim([
     model,

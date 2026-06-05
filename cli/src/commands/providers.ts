@@ -67,7 +67,7 @@ export interface ProviderTestResult {
 }
 
 export interface BrainModelChoice {
-  id: "mimo" | "stepfun" | "spark";
+  id: "stepfun" | "spark";
   name: string;
   routeRole: { zh: string; en: string };
   capability: { zh: string; en: string };
@@ -81,15 +81,9 @@ export const BRAIN_MODEL_CHOICES: BrainModelChoice[] = [
     capability: { zh: "256K 上下文 + high 推理 + 高 TPS 文本/编码", en: "256K context + high reasoning + high TPS text/coding" },
   },
   {
-    id: "mimo",
-    name: "MiMo V2.5 Pro",
-    routeRole: { zh: "2 / 多模态兜底", en: "2 / multimodal fallback" },
-    capability: { zh: "多模态 + 原生搜索 + 额度充裕", en: "multimodal + native search + large quota" },
-  },
-  {
     id: "spark",
     name: "Spark Qwen 3.6 35B A3B",
-    routeRole: { zh: "3 / 本地兜底", en: "3 / local fallback" },
+    routeRole: { zh: "2 / 本地兜底", en: "2 / local fallback" },
     capability: { zh: "本地隐私 + 零 API 成本", en: "local privacy + zero API cost" },
   },
 ];
@@ -122,7 +116,6 @@ export function renderBrainModelChoices(info: ProvidersInfo): string {
     t("models.note.fixed"),
     t("models.note.byok"),
     "  /model stepfun  StepFun 3.7 Flash",
-    "  /model mimo     MiMo V2.5 Pro",
     "  /model spark    Spark Qwen 3.6 35B A3B",
   ].join("\n");
 }
@@ -156,7 +149,6 @@ export function renderProvidersInfo(info: ProvidersInfo): string {
     t("providers.clientNote"),
     t("providers.cliNote"),
     "  Lynn providers set --base-url https://api.example.com/v1 --api-key <api-key> --model model-id",
-    "  Lynn providers set --preset mimo --api-key <api-key>",
     "  Lynn providers set --preset stepfun --api-key <api-key>",
     "  LYNN_CLI_PRESET=stepfun LYNN_CLI_API_KEY=<api-key> Lynn -p \"hello\"",
     "  Lynn providers test",
