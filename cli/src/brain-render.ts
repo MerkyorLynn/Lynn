@@ -128,8 +128,11 @@ function toolPreviewLines(event: Extract<BrainStreamEvent, { type: "tool_progres
 }
 
 function toolDetailHint(event: Extract<BrainStreamEvent, { type: "tool_progress" }>, detailId: number): string {
-  const hasSources = (event.details || []).some((line) => /^\[[^\]]+\]\([^)]+\):/.test(line));
-  if (hasSources) return `sources: /tool ${detailId}`;
+  const sources = sourceSummary(event.details || []);
+  if (sources.count) {
+    const hostText = sources.hosts.length ? ` · ${sources.hosts.join(", ")}` : "";
+    return `sources: /tool ${detailId} · ${sources.count} link${sources.count === 1 ? "" : "s"}${hostText}`;
+  }
   return `details: /tool ${detailId}`;
 }
 
@@ -163,7 +166,11 @@ export function renderToolDetailsList(state: HumanBrainRenderState, color: boole
   return details.map((detail) => {
     const status = detail.ok === false ? red("failed", color) : green("done", color);
     const timing = typeof detail.ms === "number" ? ` · ${formatDuration(detail.ms)}` : "";
-    const summary = ` — ${detail.summary || t("tool.details.unavailable.short")}`;
+    const sources = sourceSummary(detail.details);
+    const sourceText = sources.count
+      ? ` — ${sources.count} source${sources.count === 1 ? "" : "s"}${sources.hosts.length ? `: ${sources.hosts.join(", ")}` : ""}`
+      : "";
+    const summary = sourceText || ` — ${detail.summary || t("tool.details.unavailable.short")}`;
     return `${cyan(`/tool ${detail.id}`, color)} ${toolIcon(detail.name)} ${detail.name} · ${status}${timing}${summary}`;
   }).join("\n");
 }
@@ -194,6 +201,19 @@ function renderDetailLine(line: string, color: boolean): string {
 function terminalLink(text: string, url: string, enabled: boolean): string {
   if (!enabled) return `${text} (${url})`;
   return `\x1b]8;;${url}\x1b\\${cyan(text, true)}\x1b]8;;\x1b\\`;
+}
+
+function sourceSummary(lines: string[]): { count: number; hosts: string[] } {
+  const hosts: string[] = [];
+  let count = 0;
+  for (const line of lines) {
+    const citation = line.match(/^\[[^\]]+\]\(([^)]+)\):/);
+    if (!citation) continue;
+    count += 1;
+    const host = hostFromUrl(citation[1]);
+    if (host && !hosts.includes(host) && hosts.length < 3) hosts.push(host);
+  }
+  return { count, hosts };
 }
 
 export interface UsageSummaryOptions {

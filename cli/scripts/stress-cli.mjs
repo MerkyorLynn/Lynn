@@ -42,6 +42,7 @@ async function runPromptVersion(index) {
       ...process.env,
       LYNN_LANG: index % 2 ? "en" : "zh",
       NO_COLOR: "1",
+      LYNN_CLI_UPDATE_CHECK: "0",
     },
     timeoutMs: 10_000,
   });
@@ -62,6 +63,7 @@ async function runCodePromptVersion(index) {
       ...process.env,
       LYNN_LANG: index % 2 ? "en" : "zh",
       NO_COLOR: "1",
+      LYNN_CLI_UPDATE_CHECK: "0",
     },
     timeoutMs: 10_000,
   });
@@ -82,6 +84,7 @@ async function runPromptNonVersionSmoke() {
       ...process.env,
       LYNN_LANG: "en",
       NO_COLOR: "1",
+      LYNN_CLI_UPDATE_CHECK: "0",
     },
     timeoutMs: 10_000,
   });
@@ -117,6 +120,7 @@ env["TERM_PROGRAM"] = "Apple_Terminal"
 env["NO_COLOR"] = "1"
 env["LYNN_LANG"] = "zh"
 env["LYNN_BRAIN_URL"] = "http://127.0.0.1:1"
+env["LYNN_CLI_UPDATE_CHECK"] = "0"
 proc = subprocess.Popen([node_bin, cli_bin], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True)
 os.close(slave)
 buf = b""
@@ -166,7 +170,7 @@ if "yolo" not in text.lower():
 sys.exit(0)
 `;
   const result = await run(python, ["-c", script, process.execPath, bin], {
-    env: process.env,
+    env: { ...process.env, LYNN_CLI_UPDATE_CHECK: "0" },
     timeoutMs: 25_000,
   });
   if (result.code !== 0) {
@@ -195,6 +199,7 @@ env["TERM_PROGRAM"] = "Apple_Terminal"
 env["NO_COLOR"] = "1"
 env["LYNN_LANG"] = "zh"
 env["LYNN_BRAIN_URL"] = "http://127.0.0.1:1"
+env["LYNN_CLI_UPDATE_CHECK"] = "0"
 proc = subprocess.Popen([node_bin, cli_bin, "--mock-brain"], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True)
 os.close(slave)
 buf = b""
@@ -259,7 +264,7 @@ if "fetch failed" in text or "all providers failed" in text:
 sys.exit(0)
 `;
   const result = await run(python, ["-c", script, process.execPath, bin], {
-    env: process.env,
+    env: { ...process.env, LYNN_CLI_UPDATE_CHECK: "0" },
     timeoutMs: Math.max(45_000, appleTurns * 5_000 + 35_000),
   });
   if (result.code !== 0) {

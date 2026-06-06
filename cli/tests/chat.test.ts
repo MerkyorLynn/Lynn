@@ -196,6 +196,15 @@ describe("chat mode controls", () => {
     expect(completeChatInput("hello")).toEqual([[], "hello"]);
   });
 
+  it("keeps /tools for local tool inventory and /tool for recent tool details", async () => {
+    const result = await runInteractiveChatInput("/tools\n/tool\n/exit\n");
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("read_file:");
+    expect(result.stdout).toContain("bash");
+    expect(result.stdout).toContain("No tool details yet.");
+  });
+
   it("splits chat provider commands with quoted values", () => {
     expect(splitChatCommandLine('/providers set --base-url "https://api.example.com/v1" --model "step-3.7-flash"')).toEqual([
       "/providers",

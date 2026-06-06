@@ -72,7 +72,7 @@ describe("renderBrainEventForHuman", () => {
     expect(output).toContain("│ 🔧 🔎 web_search · running");
     expect(output).toContain("│ ✓ 🔎 web_search · done 5.1s");
     expect(output).toContain("│   MiMo summary · Source A: fresh result");
-    expect(output).toContain("│   sources: /tool 1");
+    expect(output).toContain("│   sources: /tool 1 · 1 link · a.example");
     expect(renderToolDetailsList(state, false)).toContain("/tool 1");
     expect(renderToolDetail(state, 1, false)).toContain("Source A (https://a.example)");
     expect(output).not.toContain("server tool:");
@@ -131,6 +131,7 @@ describe("renderBrainEventForHuman", () => {
     expect(output).toContain("StepFun Docs · platform.stepfun.com");
     expect(output).toContain("max_tokens controls generated tokens");
     expect(output).toContain("Pricing · platform.stepfun.com");
-    expect(output).toContain("sources: /tool 1");
+    expect(output).toContain("sources: /tool 1 · 2 links · platform.stepfun.com");
+    expect(renderToolDetailsList(state, false)).toContain("/tool 1 🔎 web_search · done · 4.5s — 2 sources: platform.stepfun.com");
   });
 });
