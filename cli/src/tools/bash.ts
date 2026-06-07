@@ -31,6 +31,7 @@ const WORKSPACE_BASH_FORBIDDEN = [
   /\bfind\b[^;&|]*-exec\b[^;&|]*\brm\b/,
   /\bgit\s+clean\b/,
 ];
+const FULL_DISK_FIND = /^\s*find\s+\/(?:\s|$)/;
 
 function appendLimited(current: string, next: string): string {
   const combined = current + next;
@@ -50,14 +51,17 @@ export function auditBash(command: string, cwd: string): void {
 }
 
 export function assertWorkspaceBashAllowed(command: string, sandbox: ToolRunContext["sandbox"]): void {
-  if (sandbox === "danger-full-access") return;
   const trimmed = command.trim();
+  if (FULL_DISK_FIND.test(trimmed) && process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND !== "1") {
+    throw new Error("full-disk `find / ...` is disabled inside Lynn CLI because it can hang the interactive session. Search from the current workspace instead, e.g. `find . -name <file>` or set --cwd to the project. To run a whole-machine search, use your shell outside Lynn, or set LYNN_CLI_ALLOW_FULL_DISK_FIND=1 explicitly.");
+  }
+  if (sandbox === "danger-full-access") return;
   if (!WORKSPACE_BASH_ALLOWED.test(trimmed)) {
-    throw new Error("bash command is not allowed in workspace-write sandbox; use /mode yolo for danger-full-access shell access");
+    throw new Error("bash command is not allowed in workspace-write sandbox; use /yolo for danger-full-access shell access, or run headless/Fleet with --approval yolo --sandbox danger-full-access");
   }
   const hit = WORKSPACE_BASH_FORBIDDEN.find((pattern) => pattern.test(trimmed));
   if (hit) {
-    throw new Error("bash command may escape the workspace; use /mode yolo only if you trust this command");
+    throw new Error("bash command may escape the workspace; use /yolo if you trust this command, or run headless/Fleet with --approval yolo --sandbox danger-full-access");
   }
 }
 

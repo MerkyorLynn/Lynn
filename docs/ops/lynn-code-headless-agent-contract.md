@@ -1,6 +1,6 @@
 # Lynn Code Headless Agent Contract
 
-Status: v0.80 integration contract.
+Status: v0.81.0 integration contract.
 
 This document is for other agents, CI jobs, and GUI Fleet workers that need to
 call Lynn Code without an interactive terminal.
@@ -21,7 +21,7 @@ This is the short contract another coding agent should read first:
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # Install or update Lynn CLI.
-npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz
+npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz
 
 # Verify the binary without needing a model backend.
 Lynn version
@@ -40,24 +40,22 @@ Lynn code -p "fix the failing tests, run tests, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
-# Long background task with resumable checkpoints.
-Lynn code -p "complete the migration until tests pass" \
+# Exhaustive best-effort task with resumable checkpoints.
+Lynn code --best -p "find the best solution, implement it, run gates" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
-  --long \
-  --max-steps 1000 \
+  --sandbox danger-full-access \
   --save-session
 
 # GUI Fleet worker adapter. Emits Fleet JSONL, not human prose.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 
 # Wrap a different CLI under Lynn Fleet.
 Lynn worker run --brief task.md --worktree /path/to/worktree \
@@ -70,7 +68,7 @@ Rules for agents:
 
 - Use `--json` or `--jsonl`; never parse the human terminal TUI.
 - Always pass `--cwd` / `--worktree`.
-- Use `--approval yolo --sandbox workspace-write` only in an isolated git
+- Use `--approval yolo --sandbox danger-full-access` only in an isolated git
   worktree.
 - Read `code.task.finished.resumeCommand` if max steps are reached.
 - Ignore unknown event types; key off `type`.
@@ -108,23 +106,27 @@ Lynn code -p "fix the failing tests, run the suite, and summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --max-steps 20 \
   --save-session
 ```
 
-For endurance work:
+For exhaustive best-effort work:
 
 ```bash
-Lynn code -p "complete this migration until tests pass" \
+Lynn code --best -p "find the best solution, implement it, run gates" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
-  --long \
-  --max-steps 1000 \
+  --sandbox danger-full-access \
   --save-session
 ```
+
+`--best` is equivalent to `--exhaustive`:it keeps StepFun 3.7 Flash as the fast
+head route, raises the budget to 300 steps, enables ultra task decomposition,
+atomic workers, adversarial verification, automatic checkpoints, and runtime
+compaction. The harness never chooses the final answer for the model; it only
+decomposes, dispatches, verifies, repairs, and prevents tool storms.
 
 ## Output
 
@@ -170,7 +172,7 @@ profile:
 
 - `--approval ask --sandbox read-only`: safest review mode.
 - `--approval ask --sandbox workspace-write`: interactive human mode.
-- `--approval yolo --sandbox workspace-write`: autonomous worker mode inside an
+- `--approval yolo --sandbox danger-full-access`: autonomous worker mode inside an
   isolated worktree.
 - `--sandbox danger-full-access`: only for trusted local debugging.
 

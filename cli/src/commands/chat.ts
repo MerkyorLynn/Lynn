@@ -31,7 +31,7 @@ import { compactChatMessages } from "../chat-compaction.js";
 import { isLocalExitText, parseLocalReadOnlyCommand, renderLocalReadOnlyBlocked, renderLocalReadOnlyResult, runLocalReadOnlyCommand } from "../local-command.js";
 import { assistantToolCallsForMessages, codeToolDefinitions, createStreamingToolCallAccumulator, parseCodeToolRequests, toolRequestsFromCollectedCalls, type CodeToolRequest } from "../code-tool-protocol.js";
 import { formatDangerousToolPreview, renderClientToolResult, renderClientToolStart, resolveToolApproval } from "../code-tool-render.js";
-import { runClientTool } from "../tools/registry.js";
+import { CLIENT_TOOL_DEFINITIONS, runClientTool } from "../tools/registry.js";
 import type { ClientToolResult } from "../tools/types.js";
 import { applyChatRewind, beginChatRewindTurn, createChatRewindState, finishChatRewindTurn, maybeRecordChatRewindSnapshot, parseChatRewindCommand, renderChatRewind } from "../chat-rewind.js";
 
@@ -93,6 +93,7 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
   const chatCwd = getStringFlag(args.flags, "cwd") || process.cwd();
   let reasoning = parseReasoningOptions(args);
   const mode = await resolveChatMode(args);
+  const approvalSession = { approveAll: false };
   let cliProvider = await resolveCliProviderProfile(args);
   const dataDir = resolveDataDir(getStringFlag(args.flags, "data-dir"));
   let memoryFrame = buildMemoryContextFrameSync(dataDir);
@@ -144,8 +145,12 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
       output.write(`${t("chat.help")}\n\n`);
       return "continue";
     }
-    if (text === "/tool" || text === "/tools") {
+    if (text === "/tool") {
       output.write(`${renderToolDetailsList(brainRenderState, supportsColor(output))}\n\n`);
+      return "continue";
+    }
+    if (text === "/tools") {
+      output.write(`${renderLocalToolList(supportsColor(output))}\n\n`);
       return "continue";
     }
     const toolDetailMatch = text.match(/^\/tool\s+(\d+)$/);
@@ -502,9 +507,15 @@ export async function runChat(args: ParsedArgs, options: { intro?: boolean; brai
         output,
         preview,
         args: request.args,
+        session: approvalSession,
       });
+      const effectiveSandbox = request.tool === "bash"
+        && mode.approval === "ask"
+        && effectiveApproval === "yolo"
+        ? "danger-full-access"
+        : mode.sandbox;
       maybeRecordChatRewindSnapshot(rewindState, chatCwd, request);
-      const result = await runClientTool({ cwd: chatCwd, approval: effectiveApproval, sandbox: mode.sandbox }, {
+      const result = await runClientTool({ cwd: chatCwd, approval: effectiveApproval, sandbox: effectiveSandbox }, {
         name: request.tool,
         ...request.args,
       });
@@ -788,6 +799,15 @@ function renderInteractiveModeChange(message: string, mode: ChatMode, color: boo
     ].join("\n");
   }
   return `${green("✓", color)} ${message}\nmode: ${dim(renderMode(mode), color)}\n\n`;
+}
+
+function renderLocalToolList(color: boolean): string {
+  return CLIENT_TOOL_DEFINITIONS
+    .map((tool) => {
+      const suffix = tool.dangerous ? t("tool.approval.suffix") : "";
+      return `${tool.name}${suffix}: ${dim(tool.description, color)}`;
+    })
+    .join("\n");
 }
 
 export function applyReasoningCommand(current: ReturnType<typeof parseReasoningOptions>, raw: string): { reasoning: ReturnType<typeof parseReasoningOptions>; message: string } {

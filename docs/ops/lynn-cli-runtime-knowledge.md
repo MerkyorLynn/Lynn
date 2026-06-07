@@ -48,6 +48,27 @@ model:
   self-verification.
 - Fleet JSONL events for other agents and GUI Fleet orchestration.
 
+## Local Model Matching Policy
+
+StepFun 3.7 Flash remains the default route for coding, research, and long
+tool chains. It runs with high reasoning and a 32K reasoning/generation budget.
+
+Local 9B is explicit opt-in. It is for low-latency local turns and offline
+fallback, not for default startup. Its runtime policy is:
+
+- Reuse KV cache through stable local slots when the launcher supports it.
+- Keep the warm pool off by default, and unload when idle.
+- Keep prompts small: stable prefix, recent short history, no large transcript
+  stuffing.
+- Expose only a small tool surface, normally 3-5 schemas.
+- Show local decode TPS in the UI/footer.
+- If the local turn fails or stalls, promote to the cloud StepFun route instead
+  of leaving the user blocked.
+
+Local 35B/Spark is the explicit high-end local route and third fallback. It is
+not auto-started and should be chosen only by users who want a heavier local
+quality tier.
+
 ## How To Answer Runtime Questions
 
 If a user asks what Lynn CLI is doing locally, answer with concrete runtime
@@ -64,12 +85,11 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
-

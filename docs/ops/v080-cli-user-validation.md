@@ -317,7 +317,7 @@ npm --prefix cli run typecheck
 npm --prefix cli test -- --run
 npm run test:cli
 npm run test:cli-install
-LYNN_CLI_TARBALL_URL=https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.5.tgz npm run test:cli-install:remote
+LYNN_CLI_TARBALL_URL=https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz npm run test:cli-install:remote
 npm run release:gate -- --quick --no-build --no-ui
 ```
 

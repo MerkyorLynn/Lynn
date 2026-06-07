@@ -8,13 +8,26 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const HOME = os.homedir();
-// 2026-05-25 默认本地模型回到 Qwen3.5-9B Q4_K_M imatrix MTP。
 const DEFAULT_PROVIDER_CONFIG = path.join(HOME, '.lynn-engine', 'providers', 'qwen35-9b-q4km-imatrix-gguf.json');
 const DEFAULT_PID_FILE = path.join(HOME, '.lynn-engine', 'run', 'qwen35-9b-q4km-imatrix.pid');
 const DEFAULT_LOG_FILE = path.join(HOME, '.lynn-engine', 'logs', 'qwen35-9b-q4km-imatrix.client.log');
 const DEFAULT_MODEL_ROOT = path.join(HOME, 'Models', 'Lynn', 'Qwen3.5-9B');
 const DEFAULT_HOST = process.env.LYNN_LOCAL_QWEN35_HOST || '127.0.0.1';
 const DEFAULT_PORT = Number(process.env.LYNN_LOCAL_QWEN35_PORT || 18099);
+export const LOCAL_QWEN35_FALLBACK_PROVIDER = process.env.LYNN_LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER || 'step-3.7-flash';
+export const LOCAL_QWEN35_RUNTIME_POLICY = Object.freeze({
+  role: 'explicit_opt_in_local_9b',
+  kv_cache_reuse: true,
+  warm_pool_default: false,
+  idle_unload: true,
+  stable_prefix: true,
+  small_context: true,
+  max_history_messages: Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_MESSAGES || 8),
+  max_history_chars: Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_CHARS || 8000),
+  tool_schema_limit: Math.max(3, Math.min(5, Number(process.env.LYNN_LOCAL_QWEN35_TOOL_SCHEMA_LIMIT || 5))),
+  footer_decode_tps: true,
+  failure_fallback_provider: LOCAL_QWEN35_FALLBACK_PROVIDER,
+});
 
 type LocalQwen35Options = {
   host?: string;
@@ -120,7 +133,8 @@ export async function getLocalQwen35Plan(options: LocalQwen35Options = {}) {
       ok: false,
       error: 'bootstrap_not_found',
       searched: candidateBootstrapPaths(),
-      fallback_provider: 'mimo',
+      fallback_provider: LOCAL_QWEN35_FALLBACK_PROVIDER,
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   }
   try {
@@ -133,6 +147,7 @@ export async function getLocalQwen35Plan(options: LocalQwen35Options = {}) {
       bootstrap,
       plan: readJsonMaybe(stdout),
       job: currentJob || lastJob,
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   } catch (err) {
     const e = err as ExecFileError;
@@ -143,6 +158,7 @@ export async function getLocalQwen35Plan(options: LocalQwen35Options = {}) {
       stdout: e.stdout || '',
       stderr: e.stderr || '',
       job: currentJob || lastJob,
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   }
 }
@@ -160,11 +176,12 @@ export function startLocalQwen35Setup({
       ok: false,
       error: 'missing_user_authorization',
       message: 'Client must pass authorized:true after the user approves local setup.',
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   }
-  if (currentJob?.status === 'running') return { ok: true, job: currentJob, already_running: true };
+  if (currentJob?.status === 'running') return { ok: true, job: currentJob, already_running: true, runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY };
   const bootstrap = resolveBootstrapPath();
-  if (!bootstrap) return { ok: false, error: 'bootstrap_not_found', searched: candidateBootstrapPaths() };
+  if (!bootstrap) return { ok: false, error: 'bootstrap_not_found', searched: candidateBootstrapPaths(), runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY };
 
   const logFile = process.env.LYNN_LOCAL_QWEN35_SETUP_LOG || path.join(HOME, '.lynn-engine', 'logs', `qwen35-9b-mtp-setup-${Date.now()}.log`);
   mkdirSync(path.dirname(logFile), { recursive: true });
@@ -219,7 +236,7 @@ export function startLocalQwen35Setup({
     lastJob = currentJob;
   });
 
-  return { ok: true, job: currentJob };
+  return { ok: true, job: currentJob, runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY };
 }
 
 export function getLocalQwen35Job() {

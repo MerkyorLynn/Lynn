@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliEntry = path.join(root, "cli", "bin", "lynn.mjs");
 const turns = Number.parseInt(process.env.LYNN_CLI_TERMINAL_APP_TURNS || "6", 10);
+const fullTui = process.argv.includes("--full-tui") || process.env.LYNN_CLI_TERMINAL_FULL_TUI === "1";
 
 if (process.platform !== "darwin") {
   console.log("[cli-terminal-app-smoke] skipped: Terminal.app is macOS-only");
@@ -46,7 +47,9 @@ on run argv
   set statusPath to item 2 of argv
   set transcriptPath to item 3 of argv
   set commandCount to item 4 of argv as integer
-  set runCommand to "cd " & quoted form of repoDir & " && printf 'terminal-app-smoke-start\\\\n' > " & quoted form of transcriptPath & " && LYNN_CLI_UPDATE_CHECK=0 LYNN_LANG=zh node cli/bin/lynn.mjs --mock-brain; echo $? > " & quoted form of statusPath
+  set fullTuiEnv to ""
+  if item 5 of argv is "1" then set fullTuiEnv to "LYNN_CLI_APPLE_TERMINAL_FULL_TUI=1 "
+  set runCommand to "cd " & quoted form of repoDir & " && printf 'terminal-app-smoke-start\\\\n' > " & quoted form of transcriptPath & " && LYNN_CLI_UPDATE_CHECK=0 LYNN_LANG=zh " & fullTuiEnv & "node cli/bin/lynn.mjs --mock-brain; echo $? > " & quoted form of statusPath
   tell application "Terminal"
     activate
     do script runCommand
@@ -63,7 +66,7 @@ end run
 
 await fs.writeFile(appleScriptPath, appleScript, "utf8");
 const appleScriptTimeoutMs = Math.max(45_000, commands.length * 1_500 + 15_000);
-await execFileAsync("osascript", [appleScriptPath, root, statusPath, transcriptPath, String(commands.length)], { timeout: appleScriptTimeoutMs });
+await execFileAsync("osascript", [appleScriptPath, root, statusPath, transcriptPath, String(commands.length), fullTui ? "1" : "0"], { timeout: appleScriptTimeoutMs });
 
 const deadline = Date.now() + Math.max(45_000, turns * 4_000 + 20_000);
 while (Date.now() < deadline) {
@@ -79,7 +82,7 @@ if (status !== "0") {
   throw new Error(`[cli-terminal-app-smoke] Lynn exited ${status}; temp=${tmp}`);
 }
 
-console.log(`[cli-terminal-app-smoke] passed Terminal.app realistic smoke (${commands.length - 1} turns before exit); temp=${tmp}`);
+console.log(`[cli-terminal-app-smoke] passed Terminal.app realistic smoke (${commands.length - 1} turns before exit${fullTui ? ", full Ink TUI" : ""}); temp=${tmp}`);
 
 function quoteApple(value) {
   return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER,
+  LOCAL_QWEN35_RUNTIME_POLICY,
+  LOCAL_QWEN35_TOOL_SCHEMA_LIMIT,
   appendNoThinkHintToLastUserMessage,
   resolveLocalQwen35DirectMaxTokens,
   resolveLocalQwen35DirectThinking,
@@ -61,5 +64,19 @@ describe("local Qwen3.5 direct policy", () => {
 
     expect(messages[0].content).toBe("上一轮");
     expect(messages[2].content).toBe("杭州滨江有什么好吃的吗\n/no_think");
+  });
+
+  it("keeps the local 9B runtime opt-in and small-context by default", () => {
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.warmPoolDefault).toBe(false);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.idleUnload).toBe(true);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.kvCacheReuse).toBe(true);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.stablePrefix).toBe(true);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.maxHistoryMessages).toBeLessThanOrEqual(8);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.maxHistoryChars).toBeLessThanOrEqual(8000);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.toolSchemaLimit).toBe(LOCAL_QWEN35_TOOL_SCHEMA_LIMIT);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.toolSchemaLimit).toBeGreaterThanOrEqual(3);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.toolSchemaLimit).toBeLessThanOrEqual(5);
+    expect(LOCAL_QWEN35_RUNTIME_POLICY.failureFallbackProvider).toBe("step-3.7-flash");
+    expect(LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER).toBe("step-3.7-flash");
   });
 });

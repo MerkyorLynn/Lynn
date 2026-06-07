@@ -31,6 +31,20 @@ const MODEL_ID = "qwen35-9b-q4km-imatrix";
 const MODEL_DISPLAY_NAME = "Qwen3.5-9B Q4_K_M imatrix MTP";
 const MODEL_FILE_NAME = "Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf";
 const MODEL_ROOT_NAME = "Qwen3.5-9B";
+const LOCAL_QWEN35_CLOUD_FALLBACK_PROVIDER = process.env.LYNN_LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER || "step-3.7-flash";
+const LOCAL_QWEN35_RUNTIME_POLICY = Object.freeze({
+  role: "explicit_opt_in_local_9b",
+  kv_cache_reuse: true,
+  warm_pool_default: false,
+  idle_unload: true,
+  stable_prefix: true,
+  small_context: true,
+  max_history_messages: Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_MESSAGES || 8),
+  max_history_chars: Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_CHARS || 8000),
+  tool_schema_limit: Math.max(3, Math.min(5, Number(process.env.LYNN_LOCAL_QWEN35_TOOL_SCHEMA_LIMIT || 5))),
+  footer_decode_tps: true,
+  failure_fallback_provider: LOCAL_QWEN35_CLOUD_FALLBACK_PROVIDER,
+});
 
 type JsonRecord = Record<string, unknown>;
 
@@ -580,6 +594,7 @@ function fastReadyPlan(runtime: RuntimeDetails, _variant = "imatrix"): JsonRecor
     ok: true,
     provider_id: PROVIDER_ID,
     model: MODEL_ID,
+    runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     plan: {
       decision: runtime.endpoint_occupied ? "occupied" : runtime.endpoint_running ? "ready" : runtime.endpoint_loading ? "loading" : "inspect",
       base_url: runtime.base_url,
@@ -790,14 +805,16 @@ async function plan(variant = "imatrix"): Promise<JsonRecord> {
       error: "bootstrap_not_found",
       searched: [fromRoot("scripts", "local_qwen35_9b_client_bootstrap.py")],
       provider_id: PROVIDER_ID,
-      fallback_provider: "brain",
+      fallback_provider: LOCAL_QWEN35_CLOUD_FALLBACK_PROVIDER,
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   }
   const pyCheck = await ensurePython3();
   if (!pyCheck.ok) {
     return {
       provider_id: PROVIDER_ID,
-      fallback_provider: "brain",
+      fallback_provider: LOCAL_QWEN35_CLOUD_FALLBACK_PROVIDER,
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
       ...pyCheck,
     };
   }
@@ -813,6 +830,7 @@ async function plan(variant = "imatrix"): Promise<JsonRecord> {
       model: MODEL_ID,
       bootstrap,
       plan: parseJson(String(stdout)),
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   } catch (err: unknown) {
     return {
@@ -822,6 +840,7 @@ async function plan(variant = "imatrix"): Promise<JsonRecord> {
       error: errorMessage(err),
       stdout: errorOutput(err, "stdout"),
       stderr: errorOutput(err, "stderr"),
+      runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
     };
   }
 }
@@ -959,13 +978,18 @@ export function createLocalQwen35Route(engine: LocalQwen35RouteEngine): Hono {
         ok: false,
         error: "missing_user_authorization",
         message: "客户端必须在用户授权后传 authorized:true，才会安装、下载或启动本地模型。",
+        runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY,
       }, 403);
     }
-    if (job?.status === "running") return c.json({ ok: true, already_running: true, job: decorateJob(job) }, 202);
+    if (job?.status === "running") {
+      return c.json({ ok: true, already_running: true, job: decorateJob(job), runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY }, 202);
+    }
 
     const bootstrap = bootstrapPath();
     const state = defaultState();
-    if (!bootstrap) return c.json({ ok: false, error: "bootstrap_not_found" }, 503);
+    if (!bootstrap) {
+      return c.json({ ok: false, error: "bootstrap_not_found", runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY }, 503);
+    }
 
     fs.mkdirSync(path.dirname(state.logFile), { recursive: true });
     const logFile = path.join(path.dirname(state.logFile), `qwen35-9b-setup-${Date.now()}.log`);
@@ -1032,7 +1056,7 @@ export function createLocalQwen35Route(engine: LocalQwen35RouteEngine): Hono {
       };
       _invalidateRuntimeCache();
     });
-    return c.json({ ok: true, job: decorateJob(job) }, 202);
+    return c.json({ ok: true, job: decorateJob(job), runtime_policy: LOCAL_QWEN35_RUNTIME_POLICY }, 202);
   });
 
   route.post("/local-qwen35-9b/register", async (c) => {

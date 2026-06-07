@@ -4,6 +4,7 @@ import { getStringFlag, hasFlag, type ParsedArgs } from "./args.js";
 import { completeSlash, normalizeSlashInput } from "./completion.js";
 import { completeMentionInput } from "./mentions.js";
 import { parseCodeResumeSlash, withLongRunCodeFlags, type CodeAgentApprovalRequest, type CodeAgentEvent } from "./commands/code.js";
+import { withBestCodeFlags } from "./code-best.js";
 import { applyModeCommand, applyReasoningCommand, renderMode, toggleMode, type ChatMode } from "./commands/chat.js";
 import { displayCwd } from "./startup.js";
 import { HistoryNavigator, appendHistory, historyPath, loadHistory } from "./history.js";
@@ -67,6 +68,8 @@ const CODE_SLASH_COMMANDS = [
   "/think",
   "/reasoning",
   "/goal",
+  "/best",
+  "/exhaustive",
   "/resume",
   "/continue",
   "/memory",
@@ -270,7 +273,17 @@ function InkCodeApp(props: InkCodeProps): React.ReactElement {
     if (text.startsWith("/goal ")) {
       const task = text.slice(6).trim();
       pushItem({ kind: "system", text: t("code.goal.started"), tone: "success" });
-      await runCodeText(task, (flags) => withLongRunCodeFlags(flags));
+      await runCodeText(task, (flags) => withBestCodeFlags(flags));
+      return;
+    }
+    if (text === "/best" || text === "/exhaustive") {
+      pushItem({ kind: "system", text: t("code.best.usage") });
+      return;
+    }
+    if (text.startsWith("/best ") || text.startsWith("/exhaustive ")) {
+      const task = text.replace(/^\/(?:best|exhaustive)\s+/i, "").trim();
+      pushItem({ kind: "system", text: t("code.best.started"), tone: "success" });
+      await runCodeText(task, (flags) => withBestCodeFlags(flags));
       return;
     }
     if (text === "/resume" || text === "/continue" || text.startsWith("/resume ") || text.startsWith("/continue ")) {

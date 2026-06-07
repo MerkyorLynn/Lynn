@@ -1,4 +1,5 @@
 import { hasFlag, type ParsedArgs } from "./args.js";
+import { withBestCodeFlags } from "./code-best.js";
 
 export type TaskRouteKind = "prompt" | "code" | "goal" | "vision";
 
@@ -39,9 +40,7 @@ export function classifyTaskRoute(args: ParsedArgs): ClassifiedTaskRoute {
 export function codeArgsForRoute(args: ParsedArgs, route: ClassifiedTaskRoute): ParsedArgs {
   const flags = { ...args.flags };
   if (route.kind === "goal") {
-    flags.long = flags.long ?? true;
-    flags["save-session"] = flags["save-session"] ?? true;
-    flags["max-steps"] = flags["max-steps"] ?? "1000";
+    Object.assign(flags, withBestCodeFlags(flags));
   }
   return {
     ...args,

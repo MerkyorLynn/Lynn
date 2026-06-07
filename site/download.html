@@ -9,14 +9,14 @@
     <title>Lynn 下载 | macOS 与 Windows 安装包</title>
     <meta
       name="description"
-      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.80.1,CLI 当前为 v0.80.5。"
+      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.81.0,CLI 当前为 v0.81.0。"
     />
     <meta name="theme-color" content="#f7f1e6" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Lynn 下载 | macOS 与 Windows 安装包" />
     <meta
       property="og:description"
-      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.80.1,CLI 当前为 v0.80.5。"
+      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.81.0,CLI 当前为 v0.81.0。"
     />
     <meta property="og:image" content="../.github/assets/screenshot-main-20260407-v3.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -47,8 +47,8 @@
             <span class="eyebrow">Lynn 下载页</span>
             <h1>选择适合你设备的版本</h1>
             <p class="lead">
-              客户端 GUI 当前为 <strong id="gui-release-version">0.80.1</strong>,
-              CLI 当前为 <strong id="cli-release-version">0.80.5</strong>。
+              客户端 GUI 当前为 <strong id="gui-release-version">0.81.0</strong>,
+              CLI 当前为 <strong id="cli-release-version">0.81.0</strong>。
               GUI 下载后即可开始使用 Lynn 的默认 Brain 路由、桌面记忆、自动任务、多 Agent 协作和显式启用的本地 Qwen3.5-9B MTP；CLI 可独立安装,也可作为 Fleet worker。
             </p>
             <div class="platform-callout" id="platform-callout">
@@ -62,7 +62,7 @@
             <span class="eyebrow">Lynn CLI / Lynn Code</span>
             <h2>给开发者和其他智能体的安装方式</h2>
             <p>
-              Lynn CLI 当前最新为 <strong>v0.80.5</strong>。它是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑。
+              Lynn CLI 当前最新为 <strong>v0.81.0</strong>。它是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑。
               一行命令装好,不用克隆仓库、不用编译;也可以被 Claude Code、Codex CLI、Kimi Code、Qwen CLI、CI 或 Lynn GUI Fleet 以无交互方式调用。
             </p>
           </div>
@@ -94,20 +94,20 @@ winget install OpenJS.NodeJS.LTS</code></pre>
             </div>
             <div class="code-copy-block">
               <button class="copy-button" type="button" data-copy-target="cli-install">复制</button>
-              <pre><code id="cli-install">npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.5.tgz</code></pre>
+              <pre><code id="cli-install">npm install -g --force https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz</code></pre>
             </div>
           </div>
           <div class="cli-install-card">
             <div class="cli-install-copy">
               <span class="pill pill-soft">启动命令</span>
               <h3>3. 启动 Lynn</h3>
-              <p>默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到远端 Brain。模型级联是 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → MiMo → Spark。如果只想给其他智能体或脚本调用,请使用 <code>Lynn code -p ... --json</code>。</p>
+              <p>默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到远端 Brain。模型级联是 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → Spark。如果只想给其他智能体或脚本调用,请使用 <code>Lynn code -p ... --json</code>。</p>
             </div>
             <div class="code-copy-block">
               <button class="copy-button" type="button" data-copy-target="cli-start">复制</button>
               <pre><code id="cli-start">Lynn                 # 交互式聊天 TUI
 Lynn code            # 编码 agent TUI
-Lynn --version       # 应输出 0.80.5
+Lynn --version       # 应输出 0.81.0
 Lynn agents          # 输出可复制的 Fleet / 其他 CLI 调用方式
 
 # 无交互编码 worker 示例
@@ -115,7 +115,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session</code></pre>
             </div>
           </div>
@@ -137,7 +137,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
             <a
               class="button button-primary"
               data-download-key="macArm"
-              href="https://download.merkyorlynn.com/downloads/Lynn-0.80.1-macOS-arm64.dmg"
+              href="https://download.merkyorlynn.com/downloads/Lynn-0.81.0-macOS-arm64.dmg"
               target="_blank"
               rel="noreferrer"
             >下载 Apple Silicon 版</a>
@@ -158,7 +158,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
             <a
               class="button button-primary"
               data-download-key="macIntel"
-              href="https://download.merkyorlynn.com/downloads/Lynn-0.80.1-macOS-x64.dmg"
+              href="https://download.merkyorlynn.com/downloads/Lynn-0.81.0-macOS-x64.dmg"
               target="_blank"
               rel="noreferrer"
             >下载 Intel 版</a>
@@ -169,7 +169,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
               <span class="pill pill-warm">Windows 安装版</span>
               <h2>Windows</h2>
             </div>
-            <p>正式发布提供代码签名的 `Setup.exe` 安装包。客户端 GUI v0.80.1 Windows 安装包上传后会同步到镜像站；如果当前镜像还未出现，请先从 GitHub Release 选择可用安装包。</p>
+            <p>正式发布提供代码签名的 `Setup.exe` 安装包。客户端 GUI v0.81.0 Windows 安装包上传后会同步到镜像站；如果当前镜像还未出现，请先从 GitHub Release 选择可用安装包。</p>
             <ul>
               <li>文件格式：`.exe`</li>
               <li>安装方式：图形安装向导</li>
@@ -235,7 +235,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
               <li>前置缓存命中可见:usage、session、replay 和 <code>Lynn cache doctor --json</code> 统一显示 <code>prefix-cache ... hit</code>,不增加 ctx% 焦虑条</li>
               <li>长任务运行时压缩:旧轮次自动压缩,保留原始目标、当前计划和最近工具结果,JSONL 发出 <code>code.runtime.compacted</code></li>
               <li>Brain 早期断流自动重试:SSE 在可见输出前断开会退避重试,输出开始后不重试以避免重复半轮工具调用</li>
-              <li>Brain 默认路由为 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → MiMo → Spark Qwen 3.6 35B A3B</li>
+              <li>Brain 默认路由为 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → Spark Qwen 3.6 35B A3B</li>
               <li>CLI 镜像安装、headless agent contract、longrun 压缩 smoke 和 Fleet 门禁进入发布流程</li>
             </ul>
             <a
@@ -262,6 +262,6 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
       </footer>
     </div>
 
-    <script src="./app.js?v=0.80.5-cli"></script>
+    <script src="./app.js?v=0.81.0-cli"></script>
   </body>
 </html>

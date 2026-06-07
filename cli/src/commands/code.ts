@@ -1,7 +1,10 @@
 import path from "node:path";
 import { stdin as input, stdout as output, stderr as errorOutput } from "node:process";
+import { randomUUID } from "node:crypto";
 import { getStringFlag, hasFlag, type ParsedArgs } from "../args.js";
 import { formatBrainRecoveryHint, type ChatMessage } from "../brain-client.js";
+import { loadSkills, appendSkill } from "../code-skill-store.js";
+import { skillCrystallizeEnabled, buildDistillPrompt, parseDistilledSkill, recallSkills, formatSkillRecallFrame } from "../code-skill-distill.js";
 import { nowIso, writeJsonLine } from "../jsonl.js";
 import { resolveEffectivePermissions } from "../permissions.js";
 import { parseReasoningOptions, shouldRenderReasoning } from "../reasoning.js";
@@ -11,10 +14,8 @@ import { renderMarkdown } from "../markdown.js";
 import { HistoryNavigator, appendHistory, historyPath, loadHistory } from "../history.js";
 import { completeSlash, normalizeSlashInput } from "../completion.js";
 import { readInteractiveLine } from "../interactive-line.js";
-import { box, displayCwd, padLine } from "../startup.js";
 import { t } from "../i18n.js";
 import { resolveCliProviderProfile, type CliProviderProfile } from "../provider-profile.js";
-import { modelLabelWithId } from "../provider-presets.js";
 import { CLIENT_TOOL_DEFINITIONS, runClientTool } from "../tools/registry.js";
 import type { ClientToolName, ToolRunContext } from "../tools/types.js";
 import { applyModeCommand, applyReasoningCommand, applyThinkCommand, buildChatProviderArgs, renderMode, shouldRefreshProviderRoute, shouldShowProviderSetUsage, toggleMode, type ChatMode } from "./chat.js";
@@ -64,17 +65,25 @@ import {
   truncateForResume,
 } from "../code-resume.js";
 import { runCodeRewindCommand, runCodeRewindSlash } from "../code-rewind-command.js";
+import { collectOneCompletion } from "../code-completion.js";
+import {
+  codeRouteLabel,
+  renderAssistantBlock,
+  renderCodeFooter,
+  renderCodeIntro,
+  renderCodeTaskHeader,
+} from "../code-output.js";
+import { runUltraCodeBranch, ultraEnabled } from "../code-ultra-command.js";
+import { bestCodeArgs, bestEnabled, parseBestSlashTask, withBestCodeFlags } from "../code-best.js";
 
 export { renderCodeHeadlessHelp } from "../code-headless-help.js";
+export { renderCodeIntro, renderCodeTaskHeader } from "../code-output.js";
 import { buildCodeRuntimeFrames } from "../code-runtime-frames.js";
 import {
   runCodeAgentLoop,
   type CodeAgentApprovalRequest,
   type CodeAgentEvent,
 } from "../code-agent-loop.js";
-import { runUltraCodeTask } from "../code-ultra-runner.js";
-import type { UltraEvent, UltraOptions } from "../code-ultra.js";
-import { mergeWorkspaceSnapshots } from "../code-snapshot.js";
 
 export {
   codeToolDefinitions,
@@ -133,9 +142,8 @@ function sandbox(args: ParsedArgs): ToolRunContext["sandbox"] {
   return "workspace-write";
 }
 
-const DEFAULT_MAX_STEPS = 8;
-const STANDARD_MAX_STEPS = 20;
-const LONG_MAX_STEPS = 1000;
+const DEFAULT_MAX_STEPS = 100;
+const LONG_MAX_STEPS = 300;
 
 export function isLongRun(args: ParsedArgs): boolean {
   return hasFlag(args.flags, "long", "endurance");
@@ -146,7 +154,7 @@ export function withLongRunCodeFlags(flags: Record<string, string | boolean> = {
     ...flags,
     long: flags.long ?? true,
     "save-session": flags["save-session"] ?? true,
-    "max-steps": flags["max-steps"] ?? "1000",
+    "max-steps": flags["max-steps"] ?? String(LONG_MAX_STEPS),
   };
 }
 
@@ -167,12 +175,11 @@ export function parseCodeResumeSlash(raw: string): { resume: string; task: strin
 
 export function maxSteps(args: ParsedArgs): number {
   const raw = getStringFlag(args.flags, "max-steps", "steps");
-  if (!raw) return DEFAULT_MAX_STEPS;
+  if (!raw) return bestEnabled(args) ? LONG_MAX_STEPS : DEFAULT_MAX_STEPS;
   const parsed = Number.parseInt(raw, 10);
-  const cap = isLongRun(args) ? LONG_MAX_STEPS : STANDARD_MAX_STEPS;
+  const cap = LONG_MAX_STEPS;
   if (!Number.isFinite(parsed) || parsed < 1 || parsed > cap) {
-    const hint = isLongRun(args) ? "" : " (pass --long for endurance runs up to 1000 steps)";
-    throw new Error(`--max-steps must be an integer from 1 to ${cap}${hint}`);
+    throw new Error(`--max-steps must be an integer from 1 to ${cap}`);
   }
   return parsed;
 }
@@ -233,8 +240,11 @@ export async function runCode(args: ParsedArgs): Promise<number> {
     preview: formatDangerousToolPreview(tool, toolArgsForApproval, supportsColor(errorOutput)),
     args: toolArgsForApproval,
   });
+  const toolSandbox = tool === "bash" && toolMode.approval === "ask" && toolApproval === "yolo"
+    ? "danger-full-access"
+    : toolMode.sandbox;
   const result = await runClientTool(
-    { cwd: toolCwd, approval: toolApproval, sandbox: toolMode.sandbox, timeoutMs: timeoutMs(args) },
+    { cwd: toolCwd, approval: toolApproval, sandbox: toolSandbox, timeoutMs: timeoutMs(args) },
     {
       name: tool,
       path: getStringFlag(args.flags, "path") || undefined,
@@ -314,6 +324,8 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
     "/fast",
     "/tools",
     "/goal",
+    "/best",
+    "/exhaustive",
     "/resume",
     "/rewind",
     "/providers",
@@ -394,19 +406,24 @@ async function runCodeInteractive(args: ParsedArgs): Promise<number> {
       if (text.startsWith("/goal ")) {
         const task = text.slice(6).trim();
         output.write(`${t("code.goal.started")}\n\n`);
-        const taskArgs: ParsedArgs = {
-          ...args,
-          positionals: [task],
-          flags: withLongRunCodeFlags({
-            ...args.flags,
-            approval: mode.approval,
-            sandbox: mode.sandbox,
-            reasoning: reasoning.effort,
-            "show-reasoning": reasoning.display,
-          }),
-        };
         try {
-          await runCodeTask(taskArgs, task, false, { compact: true });
+          await runCodeTask(bestCodeArgs(args, task, mode, reasoning), task, false, { compact: false });
+        } catch (error) {
+          const message = formatBrainRecoveryHint(error);
+          errorOutput.write(`• ${message}\n`);
+        }
+        output.write("\n");
+        continue;
+      }
+      if (text === "/best" || text === "/exhaustive") {
+        output.write(`${t("code.best.usage")}\n\n`);
+        continue;
+      }
+      const bestTask = parseBestSlashTask(text);
+      if (bestTask) {
+        output.write(`${t("code.best.started")}\n\n`);
+        try {
+          await runCodeTask(bestCodeArgs(args, bestTask, mode, reasoning), bestTask, false, { compact: false });
         } catch (error) {
           const message = formatBrainRecoveryHint(error);
           errorOutput.write(`• ${message}\n`);
@@ -537,30 +554,6 @@ export async function readCodeLine(prompt: string, mode: ChatMode, options: { pl
   });
 }
 
-export function renderCodeIntro(
-  mode: ChatMode,
-  reasoning = parseReasoningOptions({ command: "code", positionals: [], flags: {} }),
-  options: { color?: boolean; modelLabel?: string } = {},
-): string {
-  const color = !!options.color;
-  const version = readVersionInfo().version;
-  const lines = [
-    `Lynn Code (${version})`,
-    "",
-    padLine(t("banner.label.model"), options.modelLabel || t("banner.model.default"), t("banner.hint.model")),
-    padLine(t("banner.label.dir"), displayCwd(process.cwd())),
-  ];
-  const dangerous = mode.approval === "yolo" || mode.sandbox === "danger-full-access";
-  return [
-    box(lines),
-    "",
-    dangerous
-      ? `  ${dangerLine(t("code.danger.warning"), color)}`
-      : `  ${t("code.tip")}`,
-    "",
-  ].join("\n");
-}
-
 function renderModeChange(message: string, mode: ChatMode, color: boolean): string {
   const dangerous = mode.approval === "yolo" || mode.sandbox === "danger-full-access";
   const modeLabel = dangerous ? orange(renderMode(mode), color) : renderMode(mode);
@@ -568,28 +561,6 @@ function renderModeChange(message: string, mode: ChatMode, color: boolean): stri
     ? `\n${dangerLine(t("mode.danger.warning"), color)}`
     : "";
   return `✓ ${message}\nmode: ${modeLabel}${warning}\n\n`;
-}
-
-export function renderCodeTaskHeader(inputData: {
-  cwd: string;
-  approval: ToolRunContext["approval"];
-  sandbox: NonNullable<ToolRunContext["sandbox"]>;
-  reasoning: ReturnType<typeof parseReasoningOptions>;
-  maxSteps: number;
-  mockBrain?: boolean;
-  fallbackProvider?: CliProviderProfile;
-}): string {
-  const route = codeRouteLabel(!!inputData.mockBrain, inputData.fallbackProvider);
-  return [
-    box([
-      `Lynn Code · ${route}`,
-      "",
-      padLine(t("banner.label.dir"), displayCwd(inputData.cwd)),
-      padLine(t("banner.label.mode"), `${inputData.approval} / ${inputData.sandbox}`),
-      padLine(t("code.label.think"), `${inputData.reasoning.effort} · ${t("code.maxsteps", { n: inputData.maxSteps })}`),
-    ]),
-    "",
-  ].join("\n");
 }
 
 async function resolveCodeMode(args: ParsedArgs): Promise<ChatMode> {
@@ -619,6 +590,9 @@ async function runCodeTask(
     requestApproval?: (request: CodeAgentApprovalRequest) => Promise<"approve" | "approve_all" | "deny">;
   } = {},
 ): Promise<number> {
+  if (bestEnabled(args)) {
+    args = { ...args, flags: withBestCodeFlags(args.flags) };
+  }
   const context = await collectCodeContext(cwd(args));
   const preparedInput = prepareCodeTaskInput(task, context.cwd, t("chat.image.defaultPrompt"));
   const taskText = preparedInput.task;
@@ -630,7 +604,16 @@ async function runCodeTask(
   const mode = await resolveCodeMode(args);
   const cliProvider = await resolveCliProviderProfile(args);
   const dataDir = resolveDataDir(getStringFlag(args.flags, "data-dir"));
-  const memoryFrame = buildMemoryContextFrameSync(dataDir, taskText);
+  let memoryFrame = buildMemoryContextFrameSync(dataDir, taskText);
+  // ① Recall: inject SOPs crystallized from past similar tasks (opt-in).
+  if (skillCrystallizeEnabled()) {
+    const recalled = recallSkills(taskText, loadSkills(dataDir));
+    const recallFrame = formatSkillRecallFrame(recalled);
+    if (recallFrame) {
+      memoryFrame = memoryFrame ? `${recallFrame}\n\n${memoryFrame}` : recallFrame;
+      if (json) writeJsonLine({ type: "code.skill.recalled", ts: nowIso(), titles: recalled.map((s) => s.title) });
+    }
+  }
   const resumePath = await resolveCodeResumePath(getStringFlag(args.flags, "resume"), dataDir);
   const resumeMessages = resumePath ? await loadResumeMessages(resumePath) : [];
   const resumeDiag = resumePath ? summarizeResumeMessages(resumeMessages) : null;
@@ -712,7 +695,7 @@ async function runCodeTask(
     sandbox: mode.sandbox,
     timeoutMs: timeoutMs(args),
   };
-  if (ultraEnabled(args) && !options.compact) {
+  if (ultraEnabled(args)) {
     return runUltraCodeBranch({
       args,
       taskText,
@@ -862,6 +845,20 @@ async function runCodeTask(
     resumeCommand: resumeCommand || undefined,
     sessionPath: savedSessionPath,
   });
+  // ② Crystallize: on a clean success, distill the trace into a reusable SOP (opt-in, best-effort).
+  if (skillCrystallizeEnabled() && !final.maxStepsReached && final.text.trim()) {
+    try {
+      const distillText = await collectOneCompletion(brainUrl, cliProvider?.profile, reasoning, buildDistillPrompt(taskText, final.text));
+      const draft = parseDistilledSkill(distillText, taskText);
+      if (draft) {
+        appendSkill(dataDir, { ...draft, id: randomUUID(), createdAt: new Date().toISOString() });
+        if (json) writeJsonLine({ type: "code.skill.crystallized", ts: nowIso(), title: draft.title });
+        options.onEvent?.({ type: "tool.progress", message: `crystallized SOP: ${draft.title}` });
+      }
+    } catch {
+      // Distillation is best-effort — never fail an already-successful task over it.
+    }
+  }
   if (json) {
     if (final.text.trim()) writeJsonLine({ type: "assistant.delta", ts: nowIso(), text: final.text });
     writeJsonLine({
@@ -889,229 +886,4 @@ async function runCodeTask(
     })));
   }
   return final.maxStepsReached ? 2 : 0;
-}
-
-function renderAssistantBlock(text: string, footer?: string): string {
-  const lines = text.replace(/\s+$/g, "").split(/\r?\n/);
-  const body = lines.map((line, index) => `${index === 0 ? "• " : "  "}${line}`).join("\n");
-  return `${body}${footer ? `\n\n${footer}` : ""}\n`;
-}
-
-function ultraEnabled(args: ParsedArgs): boolean {
-  return hasFlag(args.flags, "ultra");
-}
-
-function ultraOptions(args: ParsedArgs): UltraOptions {
-  const opts: UltraOptions = {};
-  const maxSubtasks = Number.parseInt(getStringFlag(args.flags, "ultra-max-subtasks") || "", 10);
-  const maxConcurrency = Number.parseInt(getStringFlag(args.flags, "ultra-concurrency") || "", 10);
-  if (Number.isFinite(maxSubtasks)) opts.maxSubtasks = maxSubtasks;
-  if (Number.isFinite(maxConcurrency)) opts.maxConcurrency = maxConcurrency;
-  if (hasFlag(args.flags, "ultra-verify")) opts.adversarialVerify = true;
-  return opts;
-}
-
-async function runUltraCodeBranch(p: {
-  args: ParsedArgs;
-  taskText: string;
-  context: CodeContext;
-  brainUrl: string;
-  fallbackProvider?: CliProviderProfile;
-  reasoning: ReturnType<typeof parseReasoningOptions>;
-  json: boolean;
-  toolCtx: ToolRunContext;
-  stepBudget: number;
-  mode: ChatMode;
-  options: { compact?: boolean; onEvent?: (event: CodeAgentEvent) => void };
-  dataDir: string;
-  saveSession: boolean;
-  sessionPath?: string | null;
-  title: string;
-  modelProvider: string;
-  modelId: string;
-}): Promise<number> {
-  const color = supportsColor(errorOutput);
-  const compact = Boolean(p.options.compact || p.options.onEvent);
-  const workerSnapshots: string[] = [];
-
-  // Open the session with the user turn before running, so a crash still leaves
-  // a resumable transcript and the rewind checkpoint anchors correctly.
-  let liveSessionPath = p.sessionPath;
-  let rewindBeforeLine: number | null = null;
-  if (p.saveSession) {
-    rewindBeforeLine = liveSessionPath ? (await readSessionLines(liveSessionPath).catch(() => [])).length : 0;
-    liveSessionPath = await appendSessionLine({
-      dataDir: p.dataDir,
-      sessionPath: liveSessionPath,
-      cwd: p.context.cwd,
-      title: p.title,
-      line: { type: "user", content: p.taskText, data: { kind: "code_ultra_user_turn" } },
-      modelProvider: p.modelProvider,
-      modelId: p.modelId,
-    });
-  }
-
-  if (p.json) {
-    writeJsonLine({ type: "code.ultra.started", ts: nowIso(), task: p.taskText });
-  } else if (!compact) {
-    errorOutput.write(`${orange("⚡ ultra", color)} ${dim("— decomposing into parallel sub-tasks…", color)}\n`);
-  }
-
-  const ultra = await runUltraCodeTask({
-    task: p.taskText,
-    context: p.context,
-    brainUrl: p.brainUrl,
-    fallbackProvider: p.fallbackProvider,
-    reasoning: p.reasoning,
-    maxSteps: p.stepBudget,
-    toolCtx: p.toolCtx,
-    input,
-    output: errorOutput,
-    options: ultraOptions(p.args),
-    onEvent: (event) => emitUltraEvent(event, { json: p.json, compact, color, onEvent: p.options.onEvent }),
-    onSubtaskEvent: (_subtaskId, event) => {
-      if (event.type === "snapshot" && event.ref) workerSnapshots.push(event.ref);
-    },
-  });
-
-  if (p.json) {
-    writeJsonLine({
-      type: "code.ultra.finished",
-      ts: nowIso(),
-      ok: ultra.ok,
-      waves: ultra.waves,
-      fallback: ultra.plan.fallback,
-      subtasks: ultra.results.map((r) => ({ id: r.id, title: r.title, ok: r.ok, skipped: Boolean(r.skipped) })),
-    });
-    writeJsonLine({ type: "assistant.delta", ts: nowIso(), text: ultra.synthesis });
-    writeJsonLine({ type: "code.task.finished", ts: nowIso(), ok: ultra.ok });
-  } else if (p.options.onEvent) {
-    p.options.onEvent({ type: "assistant.delta", text: ultra.synthesis });
-    p.options.onEvent({ type: "task.finished", ok: ultra.ok, text: ultra.synthesis, usageSummary: null });
-  } else {
-    process.stdout.write(renderAssistantBlock(ultra.synthesis, renderCodeFooter({
-      context: p.context,
-      mode: p.mode,
-      mockBrain: false,
-      reasoning: p.reasoning,
-    })));
-  }
-
-  // Persist the run: synthesis as the assistant turn + a single merged rewind
-  // checkpoint that undoes every file all workers touched.
-  if (p.saveSession && liveSessionPath) {
-    liveSessionPath = await appendSessionLine({
-      dataDir: p.dataDir,
-      sessionPath: liveSessionPath,
-      cwd: p.context.cwd,
-      title: p.title,
-      line: { type: "assistant", content: ultra.synthesis, data: { kind: "code_ultra_synthesis" } },
-      modelProvider: p.modelProvider,
-      modelId: p.modelId,
-    });
-    await appendSessionMetadata({
-      dataDir: p.dataDir,
-      sessionPath: liveSessionPath,
-      data: {
-        kind: "code_ultra_task",
-        cwd: p.context.cwd,
-        ok: ultra.ok,
-        waves: ultra.waves,
-        fallback: ultra.plan.fallback,
-        subtasks: ultra.results.map((r) => ({ id: r.id, title: r.title, ok: r.ok, skipped: Boolean(r.skipped) })),
-      },
-    });
-    if (workerSnapshots.length && rewindBeforeLine !== null) {
-      const merged = mergeWorkspaceSnapshots(workerSnapshots);
-      if (merged.available && merged.ref) {
-        await appendSessionMetadata({
-          dataDir: p.dataDir,
-          sessionPath: liveSessionPath,
-          data: {
-            kind: "code_rewind_checkpoint",
-            snapshotRef: merged.ref,
-            restoreCommand: merged.restoreCommand,
-            cwd: p.context.cwd,
-            task: p.taskText,
-            beforeLine: rewindBeforeLine,
-            createdAt: new Date().toISOString(),
-          },
-        });
-      }
-    }
-    if (p.json) writeJsonLine({ type: "session.saved", ts: nowIso(), path: liveSessionPath });
-    p.options.onEvent?.({ type: "session.saved", path: liveSessionPath });
-  }
-  return ultra.ok ? 0 : 1;
-}
-
-function emitUltraEvent(
-  event: UltraEvent,
-  ctx: { json: boolean; compact: boolean; color: boolean; onEvent?: (event: CodeAgentEvent) => void },
-): void {
-  if (ctx.json) {
-    writeJsonLine({ ...event, ts: nowIso() });
-    return;
-  }
-  if (ctx.compact) {
-    const plain = formatUltraEventLine(event, false);
-    if (plain) ctx.onEvent?.({ type: "tool.progress", message: plain.trim() });
-    return;
-  }
-  const line = formatUltraEventLine(event, ctx.color);
-  if (line) errorOutput.write(`${line}\n`);
-}
-
-function formatUltraEventLine(event: UltraEvent, color: boolean): string | null {
-  switch (event.type) {
-    case "ultra.plan": {
-      const n = event.plan.subtasks.length;
-      const label = event.plan.fallback ? "single worker (no useful split)" : `${n} sub-task${n === 1 ? "" : "s"}`;
-      const warn = event.plan.warnings.length ? ` ${dim(`(${event.plan.warnings.length} note(s))`, color)}` : "";
-      return `${bold("plan", color)} ${dim("→", color)} ${label}${warn}`;
-    }
-    case "ultra.wave":
-      return dim(`wave ${event.wave}: ${event.ids.join(", ")}`, color);
-    case "ultra.subtask.started":
-      return dim(`  ▸ ${event.id} ${event.title}`, color);
-    case "ultra.subtask.verified":
-      if (event.pass) return dim(`  ${event.id} verify ✓`, color);
-      return `  ${dangerLine("✗", color)} ${event.id} verify refuted${event.reason ? `: ${event.reason.replace(/\s+/g, " ").slice(0, 80)}` : ""}`;
-    case "ultra.subtask.finished":
-      if (event.skipped) return dim(`  ${event.id} skipped (dependency failed)`, color);
-      if (event.ok) return `  ${orange("✓", color)} ${event.id} ${event.title}`;
-      return `  ${dangerLine("✗", color)} ${event.id} ${event.title}`;
-    case "ultra.synthesis.started":
-      return dim("synthesizing results…", color);
-    case "ultra.synthesis":
-      return null; // printed as the final answer
-    default:
-      return null;
-  }
-}
-
-function renderCodeFooter(inputData: {
-  context: CodeContext;
-  mode: ChatMode;
-  mockBrain: boolean;
-  reasoning: ReturnType<typeof parseReasoningOptions>;
-  fallbackProvider?: CliProviderProfile;
-  usage?: string | null;
-}): string {
-  const color = supportsColor(output);
-  const model = inputData.mockBrain ? "mock Brain" : inputData.fallbackProvider ? `CLI BYOK:${modelLabelWithId(inputData.fallbackProvider.model)}` : "StepFun 3.7 Flash→MiMo V2.5 Pro";
-  const mode = renderMode(inputData.mode);
-  return dim([
-    model,
-    displayCwd(inputData.context.cwd),
-    mode,
-    `think ${inputData.reasoning.effort}`,
-    inputData.usage,
-  ].filter(Boolean).join(" · "), color);
-}
-
-function codeRouteLabel(mockBrain: boolean, fallbackProvider?: CliProviderProfile): string {
-  if (mockBrain) return t("code.route.mock");
-  if (fallbackProvider) return `CLI BYOK: ${modelLabelWithId(fallbackProvider.model)}`;
-  return t("code.route.brain");
 }

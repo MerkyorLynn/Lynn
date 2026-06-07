@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="desktop/src/assets/Lynn.png" width="80" alt="Lynn">
+</p>
+
 <h1 align="center">Lynn</h1>
 
 <p align="center"><strong>GUI command center · CLI Worker Fleet · Long-term memory · Multi-agent collaboration</strong></p>
@@ -57,7 +61,7 @@ Cursor solves "I am editing this piece of code." Claude Code / Codex CLI solve "
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
 
 # 3. Launch.
 Lynn          # interactive chat TUI
@@ -74,16 +78,39 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 ```
+
+For exhaustive best-effort work, use `--best` (or `/goal` / `/best` in the TUI). Lynn enables a 300-step budget, ultra task decomposition, atomic workers, adversarial verification, auto-verify, checkpoints/resume, and runtime compaction. The harness does not choose the final answer for the model; it only decomposes, schedules, verifies, repairs, and prevents tool storms.
 
 Agents should parse JSONL, not the human terminal TUI. See [`docs/ops/lynn-code-headless-agent-contract.md`](docs/ops/lynn-code-headless-agent-contract.md).
 
 ## 🆕 Recent Updates
 
 <details>
-<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · prefix-cache visibility + long-run stability hotfix <em>(CLI latest)</em></summary>
+<summary><strong>Lynn v0.81.0</strong> · 2026-06-06 · StepFun exhaustive best mode + scan guards <em>(latest)</em></summary>
+
+**GUI and CLI ship together**:
+- **StepFun 3.7 Flash best mode**:`/goal`, `/best`, and `Lynn code --best` now use a 300-step exhaustive budget with ultra decomposition, parallel atomic workers, adversarial acceptance, auto-verify, and checkpoint/resume. The target is the best completed result, not fewer steps.
+- **Macro orchestration + atomic loop**: large tasks are decomposed into dependency waves, while each worker still runs one action per turn with the tool ledger, plan contract, budget guard, and max-step verification.
+- **No answer fallback**: the harness does not inject chain hints or let a router answer for the model; it decomposes, schedules, verifies, repairs, and records.
+- **Cloud StepFun remains the default**: StepFun 3.7 Flash stays the primary route; local 9B only starts after explicit user action and no longer consumes GPU/unified memory by default.
+- **Local 9B runtime policy**: KV cache reuse, warm pool off by default, idle unload, small-context prompts, stable prefix, 3-5 tool schemas, visible local TPS, and automatic promotion to StepFun when local inference fails.
+- **Local 35B/Spark positioning**: 35B/Spark is the explicit high-end local tier and third fallback, not the default primary path.
+- **CLI scan guards**: tool mode blocks default `find / ...` whole-disk scans; glob skips `.Trash` and permission-denied directories instead of failing the whole turn.
+- **Release gates**: Brain V2, CLI toolchain/cache/file-size/pack/install, runtime answer/context, and local model policy tests all run before release.
+
+```bash
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
+```
+
+[Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.81.0)
+
+</details>
+
+<details>
+<summary><strong>CLI v0.80.6</strong> · 2026-06-01 · prefix-cache visibility + long-run stability hotfix</summary>
 
 **CLI-only hotfix; the desktop app remains v0.80.1**:
 - **Prefix-cache visibility**: Reasonix-style stable prefix / resume history / volatile runtime / current user layers remain deterministic; usage, sessions, replay, and `Lynn cache doctor --json` now surface `prefix-cache ... hit` without adding a context-budget anxiety meter.
@@ -93,7 +120,7 @@ Agents should parse JSONL, not the human terminal TUI. See [`docs/ops/lynn-code-
 - **Release gate covers compaction**: `cli-longrun-smoke` now forces large tool results and requires a `code.runtime.compacted` event, so long-run stability is verified outside narrow unit tests.
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.6.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
 ```
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.6)
@@ -137,7 +164,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 - 🔎 **Safer, inspectable search**:web search prefers the brain v2 localhost proxy first, keeping MiMo/GLM paid search keys server-side; chat tool cards can expand synthesized answers and search sources.
 - 🧭 **Local model upgrade window**:Qwen3.5-9B Q4_K_M imatrix MTP remains the default local onboarding model. Older 9B GGUF files now show as upgrade candidates, and 9B/35B download entries point to the ModelScope MTP repositories with MTP + thinking-on kept as default.
 - 🛡️ **Runtime regression coverage tightened**:composer replacement, local Qwen status, stock-market, MCP transport, bridge streaming/attachment, session events, engine tool runtime, agent dynamic prompt, web-search, and search source UI all gained or updated focused tests.
-- ✅ **Release gate**:V0.79.9 passed typecheck, runtime typecheck, full vitest, release static/live regressions, UI smoke, macOS signing/notarization/stapling/Gatekeeper validation, and Windows installer signing.
+- ✅ **Release gate**:V0.79.9 passed typecheck, runtime typecheck, full vitest, release static/live regressions, UI smoke, macOS signing/notarization/stapling/Gatekeeper validation, and Windows installer signing for the releases that ship Windows assets.
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.79.9)
 
@@ -181,7 +208,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 - 🧭 **Local model policy unchanged**:Qwen3.5-9B Q4_K_M imatrix MTP remains the default local onboarding model; 4B remains a low-config downgrade with the thinking-on risk documented.
 - 🧾 **Chat/artifact paths are easier to maintain**:stream emitters, turn state, artifact recovery, tool summaries, and voice fallback helpers now have TS boundaries ahead of the larger `chat.js` and core split.
 - 🧪 **Core migration deferred intentionally**:`core/session-coordinator.js`, `core/engine.js`, and similarly large files stay out of this package to keep the release stable.
-- 📦 **macOS release artifacts are notarized**:Apple Silicon and Intel DMGs are signed, notarized, stapled, and Gatekeeper-validated; Windows ships as a signed NSIS installer.
+- 📦 **macOS release artifacts are notarized**:Apple Silicon and Intel DMGs are signed, notarized, stapled, and Gatekeeper-validated; Windows installers are published only when a signed Windows asset is present in the Release.
 
 [Full Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.79.3)
 
@@ -621,7 +648,7 @@ Memory and skill distillation work together: the more you use Lynn, the more acc
 
 ## 🚀 Lynn's Own Models + Inference Engine (May 2026)
 
-Until now Lynn ran entirely on third-party models (MiMo / Qwen3.6 / DeepSeek / Kimi) — Lynn handled the engineering and UX, the models came from elsewhere.
+Until now Lynn ran largely on third-party models (StepFun / Qwen3.6 / DeepSeek / Kimi) — Lynn handled the engineering and UX, the models came from elsewhere.
 
 **That's changing. Lynn now has its own models, with a dedicated inference engine coming next.**
 
@@ -654,7 +681,7 @@ All tooling is open-sourced: [lynn-distill-toolkit](https://github.com/MerkyorLy
 - Upstream inference engines (vLLM / SGLang / TRT-LLM) ship NVFP4 + MoE support on a 4–8 week cadence — **too slow for our roadmap**
 - Owning both means Lynn-specific capabilities (Yuan personality / proactive recall / task modes) can be baked into training data and inference paths directly
 
-This doesn't replace the cloud fallback chain (MiMo / Qwen / DeepSeek remain the default route). **It adds a private, local path** — not a switch.
+This doesn't replace the cloud fallback chain (StepFun / Qwen / DeepSeek remain the default route). **It adds a private, local path** — not a switch.
 
 ## Local models — three-tier hardware ladder
 
@@ -698,18 +725,16 @@ Interface available in 5 languages: Chinese, English, Japanese, Korean, and Trad
 
 Lynn doesn't just slap an OpenAI-compatible wrapper and call it a day. From 9B small models to GLM-5 reasoning models, every tier has purpose-built adaptations:
 
-**Free built-in models (Brain v2)** — Quick Start ships with a built-in model pool. v0.77.7+ routes through brain v2 with multi-tier auto-fallback:
+**Free built-in models (Brain v2)** — Quick Start ships with a built-in model pool. Current Brain V2 routes through a StepFun-first cascade with multi-tier auto-fallback:
 
 ```
-T1  ⭐ Xiaomi MiMo v2.5-pro (default head; enable_search built-in web search + thinking)
-T2  GPU Qwen3.6-35B-A3B FP8 (128K window; self-hosted SGLang+MTP on DGX Spark)
+T1  ⭐ StepFun 3.7 Flash (256K context, high reasoning, 32K reasoning/generation budget)
+T2  Spark Qwen 3.6 35B A3B (local/self-hosted fallback)
 T3  DeepSeek V4-flash / V4-pro (cloud, long context)
-T4  Zhipu GLM-5-Turbo / GLM-5.1 (coding plan)
-T5  Kimi K2.6 (api.kimi.com coding plan, 256K window)
-T6  Step-3.5 Flash / MiniMax M2.7-highspeed (last-resort)
+T4  Zhipu GLM / Kimi / MiniMax (provider fallback chain)
 ```
 
-No API key needed — device authentication only. MiMo upstream supports `thinking:{type:"disabled"}` fast-mode (simple chat TTF -51%). Some tiers go through DGX Spark GPUs which require physical access; cloud tiers remain available as fallbacks.
+No API key needed — device authentication only. Some tiers go through local or self-hosted GPUs which require physical access; cloud tiers remain available as fallbacks.
 
 **Three-tier tool layering** — Tools are automatically pruned based on context window:
 - Small models (<32K, e.g. ERNIE 8K, Moonshot 8K, Step 8K): only `web_search` + `web_fetch`, preventing tool descriptions from blowing out the context
@@ -813,11 +838,11 @@ Read/write files, run terminal commands, browse the web, search the internet, ta
 
 **macOS (Apple Silicon / Intel):** download the latest `.dmg` from [Releases](https://github.com/MerkyorLynn/Lynn/releases).
 
-V0.80.1 macOS artifacts are signed, notarized, stapled, and Gatekeeper-validated for both Apple Silicon and Intel.
+V0.81.0 macOS artifacts are signed, notarized, stapled, and Gatekeeper-validated for both Apple Silicon and Intel.
 
-**Windows:** download the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases) and run it directly.
+**Windows:** use the latest `.exe` installer from [Releases](https://github.com/MerkyorLynn/Lynn/releases) when a Windows asset is listed. The v0.81.0 update manifest intentionally does not point to a missing Windows installer.
 
-> **Windows SmartScreen notice:** The v0.80.1 installer is code-signed. Windows Defender SmartScreen may still show a first-run reputation prompt for a new release.
+> **Windows SmartScreen notice:** Future Windows installers are code-signed. Windows Defender SmartScreen may still show a first-run reputation prompt for a new release.
 
 Linux builds are planned.
 
@@ -880,7 +905,7 @@ tests/          Vitest test suite
 
 | Platform | Status |
 |----------|--------|
-| macOS (Apple Silicon) | Supported (V0.80.1 signed + notarized DMG) |
+| macOS (Apple Silicon) | Supported (V0.81.0 signed + notarized DMG) |
 | macOS (Intel) | Supported |
 | Windows | Beta |
 | Linux | Planned |

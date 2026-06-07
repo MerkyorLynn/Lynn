@@ -506,11 +506,11 @@ function isVisionTask(taskType: WorkerBrief["taskType"]): taskType is "see" | "g
   return taskType === "see" || taskType === "ground";
 }
 
-export function workerProfileDefaults(agent: string): { reasoning?: "off" | "high" | "xhigh"; maxSteps?: string; long?: boolean } {
+export function workerProfileDefaults(agent: string): { reasoning?: "off" | "high" | "xhigh"; maxSteps?: string; long?: boolean; best?: boolean } {
   if (agent === "mimo-fast") return { reasoning: "off", maxSteps: "6" };
   if (agent === "mimo-pro") return { reasoning: "high", maxSteps: "100", long: true };
   if (agent === "mimo-vl") return { reasoning: "high" };
-  if (agent === "stepfun-flash") return { reasoning: "high", maxSteps: "100", long: true };
+  if (agent === "stepfun-flash") return { reasoning: "high", maxSteps: "300", long: true };
   return {};
 }
 
@@ -534,12 +534,13 @@ async function runLynnCliWorker(input: {
     cwd: input.worktree,
     approval: getStringFlag(input.args.flags, "approval") || input.permissions.approval,
     sandbox: getStringFlag(input.args.flags, "sandbox") || input.permissions.sandbox,
-    "max-steps": getStringFlag(input.args.flags, "max-steps", "steps") || profileDefaults.maxSteps || "8",
+    "max-steps": getStringFlag(input.args.flags, "max-steps", "steps") || profileDefaults.maxSteps || "100",
     "save-session": true,
     title: input.brief.title,
     json: true,
   };
   if (profileDefaults.long || hasFlag(input.args.flags, "long", "endurance")) flags.long = true;
+  if (profileDefaults.best || hasFlag(input.args.flags, "best", "exhaustive")) flags.best = true;
   const brainUrl = getStringFlag(input.args.flags, "brain-url");
   if (brainUrl) flags["brain-url"] = brainUrl;
   const reasoning = getStringFlag(input.args.flags, "reasoning") || profileDefaults.reasoning;

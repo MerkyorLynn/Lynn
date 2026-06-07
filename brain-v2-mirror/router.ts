@@ -404,7 +404,7 @@ export async function run({ messages, tools, capabilityRequired, signal, onChunk
     }
   }
 
-  const mergedTools = mergeWithServerTools(tools);
+  const mergedTools = mergeWithServerTools(tools, messages);
   let workingMessages: ChatMessage[] = [...(messages || [])];
   let lastProviderId: ProviderId | null = null;
   let iter = 0;

@@ -1,108 +1,93 @@
-# Lynn CLI v0.80.5 Release Notes / 发布说明
+# Lynn v0.81.0 Release Notes / 发布说明
 
-> 发布日期: 2026-06-01 · CLI-only 前置缓存与长任务稳定性热修
+> 发布日期: 2026-06-06 · StepFun 3.7 Flash 专项优化 + 统一版本号
 
-v0.80.5 只迭代 **Lynn CLI / Lynn Code**；桌面端 GUI 仍为 v0.80.1。本版把
-Reasonix 风格的前置缓存命中变成可见但低打扰的信号，同时补齐长任务工具循环中的
-运行时压缩与 Brain 早期断流重试。
+本次发版统一 **Lynn CLI 与 GUI 版本号为 v0.81.0**。重点是让 StepFun 3.7 Flash 在 Lynn 的 CLI / GUI 工作流里更适合“穷尽最优解”:显式 best/exhaustive 模式、300 步长任务预算、原子工具步进、自动验证、计划契约、工具预算和 Fleet/headless 默认建议对齐。
 
 ## 中文重点
 
-- **前置缓存命中可见**：usage、session、replay 和 `Lynn cache doctor --json`
-  统一显示 `prefix-cache ... hit`，但不在聊天界面里放 ctx% 焦虑条。
-- **长任务运行时压缩**：`Lynn code --long` 会压缩旧轮次，同时保留原始目标、当前计划和最近工具结果；JSONL 发出
-  `code.runtime.compacted`，人类 TUI 显示轻量信息卡。
-- **Brain 早期断流自动重试**：SSE 在还没有任何可见回答、reasoning 或工具调用前断开时，CLI 会退避重试；一旦已经开始输出，就不重试，避免重复半轮工具调用。
-- **计划/工具卡片继续打磨**：`update_plan` 与 resume 计划回显使用 Claude Code 风格 plan card，工具、路由、压缩状态保持同一套左 gutter 卡片语言。
-- **门禁覆盖压缩路径**：`cli-longrun-smoke` 会制造大工具结果，并要求出现 `code.runtime.compacted`，避免长任务稳定性只停留在单测。
+- **统一版本号**:CLI 与桌面 GUI 同步为 v0.81.0,下载页、更新 manifest、README 与 Release 说明统一口径。
+- **StepFun 穷尽最优模式**:
+  - `Lynn code --best -p "任务" --json --cwd /path --approval yolo --sandbox danger-full-access`
+  - `/goal`、`/best`、`/exhaustive` 会进入更适合长任务的 300 步预算与 ultra 编排。
+- **原子步进 + 验证保留**:不通过提示词兜底抢模型工作,而是让模型逐步调用工具,由 harness 做计划契约、自动验证、工具预算与失败上下文回喂。
+- **Fleet/headless 合约更清楚**:黑灯工厂建议 `--approval yolo --sandbox danger-full-access`,适合隔离 worktree;普通人类交互仍使用 ask / workspace-write。
+- **GUI 对齐**:桌面包、更新 manifest、下载页与 CLI tarball 统一同一个 v0.81.0 发布号。
 
 ## 安装
 
 ```bash
-# 前置: Node.js 20 LTS 或 22 LTS with npm.
+# 前置:Node.js 20 LTS 或 22 LTS with npm.
 node -v
 
-# 从 Lynn 镜像安装或覆盖升级。
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.5.tgz"
+# 从 Lynn 镜像安装或覆盖升级 CLI。
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
 
 # 启动。
 Lynn            # 交互式聊天 TUI
 Lynn code       # 编码 agent TUI
-Lynn --version  # 应输出 0.80.5
+Lynn --version  # 应输出 0.81.0
 Lynn agents     # 给其他智能体/Fleet 的可复制命令
 ```
 
-默认 Brain 路由: **StepFun 3.7 Flash(256K 上下文, high 推理, 32K 推理/生成预算) -> MiMo V2.5 Pro/Omni -> Spark Qwen 3.6 35B A3B**。纯 CLI 首装在本地 Brain 不可达时会走 Lynn 远端 Brain；BYOK 仍可用。
+默认 Brain 路由: **StepFun 3.7 Flash(256K 上下文, high 推理, 32K 推理/生成预算) -> Spark Qwen 3.6 35B A3B**。纯 CLI 首装在本地 Brain 不可达时会走 Lynn 远端 Brain;BYOK 仍可用。
 
 ---
 
-> Release date: 2026-06-01 · CLI-only prefix-cache and long-run stability hotfix
+> Release date: 2026-06-06 · StepFun 3.7 Flash specialization + unified app/CLI version
 
-v0.80.5 focuses on Lynn CLI / Lynn Code. The desktop app remains v0.80.1. This
-release makes Reasonix-style prefix-cache behavior visible without creating
-context anxiety, hardens long-running code-agent loops, and adds release gates
-that prove runtime compaction happens during a real tool loop.
+This release unifies **Lynn CLI and desktop GUI at v0.81.0**. The focus is making StepFun 3.7 Flash work better for exhaustive best-result coding loops across Lynn CLI and GUI: explicit best/exhaustive mode, a 300-step long-task budget, atomic tool progression, finish gates, plan contracts, tool budgets, and clearer Fleet/headless defaults.
 
 ## Highlights
 
-- **Prefix-cache visibility without anxiety**: usage summaries, session stats,
-  replay, and `Lynn cache doctor --json` now surface `prefix-cache ... hit`
-  rather than a live context-budget meter.
-- **Runtime compaction in long tool loops**: `Lynn code --long` compacts older
-  runtime turns while preserving the original task, current plan, and recent tool
-  results. JSONL emits `code.runtime.compacted`; human output shows a lightweight
-  info card.
-- **Early Brain stream retry**: if a Brain SSE stream disconnects before any
-  visible answer, reasoning, or tool call, the CLI retries with backoff. Once
-  output has started, retries stop to avoid duplicate half-turn tool calls.
-- **Plan/card polish**: `update_plan` and resume plan echoes use the same
-  left-gutter plan card language as tool and route cards.
-- **Release gate tightened**: `cli-longrun-smoke` now creates large tool results
-  and fails unless `code.runtime.compacted` appears, so long-task stability is
-  checked outside narrow unit tests.
+- **Unified version**: CLI, desktop GUI, update manifest, download page, README, and release notes all use v0.81.0.
+- **StepFun best mode**:
+  - `Lynn code --best -p "task" --json --cwd /path --approval yolo --sandbox danger-full-access`
+  - `/goal`, `/best`, and `/exhaustive` enter the longer 300-step + ultra orchestration path.
+- **Atomic tools + verification kept**: Lynn does not take over model output through prompt fallbacks. The model chooses tools step by step while the harness enforces plan contracts, auto-verification, tool budgets, and rich failure feedback.
+- **Fleet/headless contract**: silent factory workers should use `--approval yolo --sandbox danger-full-access` inside isolated worktrees; human interactive sessions stay on ask / workspace-write.
+- **GUI alignment**: desktop artifacts, update manifest, download site, and CLI tarball share the same v0.81.0 train.
 
 ## Install
 
 ```bash
-# Prerequisite: Node.js 20 LTS or 22 LTS with npm.
+# Prerequisite:Node.js 20 LTS or 22 LTS with npm.
 node -v
 
 # Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.80.5.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
 
 # Launch.
 Lynn            # interactive chat TUI
 Lynn code       # coding-agent TUI
-Lynn --version  # should print 0.80.5
+Lynn --version  # should print 0.81.0
 Lynn agents     # copyable headless/Fleet commands
 ```
 
-Default Brain route: **StepFun 3.7 Flash (256K context, high reasoning, 32K
-reasoning/generation budget) -> MiMo V2.5 Pro/Omni -> Spark Qwen 3.6 35B A3B**.
-Fresh CLI installs use the hosted Lynn Brain when local Brain is unavailable;
-BYOK via `Lynn providers set ...` remains available.
+Default Brain route: **StepFun 3.7 Flash (256K context, high reasoning, 32K reasoning/generation budget) -> Spark Qwen 3.6 35B A3B**. Fresh CLI installs use hosted Lynn Brain when local Brain is unavailable; BYOK via `Lynn providers set ...` remains available.
 
 ## Headless / Fleet
 
 ```bash
 Lynn -p "summarize this repository" --json --cwd /path/to/repo
 
-Lynn code -p "fix tests, run the suite, summarize the diff" \
+Lynn code --best -p "fix tests, run the suite, summarize the diff" \
   --json \
   --cwd /path/to/worktree \
   --approval yolo \
-  --sandbox workspace-write \
+  --sandbox danger-full-access \
   --save-session
 
 Lynn worker run --brief task.md --worktree /path/to/worktree \
   --jsonl \
   --approval yolo \
-  --sandbox workspace-write
+  --sandbox danger-full-access
 ```
 
 ## Verification
 
-- `npm --prefix cli exec tsc -- --noEmit`
-- `npm --prefix cli run build`
-- `npm --prefix cli test` -> 60 files / 446 tests
-- `npm run test:cli-fleet` -> CLI + server/desktop Fleet + long-run compaction smoke
+- `npm run release:preflight`
+- `npm run test:cli-toolchain`
+- `npm run test:cli-fleet`
+- `npm run test:release:static`
+- GUI build/sign/notarize gates for the desktop artifacts

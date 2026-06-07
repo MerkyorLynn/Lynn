@@ -21,6 +21,7 @@ import { buildPrefetchToolSummary, rememberFailedTool, rememberSuccessfulTool } 
 import { buildReportResearchContext } from "./report-research-context.js";
 import { consumeMutationConfirmation, recordPendingDeleteRequest } from "./turn-retry-policy.js";
 import { buildLocalOfficeDirectAnswer } from "./local-office-answer.js";
+import { skillCrystallizeEnabled, recallSkillFrame, resolveBrainDataDir } from "./skill-crystallize.js";
 import {
   appendTextToLatestAssistantInMemory,
   appendTextToLatestAssistantRecord,
@@ -172,6 +173,12 @@ export function createPromptTurnRunner({
         effectivePromptText = String(ss._rehydratedEffectivePrompt);
         disableTurnTools = false;
         ss._rehydratedEffectivePrompt = null;
+      }
+      // ① Skill recall: prepend SOPs crystallized from past similar tasks
+      // (opt-in via BRAIN_SKILL_CRYSTALLIZE=1; fully guarded, no-op when off/empty).
+      if (skillCrystallizeEnabled()) {
+        const recallFrame = recallSkillFrame(resolveBrainDataDir(), promptText);
+        if (recallFrame) effectivePromptText = `${recallFrame}\n\n${effectivePromptText}`;
       }
       const noToolTurnInstruction = disableTurnTools ? buildNoToolTurnPrompt(effectivePromptText) : "";
       if (shouldUseLocalQwen35DirectBridge(promptText, {

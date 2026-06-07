@@ -77,6 +77,16 @@ describe("code tools", () => {
     expect(globToRegExp("**/*.ts").test("src/hello.ts")).toBe(true);
   });
 
+  it("skips trash and unreadable-style directories during glob instead of failing the turn", async () => {
+    await fs.mkdir(path.join(tmp, ".Trash"), { recursive: true });
+    await fs.writeFile(path.join(tmp, ".Trash", "hidden.ts"), "nope", "utf8");
+
+    const glob = await runClientTool({ cwd: tmp, approval: "ask" }, { name: "glob", pattern: "**/*.ts" });
+    expect(glob.ok).toBe(true);
+    expect(JSON.stringify(glob.output)).toContain("src/hello.ts");
+    expect(JSON.stringify(glob.output)).not.toContain("hidden.ts");
+  });
+
   it("requires an approved effective permission for writes and arbitrary bash", async () => {
     await expect(runClientTool({ cwd: tmp, approval: "ask" }, { name: "write_file", path: "out.txt", text: "x" })).rejects.toThrow("requires approval");
     await expect(runClientTool({ cwd: tmp, approval: "ask" }, { name: "apply_patch", text: "diff --git a/x b/x\n" })).rejects.toThrow("requires approval");
@@ -322,7 +332,7 @@ describe("code tools", () => {
   });
 
   it("builds long-running code flags for goal mode without clobbering explicit step budgets", () => {
-    expect(withLongRunCodeFlags({})).toMatchObject({ long: true, "save-session": true, "max-steps": "1000" });
+    expect(withLongRunCodeFlags({})).toMatchObject({ long: true, "save-session": true, "max-steps": "300" });
     expect(withLongRunCodeFlags({ "max-steps": "42" })).toMatchObject({ long: true, "save-session": true, "max-steps": "42" });
   });
 
@@ -710,7 +720,7 @@ describe("code tools", () => {
   it("renders copyable headless help for agent callers", async () => {
     const help = renderCodeHeadlessHelp();
     expect(help).toContain("Lynn code -p \"fix tests");
-    expect(help).toContain("--approval yolo --sandbox workspace-write");
+    expect(help).toContain("--approval yolo --sandbox danger-full-access");
     expect(help).toContain("交互式 ask 模式会逐次弹出授权");
     expect(help).toContain("Lynn worker run --brief task.md");
     expect(help).toContain("code.tool.ledger");
@@ -775,8 +785,6 @@ describe("code tools", () => {
 
     const resumed = await loadResumeMessages(sessionFile, 80);
 
-    // P2a: the original task is now pinned at the very front so a long task never
-    // loses its goal to compaction; the explanatory note follows it.
     expect(resumed[0]).toMatchObject({
       role: "user",
       content: expect.stringContaining("old user"),
@@ -882,9 +890,6 @@ describe("code tools", () => {
     const assistant = resumed.find((message) => message.role === "assistant" && typeof message.content === "string" && message.content.includes("about to inspect"));
 
     expect(assistant).toBeTruthy();
-    // Frame restoration: the tool_call is preserved and the interrupted result is
-    // synthesized, so the resumed sequence stays valid (every tool_call answered)
-    // instead of dropping the partial work.
     expect(assistant?.tool_calls?.length).toBe(1);
     const synth = resumed.find((message) => message.role === "tool"
       && (message as { tool_call_id?: string }).tool_call_id === "call_missing") as { content: string } | undefined;

@@ -11,6 +11,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI_ROOT = path.join(ROOT, "cli");
 const DEFAULT_OUT = path.join(ROOT, "dist", "cli");
 const MAX_CLI_TARBALL_BYTES = 5 * 1024 * 1024;
+const CLI_MIRROR_UPLOAD_TARGET = "tencent:/opt/lobster-brain/public/downloads/cli/";
 
 function arg(name) {
   const index = process.argv.indexOf(name);
@@ -87,9 +88,12 @@ async function main() {
     size: stat.size,
     sha256: digest,
     install: `npm install -g --force https://download.merkyorlynn.com/downloads/cli/${tarballName}`,
+    uploadTarget: CLI_MIRROR_UPLOAD_TARGET,
+    note: "CLI tarballs are served by the nginx alias /downloads/cli/ -> /opt/lobster-brain/public/downloads/cli/, not by /var/www/download-site.",
   };
   await fs.writeFile(path.join(outDir, "lynn-cli-package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   console.log(`[pack-cli] ${tarballName} ${stat.size} bytes sha256=${digest}`);
+  console.log(`[pack-cli] upload target: ${CLI_MIRROR_UPLOAD_TARGET} (not /var/www/download-site)`);
   console.log(`[pack-cli] wrote ${path.relative(ROOT, path.join(outDir, "lynn-cli-package.json"))}`);
 }
 

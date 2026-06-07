@@ -22,6 +22,7 @@ import { resolveAutoVerifyPlan, runAutoVerify, formatAutoVerifyFeedback, buildAu
 import { checkPlanContract, defaultToolBudget, checkToolBudget } from "./code-plan-contract.js";
 import { createWorkspaceSnapshot, recordWorkspaceSnapshotForRequest, restoreWorkspaceSnapshot, autoRollbackEnabled, type WorkspaceSnapshot } from "./code-snapshot.js";
 import { selfVerifyEnabled, buildSelfVerifyPrompt, parseSelfVerifyVerdict, formatSelfVerifyCritique } from "./code-self-verify.js";
+import { applyWorkingCheckpoint, formatWorkingCheckpointFrame, workingCheckpointObservation } from "./code-working-checkpoint.js";
 
 const MAX_AUTOVERIFY_REVERIFIES = 3;
 const MAX_PLAN_REMINDERS = 2;
@@ -69,6 +70,7 @@ export type CodeAgentEvent =
   | { type: "rollback"; ok: boolean; message: string }
   | { type: "self.verify"; pass: boolean }
   | { type: "plan.updated"; items: CodePlanItem[] }
+  | { type: "checkpoint.updated"; chars: number }
   | { type: "runtime.compacted"; messages: number }
   | { type: "session.resumed"; path: string; messages: number }
   | { type: "session.checkpoint"; path: string; line: "user" | "assistant" | "tool" }
@@ -137,8 +139,13 @@ function isReadOnlyToolRequest(request: CodeToolRequest): boolean {
   return request.tool === "read_file" || request.tool === "grep" || request.tool === "glob";
 }
 
+/** Meta tools touch no files and don't count as real actions (plan, working checkpoint). */
+function isMetaTool(tool: ClientToolName): boolean {
+  return tool === "update_plan" || tool === "update_working_checkpoint";
+}
+
 function observeClientToolRequest(state: ClientToolStormState, request: CodeToolRequest): ClientToolStormVerdict {
-  if (request.tool === "update_plan") return { suppress: false, repeatCount: 1 };
+  if (isMetaTool(request.tool)) return { suppress: false, repeatCount: 1 };
   const fingerprint = toolRequestFingerprint(request);
   const previous = state.recent.filter((entry) => entry.fingerprint === fingerprint).length;
   if (previous > 0) {
@@ -149,7 +156,7 @@ function observeClientToolRequest(state: ClientToolStormState, request: CodeTool
 }
 
 function rememberClientToolRequest(state: ClientToolStormState, request: CodeToolRequest): void {
-  if (request.tool === "update_plan") return;
+  if (isMetaTool(request.tool)) return;
   const readOnly = isReadOnlyToolRequest(request);
   if (!readOnly) {
     state.recent = state.recent.filter((entry) => !entry.readOnly);
@@ -232,13 +239,20 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
   let snapshotAnnounced = false;
   let rolledBack = false;
   let selfVerifyPasses = 0;
+  let workingCheckpoint = "";
   for (let step = 0; step < inputData.maxSteps; step += 1) {
     const label = step === 0 ? t("spinner.coding") : t("spinner.reviewing");
     inputData.onEvent?.({ type: "step.started", step, label });
+    // Pin the working checkpoint (if any) as the freshest, last thing the model
+    // sees — re-derived from state each turn, so it survives history compaction
+    // without polluting the persistent transcript.
+    const turnMessages = workingCheckpoint
+      ? [...messages, { role: "user" as const, content: formatWorkingCheckpointFrame(workingCheckpoint) }]
+      : messages;
     const result = await collectBrainText({
       brainUrl: inputData.brainUrl,
       fallbackProvider: inputData.fallbackProvider,
-      messages,
+      messages: turnMessages,
       reasoning: inputData.reasoning,
       json: inputData.json,
       label,
@@ -355,11 +369,11 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
         continue;
       }
       const stormVerdict = observeClientToolRequest(toolStorm, toolRequest);
-      if (toolRequest.tool !== "update_plan") toolCallCount += 1;
+      if (!isMetaTool(toolRequest.tool)) toolCallCount += 1;
       if (inputData.json) writeJsonLine({ type: "code.tool.requested", ts: nowIso(), tool: toolRequest.tool, args: redactToolArgs(toolRequest) });
       const preview = formatDangerousToolPreview(toolRequest.tool, toolRequest.args, supportsColor(inputData.output));
       inputData.onEvent?.({ type: "tool.requested", tool: toolRequest.tool, args: redactToolArgs(toolRequest) as CodeToolRequest["args"], preview });
-      if (!inputData.json && !inputData.onEvent && toolRequest.tool !== "update_plan") renderClientToolStart(toolRequest);
+      if (!inputData.json && !inputData.onEvent && !isMetaTool(toolRequest.tool)) renderClientToolStart(toolRequest);
       let toolResult: ClientToolResult;
       if (stormVerdict.suppress) {
         toolResult = {
@@ -414,10 +428,24 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
               inputData.onEvent?.({ type: "snapshot", ref: snapshot.ref, restoreCommand: snapshot.restoreCommand });
             }
           }
-          toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval }, {
-            name: toolRequest.tool,
-            ...toolRequest.args,
-          });
+          if (toolRequest.tool === "update_working_checkpoint") {
+            // Meta tool: never reaches the file/exec registry. Just update the
+            // pinned scratchpad state and hand back a confirmation observation.
+            workingCheckpoint = applyWorkingCheckpoint(toolRequest.args.content);
+            if (inputData.json) writeJsonLine({ type: "code.checkpoint.updated", ts: nowIso(), chars: workingCheckpoint.length });
+            inputData.onEvent?.({ type: "checkpoint.updated", chars: workingCheckpoint.length });
+            toolResult = { ok: true, tool: toolRequest.tool, output: workingCheckpointObservation(workingCheckpoint) };
+          } else {
+            const effectiveSandbox = toolRequest.tool === "bash"
+              && inputData.toolCtx.approval === "ask"
+              && effectiveApproval === "yolo"
+                ? "danger-full-access"
+                : inputData.toolCtx.sandbox;
+            toolResult = await runClientTool({ ...inputData.toolCtx, approval: effectiveApproval, sandbox: effectiveSandbox }, {
+              name: toolRequest.tool,
+              ...toolRequest.args,
+            });
+          }
         } catch (error) {
           if (inputData.json && error instanceof ToolApprovalRequiredError) {
             writeJsonLine({
@@ -503,7 +531,7 @@ export async function runCodeAgentLoop(inputData: CodeAgentLoopInput): Promise<C
       }
       if (inputData.json) writeJsonLine({ type: "code.tool.result", ts: nowIso(), ...toolResult });
       inputData.onEvent?.({ type: "tool.result", result: toolResult });
-      if (!inputData.json && !inputData.onEvent && toolRequest.tool !== "update_plan") renderClientToolResult(toolResult, process.stderr, toolRequest);
+      if (!inputData.json && !inputData.onEvent && !isMetaTool(toolRequest.tool)) renderClientToolResult(toolResult, process.stderr, toolRequest);
       toolLedgerEntries.push(toolLedgerEntry(toolResult));
       const baseSection = [
         `Tool result for ${toolRequest.tool}:`,

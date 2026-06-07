@@ -136,7 +136,8 @@ const STRINGS: Record<Lang, Record<string, string>> = {
       "/fast 低延迟 MiMo/Brain 回复\n" +
       "/think low|medium|high 切换推理强度\n" +
       "/reasoning 查看或设置推理模式\n" +
-      "/goal <任务> 长任务模式:1000 步预算 + 自动保存断点\n" +
+      "/goal <任务> 穷尽最优模式:300 步预算 + ultra 分解 + 对抗验收 + 自动断点\n" +
+      "/best <任务> 同 /goal,显式进入穷尽最优模式\n" +
       "/resume [last|session.jsonl] [说明] 继续上次长任务\n" +
       "/memory 查看长期记忆; /memory add <事实> 保存长期事实; /memory forget <id> 删除\n" +
       "/cwd 查看工作目录;默认是启动 Lynn 时终端所在目录,可先 cd 或用 --cwd 指定\n" +
@@ -156,8 +157,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     "code.mode.show": "mode:{mode}\n用 /yolo 开启零审批本地工具权限,/ask 回到守护模式。",
     "code.resume.maxSteps": "已保存断点。继续: {command}",
     "code.resume.maxStepsFallback": "已到达步数上限。用 /resume 继续最近的长任务,或用 --resume <session.jsonl> --long。",
-    "code.goal.usage": "用法:/goal <长任务描述>。它会开启 1000 步预算并自动保存断点。",
-    "code.goal.started": "已进入长任务模式:1000 步预算 + 自动断点。",
+    "code.goal.usage": "用法:/goal <长任务描述>。它会开启 300 步预算、ultra 分解、对抗验收和自动断点。",
+    "code.goal.started": "已进入穷尽最优模式:300 步预算 + ultra 分解 + 对抗验收 + 自动断点。",
+    "code.best.usage": "用法:/best <任务> 或 /exhaustive <任务>。用于需要穷尽方案、并行分派和对抗验收的任务。",
+    "code.best.started": "已进入穷尽最优模式:并行分派 + 原子 worker + 对抗验收。",
     "code.resume.started": "继续断点:{resume}",
     "code.session.resumed": "已恢复断点:{path} ({messages} 条上下文)",
     "code.session.saved": "会话已保存:{path}",
@@ -416,7 +419,8 @@ const STRINGS: Record<Lang, Record<string, string>> = {
       "/fast low-latency MiMo/Brain replies\n" +
       "/think low|medium|high switch reasoning effort\n" +
       "/reasoning show or set reasoning mode\n" +
-      "/goal <task> long-running mode: 1000-step budget + automatic checkpoints\n" +
+      "/goal <task> exhaustive best mode: 300-step budget + ultra decomposition + adversarial verification + checkpoints\n" +
+      "/best <task> same as /goal, explicit exhaustive-best mode\n" +
       "/resume [last|session.jsonl] [note] continue a saved long task\n" +
       "/memory show durable memory; /memory add <fact> save a durable fact; /memory forget <id> delete\n" +
       "/cwd show working directory; default is the terminal directory where Lynn started, use cd or --cwd to change\n" +
@@ -436,8 +440,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     "code.mode.show": "mode: {mode}\nUse /yolo for zero-prompt local tool permission or /ask for guarded mode.",
     "code.resume.maxSteps": "Checkpoint saved. Continue with: {command}",
     "code.resume.maxStepsFallback": "Step budget reached. Use /resume for the latest long task, or --resume <session.jsonl> --long.",
-    "code.goal.usage": "Usage: /goal <long-running task>. It enables a 1000-step budget and automatic checkpoints.",
-    "code.goal.started": "Long-running mode enabled: 1000-step budget + automatic checkpoints.",
+    "code.goal.usage": "Usage: /goal <long-running task>. It enables a 300-step budget, ultra decomposition, adversarial verification, and automatic checkpoints.",
+    "code.goal.started": "Exhaustive best mode enabled: 300-step budget + ultra decomposition + adversarial verification + checkpoints.",
+    "code.best.usage": "Usage: /best <task> or /exhaustive <task>. Use it for exhaustive options, parallel dispatch, and adversarial verification.",
+    "code.best.started": "Exhaustive best mode enabled: parallel dispatch + atomic workers + adversarial verification.",
     "code.resume.started": "Resuming checkpoint: {resume}",
     "code.session.resumed": "Resumed checkpoint: {path} ({messages} messages)",
     "code.session.saved": "Session saved: {path}",

@@ -4,6 +4,7 @@ import { applyPatchTool } from "./apply-patch.js";
 import { grepTool } from "./grep.js";
 import { globTool } from "./glob.js";
 import { bashTool } from "./bash.js";
+import { webScanTool } from "./web-scan.js";
 import { CLIENT_TOOL_DEFINITIONS, type ClientToolName, type ClientToolResult, type ToolRunContext } from "./types.js";
 import { normalizePlanItems } from "../plan-tool.js";
 
@@ -19,6 +20,7 @@ export interface ToolRunInput {
   plan?: unknown;
   maxBytes?: number;
   offset?: number;
+  url?: string;
 }
 
 export async function runClientTool(ctx: ToolRunContext, input: ToolRunInput): Promise<ClientToolResult> {
@@ -38,6 +40,8 @@ export async function runClientTool(ctx: ToolRunContext, input: ToolRunInput): P
       return globTool(ctx, input.pattern || "**", input.path || ".");
     case "bash":
       return bashTool(ctx, input.command || "");
+    case "web_scan":
+      return webScanTool(ctx, input.url || "");
     case "update_plan":
       return {
         ok: true,

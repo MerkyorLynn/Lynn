@@ -135,7 +135,7 @@ export function useDeepResearchRunner({
     const useDefaultBrainDeepResearch = selectedProvider === 'brain';
     flushSync(() => {
       setDeepResearchBusy(true);
-      setInlineNotice(`深研已启动：正在用 ${selectedModelLabel} 生成答案…`);
+      setInlineNotice(`深研已启动：正在使用 ${selectedModelLabel} 生成答案…`);
       setInlineError(null);
     });
     try {

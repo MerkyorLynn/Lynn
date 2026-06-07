@@ -1,5 +1,7 @@
 import type { BrainStreamEvent, ChatAssistantToolCall, ChatToolDefinition } from "./brain-client.js";
 import type { ClientToolName } from "./tools/types.js";
+import { workingCheckpointEnabled } from "./code-working-checkpoint.js";
+import { webScanEnabled } from "./tools/web-scan.js";
 
 export interface CodeToolRequest {
   toolCallId?: string;
@@ -15,6 +17,8 @@ export interface CodeToolRequest {
     maxBytes?: number;
     offset?: number;
     plan?: unknown;
+    content?: string;
+    url?: string;
   };
   /** Loop iteration (step) this request belongs to; used for fallback tool-call ids and step events. */
   step?: number;
@@ -34,7 +38,7 @@ export function toolRequestFingerprint(request: CodeToolRequest): string {
 }
 
 export function codeToolDefinitions(): ChatToolDefinition[] {
-  return [
+  const tools: ChatToolDefinition[] = [
     {
       type: "function",
       function: {
@@ -123,6 +127,36 @@ export function codeToolDefinitions(): ChatToolDefinition[] {
       },
     },
   ];
+  // Opt-in (LYNN_CLI_WORKING_CHECKPOINT=1): a model-curated scratchpad,
+  // re-injected every step and immune to history compaction. This keeps durable
+  // context small in-process instead of leaning on long history.
+  if (workingCheckpointEnabled(process.env)) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "update_working_checkpoint",
+        description: "Overwrite your private working checkpoint — a short scratchpad of the key facts, decisions, and next steps you must not lose. It is re-injected every step and survives history compaction, so keep durable context here instead of relying on long history. Keep it concise.",
+        parameters: objectSchema({
+          content: stringSchema("The full new checkpoint text. Replaces the previous one. Keep it tight."),
+        }, ["content"]),
+      },
+    });
+  }
+  // Opt-in (LYNN_CLI_WEB_SCAN=1): read-only public web fetch + token-frugal
+  // simplification. SSRF-guarded; no logged-in/browser actions (that is the GUI).
+  if (webScanEnabled(process.env)) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "web_scan",
+        description: "Fetch a public web page over http/https and return simplified, token-frugal text (title + readable body). Read-only; for docs/reference. Cannot reach private/loopback hosts.",
+        parameters: objectSchema({
+          url: stringSchema("Absolute http(s) URL to fetch."),
+        }, ["url"]),
+      },
+    });
+  }
+  return tools;
 }
 
 export function parseCodeToolRequest(text: string): CodeToolRequest | null {
@@ -271,6 +305,8 @@ function normalizeToolPayload(payload: Record<string, unknown>): CodeToolRequest
       maxBytes: numberArg(args.maxBytes ?? args.max_bytes),
       offset: numberArg(args.offset ?? args.start_offset ?? args.startOffset),
       plan: args.plan,
+      content: stringArg(args.content),
+      url: stringArg(args.url),
     },
   };
 }
@@ -313,6 +349,14 @@ const TOOL_NAME_ALIASES: Record<string, ClientToolName> = {
   update_todos: "update_plan",
   todo: "update_plan",
   plan: "update_plan",
+  update_working_checkpoint: "update_working_checkpoint",
+  working_checkpoint: "update_working_checkpoint",
+  checkpoint: "update_working_checkpoint",
+  scratchpad: "update_working_checkpoint",
+  web_scan: "web_scan",
+  web_fetch: "web_scan",
+  fetch_url: "web_scan",
+  browse: "web_scan",
 };
 
 function normalizeClientToolName(raw: string): ClientToolName | null {

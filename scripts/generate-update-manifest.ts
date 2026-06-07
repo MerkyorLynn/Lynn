@@ -64,12 +64,15 @@ function readPackageVersion(): string {
 function buildAssetUrls(version: string) {
   // [HOTPATCH 2026-04-27 night] 真实下载 URL 全走腾讯镜像(CN 用户必经),不再用 GitHub。
   // default(fallback)指向镜像站 download.html 让用户自己选,不跳 GitHub release tag。
-  return {
+  const assets: Record<string, string> = {
     "darwin-arm64": `${MIRROR_DOWNLOAD_BASE}/Lynn-${version}-macOS-arm64.dmg`,
     "darwin-x64": `${MIRROR_DOWNLOAD_BASE}/Lynn-${version}-macOS-x64.dmg`,
-    "win32-x64": `${MIRROR_DOWNLOAD_BASE}/Lynn-${version}-Windows-Setup.exe`,
     default: "https://download.merkyorlynn.com/download.html",
   };
+  if (process.env.LYNN_RELEASE_INCLUDE_WINDOWS === "1") {
+    assets["win32-x64"] = `${MIRROR_DOWNLOAD_BASE}/Lynn-${version}-Windows-Setup.exe`;
+  }
+  return assets;
 }
 
 function resolveNotes({ notes, notesFile }: Pick<CliArgs, "notes" | "notesFile">): string {

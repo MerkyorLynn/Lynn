@@ -47,6 +47,7 @@
     "test:cli-install:remote": "node scripts/cli-install-smoke.mjs --remote",
     "test:cli-pressure": "npm run build:cli && node scripts/cli-p-stress.mjs",
     "test:cli-real": "npm run build:cli && node scripts/cli-real-model-soak.mjs",
+    "test:cli-toolchain": "npm run build:cli && node scripts/cli-toolchain-stress.mjs",
     "bench:cli-efficiency": "npm run build:cli && node scripts/cli-efficiency-gate.mjs",
     "bench:cli-routes": "npm run build:cli && node scripts/cli-route-latency-smoke.mjs",
     "test:cli-cache-usage": "npm run build:cli && node scripts/cli-cache-usage-smoke.mjs",

@@ -12,9 +12,14 @@ describe("task classifier", () => {
     expect(routed.command).toBe("code");
     expect(routed.positionals).toEqual(["今晚把 CLI 门禁跑完"]);
     expect(routed.flags).toMatchObject({
+      best: true,
       long: true,
       "save-session": true,
-      "max-steps": "1000",
+      "max-steps": "300",
+      ultra: true,
+      "ultra-verify": true,
+      "ultra-max-subtasks": "8",
+      "ultra-concurrency": "3",
     });
   });
 
@@ -31,7 +36,9 @@ describe("task classifier", () => {
     const args = parseArgs(["今晚连续工作直到完成 CLI"]);
     const route = classifyTaskRoute(args);
     expect(route.kind).toBe("goal");
-    expect(codeArgsForRoute(args, route).flags["max-steps"]).toBe("1000");
+    expect(codeArgsForRoute(args, route).flags["max-steps"]).toBe("300");
+    expect(codeArgsForRoute(args, route).flags.best).toBe(true);
+    expect(codeArgsForRoute(args, route).flags.ultra).toBe(true);
   });
 
   it("routes image paths and image flags to vision", () => {

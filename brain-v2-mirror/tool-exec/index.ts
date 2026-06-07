@@ -136,7 +136,7 @@ export const SERVER_TOOLS = [
     type: 'function',
     function: {
       name: 'stock_research',
-      description: 'Get comprehensive stock research data from Tushare Pro API. Returns: recent price history (60 days), key financial indicators (8 quarters), income statement, top 10 shareholders, valuation. Use BEFORE create_report to get real data. A-shares only (SH/SZ/BJ).',
+      description: 'Comprehensive A-share research from Tushare Pro: 60-day price history, key financials (8 quarters), income statement, top-10 shareholders, valuation. Call before create_report for real data. A-shares only (SH/SZ/BJ).',
       parameters: { type: 'object', properties: { code: { type: 'string', description: 'Stock code with exchange suffix, e.g. 688629.SH or 000001.SZ' }, name: { type: 'string', description: 'Company name (for display)' } }, required: ['code'] },
     },
   },
@@ -144,31 +144,15 @@ export const SERVER_TOOLS = [
     type: 'function',
     function: {
       name: 'create_report',
-      description: 'Generate a professional dark-themed HTML analysis report. Provide structured JSON (title + sections). Section types: metrics (KPI cards), text (paragraphs/blocks), table (rows+headers), verdict (prediction cards), warning (alert). Always provide at least 3 sections.',
+      description: 'Generate a professional dark-themed HTML analysis report from JSON (title + sections[], provide >=3 sections). Each section = {title, type, ...type-specific fields}. By type: metrics -> metrics:[{label,value,change,direction:up|down|neutral}] (KPI cards); text -> content (string) or blocks:[{heading,text}]; table -> headers:[str] + rows:[[str]]; verdict -> items:[{period,range,note}] (prediction cards); warning -> content (alert text).',
       parameters: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'Report title' },
-          tag: { type: 'string', description: 'Category tag' },
+          title: { type: 'string' },
+          tag: { type: 'string' },
           subtitle: { type: 'string' },
           date: { type: 'string' },
-          sections: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                type: { type: 'string', enum: ['metrics', 'text', 'table', 'verdict', 'warning'] },
-                metrics: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' }, change: { type: 'string' }, direction: { type: 'string', enum: ['up', 'down', 'neutral'] } } } },
-                content: { type: 'string' },
-                blocks: { type: 'array', items: { type: 'object', properties: { heading: { type: 'string' }, text: { type: 'string' } } } },
-                headers: { type: 'array', items: { type: 'string' } },
-                rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
-                items: { type: 'array', items: { type: 'object', properties: { period: { type: 'string' }, range: { type: 'string' }, note: { type: 'string' } } } },
-              },
-              required: ['title', 'type'],
-            },
-          },
+          sections: { type: 'array', description: 'Section objects; shape per the description above', items: { type: 'object' } },
           disclaimer: { type: 'string' },
         },
         required: ['title', 'sections'],
@@ -179,25 +163,13 @@ export const SERVER_TOOLS = [
     type: 'function',
     function: {
       name: 'create_pptx',
-      description: 'Generate a PowerPoint presentation (.pptx file). Layouts: title / content (default) / section / two_column. Lines starting with "-" are bullets. For two_column, use "|||" or "---" to separate columns. Returns a download URL.',
+      description: 'Generate a PowerPoint (.pptx). slides[] = each {title, layout, body, notes}. layout: title | content (default) | section | two_column. In body, lines starting with "-" are bullets; for two_column split the two columns with "|||". Returns a download URL.',
       parameters: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'Presentation title' },
-          author: { type: 'string', description: 'Author name (optional)' },
-          slides: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                layout: { type: 'string', enum: ['title', 'content', 'section', 'two_column'] },
-                title: { type: 'string' },
-                body: { type: 'string' },
-                notes: { type: 'string' },
-              },
-              required: ['title'],
-            },
-          },
+          title: { type: 'string' },
+          author: { type: 'string' },
+          slides: { type: 'array', description: 'Slide objects; shape per the description above', items: { type: 'object' } },
         },
         required: ['title', 'slides'],
       },
@@ -268,12 +240,47 @@ export function isServerTool(name) {
   return SERVER_TOOL_NAMES.has(name);
 }
 
-// Merge serverTools into a client-provided tools array (de-dup by name)
-export function mergeWithServerTools(clientTools) {
+// Heavy, rarely-needed document generators. Their full JSON schemas cost ~600 tok, but a
+// plain text/coding turn never needs them. We inject them only when the conversation shows
+// explicit document intent (users who want these almost always say so), so the capability
+// is preserved on the turns that actually need it while the common path stays lean.
+export const GATED_TOOLS = new Set(['create_report', 'create_pptx', 'create_pdf', 'create_artifact']);
+
+const DOC_INTENT_RE = new RegExp([
+  // zh: a create-verb followed (within one clause) by a document object — the gap
+  // covers connectors/measure-words like 成/个/一份/详细的 ("做成PPT", "做一份详细的报告").
+  '(生成|制作|做|帮我做|给我做|帮我生成|导出|搞|整理|写|画|出)[^。!?,;，；\\n]{0,8}(报告|研报|分析报告|ppt|pptx|幻灯片?|演示文稿|演示|海报|pdf|artifact|预览)',
+  // zh: strong standalone format words
+  '研报|演示文稿|幻灯片|pptx',
+  // en: a create-verb followed by a document object
+  '\\b(create|generate|make|build|export|produce|draft|write)\\b[^\\n]{0,24}\\b(report|presentation|pptx?|powerpoint|slides?|slide\\s*deck|deck|pdf|artifact)\\b',
+  // en: strong standalone format words
+  '\\b(pptx|powerpoint)\\b',
+].join('|'), 'i');
+
+// Does the recent conversation explicitly ask to generate a document / deck / PDF / artifact?
+export function wantsGatedTools(messages) {
+  if (!Array.isArray(messages)) return false;
+  const text = messages
+    .filter(m => m && m.role === 'user')
+    .slice(-3)
+    .map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? ''))
+    .join('\n');
+  return DOC_INTENT_RE.test(text);
+}
+
+// Merge serverTools into a client-provided tools array (de-dup by name).
+// When `messages` is provided, the GATED_TOOLS document generators are injected only on
+// explicit document intent; when `messages` is omitted, all server tools are injected
+// (back-compat for non-chat callers and tests).
+export function mergeWithServerTools(clientTools, messages) {
   const list = Array.isArray(clientTools) ? [...clientTools] : [];
   const seen = new Set(list.filter(t => t?.function?.name).map(t => t.function.name));
+  const allowGated = messages === undefined ? true : wantsGatedTools(messages);
   for (const st of SERVER_TOOLS) {
-    if (!seen.has(st.function.name)) list.push(st);
+    if (seen.has(st.function.name)) continue;
+    if (!allowGated && GATED_TOOLS.has(st.function.name)) continue;
+    list.push(st);
   }
   return list;
 }

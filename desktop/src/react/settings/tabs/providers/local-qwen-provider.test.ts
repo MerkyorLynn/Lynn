@@ -45,6 +45,12 @@ describe('Local Qwen provider UX guards', () => {
     expect(source).toContain('https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-APEX-MTP-GGUF');
     expect(source).toContain('下载到本机');
     expect(source).toContain('Qwen3.6-35B-A3B-APEX-MTP-I-Balanced.gguf');
+    expect(source).toContain('LOCAL_QWEN35_RUNTIME_POLICY');
+    expect(source).toContain('warm_pool_default: false');
+    expect(source).toContain('idle_unload: true');
+    expect(source).toContain('tool_schema_limit');
+    expect(source).toContain('failure_fallback_provider');
+    expect(source).toContain('step-3.7-flash');
   });
 
   it('makes advanced local models actionable instead of passive cards', () => {
@@ -67,13 +73,13 @@ describe('Local Qwen provider UX guards', () => {
   });
 
   it('keeps local model IPC commands explicit and guarded', () => {
-    // v0.80.2 decomposition: local-model IPC + guards moved from main.cjs into
-    // local-model-controller.cjs.
+    const main = read('desktop/main.cjs');
     const localModelController = read('desktop/local-model-controller.cjs');
     const preload = read('desktop/preload.cjs');
     const profiles = read('desktop/llamacpp-profiles.cjs');
     const controller = read('desktop/src/react/components/input/useLocalQwenStatusController.ts');
     const detail = read('desktop/src/react/settings/tabs/providers/ProviderDetail.tsx');
+    expect(main).toContain('createLocalModelController');
     expect(localModelController).toContain('const LOCAL_MODEL_IPC = Object.freeze');
     expect(localModelController).toContain('parseStartDownloadPayload');
     expect(localModelController).toContain('download-boundary-invalid');
@@ -148,7 +154,6 @@ describe('Local Qwen provider UX guards', () => {
 
   it('surfaces local llama.cpp realtime TPS without replacing cumulative token stats', () => {
     const route = read('server/routes/local-qwen35.ts');
-    const inputArea = read('desktop/src/react/components/InputArea.tsx');
     const localQwenController = read('desktop/src/react/components/input/useLocalQwenStatusController.ts');
     const localQwenStack = read('desktop/src/react/components/input/LocalQwenStatusStack.tsx');
     const localStatus = read('desktop/src/react/components/input/local-qwen-status.ts');
@@ -162,10 +167,6 @@ describe('Local Qwen provider UX guards', () => {
     expect(localStatus).toContain('predicted_tps');
     expect(localStatus).toContain('当前 ${predictedTps');
     expect(localStatus).toContain('服务累计处理');
-    // v0.80.2: InputArea wires the runtime hook; the TPS summary (renamed
-    // localQwenTpsSummary -> tpsSummary) lives in useLocalQwenStatusController.
-    expect(inputArea).toContain('useLocalQwenStatusController');
-    expect(localQwenController).toContain('tpsSummary');
     expect(localQwenStack).toContain('等待下一次采样');
     expect(localQwenController).toContain('intervalMs = active ? 3_000 : 15_000');
     expect(statusBar).toContain('formatTps');

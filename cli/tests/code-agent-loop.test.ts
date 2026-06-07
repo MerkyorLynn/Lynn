@@ -175,16 +175,13 @@ describe("code agent loop · core & approvals", () => {
     expect(events.some((event) => event.type === "task.finished" && event.ok)).toBe(true);
   });
 
-  it("keeps normal coding turns capped at 20 steps unless long-run mode is explicit", () => {
-    expect(maxSteps(parseArgs(["code", "task"]))).toBe(8);
+  it("uses a 100 step default and allows explicit budgets up to 300", () => {
+    expect(maxSteps(parseArgs(["code", "task"]))).toBe(100);
     expect(maxSteps(parseArgs(["code", "task", "--max-steps", "20"]))).toBe(20);
-    expect(() => maxSteps(parseArgs(["code", "task", "--max-steps", "21"]))).toThrow(/--long/);
-  });
-
-  it("allows endurance coding turns to opt into a 1000 step budget", () => {
-    expect(maxSteps(parseArgs(["code", "task", "--long", "--max-steps", "1000"]))).toBe(1000);
+    expect(maxSteps(parseArgs(["code", "task", "--max-steps", "300"]))).toBe(300);
+    expect(maxSteps(parseArgs(["code", "task", "--long", "--max-steps", "300"]))).toBe(300);
     expect(maxSteps(parseArgs(["code", "task", "--endurance", "--steps", "250"]))).toBe(250);
-    expect(() => maxSteps(parseArgs(["code", "task", "--long", "--max-steps", "1001"]))).toThrow(/1 to 1000/);
+    expect(() => maxSteps(parseArgs(["code", "task", "--max-steps", "301"]))).toThrow(/1 to 300/);
   });
 
   it("validates max steps before the mock brain shortcut", async () => {
@@ -195,9 +192,9 @@ describe("code agent loop · core & approvals", () => {
       tmp,
       "--mock-brain",
       "--max-steps",
-      "21",
+      "301",
       "--json",
-    ]))).rejects.toThrow(/--long/);
+    ]))).rejects.toThrow(/1 to 300/);
   });
 
   it("executes a model-requested apply_patch tool and feeds the result back", async () => {

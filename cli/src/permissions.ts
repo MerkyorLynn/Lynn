@@ -39,7 +39,10 @@ export async function resolveEffectivePermissions(args: ParsedArgs): Promise<Eff
   const flagSandbox = normalizeSandbox(getStringFlag(args.flags, "sandbox"));
 
   const approval = flagApproval || envProfile.approval || guiProfile?.approval || DEFAULT_PERMISSION_PROFILE.approval;
-  const sandbox = flagSandbox || envProfile.sandbox || guiProfile?.sandbox || DEFAULT_PERMISSION_PROFILE.sandbox;
+  const inferredYoloSandbox = approval === "yolo" && !flagSandbox && (flagApproval === "yolo" || (!envProfile.sandbox && !guiProfile?.sandbox))
+    ? "danger-full-access"
+    : undefined;
+  const sandbox = flagSandbox || inferredYoloSandbox || envProfile.sandbox || guiProfile?.sandbox || DEFAULT_PERMISSION_PROFILE.sandbox;
   const source = flagApproval || flagSandbox
     ? "flags"
     : envProfile.approval || envProfile.sandbox

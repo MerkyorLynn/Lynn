@@ -34,6 +34,29 @@ describe("assertWorkspaceBashAllowed", () => {
     expect(() => assertWorkspaceBashAllowed("find . -delete", "danger-full-access")).not.toThrow();
   });
 
+  it("blocks whole-machine find even after danger-full-access approval", () => {
+    const previous = process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND;
+    delete process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND;
+    try {
+      expect(() => assertWorkspaceBashAllowed("find / -name lynn-cli-runtime-knowledge.md", "danger-full-access")).toThrow(/full-disk/);
+      expect(() => assertWorkspaceBashAllowed("find . -name lynn-cli-runtime-knowledge.md", "danger-full-access")).not.toThrow();
+    } finally {
+      if (previous === undefined) delete process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND;
+      else process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND = previous;
+    }
+  });
+
+  it("allows whole-machine find only behind an explicit escape hatch", () => {
+    const previous = process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND;
+    process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND = "1";
+    try {
+      expect(() => assertWorkspaceBashAllowed("find / -name lynn-cli-runtime-knowledge.md", "danger-full-access")).not.toThrow();
+    } finally {
+      if (previous === undefined) delete process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND;
+      else process.env.LYNN_CLI_ALLOW_FULL_DISK_FIND = previous;
+    }
+  });
+
   it("allows only safe pwd/ls bash without yolo approval", async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-bash-safe-"));
     try {

@@ -30,13 +30,28 @@ interface LocalQwen35RetryInput {
 
 export const LOCAL_QWEN35_DIRECT_MAX_CHARS = Number(process.env.LYNN_LOCAL_QWEN35_DIRECT_MAX_CHARS || 8000);
 export const LOCAL_QWEN35_DIRECT_ENDPOINT = process.env.LYNN_LOCAL_QWEN35_ENDPOINT || "http://127.0.0.1:18099/v1/chat/completions";
-// Default local 9B keeps a 32K context window, but its visible answer path
-// should stay responsive. Lower or higher local profiles can still tune
-// budgets via env or their own launcher args.
 export const LOCAL_QWEN35_DIRECT_MAX_TOKENS = Number(process.env.LYNN_LOCAL_QWEN35_DIRECT_MAX_TOKENS || 8192);
 export const LOCAL_QWEN35_DIRECT_PREFETCH_MAX_TOKENS = Number(process.env.LYNN_LOCAL_QWEN35_DIRECT_PREFETCH_MAX_TOKENS || 2048);
 export const LOCAL_QWEN35_DIRECT_HISTORY_MAX_MESSAGES = Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_MESSAGES || 8);
 export const LOCAL_QWEN35_DIRECT_HISTORY_MAX_CHARS = Number(process.env.LYNN_LOCAL_QWEN35_HISTORY_MAX_CHARS || 8000);
+export const LOCAL_QWEN35_TOOL_SCHEMA_LIMIT = Math.max(
+  3,
+  Math.min(5, Number(process.env.LYNN_LOCAL_QWEN35_TOOL_SCHEMA_LIMIT || 5)),
+);
+export const LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER = process.env.LYNN_LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER || "step-3.7-flash";
+export const LOCAL_QWEN35_RUNTIME_POLICY = Object.freeze({
+  role: "explicit_opt_in_local_9b",
+  kvCacheReuse: true,
+  warmPoolDefault: false,
+  idleUnload: true,
+  stablePrefix: true,
+  maxPromptChars: LOCAL_QWEN35_DIRECT_MAX_CHARS,
+  maxHistoryMessages: LOCAL_QWEN35_DIRECT_HISTORY_MAX_MESSAGES,
+  maxHistoryChars: LOCAL_QWEN35_DIRECT_HISTORY_MAX_CHARS,
+  toolSchemaLimit: LOCAL_QWEN35_TOOL_SCHEMA_LIMIT,
+  footerDecodeTps: true,
+  failureFallbackProvider: LOCAL_QWEN35_FAILURE_FALLBACK_PROVIDER,
+});
 export const LOCAL_QWEN35_EMPTY_CONTENT_FALLBACK_MESSAGE = "本地模型这次只输出了思考过程,没有返回可见正文。已保留思考记录;请关闭深研重试,或临时切到默认云端模型。";
 
 export function shouldUseLocalQwen35DirectBridge(promptText: unknown = "", opts: LocalQwen35BridgeOptions = {}): boolean {

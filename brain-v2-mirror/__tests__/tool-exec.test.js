@@ -54,6 +54,57 @@ describe('mergeWithServerTools', () => {
   });
 });
 
+describe('mergeWithServerTools document-intent gating', () => {
+  const names = (clientTools, messages) => mergeWithServerTools(clientTools, messages).map(t => t.function.name);
+
+  it('injects all server tools when messages omitted (back-compat)', () => {
+    const n = names(null);
+    expect(n).toContain('create_report');
+    expect(n).toContain('create_pptx');
+    expect(n).toContain('create_pdf');
+    expect(n).toContain('create_artifact');
+  });
+
+  it('gates out the document generators on a plain turn', () => {
+    const n = names(null, [{ role: 'user', content: '今天北京天气怎么样' }]);
+    expect(n).toContain('web_search');
+    expect(n).toContain('web_fetch');
+    expect(n).toContain('weather');
+    expect(n).not.toContain('create_report');
+    expect(n).not.toContain('create_pptx');
+    expect(n).not.toContain('create_pdf');
+    expect(n).not.toContain('create_artifact');
+  });
+
+  it('injects the document generators on explicit intent (zh)', () => {
+    expect(names(null, [{ role: 'user', content: '帮我做个PPT介绍这个项目' }])).toContain('create_pptx');
+    expect(names(null, [{ role: 'user', content: '整理成一份分析报告' }])).toContain('create_report');
+    expect(names(null, [{ role: 'user', content: '导出成PDF' }])).toContain('create_pdf');
+  });
+
+  it('injects the document generators on explicit intent (en)', () => {
+    const n = names(null, [{ role: 'user', content: 'generate a PDF report of the results' }]);
+    expect(n).toContain('create_pdf');
+    expect(n).toContain('create_report');
+    expect(names(null, [{ role: 'user', content: 'make a powerpoint deck' }])).toContain('create_pptx');
+  });
+
+  it('keeps web_search / web_fetch available regardless of intent', () => {
+    const n = names(null, [{ role: 'user', content: 'hello there' }]);
+    expect(n).toContain('web_search');
+    expect(n).toContain('web_fetch');
+  });
+
+  it('detects intent across the recent user turns, not just the last', () => {
+    const n = names(null, [
+      { role: 'user', content: '研究一下这家公司' },
+      { role: 'assistant', content: '好的,这是初步分析…' },
+      { role: 'user', content: '做成PPT' },
+    ]);
+    expect(n).toContain('create_pptx');
+  });
+});
+
 describe('SERVER_TOOLS schema', () => {
   it('has web_search with required query parameter', () => {
     const ws = SERVER_TOOLS.find(t => t.function.name === 'web_search');

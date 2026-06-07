@@ -354,7 +354,7 @@ describe("worker-run · brief parsing & external adapters", () => {
     expect(workerProfileDefaults("mimo-fast")).toEqual({ reasoning: "off", maxSteps: "6" });
     expect(workerProfileDefaults("mimo-pro")).toEqual({ reasoning: "high", maxSteps: "100", long: true });
     expect(workerProfileDefaults("mimo-vl")).toEqual({ reasoning: "high" });
-    expect(workerProfileDefaults("stepfun-flash")).toEqual({ reasoning: "high", maxSteps: "100", long: true });
+    expect(workerProfileDefaults("stepfun-flash")).toEqual({ reasoning: "high", maxSteps: "300", long: true });
     expect(workerProfileDefaults("lynn-cli")).toEqual({});
   });
 
