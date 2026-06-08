@@ -11,8 +11,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.81.0-brightgreen" alt="App Version"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.81.0-7bcad3" alt="CLI Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.82.0-brightgreen" alt="App Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.82.0-7bcad3" alt="CLI Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/stargazers"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript" alt="TypeScript"></a>
@@ -98,16 +98,16 @@ V0.80 的 CLI 是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror. --force is safe for first install too.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.82.0.tgz"
 
 # 3. Launch.
 Lynn            # interactive chat TUI
 Lynn code       # coding-agent TUI
-Lynn --version  # should print 0.81.0
+Lynn --version  # should print 0.82.0
 Lynn agents     # copyable headless/Fleet commands for other agents
 ```
 
-默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到 Lynn 远端 Brain。模型级联为 **StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → Spark Qwen 3.6 35B A3B**。纯 CLI 用户也可以用 `Lynn providers set ...` 绑定自己的 OpenAI 兼容端点。
+默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到 Lynn 远端 Brain。模型级联为 **StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) → MiMo V2.5 Pro/Omni → Spark Qwen 3.6 35B A3B**。纯 CLI 用户也可以用 `Lynn providers set ...` 绑定自己的 OpenAI 兼容端点。
 
 长任务默认采用 Reasonix 风格的**前置缓存纪律**:稳定前缀、工具定义、运行时约束和 resume 摘要分层固定,避免每轮重排导致 prefix drift;缓存命中以 `prefix-cache ... hit` 进入 usage、session、replay 和 `Lynn cache doctor --json`,不在界面里制造上下文焦虑。
 
@@ -149,7 +149,7 @@ Lynn worker run --brief task.md --worktree . --agent qwen-cli --jsonl
 ## 🆕 近期更新
 
 <details>
-<summary><strong>Lynn v0.81.0</strong> · 2026-06-06 · StepFun 穷尽最优 + 工具扫描守卫 <em>(最新)</em></summary>
+<summary><strong>Lynn v0.82.0</strong> · 2026-06-06 · StepFun 穷尽最优 + 工具扫描守卫 <em>(最新)</em></summary>
 
 **GUI 与 CLI 同步发版**:
 - ⚡ **StepFun 3.7 Flash 专项 best 模式**:`/goal`、`/best`、`Lynn code --best` 默认进入 300 步穷尽预算,开启 ultra 分解、并行原子 worker、对抗验收、auto-verify 和 checkpoint/resume,目标是“最好结果”,不是少跑几步。
@@ -162,10 +162,10 @@ Lynn worker run --brief task.md --worktree . --agent qwen-cli --jsonl
 - 🧪 **门禁覆盖**:Brain V2、CLI toolchain/cache/file-size/pack/install、runtime answer/context、本地模型策略测试全部纳入发布前检查。
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.82.0.tgz"
 ```
 
-[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.81.0)
+[完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.82.0)
 
 </details>
 
@@ -180,7 +180,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 - 🧪 **门禁覆盖长跑压缩路径**:`cli-longrun-smoke` 会制造大工具结果并要求出现 `code.runtime.compacted`,避免长任务稳定性只停留在单测。
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.81.0.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.82.0.tgz"
 ```
 
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.80.6)
@@ -241,7 +241,7 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 - 🧭 **本地模型口径不变**:默认仍是 Qwen3.5-9B Q4_K_M imatrix MTP;4B 保持低配降级,继续提示 thinking-on 风险。
 - 🧾 **聊天与 artifact 热路径更容易维护**:stream emitter、turn state、artifact recovery、tool summary、voice fallback 等模块进入 TS 边界,为后续拆 `chat.js` 和 core 做铺垫。
 - 🧪 **core 大迁移延后**:`core/session-coordinator.js`、`core/engine.js` 等大文件不塞进本次包,避免为追求 JS 占比牺牲发版稳定性。
-- 📦 **macOS 三重校验完成**:Apple Silicon / Intel DMG 已签名、公证、stapled,并通过 Gatekeeper 校验;Windows 安装包以后续 Release 可见资产为准。
+- 📦 **macOS 三重校验完成**:Apple Silicon / Intel DMG 已签名、公证、stapled,并通过 Gatekeeper 校验;Windows 提供签名 NSIS 安装包。
 
 [完整 Release Notes →](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.79.3)
 
@@ -849,13 +849,14 @@ Lynn 本地模型按硬件分三档。V0.80 起本地 GGUF **不再随应用启�
 
 首次启动有两条路径：
 
-**Quick Start**（3 秒进主界面）— 输入名字、授权权限，直接开聊。**内置免费默认模型池**（Brain V2 主链头位 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算),Spark 接本地/自建兜底）：
+**Quick Start**（3 秒进主界面）— 输入名字、授权权限，直接开聊。**内置免费默认模型池**（V0.80 走 brain v2，主链头位 StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算),MiMo 接多模态兜底）：
 
 ```
 T1  ⭐ StepFun 3.7 Flash（256K 上下文,high reasoning,32K 推理/生成预算,高速文本/编码主路）
-T2  Spark Qwen 3.6 35B A3B（本地/自建零成本兜底）
-T3  DeepSeek V4-flash / V4-pro（云兜底，长上下文）
-T4  智谱 GLM / Kimi / MiniMax（供应商备用链路）
+T2  小米 MiMo V2.5 Pro / Omni（多模态、原生搜索、音频/视频/图片兜底）
+T3  Spark Qwen 3.6 35B A3B（本地/自建零成本兜底）
+T4  DeepSeek V4-flash / V4-pro（云兜底，长上下文）
+T5  智谱 GLM / Kimi / MiniMax（供应商备用链路）
 ```
 
 多级降级自动切换：429、配额、供应商错误或能力不匹配 → 自动下一档，对话不中断。**默认模型有工具调用能力**（Plan C 透传，可以直接跑 `write` / `edit` / `read` / `bash`），不只是聊天。链式工具锚定、tool result reinforcement、tool-storm guard 和 pre-search 会在 router 层帮模型稳住多步工具结果。
@@ -906,7 +907,7 @@ Lynn 不是简单套 OpenAI 兼容协议。从 9B 小模型到 GLM-5 推理模�
 |---|---|---|
 | 小 | <32K（ERNIE / Step 8K 等） | 仅 `web_search` + `web_fetch` |
 | 中 | 32K（豆包 / 混元 Pro / 百川 Turbo） | 标准 10 工具 |
-| 大 | ≥64K（StepFun / Qwen3.6 / Kimi K2.6 / GLM-5 / DeepSeek V4） | 24 工具全开 |
+| 大 | ≥64K（MiMo / Qwen3.6 / Kimi K2.6 / GLM-5 / DeepSeek V4） | 24 工具全开 |
 
 **小模型专属 Prompt 工程** — context < 32K 时自动注入：回复限 500 字 + 关键结论 `<!-- KEY: -->` 标注（压缩时优先保留）；单工具串行调用规则（防弱模型并行错）；3 步以上任务强制先出计划等确认。
 
@@ -1041,11 +1042,11 @@ Agent 也可以从 GitHub 安装技能或自己编写新技能，安装经独立
 
 ### 下载安装
 
-**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。V0.81.0 的 Apple Silicon / Intel DMG 会完成签名、公证、stapled,并通过 Gatekeeper 校验。
+**macOS（Apple Silicon / Intel）**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.dmg`。V0.82.0 的 Apple Silicon / Intel DMG 会完成签名、公证、stapled,并通过 Gatekeeper 校验。
 
-**Windows**：Windows 安装包以后续 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 可见资产为准；当前 v0.81.0 在线更新 manifest 不会指向未上传的 Windows 安装包。
+**Windows**：从 [Releases](https://github.com/MerkyorLynn/Lynn/releases) 下载最新 `.exe`，直接运行。
 
-> **Windows SmartScreen 提示：** 后续 Windows 安装包会完成代码签名；首次运行仍可能因为新版应用声誉积累不足出现 SmartScreen 确认提示。
+> **Windows SmartScreen 提示：** V0.82.0 安装包会完成代码签名；首次运行仍可能因为新版应用声誉积累不足出现 SmartScreen 确认提示。
 
 Linux 版本计划中。
 
@@ -1113,7 +1114,7 @@ tests/          Vitest 测试
 
 | 平台 | 状态 |
 |------|------|
-| macOS (Apple Silicon) | 已支持（V0.81.0 签名 + 公证 DMG） |
+| macOS (Apple Silicon) | 已支持（V0.82.0 签名 + 公证 DMG） |
 | macOS (Intel) | 已支持 |
 | Windows x64 | Beta |
 | Linux | 计划中 |
@@ -1171,11 +1172,11 @@ npm run dist:local            # 本地打包（macOS DMG，跳过公证）
 
 ### Q4：没 API Key 能用吗？
 
-**能**。Quick Start 60 秒进主界面直接聊，全程零配置。后台自动走 Brain v2 降级链（StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) ⭐ → Spark Qwen3.6-35B A3B → DeepSeek V4 → GLM / Kimi / MiniMax），哪档有空走哪档。多模态输入以后端当前启用的多模态 provider 或用户 BYOK 端点为准。
+**能**。Quick Start 60 秒进主界面直接聊，全程零配置。后台自动走 Brain v2 降级链（StepFun 3.7 Flash(256K 上下文,high 推理,32K 推理/生成预算) ⭐ → MiMo V2.5 Pro/Omni → Spark Qwen3.6-35B A3B → DeepSeek V4 → GLM / Kimi / MiniMax），哪档有空走哪档。图片、音频、视频等多模态输入会自动落到 MiMo。
 
 ### Q5：Windows 能用吗？
 
-可以。后续 Windows 安装包会完成代码签名，但 SmartScreen 仍可能因为新版应用声誉积累不足而提示确认；当前 v0.81.0 已发布的是 macOS Apple Silicon / Intel DMG 和 CLI 包，macOS DMG 均已签名、公证并通过 Gatekeeper 校验。
+可以。V0.82.0 的 **Windows 安装包会完成代码签名**，但 SmartScreen 仍可能因为新版应用声誉积累不足而提示确认；macOS Apple Silicon / Intel DMG 均会签名、公证并通过 Gatekeeper 校验。
 
 ### Q6：能改模型吗？接自己的 API？
 
