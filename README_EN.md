@@ -14,29 +14,53 @@
 
 ---
 
-## 🧠 Lynn's Own Inference Engine · Benchmarking Against llama.cpp (Restarted)
+## 🧠 Part 1 · Engine & Models
 
-Lynn is more than a desktop agent. The custom inference engine is **restarted as a serious mainline** — the goal is not "use llama.cpp" but to **benchmark against (and rival) llama.cpp**: match its speed on the same model + hardware, and even **surpass it on FP4-MMA cards (R6000 class)**, while keeping the NVFP4 + MoE native layout and the cross-device kernel moat that vendor frameworks can't give us.
+### ① Purpose-distilled task-orchestrator model (Lynn Agent's brain)
 
-**🆕 Today's iteration (2026-06-03 · Spark sm_121 / Qwen3.6-35B-A3B NVFP4)**
+Lynn Agent's core is an orchestrator that **decomposes → delegates → verifies**, fast. We distilled a model for exactly this: LoRA (**r=64 / α=128 / dropout 0.05**, **1,842 distillation samples**) transferring **DeepSeek-V4-Pro's thinking-on reasoning style** into **Qwen3.6-35B-A3B** (MoE, 3B active).
 
-- **Decode launch-overhead campaign: 38.96 → ~45 tok/s (+26%)**, a chain of RC-validated launch fusions (RMSNorm / full-attn / shared-expert / g-beta / bf16-out); 40/40 greedy outputs token-identical to baseline.
-- **Banked: a 60 GiB "decode-only memory" win** — decode never reads the BF16 shadow, so resident drops **88→28 GiB** (decode keeps going token-exact after release) and the shadow is rebuilt by dequantizing the resident packed NVFP4 only when a new prefill needs it (~24s/request). On the shared 128 GB Spark this frees 60 GiB for KV / long context / batch.
-- **Honest read**: Spark sm_121 has **no FP4 MMA**, decode is launch-bound and **structurally capped ~45**; llama.cpp Q4_K_M on the same hardware = **69.77**. read-4bit is already done and a reusable decode graph is net-negative (0.75×) → **Spark is not the battlefield for matching 69.77**.
+Same harness, thinking-on, vs the base A3B:
 
-**The endgame = chew through the kernels ourselves.** The main path to knock down the bandwidth wall and approach (even surpass on R6000) llama.cpp is a fused 4-bit / zero-shadow kernel, staged with a gate + RC at each step: **single-projection PoC → all dense projections + drop shadow → MoE grouped experts → fuse to cut launches**. The payoff lands on FP4-MMA silicon (R6000 class) + ggml-level low-dispatch CUDA; the same NVFP4 weights become native on that card. **If you're going to build an engine, build the kernels yourself.**
+| Metric | Distilled orchestrator | Base A3B | |
+|---|---|---|---|
+| End-to-end orchestration latency | **26.6s** | 60.7s | 2.3× faster — decisive, not verbose |
+| GPQA-Diamond-198 | **80.3%** | 72.7% | **+7.6pp** hard reasoning |
+| MMLU-500 | 90.2% | 91.4% | knowledge flat |
+| False-verify (20×5) | **0/20** | 0/20 | self-claim matches reality |
 
-| Track | Current status |
+Distilled and base have **identical single-stream TPS** (~224 tok/s on R6000) — the orchestration speedup comes from **fewer tokens to a decision** (we distilled the *thinking style*, not raw speed). Hard tasks (e.g. concurrency) are still backstopped by **harness objective verification + a DS-Pro escape hatch**.
+
+📦 **ModelScope**: `Merkyor/Qwen3.6-35B-A3B-DSV4Pro-Thinking-Distill` · **HuggingFace**: `nerkyor/Qwen3.6-35B-A3B-DSV4Pro-Thinking-Distill` (BF16 + Q4_K_M gguf)
+
+### ② Engine route: we chose the fastest edge framework — llama.cpp — and give back
+
+We built our own NVFP4 engine and spent weeks on Blackwell kernels. The hard conclusion: **single-stream decode is a bandwidth/launch game; a hand-written kernel can't out-run mature llama.cpp.**
+
+| Single-stream decode (same model, same GPU) | tok/s |
 |---|---|
-| **Lynn Engine (custom)** | R6000 strict full path **103.44 tok/s** / serving replay 107.23 (best so far); Spark sm_121 NVFP4 decode **~45** (structural ceiling, no FP4 MMA); endgame = fused 4-bit / zero-shadow kernel. |
-| **Lynn V4 / V Flash 35B-A3B** | BF16 / NVFP4 / Q4_K_M variants shipped & regression-tested; Q4 tool-calling template hotfix pushed to HF / ModelScope. |
-| **Lynn 27B-A3B base** | Qwen3.6-35B-A3B BASE → variable-expert pruning + Router-FT + Recovery LoRA, step5000 final; BF16 V8 strict 97.06% / V9 adjusted 62.71%. |
-| **Lynn-native NVFP4** | 27B/35B variable-expert NVFP4 artifact (~20GB), a Lynn Engine-only runtime artifact — not GGUF, not generic v8-RTN. |
-| **Client default backend** | Short-term still llama.cpp / GGUF on all platforms — a **pragmatic default, not abandoning the engine**; the engine is a parallel mainline rivaling it. |
+| llama.cpp Q4_K_M (Spark sm_121) | **69.77** (+MTP **79**) |
+| self-built NVFP4 (Spark, fused) | ~45 |
+| llama.cpp Q4_K_M (R6000) | ~207 |
+| self-built NVFP4 (R6000 strict) | ~108 |
 
-Related: [lynn-engine](https://github.com/MerkyorLynn/lynn-engine) (custom inference engine) · [lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit) (distill / eval / quant / release). See the [decode launch-overhead campaign](https://github.com/MerkyorLynn/lynn-engine/blob/main/reports/qwen36_35b/DECODE_LAUNCH_OVERHEAD_CAMPAIGN_20260603.md).
+So **edge inference = llama.cpp** (fastest single-stream, mature, cross-platform), and we contribute our validated improvements upstream:
+- [#24273](https://github.com/ggml-org/llama.cpp/pull/24273) NVFP4 conversion / backend / benchmarking guidance doc (open, under review)
 
-> Note: Lynn-native NVFP4 is an internal / vertical runtime artifact for Lynn Engine; general users should start with the V4 / V Flash BF16, NVFP4 v8-RTN, or Q4_K_M variants.
+Not abandonment — "use what wins, contribute what helps." **The self-built engine narrows to a research asset; frontier NVFP4 research continues.**
+
+### ③ NVFP4 not abandoned — the frontier is concurrent serving, proven on vLLM
+
+NVFP4's real payoff is **batched throughput**. Same R6000, `VLLM_MOE_FORCE_MARLIN=1`:
+
+| concurrency | 1 | 16 | 64 (soak) |
+|---|---|---|---|
+| output tok/s | 175 | 1289 | **2434** (0 failed) |
+
+**NVFP4 beats FP8 by 1.14–1.34× at every tier** (same machine, same harness). We contributed the regression tests / docs / correctness gate for this W4A16 NVFP4 Marlin path to vLLM (3 open PRs, under review):
+- [#44671](https://github.com/vllm-project/vllm/pull/44671) ModelOpt W4A16 lm_head regression tests
+- [#44672](https://github.com/vllm-project/vllm/pull/44672) ModelOpt W4A16 NVFP4 Marlin path docs
+- [#44673](https://github.com/vllm-project/vllm/pull/44673) speculative decoding correctness gate
 
 ## 🔭 V0.80: GUI + CLI Worker Fleet
 
@@ -646,43 +670,6 @@ Lynn's memory is not a static `memory.md`. It's a six-layer system:
 
 Memory and skill distillation work together: the more you use Lynn, the more accurate its recall, the faster it works — gradually becoming a long-term collaborator that truly understands you.
 
-## 🚀 Lynn's Own Models + Inference Engine (May 2026)
-
-Until now Lynn ran largely on third-party models (StepFun / Qwen3.6 / DeepSeek / Kimi) — Lynn handled the engineering and UX, the models came from elsewhere.
-
-**That's changing. Lynn now has its own models, with a dedicated inference engine coming next.**
-
-### First model: Lynn-V4-Pro-Distill-Qwen-35B-A3B
-
-A work-horse model built on top of Qwen3.6-35B-A3B via distillation + multi-stage LoRA. 4-gate eval **NET WIN +40pp** vs base.
-
-Three ready-to-use formats:
-
-| Format | Size | Who it's for |
-|---|---|---|
-| **BF16 full precision** | 65 GB | Finetune / training starting point |
-| **NVFP4-v8-RTN** | 21 GB | Single 24 GB GPU (verified on SGLang dev-cu13 nightly) |
-| **Q4_K_M GGUF** | 20 GB | llama.cpp / Ollama, runs on consumer GPUs |
-
-- 🤗 **HuggingFace**: [`nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B`](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B) ([Q4_K_M](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M) · [NVFP4-v8-RTN](https://huggingface.co/nerkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN))
-- 🇨🇳 **ModelScope** (recommended for users in China): [`Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B`](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B) ([Q4_K_M](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-Q4_K_M) · [NVFP4-v8-RTN](https://modelscope.cn/models/Merkyor/Lynn-V4-Pro-Distill-Qwen-35B-A3B-NVFP4-v8-RTN))
-
-All tooling is open-sourced: [lynn-distill-toolkit](https://github.com/MerkyorLynn/lynn-distill-toolkit) (4-gate eval / sanity / pipeline / pruning) + [qwen3.6-nvfp4-toolkit](https://github.com/MerkyorLynn/qwen3.6-nvfp4-toolkit) (NVFP4 quantization toolchain).
-
-### What's coming next
-
-- 🔜 **Lynn-V4-Flash-Distill** (ETA May 14) — a lighter Flash variant optimized for speed
-- 🔜 **Lynn-27B-A3B** (late May) — MoE-pruned variant, fits on a single 4090 / 5060 Ti
-- 🔜 **Lynn Engine** — Lynn's own inference engine. Reads NVFP4 + MoE native layouts directly, bypassing the upstream integration cycle of transformers / vLLM. Phase 1–4 path: loader → BF16 slow-path oracle → layer parity → 5-token parity → native FP4 GEMM performance
-
-### Why own models + an engine
-
-- General-purpose models — even great ones — **aren't specifically tuned for "long-term memory + multi-Agent + writing"**, the shape Lynn actually needs
-- Upstream inference engines (vLLM / SGLang / TRT-LLM) ship NVFP4 + MoE support on a 4–8 week cadence — **too slow for our roadmap**
-- Owning both means Lynn-specific capabilities (Yuan personality / proactive recall / task modes) can be baked into training data and inference paths directly
-
-This doesn't replace the cloud fallback chain (StepFun / Qwen / DeepSeek remain the default route). **It adds a private, local path** — not a switch.
-
 ## Local models — three-tier hardware ladder
 
 Starting with Lynn v0.79.1, local models are grouped by hardware. **The default tier stays on 9B MTP; 4B is a low-config downgrade only**:
@@ -691,7 +678,7 @@ Starting with Lynn v0.79.1, local models are grouped by hardware. **The default 
 |------|-------|:----:|---------------------|:-------:|-------------------|
 | **Default** | **Qwen3.5-9B Q4_K_M imatrix MTP** | 5.38 GB | **24GB VRAM/unified memory+** | 32K | **Q4_K_M imatrix** · default gate target · MTP acceleration · stable thinking-on path |
 | Downgrade | Qwen3.5-4B Q4_K_M imatrix (Lynn) | 2.6 GB | 8~16GB optional | 32K | **Q4_K_M imatrix** · MMLU thinking-off 73.00% · GPQA thinking-off 16.67% · thinking-on may think for a long time and return no visible answer |
-| High-end | Qwen3.6-35B-A3B Q4_K_M imatrix | 21 GB | 24GB VRAM/unified memory+ | 32K | **Q4_K_M imatrix (Lynn-calibrated)** · MMLU 500 = 90.40% · GPQA Diamond 80.70% · R6000 reference 207 tok/s |
+| High-end · orchestrator brain | **Qwen3.6-35B-A3B distilled orchestrator** Q4_K_M imatrix | 21 GB | 24GB VRAM/unified memory+ | 32K | **DS-V4-Pro thinking-style distilled** · MMLU 500 = 90.2% · GPQA-Diamond 80.3% · 2.3× faster end-to-end orchestration · Spark 77 / R6000 ~224 tok/s |
 
 > 9B / 35B quality numbers are measured with **Q4_K_M quantization** + **thinking-on 32K max_tokens**, GB10 Spark llama.cpp on the same hardware. 4B imatrix is available only as a downgrade: thinking-off is usable; thinking-on has reproduced long empty reasoning and is not safe as the onboarding default.
 
@@ -709,7 +696,7 @@ Starting with Lynn v0.79.1, local models are grouped by hardware. **The default 
 
 **Low-config 4B / High-end 35B** (explicit hardware choices):
 - 4B: [Merkyor/Qwen3.5-4B-GGUF-imatrix](https://modelscope.cn/models/Merkyor/Qwen3.5-4B-GGUF-imatrix) (`Qwen3.5-4B-Q4_K_M-imatrix.gguf`, **2.6 GB**) — downgrade only; thinking-off recommended
-- 35B: [Merkyor/Qwen3.6-35B-A3B-GGUF-imatrix](https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-GGUF-imatrix) (`Qwen3.6-35B-A3B-Q4_K_M-imatrix.gguf`, **21 GB**) — Lynn imatrix-calibrated, R6000 reference 207 tok/s, fits 24G local machines
+- 35B (orchestrator brain): [Merkyor/Qwen3.6-35B-A3B-DSV4Pro-Thinking-Distill](https://modelscope.cn/models/Merkyor/Qwen3.6-35B-A3B-DSV4Pro-Thinking-Distill) (`gguf/Qwen3.6-35B-A3B-lynn-prod-Q4_K_M-imatrix.gguf`, **21 GB**) — **distilled task orchestrator** (the brain from Part 1), Spark 77 / R6000 ~224 tok/s, fits 24G local machines
 
 In the app: **Settings → Models → Local Qwen3.5-9B → Authorize, install, and start**. Lynn handles download, verification, startup, and model registration in the background. The chat input shows local model status, and you can stop the runtime anytime to release memory. The Models page also supports explicit 4B downgrade / 35B high-end choices, or importing any llama.cpp-compatible GGUF you already have.
 
