@@ -13,6 +13,10 @@ The static page and binary downloads do not live in the same directory.
 | `https://download.merkyorlynn.com/downloads/cli/*` | `/opt/lobster-brain/public/downloads/cli/*` | nginx `alias`; not under `/var/www/download-site` |
 | `https://download.merkyorlynn.com/downloads/*` | `/opt/lobster-brain/public/downloads/*` | App installers and other downloadable assets |
 
+Release reminder: upload GUI installer assets to `/opt/lobster-brain/public/downloads/`,
+not to `/var/www/download-site/downloads/`. The `/var/www/download-site` tree only
+serves the static page shell (`download.html`, `app.js`, images, CSS).
+
 ## CLI Release Checklist
 
 1. Build the CLI package only through the guarded script:
@@ -47,3 +51,38 @@ The static page and binary downloads do not live in the same directory.
 
 The release is not considered published until the public URL returns `200`,
 the sha256 matches the local pack manifest, and remote install smoke passes.
+
+## GUI Release Checklist
+
+1. Build, sign, notarize, staple, and Gatekeeper-validate each platform artifact.
+
+2. Upload installers, blockmaps, and updater manifests to the nginx alias directory:
+
+   ```bash
+   VERSION=<gui-version>
+   rsync -av \
+     dist/Lynn-${VERSION}-macOS-arm64.dmg \
+     dist/Lynn-${VERSION}-macOS-arm64.dmg.blockmap \
+     dist/Lynn-${VERSION}-macOS-x64.dmg \
+     dist/Lynn-${VERSION}-macOS-x64.dmg.blockmap \
+     dist/Lynn-${VERSION}-Windows-Setup.exe \
+     dist/Lynn-${VERSION}-Windows-Setup.exe.blockmap \
+     dist/latest-mac.yml \
+     dist/latest.yml \
+     tencent:/opt/lobster-brain/public/downloads/
+   ```
+
+3. Verify public URLs, not just server files:
+
+   ```bash
+   VERSION=<gui-version>
+   curl -fsSIL https://download.merkyorlynn.com/downloads/Lynn-${VERSION}-macOS-arm64.dmg
+   curl -fsSIL https://download.merkyorlynn.com/downloads/Lynn-${VERSION}-macOS-x64.dmg
+   curl -fsSIL https://download.merkyorlynn.com/downloads/Lynn-${VERSION}-Windows-Setup.exe
+   curl -fsSL https://download.merkyorlynn.com/downloads/latest-mac.yml
+   curl -fsSL https://download.merkyorlynn.com/downloads/latest.yml
+   ```
+
+4. If any public URL returns stale size/hash, first confirm that the files landed
+   under `/opt/lobster-brain/public/downloads/`; stale `/var/www/download-site/downloads/`
+   uploads do not affect public downloads.
