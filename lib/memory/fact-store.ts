@@ -13,6 +13,8 @@
 
 // @ts-expect-error better-sqlite3 does not ship declarations in this project.
 import DatabaseModule from "better-sqlite3";
+import fs from "fs";
+import path from "path";
 import { scrubPII } from "../pii-guard.js";
 
 type SqliteRunResult = {
@@ -75,6 +77,24 @@ type FactStoreOptions = {
   hitBonus?: number;
   compileThreshold?: number;
 };
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function backupSqliteFileSet(dbPath: string): string | null {
+  if (!fs.existsSync(dbPath)) return null;
+  const backupPath = `${dbPath}.bak-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  fs.renameSync(dbPath, backupPath);
+  for (const ext of ["-wal", "-shm"]) {
+    const sidecarPath = dbPath + ext;
+    if (fs.existsSync(sidecarPath)) {
+      fs.renameSync(sidecarPath, backupPath + ext);
+    }
+  }
+  return backupPath;
+}
 
 type FactInput = {
   fact: string;
@@ -290,7 +310,7 @@ export class FactStore {
   readonly baseImportance: number;
   readonly hitBonus: number;
   readonly compileThreshold: number;
-  private readonly db: DatabaseInstance;
+  private db!: DatabaseInstance;
   private _stmts!: FactStatements;
   private readonly _tagSearchCache!: Map<string, SqliteStatement<FactDbRow>>;
   private _walTimer!: NodeJS.Timeout | null;
@@ -307,7 +327,37 @@ export class FactStore {
     this.compileThreshold = isFiniteNumber(opts.compileThreshold) ? opts.compileThreshold : 4.5;
     this._changeListeners = new Set();
 
-    this.db = new Database(dbPath);
+    this._openAndInitialize(dbPath);
+    this._tagSearchCache = new Map();
+
+    // Periodic WAL checkpoint to prevent unbounded WAL growth.
+    this._walTimer = setInterval(() => {
+      try { this.db.pragma("wal_checkpoint(PASSIVE)"); } catch {}
+    }, 3600_000);
+    if (this._walTimer.unref) this._walTimer.unref();
+  }
+
+  private _openAndInitialize(dbPath: string): void {
+    try {
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+      this.db = new Database(dbPath);
+      this._initializeOpenDatabase();
+      return;
+    } catch (err) {
+      try {
+        if (this.db?.open) this.db.close();
+      } catch {}
+
+      const backupPath = backupSqliteFileSet(dbPath);
+      if (!backupPath) throw err;
+      console.warn(`[FactStore] facts.db unusable (${errorMessage(err)}); backed up to ${path.basename(backupPath)} and rebuilt an empty database`);
+
+      this.db = new Database(dbPath);
+      this._initializeOpenDatabase();
+    }
+  }
+
+  private _initializeOpenDatabase(): void {
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("busy_timeout = 5000");
     this.db.pragma("synchronous = NORMAL");
@@ -318,13 +368,6 @@ export class FactStore {
     this._migrate();
     this._ensureDerivedIndexes();
     this._prepareStatements();
-    this._tagSearchCache = new Map();
-
-    // Periodic WAL checkpoint to prevent unbounded WAL growth.
-    this._walTimer = setInterval(() => {
-      try { this.db.pragma("wal_checkpoint(PASSIVE)"); } catch {}
-    }, 3600_000);
-    if (this._walTimer.unref) this._walTimer.unref();
   }
 
   private _initSchema(): void {

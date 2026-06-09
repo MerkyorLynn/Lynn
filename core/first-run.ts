@@ -91,7 +91,7 @@ function firstExistingPath(...paths: Array<string | null | undefined>): string |
  * @param {string} productDir - 产品模板目录（lib/）
  */
 export function ensureFirstRun(lynnHome: string, productDir: string): void {
-  // 0. 迁移旧数据目录 ~/.hanako → ~/.lynn
+  // 0. 从旧数据目录 ~/.hanako 复制首份 Lynn 数据；保留 OpenHanako 原目录
   migrateFromHanako(lynnHome);
 
   // 1. 确保目录结构存在
@@ -152,8 +152,9 @@ export function ensureFirstRun(lynnHome: string, productDir: string): void {
 }
 
 /**
- * 从旧版 ~/.hanako 迁移到 ~/.lynn
- * 如果 ~/.lynn 已存在则跳过（用户已迁移或全新安装）
+ * 从旧版 ~/.hanako 复制首份数据到 ~/.lynn。
+ * 如果 ~/.lynn 已存在则跳过（用户已迁移或全新安装）。
+ * 注意：不能 rename/move 旧目录，否则 OpenHanako 用户会丢失自己的应用数据。
  */
 function migrateFromHanako(lynnHome: string): void {
   const defaultLynn = path.join(os.homedir(), ".lynn");
@@ -164,8 +165,8 @@ function migrateFromHanako(lynnHome: string): void {
   if (fs.existsSync(defaultLynn)) return; // 新目录已存在，不覆盖
 
   try {
-    fs.renameSync(oldHome, defaultLynn);
-    console.log(`[first-run] 已迁移数据目录: ~/.hanako → ~/.lynn`);
+    safeCopyDir(oldHome, defaultLynn);
+    console.log(`[first-run] 已从旧数据目录复制初始数据: ~/.hanako → ~/.lynn`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[first-run] 数据目录迁移失败 (${message})，将使用新目录`);

@@ -44,6 +44,34 @@ afterEach(() => {
 });
 
 describe('ensureFirstRun', () => {
+  it('copies legacy ~/.hanako data into ~/.lynn without moving OpenHanako data away', () => {
+    const root = makeTempRoot();
+    tempRoots.push(root);
+    const productDir = makeProductDir(root);
+    const oldHome = path.join(root, '.hanako');
+    const lynnHome = path.join(root, '.lynn');
+    const oldHomeBefore = process.env.HOME;
+
+    fs.mkdirSync(path.join(oldHome, 'agents', 'hanako'), { recursive: true });
+    fs.writeFileSync(path.join(oldHome, 'openhanako-marker.txt'), 'openhanako-data\n', 'utf-8');
+    writeYaml(path.join(oldHome, 'agents', 'hanako', 'config.yaml'), {
+      agent: { name: 'Hanako', yuan: 'hanako' },
+    });
+
+    try {
+      process.env.HOME = root;
+      ensureFirstRun(lynnHome, productDir);
+    } finally {
+      if (oldHomeBefore === undefined) delete process.env.HOME;
+      else process.env.HOME = oldHomeBefore;
+    }
+
+    expect(fs.existsSync(oldHome)).toBe(true);
+    expect(fs.readFileSync(path.join(oldHome, 'openhanako-marker.txt'), 'utf-8')).toBe('openhanako-data\n');
+    expect(fs.existsSync(path.join(lynnHome, 'openhanako-marker.txt'))).toBe(true);
+    expect(fs.existsSync(path.join(lynnHome, 'agents', 'hanako', 'config.yaml'))).toBe(true);
+  });
+
   it('migrates the legacy hanako primary assistant into lynn', () => {
     const root = makeTempRoot();
     tempRoots.push(root);
