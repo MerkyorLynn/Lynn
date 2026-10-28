@@ -10,7 +10,10 @@ import { providerId, envModel, type Provider } from "../brain-v2-mirror/types.js
 
 afterEach(() => vi.unstubAllEnvs());
 
-const durationMs = process.env.LYNN_TEST_LONG_STREAM === "1" ? 620_000 : 250;
+// Keep the stream longer than its first-chunk allowance, while leaving enough
+// scheduling margin for the full six-worker release suite on a busy machine.
+const durationMs = process.env.LYNN_TEST_LONG_STREAM === "1" ? 620_000 : 1_500;
+const shortTimeoutMs = 500;
 const finalAnswer = "Slow stream completed.";
 
 it.concurrent.each(['runtime', 'local-qwen', 'cloud-brain'])("%s keeps a real HTTP reasoning stream alive past the first-chunk deadline", async mode => {
@@ -25,11 +28,11 @@ it.concurrent.each(['runtime', 'local-qwen', 'cloud-brain'])("%s keeps a real HT
     response.writeHead(200, { "Content-Type": "text/event-stream" });
     const reasoning = () => {
       chunks++;
-      if (durationMs > 1000 && chunks % 60 === 0) console.log(JSON.stringify({ stage: "reasoning", elapsedMs: Date.now() - started, chunks, requests, pid: process.pid }));
+      if (durationMs > 10_000 && chunks % 60 === 0) console.log(JSON.stringify({ stage: "reasoning", elapsedMs: Date.now() - started, chunks, requests, pid: process.pid }));
       response.write(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: "thinking " } }] })}\n\n`);
     };
     reasoning();
-    const interval = setInterval(reasoning, durationMs > 1000 ? 1000 : 20);
+    const interval = setInterval(reasoning, durationMs > 10_000 ? 1000 : 20);
     const finish = setTimeout(() => {
       response.end(`data: ${JSON.stringify({ choices: [{ delta: { content: finalAnswer }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`);
     }, durationMs);
@@ -41,7 +44,7 @@ it.concurrent.each(['runtime', 'local-qwen', 'cloud-brain'])("%s keeps a real HT
   const { session } = await createLynnAgentSession({
     sessionManager: SessionManager.inMemory(),
     model: { id: "slow-local", provider: "local", api: "openai-completions", baseUrl: `http://127.0.0.1:${port}/v1` },
-    getModelCallTimeouts: () => durationMs > 1000 ? undefined : { firstChunkMs: 100, idleMs: 100, totalMs: 0 },
+    getModelCallTimeouts: () => durationMs > 10_000 ? undefined : { firstChunkMs: shortTimeoutMs, idleMs: shortTimeoutMs, totalMs: 0 },
   });
   const events: unknown[] = [];
   session.subscribe(event => events.push(event));
@@ -54,7 +57,7 @@ it.concurrent.each(['runtime', 'local-qwen', 'cloud-brain'])("%s keeps a real HT
         id: providerId('p-fake'), model: envModel('__LYNN_TEST_SLOW_MODEL', 'slow-cloud'),
         endpoint: `http://127.0.0.1:${port}/v1`, apiKey: 'test', wire: 'openai',
         capability: { vision: false, audio: false, video: false, tools: true, thinking: true },
-        cooldown_ms: 1000, default_thinking: false, timeout_ms: durationMs > 1000 ? 35_000 : 100,
+        cooldown_ms: 1000, default_thinking: false, timeout_ms: durationMs > 10_000 ? 35_000 : shortTimeoutMs,
       };
       const attempt = createProviderAttemptSignal(provider);
       let text = '';
@@ -69,7 +72,7 @@ it.concurrent.each(['runtime', 'local-qwen', 'cloud-brain'])("%s keeps a real HT
     } else {
       const result = await streamLocalQwen35Completion({
         endpoint: `http://127.0.0.1:${port}/v1/chat/completions`, model: 'slow-local',
-        timeouts: { firstChunkMs: durationMs > 1000 ? 600_000 : 100, idleMs: durationMs > 1000 ? 600_000 : 100, totalMs: 0 },
+        timeouts: { firstChunkMs: durationMs > 10_000 ? 600_000 : shortTimeoutMs, idleMs: durationMs > 10_000 ? 600_000 : shortTimeoutMs, totalMs: 0 },
       });
       expect(result.assistantText).toBe(finalAnswer);
     }
