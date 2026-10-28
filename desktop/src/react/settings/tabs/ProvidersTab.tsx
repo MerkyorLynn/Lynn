@@ -240,6 +240,14 @@ function buildPresetSummary(id: string): ProviderSummary | null {
 }
 
 export function ProvidersTab() {
+  const serverPort = useSettingsStore(state => state.serverPort);
+  if (!Number.isInteger(serverPort) || Number(serverPort) < 1 || Number(serverPort) > 65535) {
+    return <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="providers" role="status">正在连接设置服务…</div>;
+  }
+  return <ReadyProvidersTab />;
+}
+
+function ReadyProvidersTab() {
   const { providersSummary, selectedProviderId, preferredProviderId, settingsConfig, serverPort } = useSettingsStore();
   const providers = settingsConfig?.providers || {};
   const [addingProvider, setAddingProvider] = useState(false);
