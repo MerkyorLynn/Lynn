@@ -309,6 +309,11 @@ async function main() {
       throw new Error(`[packaged-settings-smoke] settings page did not show merged DeepSeek models:\n${snapshot.text}`);
     }
 
+    await waitForSettingsSnapshot(settingsCdp, {
+      ready: snapshot => snapshot.timeoutReady && !snapshot.text.includes('settings server is not ready'),
+    });
+    console.log('[packaged-settings-smoke] direct-open model timeout form: PASS');
+
     const removedClicked = await settingsCdp.evaluate(`(() => {
       const items = Array.from(document.querySelectorAll('[class*="pv-fav-item"]'));
       const item = items.find((el) => (el.textContent || '').includes('deepseek-chat'));
@@ -468,7 +473,11 @@ async function waitForSettingsSnapshot(cdp, options = {}) {
       const detailTitles = Array.from(document.querySelectorAll('[class*="pv-detail-title"]'))
         .map((el) => (el.textContent || '').trim())
         .filter(Boolean);
-      return { text, providerNames, detailTitles, ready: text.includes('DeepSeek') && text.includes('deepseek-v4-flash') };
+      const timeoutForm = document.querySelector('form[aria-label="模型请求超时"]');
+      const timeoutReady = !!timeoutForm &&
+        [...timeoutForm.querySelectorAll('input, button')].every(el => !el.disabled) &&
+        timeoutForm.innerText.includes('实际生效');
+      return { text, providerNames, detailTitles, timeoutReady, ready: text.includes('DeepSeek') && text.includes('deepseek-v4-flash') };
     })()`).catch((error) => ({ error: error?.message || String(error), text: '', providerNames: [] }));
     last = snapshot;
     if (ready(snapshot)) return snapshot;

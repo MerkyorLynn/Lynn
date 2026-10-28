@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { hanaFetch } from '../api';
+import { useSettingsStore } from '../store';
 import { DEFAULT_MODEL_CALL_TIMEOUTS, isValidModelCallTimeouts, type ModelCallTimeouts } from '../../../../../shared/model-call-timeouts.js';
 import styles from '../Settings.module.css';
 
@@ -13,22 +14,34 @@ const fields = [
 ] as const;
 
 export function ModelTimeoutSettings() {
+  const serverPort = useSettingsStore(state => state.serverPort);
+  const serverToken = useSettingsStore(state => state.serverToken);
+  const connectionRevision = useRef(0);
   const [values, setValues] = useState<ModelCallTimeouts>({ ...DEFAULT_MODEL_CALL_TIMEOUTS });
   const [status, setStatus] = useState<TimeoutResponse | null>(null);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   useEffect(() => {
+    const revision = ++connectionRevision.current;
     let active = true;
-    hanaFetch('/api/preferences/model-timeouts').then(async response => {
-      const data: TimeoutResponse = await response.json();
-      if (!response.ok || data.error) throw new Error(data.error || '读取超时设置失败');
-      if (active) { setValues(data.configured); setStatus(data); }
-    }).catch(error => { if (active) setMessage(String(error.message || error)); });
-    return () => { active = false; };
-  }, []);
+    setStatus(null);
+    setSaving(false);
+    setMessage('正在连接设置服务…');
+    if (serverPort != null && Number.isFinite(serverPort) && serverPort > 0) {
+      setMessage('正在读取超时设置…');
+      hanaFetch('/api/preferences/model-timeouts').then(async response => {
+        const data: TimeoutResponse = await response.json();
+        if (!response.ok || data.error) throw new Error(data.error || '读取超时设置失败');
+        if (active) { setValues(data.configured); setStatus(data); setMessage(''); }
+      }).catch(error => { if (active) setMessage(String(error.message || error)); });
+    }
+    return () => { active = false; if (connectionRevision.current === revision) ++connectionRevision.current; };
+  }, [serverPort, serverToken]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!status || saving) return;
+    const revision = connectionRevision.current;
     if (!isValidModelCallTimeouts(values)) { setMessage('请输入有效时长；首段和空闲必须大于 0，总时限可以为 0。'); return; }
     setSaving(true);
     setMessage('');
@@ -36,12 +49,13 @@ export function ModelTimeoutSettings() {
       const response = await hanaFetch('/api/preferences/model-timeouts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
       const data: TimeoutResponse = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || '保存失败');
+      if (connectionRevision.current !== revision) return;
       setStatus(data);
       setValues(data.configured);
       setMessage('已保存，下一次模型请求生效（GUI / CLI 共用）。');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setSaving(false); }
+      if (connectionRevision.current === revision) setMessage(error instanceof Error ? error.message : String(error));
+    } finally { if (connectionRevision.current === revision) setSaving(false); }
   };
 
   return (
