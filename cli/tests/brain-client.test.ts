@@ -256,16 +256,18 @@ describe("brain-client stream parser", () => {
     }
   });
 
-  it("falls back to hosted Brain when local Brain is unreachable", async () => {
+  it("falls back without waiting for a redundant hosted health request", async () => {
     const originalFetch = globalThis.fetch;
+    const requested: string[] = [];
     globalThis.fetch = (async (url: URL | string) => {
       const href = String(url);
+      requested.push(href);
       if (href === `${LOCAL_BRAIN_URL}/health`) throw new Error("local down");
-      if (href === `${HOSTED_BRAIN_URL}/health`) return new Response("{}", { status: 200 });
-      return new Response("nope", { status: 500 });
+      throw new Error("The fallback must not make another health request");
     }) as typeof fetch;
     try {
       await expect(resolveDefaultBrainUrl(undefined, 50)).resolves.toBe(HOSTED_BRAIN_URL);
+      expect(requested).toEqual([`${LOCAL_BRAIN_URL}/health`]);
     } finally {
       globalThis.fetch = originalFetch;
     }

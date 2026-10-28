@@ -16,7 +16,8 @@ export async function resolveDefaultBrainUrl(args?: ParsedArgs, timeoutMs = 500)
   if (explicit) return explicit;
   if (await canReachBrain(LOCAL_BRAIN_URL, timeoutMs)) return LOCAL_BRAIN_URL;
   if (process.env.LYNN_CLI_DISABLE_HOSTED_BRAIN === "1") return LOCAL_BRAIN_URL;
-  if (await canReachBrain(HOSTED_BRAIN_URL, timeoutMs)) return HOSTED_BRAIN_URL;
+  // The hosted URL is the fallback regardless of its health response. Send the
+  // actual request directly instead of adding another network round trip first.
   return HOSTED_BRAIN_URL;
 }
 
