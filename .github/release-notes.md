@@ -16,6 +16,7 @@ Lynn --version
 
 ## 中文
 
+- 修复 Codex 接入冷启动误判：协议预检等待时间对齐实际客户端的 30 秒，避免正常的超过 5 秒初始化被错误回退；快速响应速度门槛不变。
 - **2026-10-28 同版本修复**：修复 Apple Silicon / 未检测到独立显卡时，进入本地 Qwen 模型详情会出现“providers 区域发生了异常”、无法安装的问题。补充真实安装包的 16GB / 24GB Mac、容量不足、未知显存和 Windows 多显卡回归。版本仍为 V0.87.4；此前下载的用户请重新下载安装修复包，同版本通常不会触发自动更新。
 
 - 修复 #76：Windows 本地模型状态查询改用系统目录中的原生工具，并隐藏查询窗口；不再调用 PATH 中 Anaconda 等环境提供的 ps.exe，也不再向 Windows 工具传递 POSIX 参数。
@@ -31,6 +32,7 @@ Lynn --version
 
 ## English
 
+- Align Codex protocol cold-start preflight with the client's bounded 30-second request timeout; preserve fast-response performance thresholds.
 - **2026-10-28 hotfix, same version**: fix the local Qwen settings crash when Apple Silicon or a machine without detected dedicated GPUs returns an empty GPU list. Add packaged UI coverage for Mac memory tiers and Windows GPU detection. The version remains V0.87.4; users with the original package should download and reinstall the repaired build. Same-version updates generally do not trigger the updater.
 
 - Fix #76: use hidden native Windows process/listener queries through absolute system paths instead of PATH-provided ps.exe or POSIX arguments.

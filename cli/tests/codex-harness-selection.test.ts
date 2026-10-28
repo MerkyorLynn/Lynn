@@ -206,6 +206,23 @@ describe("Codex harness auto selection", () => {
     })).resolves.toMatch(/^(v2-camel|hybrid-kebab-thread|legacy-kebab)$/);
   });
 
+  it("accepts a cold thread startup lasting longer than five seconds", async () => {
+    await expect(probeCodexAppServer({
+      command: process.execPath,
+      commandArgs: [fixture, "slow-thread-start"],
+      cwd: path.dirname(fixture),
+    })).resolves.toBe("v2-camel");
+  });
+
+  it("still respects an explicit shorter protocol timeout", async () => {
+    await expect(probeCodexAppServer({
+      command: process.execPath,
+      commandArgs: [fixture, "slow-thread-start"],
+      cwd: path.dirname(fixture),
+      requestTimeoutMs: 100,
+    })).rejects.toThrow("timed out: thread/start");
+  });
+
   it("forces the native loop for plan mode even when Codex was requested", async () => {
     const probe = vi.fn(async () => "v2-camel" as const);
     const result = await resolveCodeHarnessSelection({

@@ -23,6 +23,10 @@ lines.on("line", (line) => {
     return;
   }
   if (message.method === "thread/start") {
+    if (scenario === "slow-thread-start") {
+      setTimeout(() => send({ id: message.id, result: { thread: { id: "thread-1", turns: [] } } }), 5_200);
+      return;
+    }
     send({ id: message.id, result: { thread: { id: "thread-1", turns: [] }, model: "fake", modelProvider: "fake", cwd: "/tmp" } });
     return;
   }

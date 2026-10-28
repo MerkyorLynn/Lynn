@@ -87,7 +87,9 @@ async function probeCodexAppServerProtocol(
   const client = new CodexAppServerClient({
     ...options,
     cwd,
-    requestTimeoutMs: options.requestTimeoutMs ?? 5_000,
+    // Cold thread startup can exceed five seconds while the app-server loads
+    // its integrations. Use the same bounded wait as the actual client.
+    requestTimeoutMs: options.requestTimeoutMs ?? 30_000,
     clientVersion: options.clientVersion || readVersionInfo().version,
     env: { [envKey]: "local-preflight-only", ...(options.env || {}) },
     configOverrides: options.configOverrides || [
