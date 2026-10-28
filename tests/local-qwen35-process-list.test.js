@@ -37,7 +37,7 @@ describe("local qwen35 process listing", () => {
     expect(windows.args).not.toContain("ps");
     expect(windows.args.join(" ")).not.toMatch(/(^|\s)ps(\s|$)/);
     expect(windows.options.windowsHide).toBe(true);
-    expect(windows.options.timeout).toBe(5000);
+    expect(windows.options.timeout).toBe(15000);
     expect(windows.options.stdio).toEqual(["ignore", "pipe", "pipe"]);
 
     const encoded = windows.args[windows.args.indexOf("-EncodedCommand") + 1];
