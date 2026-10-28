@@ -232,6 +232,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
         <section class="section release-summary">
           <div class="release-card">
             <h2>V0.87.4：Windows 稳定性与增强 CLI</h2>
+            <p><strong>2026-10-28 同版本修复：</strong>修复 Apple Silicon / 空显卡列表导致本地 Qwen 模型设置页异常、无法安装的问题。已安装原版 V0.87.4 的用户请重新下载安装修复包；同版本通常不会触发自动更新。</p>
             <p>GUI / CLI 同步更新：Windows 使用隐藏的原生状态查询；汇率主源失败时使用明确标注的每日参考备用数据。增强 CLI 支持流式工具、并发读取、串行写入和后台命令。本地 OpenAI 兼容端点与内置 Qwen 桥接共用首段 600 秒、空闲 600 秒计时；持续输出刷新计时，不设默认总时限，超过十分钟也不会因此中断。已保存的设置和显式环境变量继续优先。</p>
             <p>设置页可调整超时并检查生效来源；完整英文短答案不再误续写。会话菜单支持二次确认删除，归档列表支持单条删除和批量清空。</p>
             <p>继续保留此前的界面功能：</p>

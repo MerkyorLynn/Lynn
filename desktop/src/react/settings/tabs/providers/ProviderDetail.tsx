@@ -15,6 +15,7 @@ import {
   LOCAL_QWEN_DEFAULT_MODEL_FILE,
   isLocalQwenProviderId,
   formatLocalTps,
+  largestLocalGpu,
   normalizeLocalUpgradeOptions,
   localEndpointRoot,
   formatBytes,
@@ -221,7 +222,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
   const selectedTier = getLocalModelTier(manualTierId || runningTierId || hardware.recommended_model_id);
   const selectedModelId = selectedTier.modelId;
   const runtime = hardware.recommended_runtime || {};
-  const gpu = hardware.gpus?.reduce((largest, candidate) => (candidate.memory_gib || 0) > (largest.memory_gib || 0) ? candidate : largest);
+  const gpu = largestLocalGpu(hardware.gpus);
   const endpointDefaultRunning = servedModelIds.includes(selectedModelId);
   const endpointForeign = status?.runtime?.endpoint_occupied === true
     || observed.endpoint_occupied === true

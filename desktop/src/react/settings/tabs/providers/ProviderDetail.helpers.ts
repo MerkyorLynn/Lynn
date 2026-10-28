@@ -32,6 +32,13 @@ export function formatLocalTps(value: number | null | undefined) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} tok/s`;
 }
 
+export function largestLocalGpu<T extends { memory_gib?: number | null }>(gpus?: T[] | null): T | undefined {
+  return gpus?.reduce<T | undefined>((largest, candidate) =>
+    !largest || (candidate.memory_gib || 0) > (largest.memory_gib || 0)
+      ? candidate
+      : largest, undefined);
+}
+
 export type LocalActionStatus = {
   kind: 'info' | 'success' | 'error';
   text: string;

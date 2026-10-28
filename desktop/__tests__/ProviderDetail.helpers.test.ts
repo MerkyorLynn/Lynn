@@ -3,6 +3,7 @@ import {
   isLocalQwenProviderId,
   isDefaultQwen35MtpFileName,
   formatLocalTps,
+  largestLocalGpu,
   normalizeLocalUpgradeOptions,
   localEndpointRoot,
   formatBytes,
@@ -23,6 +24,23 @@ describe("local-qwen id / filename", () => {
     expect(isDefaultQwen35MtpFileName("Qwen3.6-27B-DSV4Pro-Distill-MTP-Q5_K_M-imatrix.gguf")).toBe(false);
     expect(isDefaultQwen35MtpFileName("Qwen3.5-9B-Q4_K_M-imatrix-mtp.gguf")).toBe(false);
     expect(isDefaultQwen35MtpFileName("other.gguf")).toBe(false);
+  });
+});
+
+describe("local hardware without a dedicated GPU", () => {
+  it("accepts the empty GPU list returned for Apple Silicon and missing hardware", () => {
+    expect(largestLocalGpu([])).toBeUndefined();
+    expect(largestLocalGpu(undefined)).toBeUndefined();
+    expect(largestLocalGpu(null)).toBeUndefined();
+  });
+  it("still selects the largest dedicated GPU without modifying the list", () => {
+    const small = { name: "GPU 0", memory_gib: 16 };
+    const large = { name: "GPU 1", memory_gib: 24 };
+    const devices = [small, large];
+    expect(largestLocalGpu(devices)).toBe(large);
+    expect(largestLocalGpu([large, small])).toBe(large);
+    expect(devices).toEqual([small, large]);
+    expect(largestLocalGpu([small])).toBe(small);
   });
 });
 

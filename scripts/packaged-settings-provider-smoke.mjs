@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import YAML from "js-yaml";
 import WebSocket from "ws";
+import localHardware from "../shared/local-model-hardware.cjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -343,12 +344,93 @@ async function main() {
     if (afterRemoveSnapshot.text.includes("deepseek-chat")) {
       throw new Error(`[packaged-settings-smoke] removed DeepSeek model leaked back into settings UI:\n${afterRemoveSnapshot.text}`);
     }
+    await verifyLocalProviderHardware(settingsCdp, outputDir);
     console.log(`[packaged-settings-smoke] settings providers ok: ${path.relative(ROOT, appPath)} screenshot=${path.relative(ROOT, outputDir)}/settings-providers-after-remove.png`);
   } finally {
     mainCdp?.close();
     settingsCdp?.close();
     await terminate(child);
     await rmRetry(tmp);
+  }
+}
+
+async function verifyLocalProviderHardware(cdp, outputDir) {
+  const cases = [
+    { id: 'mac-16gb', platform: 'darwin', arch: 'arm64', totalMemoryGib: 16, gpus: [], quantization: 'Q2' },
+    { id: 'mac-24gb', platform: 'darwin', arch: 'arm64', totalMemoryGib: 24, gpus: [], quantization: 'Q3' },
+    { id: 'mac-8gb', platform: 'darwin', arch: 'arm64', totalMemoryGib: 8, gpus: [], quantization: null },
+    { id: 'windows-unknown', platform: 'win32', arch: 'x64', totalMemoryGib: 64, gpus: [], quantization: null },
+    { id: 'windows-multi-gpu', platform: 'win32', arch: 'x64', totalMemoryGib: 64,
+      gpus: [{ name: 'Small GPU', memory_gib: 8 }, { name: 'Large GPU', memory_gib: 24 }], quantization: 'Q3' },
+  ];
+  const results = [];
+  await cdp.evaluate(`(() => {
+    window.__localHardwareOriginalFetch = window.fetch;
+    window.__localHardwareRequests = 0;
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input?.url || String(input);
+      if (new URL(url, location.href).pathname === '/api/local-qwen35-9b/status') {
+        window.__localHardwareRequests++;
+        return Promise.resolve(new Response(JSON.stringify(window.__localHardwareFixture), {
+          status: 200, headers: { 'Content-Type': 'application/json' }
+        }));
+      }
+      return window.__localHardwareOriginalFetch(input, init);
+    };
+    window.__localHardwareOriginalConfirm = window.confirm;
+    window.confirm = text => { window.__localHardwareConfirmation = text; return false; };
+  })()`);
+  try {
+    for (const test of cases) {
+      const hardware = { ...test, ...localHardware.recommendLocalModel(test) };
+      await cdp.evaluate(`(() => {
+        const cloud = [...document.querySelectorAll('[class*="pv-list-item-name"]')].find(e => e.textContent.trim() === 'DeepSeek');
+        if (!cloud) throw new Error('Cloud provider missing');
+        cloud.click();
+      })()`);
+      await waitForSettingsSnapshot(cdp);
+      await cdp.evaluate(`(() => {
+        window.__localHardwareFixture = ${JSON.stringify({ ok: true, runtime: { model_ids: [] }, job: null,
+          plan: { hardware, observed: {}, decision: 'inspect' } })};
+        window.__localHardwareRequests = 0;
+        window.__localHardwareConfirmation = null;
+        const local = [...document.querySelectorAll('[class*="pv-list-item-name"]')].find(e => e.textContent.includes('本地 Qwen'));
+        if (!local) throw new Error('Local Qwen provider missing');
+        local.click();
+      })()`);
+      const deadline = Date.now() + 10000;
+      let snapshot;
+      while (Date.now() < deadline) {
+        snapshot = await cdp.evaluate(`(() => ({
+          text: document.body.innerText,
+          requests: window.__localHardwareRequests,
+          selected: document.querySelector('select[aria-label="本地模型安装方案"]')?.value,
+          disabled: document.querySelector('[class*="pv-local-qwen-primary"]')?.disabled,
+        }))()`);
+        if (/区域发生了异常|Something went wrong/.test(snapshot.text)) throw new Error(`${test.id}: local provider render crashed`);
+        if (snapshot.requests > 0 && snapshot.selected && snapshot.disabled === !hardware.can_enable) break;
+        await wait(100);
+      }
+      if (!snapshot?.selected || snapshot.requests === 0 || snapshot.disabled !== !hardware.can_enable) {
+        throw new Error(`${test.id}: local provider controls unavailable: ${JSON.stringify(snapshot)}`);
+      }
+      if (test.quantization && !snapshot.selected.includes(`-${test.quantization.toLowerCase()}-`)) {
+        throw new Error(`${test.id}: incorrect recommended model ${snapshot.selected}`);
+      }
+      if (hardware.can_enable) {
+        const confirmation = await cdp.evaluate(`(() => {
+          document.querySelector('[class*="pv-local-qwen-primary"]').click();
+          return window.__localHardwareConfirmation;
+        })()`);
+        if (!confirmation?.includes(test.quantization)) throw new Error(`${test.id}: install confirmation missing`);
+      }
+      await cdp.screenshot(path.join(outputDir, `settings-local-${test.id}.png`));
+      results.push({ id: test.id, selected: snapshot.selected, installEnabled: !snapshot.disabled, passed: true });
+      console.log(`[packaged-settings-smoke] local hardware ${test.id}: PASS`);
+    }
+    await writeJson(path.join(outputDir, 'local-hardware-results.json'), results);
+  } finally {
+    await cdp.evaluate(`(() => { window.fetch = window.__localHardwareOriginalFetch; window.confirm = window.__localHardwareOriginalConfirm; })()`);
   }
 }
 
