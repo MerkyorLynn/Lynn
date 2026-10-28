@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { DIALOGUE_PROMPTS } from "./dialogue-scenario-bank.mjs";
 import { CLI_FUNCTIONAL_TIMEOUTS, createCliTurnDeadline, isCliTurnActivity } from "./cli-turn-deadline.mjs";
-import { hasUsdCnyRate, deniesAvailableToolCapability, additionalDialogueQualityReason, claimsFreshToolEvidence, containsMislabeledRelativeDate, containsPastDateFutureStartContradiction, hasVerifiedEmptySportsResult, hasVerifiedNoFixturePredictionAnswer, omitVerifiedSportsFetchWindows, overridesVerifiedEmptySportsWindow, requiresFreshEvidenceForDialogue } from "./dialogue-quality-rules.mjs";
+import { weatherAnswerUsesUnrelatedSearch, hasUsdCnyRate, deniesAvailableToolCapability, additionalDialogueQualityReason, claimsFreshToolEvidence, containsMislabeledRelativeDate, containsPastDateFutureStartContradiction, hasVerifiedEmptySportsResult, hasVerifiedNoFixturePredictionAnswer, omitVerifiedSportsFetchWindows, overridesVerifiedEmptySportsWindow, requiresFreshEvidenceForDialogue } from "./dialogue-quality-rules.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_CLI = resolve(ROOT, "cli/bin/lynn.mjs");
@@ -513,10 +513,8 @@ function qualityReason(prompt, text, result = {}) {
     if (new RegExp(`${CURRENT_YEAR - 1}年`).test(text) && !new RegExp(`${CURRENT_YEAR - 1}\\s*[-~—–]\\s*${CURRENT_YEAR}`).test(text)) {
       return "relative-date-answer-used-previous-year";
     }
-    if (/(人类活动史|建城史|生态环境局|工业和信息化局|机动车排放|高新技术企业|政府工作报告|百度百科)/.test(text)) {
-      return "weather-answer-used-unrelated-search-result";
-    }
   }
+  if (weatherAnswerUsesUnrelatedSearch(prompt, text)) return "weather-answer-used-unrelated-search-result";
   if (/(金价|黄金|XAU|gold)/i.test(prompt) && !hasGoldPrice(text)) {
     return "gold-question-without-price";
   }

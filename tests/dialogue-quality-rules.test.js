@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasUsdCnyRate } from "../scripts/dialogue-quality-rules.mjs";
+import { weatherAnswerUsesUnrelatedSearch, hasUsdCnyRate } from "../scripts/dialogue-quality-rules.mjs";
 import { deniesAvailableToolCapability, additionalDialogueQualityReason, claimsFreshToolEvidence, containsMislabeledRelativeDate, containsPastDateFutureStartContradiction, hasVerifiedEmptySportsResult, hasVerifiedEmptySportsWindow, hasVerifiedNoFixturePredictionAnswer, omitVerifiedSportsFetchWindows, overridesVerifiedEmptySportsWindow } from "../scripts/dialogue-quality-rules.mjs";
 
 describe("dialogue quality rules", () => {
@@ -403,5 +403,20 @@ describe("dialogue quality rules", () => {
       ...task,
       text: "上海明天多云，北京明天有小雨。天气风险是北京降雨可能影响落地和地面交通，建议带伞并穿短袖加轻薄外套。出发前再检查两地雷达、机场路况和航司动态；国内航班至少提前两小时到机场，早高峰或托运行李较多时再加三十分钟机动。",
     })).toBe("");
+  });
+});
+
+
+describe('weather evidence scope', () => {
+  it.each(['你能预测今晚世界杯比分吗？', '今天有哪些科技新闻？', '深圳今天有足球比赛吗？'])(
+    'does not apply weather-source rules to other current topics: %s', prompt => {
+      expect(weatherAnswerUsesUnrelatedSearch(prompt, '百度百科提到赛事日期；今晚没有比赛。')).toBe(false);
+    });
+  it.each(['深圳明天天气如何？', '北京今天空气质量怎么样？', 'Will it rain tonight?'])(
+    'still rejects irrelevant search material for weather questions: %s', prompt => {
+      expect(weatherAnswerUsesUnrelatedSearch(prompt, '百度百科介绍当地建城史')).toBe(true);
+    });
+  it('accepts direct weather observations', () => {
+    expect(weatherAnswerUsesUnrelatedSearch('顺德大良明天会下雨吗？', '逐小时预报显示有降雨可能，来源：气象数据。')).toBe(false);
   });
 });

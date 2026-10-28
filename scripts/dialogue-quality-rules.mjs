@@ -6,6 +6,11 @@ function normalizedText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+export function weatherAnswerUsesUnrelatedSearch(prompt, text) {
+  return /(?:天气|降雨|下雨|暴雨|气温|温度|空气质量|AQI|weather|rain|temperature|air quality)/iu.test(String(prompt || ''))
+    && /(?:人类活动史|建城史|生态环境局|工业和信息化局|机动车排放|高新技术企业|政府工作报告|百度百科)/u.test(String(text || ''));
+}
+
 export function hasUsdCnyRate(text) {
   const raw = String(text || "").replace(/[*_`]/g, "");
   return /1\s*(?:USD|美元)\s*(?:=|≈|约|可兑换|兑换|兑)?\s*\d+(?:\.\d+)?\s*(?:CNY|人民币)/iu.test(raw)
