@@ -4,13 +4,13 @@
 
 国内用户请优先使用以下镜像下载；GitHub Assets 作为备用下载。
 
-- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg)
-- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg)
-- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe)
+- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg?rev=20261028)
+- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg?rev=20261028)
+- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe?rev=20261028)
 - [下载说明页](https://download.merkyorlynn.com/download.html)
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261028"
 Lynn --version
 ```
 

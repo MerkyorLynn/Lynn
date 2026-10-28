@@ -4,11 +4,11 @@ const RELEASE = {
   releasePage: "https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.4",
   assets: {
     macArm:
-      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg",
+      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg?rev=20261028",
     macIntel:
-      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg",
+      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg?rev=20261028",
     windows:
-      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe",
+      "https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe?rev=20261028",
   },
 };
 
