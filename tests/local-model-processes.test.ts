@@ -23,7 +23,7 @@ describe("local model native process probes", () => {
     expect(probe.calls).toHaveLength(26);
     for (const [executable, , options] of probe.calls) {
       expect(executable).toMatch(/^[A-Z]:\\.*\\System32\\(?:netstat\.exe|WindowsPowerShell\\v1\.0\\powershell\.exe)$/i);
-      expect(options).toMatchObject({ windowsHide: true, timeout: String(executable).endsWith("netstat.exe") ? 2000 : 5000 });
+      expect(options).toMatchObject({ windowsHide: true, timeout: String(executable).endsWith("netstat.exe") ? 2000 : 15000 });
     }
     expect(probe.calls[0][1]).toContain("-NonInteractive");
     expect(probe.calls[0][1]).toContain("-EncodedCommand");

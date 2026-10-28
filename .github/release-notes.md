@@ -16,6 +16,8 @@ Lynn --version
 
 ## 中文
 
+- 放宽 Windows 原生进程查询的冷启动等待，避免 CIM 启动超过 5 秒时把运行中的本地模型误判为未启动。
+
 - 修复直接打开模型设置时超时面板卡在服务未就绪的问题；服务重启后自动重新读取，并防止旧请求覆盖新设置。
 
 - 移除 CLI 选择云端地址时重复的健康探测，保留本地 Brain 优先和显式地址配置；快速档速度阈值不变。
@@ -35,6 +37,8 @@ Lynn --version
 - GUI / CLI 同步升级。默认模型仍为 Step 5 Preview，实时语音仍为 StepAudio 2.5 Realtime；保留 Coder390 llama.cpp Q2 / Q3、长推理超时设置和会话删除功能。
 
 ## English
+
+- Allow bounded cold-start time for native Windows CIM queries so a slow system query does not hide a running local model.
 
 - Wait for the settings service before loading model timeouts, reload after server changes, and ignore stale responses.
 
