@@ -174,6 +174,7 @@ const PROVIDER_DEFS = {
     wire: 'openai',
     cooldown_ms: 60_000,
     default_thinking: true,
+    default_reasoning_effort: 'low',
     timeout_ms: positiveEnvNumber('ZHIPU_CODING_FLASH_TIMEOUT_MS', 35_000),
   },
 } satisfies ProviderRegistry;

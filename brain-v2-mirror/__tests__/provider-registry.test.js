@@ -77,6 +77,7 @@ describe('provider registry', () => {
     expect(glm.endpoint).toBe('https://open.bigmodel.cn/api/coding/paas/v4');
     expect(String(glm.model)).toBe(process.env.ZHIPU_CODING_FLASH_MODEL || 'GLM-5.3-Flash');
     expect(glm.timeout_ms).toBe(35_000);
+    expect(glm.default_reasoning_effort).toBe('low');
     expect(glm.capability).toMatchObject({ vision: true, audio: false, video: false, tools: true, thinking: true });
   });
 

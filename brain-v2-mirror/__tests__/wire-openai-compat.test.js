@@ -1,3 +1,4 @@
+import { getProvider } from '../provider-registry.js';
 // Brain v2 · Generic OpenAI-compat wire adapter tests
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mockFetch, ok, fail, makeSSEBody, sseEvent, sseDone, drain } from './helpers.js';
@@ -396,5 +397,17 @@ describe('OpenAI-compat wire adapter', () => {
       expect(body.tools).toBeUndefined();
       expect(body.tool_choice).toBeUndefined();
     });
+  });
+});
+
+
+describe('GLM cloud review reasoning defaults', () => {
+  it.each([[undefined, 'low'], ['auto', 'low'], ['high', 'high']])('preserves requested effort %s while bounding the default', async (effort, expected) => {
+    const f = mockFetch(ok(makeSSEBody(sseEvent({ content: '核验完成' }), sseDone())));
+    await drain(callOpenAI({ provider: { ...getProvider('glm-coding'), apiKey: 'test-only' }, messages: [{ role: 'user', content: '复查回答' }], reasoningEffort: effort }));
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    expect(body.reasoning_effort).toBe(expected);
+    expect(body.thinking).toBeUndefined();
+    expect(body.enable_thinking).toBeUndefined();
   });
 });

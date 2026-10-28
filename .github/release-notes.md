@@ -16,6 +16,8 @@ Lynn --version
 
 ## 中文
 
+- 云端 GLM 复查默认采用 low 思考档，与客户端直连保持一致；显式 high 请求仍保留，降低默认复查长时间思考导致的超时。
+
 - 放宽 Windows 原生进程查询的冷启动等待，避免 CIM 启动超过 5 秒时把运行中的本地模型误判为未启动。
 
 - 修复直接打开模型设置时超时面板卡在服务未就绪的问题；服务重启后自动重新读取，并防止旧请求覆盖新设置。
@@ -37,6 +39,8 @@ Lynn --version
 - GUI / CLI 同步升级。默认模型仍为 Step 5 Preview，实时语音仍为 StepAudio 2.5 Realtime；保留 Coder390 llama.cpp Q2 / Q3、长推理超时设置和会话删除功能。
 
 ## English
+
+- Align the hosted GLM review default with direct-client low reasoning while preserving explicit high requests.
 
 - Allow bounded cold-start time for native Windows CIM queries so a slow system query does not hide a running local model.
 
