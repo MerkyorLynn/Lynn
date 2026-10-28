@@ -56,8 +56,9 @@ Lynn 是同时提供桌面 GUI 与独立 CLI 的开源 AI Agent：用对话完�
 
 ### V0.87.4 重点更新
 
-**2026-10-28 同版本热修**：修复 Apple Silicon / 空显卡列表导致本地 Qwen 模型设置页崩溃、无法安装的问题。已安装原版 V0.87.4 的用户请重新下载安装修复包；版本号保持不变。
+**2026-10-29 同版本热修**：修复 Apple Silicon / 空显卡列表导致本地 Qwen 模型设置页崩溃、无法安装的问题。已安装原版 V0.87.4 的用户请重新下载安装修复包；版本号保持不变。
 
+- **CLI 云端请求更快开始**：移除选择云端地址时重复的健康探测；仍优先可用的本地 Brain，保留用户显式地址。
 - **Windows 状态查询不再调用 PATH 中的 ps.exe**：改用隐藏的系统原生进程/端口查询，修复 #76。
 - **汇率增加备用源**：主源不可用时使用 AllRatesToday，明确标注 ECB 每日参考数据、时间与来源，修复 #77。
 - **增强 CLI**：流式工具、并发读取与串行写入、精确编辑、后台命令、计划模式、技能和会话分支。
@@ -101,7 +102,7 @@ Lynn CLI 提供终端 TUI、Markdown 渲染、流式输出、工具调用和长�
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror. --force is safe for first install too.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261028"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261029"
 
 # 3. Launch.
 Lynn            # interactive chat TUI; 输入 /voice 或 lynn voice 进入实时语音

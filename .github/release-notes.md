@@ -1,23 +1,25 @@
-# Lynn v0.87.4 · Windows 稳定性与增强 CLI
+# Lynn v0.87.4 · 本地模型设置与 CLI 稳定性修复
 
 ## 国内镜像站下载（推荐） / Downloads
 
 国内用户请优先使用以下镜像下载；GitHub Assets 作为备用下载。
 
-- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg?rev=20261028)
-- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg?rev=20261028)
-- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe?rev=20261028)
+- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg?rev=20261029)
+- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg?rev=20261029)
+- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe?rev=20261029)
 - [下载说明页](https://download.merkyorlynn.com/download.html)
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261028"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261029"
 Lynn --version
 ```
 
 ## 中文
 
+- 移除 CLI 选择云端地址时重复的健康探测，保留本地 Brain 优先和显式地址配置；快速档速度阈值不变。
+
 - 修复 Codex 接入冷启动误判：协议预检等待时间对齐实际客户端的 30 秒，避免正常的超过 5 秒初始化被错误回退；快速响应速度门槛不变。
-- **2026-10-28 同版本修复**：修复 Apple Silicon / 未检测到独立显卡时，进入本地 Qwen 模型详情会出现“providers 区域发生了异常”、无法安装的问题。补充真实安装包的 16GB / 24GB Mac、容量不足、未知显存和 Windows 多显卡回归。版本仍为 V0.87.4；此前下载的用户请重新下载安装修复包，同版本通常不会触发自动更新。
+- **2026-10-29 同版本修复**：修复 Apple Silicon / 未检测到独立显卡时，进入本地 Qwen 模型详情会出现“providers 区域发生了异常”、无法安装的问题。补充真实安装包的 16GB / 24GB Mac、容量不足、未知显存和 Windows 多显卡回归。版本仍为 V0.87.4；此前下载的用户请重新下载安装修复包，同版本通常不会触发自动更新。
 
 - 修复 #76：Windows 本地模型状态查询改用系统目录中的原生工具，并隐藏查询窗口；不再调用 PATH 中 Anaconda 等环境提供的 ps.exe，也不再向 Windows 工具传递 POSIX 参数。
 - 实现 #77：汇率主源不可用时回退到 AllRatesToday，标明来源、更新时间和 ECB 每日参考汇率属性；支持黄金美元/人民币换算。备用源成功结果缓存一小时，并合并并发请求；无有效数据时明确报错。
@@ -32,8 +34,10 @@ Lynn --version
 
 ## English
 
+- Remove the redundant hosted health probe before CLI requests, preserving local-Brain priority, explicit endpoints, and fast-mode performance thresholds.
+
 - Align Codex protocol cold-start preflight with the client's bounded 30-second request timeout; preserve fast-response performance thresholds.
-- **2026-10-28 hotfix, same version**: fix the local Qwen settings crash when Apple Silicon or a machine without detected dedicated GPUs returns an empty GPU list. Add packaged UI coverage for Mac memory tiers and Windows GPU detection. The version remains V0.87.4; users with the original package should download and reinstall the repaired build. Same-version updates generally do not trigger the updater.
+- **2026-10-29 hotfix, same version**: fix the local Qwen settings crash when Apple Silicon or a machine without detected dedicated GPUs returns an empty GPU list. Add packaged UI coverage for Mac memory tiers and Windows GPU detection. The version remains V0.87.4; users with the original package should download and reinstall the repaired build. Same-version updates generally do not trigger the updater.
 
 - Fix #76: use hidden native Windows process/listener queries through absolute system paths instead of PATH-provided ps.exe or POSIX arguments.
 - Implement #77: fall back to AllRatesToday for FX and gold currency conversion. Attribute its ECB daily reference rates and timestamps, cache successful tables for one hour, and report unavailable data explicitly.

@@ -49,8 +49,9 @@ Source: [Merkyor / Qwen3.8-27B-Coder390-EfficientThink](https://modelscope.cn/mo
 
 ### V0.87.4 Highlights
 
-**2026-10-28 same-version hotfix**: fix the local Qwen settings crash caused by an empty GPU list on Apple Silicon and machines without detected dedicated GPUs. Users of the original V0.87.4 package should download and reinstall the repaired build; the version number is unchanged.
+**2026-10-29 same-version hotfix**: fix the local Qwen settings crash caused by an empty GPU list on Apple Silicon and machines without detected dedicated GPUs. Users of the original V0.87.4 package should download and reinstall the repaired build; the version number is unchanged.
 
+- **Faster cloud request startup**: remove a redundant hosted health probe while preserving local-Brain priority and explicit endpoints.
 - **Windows process polling:** hidden native system queries replace PATH-provided ps.exe and POSIX flags (#76).
 - **FX fallback:** AllRatesToday daily ECB reference rates, with explicit source/time attribution and bounded caching (#77).
 - **Enhanced CLI:** streaming tools, concurrent reads with write barriers, precise edits, background jobs, plan mode, skills and session forks.
@@ -91,7 +92,7 @@ Use the desktop for conversations, files, task progress and change acceptance. U
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261028"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261029"
 
 # 3. Launch.
 Lynn          # interactive chat TUI; type /voice or lynn voice for realtime voice

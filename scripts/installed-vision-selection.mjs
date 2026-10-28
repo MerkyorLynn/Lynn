@@ -1,3 +1,8 @@
+export function isExpectedVisionColorAnswer(text, expected) {
+  const normalized = String(text || '').trim().replace(/[\s*`。.!！]/gu, '').toLowerCase();
+  return expected.some(color => normalized === color.toLowerCase());
+}
+
 export function selectInstalledVisionModel(payload, { modelId = '', provider = '' } = {}) {
   const models = Array.isArray(payload?.models) ? payload.models : [];
   const targetId = String(modelId).trim();

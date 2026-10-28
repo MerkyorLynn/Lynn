@@ -1,9 +1,19 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { selectInstalledVisionModel } from '../scripts/installed-vision-selection.mjs';
+import { isExpectedVisionColorAnswer, selectInstalledVisionModel } from '../scripts/installed-vision-selection.mjs';
 
 const defaultModel = { provider: 'brain', id: 'step-5-preview', isCurrent: true, vision: true };
 const alternative = { provider: 'mimo', id: 'mimo-v2.5', isCurrent: false, vision: true };
+
+describe('installed vision answer validation', () => {
+  it.each(['红色', '**红色**。', 'RED!'])('accepts the expected color: %s', text => {
+    expect(isExpectedVisionColorAnswer(text, ['红', '红色', 'red'])).toBe(true);
+  });
+
+  it.each(['', '蓝色', '没有收到图片，不能判断是不是红色', 'If I had to guess, red'])('rejects wrong colors and guesses: %s', text => {
+    expect(isExpectedVisionColorAnswer(text, ['红', '红色', 'red'])).toBe(false);
+  });
+});
 
 describe('installed vision model selection', () => {
   it('tests the current default rather than a fixed provider', () => {

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 import YAML from "js-yaml";
 import WebSocket from "ws";
-import { selectInstalledVisionModel } from "./installed-vision-selection.mjs";
+import { isExpectedVisionColorAnswer, selectInstalledVisionModel } from "./installed-vision-selection.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_APP = "/Applications/Lynn.app";
@@ -442,44 +442,57 @@ async function runLiveVisionGate(baseUrl, wsUrl, token) {
       });
       await wait(1000);
     }
-    const session = await httpJson(baseUrl, token, "/api/sessions/new", {
-      method: "POST",
-      body: { cwd: ROOT, memoryEnabled: false },
-      timeoutMs: 15000,
-    }).catch(() => null);
-    const sessionPath = session?.path || null;
-    const ws = await openWs(wsUrl, token);
-    try {
-      const result = await waitForPromptTurn(ws, {
-        type: "prompt",
-        text: "请看这张图片，直接回答图片主体颜色。只回答颜色名，不要解释。",
-        ...(sessionPath ? { sessionPath } : {}),
-        clientMessageId: `installed-live-vision-${Date.now()}`,
-        images: [{
-          mimeType: "image/png",
-          data: makeSolidColorPngBase64(),
-        }],
-      }, Number(process.env.LYNN_INSTALLED_GATE_VISION_TIMEOUT_MS || "120000"));
-
-      if (result.errors.length) {
-        throw new Error(`[installed-gate] live vision returned errors: ${result.errors.join("; ")}`);
+    const cases = [
+      { id: "red-64", rgba: [231, 41, 41, 255], size: 64, expected: ["红", "红色", "red"] },
+      { id: "blue-512", rgba: [20, 40, 230, 255], size: 512, expected: ["蓝", "蓝色", "blue"] },
+      { id: "green-64", rgba: [25, 210, 45, 255], size: 64, expected: ["绿", "绿色", "green"] },
+      { id: "no-image", size: 0, expected: null },
+    ];
+    for (const test of cases) {
+      const session = await httpJson(baseUrl, token, "/api/sessions/new", {
+        method: "POST",
+        body: { cwd: ROOT, memoryEnabled: false },
+        timeoutMs: 15000,
+      });
+      if (typeof session?.path !== "string" || !session.path) {
+        throw new Error("[installed-gate] fresh vision test session was not created");
       }
-      if (selected.provider === "brain" && result.providerRoutes.length === 0) {
-        throw new Error("[installed-gate] live vision did not identify its actual Brain route");
-      }
-      if (result.providerRoutes.some(route => route.fallbackFrom.length > 0)) {
-        throw new Error(`[installed-gate] selected model vision was not proven: provider fallback ${JSON.stringify(result.providerRoutes)}`);
-      }
-      console.log(`[installed-gate] live vision actual routes=${JSON.stringify(result.providerRoutes)}`);
-      const normalized = result.text.replace(/\s+/g, "");
-      if (!/(红|red)/iu.test(normalized)) {
-        throw new Error(`[installed-gate] live vision answer did not identify red image: ${JSON.stringify(result.text.slice(0, 500))}`);
-      }
-      console.log(`[installed-gate] live vision ok in ${result.elapsedMs}ms: ${result.text.replace(/\s+/g, " ").trim().slice(0, 120)}`);
-    } finally {
+      const sessionPath = session.path;
+      const ws = await openWs(wsUrl, token);
       try {
-        ws.close();
-      } catch {}
+        const result = await waitForPromptTurn(ws, {
+          type: "prompt",
+          text: "请看这张图片，直接回答图片主体颜色。只回答颜色名，不要解释。",
+          sessionPath,
+          clientMessageId: `installed-live-vision-${test.id}-${Date.now()}`,
+          ...(test.size ? { images: [{
+            mimeType: "image/png",
+            data: makeSolidColorPngBase64({ width: test.size, height: test.size, rgba: test.rgba }),
+          }] } : {}),
+        }, Number(process.env.LYNN_INSTALLED_GATE_VISION_TIMEOUT_MS || "120000"));
+
+        if (result.errors.length) {
+          throw new Error(`[installed-gate] live vision returned errors: ${result.errors.join("; ")}`);
+        }
+        if (selected.provider === "brain" && result.providerRoutes.length === 0) {
+          throw new Error("[installed-gate] live vision did not identify its actual Brain route");
+        }
+        if (result.providerRoutes.some(route => route.fallbackFrom.length > 0)) {
+          throw new Error(`[installed-gate] selected model vision was not proven: provider fallback ${JSON.stringify(result.providerRoutes)}`);
+        }
+        console.log(`[installed-gate] live vision actual routes=${JSON.stringify(result.providerRoutes)}`);
+        const matches = test.expected
+          ? isExpectedVisionColorAnswer(result.text, test.expected)
+          : result.text.trim().length > 0 && !isExpectedVisionColorAnswer(result.text, cases.flatMap(item => item.expected || []));
+        if (!matches) {
+          throw new Error(`[installed-gate] live vision ${test.id} failed: ${JSON.stringify(result.text.slice(0, 500))}`);
+        }
+        console.log(`[installed-gate] live vision ${test.id} ok in ${result.elapsedMs}ms: ${result.text.replace(/\s+/g, " ").trim().slice(0, 120)}`);
+      } finally {
+        try {
+          ws.close();
+        } catch {}
+      }
     }
   } finally {
     if (!sameModel && previous?.id && previous?.provider) {
