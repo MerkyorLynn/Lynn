@@ -20,7 +20,7 @@ Lynn --version
 
 - 放宽 Windows 原生进程查询的冷启动等待，避免 CIM 启动超过 5 秒时把运行中的本地模型误判为未启动。
 
-- 模型设置统一等待服务就绪，防止 Provider 凭据读取和超时面板首次打开时报错；重新连接后重建表单，并防止旧请求覆盖新设置。
+- 设置窗口在导航目标、服务地址和初始化完成后才挂载页面，防止默认页、Provider 凭据读取与超时表单抢跑；服务不可用时明确提示，并防止旧请求覆盖新设置。
 
 - 移除 CLI 选择云端地址时重复的健康探测，保留本地 Brain 优先和显式地址配置；快速档速度阈值不变。
 
@@ -44,7 +44,7 @@ Lynn --version
 
 - Allow bounded cold-start time for native Windows CIM queries so a slow system query does not hide a running local model.
 
-- Wait for the settings service before mounting provider forms and model timeouts; reinitialize after reconnects and ignore stale responses.
+- Mount settings pages only after navigation, service connection and initialization are ready; show service failures clearly and ignore stale responses.
 
 - Remove the redundant hosted health probe before CLI requests, preserving local-Brain priority, explicit endpoints, and fast-mode performance thresholds.
 

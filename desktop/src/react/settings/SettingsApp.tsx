@@ -132,7 +132,7 @@ async function refreshSettingsSurface(opts: {
 }
 
 export function SettingsApp() {
-  const { activeTab, ready, selectedProviderId, settingsAgentId } = useSettingsStore();
+  const { activeTab, ready, serverPort, selectedProviderId, settingsAgentId } = useSettingsStore();
   const [uiRestored, setUiRestored] = React.useState(false);
 
   useEffect(() => {
@@ -232,6 +232,8 @@ export function SettingsApp() {
   }, []);
 
   const ActiveTab = TAB_COMPONENTS[activeTab] || AgentTab;
+  const serviceReady = Number.isInteger(serverPort) && Number(serverPort) > 0 && Number(serverPort) <= 65535;
+  const settingsReady = uiRestored && ready && serviceReady;
 
   return (
     <ErrorBoundary region="settings">
@@ -243,7 +245,7 @@ export function SettingsApp() {
           <SettingsNav />
           <div className={styles['settings-main']}>
             <ErrorBoundary region={activeTab}>
-              <ActiveTab />
+              {settingsReady ? <ActiveTab /> : <p role="status">{uiRestored && ready ? '设置服务连接失败，请重启 Lynn 后重试。' : '正在连接设置服务…'}</p>}
             </ErrorBoundary>
           </div>
         </div>
