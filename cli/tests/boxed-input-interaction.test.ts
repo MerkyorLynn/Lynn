@@ -27,9 +27,11 @@ afterEach(() => {
 describe("boxed slash palette keyboard interaction", () => {
   it("selects with Down and fills the selected command with Tab", async () => {
     const result = readBoxedInputLine({ completions: commands, history: new HistoryNavigator(["old prompt"]) });
-    key("/"); key("\x1b[B"); key("\t"); key("\r");
+    key("/"); key("\x1b[B");
+    const rendered = vi.mocked(stdout.write).mock.calls.flat().join("").replace(/\x1b\[[0-9;]*m/g, "");
+    expect(rendered).toContain("› /model");
+    key("\t"); key("\r");
     expect(await result).toBe("/model ");
-    expect(vi.mocked(stdout.write).mock.calls.flat().join("")).toContain("› /model");
     expect(stdin.listenerCount("data")).toBe(0);
   });
 
