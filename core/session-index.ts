@@ -13,6 +13,7 @@ import {
 } from "../shared/session-digest.js";
 
 export const SESSION_INDEX_FILENAME = "session-index.json";
+const pendingIndexWrites = new Map<string, Promise<void>>();
 
 export interface SessionIndexAgent {
   id?: string | null;
@@ -116,14 +117,28 @@ export async function writeSessionIndex(sessionDir: string, sessions: unknown, o
     updatedAt: new Date().toISOString(),
     sessions: entries,
   };
-  await fsp.mkdir(sessionDir, { recursive: true });
   const target = sessionIndexPath(sessionDir);
-  const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
-  try {
-    await fsp.writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf-8", mode: 0o600, flag: "wx" });
-    await fsp.rename(tmp, target);
-  } finally { await fsp.rm(tmp, { force: true }).catch(() => {}); }
-  return payload;
+  const key = path.resolve(target);
+  const previous = pendingIndexWrites.get(key) || Promise.resolve();
+  const operation = previous.then(async () => {
+    await fsp.mkdir(sessionDir, { recursive: true });
+    const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await fsp.writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf-8", mode: 0o600, flag: "wx" });
+      for (let attempt = 0; ; attempt++) {
+        try { await fsp.rename(tmp, target); break; }
+        catch (error) {
+          if (attempt >= 4 || !['EPERM', 'EACCES', 'EBUSY'].includes((error as NodeJS.ErrnoException).code || '')) throw error;
+          await new Promise(resolve => setTimeout(resolve, 10 * 2 ** attempt));
+        }
+      }
+    } finally { await fsp.rm(tmp, { force: true }).catch(() => {}); }
+    return payload;
+  });
+  const settled = operation.then(() => {}, () => {});
+  pendingIndexWrites.set(key, settled);
+  try { return await operation; }
+  finally { if (pendingIndexWrites.get(key) === settled) pendingIndexWrites.delete(key); }
 }
 
 export async function refreshSessionIndex(sessionDir: string, sessions: unknown, opts: SessionIndexOptions = {}): Promise<SessionIndexPayload> {

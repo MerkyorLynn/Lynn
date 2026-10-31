@@ -46,7 +46,11 @@ describe("V0.87.5 security regressions", () => {
   it("quotes cwd as data and stops when changing directory fails", () => {
     const parent = temp(); const cwd = path.join(parent, "dir'$(touch ATTACKED)"); fs.mkdirSync(cwd);
     const script = writeScript(process.platform === "win32" ? "pwd -W" : "pwd", cwd);
-    try { expect(fs.realpathSync(execFileSync("bash", [script.scriptPath], { cwd: parent, encoding: "utf8", windowsHide: true }).trim())).toBe(fs.realpathSync(cwd)); }
+    try {
+      const actual = fs.statSync(execFileSync("bash", [script.scriptPath], { cwd: parent, encoding: "utf8", windowsHide: true }).trim(), { bigint: true });
+      const expected = fs.statSync(cwd, { bigint: true });
+      expect({ dev: actual.dev, ino: actual.ino }).toEqual({ dev: expected.dev, ino: expected.ino });
+    }
     finally { cleanup(script.scriptPath); }
     expect(fs.existsSync(path.join(parent, "ATTACKED"))).toBe(false);
   });

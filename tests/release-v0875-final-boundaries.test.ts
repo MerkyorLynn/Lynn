@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -12,7 +13,7 @@ const JSZip = require('jszip');
 const { extractSkillPreview } = require('../desktop/safe-zip-preview.cjs');
 const roots: string[] = [];
 function temp() { const p = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'lynn-final-'))); roots.push(p); return p; }
-afterEach(() => { roots.splice(0).forEach(p => fs.rmSync(p, { recursive: true, force: true })); });
+afterEach(() => { vi.restoreAllMocks(); roots.splice(0).forEach(p => fs.rmSync(p, { recursive: true, force: true })); });
 
 it('preserves another process configuration and independent changes from stale snapshots', () => {
   const root = temp(), userDir = path.join(root, 'user'), agentsDir = path.join(root, 'agents');
@@ -60,6 +61,20 @@ it('rejects traversal and symbolic links in ZIPs and extracts an ordinary skill'
     await expect(extractSkillPreview(zipPath, root)).rejects.toThrow(/unsafe/i);
   }
   expect(fs.existsSync(path.join(root, 'escaped.md'))).toBe(false);
+});
+
+it('retries a transient index rename lock and preserves a valid replacement', async () => {
+  const root = temp();
+  const rename = fsp.rename.bind(fsp);
+  let attempts = 0;
+  vi.spyOn(fsp, 'rename').mockImplementation(async (...args) => {
+    if (attempts++ === 0) throw Object.assign(new Error('temporarily occupied'), { code: 'EPERM' });
+    return rename(...args);
+  });
+  await writeSessionIndex(root, [{ path: path.join(root, 'saved.jsonl') }]);
+  expect(attempts).toBe(2);
+  expect(JSON.parse(fs.readFileSync(path.join(root, 'session-index.json'), 'utf8')).sessions).toHaveLength(1);
+  expect(fs.readdirSync(root)).toEqual(['session-index.json']);
 });
 
 it('blocks MCP file writes outside the workspace, including symlinks and custom-home credentials', async () => {

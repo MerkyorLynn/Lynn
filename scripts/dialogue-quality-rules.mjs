@@ -83,9 +83,37 @@ export function hasVerifiedEmptySportsWindow({ toolEvents = [], prompt = "", cur
   });
 }
 
+function previouslyEndedCompetition(text, result) {
+  const now = new Date(`${result.currentDate}T12:00:00Z`);
+  if (!Number.isFinite(now.getTime())) return null;
+  const target = now.getTime() - (/昨晚|昨天|昨日|yesterday/iu.test(result.prompt) ? 86400000 : 0);
+  // Evaluate a dated, scoped conclusion without naming any sport or league.
+  const ended = /(?:^|\n)\s*(?:[-*]\s*)?([^\n：:]{1,100})[：:]\s*(?:已经|已)于\s*(?:(今年)|(\d{4})年)?(\d{1,2})月(?:(\d{1,2})日)?[^。！？；\n]{0,12}(?:结束|完赛|收官)/gu;
+  for (const match of text.matchAll(ended)) {
+    const year = Number(match[3] || now.getUTCFullYear()), month = Number(match[4]), day = Number(match[5] || 0);
+    if (month < 1 || month > 12 || day > 31) continue;
+    const lastDay = day || new Date(Date.UTC(year, month, 0)).getUTCDate();
+    if (Date.UTC(year, month - 1, lastDay, 23, 59, 59) >= target) continue;
+    const subject = match[1].replace(/\s+/g, '').toLowerCase();
+    const rest = text.slice(match.index + match[0].length);
+    const sections = rest.split(/(?=^#{2,6}\s)/mu);
+    const score = /\|\s*\d{1,2}\s*[-–—:：]\s*\d{1,2}\s*\||(?:比分|赛果)\s*[:：为是]?\s*\d{1,2}\s*[-–—:：]\s*\d{1,2}/u;
+    // A different competition must have its own heading. A result for the
+    // original competition still contradicts its verified empty window.
+    if (sections.some(section => {
+      if (!score.test(section)) return false;
+      const title = /^#{2,6}\s+([^\n]+)/u.exec(section)?.[1] || '';
+      return !title || title.replace(/\s+/g, '').toLowerCase().includes(subject);
+    })) continue;
+    return match;
+  }
+  return null;
+}
+
 export function hasVerifiedEmptySportsResult(result) {
   const text = String(result.assistantText || "").replace(/\*\*/g, "");
-  const emptyConclusion = /(?:0\s*场|(?:没有|无|未(?:查[询找]?到|检索到))[^。！？；\n]{0,12}(?:比赛|赛事|球赛))/u.exec(text);
+  const emptyConclusion = /(?:0\s*场|(?:没有|无|未(?:查[询找]?到|检索到))[^。！？；\n]{0,12}(?:比赛|赛事|球赛))/u.exec(text)
+    || previouslyEndedCompetition(text, result);
   if (!emptyConclusion) return false;
   const lines = text.slice(0, emptyConclusion.index).split(/\n|[。；]/u);
   // A footnote quoting "0 matches" must not excuse positive results elsewhere.
