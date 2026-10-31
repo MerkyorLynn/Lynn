@@ -228,6 +228,7 @@ describe("dialogue quality rules", () => {
     expect(hasVerifiedEmptySportsResult({ ...result, assistantText: '已查询的赛事昨晚没有比赛，共 0 场。\n另外一项赛事的已核实赛果：\n| Alpha vs Beta | 3–1 |' })).toBe(true);
     const endedScope = '- 赛事 Alpha：已于今年7月结束。\n## 赛事 Beta 最近赛果\n| Team One vs Team Two | 3–1 |';
     expect(hasVerifiedEmptySportsResult({ ...result, assistantText: endedScope })).toBe(true);
+    expect(hasVerifiedEmptySportsResult({ ...result, assistantText: endedScope.replace('今年7月', '今年 7 月').replace('。\n##', '。##') })).toBe(true);
     expect(hasVerifiedEmptySportsResult({ ...result, assistantText: endedScope, toolEvents: [] })).toBe(false);
     for (const assistantText of [
       endedScope.replace('赛事 Beta 最近赛果', '赛事 Alpha 昨晚赛果'),

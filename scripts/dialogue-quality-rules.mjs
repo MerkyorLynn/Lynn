@@ -88,14 +88,14 @@ function previouslyEndedCompetition(text, result) {
   if (!Number.isFinite(now.getTime())) return null;
   const target = now.getTime() - (/昨晚|昨天|昨日|yesterday/iu.test(result.prompt) ? 86400000 : 0);
   // Evaluate a dated, scoped conclusion without naming any sport or league.
-  const ended = /(?:^|\n)\s*(?:[-*]\s*)?([^\n：:]{1,100})[：:]\s*(?:已经|已)于\s*(?:(今年)|(\d{4})年)?(\d{1,2})月(?:(\d{1,2})日)?[^。！？；\n]{0,12}(?:结束|完赛|收官)/gu;
+  const ended = /(?:^|\n)\s*(?:[-*]\s*)?([^\n：:]{1,100})[：:]\s*(?:已经|已)于\s*(?:(今年)|(\d{4})\s*年)?\s*(\d{1,2})\s*月\s*(?:(\d{1,2})\s*日)?[^。！？；\n]{0,12}(?:结束|完赛|收官)/gu;
   for (const match of text.matchAll(ended)) {
     const year = Number(match[3] || now.getUTCFullYear()), month = Number(match[4]), day = Number(match[5] || 0);
     if (month < 1 || month > 12 || day > 31) continue;
     const lastDay = day || new Date(Date.UTC(year, month, 0)).getUTCDate();
     if (Date.UTC(year, month - 1, lastDay, 23, 59, 59) >= target) continue;
     const subject = match[1].replace(/\s+/g, '').toLowerCase();
-    const rest = text.slice(match.index + match[0].length);
+    const rest = text.slice(match.index + match[0].length).replace(/([。！？；])(?=#{2,6}\s)/gu, '$1\n');
     const sections = rest.split(/(?=^#{2,6}\s)/mu);
     const score = /\|\s*\d{1,2}\s*[-–—:：]\s*\d{1,2}\s*\||(?:比分|赛果)\s*[:：为是]?\s*\d{1,2}\s*[-–—:：]\s*\d{1,2}/u;
     // A different competition must have its own heading. A result for the
