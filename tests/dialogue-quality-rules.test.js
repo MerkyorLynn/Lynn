@@ -375,6 +375,16 @@ describe("dialogue quality rules", () => {
     })).toBe("");
   });
 
+  it('recognizes explicit source coverage and excluded data without requiring a sample keyword', () => {
+    const answer = text => additionalDialogueQualityReason({ category: 'realtime', prompt: '今天 A 股有什么异动？', text, hasToolEvidence: true });
+    expect(answer('今天休市，以下为上一交易日收评。\n## 证据覆盖范围与口径说明\n指数点位来自行情接口，板块描述来自媒体收评。\n未覆盖的数据：涨跌停家数、资金净流入、具体异动个股名单。')).toBe('');
+    expect(answer('指数来自公开行情，不能视为全市场异动排名。')).toBe('');
+    expect(answer('## 证据覆盖范围与口径说明\n数据来自行情接口。')).toBe('a-share-anomaly-answer-missing-sample-boundary');
+    expect(answer('指数来自行情接口。未覆盖的数据：\n')).toBe('a-share-anomaly-answer-missing-sample-boundary');
+    expect(answer('全市场异动排名：某公司上涨4%。')).toBe('a-share-anomaly-answer-missing-sample-boundary');
+    expect(answer('未覆盖的数据：资金流向、个股明细。')).toBe('a-share-anomaly-answer-missing-sample-boundary');
+  });
+
   it("rejects visible internal task narration at the start of an answer", () => {
     expect(additionalDialogueQualityReason({
       category: "gov_legal",

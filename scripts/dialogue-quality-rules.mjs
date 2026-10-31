@@ -331,6 +331,18 @@ function hasEvidenceBoundaryAnswer(text) {
     && /(?:不确定|暂未|未检索到|未发布|无法确认|不能确认|口径|核验|以.+为准|结论)/u.test(raw);
 }
 
+function hasExplicitDataCoverageBoundary(text) {
+  const plain = String(text || '').replace(/\*\*|__/gu, '');
+  const sampleScope = /样本|代表性/u.test(plain);
+  const limitedUniverse = /(?:不是|并非|不代表|不等于|不含|未覆盖|未遍历|未扫描|不能视为)[^。！？\n]{0,20}全市场/u.test(plain);
+  // A named exclusion is a boundary even when the author does not use the word
+  // "sample". Requiring a source plus nonempty excluded fields prevents a bare
+  // section heading or an unsupported claim of complete coverage from passing.
+  const namedExclusions = /(?:未覆盖(?:的数据|的字段|的范围)?|不包含|不包括|not covered|excluded)\s*[:：]\s*[^\s。！？\n][^。！？\n]{3,}/iu.test(plain);
+  const sourceAttribution = /(?:来自|来源|数据源|source)\s*[:：]?\s*[^\s。！？\n]/iu.test(plain);
+  return sampleScope || limitedUniverse || (namedExclusions && sourceAttribution);
+}
+
 function isScenarioCategory(category) {
   return /^(?:life|medical|gov_legal|education|travel|recruiting|office|industry)(?:_current)?$/u.test(String(category || ""));
 }
@@ -378,7 +390,7 @@ export function additionalDialogueQualityReason({ category, prompt, text, hasToo
     return "model-structural-tag-visible";
   }
   if (/(?:A\s*股|a\s*股).{0,16}异动|异动.{0,16}(?:A\s*股|a\s*股)/u.test(String(prompt || ""))
-    && !/(?:样本|代表性|全市场)/u.test(rawText)) {
+    && !hasExplicitDataCoverageBoundary(rawText)) {
     return "a-share-anomaly-answer-missing-sample-boundary";
   }
   if (/NBA.*总决赛/iu.test(String(prompt || "")) && /几场|总比分/u.test(String(prompt || ""))) {
