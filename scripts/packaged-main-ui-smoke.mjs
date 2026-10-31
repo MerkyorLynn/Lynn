@@ -283,7 +283,7 @@ async function main() {
   }
 
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-packaged-main-ui-"));
-  const lynnHome = path.join(tmp, ".lynn");
+  const lynnHome = path.join(tmp, `${path.basename(tmp)}-home`);
   const outputDir = path.join(ROOT, "output", `packaged-main-ui-${new Date().toISOString().replace(/[:.]/g, "-")}`);
   await fs.mkdir(outputDir, { recursive: true });
   await writeJson(path.join(lynnHome, "user", "preferences.json"), {

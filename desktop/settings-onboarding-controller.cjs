@@ -54,6 +54,9 @@ function createSettingsOnboardingController({
     let settingsHealAttempts = 0;
     const sendNavigationTarget = () => {
       if (!navigationTarget || !settingsWindow || settingsWindow.isDestroyed()) return;
+      // Boot consumes this target through IPC. A delayed fallback must never
+      // replay it after the user has already navigated elsewhere.
+      if (settingsWindowInitialNavigationTarget !== navigationTarget) return;
       settingsWindow.webContents.send("settings-switch-tab", navigationTarget);
     };
     const verifySettingsRenderer = () => {
@@ -173,9 +176,7 @@ function createSettingsOnboardingController({
 
     settingsWindow.webContents.on("did-finish-load", () => {
       verifySettingsRenderer();
-      // The settings renderer also asks for an initial target during boot, but
-      // a persisted tab can briefly win the race in packaged builds. Re-sending
-      // the target after load keeps deep links such as "open providers" stable.
+      // Fallback for a renderer that has not yet consumed its initial target.
       if (navigationTarget) {
         setTimeout(sendNavigationTarget, 250);
         setTimeout(sendNavigationTarget, 1200);

@@ -3,6 +3,7 @@ const uiTestIsolation = createUiTestIsolation(require('electron'));
 const { app, BrowserWindow, WebContentsView, globalShortcut, ipcMain, dialog, session, shell, nativeTheme, Tray, Menu, nativeImage, systemPreferences, Notification, powerSaveBlocker } = uiTestIsolation;
 const os = require("os");
 const path = require("path");
+const { resolveDesktopUserDataPath } = require('./profile-path.cjs');
 const { spawn, execFileSync } = require("child_process");
 const fs = require("fs");
 const { isAppEntryUrl: checkAppEntryUrl } = require("./app-entry-trust.cjs");
@@ -50,15 +51,12 @@ const lynnHome = process.env.LYNN_HOME
   ? path.resolve(process.env.LYNN_HOME.replace(/^~/, os.homedir()))
   : path.join(os.homedir(), ".lynn");
 
-// 按 LYNN_HOME 隔离 Electron userData（localStorage / cache / session）
-// 生产: ~/Library/Application Support/Lynn
-// 开发: ~/Library/Application Support/Lynn-dev
+// Keep the normal user's profile unchanged. Custom homes use the complete path
+// identity: two unrelated directories named .lynn must not share browser state.
 const defaultHome = path.join(os.homedir(), ".lynn");
-if (lynnHome !== defaultHome) {
-  const suffix = path.basename(lynnHome).replace(/^\./, ""); // "lynn-dev"
-  const appName = suffix.charAt(0).toUpperCase() + suffix.slice(1); // "Lynn-dev"
-  app.setPath("userData", path.join(app.getPath("appData"), appName));
-}
+app.setPath('userData', resolveDesktopUserDataPath({
+  lynnHome, defaultHome, appData: app.getPath('appData'), defaultUserData: app.getPath('userData'),
+}));
 
 let splashWindow = null;
 let mainWindow = null;

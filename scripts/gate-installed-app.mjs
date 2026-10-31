@@ -197,7 +197,7 @@ async function prepareGateHome() {
     throw new Error("[installed-gate] an explicit vision key requires explicit model, provider and base URL");
   }
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "lynn-installed-gate-"));
-  const lynnHome = path.join(tmp, ".lynn");
+  const lynnHome = path.join(tmp, `${path.basename(tmp)}-home`);
   await writeJson(path.join(lynnHome, "user", "preferences.json"), {
     setupComplete: true,
     locale: "zh-CN",

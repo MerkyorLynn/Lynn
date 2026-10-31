@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 
 IDENTITY="${APPLE_SIGN_IDENTITY:-Developer ID Application: Yubo Xu (KYB8UN3JP3)}"
 NOTARY_PROFILE="${APPLE_NOTARY_PROFILE:-${NOTARY_KEYCHAIN_PROFILE:-}}"
-APP_BUILDER="${APP_BUILDER_BIN:-node_modules/app-builder-bin/mac/app-builder_arm64}"
+APP_BUILDER="${APP_BUILDER_BIN:-}"
 CODESIGN_KEYCHAIN="${CODESIGN_KEYCHAIN:-$HOME/Library/Keychains/lynn-build.keychain-db}"
 TIMESTAMP_RETRIES="${LYNN_CODESIGN_TIMESTAMP_RETRIES:-3}"
 
@@ -31,9 +31,14 @@ if [[ $# -lt 1 ]]; then
   exit 1
 fi
 
-if [[ ! -x "$APP_BUILDER" ]]; then
+if [[ -n "$APP_BUILDER" && ! -x "$APP_BUILDER" ]]; then
   echo "Missing app-builder binary: $APP_BUILDER" >&2
   exit 1
+fi
+if [[ -z "$APP_BUILDER" ]]; then
+  # New electron-builder releases generate blockmaps in JavaScript and no longer
+  # install the old architecture-specific app-builder-bin executable.
+  node -e 'require.resolve("app-builder-lib/out/targets/blockmap/blockmap")'
 fi
 
 if [[ -f "$CODESIGN_KEYCHAIN" ]]; then
@@ -106,7 +111,15 @@ for dmg in "$@"; do
   spctl -a -vv -t open --context context:primary-signature "$dmg"
 
   echo "==> Rebuilding blockmap after final bytes: $dmg.blockmap"
-  "$APP_BUILDER" blockmap --input "$dmg" --output "$dmg.blockmap"
+  if [[ -n "$APP_BUILDER" ]]; then
+    "$APP_BUILDER" blockmap --input "$dmg" --output "$dmg.blockmap"
+  else
+    node - "$dmg" "$dmg.blockmap" <<'NODE'
+require("app-builder-lib/out/targets/blockmap/blockmap")
+  .buildBlockMap(process.argv[2], "gzip", process.argv[3])
+  .catch(error => { console.error(error.message); process.exitCode = 1; });
+NODE
+  fi
 done
 
 if [[ -f "dist/latest-mac.yml" ]]; then
