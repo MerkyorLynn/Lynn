@@ -12,11 +12,11 @@ import type { ContextMenuItem } from '../ContextMenu';
 import styles from './Channels.module.css';
 
 function confirmDeleteChannel(channelId: string) {
-  void deleteChannel(channelId);
+  useStore.getState().setPendingConfirm({ message: window.t('channel.deleteChannel'), detail: channelId, tone: 'danger', onConfirm: () => deleteChannel(channelId) });
 }
 
 function confirmArchiveChannel(channelId: string) {
-  void archiveChannel(channelId);
+  useStore.getState().setPendingConfirm({ message: window.t('channel.archiveChannel'), detail: channelId, onConfirm: () => archiveChannel(channelId) });
 }
 
 export function ChannelHeader() {

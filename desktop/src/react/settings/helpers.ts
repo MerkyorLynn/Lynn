@@ -131,8 +131,9 @@ export async function autoSaveConfig(
     // 刷新 config 快照，保留 _identity / _ishiki / _userProfile
     const cfgRes = await hanaFetch(`/api/agents/${agentId}/config`);
     const newConfig = await cfgRes.json();
+    if (resolveSettingsTargetAgentId(useSettingsStore.getState()) !== agentId) return;
     const prev = useSettingsStore.getState().settingsConfig || {};
-    for (const k of ['_identity', '_ishiki', '_userProfile']) {
+    for (const k of Object.keys(prev).filter((key) => key.startsWith('_'))) {
       if (k in prev && !(k in newConfig)) newConfig[k] = prev[k];
     }
     useSettingsStore.setState({ settingsConfig: newConfig, settingsConfigAgentId: agentId });

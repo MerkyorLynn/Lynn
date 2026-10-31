@@ -325,7 +325,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
     const idle = Math.max(0, slots.total - busy);
     return busy > 0 ? `生成中 ${busy}/${slots.total}` : `可用 ${idle}/${slots.total}`;
   })();
-  const hardwareBlocked = !endpointRunning && (hardware.can_enable !== true
+  const hardwareBlocked = !loading && !!status && !endpointRunning && (hardware.can_enable !== true
     || !Number.isFinite(hardware.accelerator_memory_gib)
     || Number(hardware.accelerator_memory_gib) < selectedTier.minimumMemoryGib);
   const hardwareLabel = runtime.label || (loading || !status ? '正在检查硬件' : '默认使用云端模型');
@@ -924,7 +924,7 @@ function LocalQwen35Panel({ onRefresh }: { onRefresh: () => Promise<void> }) {
         <button
           className={`${styles['pv-setup-activate-btn']} ${styles['pv-local-qwen-primary']}`}
           onClick={endpointActive ? () => loadStatus(false) : authorizeAndSetup}
-          disabled={settingUp || jobRunning || hardwareBlocked || endpointLoading || managerStarting || defaultDownloadActive}
+          disabled={settingUp || loading || !status || jobRunning || hardwareBlocked || endpointLoading || managerStarting || defaultDownloadActive}
         >
           {hardwareBlocked
             ? '容量不足或未确认，不能安装'

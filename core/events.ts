@@ -269,10 +269,8 @@ function hasCompletePlanningScaffold(text: string): boolean {
 
 function stripLeadingPlanningScaffold(text: string): string {
   if (!looksLikeLeadingPlanningScaffold(text)) return text;
-  // Premise / Conduct / Reflection / Act is an internal planning scaffold.
-  // If it reaches the visible channel, showing it is worse than returning
-  // nothing and letting the turn-quality gate continue/recover the action.
-  return "";
+  const action = /(?:^|\n)\s*Act\s*:\s*/im.exec(text);
+  return action ? text.slice(action.index + action[0].length) : "";
 }
 
 function stripLeadingThinkingPrefixOnce(text: string): string {

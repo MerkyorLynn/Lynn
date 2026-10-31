@@ -470,7 +470,7 @@ export class LynnEngine {
   // ════════════════════════════
 
   getBridgeIndex() { return this._bridge.readIndex(); }
-  getBridgeSessionPath(sessionKey: string) { return this._bridge.activeSessions.get(sessionKey)?.sessionManager?.getSessionFile?.() || null; }
+  getBridgeSessionPath(sessionKey: string, agentId?: string) { return this._bridge.getSessionPath(sessionKey, agentId); }
   saveBridgeIndex(i: AnyRecord) { return this._bridge.writeIndex(i); }
   async executeExternalMessage(p: string, sk: string, m: AnyRecord, o?: AnyRecord) { return this._bridge.executeExternalMessage(p, sk, m, o); }
   injectBridgeMessage(sk: string, t: string) { return this._bridge.injectMessage(sk, t); }

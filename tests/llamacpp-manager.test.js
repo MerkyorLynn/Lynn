@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -174,5 +175,52 @@ describe("LlamaCppManager path and spawn safety", () => {
     expect(args).not.toContain("q8_0");
     expect(logs.map((entry) => entry.message).join("\n")).toContain("does not support --jinja");
     expect(logs.map((entry) => entry.message).join("\n")).toContain("does not support --cache-type-v");
+  });
+});
+
+describe("LlamaCppManager startup lifecycle", () => {
+  it("keeps timeout failed, avoids an automatic loop, permits retry and ignores old exits", async () => {
+    vi.useFakeTimers();
+    const children = [];
+    const spawnFn = vi.fn(() => {
+      const child = new EventEmitter();
+      child.kill = vi.fn(() => { child.emit('exit', null, 'SIGTERM'); return true; });
+      children.push(child); return child;
+    });
+    const manager = new LlamaCppManager({ startupTimeoutMs: 1, restartDelayMs: 5, spawnFn, fsModule: { existsSync: () => true } });
+    manager.binaryPath = '/tmp/llama-test'; manager.modelPath = '/tmp/model-test';
+    manager.findFreePort = async () => 18099; manager.buildServerArgs = () => [];
+    manager.probeHealth = async () => children.length >= 2;
+    try {
+      const first = manager.spawnServer();
+      await vi.advanceTimersByTimeAsync(1500); await first;
+      expect(manager.state).toMatchObject({ status: 'failed', reason: 'startup-timeout' });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(spawnFn).toHaveBeenCalledTimes(1);
+      expect(manager.stopped).toBe(false);
+      const retry = manager.start();
+      await vi.advanceTimersByTimeAsync(1500); await retry;
+      expect(manager.state).toMatchObject({ status: 'ready', reason: null, error: null });
+      children[0].emit('exit', 1, null);
+      expect(manager.child).toBe(children[1]);
+      expect(manager.state.status).toBe('ready');
+    } finally { manager.stop(); vi.useRealTimers(); }
+  });
+
+  it("reports asynchronous executable errors instead of crashing the application", async () => {
+    vi.useFakeTimers();
+    const child = new EventEmitter(); child.kill = vi.fn();
+    const manager = new LlamaCppManager({ startupTimeoutMs: 10, spawnFn: () => child });
+    manager.binaryPath = '/tmp/missing'; manager.modelPath = '/tmp/model-test';
+    manager.findFreePort = async () => 18099; manager.buildServerArgs = () => [];
+    manager.probeHealth = async () => false;
+    try {
+      const pending = manager.spawnServer();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(() => child.emit('error', new Error('spawn EACCES'))).not.toThrow();
+      await vi.advanceTimersByTimeAsync(1500); await pending;
+      expect(manager.state).toMatchObject({ status: 'failed', reason: 'spawn-error' });
+      expect(manager.child).toBeNull();
+    } finally { manager.stop(); vi.useRealTimers(); }
   });
 });

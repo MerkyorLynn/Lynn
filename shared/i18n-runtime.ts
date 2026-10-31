@@ -68,7 +68,7 @@ export function t(path: string, vars?: Record<string, unknown>): string {
   let text = val;
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
-      text = text.replaceAll(`{${k}}`, String(v));
+      text = text.replaceAll(`{${k}}`, () => String(v));
     }
   }
   return text;

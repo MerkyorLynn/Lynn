@@ -92,13 +92,6 @@ export function SidebarLayout() {
         return;
       }
 
-      // Cmd+, → 打开 Settings(macOS 标准)
-      if (mod && e.key === ',') {
-        e.preventDefault();
-        window.hana?.openSettings?.();
-        return;
-      }
-
       // Cmd+L → 聚焦输入框(对齐浏览器/ChatGPT Cmd+L 行为,新建会话用 Cmd+Shift+N / Cmd+N)
       if (mod && !e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
@@ -127,17 +120,20 @@ export function SidebarLayout() {
 
       // Escape → 停止流式输出 / 关闭预览
       if (e.key === 'Escape') {
+        if (e.defaultPrevented || document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
         const state = useStore.getState();
+        if (state.pendingConfirm) return;
+        if (state.previewOpen) {
+          e.preventDefault();
+          closePreview();
+          return;
+        }
         if (state.isStreaming) {
           e.preventDefault();
           const ws = getWebSocket();
           if (ws?.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'abort', sessionPath: state.currentSessionPath }));
           }
-          return;
-        }
-        if (state.previewOpen) {
-          closePreview();
           return;
         }
       }

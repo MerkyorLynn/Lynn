@@ -610,8 +610,9 @@ export function createProvidersRoute(engine: ProvidersRouteEngine): Hono {
       if (!cred) return {};
       return { api_key: cred.apiKey, base_url: cred.baseUrl, api: cred.api };
     })() : {};
-    const savedKey = savedProvider.api_key || "";
     const effectiveBaseUrl = base_url || savedProvider.base_url || "";
+    const sameSavedBase = effectiveBaseUrl.replace(/\/+$/, "") === String(savedProvider.base_url || "").replace(/\/+$/, "");
+    const savedKey = sameSavedBase ? savedProvider.api_key || "" : "";
     const effectiveApi = explicitApi || savedProvider.api || "";
     const allowMissingApiKey = resolveAllowMissingApiKey(name, effectiveBaseUrl);
     const hasExplicitRemoteConfig = !!(effectiveBaseUrl && effectiveApi && (api_key || savedKey));
@@ -766,14 +767,15 @@ export function createProvidersRoute(engine: ProvidersRouteEngine): Hono {
     })() : {};
     const effectiveBaseUrl = base_url || savedProvider.base_url || "";
     const effectiveApi = explicitApi || savedProvider.api || "";
-    let effectiveApiKey = explicitApiKey || savedProvider.api_key || "";
+    const sameSavedBase = effectiveBaseUrl.replace(/\/+$/, "") === String(savedProvider.base_url || "").replace(/\/+$/, "");
+    let effectiveApiKey = explicitApiKey || (sameSavedBase ? savedProvider.api_key : "") || "";
     if (!effectiveBaseUrl) {
       return c.json({ error: "base_url is required" }, 400);
     }
 
     try {
       const allowMissingApiKey = resolveAllowMissingApiKey(name, effectiveBaseUrl);
-      if (!effectiveApiKey && name) {
+      if (!effectiveApiKey && name && sameSavedBase) {
         try {
           effectiveApiKey = await engine.authStorage.getApiKey(name) || "";
         } catch {

@@ -794,7 +794,7 @@ describe("createLynnAgentSession native runtime", () => {
         baseUrl: "http://127.0.0.1:18099/v1",
         apiKey: "local",
         reasoning: true,
-        compat: { thinkingFormat: "qwen" },
+        compat: { thinkingFormat: "qwen", text_tool_calls: true },
       },
       customTools: [{
         name: "web-search",
@@ -1038,7 +1038,7 @@ describe("createLynnAgentSession native runtime", () => {
     });
   });
 
-  it("hands empty DeepSeek responses to StepFun instead of ending with an empty fallback", async () => {
+  it("with explicit cross-provider opt-in: hands empty DeepSeek responses to StepFun instead of ending with an empty fallback", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") {
@@ -1061,12 +1061,12 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
     });
     session.subscribe((event) => events.push(event));
 
@@ -1089,7 +1089,7 @@ describe("createLynnAgentSession native runtime", () => {
     });
   });
 
-  it("hands aborted DeepSeek requests to StepFun instead of ending with aborted", async () => {
+  it("with explicit cross-provider opt-in: hands aborted DeepSeek requests to StepFun instead of ending with aborted", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") {
@@ -1114,12 +1114,12 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
     });
     session.subscribe((event) => events.push(event));
 
@@ -1143,7 +1143,7 @@ describe("createLynnAgentSession native runtime", () => {
     });
   });
 
-  it("hands timed out DeepSeek requests to StepFun instead of ending the turn", async () => {
+  it("with explicit cross-provider opt-in: hands timed out DeepSeek requests to StepFun instead of ending the turn", async () => {
     const previousModelTimeout = process.env.LYNN_MODEL_CALL_TIMEOUT_MS;
     const previousFallbackTimeout = process.env.LYNN_FALLBACK_MODEL_CALL_TIMEOUT_MS;
     process.env.LYNN_MODEL_CALL_TIMEOUT_MS = "10";
@@ -1178,12 +1178,12 @@ describe("createLynnAgentSession native runtime", () => {
         sessionManager: manager,
         modelRegistry: {
           getAll: () => [
-            { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-            { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-            { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
+            { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+            { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+            { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
           ],
         },
-        model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+        model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
       });
       session.subscribe((event) => events.push(event));
 
@@ -1214,7 +1214,7 @@ describe("createLynnAgentSession native runtime", () => {
     }
   });
 
-  it("does not leak stale World Cup not-started answers when fallback can answer", async () => {
+  it("with explicit cross-provider opt-in: does not leak stale World Cup not-started answers when fallback can answer", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") {
@@ -1239,12 +1239,12 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
     });
 
     await session.prompt("2026世界杯已经出的赛事比分");
@@ -1259,7 +1259,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(finalContent).not.toContain("才开赛");
   });
 
-  it("summarizes successful tool evidence with StepFun when the planner keeps calling tools", async () => {
+  it("with explicit cross-provider opt-in: summarizes successful tool evidence with StepFun when the planner keeps calling tools", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") {
@@ -1285,11 +1285,11 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
       customTools: [{
         name: "web-search",
         description: "search",
@@ -1315,7 +1315,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(serialized).not.toContain("工具链已执行多轮但没有形成最终回复");
   });
 
-  it("lets StepFun take over tools when the planner returns empty without evidence", async () => {
+  it("with explicit cross-provider opt-in: lets StepFun take over tools when the planner returns empty without evidence", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") {
@@ -1346,11 +1346,11 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
       customTools: [{
         name: "web-search",
         description: "search",
@@ -1548,7 +1548,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(finalMessage.content).not.toContain("weather.sz.gov.cn");
   });
 
-  it("lets the model assess full evidence without heuristic re-querying", async () => {
+  it("with explicit cross-provider opt-in: lets the model assess full evidence without heuristic re-querying", async () => {
     let stepToolDelegationSeen = false;
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
@@ -1598,13 +1598,13 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "http://127.0.0.1:65537/v1", apiKey: "mimo" },
-          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "https://cloud-65537.example/v1", apiKey: "mimo" },
+          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
       customTools: [{
         name: "web-search",
         description: "search",
@@ -1842,7 +1842,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(finalMessage.content).not.toContain("工具证据");
   });
 
-  it("rejects invented tool-evidence claims when the turn ran no tools", async () => {
+  it("with explicit cross-provider opt-in: rejects invented tool-evidence claims when the turn ran no tools", async () => {
     const invented = "根据本轮已执行工具返回的证据，当前能确认：已经完成搬家清单并核对全部项目。";
     const replacement = "搬家清单应按确认日期、预约车辆、分类打包、交接读表和修改地址五个阶段安排。";
     const fetchMock = vi.fn(async (_url, init) => {
@@ -1860,11 +1860,11 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: manager,
       modelRegistry: {
         getAll: () => [
-          { id: "primary", provider: "test", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "p" },
-          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "m" },
+          { id: "primary", provider: "test", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "p" },
+          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "m" },
         ],
       },
-      model: { id: "primary", provider: "test", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "p" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "primary", provider: "test", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "p" },
     });
 
     await session.prompt("下个月搬家，帮我按时间线列一个不容易漏事的待办清单");
@@ -1913,7 +1913,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(finalMessage.content).not.toContain("让我再获取完整信息");
   });
 
-  it("skips Spark and uses MiMo before GLM in the fallback tier", async () => {
+  it("with explicit cross-provider opt-in: skips Spark and uses MiMo before GLM in the fallback tier", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash") return sseResponse(["data: [DONE]\n\n"]);
@@ -1932,16 +1932,16 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: SessionManager.create(tempDir, tempDir),
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
           { id: "apex-spark-i-balanced", provider: "spark", api: "openai-completions", baseUrl: "http://127.0.0.1:65533/v1", apiKey: "spark" },
           { id: "glm-5", provider: "zhipu-coding", api: "openai-completions", baseUrl: "http://127.0.0.1:65534/v1", apiKey: "glm5" },
           { id: "GLM-5V-Turbo", provider: "zhipu-coding", api: "openai-completions", baseUrl: "http://127.0.0.1:65535/v1", apiKey: "glm5v" },
           { id: "alaya-glm-5", provider: "k2.5", api: "openai-completions", baseUrl: "http://127.0.0.1:65536/v1", apiKey: "alaya" },
-          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
-          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "http://127.0.0.1:65537/v1", apiKey: "mimo" },
+          { id: "glm-5-turbo", provider: "zhipu", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
+          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "https://cloud-65537.example/v1", apiKey: "mimo" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
     });
 
     await session.prompt("你好");
@@ -1950,7 +1950,7 @@ describe("createLynnAgentSession native runtime", () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).model).toBe("mimo-v2.5-pro");
   });
 
-  it("falls back to GLM only after StepFun and MiMo fail to answer", async () => {
+  it("with explicit cross-provider opt-in: falls back to GLM only after StepFun and MiMo fail to answer", async () => {
     const fetchMock = vi.fn(async (_url, init) => {
       const body = JSON.parse(init.body);
       if (body.model === "deepseek-v4-flash" || body.model === "step-3.7-flash" || body.model === "mimo-v2.5-pro") {
@@ -1971,13 +1971,13 @@ describe("createLynnAgentSession native runtime", () => {
       sessionManager: SessionManager.create(tempDir, tempDir),
       modelRegistry: {
         getAll: () => [
-          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
-          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "http://127.0.0.1:65531/v1", apiKey: "step" },
-          { id: "glm-5-turbo", provider: "zhipu-coding", api: "openai-completions", baseUrl: "http://127.0.0.1:65532/v1", apiKey: "glm" },
-          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "http://127.0.0.1:65537/v1", apiKey: "mimo" },
+          { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
+          { id: "step-3.7-flash", provider: "stepfun", api: "openai-completions", baseUrl: "https://cloud-65531.example/v1", apiKey: "step" },
+          { id: "glm-5-turbo", provider: "zhipu-coding", api: "openai-completions", baseUrl: "https://cloud-65532.example/v1", apiKey: "glm" },
+          { id: "mimo-v2.5-pro", provider: "xiaomi", api: "openai-completions", baseUrl: "https://cloud-65537.example/v1", apiKey: "mimo" },
         ],
       },
-      model: { id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "http://127.0.0.1:65530/v1", apiKey: "ds" },
+      model: { compat: { allowCrossProviderFallback: true }, id: "deepseek-v4-flash", provider: "deepseek", api: "openai-completions", baseUrl: "https://cloud-65530.example/v1", apiKey: "ds" },
     });
 
     await session.prompt("你好");

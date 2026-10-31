@@ -1,3 +1,4 @@
+import { loadAgentDraft, saveAgentDraft, clearAgentDraft } from "../agent-drafts";
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSettingsStore } from '../store';
 import { useStore } from '../../stores';
@@ -46,6 +47,10 @@ export function AgentTab() {
   const [expCategories, setExpCategories] = useState<ExpCategory[]>([]);
   const [pendingYuan, setPendingYuan] = useState('hanako');
   const [nameTouched, setNameTouched] = useState(false);
+  const [formAgentId, setFormAgentId] = useState<string | null>(null);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [draftPersistenceFailed, setDraftPersistenceFailed] = useState(false);
+  const skipDraftPersistence = React.useRef(false);
   const modelFieldRef = React.useRef<HTMLDivElement | null>(null);
   const lastReviewerFocusRef = React.useRef<string | null>(null);
   const builtInAgentIds = useMemo(() => new Set(['lynn', 'hanako', 'butter']), []);
@@ -76,24 +81,61 @@ export function AgentTab() {
     );
   }, [activeSettingsConfig, currentAgentId, currentRuntimeModel?.id, effectiveAgentId, globalModelsConfig]);
   const isBuiltInAgentView = !!selectedAgent && builtInAgentIds.has(selectedAgent.id);
+  const draftBaseline = React.useRef<{ agentId: string | null; name: string; identity: string; ishiki: string; experience: string; yuan: string } | null>(null);
 
   useEffect(() => {
+    skipDraftPersistence.current = true;
     if (activeSettingsConfig) {
-      setAgentName(activeSettingsConfig.agent?.name || '');
-      setIdentity(activeSettingsConfig._identity || '');
-      setIshiki(activeSettingsConfig._ishiki || '');
-      setExpCategories(parseExperience(activeSettingsConfig._experience || ''));
-      setPendingYuan(activeSettingsConfig.agent?.yuan || selectedAgent?.yuan || 'hanako');
-      setNameTouched(false);
+      const previous = draftBaseline.current;
+      const changedAgent = previous?.agentId !== effectiveAgentId;
+      const next = {
+        agentId: effectiveAgentId, name: activeSettingsConfig.agent?.name || '',
+        identity: activeSettingsConfig._identity || '', ishiki: activeSettingsConfig._ishiki || '',
+        experience: JSON.stringify(parseExperience(activeSettingsConfig._experience || '')),
+        yuan: activeSettingsConfig.agent?.yuan || selectedAgent?.yuan || 'hanako',
+      };
+      const restored = changedAgent && effectiveAgentId ? loadAgentDraft(effectiveAgentId) : undefined;
+      const merged = {
+        name: changedAgent ? restored?.name ?? next.name : agentName === previous?.name ? next.name : agentName,
+        identity: changedAgent ? restored?.identity ?? next.identity : identity === previous?.identity ? next.identity : identity,
+        ishiki: changedAgent ? restored?.ishiki ?? next.ishiki : ishiki === previous?.ishiki ? next.ishiki : ishiki,
+        experience: changedAgent ? restored?.experience ?? next.experience : JSON.stringify(expCategories) === previous?.experience ? next.experience : JSON.stringify(expCategories),
+        yuan: changedAgent ? restored?.yuan ?? next.yuan : pendingYuan === previous?.yuan ? next.yuan : pendingYuan,
+      };
+      const dirty = Object.keys(merged).some(key => merged[key as keyof typeof merged] !== next[key as keyof typeof merged]);
+      setDraftDirty(dirty);
+      if (!dirty && effectiveAgentId) { clearAgentDraft(effectiveAgentId); setDraftPersistenceFailed(false); }
+
+      setAgentName(current => changedAgent ? restored?.name ?? next.name : current === previous?.name ? next.name : current);
+      setIdentity(current => changedAgent ? restored?.identity ?? next.identity : current === previous?.identity ? next.identity : current);
+      setIshiki(current => changedAgent ? restored?.ishiki ?? next.ishiki : current === previous?.ishiki ? next.ishiki : current);
+      setExpCategories(current => changedAgent ? JSON.parse(restored?.experience ?? next.experience) : JSON.stringify(current) === previous?.experience ? JSON.parse(next.experience) : current);
+      setPendingYuan(current => changedAgent ? restored?.yuan ?? next.yuan : current === previous?.yuan ? next.yuan : current);
+      draftBaseline.current = next;
+      if (changedAgent) { setNameTouched(restored?.nameTouched ?? false); setFormAgentId(effectiveAgentId); }
       return;
     }
+    if (draftBaseline.current?.agentId === effectiveAgentId) return;
+    draftBaseline.current = null;
+    setFormAgentId(null);
     setAgentName(selectedAgent?.name || '');
     setIdentity('');
     setIshiki('');
     setExpCategories([]);
     setPendingYuan(selectedAgent?.yuan || 'hanako');
     setNameTouched(false);
-  }, [activeSettingsConfig, selectedAgent]);
+  }, [activeSettingsConfig, selectedAgent, effectiveAgentId]);
+
+  useEffect(() => {
+    if (skipDraftPersistence.current) { skipDraftPersistence.current = false; return; }
+    const baseline = draftBaseline.current;
+    if (!activeSettingsConfig || !effectiveAgentId || formAgentId !== effectiveAgentId || baseline?.agentId !== effectiveAgentId) return;
+    const draft = { name: agentName, identity, ishiki, experience: JSON.stringify(expCategories), yuan: pendingYuan, nameTouched };
+    const dirty = draft.name !== baseline.name || draft.identity !== baseline.identity || draft.ishiki !== baseline.ishiki || draft.experience !== baseline.experience || draft.yuan !== baseline.yuan;
+    setDraftDirty(dirty);
+    if (dirty) setDraftPersistenceFailed(!saveAgentDraft(effectiveAgentId, draft));
+    else { clearAgentDraft(effectiveAgentId); setDraftPersistenceFailed(false); }
+  }, [agentName, identity, ishiki, expCategories, pendingYuan, nameTouched, effectiveAgentId, formAgentId, activeSettingsConfig, selectedAgent]);
 
   const builtInYuanEntries = useMemo(() => {
     const raw = (t('yuan.types') || {}) as Record<string, { name?: string }>;
@@ -302,8 +344,9 @@ export function AgentTab() {
 
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="agent">
+      {draftPersistenceFailed && <p role="alert">{t('settings.agent.draftSaveFailed')}</p>}
       <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>{t('settings.agent.title')}</h2>
+        <h2 className={styles['settings-section-title']}>{t('settings.agent.title')}{draftDirty && <small role="status"> · {t('settings.agent.draftUnsaved')}</small>}</h2>
         <div className={styles['settings-avatar-center']}>
           <div className={styles['avatar-upload']} onClick={handleAvatarClick} title="">
             <img

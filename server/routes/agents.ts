@@ -1,3 +1,4 @@
+import { isSafePathSegment } from "../../shared/path-segment.js";
 /**
  * 助手管理 REST 路由
  *
@@ -711,6 +712,8 @@ export function createAgentsRoute(engine: AgentsRouteEngine): Hono {
           categories.get(currentCat)?.push(line);
         }
       }
+
+      if ([...categories.keys()].some(name => !isSafePathSegment(name))) return c.json({ error: "Experience category must be a file name, not a path" }, 400);
 
       // 确保目录存在
       await fs.mkdir(expDir, { recursive: true });

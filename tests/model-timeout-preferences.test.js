@@ -37,7 +37,11 @@ it('persists settings across restart, preserves unrelated preferences, and runti
 });
 
 it('keeps the previous in-memory and persisted settings when disk writing fails', async () => {
-  fs.mkdirSync(path.join(directory, 'user', 'preferences.json.tmp'));
+  const write = fs.writeFileSync.bind(fs);
+  const failure = vi.spyOn(fs, 'writeFileSync').mockImplementation((file, ...args) => {
+    if (String(file).includes('preferences.json.') && String(file).endsWith('.tmp')) throw new Error('simulated disk failure');
+    return write(file, ...args);
+  });
   const response = await createPreferencesRoute(prefs).request('/preferences/model-timeouts', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ firstChunkMs: 600_000, idleMs: 120_000, totalMs: 0 }),
@@ -45,6 +49,7 @@ it('keeps the previous in-memory and persisted settings when disk writing fails'
   expect(response.status).toBe(500);
   expect(prefs.getPreferences()).toEqual({ locale: 'en' });
   expect(readModelCallTimeouts().firstChunkMs).toBe(600_000);
+  failure.mockRestore();
 });
 
 it('exposes actual Brain, bridge, headers and turn sources without secrets', async () => {

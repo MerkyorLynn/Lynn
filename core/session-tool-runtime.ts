@@ -233,6 +233,7 @@ export function applySessionToolRuntime({
 
   entry.nativeToolCallingDisabled = false;
   session._customTools = normalizedCustomTools;
-  session._baseToolsOverride = baseToolsOverride;
+  const allowedNames = new Set(activeToolNames);
+  session._baseToolsOverride = Object.fromEntries(Object.entries(baseToolsOverride).filter(([name]) => allowedNames.has(name)));
   session._buildRuntime({ activeToolNames });
 }

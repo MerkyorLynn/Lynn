@@ -5,6 +5,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import styles from '../Settings.module.css';
+import { listboxKeyDown } from '../../utils/listbox-keyboard';
 
 export interface SelectOption {
   value: string;
@@ -23,6 +24,7 @@ interface SelectWidgetProps {
 
 export function SelectWidget({ options, value, onChange, placeholder, disabled }: SelectWidgetProps) {
   const [open, setOpen] = useState(false);
+  const listId = React.useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
@@ -78,17 +80,24 @@ export function SelectWidget({ options, value, onChange, placeholder, disabled }
 
   return (
     <div className={`${styles['sdw']}${open  ? ' ' + styles['open'] : ''}`}>
-      <button type="button" className={styles['sdw-trigger']} ref={triggerRef} onClick={() => !disabled && setOpen(!open)} disabled={disabled}>
+      <button type="button" className={styles['sdw-trigger']} ref={triggerRef} aria-haspopup="listbox" aria-expanded={open} aria-controls={listId}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            if (!open) { event.preventDefault(); setOpen(true); requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('[role="option"][aria-selected="true"], [role="option"]:not(:disabled)')?.focus()); }
+            else listboxKeyDown(event, panelRef.current, close, triggerRef.current);
+          }
+        }} onClick={() => !disabled && setOpen(!open)} disabled={disabled}>
         <span className={`${styles['sdw-value']}${isPlaceholder  ? ' ' + styles['sdw-placeholder'] : ''}`}>{displayText}</span>
         <span className={styles['sdw-arrow']}>▾</span>
       </button>
       {open && createPortal(
-        <div className={`${styles['sdw-popup']} ${styles['sdw-popup-fixed']}`} ref={panelRef} style={panelStyle} data-sdw-popup>
+        <div className={`${styles['sdw-popup']} ${styles['sdw-popup-fixed']}`} id={listId} role="listbox" aria-label={placeholder || current?.label} ref={panelRef} style={panelStyle} data-sdw-popup onKeyDown={event => listboxKeyDown(event, panelRef.current, close, triggerRef.current)}>
           {(() => {
             const hasGroups = options.some(o => o.group);
             if (!hasGroups) {
               return options.map(item => (
                 <button type="button" key={item.value}
+                  role="option" aria-selected={item.value === value} disabled={item.disabled}
                   className={`${styles['sdw-option']}${item.value === value ? ' ' + styles['selected'] : ''}${item.disabled ? ' ' + styles['disabled'] : ''}`}
                   onClick={() => { if (!item.disabled) { onChange(item.value); close(); } }}>
                   {item.label}
@@ -106,6 +115,7 @@ export function SelectWidget({ options, value, onChange, placeholder, disabled }
                 {group && <div className={styles['sdw-group-header']}>{group}</div>}
                 {items.map(item => (
                   <button type="button" key={`${group}/${item.value}`}
+                    role="option" aria-selected={item.value === value} disabled={item.disabled}
                     className={`${styles['sdw-option']}${item.value === value ? ' ' + styles['selected'] : ''}${item.disabled ? ' ' + styles['disabled'] : ''}`}
                     onClick={() => { if (!item.disabled) { onChange(item.value); close(); } }}>
                     {item.label}

@@ -360,7 +360,13 @@ export class SessionCoordinator {
       resourceLoader,
       tools: effectiveSessionTools,
       customTools: effectiveCustomTools,
-      ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+      ...(Object.keys(clientAgentHeaders).length > 0 && {
+        requestHeaders: clientAgentHeaders,
+        getRequestHeaders: (requestModel: any) => readSignedClientAgentHeadersForProvider({
+          method: "POST", pathname: "/chat/completions",
+          provider: requestModel?.provider, baseUrl: requestModel?.baseUrl,
+        }),
+      }),
       ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
     } as any);
     const elapsed = Date.now() - t0;
@@ -664,25 +670,14 @@ export class SessionCoordinator {
       || this._d.getModels().currentModel;
     if (!model || !isBrainManagedProvider(model.provider)) return entry;
 
-    const agent = this._d.getAgentById(entry.agentId) || this._d.getAgent();
-    const sessionMgr = SessionManager.open(sessionPath, agent.sessionDir);
-    const cwd = sessionMgr.getCwd?.() || entry.cwd || entry.session?.sessionManager?.getCwd?.() || this._d.getHomeCwd() || process.cwd();
-    const previousPlanMode = entry.planMode;
-    const previousSecurityMode = entry.securityMode;
-    const previousCompactionCount = entry.compactionCount;
-    const previousRelayInProgress = entry.relayInProgress;
-
     log.warn(`refreshing Brain session signature · reason=${reason} · session=${sessionPath}`);
-    await this.createSession(sessionMgr, cwd, entry.memoryEnabled ?? true, model);
-    const refreshed = this._sessions.get(sessionPath);
-    if (refreshed) {
-      refreshed.planMode = previousPlanMode;
-      refreshed.securityMode = previousSecurityMode;
-      refreshed.compactionCount = previousCompactionCount ?? refreshed.compactionCount;
-      refreshed.relayInProgress = previousRelayInProgress ?? refreshed.relayInProgress;
-      this._applySessionToolRuntime(sessionPath, refreshed.securityMode);
-    }
-    return refreshed || this._sessions.get(sessionPath) || entry;
+    const headers = readSignedClientAgentHeadersForProvider({ method: "POST", pathname: "/chat/completions", provider: model.provider, baseUrl: model.baseUrl });
+    if (!Object.keys(headers).length) return entry;
+    const session = entry.session as AnyRecord;
+    if (!session.requestHeaders) session.requestHeaders = {};
+    Object.assign(session.requestHeaders, headers);
+    entry.clientAgentSignedAt = clientAgentSignedAt(headers);
+    return entry;
   }
 
   async _runWithTurnToolsDisabled(sessionPath: string, entry: SessionEntry, run: () => Promise<unknown>) {

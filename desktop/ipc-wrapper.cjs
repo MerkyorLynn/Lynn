@@ -1,10 +1,12 @@
-const { ipcMain } = require('electron');
-
 let senderValidator = null;
-let ipcMainRuntime = ipcMain;
+let ipcMainRuntime = null;
+
+function getIpcMain() {
+  return ipcMainRuntime ||= require('electron').ipcMain;
+}
 
 function setIpcMainForTests(value) {
-  ipcMainRuntime = value || ipcMain;
+  ipcMainRuntime = value || null;
 }
 
 function setIpcSenderValidator(validator) {
@@ -26,7 +28,7 @@ function isSenderAllowed(channel, event) {
  * instead of silently returning undefined and making the renderer guess what failed.
  */
 function wrapIpcHandler(channel, handler) {
-  ipcMainRuntime.handle(channel, async (event, ...args) => {
+  getIpcMain().handle(channel, async (event, ...args) => {
     if (!isSenderAllowed(channel, event)) {
       console.warn(`[IPC][${channel}] rejected untrusted sender`);
       throw new Error(`IPC request rejected: ${channel}`);
@@ -42,7 +44,7 @@ function wrapIpcHandler(channel, handler) {
 }
 
 function wrapIpcOn(channel, handler) {
-  ipcMainRuntime.on(channel, (event, ...args) => {
+  getIpcMain().on(channel, (event, ...args) => {
     if (!isSenderAllowed(channel, event)) {
       console.warn(`[IPC][${channel}] rejected untrusted sender`);
       return;

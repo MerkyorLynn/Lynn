@@ -494,6 +494,7 @@ describe("createServerProcessController.start (fake deps — no Electron)", () =
         return { ok: true, json: async () => ({}) };
       },
       killPid: () => { killCalls++; },
+      getProcessCommandLine: async () => `/usr/bin/electron ${path.join(lynnHome, "server", "index.js")}`,
       reusedShutdownGraceMs: 0,
     }));
     await ctl.start();

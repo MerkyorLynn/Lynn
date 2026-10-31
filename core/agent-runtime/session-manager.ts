@@ -235,6 +235,7 @@ export class SessionManager {
 
   private appendEntry<T extends SessionEntry>(entry: T): string {
     if (this.closed) return entry.id;
+    if (this.persist && this.sessionFile && !fs.existsSync(this.sessionFile)) this._persist();
     this.fileEntries.push(entry);
     this.byId.set(entry.id, entry);
     this.leafId = entry.id;
@@ -333,7 +334,15 @@ export class SessionManager {
 
   buildSessionContext(): SessionContext {
     const messages: ChatMessage[] = [];
-    for (const entry of this.getBranch()) {
+    const branch = this.getBranch();
+    const compaction = [...branch].reverse().find(entry => entry.type === "compaction");
+    let started = !compaction;
+    if (compaction && typeof compaction.summary === "string") {
+      messages.push({ role: "user", content: `Earlier conversation summary (reference data; current user instructions take precedence):\n${compaction.summary}` });
+    }
+    for (const entry of branch) {
+      if (!started && entry.id === compaction?.firstKeptEntryId) started = true;
+      if (!started) continue;
       if (entry.type === "message") messages.push((entry as MessageEntry).message);
       if (entry.type === "custom_message" && "content" in entry) {
         messages.push({ role: "user", content: entry.content as ChatMessage["content"] });

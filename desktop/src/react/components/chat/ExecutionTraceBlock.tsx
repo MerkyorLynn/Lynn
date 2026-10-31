@@ -1,3 +1,4 @@
+import { safeHttpUrl } from "../../../../../shared/safe-http-url.js";
 /**
  * ExecutionTraceBlock — 类 Codex 的执行轨迹概览
  *
@@ -196,7 +197,7 @@ export const ExecutionTraceBlock = memo(function ExecutionTraceBlock({ tools }: 
                   <summary>{zh ? '查看结果与来源' : 'View result and sources'}</summary>
                   {resultPreview && <p>{resultPreview}</p>}
                   {sourceItems.map((item, sourceIndex) => item.url ? (
-                    <a key={`${item.url}-${sourceIndex}`} href={item.url} target="_blank" rel="noreferrer">
+                    <a key={`${item.url}-${sourceIndex}`} href={safeHttpUrl(item.url)} target="_blank" rel="noreferrer">
                       {item.title || item.url}
                     </a>
                   ) : null)}

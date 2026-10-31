@@ -13,6 +13,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readProcessCommandLine, isOwnedServerCommand } = require("./process-identity.cjs");
 
 // Default i18n passthrough so the module never hard-depends on main.cjs's mt().
 const defaultMt = (key, _vars, fallback) => fallback || key;
@@ -227,6 +228,7 @@ function createServerProcessController(deps) {
     getWorkerSpawnServerEnv,
     readBrainRuntimeConfig,
     killPid,
+    getProcessCommandLine = readProcessCommandLine,
     onLocalAuthHeaderNeeded = () => {},
     // S3 (monitor / heartbeat) deps:
     dialog = { showErrorBox: () => {} },
@@ -289,14 +291,19 @@ function createServerProcessController(deps) {
         if (reused) return; // 跳过启动
 
         // PID 存活但 health 失败（无响应或异常）：主动 kill，避免双 server 并存
-        console.log(`[desktop] 旧 server (PID ${existingInfo.pid}) 无响应，正在终止...`);
-        killPid(existingInfo.pid);
-        const deadline = Date.now() + 2000;
-        while (Date.now() < deadline) {
-          if (!isPidAlive(existingInfo.pid)) break;
-          await new Promise(r => setTimeout(r, 100));
+        const launch = resolveBundledServerLaunch({ platform, resourcesPath, dirname, execPath, existsSync: depFs.existsSync });
+        if (isOwnedServerCommand(await getProcessCommandLine(existingInfo.pid, platform), launch)) {
+          console.log(`[desktop] 旧 Lynn server (PID ${existingInfo.pid}) 无响应，正在终止...`);
+          killPid(existingInfo.pid);
+          const deadline = Date.now() + 2000;
+          while (Date.now() < deadline) {
+            if (!isPidAlive(existingInfo.pid)) break;
+            await new Promise(r => setTimeout(r, 100));
+          }
+          if (isOwnedServerCommand(await getProcessCommandLine(existingInfo.pid, platform), launch)) killPid(existingInfo.pid, true);
+        } else {
+          console.warn("[desktop] stale server PID ownership could not be verified; preserving the process");
         }
-        killPid(existingInfo.pid, true);
       }
 
       // PID 已死或已 kill，删除脏文件
@@ -504,7 +511,8 @@ function createServerProcessController(deps) {
           signal: AbortSignal.timeout(2000),
         });
       } catch {
-        killPid(pid);
+        const launch = resolveBundledServerLaunch({ platform, resourcesPath, dirname, execPath, existsSync: depFs.existsSync });
+        if (isOwnedServerCommand(await getProcessCommandLine(pid, platform), launch)) killPid(pid);
       }
 
       const deadline = Date.now() + reusedShutdownGraceMs;
@@ -512,7 +520,8 @@ function createServerProcessController(deps) {
         if (!isPidAlive(pid)) break;
         await new Promise(r => setTimeout(r, reusedShutdownPollMs));
       }
-      killPid(pid, true);
+      const launch = resolveBundledServerLaunch({ platform, resourcesPath, dirname, execPath, existsSync: depFs.existsSync });
+      if (isOwnedServerCommand(await getProcessCommandLine(pid, platform), launch)) killPid(pid, true);
       if (state.reusedPid === pid) state.reusedPid = null;
       return true;
     }

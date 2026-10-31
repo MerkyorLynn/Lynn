@@ -1,4 +1,5 @@
 const path = require("path");
+const { mergeJsonChanges, updateJsonFileSync } = require('../shared/atomic-json.cjs');
 
 function safeReadJSON(fs, filePath, fallback = null) {
   try { return JSON.parse(fs.readFileSync(filePath, "utf-8")); }
@@ -34,15 +35,19 @@ function createDesktopAccessPolicy({
 
   const fileAccessGrants = new Map();
   const trackedGrantWebContents = new Set();
+  const preferenceSnapshots = new WeakMap();
 
   function readUserPreferences() {
-    return safeReadJSON(fs, path.join(lynnHome, "user", "preferences.json"), {}) || {};
+    const prefs = safeReadJSON(fs, path.join(lynnHome, "user", "preferences.json"), {}) || {};
+    preferenceSnapshots.set(prefs, structuredClone(prefs));
+    return prefs;
   }
 
   function writeUserPreferences(nextPrefs) {
     const prefsPath = path.join(lynnHome, "user", "preferences.json");
-    fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
-    fs.writeFileSync(prefsPath, JSON.stringify(nextPrefs, null, 2) + "\n", "utf-8");
+    const before = preferenceSnapshots.get(nextPrefs) || readUserPreferences();
+    updateJsonFileSync(prefsPath, latest => mergeJsonChanges(latest, before, nextPrefs), fs);
+    preferenceSnapshots.set(nextPrefs, structuredClone(nextPrefs));
   }
 
   function migrateBrainProviderStorage() {

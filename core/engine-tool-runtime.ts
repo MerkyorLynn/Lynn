@@ -1,5 +1,9 @@
 import { createSandboxedTools } from "../lib/sandbox/index.js";
 import { SECURITY_MODE_CONFIG } from "../shared/security-mode.js";
+import path from "node:path";
+import { PathGuard } from "../lib/sandbox/path-guard.js";
+import { deriveSandboxPolicy } from "../lib/sandbox/policy.js";
+import { isSensitiveFilePath } from "../shared/sensitive-file-path.js";
 
 type AnyRecord = Record<string, any>;
 
@@ -265,7 +269,7 @@ export function buildEngineToolRuntime(opts: BuildEngineToolRuntimeOptions) {
   const allTools = [
     ...(opts.customTools || opts.agentTools || []),
     ...(opts.pluginTools || []),
-    ...(opts.mcpTools || []),
+    ...(opts.mcpTools || []).map(tool => wrapMcpFilePaths(tool, opts)),
   ];
 
   const result = createSandboxedTools(opts.cwd, allTools, {
@@ -285,4 +289,27 @@ export function buildEngineToolRuntime(opts: BuildEngineToolRuntimeOptions) {
   const aliases = createToolAliases(guardedTools);
   result.customTools = aliases.length > 0 ? [...guardedTools, ...aliases] : guardedTools;
   return result;
+}
+
+/** File-path parameters are capabilities, even when a tool runs in an MCP process. */
+export function wrapMcpFilePaths(tool: ToolLike, opts: BuildEngineToolRuntimeOptions): ToolLike {
+  if (!tool.execute) return tool;
+  const execute = tool.execute;
+  const guard = new PathGuard(deriveSandboxPolicy({ agentDir: opts.agentDir, workspace: opts.workspace,
+    trustedRoots: opts.trustedRoots, lynnHome: opts.lynnHome, mode: 'standard' }));
+  return { ...tool, execute: async (id: any, params: any, ...rest: any[]) => {
+    const fixed = structuredClone(params || {});
+    for (const fields of [fixed, fixed.params, fixed.arguments]) {
+      if (!fields || typeof fields !== 'object') continue;
+      for (const key of ['file_path', 'filepath']) {
+        if (typeof fields[key] !== 'string' || !fields[key].trim()) continue;
+        const target = path.resolve(opts.cwd, fields[key]);
+        if (isSensitiveFilePath(target, opts.lynnHome) || !guard.check(target, 'write').allowed) {
+          return { isError: true, content: [{ type: 'text', text: 'MCP file output denied: choose a file inside an explicitly approved workspace or the agent downloads directory.' }] };
+        }
+        fields[key] = target;
+      }
+    }
+    return execute(id, fixed, ...rest);
+  } };
 }

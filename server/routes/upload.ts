@@ -47,13 +47,17 @@ function errorMessage(err: unknown): string {
 }
 
 /** 递归统计路径中的文件数量（文件夹递归计数内部文件，普通文件计 1） */
-function countFiles(p: string): number {
+function countFiles(p: string, depth = 0, budget = { remaining: 10_000 }): number {
   try {
-    const stat = fs.statSync(p);
+    if (depth > 32 || budget.remaining <= 0) return 0;
+    budget.remaining -= 1;
+    const stat = fs.lstatSync(p);
+    if (stat.isSymbolicLink()) return 0;
     if (!stat.isDirectory()) return 1;
     let count = 0;
     for (const entry of fs.readdirSync(p)) {
-      count += countFiles(path.join(p, entry));
+      count += countFiles(path.join(p, entry), depth + 1, budget);
+      if (budget.remaining <= 0) break;
     }
     return count;
   } catch {

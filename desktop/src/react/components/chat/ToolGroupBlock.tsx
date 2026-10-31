@@ -1,3 +1,4 @@
+import { safeHttpUrl } from "../../../../../shared/safe-http-url.js";
 /**
  * ToolGroupBlock — 工具调用组，含展开/折叠、丰富信息卡片、计时
  */
@@ -319,7 +320,7 @@ const SearchSourcesPanel = memo(function SearchSourcesPanel({ provider, summary,
                   return (
                     <li key={`${url || title}-${itemIndex}`} className={styles.searchSourceItem}>
                       {url ? (
-                        <a href={url} target="_blank" rel="noreferrer">{title}</a>
+                        <a href={safeHttpUrl(url)} target="_blank" rel="noreferrer">{title}</a>
                       ) : (
                         <span>{title}</span>
                       )}

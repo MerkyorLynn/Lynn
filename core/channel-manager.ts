@@ -1,3 +1,4 @@
+import { isSafePathSegment } from "../shared/path-segment.js";
 /**
  * ChannelManager — 频道管理
  *
@@ -158,6 +159,7 @@ export class ChannelManager {
    * - 再级联删除频道专家 agent
    */
   async deleteChannelByName(channelId: string): Promise<DeleteChannelResult> {
+    if (!isSafePathSegment(channelId)) throw new Error("Invalid channel ID");
     const filePath = path.join(this._channelsDir, `${channelId}.md`);
     if (!fs.existsSync(filePath)) {
       throw new Error(t("error.channelNotFoundById", { id: channelId }));
@@ -190,6 +192,7 @@ export class ChannelManager {
    * 归档频道：保留历史消息并切换为只读
    */
   archiveChannelByName(channelId: string): ArchiveChannelResult {
+    if (!isSafePathSegment(channelId)) throw new Error("Invalid channel ID");
     const filePath = path.join(this._channelsDir, `${channelId}.md`);
     if (!fs.existsSync(filePath)) {
       throw new Error(t("error.channelNotFoundById", { id: channelId }));

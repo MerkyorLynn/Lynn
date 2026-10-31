@@ -628,7 +628,9 @@
       "setActive": "활성 에이전트로 설정",
       "lastAgent": "에이전트는 최소 한 명 유지해야 해요",
       "yuan": "元",
-      "yuanHint": ""
+      "yuanHint": "",
+      "draftUnsaved": "저장하지 않은 초안",
+      "draftSaveFailed": "초안을 로컬에 저장하지 못했습니다. 설정을 닫기 전에 변경 내용을 저장하세요."
     },
     "about": {
       "title": "소개",
@@ -1278,7 +1280,10 @@
   },
   "desk": {
     "fileFilter": "파일 필터",
-    "filter": {"all": "전체", "images": "이미지"},
+    "filter": {
+      "all": "전체",
+      "images": "이미지"
+    },
     "noImages": "이 폴더에 이미지가 없습니다",
     "title": "책상",
     "workspaceMap": "대화 진행 상황",
@@ -1635,7 +1640,9 @@
     "memorySearchDateToDesc": "종료 날짜, 형식 YYYY-MM-DD",
     "memorySearchEmpty": "기억 뱅크에서 관련 내용을 찾을 수 없어요.",
     "memorySearchError": "기억 검색 오류: {msg}",
-    "fallbackUserName": "사용자"
+    "fallbackUserName": "사용자",
+    "installSkillApprovalRequired": "스킬 설치에는 사용자 승인이 필요합니다. 스킬 파일을 변경하지 않았습니다.",
+    "bridgeRequestFailed": "요청을 완료하지 못했습니다. 다시 시도하거나 Lynn 진단을 확인하세요."
   },
   "main": {
     "tray": {

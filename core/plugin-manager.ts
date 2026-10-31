@@ -459,11 +459,18 @@ export class PluginManager {
       return;
     }
     for (const [eventType, handlerPath] of Object.entries(hookMap)) {
+      let canonicalHandler: string;
+      try {
+        const root = fs.realpathSync(entry.pluginDir);
+        canonicalHandler = fs.realpathSync(path.resolve(root, handlerPath));
+        const relative = path.relative(root, canonicalHandler);
+        if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) continue;
+      } catch { continue; }
       if (!this._hookRegistry.has(eventType)) this._hookRegistry.set(eventType, []);
       this._hookRegistry.get(eventType)?.push({
         pluginId: entry.id,
         // Resolve relative path against plugin directory
-        handlerPath: path.resolve(entry.pluginDir, handlerPath),
+        handlerPath: canonicalHandler,
         _cache: null,
       });
     }

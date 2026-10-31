@@ -251,8 +251,16 @@ export function readGitDiff(targetDir: string, filePath: string): GitDiffResult 
   try {
     const root = runGit(["rev-parse", "--show-toplevel"], targetDir);
     if (!root) return { available: false, filePath };
-    const normalized = String(filePath || "").trim().replace(/^\/+/, "");
-    if (!normalized) return { available: false, filePath };
+    const normalized = String(filePath || "").trim();
+    if (!normalized || path.isAbsolute(normalized) || path.win32.isAbsolute(normalized) || normalized.includes("\0")) return { available: false, filePath };
+    const canonicalRoot = fs.realpathSync(root);
+    const absolutePath = path.resolve(canonicalRoot, normalized);
+    const inside = (candidate: string) => {
+      const relative = path.relative(canonicalRoot, candidate);
+      return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+    };
+    if (!inside(absolutePath)) return { available: false, filePath };
+    if (fs.existsSync(absolutePath) && !inside(fs.realpathSync(absolutePath))) return { available: false, filePath };
 
     let diff = "";
     try {
@@ -272,7 +280,6 @@ export function readGitDiff(targetDir: string, filePath: string): GitDiffResult 
       };
     }
 
-    const absolutePath = path.join(root, normalized);
     if (fs.existsSync(absolutePath)) {
       return buildSyntheticUntrackedDiff(normalized, absolutePath);
     }

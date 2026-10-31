@@ -7,6 +7,54 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "node:url";
+import { lookup } from "node:dns/promises";
+import { request } from "node:https";
+import { isPrivateHost } from "../../shared/network-address.cjs";
+
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+
+export async function validateRemoteMediaSource(source: string): Promise<void> {
+  const url = new URL(source);
+  if (url.protocol !== "https:" || url.username || url.password || isPrivateHost(url.hostname)) throw new Error("Media requires a public HTTPS URL");
+  const addresses = await lookup(url.hostname.replace(/^\[|\]$/g, ""), { all: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateHost(address))) throw new Error("Private media address is not allowed");
+}
+
+async function downloadRemoteMedia(source: string): Promise<Buffer> {
+  const url = new URL(source);
+  if (url.protocol !== "https:" || url.username || url.password || isPrivateHost(url.hostname)) throw new Error("Media requires a public HTTPS URL");
+  const signal = AbortSignal.timeout(10_000);
+  const addresses = await Promise.race([
+    lookup(url.hostname.replace(/^\[|\]$/g, ""), { all: true }),
+    new Promise<never>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })),
+  ]);
+  if (!addresses.length || addresses.some(({ address }) => isPrivateHost(address))) throw new Error("Private media address is not allowed");
+  const destination = addresses[0];
+  return new Promise((resolve, reject) => {
+    const req = request(url, {
+      signal,
+      family: destination.family,
+      // Pin the checked DNS result, preserving the original host for TLS.
+      lookup: (_host, _options, cb) => cb(null, destination.address, destination.family),
+    }, (response) => {
+      if (response.statusCode !== 200 || Number(response.headers["content-length"] || 0) > MAX_MEDIA_BYTES) {
+        response.destroy(); reject(new Error("Media response rejected (redirect, status or size)")); return;
+      }
+      let size = 0;
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > MAX_MEDIA_BYTES) { response.destroy(new Error("Media exceeds 50 MB")); return; }
+        chunks.push(chunk);
+      });
+      response.on("end", () => resolve(Buffer.concat(chunks)));
+      response.on("error", reject);
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
 
 // ── 本地路径安全白名单（对标 OpenClaw mediaLocalRoots）────
 
@@ -37,12 +85,13 @@ export async function downloadMedia(url: string): Promise<Buffer> {
   if (url.startsWith("data:")) {
     const comma = url.indexOf(",");
     if (comma === -1) throw new Error("invalid data URI");
-    return Buffer.from(url.slice(comma + 1), "base64");
+    if (url.length > Math.ceil(MAX_MEDIA_BYTES * 4 / 3) + 1024) throw new Error("Media exceeds 50 MB");
+    const buffer = Buffer.from(url.slice(comma + 1), "base64");
+    if (buffer.length > MAX_MEDIA_BYTES) throw new Error("Media exceeds 50 MB");
+    return buffer;
   }
   if (url.startsWith("http://") || url.startsWith("https://")) {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`download failed: ${resp.status} ${resp.statusText}`);
-    return Buffer.from(await resp.arrayBuffer());
+    return downloadRemoteMedia(url);
   }
   // 本地路径（file:// URI 或绝对路径）
   const localPath = url.startsWith("file://") ? fileUrlToPath(url) : url;
@@ -56,7 +105,7 @@ export async function downloadMedia(url: string): Promise<Buffer> {
     }
     // 大小保护（50MB）
     const stat = fs.statSync(realPath);
-    if (stat.size > 50 * 1024 * 1024) {
+    if (!stat.isFile() || stat.size > MAX_MEDIA_BYTES) {
       throw new Error(`file too large: ${(stat.size / 1024 / 1024).toFixed(1)}MB`);
     }
     return fs.readFileSync(realPath);
@@ -66,8 +115,7 @@ export async function downloadMedia(url: string): Promise<Buffer> {
 
 /** file:// URI → 本地路径 */
 function fileUrlToPath(fileUrl: string): string {
-  try { return new URL(fileUrl).pathname; }
-  catch { return fileUrl.replace(/^file:\/\//, ""); }
+  return fileURLToPath(fileUrl);
 }
 
 /**
@@ -190,11 +238,12 @@ function isValidMediaSource(url: string): boolean {
   // HTTP(S) URL
   try {
     const u = new URL(url);
-    if (u.protocol === "http:" || u.protocol === "https:") return true;
-    if (u.protocol === "file:") return isPathAllowed(fileUrlToPath(url));
+    if (u.protocol === "https:") return true;
+    // Extraction is not authorization. Delivery checks the per-session registry.
+    if (u.protocol === "file:") return path.isAbsolute(fileUrlToPath(url));
   } catch { /* 不是合法 URL，检查是否为绝对路径 */ }
   // 绝对本地路径
-  if (path.isAbsolute(url)) return isPathAllowed(url);
+  if (path.isAbsolute(url)) return true;
   return false;
 }
 

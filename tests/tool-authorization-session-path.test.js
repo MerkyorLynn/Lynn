@@ -63,6 +63,7 @@ describe("tool authorization session path propagation", () => {
       "/repo",
       {
         mode: "authorized",
+        trustedRoots: ["/repo"],
         allowlist,
         sessionAllowlist,
         confirmStore: {
@@ -98,6 +99,7 @@ describe("tool authorization session path propagation", () => {
       "/repo",
       {
         mode: "authorized",
+        trustedRoots: ["/repo"],
         allowlist,
         sessionAllowlist,
         confirmStore: {

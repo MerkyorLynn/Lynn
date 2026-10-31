@@ -5,6 +5,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, execFileSync } = require("child_process");
 const fs = require("fs");
+const { isAppEntryUrl: checkAppEntryUrl } = require("./app-entry-trust.cjs");
 const yaml = require("js-yaml");
 const { initAutoUpdater, checkForUpdatesAuto, setMainWindow: setUpdaterMainWindow, setUpdateChannel } = require("./auto-updater.cjs");
 const { setIpcSenderValidator, wrapIpcHandler, wrapIpcOn } = require('./ipc-wrapper.cjs');
@@ -70,7 +71,24 @@ let browserAgent = null;
 let editorController = null;
 let settingsOnboarding = null;
 
-setIpcSenderValidator((channel, event) => isTrustedAppWebContents(event?.sender, channel));
+setIpcSenderValidator((_channel, event) => isTrustedAppWebContents(event?.sender)
+  && event?.senderFrame === event?.sender?.mainFrame
+  && isAppEntryUrl(event?.senderFrame?.url));
+
+function isAppEntryUrl(url) {
+  return checkAppEntryUrl(url, { dirname: __dirname, distRenderer: path.join(__dirname, "dist-renderer"), isDev: process.argv.includes("--dev"), viteDevUrl: process.env.VITE_DEV_URL || "" });
+}
+
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  contents.on("will-navigate", (event, url) => {
+    if (isTrustedAppWebContents(contents) && !isAppEntryUrl(url)) event.preventDefault();
+  });
+  contents.on("will-attach-webview", event => event.preventDefault());
+});
 
 const wakeLock = createWakeLockController({ powerSaveBlocker });
 
@@ -247,7 +265,9 @@ function ensureLocalAuthHeaderHook() {
   if (_localAuthHeaderHookInstalled || !session.defaultSession) return;
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     const serverToken = serverController.getToken();
-    if (!serverToken || !shouldAttachLocalAuthHeader(details.url)) {
+    const source = details.webContents;
+    const trustedFrame = details.frame && source && details.frame === source.mainFrame;
+    if (!serverToken || !shouldAttachLocalAuthHeader(details.url) || !isTrustedAppWebContents(source) || !trustedFrame) {
       callback({ requestHeaders: details.requestHeaders });
       return;
     }
@@ -705,6 +725,7 @@ wrapIpcHandler("window-is-maximized", (event) => {
 function isTrustedAppWebContents(webContents) {
   if (!webContents || webContents.isDestroyed?.()) return false;
   const owner = BrowserWindow.fromWebContents(webContents);
+  if (!owner || owner.webContents !== webContents || !isAppEntryUrl(webContents.getURL?.())) return false;
   return Boolean(
     owner === mainWindow ||
     owner === splashWindow ||

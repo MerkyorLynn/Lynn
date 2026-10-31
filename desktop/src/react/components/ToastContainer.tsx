@@ -28,7 +28,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   }
 
   return (
-    <div ref={ref} className={`hana-toast ${toast.type}`}>
+    <div ref={ref} className={`hana-toast ${toast.type}`} role={toast.type === 'error' ? 'alert' : 'status'} aria-live={toast.type === 'error' ? 'assertive' : 'polite'} aria-atomic="true">
       <span>{toast.text}</span>
       <div className="hana-toast-actions">
         {toast.action && (
@@ -36,7 +36,7 @@ function ToastItem({ toast }: { toast: Toast }) {
             {toast.action.label}
           </button>
         )}
-        <button className="hana-toast-close" onClick={dismiss}>
+        <button className="hana-toast-close" onClick={dismiss} aria-label={window.t('common.close')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>

@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { listboxKeyDown } from '../utils/listbox-keyboard';
 
 export interface ContextMenuItem {
   label?: string;
@@ -23,6 +24,11 @@ export interface ContextMenuProps {
 
 export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
 
   // 位置修正：确保菜单不超出视口
   useEffect(() => {
@@ -74,21 +80,25 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   return createPortal(
     <div
       className="context-menu"
+      role="menu"
+      onKeyDown={event => listboxKeyDown(event, menuRef.current, onClose)}
       ref={menuRef}
       style={{ left: position.x, top: position.y }}
     >
       {items.map((item, i) => {
         if (item.divider) {
-          return <div key={`divider-${i}`} className="context-menu-divider" />;
+          return <div key={`divider-${i}`} role="separator" className="context-menu-divider" />;
         }
         return (
-          <div
+          <button
+            type="button"
+            role="menuitem"
             key={`${item.label || 'item'}-${i}`}
             className={`context-menu-item${item.danger ? ' danger' : ''}`}
             onClick={(e) => handleItemClick(e, item.action)}
           >
             {item.label || ''}
-          </div>
+          </button>
         );
       })}
     </div>,

@@ -857,7 +857,9 @@
       "setActive": "设为主助手",
       "lastAgent": "至少保留一个助手",
       "yuan": "元",
-      "yuanHint": "「元」是助手的先天思维方式，以此为基础搭建你独一无二的伙伴"
+      "yuanHint": "「元」是助手的先天思维方式，以此为基础搭建你独一无二的伙伴",
+      "draftUnsaved": "未保存草稿",
+      "draftSaveFailed": "草稿暂时无法保存在本机，请在关闭设置前保存修改。"
     },
     "about": {
       "title": "关于 Ta",
@@ -1343,7 +1345,11 @@
       "title": "键盘快捷键",
       "globalSummon": "全局唤起",
       "globalSummonHint": "在「语音」标签可改键。若被其他 App 占用,Lynn 会自动回退到 Cmd/Ctrl+Opt+J。"
-    }
+    },
+    "connectionFailed": "设置服务连接失败。",
+    "connectionPending": "正在连接设置服务…",
+    "connectionRetry": "重试连接",
+    "connectionRetrying": "正在重连…"
   },
   "onboarding": {
     "welcome": {
@@ -1575,7 +1581,10 @@
   },
   "desk": {
     "fileFilter": "文件筛选",
-    "filter": {"all": "全部", "images": "图片"},
+    "filter": {
+      "all": "全部",
+      "images": "图片"
+    },
     "noImages": "当前文件夹没有图片",
     "title": "书桌",
     "workspaceMap": "会话进展",
@@ -1946,7 +1955,9 @@
     "memorySearchDateToDesc": "结束日期，格式 YYYY-MM-DD",
     "memorySearchEmpty": "记忆库里没有找到相关内容。",
     "memorySearchError": "记忆搜索出错: {msg}",
-    "fallbackUserName": "用户"
+    "fallbackUserName": "用户",
+    "installSkillApprovalRequired": "安装技能需要用户批准；本次未获批准，未写入技能文件。",
+    "bridgeRequestFailed": "本次请求未完成，请稍后重试或查看 Lynn 客户端诊断。"
   },
   "main": {
     "tray": {

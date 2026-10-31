@@ -8,7 +8,7 @@ function stripAnsi(value: string): string {
 
 function box(opts: Partial<Parameters<typeof renderInputBox>[0]> = {}) {
   return renderInputBox({
-    status: "Lynn · StepFun 3.7 Flash · ask / workspace-write",
+    status: "Lynn · Step 5 · ask / workspace-write",
     buffer: "",
     cursor: 0,
     width: 72,
@@ -100,11 +100,11 @@ describe("renderInputBox", () => {
 
     expect(r.rowsBelowInput).toBeGreaterThan(2);
     const palette = stripAnsi(r.paletteLines.join("\n"));
-    expect(palette).toContain("1. /yolo");
+    expect(palette).toContain("› /yolo");
     expect(palette).toContain("/ask");
     expect(palette).toContain("/model");
     expect(palette).toContain("静默工厂");
-    expect(palette).toContain("继续输入筛选");
+    expect(palette).toContain("↑↓ 选择 · Tab/Enter 确认");
     expect(palette).not.toContain("/quit");
     expect(palette).not.toContain("/tool  ");
     for (const line of r.paletteLines) expect(visibleLength(stripAnsi(line))).toBe(visibleLength(stripAnsi(r.top)));
@@ -118,6 +118,22 @@ describe("renderInputBox", () => {
     expect(stripAnsi(r.paletteLines[0] || "")).toContain("未知命令");
     expect(normal.paletteLines).toEqual([]);
     expect(normal.rowsBelowInput).toBe(1);
+  });
+
+  it("scrolls the palette to keep the selected command visible without color", () => {
+    const completions = ["/ask", "/model", "/mode", "/think", "/fast", "/help", "/tools", "/exit"];
+    const r = box({ buffer: "/", cursor: 1, completions, selected: 7 });
+    const palette = stripAnsi(r.paletteLines.join("\n"));
+    expect(palette).toContain("› /exit");
+    expect(palette).toContain("3. /mode");
+    expect(palette).not.toContain("/ask");
+    expect(palette).not.toContain("/model");
+    for (const line of r.paletteLines) expect(visibleLength(line)).toBe(visibleLength(r.top));
+  });
+
+  it("keeps navigation instructions within a narrow terminal", () => {
+    const r = box({ buffer: "/", cursor: 1, completions: ["/help"], width: 28 });
+    for (const line of r.paletteLines) expect(visibleLength(line)).toBe(visibleLength(r.top));
   });
 
   it("shows an explicit Tab completion hint for unique slash prefixes", () => {

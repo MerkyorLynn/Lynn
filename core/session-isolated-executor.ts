@@ -176,7 +176,13 @@ export async function executeIsolatedSession(
       resourceLoader: execResourceLoader,
       tools: isolatedTools.tools,
       customTools: isolatedTools.customTools,
-      ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+      ...(Object.keys(clientAgentHeaders).length > 0 && {
+        requestHeaders: clientAgentHeaders,
+        getRequestHeaders: (requestModel: any) => readSignedClientAgentHeadersForProvider({
+          method: "POST", pathname: "/chat/completions",
+          provider: requestModel?.provider, baseUrl: requestModel?.baseUrl,
+        }),
+      }),
       ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
     } as any);
 

@@ -134,6 +134,7 @@ async function refreshSettingsSurface(opts: {
 export function SettingsApp() {
   const { activeTab, ready, serverPort, selectedProviderId, settingsAgentId } = useSettingsStore();
   const [uiRestored, setUiRestored] = React.useState(false);
+  const [retrying, setRetrying] = React.useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -245,7 +246,13 @@ export function SettingsApp() {
           <SettingsNav />
           <div className={styles['settings-main']}>
             <ErrorBoundary region={activeTab}>
-              {settingsReady ? <ActiveTab /> : <p role="status">{uiRestored && ready ? '设置服务连接失败，请重启 Lynn 后重试。' : '正在连接设置服务…'}</p>}
+              {settingsReady ? <ActiveTab /> : <div role="status">
+                <p>{uiRestored && ready ? t('settings.connectionFailed') : t('settings.connectionPending')}</p>
+                {uiRestored && ready && <button type="button" disabled={retrying} onClick={() => {
+                  setRetrying(true);
+                  void initSettings().finally(() => setRetrying(false));
+                }}>{retrying ? t('settings.connectionRetrying') : t('settings.connectionRetry')}</button>}
+              </div>}
             </ErrorBoundary>
           </div>
         </div>
@@ -274,11 +281,17 @@ export function SettingsApp() {
   );
 }
 
-async function initSettings() {
+let settingsInitPromise: Promise<void> | null = null;
+
+function initSettings(): Promise<void> {
+  return settingsInitPromise ??= performSettingsInit().finally(() => { settingsInitPromise = null; });
+}
+
+async function performSettingsInit() {
   const store = useSettingsStore.getState();
 
   const timeout = setTimeout(() => {
-    if (!store.ready) {
+    if (!useSettingsStore.getState().ready) {
       console.warn('[settings] init timeout (15s), forcing ready');
       store.set({ ready: true });
     }

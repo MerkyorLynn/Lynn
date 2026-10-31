@@ -26,6 +26,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install CLI dependencies
+        run: npm --prefix cli install --ignore-scripts
+
+      - name: Audit CLI dependencies
+        run: npm --prefix cli audit --audit-level=high --registry=https://registry.npmjs.org
+
+      - name: Audit dependency security
+        run: npm run gate:dependency-audit
+
       - name: Typecheck
         run: npm run typecheck
 

@@ -1,3 +1,4 @@
+import { requestAuthorization } from "../lib/sandbox/tool-wrapper.js";
 /**
  * Agent — 一个助手实例
  *
@@ -614,6 +615,20 @@ export class Agent {
     // 10. install_skill 工具（需要 agentDir + config + engine.resolveUtilityConfig）
     this._installSkillTool = createInstallSkillTool({
       agentDir: this.agentDir,
+      authorize: async ({ name, githubUrl, reason }) => {
+        const decision = await requestAuthorization({
+          category: "script_install",
+          identifier: githubUrl || name || "install_skill",
+          command: `install_skill ${githubUrl || name || ""}`,
+          reason,
+          description: "Install persistent agent instructions and executable skill files",
+          path: this.agentDir,
+          confirmStore: this._engine?.confirmStore,
+          sessionPath: this._engine?._sessionCoord?.currentSessionPath,
+          emitEvent: (event, sessionPath) => this._engine?._emitEvent(event, sessionPath),
+        });
+        return decision.allowed;
+      },
       getConfig: () => {
         const cfg = { ...this._config };
         // learn_skills 从全局 preferences 注入（覆盖 agent config 中的值）
@@ -1047,11 +1062,11 @@ export class Agent {
 
     parts.push(isZh
       ? "\n## 技能创建与安装\n\n"
-        + "当你已经整理好一个可复用技能时，默认直接使用 install_skill 工具安装到 Lynn 自己的技能目录，让技能立刻生效。\n"
+        + "整理好可复用技能后，先展示来源、用途和将要写入的目录。只有用户明确要求安装或确认后，才可使用 install_skill 工具。\n"
         + "不要把 SKILL.md 先写到桌面或工作区，再让用户自己 mv/复制到技能目录。\n"
         + "只有当用户明确要求导出一个工作区副本时，才额外写一份到指定目录。"
       : "\n## Skill Authoring And Installation\n\n"
-        + "When you have finished drafting a reusable skill, install it directly with the install_skill tool so it takes effect immediately in Lynn's own skill directory.\n"
+        + "Present a reusable skill's source, purpose and target directory first. Use install_skill only when the user has explicitly requested or confirmed installation.\n"
         + "Do not write SKILL.md into the desktop or workspace first and then ask the user to move or copy it manually.\n"
         + "Only write an extra workspace copy when the user explicitly asks for an exported copy."
     );
@@ -1060,7 +1075,7 @@ export class Agent {
     if (learnCfg.enabled && learnCfg.allow_github_fetch) {
       parts.push(isZh
         ? "\n## 主动技能获取\n\n"
-          + "遇到专业领域任务且你没有对应技能时，主动搜索并安装。\n\n"
+          + "遇到专业领域任务且没有对应技能时，可以搜索并展示候选；安装前必须取得用户明确确认。\n\n"
           + "### 搜索\n\n"
           + "1. `site:clawhub.ai {关键词}` 或 `site:github.com/openclaw/skills {关键词}`\n"
           + "2. GitHub 上其他含 SKILL.md 的仓库\n"
@@ -1070,11 +1085,11 @@ export class Agent {
           + "- 仅专业领域任务搜索，日常对话不搜\n"
           + "- 安装应能显著提升输出质量\n\n"
           + "### 行为\n\n"
-          + "- 找到后简要告知用户，直接安装并立即应用\n"
+          + "- 找到后展示来源与用途；只有用户明确要求或确认安装后才安装和应用\n"
           + "- 安装失败则尝试自己完成\n"
           + "- 搜索无果正常完成，不反复尝试"
         : "\n## Proactive Skill Acquisition\n\n"
-          + "When you encounter specialized tasks and lack a matching skill, proactively search and install one.\n\n"
+          + "For specialized tasks, search and present candidate skills; obtain explicit user approval before installation.\n\n"
           + "### Search\n\n"
           + "1. `site:clawhub.ai {keywords}` or `site:github.com/openclaw/skills {keywords}`\n"
           + "2. Other GitHub repos containing SKILL.md\n"
@@ -1084,7 +1099,7 @@ export class Agent {
           + "- Only search for specialized tasks, not everyday conversation\n"
           + "- Installation should significantly improve output quality\n\n"
           + "### Behavior\n\n"
-          + "- Briefly inform the user, install directly, and apply immediately\n"
+          + "- Present the source and purpose; install and apply only after explicit user approval\n"
           + "- If installation fails, try to complete the task yourself\n"
           + "- If search yields nothing, proceed normally without retrying"
       );

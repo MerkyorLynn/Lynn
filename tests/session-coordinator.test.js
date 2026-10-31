@@ -219,6 +219,7 @@ describe("SessionCoordinator", () => {
       const prompts = [];
       createAgentSessionMock.mockImplementation(async ({ requestHeaders }) => ({
         session: {
+          requestHeaders,
           sessionManager: { getSessionFile: () => "/tmp/session.jsonl", getCwd: () => "/tmp/workspace" },
           subscribe: vi.fn(() => vi.fn()),
           _buildRuntime: vi.fn(),
@@ -273,16 +274,17 @@ describe("SessionCoordinator", () => {
       });
 
       await coordinator.createSession(null, "/tmp/workspace", true, model);
-      const initialHeaders = createAgentSessionMock.mock.calls[0][0].requestHeaders;
+      const initialHeaders = { ...createAgentSessionMock.mock.calls[0][0].requestHeaders };
       expect(initialHeaders["X-Lynn-Timestamp"]).toBe(String(firstTime));
 
       const refreshedTime = firstTime + (5 * 60 * 60 * 1000) + 1;
       vi.setSystemTime(refreshedTime);
       await coordinator.prompt("你好");
 
-      expect(createAgentSessionMock).toHaveBeenCalledTimes(2);
-      expect(sessionManagerOpenMock).toHaveBeenCalledWith("/tmp/session.jsonl", "/tmp/agent-sessions");
-      const refreshedHeaders = createAgentSessionMock.mock.calls[1][0].requestHeaders;
+      expect(createAgentSessionMock).toHaveBeenCalledTimes(1);
+      expect(sessionManagerOpenMock).not.toHaveBeenCalled();
+      expect(coordinator.currentSessionPath).toBe("/tmp/session.jsonl");
+      const refreshedHeaders = createAgentSessionMock.mock.calls[0][0].requestHeaders;
       expect(refreshedHeaders["X-Lynn-Timestamp"]).toBe(String(refreshedTime));
       expect(refreshedHeaders["X-Lynn-Timestamp"]).not.toBe(initialHeaders["X-Lynn-Timestamp"]);
       expect(prompts).toHaveLength(1);

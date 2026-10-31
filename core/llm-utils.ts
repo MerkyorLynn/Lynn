@@ -98,7 +98,7 @@ interface SessionContentLine {
 
 interface SessionMessage {
   role?: string;
-  content?: SessionContentBlock[];
+  content?: string | SessionContentBlock[];
 }
 
 type SessionContentBlock = ContentBlock;
@@ -171,7 +171,7 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function parseSessionContent(sessionPath: string, { userLimit = 1000, assistantLimit = 1000 }: SessionContentOptions = {}): Promise<SessionContentSummary> {
+export async function parseSessionContent(sessionPath: string, { userLimit = 1000, assistantLimit = 1000 }: SessionContentOptions = {}): Promise<SessionContentSummary> {
   const raw = await fs.promises.readFile(sessionPath, "utf-8");
   const lines = raw.trim().split("\n").map(l => {
     try { return JSON.parse(l) as SessionContentLine; } catch { return null; }
@@ -183,18 +183,24 @@ async function parseSessionContent(sessionPath: string, { userLimit = 1000, assi
   for (const line of lines) {
     if (line.type !== "message" || !line.message) continue;
     const msg = line.message;
+    const blocks: SessionContentBlock[] = typeof msg.content === "string"
+      ? [{ type: "text", text: msg.content }]
+      : Array.isArray(msg.content) ? msg.content : [];
     if (msg.role === "user" && !userText) {
-      const textParts = ((msg.content || []) as SessionContentBlock[]).filter(c => c.type === "text");
+      const textParts = blocks.filter(c => c.type === "text");
       userText = textParts.map(c => c.text).join("\n").slice(0, userLimit);
     }
     if (msg.role === "assistant") {
-      const textParts = ((msg.content || []) as SessionContentBlock[]).filter(c => c.type === "text");
+      const textParts = blocks.filter(c => c.type === "text");
       assistantText = sanitizeAssistantTextContent(textParts.map(c => c.text).join("\n")).slice(0, assistantLimit);
-      const toolParts = ((msg.content || []) as SessionContentBlock[]).filter(isToolCallBlock);
+      const toolParts = blocks.filter(isToolCallBlock);
       for (const t of toolParts) toolCalls.push(t.name || "unknown_tool");
+      for (const call of (msg as typeof msg & { tool_calls?: Array<{ function?: { name?: string } }> }).tool_calls || []) {
+        if (call.function?.name) toolCalls.push(call.function.name);
+      }
     }
   }
-  return { userText, assistantText, toolCalls };
+  return { userText, assistantText, toolCalls, toolCallsText: toolCalls.join("\n") };
 }
 
 /** 从 session 内容生成本地兜底摘要（不依赖外部 API） */
@@ -477,7 +483,7 @@ export async function summarizeSessionRelay(utilConfig: UtilityConfig, sessionPa
     });
     if (!userText && !assistantText && !toolCallsText) return null;
 
-    const { utility_large, api_key, base_url, api, utility_large_fallbacks = [] } = utilConfig;
+    const { utility_large, large_api_key: api_key, large_base_url: base_url, large_api: api, utility_large_fallbacks = [] } = utilConfig;
     const systemContent = isZh
       ? `请把一段已经运行很久的助手对话压缩成可接力的工作摘要，供新会话继续执行。
 

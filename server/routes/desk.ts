@@ -199,7 +199,6 @@ function approvedWorkspaceRoots(engine: DeskRouteEngine): string[] {
   return uniqueTrustedRoots([
     engine.deskCwd,
     engine.homeCwd,
-    os.homedir(),
     ...getWorkspaceRoots(engine.config || {}, { trusted_roots: engine.getTrustedRoots?.() || [] }),
   ]);
 }
@@ -672,6 +671,7 @@ export function createDeskRoute(engine: DeskRouteEngine, hub: DeskRouteHub): Hon
     if (!sourcePath || !cwd) {
       return c.json({ error: "filePath and active workspace required" }, 400);
     }
+    if (!isApprovedDir(cwd, engine)) return c.json({ error: t("error.dirNotAllowed") }, 403);
 
     try {
       const stat = fs.statSync(sourcePath);

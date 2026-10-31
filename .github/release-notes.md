@@ -1,68 +1,36 @@
-# Lynn v0.87.4 · 本地模型设置与 CLI 稳定性修复
+# Lynn v0.87.5 · CLI 命令选择与桌面稳定性
 
-## 国内镜像站下载（推荐） / Downloads
+[国内下载说明页](https://download.merkyorlynn.com/download.html)
 
-国内用户请优先使用以下镜像下载；GitHub Assets 作为备用下载。
-
-- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-arm64.dmg?rev=20261029)
-- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-macOS-x64.dmg?rev=20261029)
-- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.4-Windows-Setup.exe?rev=20261029)
-- [下载说明页](https://download.merkyorlynn.com/download.html)
+- [macOS Apple Silicon](https://download.merkyorlynn.com/downloads/Lynn-0.87.5-macOS-arm64.dmg)
+- [macOS Intel](https://download.merkyorlynn.com/downloads/Lynn-0.87.5-macOS-x64.dmg)
+- [Windows x64](https://download.merkyorlynn.com/downloads/Lynn-0.87.5-Windows-Setup.exe)
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261029"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz"
 Lynn --version
 ```
 
-## 中文
+### V0.87.5 重点更新
 
-- 云端 GLM 复查默认采用 low 思考档，与客户端直连保持一致；显式 high 请求仍保留，降低默认复查长时间思考导致的超时。
+- **CLI 命令菜单可选择**：输入 `/` 后用 ↑↓ 移动，Tab / Enter 填入选中命令；支持滚动与键盘操作。
+- **设置草稿更可靠**：按 Agent 保留未保存内容，切换设置页、刷新模型配置时保留草稿与经验列表。
+- **会话执行更稳定**：修复并发工具结果匹配、桥接会话排队、上下文压缩和回复显示问题。
+- **本地模型启动可恢复**：启动超时明确报错，允许手动重试，旧进程退出不会覆盖新进程状态。
+- **文件与界面操作更稳妥**：修复文件访问和预览边界，为删除、撤回与高风险操作补充确认；完善菜单和设置控件键盘操作。
+- **GUI / CLI 同步更新**：升级桌面与内置运行时依赖，延续 Step 5、实时语音及 Coder390 Q2 / Q3。
 
-- 放宽 Windows 原生进程查询的冷启动等待，避免 CIM 启动超过 5 秒时把运行中的本地模型误判为未启动。
+### V0.87.5 Highlights
 
-- 设置窗口在导航目标、服务地址和初始化完成后才挂载页面，防止默认页、Provider 凭据读取与超时表单抢跑；服务不可用时明确提示，并防止旧请求覆盖新设置。
-
-- 移除 CLI 选择云端地址时重复的健康探测，保留本地 Brain 优先和显式地址配置；快速档速度阈值不变。
-
-- 修复 Codex 接入冷启动误判：协议预检等待时间对齐实际客户端的 30 秒，避免正常的超过 5 秒初始化被错误回退；快速响应速度门槛不变。
-- **2026-10-29 同版本修复**：修复 Apple Silicon / 未检测到独立显卡时，进入本地 Qwen 模型详情会出现“providers 区域发生了异常”、无法安装的问题。补充真实安装包的 16GB / 24GB Mac、容量不足、未知显存和 Windows 多显卡回归。版本仍为 V0.87.4；此前下载的用户请重新下载安装修复包，同版本通常不会触发自动更新。
-
-- 修复 #76：Windows 本地模型状态查询改用系统目录中的原生工具，并隐藏查询窗口；不再调用 PATH 中 Anaconda 等环境提供的 ps.exe，也不再向 Windows 工具传递 POSIX 参数。
-- 实现 #77：汇率主源不可用时回退到 AllRatesToday，标明来源、更新时间和 ECB 每日参考汇率属性；支持黄金美元/人民币换算。备用源成功结果缓存一小时，并合并并发请求；无有效数据时明确报错。
-- 合入增强 CLI：流式工具调用、并发只读工具、串行写入屏障、精确字符串编辑、任务内阅读去重、长命令后台执行、计划模式、技能与项目命令、会话分支、上下文压缩、长结果落盘及输入排队。
-- CLI 权限规则支持 allow/ask/deny；仓库中的允许规则和 hook 需要明确建立信任。拒绝规则优先，配置损坏或守门 hook 失败时不继续执行，明确的 ask 规则不会被 yolo 模式跳过。
-- 修复增强 CLI 的读取/写入竞态、断流后的残留工具调用、跨任务阅读缓存污染和仅停止父进程的问题。后台日志只读取有界尾部，安装脚本不改动其他程序的命令链接。
-- CLI 网页抓取逐跳检查重定向，支持主动取消，并修正部分 IPv6 内网地址与普通域名的误判。
-- 搜索结果明确区分发布时间与抓取时间；遇到实时数据和搜索新闻冲突时要求核验事件日期，避免把历史内容当作当日结果。
-- 修复搜索资料误触发内容过滤：使用服务器保存的原始用户请求进行输入检查，同时保留检索资料供模型分析。
-- 修复体育工具返回后对话提前结束：模型继续整理和解释真实赛程、比分；移除写死的预测比分。
-- GUI / CLI 同步升级。默认模型仍为 Step 5 Preview，实时语音仍为 StepAudio 2.5 Realtime；保留 Coder390 llama.cpp Q2 / Q3、长推理超时设置和会话删除功能。
-
-## English
-
-- Align the hosted GLM review default with direct-client low reasoning while preserving explicit high requests.
-
-- Allow bounded cold-start time for native Windows CIM queries so a slow system query does not hide a running local model.
-
-- Mount settings pages only after navigation, service connection and initialization are ready; show service failures clearly and ignore stale responses.
-
-- Remove the redundant hosted health probe before CLI requests, preserving local-Brain priority, explicit endpoints, and fast-mode performance thresholds.
-
-- Align Codex protocol cold-start preflight with the client's bounded 30-second request timeout; preserve fast-response performance thresholds.
-- **2026-10-29 hotfix, same version**: fix the local Qwen settings crash when Apple Silicon or a machine without detected dedicated GPUs returns an empty GPU list. Add packaged UI coverage for Mac memory tiers and Windows GPU detection. The version remains V0.87.4; users with the original package should download and reinstall the repaired build. Same-version updates generally do not trigger the updater.
-
-- Fix #76: use hidden native Windows process/listener queries through absolute system paths instead of PATH-provided ps.exe or POSIX arguments.
-- Implement #77: fall back to AllRatesToday for FX and gold currency conversion. Attribute its ECB daily reference rates and timestamps, cache successful tables for one hour, and report unavailable data explicitly.
-- Integrate the enhanced CLI: streaming tool execution, concurrent reads with write barriers, exact-string edits, task-scoped read tracking, background jobs, plan mode, skills/project commands, session forks, compaction, result spilling and queued input.
-- Enforce explicit permission rules and trusted hooks; fail closed on invalid policy or failed guards. Fix tool ordering, interrupted-stream dispatch, read-cache isolation, process-tree cancellation and installer shim ownership.
-- Validate web redirects at each hop and propagate cancellation. GUI and CLI retain Step 5, realtime voice, Coder390 Q2/Q3, long-reasoning controls and conversation deletion.
-- Distinguish publication dates from retrieval timestamps and require dated evidence when search reports conflict with live structured data.
-
-- Check the original user request without mistaking retrieved page contents for user input; keep the retrieved evidence available to the model.
-- Let the model finish its sports analysis after tool results arrive, and remove canned score predictions.
+- **Selectable CLI commands:** use Up/Down after `/`, then Tab or Enter to fill the selected command, with scrolling and keyboard navigation.
+- **Preserved settings drafts:** retain per-agent unsaved changes and experience lists across settings navigation and model configuration refreshes.
+- **More reliable sessions:** fix concurrent tool-result matching, bridge session queues, context compaction and reply rendering.
+- **Recoverable local startup:** show startup timeouts, support manual retry and ignore stale process exit events.
+- **File and interface fixes:** strengthen file/preview boundaries, confirm destructive actions and improve keyboard access to menus and settings.
+- **GUI and CLI updated together:** refresh desktop and bundled runtime dependencies while retaining Step 5, realtime voice and Coder390 Q2/Q3.
 
 ## 仓库 / Repositories
 
-- [GitHub 主仓](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.4)
-- [GitHub 备份仓](https://github.com/LynnMerkyor/Lynn/releases/tag/v0.87.4)
-- [Gitee](https://gitee.com/merkyor/Lynn/releases/tag/v0.87.4)
+- [GitHub 主仓](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.5)
+- [GitHub 备份仓](https://github.com/LynnMerkyor/Lynn/releases/tag/v0.87.5)
+- [Gitee](https://gitee.com/merkyor/Lynn/releases/tag/v0.87.5)

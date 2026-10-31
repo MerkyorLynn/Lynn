@@ -1,3 +1,4 @@
+import { isSafePathSegment } from "../../shared/path-segment.js";
 /**
  * channels.ts — 频道 REST API
  *
@@ -345,6 +346,7 @@ export function createChannelsRoute(engine: ChannelsRouteEngine, hub: ChannelsRo
         const channelMembers = Array.isArray(channelMeta.members) ? channelMeta.members as string[] : [];
 
         for (const memberId of channelMembers) {
+          if (!isSafePathSegment(memberId)) continue;
           addBookmarkEntry(path.join(engine.agentsDir, memberId, "channels.md"), name);
         }
 

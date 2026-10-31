@@ -78,13 +78,13 @@ function generateProfile(policy: StandardSandboxPolicy): string {
   ];
 
   for (const p of policy.writablePaths) {
-    lines.push(`(allow file-write* (subpath "${realpath(p)}"))`);
+    lines.push(`(allow file-write* (subpath ${JSON.stringify(realpath(p))}))`);
   }
 
   // /tmp（macOS 上是 /private/tmp 和 /private/var/folders/...）
   lines.push(
     `(allow file-write* (subpath "/private/tmp"))`,
-    `(allow file-write* (subpath "${realpath(process.env.TMPDIR || "/tmp")}"))`
+    `(allow file-write* (subpath ${JSON.stringify(realpath(process.env.TMPDIR || "/tmp"))}))`
   );
 
   lines.push("");
@@ -93,7 +93,7 @@ function generateProfile(policy: StandardSandboxPolicy): string {
   if (policy.protectedPaths.length) {
     lines.push(";; 写保护");
     for (const p of policy.protectedPaths) {
-      lines.push(`(deny file-write* (subpath "${realpath(p)}"))`);
+      lines.push(`(deny file-write* (subpath ${JSON.stringify(realpath(p))}))`);
     }
     lines.push("");
   }
@@ -103,8 +103,8 @@ function generateProfile(policy: StandardSandboxPolicy): string {
     lines.push(";; 读取拒绝");
     for (const p of policy.denyReadPaths) {
       const rp = realpath(p);
-      lines.push(`(deny file-read* (subpath "${rp}"))`);
-      lines.push(`(deny file-write* (subpath "${rp}"))`);
+      lines.push(`(deny file-read* (subpath ${JSON.stringify(rp)}))`);
+      lines.push(`(deny file-write* (subpath ${JSON.stringify(rp)}))`);
     }
     lines.push("");
   }

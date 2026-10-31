@@ -1,4 +1,6 @@
 import path from "node:path";
+import { registerCreatedToolFiles } from "../../lib/session-tool-files.js";
+import { isPrivateHost } from "../../shared/network-address.cjs";
 import { modelStreamFetch } from "../../shared/model-stream-fetch.js";
 import { SessionManager } from "./session-manager.js";
 import { SettingsManager } from "./settings-manager.js";
@@ -102,6 +104,7 @@ export interface LynnCreateAgentSessionOptions {
   sessionManager?: SessionManager;
   settingsManager?: SettingsManager;
   requestHeaders?: Record<string, string>;
+  getRequestHeaders?: (model: Model) => Record<string, string>;
   requestMetadata?: Record<string, unknown>;
   getModelCallTimeouts?: () => unknown;
   [key: string]: unknown;
@@ -117,6 +120,8 @@ export class LynnAgentSession {
   readonly modelRegistry?: ModelRegistry;
   readonly scopedModels?: Record<string, unknown>;
   readonly requestHeaders: Record<string, string>;
+  private readonly getRequestHeaders?: (model: Model) => Record<string, string>;
+  private readonly requestHeaderOrigin: string | undefined;
   readonly requestMetadata?: Record<string, unknown>;
   private readonly getModelCallTimeouts: () => unknown;
   readonly messages: ChatMessage[] = [];
@@ -132,6 +137,7 @@ export class LynnAgentSession {
   private readonly fallbackCustomTools: RuntimeTool[];
   private tools: RuntimeTool[];
   private listeners = new Set<AgentSessionEventListener>();
+  private readonly textToolCallIds = new Set<string>();
   private abortController: AbortController | null = null;
   private pendingPrompts: Array<{ prompt: string; options?: PromptOptions }> = [];
   private activeTurnModel: Model | null = null;
@@ -158,6 +164,9 @@ export class LynnAgentSession {
     this.thinkingLevel = options.thinkingLevel || "auto";
     this.scopedModels = options.scopedModels as Record<string, unknown> | undefined;
     this.requestHeaders = options.requestHeaders || {};
+    this.getRequestHeaders = options.getRequestHeaders;
+    try { this.requestHeaderOrigin = new URL(chatCompletionsUrl(this.model)).origin; }
+    catch { this.requestHeaderOrigin = undefined; }
     this.requestMetadata = options.requestMetadata;
     this.getModelCallTimeouts = options.getModelCallTimeouts || readModelCallTimeouts;
     this.fallbackBaseTools = normalizeTools(options.tools);
@@ -247,7 +256,23 @@ export class LynnAgentSession {
   }
 
   async compact(): Promise<void> {
-    this.emit({ type: "auto_compaction_end" });
+    if (this.isStreaming) throw new Error("Wait for the current answer before compacting the conversation");
+    const entries = this.sessionManager.getBranch().filter(entry => entry.type === "message");
+    const users = entries.flatMap((entry, index) => (entry.message as ChatMessage)?.role === "user" ? [index] : []);
+    if (users.length <= 4) return;
+    const cut = users[users.length - 4];
+    const older = entries.slice(0, cut);
+    const usage = this.getContextUsage();
+    // Bounded extractive compaction remains available even when a model's window
+    // is already full. Keep whole recent user turns, including their tool pairs.
+    const bounded = (text: string, limit: number) => text.length <= limit ? text : `${text.slice(0, limit / 2)}\n[omitted middle]\n${text.slice(-limit / 2)}`;
+    const summary = bounded(older.map(entry => {
+      const message = entry.message as ChatMessage;
+      return `${message.role}: ${bounded(contentToText(message.content), 1600)}`;
+    }).join("\n\n"), 16_000);
+    this.sessionManager.appendCompaction(summary, entries[cut].id, Number(usage.usedTokens), { strategy: "extractive" });
+    this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages);
+    this.emit({ type: "auto_compaction_end", tokensBefore: usage.usedTokens, tokensAfter: this.getContextUsage().usedTokens });
   }
 
   async newSession(): Promise<void> {
@@ -317,7 +342,8 @@ export class LynnAgentSession {
     const tools = isBrainProvider(activeModel?.provider)
       ? filterOutBrainManagedCustomTools([...base, ...this._customTools])
       : [...base, ...this._customTools];
-    const stepExecute = this.createStepExecuteTool();
+    const stepExecute = this._baseToolsOverride != null && !base.some(tool => toolNameKey(tool.name) === "bash")
+      ? null : this.createStepExecuteTool();
     if (stepExecute && !tools.some((tool) => toolNameKey(tool.name) === toolNameKey(STEP_EXECUTE_TOOL_NAME))) {
       tools.push(stepExecute);
     }
@@ -325,7 +351,8 @@ export class LynnAgentSession {
   }
 
   private getFallbackTools(): RuntimeTool[] {
-    return [...this.fallbackBaseTools, ...this.fallbackCustomTools];
+    const allowed = new Set(this.getActiveToolNames());
+    return [...this.fallbackBaseTools.filter(tool => allowed.has(tool.name)), ...this.fallbackCustomTools];
   }
 
   private findStepExecutorModel(): Model | null {
@@ -460,11 +487,16 @@ export class LynnAgentSession {
   }
 
   getContextUsage(): Record<string, unknown> {
-    return { usedTokens: 0, maxTokens: this.model.contextWindow || 0 };
+    return { usedTokens: Math.ceil(JSON.stringify(this.messages).length / 4), maxTokens: this.model.contextWindow || 0, estimated: true };
   }
 
   _buildRuntime(opts?: { activeToolNames?: string[]; signal?: AbortSignal }): Record<string, unknown> {
-    if (Array.isArray(opts?.activeToolNames) && this._baseToolsOverride == null) this.setActiveToolsByName(opts.activeToolNames);
+    if (Array.isArray(opts?.activeToolNames)) {
+      const allowed = new Set(opts.activeToolNames);
+      const base = this._baseToolsOverride == null ? this.tools : Object.values(this._baseToolsOverride);
+      this._baseToolsOverride = Object.fromEntries(base.filter((tool) => allowed.has(tool.name)).map((tool) => [tool.name, tool]));
+      this._customTools = this._customTools.filter((tool) => allowed.has(tool.name));
+    }
     return {
       cwd: this.cwd,
       session: this,
@@ -514,6 +546,13 @@ export class LynnAgentSession {
     return models
       .map((model) => ({ model, rank: fallbackRank(model), identity: modelIdentity(model) }))
       .filter(({ model, rank, identity }) => {
+        const crossProvider = model.provider !== currentModel.provider;
+        const isLocal = (candidate: Model) => {
+          if (/^local(?:-|$)/i.test(candidate.provider)) return true;
+          try { return isPrivateHost(new URL(candidate.baseUrl || candidate.baseURL || "").hostname); } catch { return false; }
+        };
+        if (crossProvider && (currentModel.compat?.allowCrossProviderFallback !== true || isLocal(currentModel))) return false;
+        if (isLocal(currentModel) && (model.baseUrl || model.baseURL) !== (currentModel.baseUrl || currentModel.baseURL)) return false;
         if (!Number.isFinite(rank) || blocked.has(identity) || seen.has(identity)) return false;
         if (!model.baseUrl && !model.baseURL) return false;
         seen.add(identity);
@@ -785,10 +824,12 @@ export class LynnAgentSession {
     const streamTextImmediately = options.streamText ?? tools.length === 0;
     const body = buildRequestBody(model, messages, tools, this.thinkingLevel);
     if (options.tools?.length === 0) body.tool_choice = "none";
+    const requestUrl = chatCompletionsUrl(model);
     const headers: Record<string, string> = {
       "content-type": "application/json",
       accept: "text/event-stream",
-      ...this.requestHeaders,
+      ...(new URL(requestUrl).origin === this.requestHeaderOrigin ? this.requestHeaders : {}),
+      ...this.getRequestHeaders?.(model),
     };
     if (model.apiKey && !headers.authorization && !headers.Authorization) {
       headers.authorization = `Bearer ${model.apiKey}`;
@@ -800,7 +841,7 @@ export class LynnAgentSession {
     const reasoningParts: string[] = [];
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
-      const response = await modelStreamFetch(chatCompletionsUrl(model), {
+      const response = await modelStreamFetch(requestUrl, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -857,9 +898,12 @@ export class LynnAgentSession {
       }
       const content = textParts.join("");
       const toolCalls = finalizeToolCalls(toolDeltas);
-      const parsedContentToolCalls = toolCalls.length || !tools.length
+      const allowsTextCalls = /^local(?:-|$)/i.test(model.provider)
+        && (model.compat?.text_tool_calls === true || model.compat?.textToolCalls === true);
+      const parsedContentToolCalls = toolCalls.length || !tools.length || !allowsTextCalls
         ? []
         : extractToolCallsFromContent(content, tools);
+      for (const call of parsedContentToolCalls) this.textToolCallIds.add(call.id);
       return {
         assistant: { role: "assistant", content, reasoning_content: reasoningParts.join("") || undefined },
         toolCalls: toolCalls.length ? toolCalls : parsedContentToolCalls,
@@ -928,9 +972,14 @@ export class LynnAgentSession {
   ): Promise<ToolResult> {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     const normalized = normalizeToolCallForExecution(toolCall.function.name, toolCall.function.arguments, tools);
+    // A turn may have started before a mode change. Never execute a tool that
+    // has since been removed from the active runtime.
+    tools = tools.filter(candidate => this.getAllTools().some(active => active.name === candidate.name)
+      || (isBrainProvider((this.activeTurnModel || this.model).provider) && isBrainManagedCustomToolName(candidate.name)));
     toolCall.function.name = normalized.name;
     toolCall.function.arguments = maybeJson(normalized.args);
     let tool = this.resolveToolByName(toolCall.function.name, tools);
+    const textToolCall = this.textToolCallIds.delete(toolCall.id);
     if (!tool?.execute && isBrainManagedCustomToolName(toolCall.function.name)) {
       tool = this.resolveToolByName(
         toolCall.function.name,
@@ -941,6 +990,8 @@ export class LynnAgentSession {
         }),
       );
     }
+    const safeTextTools = new Set(["read", "grep", "find", "ls", "websearch", "webfetch", "weather", "sports", "stockmarket", "exchangerate"]);
+    if (textToolCall && !safeTextTools.has(toolNameKey(toolCall.function.name).replace(/-/g, "")) && tool?._textCallConfirmation !== true) tool = undefined;
     const args = normalized.args;
     this.emit({
       type: "message_update",
@@ -973,8 +1024,9 @@ export class LynnAgentSession {
       return result;
     }
     try {
-      const result = normalizeToolResult(await tool.execute(toolCall.id, args, this._buildRuntime({ signal })));
+      const result = normalizeToolResult(await tool.execute(toolCall.id, args, { ...this._buildRuntime({ signal }), textToolCall }));
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      registerCreatedToolFiles(this.sessionManager.getSessionFile?.(), toolCall.function.name, args, result, this.cwd);
       this.emit({
         type: "tool_execution_end",
         toolName: toolCall.function.name,

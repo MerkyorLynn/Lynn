@@ -40,7 +40,7 @@ function createMocks() {
 
   const engine = {
     getPreferences: vi.fn().mockReturnValue({
-      bridge: { owner: { telegram: "owner123" } },
+      bridge: { owner: { telegram: "owner123" }, allowlist: { telegram: ["user1", "user2", "stranger"] } },
     }),
     isBridgeSessionStreaming: vi.fn().mockReturnValue(false),
     abortBridgeSession: vi.fn().mockResolvedValue(false),
@@ -66,6 +66,23 @@ function createMocks() {
 // ── Tests ──
 
 describe("BridgeManager._handleMessage", () => {
+  it("rejects unlisted guests by default while allowing the owner", async () => {
+    const { bm, engine, hub } = createMocks();
+    engine.getPreferences.mockReturnValue({ bridge: { owner: { telegram: "owner123" } } });
+    expect(bm._isAllowed("telegram", "owner123")).toBe(true);
+    expect(bm._isAllowed("telegram", "stranger")).toBe(false);
+    await bm._handleMessage("telegram", { sessionKey: "guest", text: "hi", userId: "stranger", chatId: "guest" });
+    expect(hub.send).not.toHaveBeenCalled();
+  });
+
+  it("does not deliver model-supplied media to a group guest", async () => {
+    const { bm, hub, adapter } = createMocks();
+    adapter.sendMedia = vi.fn(); adapter.sendMediaBuffer = vi.fn();
+    hub.send.mockResolvedValue("text\nMEDIA:https://example.com/private.png");
+    await bm._flushGroupMessage("telegram", "group", "group-session", "hi", { userId: "user1" });
+    expect(adapter.sendReply).toHaveBeenCalledWith("group", "text");
+    expect(adapter.sendMedia).not.toHaveBeenCalled(); expect(adapter.sendMediaBuffer).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.useFakeTimers();
   });

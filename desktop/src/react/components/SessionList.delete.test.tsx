@@ -24,7 +24,7 @@ it.each(['contextmenu', 'click'])('offers delete with confirmation from %s menu'
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host);
   try {
     await act(async () => root.render(<SessionList />));
-    const target = trigger === 'click' ? host.querySelector('[title="session.menuTrigger"]')! : host.querySelector('[title="session.menuTrigger"]')!.closest('button')!;
+    const target = trigger === 'click' ? host.querySelector('[title="session.menuTrigger"]')! : host.querySelector('[title="session.menuTrigger"]')!.closest('[data-session-path]')!;
     await act(async () => target.dispatchEvent(new MouseEvent(trigger, { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })));
     const deleteItem = Array.from(document.querySelectorAll<HTMLElement>('.context-menu-item')).find(item => item.textContent === 'session.delete')!;
     expect(deleteItem).toBeTruthy();

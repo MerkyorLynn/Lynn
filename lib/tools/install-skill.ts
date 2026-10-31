@@ -71,6 +71,7 @@ interface InstallSkillToolOptions {
   getConfig: () => AgentConfigLike | null | undefined;
   resolveUtilityConfig: () => UtilityConfig | null | undefined;
   onInstalled?: (skillName: string) => Promise<void> | void;
+  authorize?: (request: { name?: string; githubUrl?: string; reason: string }) => boolean | Promise<boolean>;
 }
 
 interface InstallSkillParams {
@@ -81,6 +82,7 @@ interface InstallSkillParams {
 }
 
 type InstallSkillToolResult = {
+  isError?: boolean;
   content: Array<{ type: "text"; text: string }>;
   details: Record<string, unknown>;
 };
@@ -242,6 +244,7 @@ export function createInstallSkillTool({
   getConfig,
   resolveUtilityConfig,
   onInstalled,
+  authorize,
 }: InstallSkillToolOptions) {
   return {
     name: "install_skill",
@@ -276,6 +279,10 @@ export function createInstallSkillTool({
       }
 
       const { github_url, skill_content, skill_name, reason } = params;
+      if ((github_url?.trim() || skill_content?.trim()) && !(await authorize?.({ name: skill_name, githubUrl: github_url, reason }))) {
+        return { isError: true, content: [{ type: "text", text: t("error.installSkillApprovalRequired") }], details: {} };
+      }
+
 
       // ── 路径 A：GitHub URL 模式 ──
       if (github_url?.trim()) {

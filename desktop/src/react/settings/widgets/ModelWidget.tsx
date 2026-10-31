@@ -11,6 +11,7 @@ import {
   normalizeDisplayProviderLabel,
 } from '../../utils/brain-models';
 import styles from '../Settings.module.css';
+import { listboxKeyDown } from '../../utils/listbox-keyboard';
 
 interface ModelInfo {
   id: string;
@@ -41,6 +42,8 @@ export function ModelWidget({
   const [customInput, setCustomInput] = useState('');
   const [models, setModels] = useState<ModelInfo[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listId = React.useId();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // 从唯一信源获取模型列表
@@ -95,8 +98,12 @@ export function ModelWidget({
   };
 
   return (
-    <div className={styles['mdw']} ref={ref}>
+    <div className={styles['mdw']} ref={ref} onKeyDown={event => {
+      if (!open && ['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setOpen(true); }
+      else if (open) listboxKeyDown(event, ref.current, () => setOpen(false), triggerRef.current);
+    }}>
       <button
+        ref={triggerRef} aria-haspopup="listbox" aria-expanded={open} aria-controls={listId}
         className={styles['mdw-trigger']}
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
@@ -104,7 +111,7 @@ export function ModelWidget({
         <span className={styles['mdw-value']}>{visibleValue ? normalizeDisplayModelName(visibleModels.find((model) => normalizeDisplayModelId(model.id, model.provider) === visibleValue) || { id: visibleValue }) : `— ${placeholder || t('settings.api.selectModel')} —`}</span>
         <span className={styles['mdw-arrow']}>▾</span>
       </button>
-      <div className={`${styles['mdw-popup']}${open ? ' ' + styles['open'] : ''}`}>
+      <div id={listId} role="listbox" aria-label={placeholder || t('settings.api.selectModel')} hidden={!open} className={`${styles['mdw-popup']}${open ? ' ' + styles['open'] : ''}`}>
         <input
           ref={searchRef}
           className={styles['mdw-search']}
@@ -122,6 +129,7 @@ export function ModelWidget({
               {items.map(m => (
                 <button
                   key={`${m.provider}/${normalizeDisplayModelId(m.id, m.provider)}`}
+                  role="option" aria-selected={normalizeDisplayModelId(m.id, m.provider) === visibleValue}
                   className={`${styles['mdw-option']}${normalizeDisplayModelId(m.id, m.provider) === visibleValue ? ' ' + styles['selected'] : ''}`}
                   type="button"
                   onClick={() => { onSelect(normalizeDisplayModelId(m.id, m.provider)); setOpen(false); }}

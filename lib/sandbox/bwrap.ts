@@ -38,7 +38,7 @@ export function createBwrapExec(policy: StandardSandboxPolicy): SandboxExec {
     try {
       return await spawnAndStream(
         "bwrap",
-        [...args, "--", "/bin/bash", scriptPath],
+        [...args, "--ro-bind", scriptPath, "/tmp/lynn-command.sh", "--", "/bin/bash", "/tmp/lynn-command.sh"],
         { cwd, env, onData, signal, timeout },
       );
     } finally {

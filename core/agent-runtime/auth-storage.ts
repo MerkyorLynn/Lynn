@@ -27,7 +27,8 @@ export class AuthStorage {
 
   private save(): void {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, `${JSON.stringify(this.data, null, 2)}\n`, "utf8");
+    fs.writeFileSync(this.file, `${JSON.stringify(this.data, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    fs.chmodSync(this.file, 0o600);
   }
 
   get(key: string): unknown {

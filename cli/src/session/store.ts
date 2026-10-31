@@ -145,7 +145,20 @@ async function writeIndex(dataDir: string, entries: CliSessionIndexEntry[]): Pro
   await fs.rename(tmp, target);
 }
 
+const indexLockQueues = new Map<string, Promise<void>>();
+
 async function withIndexLock<T>(dataDir: string, run: () => Promise<T>): Promise<T> {
+  await fs.mkdir(cliSessionDir(dataDir), { recursive: true });
+  const key = await fs.realpath(cliSessionDir(dataDir));
+  const previous = indexLockQueues.get(key) || Promise.resolve();
+  const operation = previous.then(() => withIndexFileLock(dataDir, run));
+  const settled = operation.then(() => {}, () => {});
+  indexLockQueues.set(key, settled);
+  try { return await operation; }
+  finally { if (indexLockQueues.get(key) === settled) indexLockQueues.delete(key); }
+}
+
+async function withIndexFileLock<T>(dataDir: string, run: () => Promise<T>): Promise<T> {
   const dir = cliSessionDir(dataDir);
   await fs.mkdir(dir, { recursive: true });
   const release = await lockfile.lock(sessionIndexPath(dataDir), {

@@ -165,7 +165,8 @@ function tryAutoAnalyze() {
 
   // 延迟一帧确保附件已渲染
   requestAnimationFrame(() => {
-    void sendPrompt({ text: prompt, displayText: prompt });
+    useStore.setState({ composerText: prompt });
+    useStore.getState().requestInputFocus();
   });
 }
 

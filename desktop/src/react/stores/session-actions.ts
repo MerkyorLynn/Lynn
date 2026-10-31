@@ -157,7 +157,10 @@ export async function switchSession(path: string): Promise<void> {
         || String(abortErr?.message || '').includes('abort')
         || String(abortErr?.message || '').includes('signal');
       if (isAbort) {
+        if (myVersion !== _switchVersion) return;
         console.warn('[session] switch timed out after 7s, forcing local switch');
+        useStore.getState().saveComposerDraft(getComposerSessionKey(s.currentSessionPath, s.pendingNewSession));
+        if (s.currentSessionPath) saveTabState(s.currentSessionPath);
         // Timeout — force local state switch so UI is not stuck
         useStore.setState({
           currentSessionPath: path,

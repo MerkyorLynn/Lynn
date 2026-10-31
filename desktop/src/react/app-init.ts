@@ -132,8 +132,24 @@ export async function initApp(): Promise<void> {
   startup.resetStartupDiagnostics();
   startup.markStartupStep('server-port', '读取本地服务端口', 'running');
 
-  // 1. 获取 server 连接信息并存入 Zustand
-  const serverPort = await platform.getServerPort();
+  // Language resources must not depend on the local service being healthy.
+  try {
+    await i18n.load(i18n.locale || 'zh-CN');
+    useStore.setState({ locale: i18n.locale });
+  } catch (error) {
+    console.warn('[init] initial locale load failed:', error);
+  }
+
+  // The shell stays responsive while a late-starting service becomes ready.
+  let serverPort = await Promise.resolve(platform.getServerPort()).catch(() => null);
+  if (!serverPort) {
+    setStatus('status.serverNotReady', false);
+    platform.appReady();
+  }
+  while (!serverPort) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    serverPort = await Promise.resolve(platform.getServerPort()).catch(() => null);
+  }
   const serverToken = await platform.getServerToken();
   useStore.setState({ serverPort, serverToken });
   useStore.getState().markStartupStep(
@@ -142,13 +158,6 @@ export async function initApp(): Promise<void> {
     serverPort ? 'success' : 'error',
     serverPort ? `127.0.0.1:${serverPort}` : '未拿到本地服务端口',
   );
-
-  if (!serverPort) {
-    setStatus('status.serverNotReady', false);
-    useStore.getState().markStartupStep('bootstrap', '主窗口启动', 'warning', '服务尚未 ready，已提前显示外壳');
-    platform.appReady();
-    return;
-  }
 
   // 先让主窗口壳子显示出来，避免 onboarding 结束后卡在米色空白页等待网络与配置。
   useStore.setState({ pendingNewSession: true });
@@ -171,7 +180,7 @@ export async function initApp(): Promise<void> {
 
     // 3. 加载 i18n
     useStore.getState().markStartupStep('locale', '加载语言资源', 'running');
-    await i18n.load(configData.locale || 'zh-CN');
+    if (i18n.locale !== (configData.locale || 'zh-CN')) await i18n.load(configData.locale || 'zh-CN');
     useStore.setState({ locale: i18n.locale });
     useStore.getState().markStartupStep('locale', '加载语言资源', 'success', i18n.locale);
     if (await platform.consumeRendererRecovery?.()) {

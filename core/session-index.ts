@@ -1,5 +1,6 @@
 import fsp from "fs/promises";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import {
   normalizeSessionTopology,
   type SessionTopologyMeta,
@@ -117,9 +118,11 @@ export async function writeSessionIndex(sessionDir: string, sessions: unknown, o
   };
   await fsp.mkdir(sessionDir, { recursive: true });
   const target = sessionIndexPath(sessionDir);
-  const tmp = `${target}.tmp`;
-  await fsp.writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
-  await fsp.rename(tmp, target);
+  const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fsp.writeFile(tmp, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf-8", mode: 0o600, flag: "wx" });
+    await fsp.rename(tmp, target);
+  } finally { await fsp.rm(tmp, { force: true }).catch(() => {}); }
   return payload;
 }
 

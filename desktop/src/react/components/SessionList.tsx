@@ -570,12 +570,15 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
   const sessionLabels = Array.isArray(s.labels) ? s.labels : [];
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={event => { if (event.target === event.currentTarget && !disabled && ["Enter", " "].includes(event.key)) { event.preventDefault(); event.currentTarget.click(); } }}
       className={`${styles.sessionItem}${isActive ? ` ${styles.sessionItemActive}` : ''}${s.pinned ? ` ${styles.sessionItemPinned}` : ''}`}
       data-session-path={s.path}
-      onClick={handleClick}
+      onClick={disabled ? undefined : handleClick}
       onContextMenu={openCtxMenu}
-      disabled={disabled}
+      aria-disabled={disabled}
     >
       {searchSnippet && <span className={styles.sessionSearchSnippet}>{searchSnippet}</span>}
       <div className={styles.sessionItemHeader}>
@@ -615,6 +618,8 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
             title={t('session.menuTrigger')}
             onClick={openCtxMenu}
             role="button"
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={event => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); event.stopPropagation(); event.currentTarget.click(); } }}
             aria-haspopup="menu"
             aria-expanded={ctxMenu !== null}
           >
@@ -709,7 +714,7 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
       {ctxMenu && (
         <ContextMenu items={menuItems} position={ctxMenu} onClose={closeCtxMenu} />
       )}
-    </button>
+    </div>
   );
 }
 

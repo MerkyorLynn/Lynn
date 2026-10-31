@@ -1,3 +1,4 @@
+import { isSensitiveFilePath } from "../../shared/sensitive-file-path.js";
 /**
  * fs.ts — 文件系统 API（Web 客户端用）
  *
@@ -144,25 +145,48 @@ function getAllowedRoots(engine: FsRouteEngine, mode: AccessMode): string[] {
 
 // 2026-05-24 P2 security: 即使 ~/.lynn 在 allowed_roots(skills / 配置访问需要),
 // 也绝不允许工具调用读敏感凭据文件 — prompt injection 不应能 exfiltrate secrets。
-const _SENSITIVE_PATH_PATTERNS = [
-  /\/\.lynn\/brain\.env(\.bak[^/]*)?$/,
-  /\/\.lynn\/auth\.json$/,
-  /\/\.lynn\/added-models\.yaml$/,
-  /\/\.lynn-engine\/providers\/[^/]+\.json$/,  // engine provider configs 含 api keys
-  /\/\.ssh\/(?:id_|known_hosts|authorized_keys|config)/,
-  /\/\.aws\/credentials/,
-  /\.env(\.[^/]+)?$/i,  // 任何 .env / .env.local / .env.production 等
-];
-
-function isSensitivePath(resolvedPath: string): boolean {
-  return _SENSITIVE_PATH_PATTERNS.some((re) => re.test(resolvedPath));
+function isSensitivePath(resolvedPath: string, dataRoot?: string): boolean {
+  return isSensitiveFilePath(resolvedPath, dataRoot ? resolveCanonicalPath(dataRoot) || dataRoot : undefined);
 }
 
-function isSafePath(filePath: unknown, allowedRoots: readonly string[]): boolean {
+function isSafePath(filePath: unknown, allowedRoots: readonly string[], dataRoot?: string): boolean {
   const resolved = resolveCanonicalPath(filePath);
   if (!resolved) return false;
-  if (isSensitivePath(resolved)) return false;  // 显式 deny secrets
+  if (isSensitivePath(resolved, dataRoot)) return false;  // 显式 deny secrets
   return allowedRoots.some(root => isInsideRoot(resolved, root));
+}
+
+class FilePreviewError extends Error {
+  constructor(message: string, readonly status: 400 | 403 | 413) { super(message); }
+}
+
+function readAllowedFile(filePath: string, allowedRoots: string[], dataRoot?: string, limit = 8 * 1024 * 1024): Buffer {
+  const canonical = resolveCanonicalPath(filePath);
+  if (!canonical || !isSafePath(canonical, allowedRoots, dataRoot)) throw new FilePreviewError("path not allowed", 403);
+  const before = fs.statSync(canonical);
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(canonical, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0) | (fs.constants.O_NONBLOCK || 0));
+    const opened = fs.fstatSync(fd);
+    if (!opened.isFile()) throw new FilePreviewError("not a file", 400);
+    if (before.dev !== opened.dev || before.ino !== opened.ino || fs.realpathSync(canonical) !== canonical
+      || resolveCanonicalPath(filePath) !== canonical) throw new FilePreviewError("path changed during read", 403);
+    if (opened.size > limit) throw new FilePreviewError("file too large", 413);
+    const chunks: Buffer[] = [];
+    let total = 0;
+    while (true) {
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, limit - total + 1));
+      const count = fs.readSync(fd, chunk, 0, chunk.length, null);
+      if (!count) break;
+      total += count;
+      if (total > limit) throw new FilePreviewError("file too large", 413);
+      chunks.push(chunk.subarray(0, count));
+    }
+    return Buffer.concat(chunks, total);
+  } catch (error) {
+    if (errorCode(error) === "ELOOP") throw new FilePreviewError("path changed during read", 403);
+    throw error;
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 
 export function createFsRoute(engine: FsRouteEngine): Hono {
@@ -172,24 +196,28 @@ export function createFsRoute(engine: FsRouteEngine): Hono {
   route.get("/fs/read", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"), engine.lynnHome)) {
       return c.json({ error: "path not allowed" }, 403);
     }
-    const content = safeReadFile(filePath, null);
-    if (content === null) return c.json({ error: "file not found" }, 404);
-    return c.text(content);
+    try {
+      return c.text(readAllowedFile(filePath, getAllowedRoots(engine, "read"), engine.lynnHome).toString("utf8"));
+    } catch (error) {
+      if (error instanceof FilePreviewError) return c.json({ error: error.message }, error.status);
+      return c.json({ error: "file not found" }, 404);
+    }
   });
 
   route.get("/fs/read-base64", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"), engine.lynnHome)) {
       return c.json({ error: "path not allowed" }, 403);
     }
     try {
-      const buf = fs.readFileSync(filePath);
+      const buf = readAllowedFile(filePath, getAllowedRoots(engine, "read"), engine.lynnHome, 50 * 1024 * 1024);
       return c.text(buf.toString("base64"));
-    } catch {
+    } catch (error) {
+      if (error instanceof FilePreviewError) return c.json({ error: error.message }, error.status);
       return c.json({ error: "file not found" }, 404);
     }
   });
@@ -197,17 +225,16 @@ export function createFsRoute(engine: FsRouteEngine): Hono {
   route.get("/fs/docx-html", async (c) => {
     const filePath = c.req.query("path");
     if (!filePath) return c.json({ error: "missing path" }, 400);
-    if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
+    if (!isSafePath(filePath, getAllowedRoots(engine, "read"), engine.lynnHome)) {
       return c.json({ error: "path not allowed" }, 403);
     }
     try {
-      const stat = fs.statSync(filePath);
-      if (!stat.isFile()) return c.json({ error: "not a file" }, 400);
-      if (stat.size > 20 * 1024 * 1024) return c.json({ error: "file too large" }, 413);
+      const buffer = readAllowedFile(filePath, getAllowedRoots(engine, "read"), engine.lynnHome, 20 * 1024 * 1024);
       const mammoth = (await import("mammoth")).default;
-      const result = await mammoth.convertToHtml({ path: filePath });
+      const result = await mammoth.convertToHtml({ buffer });
       return c.text(result.value);
     } catch (err) {
+      if (err instanceof FilePreviewError) return c.json({ error: err.message }, err.status);
       if (errorCode(err) === "ENOENT") return c.json({ error: "file not found" }, 404);
       return c.json({ error: "docx parse failed" }, 500);
     }
@@ -225,7 +252,7 @@ export function createFsRoute(engine: FsRouteEngine): Hono {
       // write 时被换成 → ~/.ssh/authorized_keys。canonical 解析锁定 inode,确保 check 和 write
       // 看的是同一个文件。
       const allowedRoots = getAllowedRoots(engine, "write");
-      if (!isSafePath(filePath, allowedRoots)) {
+      if (!isSafePath(filePath, allowedRoots, engine.lynnHome)) {
         return c.json({ error: "path not allowed" }, 403);
       }
       const canonical = resolveCanonicalPath(filePath);
@@ -304,7 +331,7 @@ export function createFsRoute(engine: FsRouteEngine): Hono {
       if (!filePath) {
         return c.json({ error: "missing filePath" }, 400);
       }
-      if (!isSafePath(filePath, getAllowedRoots(engine, "read"))) {
+      if (!isSafePath(filePath, getAllowedRoots(engine, "read"), engine.lynnHome)) {
         return c.json({ error: "path not allowed" }, 403);
       }
       if (!fs.existsSync(filePath)) {

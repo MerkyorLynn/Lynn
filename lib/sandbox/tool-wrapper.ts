@@ -409,7 +409,7 @@ function shouldSnapshotCommandCwd(command: string, cwd?: string | null): boolean
   });
 }
 
-async function requestAuthorization({
+export async function requestAuthorization({
   category, identifier, command, reason, description,
   allowlist, sessionAllowlist, confirmStore, sessionPath, emitEvent,
   path: targetPath,
@@ -417,11 +417,15 @@ async function requestAuthorization({
 }: AuthorizationRequest): Promise<{ allowed: boolean }> {
   const trustedRoot = targetPath ? findTrustedRootForPath(targetPath, trustedRoots) : null;
 
-  if (sessionAllowlist?.check({ category, identifier, path: targetPath, trustedRoot })) {
+  const reusableAllowed = category.startsWith("path_") && !!targetPath && !!trustedRoot;
+  if (reusableAllowed && sessionAllowlist?.check({ category, identifier, path: targetPath, trustedRoot })) {
     return { allowed: true };
   }
 
-  if (allowlist?.check(category, identifier, { path: targetPath })) {
+  // A permanent command grant must have a concrete workspace boundary.
+  const persistentAllowed = reusableAllowed
+    && !["data_exfiltration", "remote_script", "script_install", "elevated_command"].includes(category);
+  if (persistentAllowed && allowlist?.check(category, identifier, { path: targetPath })) {
     return { allowed: true };
   }
 
@@ -461,14 +465,16 @@ async function requestAuthorization({
   }
 
   if (result.action === "confirmed_session") {
-    sessionAllowlist?.add({ category, identifier, trustedRoot });
+    if (reusableAllowed) sessionAllowlist?.add({ category, identifier, trustedRoot });
     return { allowed: true };
   }
 
-  if (result.action === "confirmed_persistent") {
+  if (result.action === "confirmed_persistent" && persistentAllowed) {
     allowlist?.add({ category, identifier, trustedRoot });
     return { allowed: true };
   }
+
+  if (result.action === "confirmed_persistent") return { allowed: true };
 
   return { allowed: false };
 }
@@ -487,22 +493,24 @@ export function wrapPathTool(
   ) => Promise<ToolResult>;
   return {
     ...tool,
+    _textCallConfirmation: true,
     execute: async (toolCallId: string, params: Record<string, unknown>, ...rest: unknown[]) => {
       const rawPath = params.path;
       const absolutePath = resolvePath(rawPath, cwd);
       const checkPath = absolutePath || cwd;
       const result = guard.check(checkPath, operation);
+      const textToolCall = (rest[0] as { textToolCall?: boolean } | undefined)?.textToolCall === true && operation !== "read";
 
-      if (!result.allowed) {
+      if (!result.allowed || textToolCall) {
         if (authOpts?.mode === "authorized") {
           const authResult = await requestAuthorization({
-            category: `path_${operation}`,
+            category: textToolCall ? "text_tool_call" : `path_${operation}`,
             identifier: checkPath,
             command: `${operation} ${rawPath || cwd}`,
             reason: result.reason || "restricted",
             description: t("sandbox.authDesc.pathOp", { op: operation, path: rawPath || cwd }),
-            allowlist: authOpts.allowlist,
-            sessionAllowlist: authOpts.sessionAllowlist,
+            allowlist: textToolCall ? undefined : authOpts.allowlist,
+            sessionAllowlist: textToolCall ? undefined : authOpts.sessionAllowlist,
             confirmStore: authOpts.confirmStore,
             sessionPath: authOpts.getSessionPath?.() || authOpts.sessionPath || null,
             emitEvent: authOpts.emitEvent,
@@ -534,6 +542,7 @@ export function wrapBashTool(
   ) => Promise<ToolResult>;
   return {
     ...tool,
+    _textCallConfirmation: true,
     parameters: buildBashParameterSchema(tool.parameters),
     execute: async (toolCallId: string, params: Record<string, unknown>, ...rest: unknown[]) => {
       params = normalizeBashParams(params);
@@ -543,9 +552,23 @@ export function wrapBashTool(
       if (looksLikeBroadHomeSearchCommand(params.command)) {
         return blockedBroadHomeSearchResult(params.command);
       }
+      const textToolCall = (rest[0] as { textToolCall?: boolean } | undefined)?.textToolCall === true;
+      if (textToolCall) {
+        const risks = PREFLIGHT_PATTERNS.filter(([pattern]) => pattern.test(params.command as string)).map(([, reason]) => reason());
+        const authorization = await requestAuthorization({
+          category: "text_tool_call", identifier: "bash", command: params.command,
+          reason: risks.join("; ") || "Confirm command proposed through text-tool compatibility",
+          description: "Text-tool compatibility requires approval for this command.",
+          confirmStore: authOpts?.mode === "authorized" ? authOpts.confirmStore : undefined,
+          sessionPath: authOpts?.getSessionPath?.() || authOpts?.sessionPath || null,
+          emitEvent: authOpts?.emitEvent,
+        });
+        if (!authorization.allowed) return blockedResult("Text tool command was not approved");
+      }
 
       let shouldSnapshotDangerousCommand = false;
       for (const [pattern, reasonFn, category, identifier, descFn] of PREFLIGHT_PATTERNS) {
+        if (textToolCall) continue; // the complete command and all risks were approved once above
         if (pattern.test(params.command)) {
           if (authOpts?.mode === "authorized") {
             const authResult = await requestAuthorization({
@@ -560,8 +583,9 @@ export function wrapBashTool(
               sessionPath: authOpts.getSessionPath?.() || authOpts.sessionPath || null,
               emitEvent: authOpts.emitEvent,
               trustedRoots: authOpts.trustedRoots,
+              path: cwd || null,
             });
-            if (authResult.allowed) break;
+            if (authResult.allowed) continue;
             return blockedResult(reasonFn());
           }
           return blockedResult(reasonFn());
@@ -575,7 +599,7 @@ export function wrapBashTool(
       if (shouldSnapshotDangerousCommand && cwd) {
         try {
           const agentId = authOpts?.agentId || "default";
-          createSnapshot(cwd, agentId, `dangerous command: ${params.command.slice(0, 80)}`);
+          await createSnapshot(cwd, agentId, `dangerous command: ${params.command.slice(0, 80)}`);
         } catch (err) {
           console.warn("[snapshot] auto-snapshot failed:", errorMessage(err));
         }

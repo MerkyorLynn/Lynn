@@ -15,6 +15,9 @@ export function Toggle({ on, onChange, label }: ToggleProps) {
       <button
         className={`hana-toggle${on ? ' on' : ''}`}
         type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
         onClick={() => onChange(!on)}
       />
       {label && <span className="hana-toggle-label">{label}</span>}

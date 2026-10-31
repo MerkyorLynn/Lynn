@@ -11,8 +11,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.87.4-brightgreen" alt="App Version"></a>
-  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.87.4-7bcad3" alt="CLI Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/App-0.87.5-brightgreen" alt="App Version"></a>
+  <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/CLI-0.87.5-7bcad3" alt="CLI Version"></a>
   <a href="https://github.com/MerkyorLynn/Lynn"><img src="https://img.shields.io/github/stars/MerkyorLynn/Lynn?style=social" alt="Stars"></a>
   <a href="https://github.com/MerkyorLynn/Lynn/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform"></a>
   <a href="https://huggingface.co/nerkyor"><img src="https://img.shields.io/badge/HuggingFace-Lynn%20Models-ffcc4d" alt="HuggingFace Models"></a>
@@ -23,11 +23,11 @@
 
 ---
 
-## Lynn V0.87.4 · Step 5 云端 + Coder390 本地
+## Lynn V0.87.5 · Step 5 云端 + Coder390 本地
 
-Lynn 是同时提供桌面 GUI 与独立 CLI 的开源 AI Agent：用对话完成搜索、文件处理、代码任务和实时语音，也可以作为其他 Agent 或 CI 的无头 worker。**当前 GUI / CLI 均为 V0.87.4，默认工作模型为 Step 5 Preview，不是 Step 3.7。**
+Lynn 是同时提供桌面 GUI 与独立 CLI 的开源 AI Agent：用对话完成搜索、文件处理、代码任务和实时语音，也可以作为其他 Agent 或 CI 的无头 worker。**当前 GUI / CLI 均为 V0.87.5，默认工作模型为 Step 5 Preview。**
 
-[国内下载页（推荐）](https://download.merkyorlynn.com/download.html) · [V0.87.4 发布说明](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.4) · [GitHub 主仓](https://github.com/MerkyorLynn/Lynn) · [GitHub 备份仓](https://github.com/LynnMerkyor/Lynn) · [Gitee](https://gitee.com/merkyor/Lynn)
+[国内下载页（推荐）](https://download.merkyorlynn.com/download.html) · [V0.87.5 发布说明](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.5) · [GitHub 主仓](https://github.com/MerkyorLynn/Lynn) · [GitHub 备份仓](https://github.com/LynnMerkyor/Lynn) · [Gitee](https://gitee.com/merkyor/Lynn)
 
 ### 当前模型与运行方式
 
@@ -54,21 +54,14 @@ Lynn 是同时提供桌面 GUI 与独立 CLI 的开源 AI Agent：用对话完�
 - 模型文件大小不等于实际内存占用；上下文缓存、运行缓冲与系统仍需空间。
 - 安装与启动由用户明确操作；切换档位不静默删除已有模型文件。设置页提供 Q2 / Q3，不再以旧 9B / 4B 作为当前安装推荐。
 
-### V0.87.4 重点更新
+### V0.87.5 重点更新
 
-**2026-10-29 同版本热修**：修复 Apple Silicon / 空显卡列表导致本地 Qwen 模型设置页崩溃、无法安装的问题。已安装原版 V0.87.4 的用户请重新下载安装修复包；版本号保持不变。
-
-- **CLI 云端请求更快开始**：移除选择云端地址时重复的健康探测；仍优先可用的本地 Brain，保留用户显式地址。
-- **Windows 状态查询不再调用 PATH 中的 ps.exe**：改用隐藏的系统原生进程/端口查询，修复 #76。
-- **汇率增加备用源**：主源不可用时使用 AllRatesToday，明确标注 ECB 每日参考数据、时间与来源，修复 #77。
-- **增强 CLI**：流式工具、并发读取与串行写入、精确编辑、后台命令、计划模式、技能和会话分支。
-- **执行更可靠**：显式权限规则优先；守门 hook 或配置失败不放行；停止命令清理子进程；阅读缓存按任务隔离。
-- **安装与抓取更稳妥**：保留其他程序的命令链接；网页重定向逐跳检查并响应取消。
-- **实时证据日期更清楚**：区分发布时间、抓取时间和事件日期；搜索新闻与结构化数据冲突时要求核验，避免旧内容冒充当日结果。
-- **搜索资料不再误作用户输入**：按服务器保存的原始请求执行输入检查，保留检索内容供模型分析。
-- **体育回答由模型完整总结**：工具返回后继续生成解释和结论，移除写死的预测比分。
-
-本次验证与后续观察见 [V0.87.4 验证记录](docs/ops/v0874-follow-ups.md)。
+- **CLI 命令菜单可选择**：输入 `/` 后用 ↑↓ 移动，Tab / Enter 填入选中命令；支持滚动与键盘操作。
+- **设置草稿更可靠**：按 Agent 保留未保存内容，切换设置页、刷新模型配置时保留草稿与经验列表。
+- **会话执行更稳定**：修复并发工具结果匹配、桥接会话排队、上下文压缩和回复显示问题。
+- **本地模型启动可恢复**：启动超时明确报错，允许手动重试，旧进程退出不会覆盖新进程状态。
+- **文件与界面操作更稳妥**：修复文件访问和预览边界，为删除、撤回与高风险操作补充确认；完善菜单和设置控件键盘操作。
+- **GUI / CLI 同步更新**：升级桌面与内置运行时依赖，延续 Step 5、实时语音及 Coder390 Q2 / Q3。
 
 ### 延续的对话与会话能力
 
@@ -92,7 +85,7 @@ Lynn 是同时提供桌面 GUI 与独立 CLI 的开源 AI Agent：用对话完�
 
 ### CLI 快速安装
 
-Lynn CLI 提供终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑，既可交互使用，也可作为其他智能体和 CI 的无头 worker。**一行命令安装 V0.87.4，不用克隆仓库或自行编译。**
+Lynn CLI 提供终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑，既可交互使用，也可作为其他智能体和 CI 的无头 worker。**一行命令安装 V0.87.5，不用克隆仓库或自行编译。**
 
 ```bash
 # 1. Node requirement: Node.js 20 LTS or 22 LTS with npm.
@@ -102,16 +95,16 @@ Lynn CLI 提供终端 TUI、Markdown 渲染、流式输出、工具调用和长�
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror. --force is safe for first install too.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz?rev=20261029"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz?rev=20261031"
 
 # 3. Launch.
 Lynn            # interactive chat TUI; 输入 /voice 或 lynn voice 进入实时语音
 Lynn code       # coding-agent TUI
-Lynn --version  # should print 0.87.4
+Lynn --version  # should print 0.87.5
 Lynn agents     # copyable headless worker commands for other agents
 ```
 
-默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到 Lynn 远端 Brain。V0.87.4 的 GUI/CLI 普通对话与任务执行统一使用 **Step 5 Preview (`step-5-preview`)**，默认视觉也由 Step 5 直接处理，无需独立视觉 API Key；语音由 Brain 托管 **StepFun Realtime (`stepaudio-2.5-realtime`)** 承接,CLI 当前 chat 内 `/voice` / `lynn voice` 与 GUI 麦克风默认就是实时语音对话。本地 manager 作为显式 `Lynn manager run` 实验链路保留,不会抢占默认 GUI/CLI 路径。纯 CLI 用户也可以用 `Lynn providers set ...` 绑定自己的 OpenAI 兼容端点。
+默认走 Brain V2 路由:本地 Lynn Brain 可用时优先本地,不可用时自动回到 Lynn 远端 Brain。V0.87.5 的 GUI/CLI 普通对话与任务执行统一使用 **Step 5 Preview (`step-5-preview`)**，默认视觉也由 Step 5 直接处理，无需独立视觉 API Key；语音由 Brain 托管 **StepFun Realtime (`stepaudio-2.5-realtime`)** 承接,CLI 当前 chat 内 `/voice` / `lynn voice` 与 GUI 麦克风默认就是实时语音对话。本地 manager 作为显式 `Lynn manager run` 实验链路保留,不会抢占默认 GUI/CLI 路径。纯 CLI 用户也可以用 `Lynn providers set ...` 绑定自己的 OpenAI 兼容端点。
 
 长任务默认采用 Reasonix 风格的**前置缓存纪律**:稳定前缀、工具定义、运行时约束和 resume 摘要分层固定,避免每轮重排导致 prefix drift;缓存命中以 `prefix-cache ... hit` 进入 usage、session、replay 和 `Lynn cache doctor --json`,不在界面里制造上下文焦虑。
 
@@ -152,7 +145,7 @@ Lynn worker run --brief task.md --worktree . --agent qwen-cli --jsonl
 
 ## 🆕 近期更新
 
-当前版本为 **V0.87.4**，更新与安装要求见本文顶部。以下为历史版本记录，其中的模型、容量和路由仅描述对应旧版本，不是当前安装建议。
+当前版本为 **V0.87.5**，更新与安装要求见本文顶部。以下为历史版本记录，其中的模型、容量和路由仅描述对应旧版本，不是当前安装建议。
 
 <details>
 <summary><strong>Lynn v0.87.0</strong> · 2026-09-08 · 窗边树影与更简洁的工作界面</summary>
@@ -1269,7 +1262,7 @@ Qwen3.8-27B Coder390 EfficientThink：24GB 及以上默认 Q3（主模型 17.30 
 
 首次启动有两条路径：
 
-**Quick Start**（3 秒进主界面）— 输入名字、授权权限，直接开聊。**内置免费默认模型池**（V0.87.4 走 Brain V2:StepFun 负责文本/编码执行与视觉,其他供应商作为备用链路;本地 manager 只在显式调用时启用）：
+**Quick Start**（3 秒进主界面）— 输入名字、授权权限，直接开聊。**内置免费默认模型池**（V0.87.5 走 Brain V2:StepFun 负责文本/编码执行与视觉,其他供应商仅在用户显式启用后作为备用链路;本地 manager 只在显式调用时启用）：
 
 ```
 T1  ⭐ Step 5 Preview（step-5-preview，文本/编码主路）
@@ -1463,11 +1456,11 @@ Agent 也可以从 GitHub 安装技能或自己编写新技能，安装经独立
 
 ### 下载安装
 
-**macOS（Apple Silicon / Intel）**：从 [国内下载镜像](https://download.merkyorlynn.com/download.html) 下载对应架构的 `.dmg`，版本记录见 [V0.87.4 发布说明](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.4)。正式 DMG 必须经过 Developer ID 签名、Apple 公证、装订和 Gatekeeper 验证后发布。
+**macOS（Apple Silicon / Intel）**：从 [国内下载镜像](https://download.merkyorlynn.com/download.html) 下载对应架构的 `.dmg`，版本记录见 [V0.87.5 发布说明](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.5)。正式 DMG 必须经过 Developer ID 签名、Apple 公证、装订和 Gatekeeper 验证后发布。
 
 **Windows**：从 [国内下载镜像](https://download.merkyorlynn.com/download.html) 下载最新 `.exe`，直接运行；版本记录见 [GitHub Releases](https://github.com/MerkyorLynn/Lynn/releases)。
 
-> **Windows SmartScreen 提示：** V0.87.4 沿用现有 NSIS 安装方式，未包含公开信任的 Authenticode 代码签名。Windows 可能提示未知发布者或 SmartScreen 确认；请仅从上述正式渠道下载，并核对发布的 SHA-256。
+> **Windows SmartScreen 提示：** V0.87.5 沿用现有 NSIS 安装方式，未包含公开信任的 Authenticode 代码签名。Windows 可能提示未知发布者或 SmartScreen 确认；请仅从上述正式渠道下载，并核对发布的 SHA-256。
 
 Linux 版本计划中。
 

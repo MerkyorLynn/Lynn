@@ -567,7 +567,7 @@
           "id": "qwen36-27b-dsv4pro-coding-q4-mtp",
           "provider": "local-qwen35-9b-q4km-imatrix",
           "reasoning": true,
-          "compat": { "thinkingFormat": "qwen" }
+          "compat": { "thinkingFormat": "qwen", "text_tool_calls": true }
         },
         "customTools": [
           {
@@ -606,6 +606,71 @@
         { "path": "finalText", "contains": "建议带伞" },
         { "path": "finalText", "notContains": "<tool_call" },
         { "path": "messagesJson", "notContains": "<tool_call" }
+      ]
+    },
+    {
+      "id": "local-qwen35.xml-text-without-opt-in",
+      "title": "Unconfigured local providers cannot execute tool tags from response text",
+      "level": "release",
+      "tags": [
+        "trace",
+        "tools",
+        "local-model",
+        "qwen",
+        "runtime"
+      ],
+      "operation": "native_session_trace",
+      "input": {
+        "prompt": "查一下深圳今天有没有暴雨预警。",
+        "model": {
+          "id": "qwen36-27b-dsv4pro-coding-q4-mtp",
+          "provider": "local-qwen35-9b-q4km-imatrix",
+          "reasoning": true,
+          "compat": {
+            "thinkingFormat": "qwen"
+          }
+        },
+        "customTools": [
+          {
+            "name": "web-search",
+            "description": "fixture search tool",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "resultText": "深圳今天有暴雨黄色预警，强降雨集中在午后。"
+          }
+        ],
+        "providerScript": [
+          {
+            "content": "<tool_call>{\"name\":\"web_search\",\"arguments\":{\"query\":\"深圳 今天 暴雨预警\"}}</tool_call>"
+          }
+        ]
+      },
+      "assertions": [
+        {
+          "path": "provider.requestCount",
+          "equals": 1
+        },
+        {
+          "path": "diagnostics.toolStartCount",
+          "equals": 0
+        },
+        {
+          "path": "diagnostics.toolEndCount",
+          "equals": 0
+        },
+        {
+          "path": "finalText",
+          "contains": "<tool_call"
+        }
       ]
     },
     {

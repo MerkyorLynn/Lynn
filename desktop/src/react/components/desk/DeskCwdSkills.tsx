@@ -292,7 +292,8 @@ export function DeskCwdSkillsPanel() {
               <button
                 className={styles.cwdCtxDanger}
                 onClick={() => {
-                  deleteSkill(cmSkill);
+                  const skill = cmSkill;
+                  useStore.getState().setPendingConfirm({ message: t('desk.deleteSkill'), detail: skill.baseDir, tone: 'danger', onConfirm: () => deleteSkill(skill) });
                   setCmPos(null);
                 }}
               >

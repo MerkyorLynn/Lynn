@@ -271,7 +271,7 @@ export function createHubEventForwarder({
         const rawArgRecord = rawArgs as AnyRecord;
         for (const k of TOOL_ARG_SUMMARY_KEYS) { if (rawArgRecord[k] !== undefined) args[k] = rawArgRecord[k]; }
       }
-      emitStreamEvent(sessionPath, ss, { type: "tool_start", name: event.toolName || "", args });
+      emitStreamEvent(sessionPath, ss, { type: "tool_start", name: event.toolName || "", args, toolCallId: event.toolCallId });
       lifecycleHooks.run("tool_start", {
         event,
         ss,
@@ -337,6 +337,7 @@ export function createHubEventForwarder({
 
       emitStreamEvent(sessionPath, ss, {
         type: "tool_end",
+        toolCallId: event.toolCallId,
         name: toolName,
         success: !toolIsError,
         details: publicDetails || rawDetails,

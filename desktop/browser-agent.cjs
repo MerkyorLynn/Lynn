@@ -351,15 +351,15 @@ function createBrowserAgentController(deps) {
   }
 
   function setupCommands() {
-    const serverPort = getServerPort();
-    const serverToken = getServerToken();
-    if (!serverPort || !serverToken) return;
-
     const WebSocket = require("ws");
-    const url = `ws://127.0.0.1:${serverPort}/internal/browser`;
-    const protocols = serverToken ? ["hana-browser", `token.${serverToken}`] : ["hana-browser"];
 
     function connect() {
+      if (getIsQuitting()) return;
+      const serverPort = getServerPort();
+      const serverToken = getServerToken();
+      if (!serverPort || !serverToken) { setTimeout(connect, 2000); return; }
+      const url = `ws://127.0.0.1:${serverPort}/internal/browser`;
+      const protocols = ["hana-browser", `token.${serverToken}`];
       commandSocket = new WebSocket(url, protocols);
       commandSocket.on("open", () => {
         console.log("[desktop] Browser control WS connected");

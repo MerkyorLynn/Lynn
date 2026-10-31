@@ -275,6 +275,7 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
       className={styles.sessionPanel}
       role="log"
       aria-live={active ? 'polite' : 'off'}
+      aria-busy={isSessionStreaming}
       aria-hidden={!active}
       style={{
         visibility: active ? 'visible' : 'hidden',

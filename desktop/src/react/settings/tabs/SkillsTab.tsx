@@ -88,10 +88,12 @@ export function SkillsTab() {
 
   // 后台翻译技能名
   const [nameHints, setNameHints] = useState<Record<string, string>>({});
+  const requestedTranslations = React.useRef(new Set<string>());
   useEffect(() => {
     if (locale === 'en' || visibleSkillNames.length === 0) return;
-    const names = visibleSkillNames.filter(n => !nameHints[n]);
+    const names = visibleSkillNames.filter(n => !nameHints[n] && !requestedTranslations.current.has(`${locale}:${n}`));
     if (names.length === 0) return;
+    names.forEach(n => requestedTranslations.current.add(`${locale}:${n}`));
     hanaFetch('/api/skills/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

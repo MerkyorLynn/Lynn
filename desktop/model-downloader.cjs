@@ -89,7 +89,7 @@ class ModelDownloader extends EventEmitter {
     this.target = validateModelTargetPath(opts.target || defaultModelPath(homeDir, fileName));
     this.partPath = `${this.target}.part`;
     this.expectedSize = opts.expectedSize || DEFAULT_EXPECTED_SIZE;
-    this.expectedSha256 = (opts.expectedSha256 || DEFAULT_EXPECTED_SHA256 || "").toLowerCase();
+    this.expectedSha256 = (opts.expectedSha256 ?? DEFAULT_EXPECTED_SHA256 ?? "").toLowerCase();
     const requestedSegments = Number(opts.parallelSegments || DEFAULT_PARALLEL_SEGMENTS);
     this.parallelSegments = Number.isFinite(requestedSegments)
       ? Math.max(1, Math.min(8, Math.floor(requestedSegments)))

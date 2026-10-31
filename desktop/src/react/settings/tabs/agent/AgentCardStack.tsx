@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSettingsStore, type Agent } from '../../store';
 import { hanaFetch, hanaUrl, yuanFallbackAvatar } from '../../api';
 import { t } from '../../helpers';
@@ -32,7 +32,7 @@ export function AgentCardStack({ agents, selectedId, currentAgentId, previewSele
   const spreadStep = 72;
   const spreadOffset = -(n - 1) * spreadStep / 2;
   const spreadWidth = Math.max(260, (n - 1) * spreadStep + 82);
-  const ts = Date.now();
+  const ts = useMemo(() => Date.now(), [agents]);
 
   // 关闭右键菜单
   const closeMenu = useCallback(() => setContextMenu(null), []);

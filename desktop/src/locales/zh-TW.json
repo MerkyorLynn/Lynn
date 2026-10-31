@@ -694,7 +694,9 @@
       "setActive": "設為主助手",
       "lastAgent": "至少保留一個助手",
       "yuan": "元",
-      "yuanHint": ""
+      "yuanHint": "",
+      "draftUnsaved": "未儲存草稿",
+      "draftSaveFailed": "草稿暫時無法儲存在本機，請在關閉設定前儲存變更。"
     },
     "about": {
       "title": "關於 Ta",
@@ -1350,7 +1352,10 @@
   },
   "desk": {
     "fileFilter": "檔案篩選",
-    "filter": {"all": "全部", "images": "圖片"},
+    "filter": {
+      "all": "全部",
+      "images": "圖片"
+    },
     "noImages": "目前資料夾沒有圖片",
     "title": "書桌",
     "workspaceMap": "會話進展",
@@ -1723,7 +1728,9 @@
     "memorySearchDateToDesc": "結束日期，格式 YYYY-MM-DD",
     "memorySearchEmpty": "記憶庫裡沒有找到相關內容。",
     "memorySearchError": "記憶搜尋出錯: {msg}",
-    "fallbackUserName": "使用者"
+    "fallbackUserName": "使用者",
+    "installSkillApprovalRequired": "安裝技能需要使用者核准；本次未獲核准，未寫入技能檔案。",
+    "bridgeRequestFailed": "本次請求未完成，請稍後重試或查看 Lynn 客戶端診斷。"
   },
   "main": {
     "tray": {

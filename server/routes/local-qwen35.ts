@@ -1085,10 +1085,8 @@ export function createLocalQwen35Route(engine: LocalQwen35RouteEngine): Hono {
   route.post("/local-qwen35-9b/stop", async (c) => {
     const state = defaultState();
     const before = await runtimeDetails();
-    const targets = new Set([
-      ...before.pids,
-      readPidFile(state.pidFile),
-    ].filter(isPositiveFiniteNumber));
+    // Listening on our default port is not proof this is a Lynn-owned process.
+    const targets = new Set(await qwen35ProcessPids(state));
 
     for (const pid of targets) {
       try { process.kill(pid, "SIGTERM"); } catch {
@@ -1097,10 +1095,7 @@ export function createLocalQwen35Route(engine: LocalQwen35RouteEngine): Hono {
     }
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    let remaining = [...new Set([
-      ...await listenerPids(state.port),
-      ...await qwen35ProcessPids(state),
-    ])];
+    let remaining = await qwen35ProcessPids(state);
     if (remaining.length > 0) {
       for (const pid of remaining) {
         try { process.kill(pid, "SIGKILL"); } catch {
@@ -1108,10 +1103,7 @@ export function createLocalQwen35Route(engine: LocalQwen35RouteEngine): Hono {
         }
       }
       await new Promise((resolve) => setTimeout(resolve, 350));
-      remaining = [...new Set([
-        ...await listenerPids(state.port),
-        ...await qwen35ProcessPids(state),
-      ])];
+      remaining = await qwen35ProcessPids(state);
     }
     try { fs.rmSync(state.pidFile, { force: true }); } catch {
       // Non-fatal cleanup.

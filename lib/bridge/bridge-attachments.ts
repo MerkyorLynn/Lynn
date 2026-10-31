@@ -1,7 +1,9 @@
 import path from "path";
-import { registerSessionFile, resolveSessionFile } from "../session-files.js";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { findSessionFile, resolveSessionFile } from "../session-files.js";
 import { debugLog } from "../debug-log.js";
-import { bufferToBase64, detectMime, downloadMedia, formatSize } from "./media-utils.js";
+import { bufferToBase64, detectMime, downloadMedia, formatSize, validateRemoteMediaSource } from "./media-utils.js";
 import type { BridgeAdapter, BridgeAttachment } from "./adapter-types.js";
 
 interface BridgePromptImage {
@@ -113,18 +115,24 @@ export async function sendBridgeMediaItem(
   sessionPath?: string,
 ): Promise<void> {
   const isLocal = path.isAbsolute(source) || source.startsWith("file://");
-  if (isLocal && adapter.sendMediaBuffer) {
-    // Keep the bridge whitelist check before registration; a file ID never widens access.
-    let buffer = await downloadMedia(source);
-    if (sessionPath) {
-      const localPath = source.startsWith("file://") ? new URL(source).pathname : source;
-      const file = registerSessionFile(sessionPath, localPath);
-      buffer = await downloadMedia(resolveSessionFile(sessionPath, file.fileId).localPath);
-    }
+  if (isLocal) {
+    const localPath = source.startsWith("file://") ? fileURLToPath(source) : source;
+    const file = sessionPath ? findSessionFile(sessionPath, localPath) : undefined;
+    if (!sessionPath || !file) throw new Error("Media must be registered by a tool in this session");
+    const resolved = resolveSessionFile(sessionPath, file.fileId).localPath;
+    if (!adapter.sendMediaBuffer) throw new Error("Platform cannot send registered local media");
+    const fd = fs.openSync(resolved, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+    let buffer: Buffer;
+    try {
+      const stat = fs.fstatSync(fd);
+      if (!stat.isFile() || stat.size > 50 * 1024 * 1024) throw new Error("Invalid media file");
+      buffer = fs.readFileSync(fd);
+    } finally { fs.closeSync(fd); }
     const mime = detectMime(buffer, "application/octet-stream");
     const filename = path.basename(source.startsWith("file://") ? source.replace(/^file:\/\//, "") : source);
     await adapter.sendMediaBuffer(chatId, buffer, { mime, filename });
   } else if (adapter.sendMedia) {
+    await validateRemoteMediaSource(source);
     await adapter.sendMedia(chatId, source);
   } else {
     await adapter.sendReply(chatId, source);

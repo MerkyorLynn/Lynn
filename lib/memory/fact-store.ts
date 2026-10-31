@@ -377,6 +377,7 @@ export class FactStore {
   private _initializeOpenDatabase(): void {
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("busy_timeout = 5000");
+    this.db.pragma("foreign_keys = ON");
     this.db.pragma("synchronous = NORMAL");
     this.db.pragma("cache_size = -16000");
     this.db.pragma("temp_store = MEMORY");

@@ -10,6 +10,7 @@
  */
 const { ipcMain, shell } = require("electron");
 const { app } = require("electron");
+const { verifyUpdateManifest } = require("../shared/update-manifest-signature.cjs");
 
 let _autoUpdater = null;
 try {
@@ -24,6 +25,8 @@ try {
 let _mainWindow = null;
 let _updateChannel = "stable"; // "stable" | "beta"
 let _nativeWired = false;
+let _ipcWired = false;
+let _verifiedIntegrity = null;
 
 let _updateState = {
   status: "idle",      // idle | checking | available | downloading | downloaded | error | latest
@@ -51,6 +54,7 @@ function setState(patch) {
 }
 
 function resetState() {
+  _verifiedIntegrity = null;
   _updateState = {
     status: "idle", version: null, releaseNotes: null,
     releaseUrl: null, downloadUrl: null, progress: null, error: null,
@@ -82,15 +86,24 @@ function wireNativeUpdater() {
 
   _autoUpdater.on("error", (err) => {
     console.warn("[auto-updater] native error:", err?.message || err);
+    setState({ status: "error", error: err?.message || "Update failed", progress: null });
   });
 }
 
 async function tryNativeDownload() {
   if (!_autoUpdater || !app.isPackaged) return false;
+  if (!_verifiedIntegrity) return false;
   try {
     wireNativeUpdater();
     const result = await _autoUpdater.checkForUpdates();
     if (!result || !result.updateInfo) return false;
+    if (normalizeVersion(result.updateInfo.version) !== normalizeVersion(_updateState.version)) return false;
+    const files = result.updateInfo.files;
+    if (!Array.isArray(files) || !files.length || !files.every(file => {
+      const name = String(file.url || "").split(/[?#]/)[0].split("/").pop();
+      const expected = _verifiedIntegrity[name];
+      return expected && expected.sha512 === file.sha512 && (!file.size || file.size === expected.size);
+    })) return false;
     setState({ status: "downloading", progress: { percent: 0 } });
     await _autoUpdater.downloadUpdate();
     return true;
@@ -120,6 +133,15 @@ const UPDATE_MANIFEST_URLS = [
   `${MIRROR_DOWNLOAD_BASE}/update-manifest.json`,
   "https://gitee.com/merkyor/Lynn/raw/main/.github/update-manifest.json",
 ];
+
+function safeUpdateUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    if (!["download.merkyorlynn.com", "github.com", "gitee.com"].includes(url.hostname)) return null;
+    return url.href;
+  } catch { return null; }
+}
 
 function normalizeVersion(version) {
   return String(version || "").trim().replace(/^v/, "");
@@ -210,10 +232,12 @@ async function checkUpdate() {
       setState({ status: "latest" });
       return null;
     }
-    const releaseUrl = release.releaseUrl || release.html_url || buildReleaseUrl(latest);
+    if (!verifyUpdateManifest(manifest)) throw new Error("Update manifest signature is missing or invalid");
+    _verifiedIntegrity = release.integrity || null;
+    const releaseUrl = safeUpdateUrl(release.releaseUrl || release.html_url) || buildReleaseUrl(latest);
     const assetOverride = getAssetOverride(release);
     const conventionalAssetName = getConventionalAssetName(latest);
-    const downloadUrl = assetOverride
+    const downloadUrl = safeUpdateUrl(assetOverride)
       || (conventionalAssetName ? `${buildReleaseDownloadBase(latest)}/${encodeURIComponent(conventionalAssetName)}` : null)
       || releaseUrl;
 
@@ -237,6 +261,8 @@ async function checkUpdate() {
 
 function initAutoUpdater(mainWindow, isTrustedIpcSender) {
   _mainWindow = mainWindow;
+  if (_ipcWired) return;
+  _ipcWired = true;
 
   const isTrustedSender = (event) => {
     try {

@@ -6,6 +6,7 @@
  */
 import fs from "fs";
 import path from "path";
+import { mergeJsonChanges, updateJsonFileSync } from "../shared/atomic-json.cjs";
 import {
   CLIENT_AGENT_KEY_PREF_KEY,
   CLIENT_AGENT_SECRET_PREF_KEY,
@@ -93,6 +94,7 @@ export class PreferencesManager {
   _agentsDir: string;
   _path: string;
   _cache: PreferencesData;
+  private _snapshots = new WeakMap<PreferencesData, PreferencesData>();
 
   constructor({ userDir, agentsDir }: PreferencesManagerOptions) {
     this._userDir = userDir;
@@ -103,17 +105,17 @@ export class PreferencesManager {
 
   /** 读取全局 preferences（从内存缓存） */
   getPreferences(): PreferencesData {
-    return structuredClone(this._cache);
+    this._cache = this._readFromDisk();
+    const snapshot = structuredClone(this._cache);
+    this._snapshots.set(snapshot, structuredClone(snapshot));
+    return snapshot;
   }
 
   /** 写入全局 preferences（更新缓存 + 原子写磁盘） */
   savePreferences(prefs: PreferencesData): void {
-    const next = structuredClone(prefs);
-    fs.mkdirSync(this._userDir, { recursive: true });
-    const tmp = this._path + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(prefs, null, 2) + "\n", "utf-8");
-    fs.renameSync(tmp, this._path);
-    this._cache = next;
+    const before = this._snapshots.get(prefs) || this._cache;
+    this._cache = updateJsonFileSync(this._path, (latest: PreferencesData) => mergeJsonChanges(latest, before, prefs));
+    this._snapshots.set(prefs, structuredClone(prefs));
   }
 
   /** @private 从磁盘读取（仅构造时调用一次） */

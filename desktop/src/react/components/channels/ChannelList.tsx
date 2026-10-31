@@ -89,7 +89,9 @@ export function formatChannelTime(timestamp: string): string {
   if (y === today.getFullYear() && mo === today.getMonth() + 1 && d === today.getDate()) {
     return parts[1];
   }
-  if (y === today.getFullYear() && mo === today.getMonth() + 1 && d === today.getDate() - 1) {
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (y === yesterday.getFullYear() && mo === yesterday.getMonth() + 1 && d === yesterday.getDate()) {
     return t('time.yesterday');
   }
   return `${mo}/${d}`;

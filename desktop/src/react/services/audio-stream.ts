@@ -98,14 +98,13 @@ export class PcmStream {
 
       return this.audioCtx.sampleRate;
     } catch (err) {
-      this.running = false;
+      this.stop();
       this.opts.onError?.(err as Error);
       throw err;
     }
   }
 
   stop(): void {
-    if (!this.running) return;
     this.running = false;
     try { this.workletNode?.disconnect(); } catch { /* ignore */ }
     try { this.sourceNode?.disconnect(); } catch { /* ignore */ }

@@ -41,6 +41,7 @@ export interface ToolSearchSourceTrace {
 }
 
 export interface ToolCall {
+  toolCallId?: string;
   name: string;
   args?: Record<string, unknown>;
   done: boolean;

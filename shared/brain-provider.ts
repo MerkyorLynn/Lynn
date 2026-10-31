@@ -22,7 +22,7 @@ function normalizeApiRoot(rawValue: unknown, fallbackValue: string): string {
   const normalized = String(rawValue || "").trim().replace(/\/+$/, "");
   if (!normalized) return fallbackValue;
   if (/^https?:\/\//i.test(normalized)) return normalized;
-  return `http://${normalized}`;
+  return `https://${normalized}`;
 }
 
 function resolveProcessEnvValue(key: string): string {
@@ -31,7 +31,7 @@ function resolveProcessEnvValue(key: string): string {
 }
 
 // ── 运行时端点解析（混淆） ──
-// 构建时注入或运行时解码；源码不含明文地址。
+// Endpoint names are public configuration; encoding is not a security boundary.
 function _d(encoded: string): string {
   try {
     const r = typeof atob === "function"
@@ -45,10 +45,8 @@ function _d(encoded: string): string {
 const _BRAIN_HOST_ENCODED = "bW9jLm5ueWxyb3lrcmVtLmlwYS8vOnNwdHRo";
 const _BRAIN_FALLBACK = _d(_BRAIN_HOST_ENCODED);
 
-// ── 容灾备用地址（直连 IP，域名不可用时兜底） ──
-// "http://82.156.182.240" → base64
-const _BRAIN_BACKUP_HOST_ENCODED = "MDQyLjI4MS42NTEuMjgvLzpwdHRo";
-const _BRAIN_BACKUP_FALLBACK = _d(_BRAIN_BACKUP_HOST_ENCODED);
+// A backup must preserve HTTPS. Deployments may configure a separate TLS domain.
+const _BRAIN_BACKUP_FALLBACK = _BRAIN_FALLBACK;
 
 // 对外入口优先走完整 root URL；只有缺失时才退回 host。
 const _brainApiRootUrl = resolveProcessEnvValue("BRAIN_API_ROOT_URL");

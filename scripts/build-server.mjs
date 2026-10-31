@@ -42,7 +42,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { fileURLToPath, pathToFileURL } from "url";
 import { builtinModules } from "module";
 import { build as esbuild } from "esbuild";
@@ -74,7 +74,8 @@ fs.mkdirSync(outDir, { recursive: true });
 
 // ── 1. 下载 / 缓存 Node.js runtime ──
 // 先拿到目标 Node，后续 npm ci 全用它跑，保证 ABI 一致
-const NODE_VERSION = "v22.16.0";
+const runtimeCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, "shared", "node-runtime-checksums.json"), "utf8"));
+const NODE_VERSION = runtimeCatalog.version;
 const cacheDir = path.join(ROOT, ".cache", "node-runtime");
 fs.mkdirSync(cacheDir, { recursive: true });
 
@@ -107,7 +108,11 @@ if (!fs.existsSync(cachedNodeBin)) {
   if (process.env.LYNN_BUILD_OFFLINE === "1") throw new Error(`[build-server] Offline build requires cached runtime: ${cachedNodeBin}`);
   const url = `https://nodejs.org/dist/${NODE_VERSION}/${filename}`;
   console.log(`[build-server] downloading Node.js ${NODE_VERSION} for ${platform}-${arch}...`);
-  execSync(`curl -L -o "${cachedArchive}" "${url}"`, { stdio: "inherit" });
+  if (!fs.existsSync(cachedArchive)) execFileSync("curl", ["--fail", "--location", "--output", cachedArchive, url], { stdio: "inherit", windowsHide: true });
+  const { createHash } = await import("node:crypto");
+  const expectedHash = runtimeCatalog.files?.[filename]?.sha256;
+  const actualHash = createHash("sha256").update(fs.readFileSync(cachedArchive)).digest("hex");
+  if (!expectedHash || actualHash !== expectedHash) throw new Error(`[build-server] Node archive checksum mismatch: ${filename}`);
 
   if (isWin) {
     // 跨平台兼容：macOS/Linux 上用 unzip，Windows 上用 powershell
@@ -120,10 +125,15 @@ if (!fs.existsSync(cachedNodeBin)) {
     execSync(`tar xzf "${cachedArchive}" -C "${cacheDir}"`, { stdio: "inherit" });
   }
 
-  try { fs.unlinkSync(cachedArchive); } catch {}
+  // Keep the verified archive available for reproducible/offline builds.
   console.log("[build-server] Node.js runtime cached");
 } else {
   console.log(`[build-server] using cached Node.js ${NODE_VERSION}`);
+}
+
+if (platform === process.platform && arch === process.arch) {
+  const actualVersion = execFileSync(cachedNodeBin, ["--version"], { encoding: "utf8", windowsHide: true }).trim();
+  if (actualVersion !== NODE_VERSION) throw new Error(`[build-server] cached Node version mismatch: ${actualVersion}`);
 }
 
 // 复制 node 二进制到 dist
@@ -384,6 +394,7 @@ const externalPkg = {
   version: rootPkg.version,
   type: "module",
   dependencies: externalDeps,
+  overrides: rootPkg.overrides || {},
 };
 
 fs.writeFileSync(
@@ -402,6 +413,9 @@ console.log("[build-server] installing external dependencies...");
 if (dependencySource) {
   const source = dependencySource;
   const sourcePkg = JSON.parse(fs.readFileSync(path.join(source, "package.json"), "utf8"));
+  if (JSON.stringify(sourcePkg.overrides || {}) !== JSON.stringify(externalPkg.overrides)) {
+    throw new Error("[build-server] reused dependency security overrides do not match this build; rebuild dependencies first");
+  }
   const canonicalDeps = value => JSON.stringify(Object.entries(value || {}).sort(([a], [b]) => a.localeCompare(b)));
   if (canonicalDeps(sourcePkg.dependencies) !== canonicalDeps(externalDeps)) throw new Error("[build-server] Cached dependency declarations do not match this build");
   fs.cpSync(path.join(source, "node_modules"), path.join(outDir, "node_modules"), { recursive: true });
@@ -428,6 +442,9 @@ if (dependencySource) {
     },
   });
 }
+
+// Audit the installed distribution dependencies, including offline cache reuse.
+runWithTargetNode(`"${cachedNpmCli}" audit --audit-level=high --registry=https://registry.npmjs.org`);
 
 // ── 5b. 验证所有 Vite external 在 node_modules 中可达 ──
 // 遍历 string 类型的 external，检查 node_modules 中是否存在。

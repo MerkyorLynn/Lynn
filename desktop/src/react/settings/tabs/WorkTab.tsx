@@ -40,8 +40,8 @@ interface ReviewConfigResponse {
   resolvedReviewer?: ReviewCandidate | null;
 }
 
-const LOCAL_DEFAULT_WORKSPACE = '/Users/lynn/Desktop/Lynn';
-const LOCAL_DEFAULT_TRUSTED_ROOTS = [LOCAL_DEFAULT_WORKSPACE, '/Users/lynn/Desktop'];
+const LOCAL_DEFAULT_WORKSPACE = '';
+const LOCAL_DEFAULT_TRUSTED_ROOTS: string[] = [];
 
 function uniqueRoots(roots: string[]): string[] {
   const seen = new Set<string>();
@@ -156,29 +156,6 @@ export function WorkTab() {
     }
   }, [settingsConfig, runtimeHomeFolder, runtimeTrustedRoots, defaultWorkspace]);
 
-  useEffect(() => {
-    if (!defaultWorkspace?.workspacePath) return;
-    if (!settingsConfig) return;
-    const hasConfiguredHome = Boolean(settingsConfig.desk?.home_folder || runtimeHomeFolder);
-    const hasConfiguredRoots = Array.isArray(settingsConfig.desk?.trusted_roots) && settingsConfig.desk.trusted_roots.length > 0
-      ? true
-      : Array.isArray(runtimeTrustedRoots) && runtimeTrustedRoots.length > 0;
-    if (hasConfiguredHome && hasConfiguredRoots) return;
-    void hanaFetch('/api/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        desk: {
-          home_folder: hasConfiguredHome ? (settingsConfig.desk?.home_folder || runtimeHomeFolder || '') : defaultWorkspace.workspacePath,
-          trusted_roots: hasConfiguredRoots
-            ? (Array.isArray(settingsConfig.desk?.trusted_roots) && settingsConfig.desk.trusted_roots.length > 0
-              ? settingsConfig.desk.trusted_roots
-              : runtimeTrustedRoots)
-            : defaultWorkspace.trustedRoots,
-        },
-      }),
-    });
-  }, [defaultWorkspace, settingsConfig, runtimeHomeFolder, runtimeTrustedRoots]);
 
   useEffect(() => {
     loadReviewConfig().catch(() => {});

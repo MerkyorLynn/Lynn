@@ -45,7 +45,7 @@ export async function lynnFetch(
     const res = await fetch(`http://127.0.0.1:${serverPort}${path}`, {
       ...fetchOpts,
       headers,
-      signal: controller.signal,
+      signal: fetchOpts.signal ? AbortSignal.any([fetchOpts.signal, controller.signal]) : controller.signal,
     });
     if (!res.ok) {
       let detail = `${res.status} ${res.statusText}`;

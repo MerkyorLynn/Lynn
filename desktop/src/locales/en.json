@@ -844,7 +844,9 @@
       "setActive": "Set as active",
       "lastAgent": "Must keep at least one agent",
       "yuan": "Yuan",
-      "yuanHint": "\"Yuan\" is the agent's innate thinking style. Build your unique companion from this foundation."
+      "yuanHint": "\"Yuan\" is the agent's innate thinking style. Build your unique companion from this foundation.",
+      "draftUnsaved": "Unsaved draft",
+      "draftSaveFailed": "The draft could not be saved locally. Save your changes before closing settings."
     },
     "about": {
       "title": "About Them",
@@ -1324,7 +1326,11 @@
       "title": "Keyboard shortcuts",
       "globalSummon": "Global summon",
       "globalSummonHint": "Rebind in Voice settings. If the shortcut is taken by another app, Lynn falls back to Cmd/Ctrl+Opt+J."
-    }
+    },
+    "connectionFailed": "Could not connect to the settings service.",
+    "connectionPending": "Connecting to the settings service…",
+    "connectionRetry": "Retry connection",
+    "connectionRetrying": "Reconnecting…"
   },
   "onboarding": {
     "welcome": {
@@ -1556,7 +1562,10 @@
   },
   "desk": {
     "fileFilter": "File filter",
-    "filter": {"all": "All", "images": "Images"},
+    "filter": {
+      "all": "All",
+      "images": "Images"
+    },
     "noImages": "No images in this folder",
     "title": "Desk",
     "workspaceMap": "Session progress",
@@ -1927,7 +1936,9 @@
     "memorySearchDateToDesc": "End date, format YYYY-MM-DD",
     "memorySearchEmpty": "No relevant content found in memory.",
     "memorySearchError": "Memory search error: {msg}",
-    "fallbackUserName": "User"
+    "fallbackUserName": "User",
+    "installSkillApprovalRequired": "Skill installation requires user approval. No skill files were written.",
+    "bridgeRequestFailed": "This request could not be completed. Please retry or check Lynn diagnostics."
   },
   "main": {
     "tray": {

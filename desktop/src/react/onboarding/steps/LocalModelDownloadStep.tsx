@@ -231,13 +231,6 @@ export function LocalModelDownloadStep({
     }
   }, [goToStep, nextStep, onProviderReady, onboardingFetch, preview, providerSaved, savingProvider, showError, t, selectedModelId]);
 
-  useEffect(() => {
-    if (preview) return;
-    if (ready && !providerSaved && !savingProvider) {
-      void persistAndAdvance();
-    }
-  }, [persistAndAdvance, preview, providerSaved, ready, savingProvider]);
-
   const startSetup = useCallback(async () => {
     if (preview) {
       goToStep(nextStep);

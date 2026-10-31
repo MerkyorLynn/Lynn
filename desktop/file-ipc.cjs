@@ -217,7 +217,7 @@ wrapIpcHandler("select-gguf-model", async (event) => {
 });
 
 // ── Skill 预览窗口 IPC ──
-wrapIpcHandler("open-skill-viewer", (event, data) => {
+wrapIpcHandler("open-skill-viewer", async (event, data) => {
   if (!data) return;
 
   if (data.skillPath) {
@@ -249,18 +249,9 @@ wrapIpcHandler("open-skill-viewer", (event, data) => {
         console.warn("[skill-viewer] .skill file not found:", data.skillPath);
         return;
       }
+      let tmpDir;
       try {
-        const { execFileSync } = require("child_process");
-        const tmpDir = path.join(app.getPath("temp"), "hana-skill-preview-" + Date.now());
-        fs.mkdirSync(tmpDir, { recursive: true });
-        if (process.platform === "win32") {
-          execFileSync("powershell.exe", [
-            "-NoProfile", "-NonInteractive", "-Command",
-            `Expand-Archive -Path '${data.skillPath.replace(/'/g, "''")}' -DestinationPath '${tmpDir.replace(/'/g, "''")}' -Force`,
-          ], { stdio: "ignore", windowsHide: true });
-        } else {
-          execFileSync("unzip", ["-o", "-q", data.skillPath, "-d", tmpDir], { windowsHide: true });
-        }
+        tmpDir = await require('./safe-zip-preview.cjs').extractSkillPreview(data.skillPath, app.getPath('temp'));
 
         let skillDir = null;
         if (fs.existsSync(path.join(tmpDir, "SKILL.md"))) {
@@ -271,7 +262,7 @@ wrapIpcHandler("open-skill-viewer", (event, data) => {
           const found = sub.find(e => fs.existsSync(path.join(tmpDir, e.name, "SKILL.md")));
           if (found) skillDir = path.join(tmpDir, found.name);
         }
-        if (!skillDir) return;
+        if (!skillDir) { fs.rmSync(tmpDir, { recursive: true, force: true }); return; }
 
         const content = fs.readFileSync(path.join(skillDir, "SKILL.md"), "utf-8");
         const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
@@ -280,7 +271,11 @@ wrapIpcHandler("open-skill-viewer", (event, data) => {
 
         grantWebContentsAccess(getMainWindow(), skillDir, "read");
         _showSkillViewer({ name, baseDir: skillDir, installed: false });
+        const previewRoot = tmpDir;
+        getMainWindow()?.once('closed', () => fs.rmSync(previewRoot, { recursive: true, force: true }));
+        app.once('will-quit', () => fs.rmSync(previewRoot, { recursive: true, force: true }));
       } catch (err) {
+        if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
         console.error("[skill-viewer] Failed to extract .skill file:", err.message);
       }
       return;
@@ -379,10 +374,9 @@ function sanitizeStandaloneHtml(html) {
     .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(/\s+(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, " $1=\"#\"");
 
-  if (/<head\b[^>]*>/i.test(next)) {
-    return next.replace(/<head\b([^>]*)>/i, `<head$1>${STANDALONE_HTML_CSP}`);
-  }
-  return `${STANDALONE_HTML_CSP}\n${next}`;
+  // Always parse the policy before any untrusted markup, including fake heads
+  // hidden inside comments or malformed tags.
+  return `<meta charset="UTF-8">${STANDALONE_HTML_CSP}\n${next}`;
 }
 
 wrapIpcHandler("open-html-in-browser", async (_event, html, title) => {
@@ -431,30 +425,25 @@ wrapIpcHandler("export-html-to-png", async (_event, html, title, opts = {}) => {
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
-        javascript: true, // 仅用于 main → renderer 的 executeJavaScript 测高
+        javascript: false,
         webSecurity: true,
       },
     });
 
     await win.loadFile(tmpFile);
 
-    // 等字体加载(Google Fonts) + 短 buffer 给 layout 收敛
-    try {
-      await win.webContents.executeJavaScript(
-        "(async () => { if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch {} } return true; })()",
-        true,
-      );
-    } catch { /* fonts API 不可用就 fallback 到 timeout */ }
+    // Page scripts stay disabled. Measure through Chromium's native layout API
+    // instead of executeJavaScript (which is also disabled in this window).
     await new Promise((r) => setTimeout(r, 1500));
 
     // 测全文档高度
-    let fullHeight = 800;
+    let fullHeight;
     try {
-      fullHeight = await win.webContents.executeJavaScript(
-        "Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0, 800)",
-        true,
-      );
-    } catch { /* 测不到就用默认 800 */ }
+      win.webContents.debugger.attach('1.3');
+      const metrics = await win.webContents.debugger.sendCommand('Page.getLayoutMetrics');
+      fullHeight = metrics.cssContentSize?.height ?? metrics.contentSize?.height;
+      if (!Number.isFinite(fullHeight)) throw new Error('Document height is unavailable.');
+    } finally { if (win.webContents.debugger.isAttached()) win.webContents.debugger.detach(); }
     fullHeight = Math.min(Math.max(800, fullHeight), 32000); // 32k 像素上限
 
     win.setContentSize(width, fullHeight);
@@ -538,7 +527,7 @@ wrapIpcHandler("confirm-action", async (event, opts = {}) => {
       resolve(payload.approved === true);
     };
 
-    ipcMain.once(`confirm-action-response:${requestId}`, handleResponse);
+    ipcMain.on(`confirm-action-response:${requestId}`, handleResponse);
 
     try {
       webContents.send("confirm-action-request", {

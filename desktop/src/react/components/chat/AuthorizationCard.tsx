@@ -131,6 +131,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
   const handleAllowPersistent = useCallback(() => decide('confirmed_persistent'), [decide]);
   const handleReject = useCallback(() => decide('rejected'), [decide]);
 
+  const reusableAllowed = category.startsWith('path_') && !!trustedRoot;
   const trustedRootLabel = trustedRoot ? shortPath(trustedRoot) : '';
   const scopeLabel = deriveScopeLabel(category, command);
   const commandLabel = deriveCommandLabel(category);
@@ -178,11 +179,11 @@ export const AuthorizationCard = memo(function AuthorizationCard({
       <div className={styles.actions}>
         <button
           className={`${styles.btn} ${styles.btnPrimary}`}
-          onClick={handleAllowSession}
+          onClick={handleAllowOnce}
           disabled={submitting}
-          title={sessionHint}
+          title={onceHint}
         >
-          {window.t('security.auth.allowSession')}
+          {window.t('security.auth.allowOnce')}
         </button>
         <button
           className={`${styles.btn} ${styles.btnGhost}`}
@@ -205,16 +206,16 @@ export const AuthorizationCard = memo(function AuthorizationCard({
         <div className={styles.actions} style={{ marginTop: 4 }}>
           <button
             className={`${styles.btn} ${styles.btnSecondary}`}
-            onClick={handleAllowOnce}
-            disabled={submitting}
-            title={onceHint}
+            onClick={handleAllowSession}
+            disabled={submitting || !reusableAllowed}
+            title={reusableAllowed ? sessionHint : onceHint}
           >
-            {window.t('security.auth.allowOnce')}
+            {window.t('security.auth.allowSession')}
           </button>
           <button
             className={`${styles.btn} ${styles.btnSecondary}`}
             onClick={handleAllowPersistent}
-            disabled={submitting}
+            disabled={submitting || !reusableAllowed}
             title={persistentHint}
           >
             {window.t('security.auth.allowAlwaysHere')}
@@ -223,7 +224,7 @@ export const AuthorizationCard = memo(function AuthorizationCard({
       )}
 
       <div className={styles.decisionGuide}>
-        <span className={styles.decisionItem}>{sessionHint}</span>
+        <span className={styles.decisionItem}>{reusableAllowed ? sessionHint : onceHint}</span>
       </div>
     </div>
   );

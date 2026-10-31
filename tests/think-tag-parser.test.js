@@ -43,7 +43,7 @@ describe("ThinkTagParser", () => {
     expect(text).toBe("用户要求我分析这个问题。");
   });
 
-  it("suppresses Premise/Conduct/Reflection/Act planning scaffolds", () => {
+  it("strips planning prefixes while preserving the Act answer", () => {
     const text = collectVisibleText([
       "Premise:",
       " - User wants to move all HTML files.",
@@ -54,7 +54,7 @@ describe("ThinkTagParser", () => {
       "Act:",
       " - Create folder and move files.",
     ].join("\n"));
-    expect(text).toBe("");
+    expect(text).toBe("- Create folder and move files.");
   });
 
   it("buffers planning scaffolds across chunks instead of leaking the opening lines", () => {
@@ -64,6 +64,6 @@ describe("ThinkTagParser", () => {
     expect(events).toEqual([]);
     parser.feed("\nReflection:\n - Continue.\nAct:\n - Move files.", (evt) => events.push(evt));
     parser.flush((evt) => events.push(evt));
-    expect(events.filter((evt) => evt.type === "text")).toEqual([]);
+    expect(events.filter((evt) => evt.type === "text").map(evt => evt.data).join("")).toBe("- Move files.");
   });
 });

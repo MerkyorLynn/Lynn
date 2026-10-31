@@ -26,6 +26,7 @@ function resolveLynnHome(lynnHome?: string): string {
 }
 
 const _seedMaterialByHome = new Map<string, string>();
+const _derivedKeys = new Map<string, Buffer>();
 function stableSeedMaterial(lynnHome?: string): string {
   const home = resolveLynnHome(lynnHome);
   const cached = _seedMaterialByHome.get(home);
@@ -52,7 +53,12 @@ function stableSeedMaterial(lynnHome?: string): string {
 }
 
 function deriveStableKey(lynnHome?: string): Buffer {
-  return crypto.pbkdf2Sync(stableSeedMaterial(lynnHome), ENC_SALT, 100000, 32, "sha256");
+  const seed = stableSeedMaterial(lynnHome);
+  const cached = _derivedKeys.get(seed);
+  if (cached) return cached;
+  const key = crypto.pbkdf2Sync(seed, ENC_SALT, 100000, 32, "sha256");
+  _derivedKeys.set(seed, key);
+  return key;
 }
 
 // Legacy key (pre-fix) — only used to decrypt old ciphertext on installs whose hostname is
@@ -73,7 +79,7 @@ export function encryptApiKey(plaintext: string, lynnHome?: string): string {
     const tag = cipher.getAuthTag().toString("hex");
     return `enc:${iv.toString("hex")}:${tag}:${enc}`;
   } catch {
-    return plaintext; // last-resort: store as-is rather than lose the key
+    throw new Error("Unable to encrypt provider credential; nothing was saved");
   }
 }
 

@@ -22,7 +22,8 @@ export async function prepareDryRunWorkspace(sourceDir: string) {
   await fsp.cp(src, tempDir, {
     recursive: true,
     dereference: false,
-    filter: (itemPath) => {
+    filter: async (itemPath) => {
+      if ((await fsp.lstat(itemPath)).isSymbolicLink()) return false;
       const base = path.basename(itemPath);
       if (itemPath === src) return true;
       return !DRY_RUN_COPY_IGNORES.has(base);
@@ -40,11 +41,12 @@ export function runDryRunValidation(cwd: string, validateCommand: unknown[] | un
     encoding: "utf-8",
     maxBuffer: 1024 * 1024,
     windowsHide: true,
+    timeout: 60_000,
   });
   return {
     command,
     args,
-    exitCode: result.status ?? 0,
+    exitCode: result.status ?? 1,
     signal: result.signal || null,
     stdout: (result.stdout || "").trim().slice(0, 4000),
     stderr: (result.stderr || "").trim().slice(0, 4000),

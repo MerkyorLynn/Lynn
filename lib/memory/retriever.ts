@@ -59,6 +59,7 @@ interface VectorRetrieverLike {
   search: (query: string, limit: number) => Promise<VectorSearchResult[]>;
   index: (id: string | number, text: string, tags: string[]) => Promise<unknown>;
   remove?: (id: string | number | undefined) => Promise<unknown>;
+  clear?: () => Promise<void>;
   rebuildIndex?: (rows: Array<{ id: string | number; text: string; tags: string[] }>) => Promise<unknown>;
   close?: () => void;
 }
@@ -188,8 +189,7 @@ export class HybridRetriever {
         } else if (event.type === "delete") {
           void this._vectorRetriever.remove?.(event.id);
         } else if (event.type === "clear") {
-          // Simpler MVP: keep stale rows only if clearAll wasn't used heavily; callers can rebuild.
-          // Clear all is rare and memory db is local. We still try to remove by reopening db when needed.
+          void this._vectorRetriever.clear?.();
         }
       });
     }

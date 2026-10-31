@@ -21,6 +21,7 @@ import {
   READ_WRITE_AGENT_DIRS,
   READ_WRITE_AGENT_FILES,
   READ_WRITE_HOME_DIRS,
+  SENSITIVE_HOME_PATHS,
   type SandboxPolicy,
 } from "./policy.js";
 
@@ -131,6 +132,10 @@ export class PathGuard {
   getAccessLevel(rawPath: string): AccessLevelValue {
     const resolved = this._resolveReal(rawPath);
     if (!resolved) return AccessLevel.BLOCKED;
+
+    for (const entry of SENSITIVE_HOME_PATHS) {
+      if (this._isInside(resolved, path.join(os.homedir(), entry))) return AccessLevel.BLOCKED;
+    }
 
     for (const f of BLOCKED_FILES) {
       if (resolved === path.join(this.lynnHome, f)) return AccessLevel.BLOCKED;

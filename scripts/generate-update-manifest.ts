@@ -11,6 +11,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import os from "node:os";
+import { createHash } from "node:crypto";
+import { signUpdateManifest } from "../shared/update-manifest-signature.cjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -34,6 +37,7 @@ interface ManifestEntry {
   releaseUrl: string;
   notes: string;
   assets: ReturnType<typeof buildAssetUrls>;
+  integrity?: Record<string, { size: number; sha512: string }>;
 }
 
 type UpdateManifest = Partial<Record<ReleaseChannel | string, ManifestEntry>>;
@@ -126,13 +130,27 @@ function generateManifest({ channel, version, notes }: {
     ...existing,
     [channel]: entry,
   };
+  const dist = path.join(ROOT, "dist");
+  const integrity: Record<string, { size: number; sha512: string }> = {};
+  if (fs.existsSync(dist)) {
+    for (const name of fs.readdirSync(dist)) {
+      if (!name.startsWith(`Lynn-${version}-`) || !/\.(?:dmg|zip|exe)$/.test(name)) continue;
+      const file = path.join(dist, name);
+      const stat = fs.statSync(file);
+      if (!stat.isFile()) continue;
+      integrity[name] = { size: stat.size, sha512: createHash("sha512").update(fs.readFileSync(file)).digest("base64") };
+    }
+  }
+  entry.integrity = integrity;
   if (channel === "stable") {
     next.version = version;
     next.notes = notes;
     next.downloads = buildDownloadUrls(version);
   }
   fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
-  fs.writeFileSync(manifestPath, JSON.stringify(next, null, 2) + "\n", "utf-8");
+  const keyPath = process.env.LYNN_UPDATE_SIGNING_KEY_PATH || path.join(os.homedir(), ".config", "lynn-release", "update-signing-ed25519.pem");
+  const signed = signUpdateManifest(next, fs.readFileSync(keyPath, "utf8"));
+  fs.writeFileSync(manifestPath, JSON.stringify(signed, null, 2) + "\n", "utf-8");
   return manifestPath;
 }
 

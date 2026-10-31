@@ -1,3 +1,4 @@
+import { isSafePathSegment } from "../shared/path-segment.js";
 /**
  * AgentManager — 多 Agent 生命周期管理
  *
@@ -619,6 +620,7 @@ export class AgentManager {
       try { this._d.getHub()?.resumeAfterAgentSwitch(); } catch {}
       throw err;
     } finally {
+      this._d.getHub()?.resumeAfterAgentSwitch();
       this._switching = false;
     }
   }
@@ -651,6 +653,7 @@ export class AgentManager {
   // ── Delete ──
 
   async deleteAgent(agentId: string): Promise<void> {
+    if (!isSafePathSegment(agentId)) throw new Error("Invalid agent ID");
     if (agentId === this._activeAgentId) {
       throw new Error(t("error.agentDeleteActive"));
     }

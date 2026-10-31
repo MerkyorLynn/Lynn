@@ -5,6 +5,7 @@
  * (Cancel / Retry / Open worktree / Copy logs) plus dismiss for finished workers.
  */
 import { useState } from 'react';
+import { useStore } from '../../stores';
 import type { FleetWorkerView } from './fleet-reducer';
 import { deriveGate } from './fleet-reducer';
 import type { FleetChangedFile } from '../../../../../shared/fleet-events.js';
@@ -430,7 +431,12 @@ export function WorkerCard({
           {canIntegrate && !gate.passed && (
             <button
               className={s.forceMergeBtn}
-              onClick={() => onIntegrate?.(worker.workerId, { branch: 'main', force: true, push: true })}
+              onClick={() => useStore.getState().setPendingConfirm({
+                message: 'Force merge into main and push?',
+                detail: `This overrides failing gates: ${gate.reasons.join('; ')}`,
+                tone: 'danger',
+                onConfirm: () => { onIntegrate?.(worker.workerId, { branch: 'main', force: true, push: true }); },
+              })}
               title={`Override the gate and merge into main anyway — ${gate.reasons.join('; ')}`}
             >
               Force merge

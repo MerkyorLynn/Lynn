@@ -101,7 +101,13 @@ function visibleCompletions(commands: string[]): string[] {
   return commands.filter((command) => command !== "/quit" && command !== "/tool");
 }
 
-function renderSlashPalette(input: string, commands: string[] | undefined, maxWidth: number, color: boolean): string[] {
+function slashMatches(input: string, commands: string[] | undefined): string[] {
+  const normalized = normalizeSlashInput(input);
+  if (!commands?.length || !looksLikeSlashCommand(normalized) || normalized.includes("\n")) return [];
+  return completeSlash(normalized, visibleCompletions(commands)).matches;
+}
+
+function renderSlashPalette(input: string, commands: string[] | undefined, maxWidth: number, color: boolean, selected = 0): string[] {
   const normalized = normalizeSlashInput(input);
   const visible = commands?.length ? visibleCompletions(commands) : [];
   if (!visible.length || !looksLikeSlashCommand(normalized) || normalized.includes("\n")) return [];
@@ -109,16 +115,19 @@ function renderSlashPalette(input: string, commands: string[] | undefined, maxWi
   if (!completion.matches.length) return [yellow(t("slash.unknown"), color)];
 
   const rows: string[] = [];
-  const shown = completion.matches.slice(0, 6);
+  const sel = Math.max(0, Math.min(selected, completion.matches.length - 1));
+  const start = Math.max(0, Math.min(sel - 5, completion.matches.length - 6));
+  const shown = completion.matches.slice(start, start + 6);
   for (let i = 0; i < shown.length; i += 1) {
     const command = shown[i];
     const label = slashCommandLabel(command);
-    const prefix = dim(`${i + 1}.`, color);
-    const row = `${prefix} ${brightCyan(command, color)}${label ? dim(`  ${label}`, color) : ""}`;
+    const active = start + i === sel;
+    const prefix = active ? brightCyan("›", color) : dim(`${start + i + 1}.`, color);
+    const name = active ? bold(brightCyan(command, color), color) : brightCyan(command, color);
+    const row = `${prefix} ${name}${label ? dim(`  ${label}`, color) : ""}`;
     rows.push(truncateToWidth(row, maxWidth));
   }
-  const remaining = completion.matches.length - shown.length;
-  if (remaining > 0) rows.push(dim(t("slash.moreHint"), color));
+  rows.push(dim(truncateToWidth(t("slash.moreHint"), maxWidth), color));
   return rows;
 }
 
@@ -146,6 +155,7 @@ export function renderInputBox(opts: {
   color: boolean;
   placeholder?: string;
   completions?: string[];
+  selected?: number;
   danger?: boolean;
 }): BoxRender {
   const { status, buffer, cursor, color } = opts;
@@ -205,7 +215,7 @@ export function renderInputBox(opts: {
   const right = ` ${border("│")}`;
   const inputLine = `${left}${visibleText}${pad}${right}`;
   const cursorCol = 4 + (empty ? 0 : beforeCursor - winStart);
-  const palette = collapsed ? [] : renderSlashPalette(buffer, opts.completions, textArea, color);
+  const palette = collapsed ? [] : renderSlashPalette(buffer, opts.completions, textArea, color, opts.selected);
   const paletteLines = palette.map((row) => {
     return `${border("│")}   ${row}${" ".repeat(Math.max(0, textArea - visibleLength(row)))} ${border("│")}`;
   });
@@ -233,6 +243,7 @@ export async function readBoxedInputLine(options: BoxedInputOptions = {}): Promi
   const placeholder = options.placeholder || "";
   let buf: string[] = [];
   let cur = 0;
+  let selected = 0;
   const value = () => buf.join("");
   const width = () => Math.max(28, Math.min((typeof output.columns === "number" ? output.columns : 80) - 1, 110));
 
@@ -241,7 +252,7 @@ export async function readBoxedInputLine(options: BoxedInputOptions = {}): Promi
   input.resume();
   output.write(`${ESC}[?2004h`);
 
-  const render = () => renderInputBox({ status, buffer: value(), cursor: cur, width: width(), color, placeholder, completions: options.completions, danger: options.danger });
+  const render = () => renderInputBox({ status, buffer: value(), cursor: cur, width: width(), color, placeholder, completions: options.completions, selected, danger: options.danger });
   const toCol = (col: number) => (col > 0 ? `${ESC}[${col}C` : "");
   let painted = false;
   let rowsBelowInput = 1;
@@ -280,6 +291,13 @@ export async function readBoxedInputLine(options: BoxedInputOptions = {}): Promi
       if (!printable.length) return;
       buf.splice(cur, 0, ...printable);
       cur += printable.length;
+      selected = 0;
+      redrawInput();
+    };
+    const selectCompletion = (matches: string[]) => {
+      buf = Array.from(matches[Math.max(0, Math.min(selected, matches.length - 1))] + " ");
+      cur = buf.length;
+      selected = 0;
       redrawInput();
     };
     let pasteBuffer: string | null = null;
@@ -328,7 +346,12 @@ export async function readBoxedInputLine(options: BoxedInputOptions = {}): Promi
           return;
         }
         const before = Array.from(text.slice(0, nl)).filter((ch) => ch >= " " && ch !== "\x7f");
-        if (before.length) { buf.splice(cur, 0, ...before); cur += before.length; }
+        if (before.length) { buf.splice(cur, 0, ...before); cur += before.length; selected = 0; }
+        const matches = slashMatches(value(), options.completions);
+        if (matches.length && !matches.includes(normalizeSlashInput(value()))) {
+          selectCompletion(matches);
+          return;
+        }
         leaveBelow();
         cleanup();
         resolve(value());
@@ -343,21 +366,29 @@ export async function readBoxedInputLine(options: BoxedInputOptions = {}): Promi
         return;
       }
       if (text === "\x7f" || text === "\b") {
-        if (cur > 0) { buf.splice(cur - 1, 1); cur -= 1; redrawInput(); }
+        if (cur > 0) { buf.splice(cur - 1, 1); cur -= 1; selected = 0; redrawInput(); }
         return;
       }
       if (text === `${ESC}[D`) { cur = Math.max(0, cur - 1); redrawInput(); return; }
       if (text === `${ESC}[C`) { cur = Math.min(buf.length, cur + 1); redrawInput(); return; }
       if (text === `${ESC}[H` || text === "\x01") { cur = 0; redrawInput(); return; }
       if (text === `${ESC}[F` || text === "\x05") { cur = buf.length; redrawInput(); return; }
-      if (text === `${ESC}[A` && options.history) { buf = Array.from(options.history.prev(value())); cur = buf.length; redrawInput(); return; }
-      if (text === `${ESC}[B` && options.history) { buf = Array.from(options.history.next()); cur = buf.length; redrawInput(); return; }
+      if (text === `${ESC}[A` || text === `${ESC}[B`) {
+        const matches = slashMatches(value(), options.completions);
+        if (matches.length) {
+          selected = (selected + (text === `${ESC}[A` ? -1 : 1) + matches.length) % matches.length;
+          redrawInput();
+        } else if (options.history) {
+          buf = Array.from(text === `${ESC}[A` ? options.history.prev(value()) : options.history.next());
+          cur = buf.length;
+          selected = 0;
+          redrawInput();
+        }
+        return;
+      }
       if (text === "\t" && options.completions) {
-        const completion = completeSlash(value(), options.completions);
-        if (completion.matches.length > 1) printAbove(completion.matches.join("  "));
-        buf = Array.from(completion.completed);
-        cur = buf.length;
-        if (completion.matches.length <= 1) redrawInput();
+        const matches = slashMatches(value(), options.completions);
+        if (matches.length) selectCompletion(matches);
         return;
       }
       if (text.startsWith(ESC)) return;

@@ -236,6 +236,7 @@ class LlamaCppManager {
     this.child = null;
     this.healthTimer = null;
     this.stopped = false;
+    this.startupFailed = false;
     this.restartCount = 0;
     this.consecutiveCrashes = 0;
     this.standby = false;
@@ -355,7 +356,7 @@ class LlamaCppManager {
   startHealthLoop() {
     if (this.healthTimer) return;
     const tick = async () => {
-      if (this.stopped) return;
+      if (this.stopped || this.startupFailed) return;
       const ok = await this.probeHealth(this.activePort);
       if (ok) {
         this.lastHealthy = Date.now();
@@ -379,7 +380,7 @@ class LlamaCppManager {
   }
 
   scheduleRestart() {
-    if (this.stopped) return;
+    if (this.stopped || this.startupFailed) return;
     if (this.consecutiveCrashes >= this.config.maxConsecutiveCrashes) {
       this.onLog("error", `[llamacpp] consecutive crashes ${this.consecutiveCrashes} ≥ max ${this.config.maxConsecutiveCrashes}, giving up`);
       this.emitState({
@@ -391,7 +392,7 @@ class LlamaCppManager {
       return;
     }
     setTimeout(() => {
-      if (!this.stopped) void this.spawnServer();
+      if (!this.stopped && !this.startupFailed) void this.spawnServer();
     }, this.config.restartDelayMs);
   }
 
@@ -474,7 +475,7 @@ class LlamaCppManager {
 
     this.lastChildOutput = "";
     this.onLog("info", `[llamacpp] spawn ${this.binaryPath} ${args.join(" ")}`);
-    this.emitState({ status: "starting", port, args });
+    this.emitState({ status: "starting", port, args, reason: null, error: null, exitCode: null, exitSignal: null });
 
     try {
       this.child = this.spawnFn(this.binaryPath, args, {
@@ -491,6 +492,14 @@ class LlamaCppManager {
       return;
     }
 
+    const launchedChild = this.child;
+    launchedChild.on("error", (error) => {
+      if (this.child !== launchedChild) return;
+      this.child = null;
+      this.startupFailed = true;
+      this.stopHealthLoop();
+      this.emitState({ status: "failed", healthy: false, reason: "spawn-error", error: String(error?.message || error) });
+    });
     if (this.child.stdout) {
       this.child.stdout.on("data", (buf) => {
         const s = buf.toString().trim();
@@ -505,7 +514,8 @@ class LlamaCppManager {
         if (s) this.onLog("info", `[llamacpp:stderr] ${s.split("\n").slice(-2).join(" | ")}`);
       });
     }
-    this.child.on("exit", (code, sig) => {
+    launchedChild.on("exit", (code, sig) => {
+      if (this.child !== launchedChild) return;
       this.onLog("warn", `[llamacpp] child exited code=${code} sig=${sig}`);
       this.child = null;
       if (this.stopped) {
@@ -529,15 +539,15 @@ class LlamaCppManager {
     while (Date.now() - t0 < this.config.startupTimeoutMs) {
       // eslint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, 1500));
-      if (this.stopped) return;
+      if (this.stopped || this.child !== launchedChild) return;
       // eslint-disable-next-line no-await-in-loop
       const ok = await this.probeHealth(port);
-      if (this.stopped) return;
+      if (this.stopped || this.child !== launchedChild) return;
       if (ok) {
         this.consecutiveCrashes = 0;
         this.lastHealthy = Date.now();
         this.restartCount += 1;
-        this.emitState({ status: "ready", healthy: true, port });
+        this.emitState({ status: "ready", healthy: true, port, reason: null, error: null });
         this.onLog("info", `[llamacpp] ready on port ${port} (after ${Date.now() - t0}ms)`);
         this.startHealthLoop();
         return;
@@ -547,6 +557,10 @@ class LlamaCppManager {
         return;
       }
     }
+    if (this.child !== launchedChild || this.stopped) return;
+    this.startupFailed = true;
+    this.stopHealthLoop();
+    this.child = null;
     this.onLog("error", `[llamacpp] startup timeout ${this.config.startupTimeoutMs}ms`);
     this.emitState({
       status: "failed",
@@ -554,14 +568,14 @@ class LlamaCppManager {
       reason: "startup-timeout",
       error: this.lastChildOutput || null,
     });
-    try { this.child?.kill("SIGTERM"); } catch {}
-    this.child = null;
+    try { launchedChild.kill("SIGTERM"); } catch {}
   }
 
   // ── Public API ──
 
   async start() {
     if (this.stopped) return;
+    this.startupFailed = false;
     if (this.envSkip()) {
       this.emitState({ status: "disabled", reason: "env-skip" });
       this.onLog("info", "[llamacpp] LYNN_SKIP_LLAMACPP=1 → disabled");

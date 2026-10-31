@@ -666,6 +666,7 @@ export function extractToolCallsFromContent(content: string, tools: RuntimeTool[
   if (!tools.length) return [];
   const text = stripToolTokenWrappers(content);
   if (!text.trim()) return [];
+  if (!/^\s*(?:<tool_call\b|<function=|<\|tool_call_(?:start|begin)\|>)/iu.test(text)) return [];
 
   const calls = [
     ...parseToolTagCalls(text, tools, 0),

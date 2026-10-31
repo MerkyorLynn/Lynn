@@ -181,20 +181,23 @@ export function ChangesPanel() {
 
   const handleRevertAll = useCallback(async () => {
     if (revertingAll || rollbackIds.length === 0) return;
-    setRevertingAll(true);
-    for (const rollbackId of rollbackIds) {
-      try {
-        await hanaFetch('/api/fs/revert-edit', {
+    useStore.getState().setPendingConfirm({
+      message: zh ? '撤回本轮全部改动？' : 'Revert all changes in this turn?',
+      detail: zh ? `将撤回 ${rollbackIds.length} 项文件改动。` : `This reverts ${rollbackIds.length} file changes.`,
+      tone: 'danger',
+      onConfirm: async () => {
+        setRevertingAll(true);
+        const results = await Promise.allSettled(rollbackIds.map(rollbackId => hanaFetch('/api/fs/revert-edit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rollbackId }),
-        });
-      } catch (err) {
-        console.warn('[changes] revert failed:', rollbackId, err);
-      }
-    }
-    setRevertingAll(false);
-  }, [revertingAll, rollbackIds]);
+        })));
+        setRevertingAll(false);
+        const failed = results.filter(result => result.status === 'rejected').length;
+        useStore.getState().addToast(zh ? `已撤回 ${results.length - failed} 项，失败 ${failed} 项` : `${results.length - failed} reverted, ${failed} failed`, failed ? 'error' : 'success');
+      },
+    });
+  }, [revertingAll, rollbackIds, zh]);
 
   if (activePanel !== 'changes') return null;
 

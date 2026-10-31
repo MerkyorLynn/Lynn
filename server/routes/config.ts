@@ -1,3 +1,4 @@
+import { isSafePathSegment } from "../../shared/path-segment.js";
 /**
  * 配置管理 REST 路由
  */
@@ -558,6 +559,7 @@ export function createConfigRoute(engine: ConfigRouteEngine): Hono {
   route.get("/memories/compiled", async (c) => {
     try {
       const agentId = c.req.query("agentId");
+      if (agentId && !isSafePathSegment(agentId)) return c.json({ error: "Invalid agent ID" }, 400);
       const activeId = path.basename(engine.agent.agentDir);
       const mdPath = (!agentId || agentId === activeId)
         ? engine.memoryMdPath

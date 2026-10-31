@@ -1,12 +1,14 @@
 # @lynn/cli
 
-Terminal and worker-runner interface for Lynn v0.87.4.
+Terminal and worker-runner interface for Lynn v0.87.5.
 
-V0.87.4 makes the coding loop stream-native: a tool call starts as soon as its arguments are complete, read-only calls run concurrently, writes act as an ordering barrier, and a turn whose stream dies keeps the tool results it already produced. The CLI system prompt is now Lynn-native (no vendor-specific framing) and organized for prefix-cache stability. New: an exact-string `edit` tool, a permission rule engine (allow/ask/deny), lifecycle hooks (SessionStart / UserPromptSubmit / PreToolUse / PostToolUse), background jobs with timeout-to-background, a plan mode, skills and project slash commands, uuid-chained sessions with `sessions fork`, an opt-in macOS seatbelt sandbox, clipboard image paste (Ctrl+V / `/image`, drag-and-drop paths), model-backed context compaction with a compaction boundary, tool-result spill-to-disk, and an input queue while a task is running. Hook and plan-mode sessions are routed to the native loop because the Codex harness has no per-tool hook surface.
+V0.87.5 fixes slash-command selection: type `/`, move with Up/Down, and fill the selected command with Tab or Enter. Press Enter again to submit the completed command.
+
+The coding loop is stream-native: a tool call starts as soon as its arguments are complete, read-only calls run concurrently, writes act as an ordering barrier, and a turn whose stream dies keeps the tool results it already produced. The CLI system prompt is now Lynn-native (no vendor-specific framing) and organized for prefix-cache stability. New: an exact-string `edit` tool, a permission rule engine (allow/ask/deny), lifecycle hooks (SessionStart / UserPromptSubmit / PreToolUse / PostToolUse), background jobs with timeout-to-background, a plan mode, skills and project slash commands, uuid-chained sessions with `sessions fork`, an opt-in macOS seatbelt sandbox, clipboard image paste (Ctrl+V / `/image`, drag-and-drop paths), model-backed context compaction with a compaction boundary, tool-result spill-to-disk, and an input queue while a task is running. Hook and plan-mode sessions are routed to the native loop because the Codex harness has no per-tool hook surface.
 
 Retained from V0.87.3: the CLI prioritizes DeepSeek Search, propagates search cancellation, bounds the client search chain to 30 seconds and deduplicates search evidence. Model and local-runtime defaults are unchanged.
 
-V0.87.4 supports long-running reasoning streams with separate first-chunk and idle deadlines (600s / 600s by default, no model-wide deadline). Continued output can run beyond ten minutes. Configure them in GUI model settings; saved settings and explicit environment overrides remain authoritative. Use `Lynn doctor --offline` to see the CLI process's effective values and environment sources. Complete short answers no longer trigger punctuation-based continuations.
+V0.87.5 supports long-running reasoning streams with separate first-chunk and idle deadlines (600s / 600s by default, no model-wide deadline). Continued output can run beyond ten minutes. Configure them in GUI model settings; saved settings and explicit environment overrides remain authoritative. Use `Lynn doctor --offline` to see the CLI process's effective values and environment sources. Complete short answers no longer trigger punctuation-based continuations.
 
 This package is intentionally thin. It handles terminal UX, worker JSONL, local
 file/shell orchestration, and headless agent contracts. Model routing defaults
@@ -20,7 +22,7 @@ Voice follows the same primary-chain rule: inside the `Lynn` chat, `/voice` and
 live waveform. File/record transcription and `--speak` TTS are auxiliary
 utilities, not the main voice experience.
 
-v0.87.4 aligns GUI and CLI defaults on Step 5 Preview and stepaudio-2.5-realtime, uses model-supplied tool parameters, and updates local tiers to Qwen3.8-27B Coder390 Q2 / Q3. Existing CLI commands and the Agent loop remain available. Kimi MCP authorization, conversation search, shared session files and automations continue to work.
+v0.87.5 aligns GUI and CLI defaults on Step 5 Preview and stepaudio-2.5-realtime, uses model-supplied tool parameters, and updates local tiers to Qwen3.8-27B Coder390 Q2 / Q3. Existing CLI commands and the Agent loop remain available. Kimi MCP authorization, conversation search, shared session files and automations continue to work.
 
 v0.86.7 aligns the CLI version with the hardware-adaptive Qwen3.8 local-model installer. Existing CLI commands and harness behavior are preserved; the GUI prepares compatible local endpoints for use by either interface.
 
@@ -54,7 +56,7 @@ winget install OpenJS.NodeJS.LTS
 Install from the Lynn Tencent mirror:
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz"
 ```
 
 The package installs the `Lynn` command. If you installed an older preview that
@@ -73,7 +75,7 @@ If npm dependency downloads are slow in mainland China, keep the Lynn tarball UR
 as-is and add a registry mirror for third-party dependencies:
 
 ```bash
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz" \
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz" \
   --registry=https://registry.npmmirror.com
 ```
 
@@ -81,7 +83,7 @@ Release maintainers can smoke-test the exact CDN tarball before inviting
 external testers:
 
 ```bash
-LYNN_CLI_TARBALL_URL="https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz" \
+LYNN_CLI_TARBALL_URL="https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz" \
   npm run test:cli-install:remote
 ```
 
@@ -201,7 +203,7 @@ Agent quick contract:
 # Requires Node.js 20 LTS or 22 LTS with npm.
 
 # Install/update.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.4.tgz"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz"
 
 # Human launch commands.
 Lynn

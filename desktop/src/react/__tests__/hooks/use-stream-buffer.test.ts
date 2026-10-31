@@ -74,6 +74,39 @@ describe('streamBufferManager markdown warmup', () => {
 });
 
 describe('streamBufferManager terminal tool cleanup', () => {
+  it('recovers text when the first chunk precedes session initialization', () => {
+    streamBufferManager.clearAll();
+    const sessionPath = '/tmp/late-session.jsonl';
+    useStore.setState({ chatSessions: {}, currentSessionPath: sessionPath });
+    streamBufferManager.handle({ type: 'text_delta', sessionPath, streamId: 'late', delta: 'first ' });
+    useStore.getState().initSession(sessionPath, [], false);
+    streamBufferManager.handle({ type: 'text_delta', sessionPath, streamId: 'late', delta: 'second' });
+    streamBufferManager.handle({ type: 'turn_end', sessionPath, streamId: 'late', ok: true });
+    expect(JSON.stringify(useStore.getState().chatSessions[sessionPath].items)).toContain('first second');
+  });
+
+  it('keeps concurrent same-name tool results attached to their call IDs', () => {
+    streamBufferManager.clearAll();
+    const sessionPath = '/tmp/concurrent-tools.jsonl';
+    useStore.setState({ chatSessions: {}, currentSessionPath: sessionPath });
+    useStore.getState().initSession(sessionPath, [], false);
+    for (const toolCallId of ['a', 'b']) streamBufferManager.handle({ type: 'tool_start', sessionPath, streamId: 'tools', name: 'read', toolCallId, args: { path: toolCallId } });
+    streamBufferManager.handle({ type: 'tool_end', sessionPath, streamId: 'tools', name: 'read', toolCallId: 'b', success: true, summary: { outputPreview: 'B' } });
+    const message = useStore.getState().chatSessions[sessionPath].items.find(item => item.type === 'message');
+    const group = message?.type === 'message' ? message.data.blocks?.find(block => block.type === 'tool_group') : null;
+    expect(group?.type === 'tool_group' ? group.tools : []).toMatchObject([{ toolCallId: 'a', done: false }, { toolCallId: 'b', done: true, summary: { outputPreview: 'B' } }]);
+  });
+
+  it('does not evict the current or a streaming session from the cache', () => {
+    const current = '/tmp/current.jsonl', streaming = '/tmp/streaming.jsonl';
+    useStore.setState({ chatSessions: {}, currentSessionPath: current, streamingSessions: [streaming] });
+    useStore.getState().initSession(current, [], false);
+    useStore.getState().initSession(streaming, [], false);
+    for (let i = 0; i < 12; i++) useStore.getState().initSession(`/tmp/cache-${i}.jsonl`, [], false);
+    expect(useStore.getState().chatSessions[current]).toBeDefined();
+    expect(useStore.getState().chatSessions[streaming]).toBeDefined();
+  });
+
   it('closes a pending tool card when a cancelled turn ends', () => {
     const sessionPath = '/tmp/lynn-stream-cancel-tool.jsonl';
     streamBufferManager.clearAll();

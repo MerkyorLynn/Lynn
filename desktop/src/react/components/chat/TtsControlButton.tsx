@@ -8,6 +8,8 @@ import styles from './Chat.module.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const prefetchRequests = new Map<string, Promise<string | null>>();
+
 type TtsPlaybackController = {
   stop: () => void;
   finished: Promise<void>;
@@ -190,7 +192,6 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
   const [ttsAudioPath, setTtsAudioPath] = useState<string | null>(null);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const ttsControllerRef = useRef<TtsPlaybackController | null>(null);
-  const prefetchFiredRef = useRef(false);
 
   const stopTtsPlayback = useCallback(() => {
     const ctrl = ttsControllerRef.current;
@@ -203,25 +204,22 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
 
   useEffect(() => {
     if (isStreamingMessage) return;
-    if (prefetchFiredRef.current) return;
-    if (!plainText || plainText.length < 50) return;
-    if (!ttsAutoPrefetch) return;
-    prefetchFiredRef.current = true;
-    hanaFetch('/api/tools/tts-bridge.tts_speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: plainText.slice(0, 3000),
-        filename: messageAudioFilename(messageId),
-      }),
-      timeout: 60_000,
-    })
-      .then(res => res.json())
-      .then(data => {
-        const audioPath = data?.details?.path || data?.result?.details?.path;
-        if (audioPath) setTtsAudioPath(audioPath);
-      })
-      .catch(() => { /* silent */ });
+    if (!plainText || plainText.length < 50 || !ttsAutoPrefetch) return;
+    const text = plainText.slice(0, 3000);
+    const key = `${messageId || ''}:${text}`;
+    let request = prefetchRequests.get(key);
+    if (!request) {
+      request = hanaFetch('/api/tools/tts-bridge.tts_speak', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, filename: messageAudioFilename(messageId) }), timeout: 60_000,
+      }).then(res => res.json()).then(data => data?.details?.path || data?.result?.details?.path || null)
+        .catch(() => { prefetchRequests.delete(key); return null; });
+      prefetchRequests.set(key, request);
+      if (prefetchRequests.size > 128) prefetchRequests.delete(prefetchRequests.keys().next().value!);
+    }
+    let cancelled = false;
+    request.then(audioPath => { if (!cancelled && audioPath) setTtsAudioPath(audioPath); });
+    return () => { cancelled = true; };
   }, [isStreamingMessage, plainText, messageId, ttsAutoPrefetch]);
 
   const handleClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {

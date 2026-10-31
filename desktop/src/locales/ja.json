@@ -627,7 +627,9 @@
       "setActive": "アクティブに設定",
       "lastAgent": "エージェントは最低1つ必要です",
       "yuan": "元",
-      "yuanHint": ""
+      "yuanHint": "",
+      "draftUnsaved": "未保存の下書き",
+      "draftSaveFailed": "下書きを端末に保存できません。設定を閉じる前に変更を保存してください。"
     },
     "about": {
       "title": "このアプリについて",
@@ -1268,7 +1270,10 @@
   },
   "desk": {
     "fileFilter": "ファイル絞り込み",
-    "filter": {"all": "すべて", "images": "画像"},
+    "filter": {
+      "all": "すべて",
+      "images": "画像"
+    },
     "noImages": "このフォルダーに画像はありません",
     "title": "デスク",
     "workspaceMap": "セッションの進捗",
@@ -1625,7 +1630,9 @@
     "memorySearchDateToDesc": "終了日、形式 YYYY-MM-DD",
     "memorySearchEmpty": "記憶バンクに関連する内容が見つかりませんでした。",
     "memorySearchError": "記憶検索エラー: {msg}",
-    "fallbackUserName": "ユーザー"
+    "fallbackUserName": "ユーザー",
+    "installSkillApprovalRequired": "スキルのインストールにはユーザーの承認が必要です。ファイルは変更していません。",
+    "bridgeRequestFailed": "リクエストを完了できませんでした。再試行するか、Lynn の診断を確認してください。"
   },
   "main": {
     "tray": {

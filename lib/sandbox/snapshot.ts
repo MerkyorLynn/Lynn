@@ -13,10 +13,13 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { execSync } from "child_process";
+import { execFile, execFileSync } from "child_process";
+import { promisify } from "node:util";
+import { randomUUID } from "node:crypto";
 import { debugLog } from "../debug-log.js";
 
 const SNAPSHOT_BASE = path.join(os.homedir(), ".lynn", "snapshots");
+const execFileAsync = promisify(execFile);
 
 export interface SnapshotResult {
   snapshotPath: string | null;
@@ -32,6 +35,7 @@ export interface SnapshotInfo {
 
 interface ExecError extends Error {
   status?: number;
+  code?: string | number;
 }
 
 /** 确保快照基础目录存在 */
@@ -48,11 +52,11 @@ function ensureSnapshotDir(agentId?: string | null): string {
  * @param {string} [reason] - 触发原因（用于日志）
  * @returns {{ snapshotPath: string, success: boolean, error?: string }}
  */
-export function createSnapshot(
+export async function createSnapshot(
   targetPath: string | null | undefined,
   agentId?: string | null,
   reason?: string,
-): SnapshotResult {
+): Promise<SnapshotResult> {
   if (!targetPath || !fs.existsSync(targetPath)) {
     return { snapshotPath: null, success: false, error: "target path does not exist" };
   }
@@ -64,7 +68,7 @@ export function createSnapshot(
   }
 
   const snapshotDir = ensureSnapshotDir(agentId);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19) + "-" + randomUUID().slice(0, 8);
   const snapshotPath = path.join(snapshotDir, timestamp);
   const dirName = path.basename(targetPath);
   const destPath = path.join(snapshotPath, dirName);
@@ -81,27 +85,29 @@ export function createSnapshot(
         .sort()
         .reverse();
 
-      let cmd = `rsync -a "${targetPath}/" "${destPath}/"`;
+      const args = ["-a"];
       if (prevSnapshots.length > 0) {
         const prevPath = path.join(snapshotDir, prevSnapshots[0], dirName);
         if (fs.existsSync(prevPath)) {
-          cmd = `rsync -a --link-dest="${prevPath}" "${targetPath}/" "${destPath}/"`;
+          args.push(`--link-dest=${prevPath}`);
         }
       }
-      execSync(cmd, { stdio: "pipe", timeout: 60000 });
+      await execFileAsync("rsync", [...args, "--", `${targetPath}/`, `${destPath}/`], { timeout: 60000, windowsHide: true });
     } else if (platform === "linux") {
       // Linux: cp -al (hardlink copy)
-      execSync(`cp -al "${targetPath}" "${destPath}"`, { stdio: "pipe", timeout: 60000 });
+      await execFileAsync("cp", ["-a", "--reflink=auto", "--", targetPath, destPath], { timeout: 60000 });
     } else {
       // Windows: robocopy mirror
       try {
-        execSync(`robocopy "${targetPath}" "${destPath}" /MIR /NFL /NDL /NJH /NJS /nc /ns /np`, {
-          stdio: "pipe",
+        await execFileAsync("robocopy", [targetPath, destPath, "/MIR", "/NFL", "/NDL", "/NJH", "/NJS", "/nc", "/ns", "/np"], {
+          windowsHide: true,
           timeout: 60000,
         });
       } catch (e) {
         // robocopy returns non-zero exit codes for success (1 = files copied)
-        if ((e as ExecError).status !== undefined && (e as ExecError).status! > 7) throw e;
+        const error = e as ExecError;
+        const status = typeof error.code === "number" ? error.code : error.status;
+        if (status === undefined || status > 7) throw e;
       }
     }
 
@@ -160,15 +166,19 @@ export function restoreSnapshot(snapshotPath: string, targetPath: string): Omit<
 
     if (platform === "win32") {
       try {
-        execSync(`robocopy "${sourcePath}" "${targetPath}" /MIR /NFL /NDL /NJH /NJS /nc /ns /np`, {
+        execFileSync("robocopy", [sourcePath, targetPath, "/MIR", "/NFL", "/NDL", "/NJH", "/NJS", "/nc", "/ns", "/np"], {
+          windowsHide: true,
           stdio: "pipe",
           timeout: 120000,
         });
       } catch (e) {
-        if ((e as ExecError).status !== undefined && (e as ExecError).status! > 7) throw e;
+        const error = e as ExecError;
+        const status = typeof error.code === "number" ? error.code : error.status;
+        if (status === undefined || status > 7) throw e;
       }
     } else {
-      execSync(`rsync -a --delete "${sourcePath}/" "${targetPath}/"`, {
+      execFileSync("rsync", ["-a", "--delete", "--", `${sourcePath}/`, `${targetPath}/`], {
+        windowsHide: true,
         stdio: "pipe",
         timeout: 120000,
       });

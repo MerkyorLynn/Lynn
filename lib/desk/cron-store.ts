@@ -466,8 +466,11 @@ export class CronStore {
     for (let i = 0; i < limit; i++) {
       const t = new Date(start.getTime() + i * 60_000);
       if (!months.has(t.getMonth() + 1)) continue;
-      if (!days.has(t.getDate())) continue;
-      if (!weekdays.has(t.getDay())) continue;
+      const dayMatches = days.has(t.getDate());
+      const weekdayMatches = weekdays.has(t.getDay());
+      const dayWildcard = parts[2].startsWith("*");
+      const weekdayWildcard = parts[4].startsWith("*");
+      if (dayWildcard || weekdayWildcard ? !(dayMatches && weekdayMatches) : !(dayMatches || weekdayMatches)) continue;
       if (!hours.has(t.getHours())) continue;
       if (!minutes.has(t.getMinutes())) continue;
       return t.toISOString();

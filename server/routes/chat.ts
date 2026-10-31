@@ -146,8 +146,9 @@ export function createChatRoute(engine: any, hub: any, { upgradeWebSocket }: any
     disconnectAbortTimer = setTimeout(() => {
       disconnectAbortTimer = null;
       if (activeWsClients > 0) return;
-      debugLog()?.log("ws", `no clients for ${DISCONNECT_ABORT_GRACE_MS}ms, aborting all streaming`);
-      engine.abortAllStreaming().catch(() => {});
+      // Sessions and their resumable event logs outlive a renderer connection.
+      // A global abort here also kills unrelated bridge and scheduled tasks.
+      debugLog()?.log("ws", `no clients for ${DISCONNECT_ABORT_GRACE_MS}ms; preserving resumable sessions`);
     }, DISCONNECT_ABORT_GRACE_MS);
   }
 

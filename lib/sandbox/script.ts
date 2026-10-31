@@ -30,7 +30,8 @@ function tempPath(ext: string): string {
  */
 export function writeScript(command: string, cwd: string): ScriptFile {
   const scriptPath = tempPath(".sh");
-  const content = `#!/bin/bash\ncd ${JSON.stringify(cwd)}\n${command}\n`;
+  const quotedCwd = `'${cwd.replace(/'/g, "'\\''")}'`;
+  const content = `#!/bin/bash\ncd -- ${quotedCwd} || exit 1\n${command}\n`;
   fs.writeFileSync(scriptPath, content, { mode: 0o700 });
   return { scriptPath };
 }

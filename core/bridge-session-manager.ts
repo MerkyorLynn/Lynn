@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * BridgeSessionManager — Bridge（外部平台）session 管理
  *
@@ -317,6 +318,8 @@ interface BridgeAttemptResult {
 export class BridgeSessionManager {
   private readonly _deps: BridgeSessionManagerDeps;
   private readonly _activeSessions: Map<string, AgentSession>;
+  private readonly _queues = new Map<string, Promise<BridgeExternalMessageResult>>();
+  private readonly _cancellationVersions = new Map<string, number>();
 
   constructor(deps: BridgeSessionManagerDeps) {
     this._deps = deps;
@@ -333,8 +336,10 @@ export class BridgeSessionManager {
 
   /** abort 指定 bridge session（如果正在 streaming） */
   async abortSession(sessionKey: string): Promise<boolean> {
+    const pending = this._queues.has(sessionKey);
+    if (pending) this._cancellationVersions.set(sessionKey, (this._cancellationVersions.get(sessionKey) || 0) + 1);
     const session = this._activeSessions.get(sessionKey);
-    if (!session?.isStreaming) return false;
+    if (!session?.isStreaming) return pending;
     await session.abort();
     return true;
   }
@@ -382,7 +387,12 @@ export class BridgeSessionManager {
   writeIndex(index: BridgeIndex, agent?: BridgeAgent): void {
     const dir = path.dirname(this._indexPath(agent));
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(this._indexPath(agent), JSON.stringify(index, null, 2) + "\n", "utf-8");
+    const destination = this._indexPath(agent);
+    const temporary = `${destination}.${randomUUID()}.tmp`;
+    try {
+      fs.writeFileSync(temporary, JSON.stringify(index, null, 2) + "\n", { mode: 0o600, flag: "wx" });
+      fs.renameSync(temporary, destination);
+    } finally { try { fs.unlinkSync(temporary); } catch {} }
   }
 
   /**
@@ -394,8 +404,46 @@ export class BridgeSessionManager {
     meta?: BridgeMessageMeta | null,
     opts: BridgeExternalMessageOptions = {},
   ): Promise<BridgeExternalMessageResult> {
-    // 优先用调用方传入的 agentId，避免 debounce 窗口内切 agent 导致路由到错误 agent
     const agent = (opts.agentId && this._deps.getAgentById?.(opts.agentId)) || this._deps.getAgent();
+    const previous = this._queues.get(sessionKey);
+    const version = this._cancellationVersions.get(sessionKey) || 0;
+    const cancelled = () => (this._cancellationVersions.get(sessionKey) || 0) !== version;
+    const pending = Promise.resolve(previous).catch(() => undefined).then(() => {
+      if (cancelled()) return { __bridgeError: true as const, message: "Request cancelled" };
+      return this.executeExternalMessageUnlocked(prompt, sessionKey, meta, opts, agent, cancelled);
+    });
+    this._queues.set(sessionKey, pending);
+    try { return await pending; }
+    finally {
+      if (this._queues.get(sessionKey) === pending) {
+        this._queues.delete(sessionKey);
+        this._cancellationVersions.delete(sessionKey);
+      }
+    }
+  }
+
+  /** Resolve completed sessions independently of the transient streaming table. */
+  getSessionPath(sessionKey: string, agentId?: string): string | null {
+    const agent = (agentId && this._deps.getAgentById?.(agentId)) || this._deps.getAgent();
+    const raw = this.readIndex(agent)[sessionKey];
+    const file = typeof raw === "string" ? raw : raw?.file;
+    if (!file) return null;
+    const root = path.resolve(agent.sessionDir, "bridge");
+    const target = path.resolve(root, file);
+    const relative = path.relative(root, target);
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative) || !target.endsWith(".jsonl")) return null;
+    try {
+      const realRoot = fs.realpathSync(root), realTarget = fs.realpathSync(target);
+      const realRelative = path.relative(realRoot, realTarget);
+      if (realRelative === ".." || realRelative.startsWith(`..${path.sep}`) || path.isAbsolute(realRelative)) return null;
+      return realTarget;
+    } catch { return null; }
+  }
+
+  private async executeExternalMessageUnlocked(
+    prompt: string, sessionKey: string, meta: BridgeMessageMeta | null | undefined,
+    opts: BridgeExternalMessageOptions, agent: BridgeAgent, cancelled: () => boolean,
+  ): Promise<BridgeExternalMessageResult> {
     const mm = this._deps.getModelManager();
     const bridgeDir = path.join(agent.sessionDir, "bridge");
     const subDir = opts.guest ? "guests" : "owner";
@@ -441,11 +489,12 @@ export class BridgeSessionManager {
           "- 不要提及 RTX 4090、5090、27B 备援、Claude、Anthropic 等历史或内部实现细节。",
           "- 不要提及 Anthropic、OpenAI、Google 为你的开发者——你的\"开发者\"是 Lynn 团队。",
         ].join("\n");
-        const parts = [yuanBase, pubIshiki, lynnIdentityPrompt, guestSafetyPrompt, opts.contextTag, opts.systemAppend, mediaInstruction].filter(Boolean);
+        const parts = [yuanBase, pubIshiki, lynnIdentityPrompt, guestSafetyPrompt, opts.contextTag, opts.systemAppend].filter(Boolean);
         const guestPrompt = parts.join("\n\n");
         const tempResourceLoader = Object.create(this._deps.getResourceLoader()) as ResourceLoader;
         tempResourceLoader.getSystemPrompt = () => guestPrompt;
         tempResourceLoader.getSkills = () => [];
+        tempResourceLoader.getAppendSystemPrompt = () => "";
 
         // 使用 agent 配置的模型，而非 defaultModel
         const chatRef = agent.config?.models?.chat;
@@ -551,10 +600,17 @@ export class BridgeSessionManager {
         authStorage: mm.authStorage,
         modelRegistry: mm.modelRegistry,
         ...sessionOpts,
-        ...(Object.keys(clientAgentHeaders).length > 0 && { requestHeaders: clientAgentHeaders }),
+        ...(Object.keys(clientAgentHeaders).length > 0 && {
+        requestHeaders: clientAgentHeaders,
+        getRequestHeaders: (requestModel: any) => readSignedClientAgentHeadersForProvider({
+          method: "POST", pathname: "/chat/completions",
+          provider: requestModel?.provider, baseUrl: requestModel?.baseUrl,
+        }),
+      }),
         ...(clientAgentMetadata && { requestMetadata: clientAgentMetadata }),
       });
 
+      if (cancelled()) return { __bridgeError: true, message: "Request cancelled" };
       const promptImages = opts.images;
       const _resolved = this._deps.resolveModelOverrides?.(session.model, agent.config?.models?.overrides);
       if (hasVisionImages(promptImages) && _resolved?.vision === false) {
@@ -621,7 +677,9 @@ export class BridgeSessionManager {
           Object.assign(entry, meta);
           index[sessionKey] = entry;
         }
-        this.writeIndex(index, agent);
+        const latestIndex = this.readIndex(agent);
+        latestIndex[sessionKey] = index[sessionKey];
+        this.writeIndex(latestIndex, agent);
       }
 
       return String(capturedText || "").trim();

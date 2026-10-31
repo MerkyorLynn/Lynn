@@ -84,9 +84,18 @@
     // OS 集成 → 静默降级
     openFolder: () => {},
     openFile: () => {},
-    openHtmlInBrowser: async (html) => { try { const b = new Blob([html], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); } catch { /* web fallback only */ } },
+    openHtmlInBrowser: async (html) => {
+      try {
+        const escape = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const isolated = `<!doctype html><html><head><meta charset="utf-8"><title>HTML preview</title></head><body style="margin:0"><iframe title="HTML preview" sandbox="allow-scripts allow-downloads allow-popups" referrerpolicy="no-referrer" style="border:0;width:100vw;height:100vh;display:block" srcdoc="${escape(html)}"></iframe></body></html>`;
+        const blob = new Blob([isolated], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch { /* web fallback only */ }
+    },
     exportHtmlToPng: async () => null,  // Web 环境无离屏渲染能力,降级 null;调用方应判断后给提示
-    openExternal: (url) => { try { window.open(url, '_blank'); } catch { /* popup blocked */ } },
+    openExternal: (url) => { try { const parsed = new URL(url); if (['https:', 'http:'].includes(parsed.protocol) && !parsed.username && !parsed.password) window.open(parsed.href, '_blank', 'noopener,noreferrer'); } catch { /* invalid URL / popup blocked */ } },
     showInFinder: () => {},
     startDrag: () => {},
     confirmAction: async (opts = {}) => window.confirm(opts.message || 'Confirm'),

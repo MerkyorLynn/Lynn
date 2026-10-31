@@ -180,8 +180,8 @@ export function syncModels(
   if (oldStr === newStr) return false;
 
   // 原子写入：先写 tmp 文件，再 rename
-  const tmpPath = modelsJsonPath + ".tmp";
-  fs.writeFileSync(tmpPath, newStr, "utf-8");
+  const tmpPath = `${modelsJsonPath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, newStr, { encoding: "utf-8", mode: 0o600, flag: "wx" });
   fs.renameSync(tmpPath, modelsJsonPath);
 
   return true;

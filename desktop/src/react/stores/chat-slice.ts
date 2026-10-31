@@ -5,6 +5,8 @@
 import type { ChatListItem, ChatMessage, SessionMessages } from './chat-types';
 
 export interface ChatSlice {
+  currentSessionPath?: string | null;
+  streamingSessions?: string[];
   chatSessions: Record<string, SessionMessages>;
   scrollPositions: Record<string, number>;
 
@@ -33,7 +35,7 @@ export const createChatSlice = (
     // LRU 淘汰
     const keys = Object.keys(sessions);
     if (keys.length > MAX_CACHED_SESSIONS) {
-      const oldest = keys.find(k => k !== path);
+      const oldest = keys.find(k => k !== path && k !== s.currentSessionPath && !s.streamingSessions?.includes(k));
       if (oldest) delete sessions[oldest];
     }
     return { chatSessions: sessions };

@@ -1,3 +1,4 @@
+import { t } from "../../shared/i18n-runtime.js";
 /**
  * bridge-manager.ts — 外部平台接入管理器
  *
@@ -161,7 +162,7 @@ interface BridgeHub {
 }
 
 interface BridgeEngine {
-  getBridgeSessionPath?(sessionKey: string): string | null;
+  getBridgeSessionPath?(sessionKey: string, agentId?: string): string | null;
   agentName: string;
   currentAgentId?: string | null;
   lynnHome: string;
@@ -289,6 +290,7 @@ export class BridgeManager {
   _messageLog: BridgeMessageLogEntry[];
   _messageLogMax: number;
   blockStreaming: boolean;
+  private readonly guestRates = new Map<string, { start: number; count: number }>();
 
   constructor({ engine, hub }: BridgeManagerDeps) {
     this.engine = engine;
@@ -302,13 +304,8 @@ export class BridgeManager {
     this._messageLog = [];
     this._messageLogMax = 200;
 
-    // 初始化媒体本地路径白名单
-    // owner 模式下 agent 可能回复 MEDIA: 指向用户 home 下任意文件
-    const roots = [engine.lynnHome, os.homedir()];
-    const deskHome = engine.agent?.deskManager?.homePath;
-    if (deskHome) roots.push(deskHome);
-    roots.push(os.tmpdir());
-    setMediaLocalRoots(roots);
+    // Local output is authorized per session in sendBridgeMediaItem, never by home-directory access.
+    setMediaLocalRoots([]);
     /** block streaming 模式（默认开，多气泡发送） */
     this.blockStreaming = true;
   }
@@ -530,10 +527,7 @@ export class BridgeManager {
         // batch 模式：提取媒体
         const { text: textOnly, mediaUrls } = splitMediaFromOutput(cleaned) as SplitMediaResult;
         if (textOnly.trim()) await entry.adapter.sendReply(chatId, textOnly);
-        for (const url of mediaUrls) {
-          try { await sendBridgeMediaItem(entry.adapter, chatId, url); }
-          catch (err: unknown) { debugLog()?.warn("bridge", `media send failed: ${errorMessage(err)} (${url.slice(0, 60)})`); }
-        }
+        // Group sessions are guests: model text cannot trigger media delivery.
         debugLog()?.log("bridge", `→ ${platform} group reply (${cleaned.length} chars)`);
         this._pushMessage({
           platform, direction: "out", sessionKey,
@@ -639,7 +633,7 @@ export class BridgeManager {
       // bridge-session 返回 error 标记时，发送简短错误提示给用户
       if (isBridgeErrorReply(reply)) {
         if (adapter) {
-          const errMsg = `[Error] ${reply.message || "Unable to process message"}`;
+          const errMsg = t("error.bridgeRequestFailed");
           try { await adapter.sendReply(chatId, errMsg); } catch {}
         }
         reply = null;
@@ -681,8 +675,8 @@ export class BridgeManager {
         }
 
         // 统一发送所有提取到的媒体
-        for (const url of allMediaUrls) {
-          try { await sendBridgeMediaItem(adapter, chatId, url, this.engine.getBridgeSessionPath?.(sessionKey) || undefined); }
+        for (const url of isOwner ? allMediaUrls : []) {
+          try { await sendBridgeMediaItem(adapter, chatId, url, this.engine.getBridgeSessionPath?.(sessionKey, agentId || undefined) || undefined); }
           catch (err: unknown) { debugLog()?.warn("bridge", `media send failed: ${errorMessage(err)} (${url.slice(0, 60)})`); }
         }
 
@@ -727,7 +721,7 @@ export class BridgeManager {
    * 判断消息发送者是否在白名单内。
    *
    * 白名单配置位于 prefs.bridge.allowlist[platform]（字符串数组）。
-   * - 白名单未配置 / 空数组 → 允许所有人（向后兼容）
+   * - 白名单未配置 / 空数组 → 仅允许 owner
    * - 白名单非空 → 仅 owner + 白名单中的 userId 允许
    *
    * @returns {boolean} true 表示允许处理该消息
@@ -735,12 +729,21 @@ export class BridgeManager {
   _isAllowed(platform: string, userId?: string): boolean {
     const prefs = this.engine.getPreferences();
     const list = prefs.bridge?.allowlist?.[platform];
-    // 未配置白名单 → 放行所有
-    if (!Array.isArray(list) || list.length === 0) return true;
     // owner 始终放行
     if (this._isOwner(platform, userId)) return true;
     // 检查白名单
-    return !!userId && list.includes(userId);
+    if (!userId || !Array.isArray(list) || !list.includes(userId)) return false;
+    const now = Date.now();
+    const key = `${platform}:${userId}`;
+    let rate = this.guestRates.get(key);
+    if (!rate || now - rate.start >= 60_000) {
+      for (const [oldKey, oldRate] of this.guestRates) if (now - oldRate.start >= 60_000) this.guestRates.delete(oldKey);
+      if (this.guestRates.size >= 1000) return false;
+      rate = { start: now, count: 0 };
+      this.guestRates.set(key, rate);
+    }
+    rate.count += 1;
+    return rate.count <= 10;
   }
 
   /**

@@ -118,7 +118,8 @@ describe("BridgeSessionManager guest safety prompt", () => {
     expect(prompt).toContain("不要提及 RTX 4090");
     expect(prompt).toContain("这些信息我没办法分享。");
     expect(prompt).toContain("当前对话来自外部访客。");
-    expect(prompt).toContain("MEDIA:<url>");
+    expect(prompt).not.toContain("MEDIA:<url>");
+    expect(createArgs.resourceLoader.getAppendSystemPrompt()).toBe("");
     expect(createArgs.tools).toBeUndefined();
     expect(createArgs.customTools).toBeUndefined();
   });
@@ -299,4 +300,36 @@ describe("BridgeSessionManager guest safety prompt", () => {
     expect(promptMock).toHaveBeenCalledTimes(1);
     expect(result).toBe("");
   });
+  it("resolves a completed session after it leaves the active table", () => {
+    const manager = buildManager(tempDir);
+    const file = path.join(tempDir, 'bridge', 'owner', 'completed.jsonl');
+    fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, '{}\n');
+    manager.writeIndex({ completed: { file: 'owner/completed.jsonl' }, escape: { file: '../../private.jsonl' } });
+    expect(manager.activeSessions.size).toBe(0);
+    expect(manager.getSessionPath('completed')).toBe(fs.realpathSync(file));
+    expect(manager.getSessionPath('escape')).toBeNull();
+  });
+
+  it("serializes the same key, permits other keys, and cancels queued work", async () => {
+    const manager = buildManager(tempDir);
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const started = [];
+    vi.spyOn(manager, 'executeExternalMessageUnlocked').mockImplementation(async (prompt, key) => {
+      started.push(prompt);
+      if (prompt === 'first') await held;
+      return prompt;
+    });
+    const first = manager.executeExternalMessage('first', 'same');
+    const second = manager.executeExternalMessage('second', 'same');
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(started).toEqual(['first']);
+    expect(await manager.executeExternalMessage('other', 'different')).toBe('other');
+    expect(await manager.abortSession('same')).toBe(true);
+    release(); await first;
+    expect(await second).toMatchObject({ __bridgeError: true });
+    expect(started).toEqual(['first', 'other']);
+    expect(await manager.executeExternalMessage('new', 'same')).toBe('new');
+  });
+
 });

@@ -129,11 +129,10 @@ class StreamBufferManager {
   /** 确保 store 中已为该 session 追加了一条空 assistant message */
   private ensureMessage(buf: Buffer): void {
     if (buf.messageAppended) return;
-    buf.messageAppended = true;
-
     const store = useStore.getState();
     const session = store.chatSessions[buf.sessionPath];
     if (!session) return; // session 未初始化（可能还没 loadMessages）
+    buf.messageAppended = true;
 
     const id = `stream-${Date.now()}`;
     buf.activeMessageId = id;
@@ -468,12 +467,12 @@ class StreamBufferManager {
           while (lastTg >= 0 && blocks[lastTg].type !== 'tool_group') lastTg--;
           if (lastTg >= 0 && blocks[lastTg].type === 'tool_group') {
             const tg = blocks[lastTg] as Extract<ContentBlock, { type: 'tool_group' }>;
-            if (tg.tools.some(t => t.name === msg.name && !t.done)) return m;
+            if (msg.toolCallId && tg.tools.some(t => t.toolCallId === msg.toolCallId)) return m;
             // 如果上一个 group 里还有未完成的工具，追加到同一个 group
             if (tg.tools.some(t => !t.done)) {
               blocks[lastTg] = {
                 ...tg,
-                tools: [...tg.tools, { name: msg.name, args: msg.args, done: false, success: false, startedAt: Date.now() }],
+                tools: [...tg.tools, { name: msg.name, toolCallId: msg.toolCallId, args: msg.args, done: false, success: false, startedAt: Date.now() }],
               };
               return { ...m, blocks };
             }
@@ -481,7 +480,7 @@ class StreamBufferManager {
           // 新建 tool_group
           blocks.push({
             type: 'tool_group',
-            tools: [{ name: msg.name, args: msg.args, done: false, success: false, startedAt: Date.now() }],
+            tools: [{ name: msg.name, toolCallId: msg.toolCallId, args: msg.args, done: false, success: false, startedAt: Date.now() }],
             collapsed: false,
           });
           return { ...m, blocks };
@@ -498,7 +497,7 @@ class StreamBufferManager {
             if (b.type === 'tool_group') {
               for (const t of b.tools) {
                 // Skip the one we're about to mark done
-                if (t.name === msg.name && !t.done) continue;
+                if ((msg.toolCallId ? t.toolCallId === msg.toolCallId : t.name === msg.name) && !t.done) continue;
                 if (!t.done) { stillBusy = true; break; }
               }
             }
@@ -512,7 +511,7 @@ class StreamBufferManager {
           for (let i = blocks.length - 1; i >= 0; i--) {
             if (blocks[i].type !== 'tool_group') continue;
             const tg = blocks[i] as Extract<ContentBlock, { type: 'tool_group' }>;
-            const toolIdx = tg.tools.findIndex(t => t.name === msg.name && !t.done);
+            const toolIdx = tg.tools.findIndex(t => (msg.toolCallId ? t.toolCallId === msg.toolCallId : t.name === msg.name) && !t.done);
             if (toolIdx >= 0) {
               const tools = [...tg.tools];
               tools[toolIdx] = { ...tools[toolIdx], done: true, success: !!msg.success, summary: msg.summary };

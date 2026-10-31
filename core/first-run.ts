@@ -275,7 +275,6 @@ function ensureDefaultWorkspacePrefs(prefsPath: string, productDir: string): voi
   const nextHomeFolder = String(prefs.home_folder || '').trim() || workspacePath;
   const nextTrustedRoots = uniqueTrustedRoots([
     ...sanitizedRoots,
-    desktopRoot,
     workspacePath,
   ]);
 

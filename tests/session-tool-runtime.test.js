@@ -77,6 +77,7 @@ describe("session tool runtime helpers", () => {
     applySessionToolRuntime({ entry, ...deps });
 
     expect(entry.planMode).toBe(true);
+    expect(Object.keys(entry.session._baseToolsOverride)).toEqual(["read", "grep"]);
     expect(entry.session._buildRuntime).toHaveBeenCalledWith({
       activeToolNames: ["read", "grep", "find", "ls", "notify"],
     });

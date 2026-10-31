@@ -46,14 +46,14 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-const EMPTY_PROFILE: UserProfileData = {
+const emptyProfile = (): UserProfileData => ({
   sessionCount: 0,
   toolUsage: {},
   languages: {},
   hourDistribution: new Array(24).fill(0),
   totalTurns: 0,
   updatedAt: null,
-};
+});
 
 /** sessionCount 阈值：低于此值不输出画像（避免样本不足导致不准确） */
 const MIN_SESSIONS_FOR_OUTPUT = 3;
@@ -81,12 +81,12 @@ export class UserProfile {
       if (fs.existsSync(this._profilePath)) {
         this._profile = JSON.parse(fs.readFileSync(this._profilePath, "utf-8")) as UserProfileData;
         // 确保字段完整（兼容旧版本）
-        this._profile = { ...EMPTY_PROFILE, ...this._profile };
+        this._profile = { ...emptyProfile(), ...this._profile };
       } else {
-        this._profile = { ...EMPTY_PROFILE };
+        this._profile = emptyProfile();
       }
     } catch {
-      this._profile = { ...EMPTY_PROFILE };
+      this._profile = emptyProfile();
     }
 
     return this._profile;
