@@ -20,14 +20,16 @@ it('continues to preview workspace files but blocks secrets in custom data homes
   for (const endpoint of ['read', 'read-base64', 'docx-html']) expect((await app.request('/api/fs/' + endpoint + '?path=' + encodeURIComponent(secret))).status).toBe(403);
 });
 it('rejects a leaf symlink swapped after canonical path authorization', async () => {
-  const regular = fs.realpathSync(workspace) + '/note.md', secret = path.join(root, 'private.txt');
+  const regular = path.join(fs.realpathSync(workspace), 'note.md'), secret = path.join(root, 'private.txt');
   fs.writeFileSync(regular, 'public'); fs.writeFileSync(secret, 'private');
   const original = fs.openSync;
+  let swapped = false;
   vi.spyOn(fs, 'openSync').mockImplementation(((file: any, ...args: any[]) => {
-    if (String(file) === regular) { fs.unlinkSync(regular); fs.symlinkSync(secret, regular); }
+    if (String(file) === regular) { swapped = true; fs.unlinkSync(regular); fs.symlinkSync(secret, regular); }
     return (original as any)(file, ...args);
   }) as any);
   const result = await app.request('/api/fs/read?path=' + encodeURIComponent(regular));
+  expect(swapped).toBe(true);
   expect(result.status).toBe(403); expect(await result.text()).not.toContain('private');
 });
 it('rejects oversized text before reading it into memory', async () => {
