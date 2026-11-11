@@ -9,14 +9,14 @@
     <title>Lynn 下载 | macOS 与 Windows 安装包</title>
     <meta
       name="description"
-      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.87.5,CLI 当前为 v0.87.5。"
+      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.87.6,CLI 当前为 v0.87.6。"
     />
     <meta name="theme-color" content="#f7f1e6" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Lynn 下载 | macOS 与 Windows 安装包" />
     <meta
       property="og:description"
-      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.87.5,CLI 当前为 v0.87.5。"
+      content="下载 Lynn 客户端 GUI 的 macOS Apple Silicon、macOS Intel、Windows 安装包,以及独立 Lynn CLI。客户端 GUI 当前为 v0.87.6,CLI 当前为 v0.87.6。"
     />
     <meta property="og:image" content="../.github/assets/screenshot-main-20260407-v3.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -47,8 +47,8 @@
             <span class="eyebrow">Lynn 下载页</span>
             <h1>选择适合你设备的版本</h1>
             <p class="lead">
-              客户端 GUI 当前为 <strong id="gui-release-version">0.87.5</strong>,
-              CLI 当前为 <strong id="cli-release-version">0.87.5</strong>。
+              客户端 GUI 当前为 <strong id="gui-release-version">0.87.6</strong>,
+              CLI 当前为 <strong id="cli-release-version">0.87.6</strong>。
               GUI 与 CLI 默认使用 Step 5 Preview，实时语音使用 stepaudio-2.5-realtime。天气、体育、财经工具由模型分析参数；本地模型升级为 Coder390 Q3 / Q2，内置 Q4 MTP，不另下载 DFlash2。桌面记忆、自动任务、多 Agent 协作、Kimi 扫码和手机续聊继续保留。
             </p>
             <div class="platform-callout" id="platform-callout">
@@ -62,7 +62,7 @@
             <span class="eyebrow">Lynn CLI / Lynn Code</span>
             <h2>给开发者和其他智能体的安装方式</h2>
             <p>
-              Lynn CLI 当前最新为 <strong>v0.87.5</strong>。它是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑。
+              Lynn CLI 当前最新为 <strong>v0.87.6</strong>。它是 Lynn 的终端版:跑在命令行里的 AI 编码助手,带终端 TUI、Markdown 渲染、流式输出、工具调用和长任务续跑。
               一行命令装好,不用克隆仓库、不用编译;也可以被 Claude Code、Codex CLI、Kimi Code、Qwen CLI、CI 或 Lynn GUI Fleet 以无交互方式调用。
             </p>
           </div>
@@ -90,11 +90,11 @@ winget install OpenJS.NodeJS.LTS</code></pre>
             <div class="cli-install-copy">
               <span class="pill pill-warm">首次安装 / 覆盖升级</span>
               <h3>2. 安装 Lynn CLI</h3>
-              <p>第一次安装和覆盖旧版本都用下面的命令。点击「复制」后直接粘贴到终端执行，保留网址两侧的英文引号。<code>--force</code> 能覆盖旧的 <code>lynn/Lynn</code> 命令软链接，避免 npm 提示 EEXIST。安装完成后应显示版本 <code>0.87.5</code>。</p>
+              <p>第一次安装和覆盖旧版本都用下面的命令。点击「复制」后直接粘贴到终端执行，保留网址两侧的英文引号。<code>--force</code> 能覆盖旧的 <code>lynn/Lynn</code> 命令软链接，避免 npm 提示 EEXIST。安装完成后应显示版本 <code>0.87.6</code>。</p>
             </div>
             <div class="code-copy-block">
               <button class="copy-button" type="button" data-copy-target="cli-install">复制</button>
-              <pre><code id="cli-install">npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz"
+              <pre><code id="cli-install">npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.6.tgz"
 Lynn --version</code></pre>
             </div>
           </div>
@@ -109,7 +109,7 @@ Lynn --version</code></pre>
               <pre><code id="cli-start">Lynn                 # 交互式聊天 TUI
 Lynn code            # 编码 agent TUI
 Lynn manager run -p "拆分并验收这个长任务" --jsonl
-Lynn --version       # 应输出 0.87.5
+Lynn --version       # 应输出 0.87.6
 Lynn agents          # 输出可复制的 Fleet / 其他 CLI 调用方式
 
 # 无交互编码 worker 示例
@@ -139,7 +139,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
             <a
               class="button button-primary"
               data-download-key="macArm"
-              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.5-macOS-arm64.dmg?rev=20261031"
+              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.6-macOS-arm64.dmg?rev=20261110"
               target="_blank"
               rel="noreferrer"
             >下载 Apple Silicon 版</a>
@@ -160,7 +160,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
             <a
               class="button button-primary"
               data-download-key="macIntel"
-              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.5-macOS-x64.dmg?rev=20261031"
+              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.6-macOS-x64.dmg?rev=20261110"
               target="_blank"
               rel="noreferrer"
             >下载 Intel 版</a>
@@ -171,7 +171,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
               <span class="pill pill-warm">Windows 安装版</span>
               <h2>Windows</h2>
             </div>
-            <p>V0.87.5 Windows 安装包内置固定版本 llama.cpp CPU 运行时；导入本地 GGUF 不再需要手工安装 <code>llama-server.exe</code>。</p>
+            <p>V0.87.6 Windows 安装包内置固定版本 llama.cpp CPU 运行时；导入本地 GGUF 不再需要手工安装 <code>llama-server.exe</code>。</p>
             <ul>
               <li>文件格式：`.exe`</li>
               <li>安装方式：图形安装向导</li>
@@ -181,7 +181,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
             <a
               class="button button-primary"
               data-download-key="windows"
-              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.5-Windows-Setup.exe?rev=20261031"
+              href="https://download.merkyorlynn.com/downloads/Lynn-0.87.6-Windows-Setup.exe?rev=20261110"
               target="_blank"
               rel="noreferrer"
             >下载 Windows 版</a>
@@ -232,7 +232,7 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
 
         <section class="section release-summary">
           <div class="release-card">
-            <h2>V0.87.5：CLI 命令选择与桌面稳定性</h2>
+            <h2>V0.87.6：CLI 命令选择与桌面稳定性</h2>
             <p>输入 / 后可用上下方向键选择命令，Tab 或 Enter 填入。设置页按 Agent 保留未保存草稿；修复并发工具结果、桥接会话排队与上下文压缩问题。</p>
             <p>本地模型启动超时后可手动重试，旧进程不会覆盖新状态。完善文件预览、删除确认及菜单键盘操作，升级桌面和内置运行时依赖。</p>
             <p>继续使用 Step 5 Preview、StepAudio 2.5 Realtime 和 Coder390 Q2 / Q3；保留长推理超时设置与会话删除。</p>
@@ -271,6 +271,6 @@ Lynn code -p "fix tests, run the suite, summarize the diff" \
       </footer>
     </div>
 
-    <script src="./app.js?v=0.87.5-20261031"></script>
+    <script src="./app.js?v=0.87.6-20261110"></script>
   </body>
 </html>

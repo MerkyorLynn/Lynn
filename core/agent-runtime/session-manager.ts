@@ -1,7 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { ChatMessage, ImageContent, TextContent } from "./types.js";
+import type {
+  ChatMessage,
+  ImageContent,
+  SessionMessageMetadata,
+  TextContent,
+} from "./types.js";
+import type { LiveCompactionEntry, LiveCompactionPatchInput } from "./live-compaction-types.js";
+import { computeBranchDigest } from "./live-compaction-spine.js";
+import { verifyLiveCompactionReplacement } from "./live-compaction-store.js";
 
 export interface SessionHeader {
   type: "session";
@@ -23,9 +31,18 @@ export interface BaseEntry {
 export interface MessageEntry extends BaseEntry {
   type: "message";
   message: ChatMessage;
+  metadata?: SessionMessageMetadata;
 }
 
-export type SessionEntry = BaseEntry | MessageEntry;
+export type SessionEntry = BaseEntry | MessageEntry | LiveCompactionEntry;
+
+function isMessageEntry(entry: SessionEntry): entry is MessageEntry {
+  return entry.type === "message" && "message" in entry;
+}
+
+function isLiveCompactionEntry(entry: SessionEntry): entry is LiveCompactionEntry {
+  return entry.type === "live_compaction" && "replacements" in entry;
+}
 export type SessionFileEntry = SessionHeader | SessionEntry;
 
 export interface SessionInfo {
@@ -248,13 +265,14 @@ export class SessionManager {
     return entry.id;
   }
 
-  appendMessage(message: ChatMessage): string {
+  appendMessage(message: ChatMessage, metadata?: SessionMessageMetadata): string {
     const entry: MessageEntry = {
       type: "message",
       id: randomUUID(),
       parentId: this.leafId,
       timestamp: nowIso(),
       message: normalizeMessage(message),
+      ...(metadata ? { metadata } : {}),
     };
     return this.appendEntry(entry);
   }
@@ -268,7 +286,28 @@ export class SessionManager {
   }
 
   appendCompaction(summary: string, firstKeptEntryId: string, tokensBefore: number, details?: unknown, fromHook?: boolean): string {
+    if (!String(summary || "").trim()) {
+      throw new Error("compaction summary is empty; original session preserved");
+    }
     return this.appendCustomTyped("compaction", { summary, firstKeptEntryId, tokensBefore, details, fromHook });
+  }
+
+  appendLiveCompaction(patch: LiveCompactionPatchInput): string {
+    if (patch.baseLeafId !== this.leafId) {
+      throw new Error("live compaction base leaf changed before commit");
+    }
+    const branch = this.getBranch();
+    const baseIndex = branch.findIndex((entry) => entry.id === patch.baseLeafId);
+    if (baseIndex < 0 || computeBranchDigest(branch.slice(0, baseIndex + 1)) !== patch.baseBranchDigest) {
+      throw new Error("live compaction base branch changed before commit");
+    }
+    return this.appendEntry({
+      type: "live_compaction",
+      id: patch.patchId,
+      parentId: patch.baseLeafId,
+      timestamp: nowIso(),
+      ...patch,
+    });
   }
 
   appendCustomEntry(customType: string, data?: unknown): string {
@@ -332,9 +371,63 @@ export class SessionManager {
     return pathEntries;
   }
 
+  private projectBranch(branch: SessionEntry[]): SessionEntry[] {
+    const projected: SessionEntry[] = branch.map((entry): SessionEntry => isMessageEntry(entry) ? {
+      ...entry,
+      message: { ...entry.message },
+    } : entry);
+    const latestOfficial = [...projected].reverse().find((entry) => entry.type === "compaction");
+    let chainBroken = false;
+    let previousPatchId: string | null = null;
+    let checkpointId: string | null = latestOfficial?.id || null;
+    const replaced = new Set<string>();
+
+    for (const entry of projected) {
+      if (entry.type === "compaction") {
+        chainBroken = false;
+        previousPatchId = null;
+        checkpointId = entry.id;
+        replaced.clear();
+        continue;
+      }
+      if (!isLiveCompactionEntry(entry) || chainBroken) continue;
+      const baseIndex = projected.findIndex((candidate) => candidate.id === entry.baseLeafId);
+      const baseDigest = baseIndex >= 0 ? computeBranchDigest(projected.slice(0, baseIndex + 1)) : "";
+      const valid = entry.parentId === entry.baseLeafId
+        && baseIndex >= 0
+        && baseDigest === entry.baseBranchDigest
+        && entry.checkpointId === checkpointId
+        && entry.previousPatchId === previousPatchId
+        && entry.replacements.every((replacement) => {
+          if (replaced.has(replacement.entryId)) return false;
+          const target = projected.find((candidate) => candidate.id === replacement.entryId);
+          if (!target || !isMessageEntry(target)) return false;
+          return target.message.role === "tool"
+            && target.message.tool_call_id === replacement.toolCallId
+            && projected.findIndex((candidate) => candidate.id === replacement.entryId) <= baseIndex
+            && verifyLiveCompactionReplacement(replacement);
+        });
+      if (!valid) {
+        chainBroken = true;
+        continue;
+      }
+      for (const replacement of entry.replacements) {
+        const target = projected.find((candidate) => candidate.id === replacement.entryId);
+        if (!target || !isMessageEntry(target)) continue;
+        target.message = {
+          ...target.message,
+          content: replacement.replacement,
+        };
+        replaced.add(replacement.entryId);
+      }
+      previousPatchId = entry.patchId;
+    }
+    return projected;
+  }
+
   buildSessionContext(): SessionContext {
     const messages: ChatMessage[] = [];
-    const branch = this.getBranch();
+    const branch = this.projectBranch(this.getBranch());
     const compaction = [...branch].reverse().find(entry => entry.type === "compaction");
     let started = !compaction;
     if (compaction && typeof compaction.summary === "string") {
@@ -357,6 +450,53 @@ export class SessionManager {
 
   getEntries(): SessionEntry[] {
     return this.fileEntries.filter((entry): entry is SessionEntry => entry.type !== "session");
+  }
+
+  getLatestLiveCompaction(): LiveCompactionEntry | null {
+    return this.getLiveCompactionChainStatus().latest;
+  }
+
+  getLiveCompactionChainStatus(): { valid: boolean; latest: LiveCompactionEntry | null } {
+    const branch = this.getBranch();
+    let checkpointId: string | null = null;
+    let previousPatchId: string | null = null;
+    let latest: LiveCompactionEntry | null = null;
+    const replaced = new Set<string>();
+    for (const entry of branch) {
+      if (entry.type === "compaction") {
+        checkpointId = entry.id;
+        previousPatchId = null;
+        latest = null;
+        replaced.clear();
+        continue;
+      }
+      if (!isLiveCompactionEntry(entry)) continue;
+      const baseIndex = branch.findIndex((candidate) => candidate.id === entry.baseLeafId);
+      const valid = entry.parentId === entry.baseLeafId
+        && baseIndex >= 0
+        && computeBranchDigest(branch.slice(0, baseIndex + 1)) === entry.baseBranchDigest
+        && entry.checkpointId === checkpointId
+        && entry.previousPatchId === previousPatchId
+        && entry.replacements.every((replacement) => {
+          if (replaced.has(replacement.entryId)) return false;
+          const target = branch.find((candidate) => candidate.id === replacement.entryId);
+          if (!target || !isMessageEntry(target)) return false;
+          return target.message.role === "tool"
+            && target.message.tool_call_id === replacement.toolCallId
+            && branch.findIndex((candidate) => candidate.id === replacement.entryId) <= baseIndex
+            && verifyLiveCompactionReplacement(replacement);
+        });
+      if (!valid) return { valid: false, latest: null };
+      for (const replacement of entry.replacements) replaced.add(replacement.entryId);
+      previousPatchId = entry.patchId;
+      latest = entry;
+    }
+    return { valid: true, latest };
+  }
+
+  getLatestCompactionId(): string | null {
+    const patch = [...this.getBranch()].reverse().find((entry) => entry.type === "compaction");
+    return patch?.id || null;
   }
 
   getTree(): Array<{ entry: SessionEntry; children: unknown[]; label?: string }> {

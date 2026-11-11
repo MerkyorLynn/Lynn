@@ -11,6 +11,7 @@ import { buildCodePrompt } from "./code-context.js";
 import { checkPlanContract, checkToolBudget, defaultToolBudget } from "./code-plan-contract.js";
 import { extractLatestPlan, formatToolResultForLoop } from "./code-resume.js";
 import { compactRuntimeMessages } from "./code-runtime-compaction.js";
+import { createCliLiveCompactionAdapter } from "./live-compaction-adapter.js";
 import { buildCodeRuntimeFrames } from "./code-runtime-frames.js";
 import { buildSelfVerifyPrompt, formatSelfVerifyCritique, parseSelfVerifyVerdict, selfVerifyEnabled } from "./code-self-verify.js";
 import { autoRollbackEnabled, createWorkspaceSnapshot, recordWorkspaceSnapshotForRequest, restoreWorkspaceSnapshot, type WorkspaceSnapshot } from "./code-snapshot.js";
@@ -84,6 +85,7 @@ export async function runCodeAgentLoopCore(inputData: InternalCodeAgentLoopInput
   });
   const runtimeAnchorCount = messages.length;
   const runId = inputData.lifecycle.snapshot().runId;
+  const liveCompaction = createCliLiveCompactionAdapter(runId);
   let permissionRules = await loadPermissionRules(inputData.toolCtx.cwd);
   for (const invalid of permissionRules.rules.errors) {
     if (inputData.json) writeJsonLine({ type: "code.permission.rule_invalid", ts: nowIso(), error: invalid });
@@ -170,9 +172,11 @@ export async function runCodeAgentLoopCore(inputData: InternalCodeAgentLoopInput
 
   // Model-backed compaction with a deterministic fallback. Runs at the same point
   // Claude Code does: after a tool round, before the next request.
-  const compactNow = async (): Promise<{ engine: "model" | "fallback"; compacted: number; summaryChars: number } | null> => {
+  const compactNow = async (): Promise<{ engine: "live" | "model" | "fallback"; compacted: number; summaryChars: number } | null> => {
     const maxChars = Math.max(20_000, Number(process.env.LYNN_CLI_COMPACT_CHARS || 150_000) || 150_000);
-    if (!shouldCompact(messages, maxChars)) return null;
+    const live = await liveCompaction.compactAsync(messages);
+    const liveResult = live ? { engine: "live" as const, compacted: live.replaced, summaryChars: 0 } : null;
+    if (!shouldCompact(messages, maxChars)) return liveResult;
     try {
       const outcome = await compactConversation({
         messages,
@@ -196,7 +200,7 @@ export async function runCodeAgentLoopCore(inputData: InternalCodeAgentLoopInput
           return result.text;
         },
       });
-      if (!outcome) return null;
+      if (!outcome) return liveResult;
       messages = outcome.messages;
       clearReadState();
       if (inputData.onCheckpoint) {
@@ -213,10 +217,12 @@ export async function runCodeAgentLoopCore(inputData: InternalCodeAgentLoopInput
           });
         }
       }
-      return { engine: "model", compacted: outcome.compactedCount, summaryChars: outcome.summary.length };
+      return { engine: "model", compacted: outcome.compactedCount + (liveResult?.compacted || 0), summaryChars: outcome.summary.length };
     } catch {
       const fallback = compactRuntimeMessages(messages, undefined, undefined, runtimeAnchorCount);
-      return fallback > 0 ? { engine: "fallback", compacted: fallback, summaryChars: 0 } : null;
+      return fallback > 0
+        ? { engine: "fallback", compacted: fallback + (liveResult?.compacted || 0), summaryChars: 0 }
+        : liveResult;
     }
   };
 

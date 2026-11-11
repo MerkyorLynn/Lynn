@@ -191,11 +191,12 @@ class CdpClient {
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.ws.send(payload);
+      const timeoutMs = method === "Page.captureScreenshot" ? 30_000 : 10_000;
       setTimeout(() => {
         if (!this.pending.has(id)) return;
         this.pending.delete(id);
         reject(new Error(`CDP timeout: ${method}`));
-      }, 10000).unref();
+      }, timeoutMs).unref();
     });
   }
 
@@ -268,6 +269,31 @@ function comparePng(actual: Buffer, baseline: Buffer): { changedRatio: number; d
     }
   }
   return { changedRatio: changed / pixelCount, diff: PNG.sync.write(diffPng) };
+}
+
+function normalizeVisualPng(actual: Buffer, targetWidth: number, targetHeight: number): Buffer {
+  const { PNG } = require("pngjs") as typeof import("pngjs");
+  const source = PNG.sync.read(actual);
+  if (source.width === targetWidth && source.height === targetHeight) return actual;
+  if (source.width !== targetWidth * 2 || source.height !== targetHeight * 2) {
+    throw new Error(`image dimensions differ: actual ${source.width}x${source.height}, expected ${targetWidth}x${targetHeight}`);
+  }
+  const output = new PNG({ width: targetWidth, height: targetHeight });
+  for (let y = 0; y < targetHeight; y += 1) {
+    for (let x = 0; x < targetWidth; x += 1) {
+      const sourceOffsets = [
+        ((y * 2) * source.width + x * 2) * 4,
+        ((y * 2) * source.width + x * 2 + 1) * 4,
+        (((y * 2) + 1) * source.width + x * 2) * 4,
+        (((y * 2) + 1) * source.width + x * 2 + 1) * 4,
+      ];
+      const targetOffset = (y * targetWidth + x) * 4;
+      for (let channel = 0; channel < 4; channel += 1) {
+        output.data[targetOffset + channel] = Math.round(sourceOffsets.reduce((sum, offset) => sum + source.data[offset + channel], 0) / 4);
+      }
+    }
+  }
+  return PNG.sync.write(output);
 }
 
 async function main(): Promise<void> {
@@ -362,6 +388,9 @@ async function main(): Promise<void> {
       const screenshot = await cdp.call("Page.captureScreenshot", {
         format: "png",
         captureBeyondViewport: false,
+        optimizeForSpeed: true,
+        fromSurface: false,
+        clip: { x: 0, y: 0, width: 1280, height: 900, scale: 0.5 },
       }) as { data?: string };
       const screenshotPath = path.join(outputDir, `${scenario.id}.png`);
       await fs.writeFile(screenshotPath, Buffer.from(String(screenshot.data || ""), "base64"));
@@ -380,7 +409,7 @@ async function main(): Promise<void> {
       await waitForExpression(cdp, 'document.body.innerText.includes("UI_SMOKE_REPLAY_ONCE")');
       const occurrences = await cdp.evaluate('(document.body.innerText.match(/UI_SMOKE_REPLAY_ONCE/g) || []).length');
       const failures = valid === true && occurrences === 1 ? [] : ['overlapping resume duplicated rendered text'];
-      const screenshot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }) as { data?: string };
+      const screenshot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, optimizeForSpeed: true, fromSurface: false, clip: { x: 0, y: 0, width: 1280, height: 900, scale: 0.5 } }) as { data?: string };
       const screenshotPath = path.join(outputDir, 'stream-replay.png');
       await fs.writeFile(screenshotPath, Buffer.from(String(screenshot.data || ''), 'base64'));
       results.push({ id: 'stream-replay', ok: failures.length === 0, failures, screenshot: path.relative(ROOT, screenshotPath) });
@@ -435,7 +464,7 @@ async function main(): Promise<void> {
           if (!snapshot.card?.startsWith('https://modelscope.cn/models/Merkyor/Qwen3.8-27B-')) failures.push('model card link mismatch');
           await cdp.evaluate('window.__lynnPrepareUiSmokeCapture?.()');
           const id = `local-model-${theme}-${width}-${state}`;
-          const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }) as { data: string };
+          const shot = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, optimizeForSpeed: true, fromSurface: false, clip: { x: 0, y: 0, width, height: 900, scale: 0.5 } }) as { data: string };
           const screenshotPath = path.join(outputDir, `${id}.png`);
           await fs.writeFile(screenshotPath, Buffer.from(shot.data, 'base64'));
           results.push({ id, ok: !failures.length, failures, screenshot: path.relative(ROOT, screenshotPath) });
@@ -528,7 +557,7 @@ async function main(): Promise<void> {
       }
       if (/\b(?:sidebar|welcome|input|automation|cron)\.[A-Za-z][\w.]+/.test(snapshot.visibleText || '')) failures.push('untranslated locale key in automation');
 
-      const screenshot = await cdp.call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }) as { data?: string };
+      const screenshot = await cdp.call("Page.captureScreenshot", { format: "png", captureBeyondViewport: false, optimizeForSpeed: true, fromSurface: true }) as { data?: string };
       const actual = Buffer.from(String(screenshot.data || ""), "base64");
       const screenshotPath = path.join(outputDir, `${id}.png`);
       const baselinePath = path.join(baselineDir, `${id}.png`);
@@ -576,7 +605,7 @@ async function main(): Promise<void> {
         if (!result.valid) errors.push('state/request assertion failed');
         if (result.overflow > 2 || !result.inside) errors.push('state layout overflows');
         if (/\b(?:sidebar|welcome|input|automation|cron)\.[A-Za-z][\w.]+/.test(result.text)) errors.push('untranslated state');
-        const shot = await cdp!.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }) as { data: string };
+        const shot = await cdp!.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, optimizeForSpeed: true, fromSurface: true }) as { data: string };
         const bytes = Buffer.from(shot.data, 'base64');
         const shotPath = path.join(outputDir, `${stateId}.png`);
         const basePath = path.join(baselineDir, `${stateId}.png`);

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { registerCreatedToolFiles } from "../../lib/session-tool-files.js";
 import { isPrivateHost } from "../../shared/network-address.cjs";
 import { modelStreamFetch } from "../../shared/model-stream-fetch.js";
@@ -70,6 +71,13 @@ import {
   isStructurallyCompletePartialAnswer,
   shouldRecoverIncompleteVisibleAnswer,
 } from "./turn-tool-policy.js";
+import {
+  planLiveCompaction,
+  resolveLiveCompactionSettings,
+  type LiveCompactionSettings,
+} from "./live-compaction-spine.js";
+import { LiveCompactionStore, rawBackupRef } from "./live-compaction-store.js";
+import { LiveCompactionCaptureQueue } from "./live-compaction-queue.js";
 import type {
   AgentSessionEvent,
   AgentSessionEventListener,
@@ -107,10 +115,30 @@ export interface LynnCreateAgentSessionOptions {
   getRequestHeaders?: (model: Model) => Record<string, string>;
   requestMetadata?: Record<string, unknown>;
   getModelCallTimeouts?: () => unknown;
+  liveCompaction?: Partial<LiveCompactionSettings>;
   [key: string]: unknown;
 }
 
 const NO_REMAINING_CONTENT_RE = /^(?:(?:没有|无)(?:可继续输出的|可补充的|更多的)?(?:剩余)?(?:正文|内容)|(?:正文|内容)(?:已经)?(?:完整|结束))(?:[。.!！])?$/u;
+
+function failureMetadataFromToolResult(result: ToolResult): import("./types.js").SessionFailureMetadata | undefined {
+  if (!result?.isError && !result?.details) return undefined;
+  const details = result.details && typeof result.details === "object" ? result.details as Record<string, unknown> : {};
+  const value = (key: string): string | undefined => typeof details[key] === "string" ? details[key] as string : undefined;
+  const exitCode = typeof details.exitCode === "number" ? details.exitCode : null;
+  const explicitFailure = result.isError === true
+    || exitCode !== null && exitCode !== 0
+    || Boolean(value("errorType") || value("type") || value("stderr") || value("failureReason") || value("message"));
+  if (!explicitFailure) return undefined;
+  return {
+    isError: result.isError === true,
+    exitCode,
+    errorType: value("errorType") || value("type"),
+    stderr: value("stderr"),
+    stdout: value("stdout"),
+    failureReason: value("failureReason") || value("message") || String(result.content?.[0]?.text || "").slice(0, 240),
+  };
+}
 
 export class LynnAgentSession {
   readonly cwd: string;
@@ -146,6 +174,12 @@ export class LynnAgentSession {
   private activeTurnAllowsDeliverables = true;
   private activeTurnAllowsImageTools = true;
   private activeTurnAllowsTaskTools = true;
+  private activeTurnId: string | null = null;
+  private activeTurnClosed = false;
+  private readonly liveCompactionSettings: LiveCompactionSettings;
+  private readonly liveCompactionStore: LiveCompactionStore;
+  private readonly liveCompactionQueue: LiveCompactionCaptureQueue;
+  private liveCompactionCommit: Promise<void> = Promise.resolve();
 
   constructor(options: LynnCreateAgentSessionOptions = {}) {
     this.cwd = path.resolve(options.cwd || process.cwd());
@@ -169,6 +203,12 @@ export class LynnAgentSession {
     catch { this.requestHeaderOrigin = undefined; }
     this.requestMetadata = options.requestMetadata;
     this.getModelCallTimeouts = options.getModelCallTimeouts || readModelCallTimeouts;
+    this.liveCompactionSettings = resolveLiveCompactionSettings(options.liveCompaction || {});
+    this.liveCompactionStore = new LiveCompactionStore(
+      this.sessionManager.getSessionDir() || path.join(this.cwd, ".lynn-live-compact"),
+      this.sessionManager.getSessionId(),
+    );
+    this.liveCompactionQueue = new LiveCompactionCaptureQueue(this.liveCompactionStore);
     this.fallbackBaseTools = normalizeTools(options.tools);
     this.fallbackCustomTools = normalizeTools(options.customTools);
     this.tools = isBrainProvider(this.model?.provider)
@@ -223,8 +263,10 @@ export class LynnAgentSession {
       }
       throw new Error("Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message.");
     }
+    this.activeTurnId = randomUUID();
+    this.activeTurnClosed = false;
     const userMessage = roleMessage("user", buildPromptUserContent(prompt, options));
-    this.sessionManager.appendMessage(userMessage);
+    this.sessionManager.appendMessage(userMessage, { origin: "user_input", turnId: this.activeTurnId });
     this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
     this.activeTurnAllowsDeliverables = hasExplicitDeliverableIntent(prompt);
     this.activeTurnAllowsImageTools = hasExplicitImageToolIntent(prompt);
@@ -251,7 +293,7 @@ export class LynnAgentSession {
   }
 
   async sendCustomMessage(message: ChatMessage): Promise<void> {
-    this.sessionManager.appendMessage(message);
+    this.sessionManager.appendMessage(message, { origin: "synthetic" });
     this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
   }
 
@@ -533,10 +575,86 @@ export class LynnAgentSession {
       content: finalContent,
       reasoning_content: reasoning || undefined,
     };
-    this.sessionManager.appendMessage(finalMessage);
+    this.sessionManager.appendMessage(finalMessage, {
+      origin: "assistant",
+      turnId: this.activeTurnId || undefined,
+    });
+    this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
+    this.closeTurnForLiveCompaction();
     this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
     this.emit({ type: "message_end", role: "assistant", message: finalMessage });
     this.emit({ type: "agent_end", messages: this.messages });
+  }
+
+  private closeTurnForLiveCompaction(): void {
+    if (this.activeTurnClosed || !this.activeTurnId || !this.liveCompactionSettings.enabled) return;
+    this.activeTurnClosed = true;
+    const turnId = this.activeTurnId;
+    this.liveCompactionCommit = this.liveCompactionCommit
+      .then(() => this.commitLiveCompaction(turnId))
+      .catch((error) => {
+        // Live compaction is an optimization. Any backup, validation, or CAS
+        // failure leaves the original session messages in place.
+        this.emit({ type: "live_compaction_skipped", reason: error instanceof Error ? error.message : String(error) });
+      });
+  }
+
+  async flushLiveCompaction(): Promise<void> {
+    await this.liveCompactionCommit;
+    await this.liveCompactionQueue.drain();
+  }
+
+  private queueLiveCompactionBackup(message: ChatMessage): void {
+    if (!this.liveCompactionSettings.enabled || message.role !== "tool" || !message.tool_call_id) return;
+    void this.liveCompactionQueue.enqueue(message.tool_call_id, contentToText(message.content)).catch((error) => {
+      this.emit({ type: "live_compaction_skipped", reason: error instanceof Error ? error.message : String(error) });
+    });
+  }
+
+  private async commitLiveCompaction(turnId: string): Promise<void> {
+    // Return the answer event before any historical capture or planning.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (this.activeTurnId !== turnId) return;
+
+    const makePlan = () => {
+      const baseLeafId = this.sessionManager.getLeafId();
+      const branch = this.sessionManager.getBranch();
+      if (!baseLeafId || !branch.length) return null;
+      const chain = this.sessionManager.getLiveCompactionChainStatus();
+      if (!chain.valid) {
+        this.emit({ type: "live_compaction_skipped", reason: "existing live compaction chain is invalid" });
+        return null;
+      }
+      const plan = planLiveCompaction({
+        branch,
+        baseLeafId,
+        previousPatchId: chain.latest?.patchId || null,
+        checkpointId: this.sessionManager.getLatestCompactionId(),
+        turnId,
+        settings: this.liveCompactionSettings,
+        rawRefFor: (toolCallId) => rawBackupRef(this.liveCompactionStore.root, toolCallId),
+      });
+      return plan ? { plan, baseLeafId } : null;
+    };
+
+    const initial = makePlan();
+    if (!initial) return;
+    // Await only the selected span. Older capture work stays queued and can be
+    // retried by the next turn after a transient filesystem failure.
+    await this.liveCompactionQueue.capture(initial.plan.backupRequests);
+    if (this.activeTurnId !== turnId) return;
+    const current = makePlan();
+    if (!current) return;
+    await this.liveCompactionQueue.capture(current.plan.backupRequests);
+    this.sessionManager.appendLiveCompaction(current.plan.patch);
+    this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
+    this.emit({
+      type: "live_compaction",
+      patchId: current.plan.patch.patchId,
+      estimatedBefore: current.plan.estimatedBefore,
+      estimatedGain: current.plan.estimatedGain,
+      replacements: current.plan.patch.replacements.length,
+    });
   }
 
   private fallbackModels(currentModel: Model): Model[] {
@@ -617,13 +735,18 @@ export class LynnAgentSession {
             return true;
           }
           if (!result.toolCalls.length || round >= maxFallbackToolRounds) break;
+          const toolRoundId = randomUUID();
           const assistantForHistory: ChatMessage = {
             role: "assistant",
             content: "",
             tool_calls: result.toolCalls as ChatAssistantToolCall[],
           };
           workingMessages.push(assistantForHistory);
-          this.sessionManager.appendMessage(assistantForHistory);
+          this.sessionManager.appendMessage(assistantForHistory, {
+            origin: "assistant",
+            turnId: this.activeTurnId || undefined,
+            toolRoundId,
+          });
           this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
           for (const toolCall of result.toolCalls) {
             const toolResult = await this.executeToolCall(toolCall, fallbackTools, turnSignal);
@@ -635,7 +758,13 @@ export class LynnAgentSession {
               content: toolResultToMessageContent(toolResult),
             };
             workingMessages.push(toolMessage);
-            this.sessionManager.appendMessage(toolMessage);
+            this.sessionManager.appendMessage(toolMessage, {
+              origin: "tool_result",
+              turnId: this.activeTurnId || undefined,
+              toolRoundId,
+              failure: failureMetadataFromToolResult(toolResult),
+            });
+            this.queueLiveCompactionBackup(toolMessage);
           }
           this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
           if (hasAnyToolEvidence(workingMessages)) {
@@ -729,13 +858,18 @@ export class LynnAgentSession {
           });
           return;
         }
+        const toolRoundId = randomUUID();
         const assistantForHistory: ChatMessage = {
           role: "assistant",
           content: "",
           tool_calls: result.toolCalls as ChatAssistantToolCall[],
         };
         messages.push(assistantForHistory);
-        this.sessionManager.appendMessage(assistantForHistory);
+        this.sessionManager.appendMessage(assistantForHistory, {
+          origin: "assistant",
+          turnId: this.activeTurnId || undefined,
+          toolRoundId,
+        });
         this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
         for (const toolCall of result.toolCalls) {
           const toolResult = await this.executeToolCall(toolCall, undefined, turnController.signal);
@@ -748,7 +882,13 @@ export class LynnAgentSession {
             content,
           };
           messages.push(toolMessage);
-          this.sessionManager.appendMessage(toolMessage);
+          this.sessionManager.appendMessage(toolMessage, {
+            origin: "tool_result",
+            turnId: this.activeTurnId || undefined,
+            toolRoundId,
+            failure: failureMetadataFromToolResult(toolResult),
+          });
+          this.queueLiveCompactionBackup(toolMessage);
         }
         this.agent.replaceMessages(this.sessionManager.buildSessionContext().messages || []);
         fallbackMessages = messages;
@@ -944,7 +1084,10 @@ export class LynnAgentSession {
       if (evidenceMessages.length && !messages.some((message) => message.role === "tool" && message.tool_call_id === evidenceMessages[1].tool_call_id && message.content === evidenceMessages[1].content)) {
         for (const message of evidenceMessages) {
           messages.push(message);
-          this.sessionManager.appendMessage(message);
+          this.sessionManager.appendMessage(message, {
+            origin: message.role === "tool" ? "tool_result" : "synthetic",
+            turnId: this.activeTurnId || undefined,
+          });
         }
       }
       this.emit({

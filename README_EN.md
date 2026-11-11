@@ -16,11 +16,11 @@
 
 ---
 
-## Lynn V0.87.5 · Step 5 Cloud + Coder390 Local
+## Lynn V0.87.6 · Step 5 Cloud + Coder390 Local
 
-Lynn is an open-source AI agent with a desktop GUI and standalone CLI for search, files, coding and realtime voice. It also runs as a headless worker for other agents and CI. **GUI and CLI are both V0.87.5; the default working model is Step 5 Preview.**
+Lynn is an open-source AI agent with a desktop GUI and standalone CLI for search, files, coding and realtime voice. It also runs as a headless worker for other agents and CI. **GUI and CLI are both V0.87.6; the default working model is Step 5 Preview.**
 
-[Download mirror (recommended)](https://download.merkyorlynn.com/download.html) · [V0.87.5 release notes](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.5) · [Primary GitHub](https://github.com/MerkyorLynn/Lynn) · [Backup GitHub](https://github.com/LynnMerkyor/Lynn) · [Gitee](https://gitee.com/merkyor/Lynn)
+[Download mirror (recommended)](https://download.merkyorlynn.com/download.html) · [V0.87.6 release notes](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.6) · [Primary GitHub](https://github.com/MerkyorLynn/Lynn) · [Backup GitHub](https://github.com/LynnMerkyor/Lynn) · [Gitee](https://gitee.com/merkyor/Lynn)
 
 ### Current Models and Runtime
 
@@ -47,7 +47,7 @@ Source: [Merkyor / Qwen3.8-27B-Coder390-EfficientThink](https://modelscope.cn/mo
 - File size is not runtime memory use: KV cache, compute buffers and the OS need additional headroom.
 - Installation and startup require explicit user action. Switching tiers preserves existing files; Settings offers Q2 / Q3 rather than recommending the old 9B / 4B models.
 
-### V0.87.5 Highlights
+### V0.87.6 Highlights
 
 - **Selectable CLI commands:** use Up/Down after `/`, then Tab or Enter to fill the selected command, with scrolling and keyboard navigation.
 - **Preserved settings drafts:** retain per-agent unsaved changes and experience lists across settings navigation and model configuration refreshes.
@@ -85,12 +85,12 @@ Use the desktop for conversations, files, task progress and change acceptance. U
 # Windows: winget install OpenJS.NodeJS.LTS
 
 # 2. Install or update from the Lynn mirror.
-npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.5.tgz?rev=20261031"
+npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-0.87.6.tgz?rev=20261110"
 
 # 3. Launch.
 Lynn          # interactive chat TUI; type /voice or lynn voice for realtime voice
 Lynn code     # coding-agent TUI
-Lynn --version  # should print 0.87.5
+Lynn --version  # should print 0.87.6
 Lynn agents   # copyable headless worker commands for other agents
 ```
 
@@ -115,7 +115,7 @@ Agents should parse JSONL, not the human terminal TUI. See [`docs/ops/lynn-code-
 
 ## 🆕 Recent Updates
 
-The current version is **V0.87.5**; see the introduction for current models and installation requirements. The entries below are historical release notes. Their models, memory tiers and routing describe those older versions, not current installation recommendations.
+The current version is **V0.87.6**; see the introduction for current models and installation requirements. The entries below are historical release notes. Their models, memory tiers and routing describe those older versions, not current installation recommendations.
 
 <details>
 <summary><strong>Lynn v0.86.8</strong> · 2026-09-08 · Kimi QR sign-in, conversation search and mobile continuation</summary>
@@ -1044,7 +1044,7 @@ Interface available in 5 languages: Chinese, English, Japanese, Korean, and Trad
 
 Lynn doesn't just slap an OpenAI-compatible wrapper and call it a day. From 9B small models to GLM-5 reasoning models, every tier has purpose-built adaptations:
 
-**Free built-in models (Brain v2)** — Quick Start ships with a built-in model pool. V0.87.5 uses Step 5 Preview as the ordinary GUI/CLI default route, with explicitly enabled vendor fallbacks and an explicit local manager path:
+**Free built-in models (Brain v2)** — Quick Start ships with a built-in model pool. V0.87.6 uses Step 5 Preview as the ordinary GUI/CLI default route, with explicitly enabled vendor fallbacks and an explicit local manager path:
 
 ```
 T1  ⭐ Step 5 Preview (step-5-preview, text/coding route)
@@ -1156,7 +1156,7 @@ Read/write files, run terminal commands, browse the web, search the internet, ta
 
 ### Download
 
-**macOS (Apple Silicon / Intel):** download the `.dmg` for your architecture from the [download mirror](https://download.merkyorlynn.com/download.html); see the [V0.87.5 release notes](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.5). Official DMGs must pass Developer ID signing, Apple notarization, stapling and Gatekeeper validation before publication.
+**macOS (Apple Silicon / Intel):** download the `.dmg` for your architecture from the [download mirror](https://download.merkyorlynn.com/download.html); see the [V0.87.6 release notes](https://github.com/MerkyorLynn/Lynn/releases/tag/v0.87.6). Official DMGs must pass Developer ID signing, Apple notarization, stapling and Gatekeeper validation before publication.
 
 **Windows:** download the latest `.exe` installer from the [download mirror](https://download.merkyorlynn.com/download.html) and run it directly; release records live on [GitHub Releases](https://github.com/MerkyorLynn/Lynn/releases).
 

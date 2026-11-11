@@ -16,6 +16,24 @@ export interface ImageContent {
 
 export type MessageContent = string | Array<TextContent | ImageContent | Record<string, unknown>>;
 
+export type SessionMessageOrigin = "user_input" | "assistant" | "tool_result" | "synthetic" | "unknown";
+
+export interface SessionFailureMetadata {
+  isError?: boolean;
+  exitCode?: number | null;
+  errorType?: string;
+  stderr?: string;
+  stdout?: string;
+  failureReason?: string;
+}
+
+export interface SessionMessageMetadata {
+  origin?: SessionMessageOrigin;
+  turnId?: string;
+  toolRoundId?: string;
+  failure?: SessionFailureMetadata;
+}
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content?: MessageContent;
