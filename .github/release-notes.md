@@ -11,6 +11,20 @@ npm install -g --force "https://download.merkyorlynn.com/downloads/cli/lynn-cli-
 Lynn --version
 ```
 
+### V0.87.6 同版本 GUI 热修
+
+- **模型区字体层级**：统一 UI / 等宽模型 ID、中文字体回退与行高，改善模型选择、Provider 和设置页的可读性。
+- **树影覆盖层**：调整透明度、位置和层级；窄屏、深色/高对比度与 reduced-motion 场景按可用性规则处理。
+- **视觉基线**：更新 78 个自动化视觉基线，完整 release UI smoke 100/100 通过。
+- **验收**：类型检查、renderer 构建、架构循环检查、组件测试、CLI200/200、GUI100/100、真实安装包 gate、签名、公证、装订与 Gatekeeper 均通过。
+
+### V0.87.6 Same-Version GUI Hotfix
+
+- **Model typography:** align UI and monospace model IDs, Chinese font fallbacks and line heights across model and provider settings.
+- **Leaf overlay:** tune opacity, placement and stacking, with narrow-screen, dark/high-contrast and reduced-motion behavior covered.
+- **Visual baselines:** refresh 78 automation baselines; the full release UI smoke is 100/100 PASS.
+- **Validation:** type checks, renderer build, architecture cycle check, component tests, CLI200/200, GUI100/100, installed-app gate, signing, notarization, stapling and Gatekeeper validation all pass.
+
 ### V0.87.6 重点更新
 
 - **Live Compaction Spine**：为超长工具结果增加本地原文备份、SHA256 校验和追加式投影，原始会话 JSONL 不被改写。
