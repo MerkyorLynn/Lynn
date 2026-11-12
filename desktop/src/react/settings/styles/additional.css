@@ -732,7 +732,9 @@
 
 .mdw-group-header {
     padding: 0.35rem 0.65rem 0.15rem;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    font-weight: 600;
     color: var(--text-muted);
     letter-spacing: 0.03em;
     user-select: none;
@@ -760,7 +762,9 @@
     justify-content: space-between;
     width: 100%;
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
+    line-height: 1.35;
+    font-weight: 500;
     color: var(--text);
     background: var(--bg-card);
     border: none;
@@ -863,6 +867,7 @@
     padding: 0.3rem 0.65rem;
     font-family: inherit;
     font-size: 0.82rem;
+    line-height: 1.35;
     color: var(--text-light);
     background: none;
     border: none;
@@ -900,11 +905,18 @@
 }
 
 .mdw-option-name {
+    font-family: var(--font-ui);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     flex: 1;
     min-width: 0;
+}
+
+.mdw-option-ctx {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: -0.01em;
 }
 
 .mdw-option-provider {
