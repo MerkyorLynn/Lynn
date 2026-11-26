@@ -142,6 +142,18 @@ describe('agent templates exist in English for every yuan', () => {
     expect(problems, problems.join('\n')).toEqual([]);
   });
 
+  it('ships English last-resort example fallbacks with no Chinese', () => {
+    // agent.ts falls back to *.example.md when no yuan template exists, so a
+    // Chinese-only example would still leak.
+    for (const name of ['identity', 'ishiki']) {
+      const en = path.join(ROOT, 'lib', `${name}.example.en.md`);
+      expect(fs.existsSync(en), `missing ${name}.example.en.md`).toBe(true);
+      const text = fs.readFileSync(en, 'utf8');
+      expect(CJK.test(text), `Chinese in ${name}.example.en.md`).toBe(false);
+      expect(text.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it('seeds the template in the saved locale', () => {
     const firstRun = fs.readFileSync(path.join(ROOT, 'core/first-run.ts'), 'utf8');
     // locale must reach the template lookup, with zh as the fallback path

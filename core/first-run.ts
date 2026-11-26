@@ -403,6 +403,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec, locale }: {
     templatePath: firstExistingPath(
       path.join(productDir, "identity-templates", `${langDir}${spec.yuan}.md`),
       path.join(productDir, "identity-templates", `${spec.yuan}.md`),
+      path.join(productDir, `identity.example.${langDir ? "en." : ""}md`),
       path.join(productDir, "identity.example.md"),
     ),
     replacements: { agentName: spec.name, userName: seedContext.userName },
@@ -413,6 +414,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec, locale }: {
     templatePath: firstExistingPath(
       path.join(productDir, "ishiki-templates", `${langDir}${spec.yuan}.md`),
       path.join(productDir, "ishiki-templates", `${spec.yuan}.md`),
+      path.join(productDir, `ishiki.example.${langDir ? "en." : ""}md`),
       path.join(productDir, "ishiki.example.md"),
     ),
     replacements: { agentName: spec.name, userName: seedContext.userName },

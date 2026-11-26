@@ -889,11 +889,13 @@ export class Agent {
     const identityMd = readFile(path.join(this.agentDir, "identity.md"))
       || readFile(path.join(this.productDir, "identity-templates", `${langDir}${yuanType}.md`))
       || readFile(path.join(this.productDir, "identity-templates", `${yuanType}.md`))
+      || readFile(path.join(this.productDir, "identity.example.en.md"))
       || readFile(path.join(this.productDir, "identity.example.md"));
     const yuanMd = this._readYuan();
     const ishikiMd = readFile(path.join(this.agentDir, "ishiki.md"))
       || readFile(path.join(this.productDir, "ishiki-templates", `${langDir}${yuanType}.md`))
       || readFile(path.join(this.productDir, "ishiki-templates", `${yuanType}.md`))
+      || readFile(path.join(this.productDir, "ishiki.example.en.md"))
       || readFile(path.join(this.productDir, "ishiki.example.md"));
     return fill(identityMd) + "\n\n" + fill(yuanMd || "") + "\n\n" + fill(ishikiMd);
   }
