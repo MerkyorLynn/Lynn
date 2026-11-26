@@ -1,0 +1,41 @@
+{
+  "name": "llama.cpp Linux x64 CPU runtime",
+  "tag": "b10153",
+  "platform": "linux",
+  "arch": "x64",
+  "archive": {
+    "name": "llama-b10153-bin-ubuntu-x64.tar.gz",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10153/llama-b10153-bin-ubuntu-x64.tar.gz",
+    "size": 16389598,
+    "sha256": "c700cfbdb0859e23c055e62487127b42a1c956c6244862deec1d56ac9cf5f7e4"
+  },
+  "license": {
+    "name": "LICENSE.llama.cpp",
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/b10153/LICENSE",
+    "size": 1078,
+    "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+  },
+  "files": [
+    "llama-server",
+    "libllama-server-impl.so",
+    "libllama.so.0",
+    "libllama-common.so.0",
+    "libggml.so.0",
+    "libggml-base.so.0",
+    "libmtmd.so.0",
+    "libggml-cpu-x64.so",
+    "libggml-cpu-sse42.so",
+    "libggml-cpu-sandybridge.so",
+    "libggml-cpu-ivybridge.so",
+    "libggml-cpu-haswell.so",
+    "libggml-cpu-alderlake.so",
+    "libggml-cpu-skylakex.so",
+    "libggml-cpu-cannonlake.so",
+    "libggml-cpu-cascadelake.so",
+    "libggml-cpu-icelake.so",
+    "libggml-cpu-cooperlake.so",
+    "libggml-cpu-sapphirerapids.so",
+    "libggml-cpu-piledriver.so",
+    "libggml-cpu-zen4.so"
+  ]
+}

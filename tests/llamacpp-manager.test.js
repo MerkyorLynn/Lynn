@@ -95,6 +95,38 @@ describe("LlamaCppManager path and spawn safety", () => {
     expect(spawnCalls).toEqual([]);
   });
 
+  it("discovers the llama-server bundled in Linux app resources before PATH", () => {
+    // Regression: bundledBinaryPath used to return "" for every non-win32
+    // platform, so a Linux build shipped llama.cpp inside the package but the
+    // manager never looked there and fell straight through to PATH.
+    const resourcesPath = "/opt/Lynn/resources";
+    const expected = bundledBinaryPath(resourcesPath, "linux");
+    expect(expected).toBe(path.join(resourcesPath, "llamacpp", "bin", "llama-server"));
+
+    const spawnCalls = [];
+    const manager = new LlamaCppManager({
+      platform: "linux",
+      resourcesPath,
+      lynnHome: "/home/test/.lynn",
+      fsModule: { existsSync: (candidate) => candidate === expected },
+      spawnSyncFn: (...args) => {
+        spawnCalls.push(args);
+        return { stdout: "/usr/bin/llama-server\n" };
+      },
+    });
+
+    expect(manager.resolveBinaryPath()).toBe(expected);
+    expect(spawnCalls).toEqual([]);
+  });
+
+  it("does not claim a bundled runtime for platforms that ship none", () => {
+    // macOS resolves from Homebrew / system candidates, so the bundled path
+    // must stay empty rather than pointing at a file that is never packaged.
+    expect(bundledBinaryPath("/Applications/Lynn.app/Contents/Resources", "darwin")).toBe("");
+    expect(bundledBinaryPath("/whatever", "freebsd")).toBe("");
+    expect(bundledBinaryPath("", "linux")).toBe("");
+  });
+
   it("keeps a managed Windows llama-server ahead of the bundled runtime", () => {
     const lynnHome = makeTempDir("lynn-managed-win-");
     const resourcesPath = makeTempDir("lynn-resources-win-");
