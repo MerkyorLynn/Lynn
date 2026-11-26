@@ -14,16 +14,22 @@ import { ModelTimeoutSettings } from './ModelTimeoutSettings';
 import { AddCustomButton } from './providers/ProviderList';
 import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, buildBrainProviderConfig } from '../../../../../shared/brain-provider.js';
 import styles from '../Settings.module.css';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for provider list copy. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 const OAUTH_PROVIDER_ORDER = [
   'openai-codex-oauth',
   'minimax-oauth',
 ];
 
-const OAUTH_PROVIDER_LABELS: Record<string, string> = {
-  'openai-codex-oauth': 'GPT / Codex 授权登录',
-  'minimax-oauth': 'MiniMax 授权登录',
-};
+function oauthProviderLabels(): Record<string, string> {
+  return {
+    'openai-codex-oauth': D('GPT / Codex 授权登录', 'GPT / Codex sign-in'),
+    'minimax-oauth': D('MiniMax 授权登录', 'MiniMax sign-in'),
+  };
+}
 
 const PROVIDER_STATUS_CLASS_BY_TONE: Record<ProviderSummaryStatusTone, string> = {
   ready: 'pv-status-ready',
@@ -47,7 +53,7 @@ const LOCAL_PROVIDER_ORDER = [
   'local-qwen35-9b-q4km-imatrix',
 ];
 const LOCAL_QWEN_PROVIDER_ID = 'local-qwen35-9b-q4km-imatrix';
-const LOCAL_QWEN_PROVIDER_LABEL = '本地 Qwen3.8-27B';
+const LOCAL_QWEN_PROVIDER_LABEL = D('本地 Qwen3.8-27B', 'Local Qwen3.8-27B');
 const LOCAL_QWEN_COMPAT_PROVIDER_IDS = new Set([
   LOCAL_QWEN_PROVIDER_ID,
   'local-qwen35-4b-q4km',
@@ -242,7 +248,9 @@ function buildPresetSummary(id: string): ProviderSummary | null {
 export function ProvidersTab() {
   const serverPort = useSettingsStore(state => state.serverPort);
   if (!Number.isInteger(serverPort) || Number(serverPort) < 1 || Number(serverPort) > 65535) {
-    return <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="providers" role="status">正在连接设置服务…</div>;
+    return <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="providers" role="status">
+        {D('正在连接设置服务…', 'Connecting to the settings service…')}
+      </div>;
   }
   return <ReadyProvidersTab />;
 }
@@ -355,7 +363,8 @@ function ReadyProvidersTab() {
   const getProviderLabel = (id: string, p?: ProviderSummary) => {
     if (isLocalQwenProviderId(id)) return LOCAL_QWEN_PROVIDER_LABEL;
     if (id === BRAIN_PROVIDER_ID) return BRAIN_PROVIDER_LABEL;
-    if (OAUTH_PROVIDER_LABELS[id]) return OAUTH_PROVIDER_LABELS[id];
+    const oauthLabels = oauthProviderLabels();
+    if (oauthLabels[id]) return oauthLabels[id];
     const preset = PROVIDER_PRESETS.find(pr => pr.value === id);
     return preset?.label || p?.display_name || id;
   };
@@ -385,10 +394,10 @@ function ReadyProvidersTab() {
     <button
       key={preset.value}
       className={`${styles['pv-list-item']} ${styles['dim']}${selected === preset.value ? ' ' + styles['selected'] : ''}`}
-      aria-label={`${preset.label}，未配置`}
+      aria-label={D(`${preset.label}，未配置`, `${preset.label}, not configured`)}
       onClick={() => selectProvider(preset.value)}
     >
-      <span className={`${styles['pv-status-dot']} ${styles['pv-status-muted']}`} title="未配置" />
+      <span className={`${styles['pv-status-dot']} ${styles['pv-status-muted']}`} title={D('未配置', 'Not configured')} />
       <span className={styles['pv-list-item-name']}>{preset.label}</span>
     </button>
   );
@@ -400,14 +409,14 @@ function ReadyProvidersTab() {
         <div className={styles['pv-list']}>
           {localModelProviders.length > 0 && (
             <>
-              <div className={styles['pv-list-section-title']}>本地模型</div>
+              <div className={styles['pv-list-section-title']}>{D('本地模型', 'Local models')}</div>
               {localModelProviders.map(renderRegistered)}
             </>
           )}
 
           {oauthProviders.length > 0 && (
             <>
-              <div className={styles['pv-list-section-title']}>GPT / 授权登录</div>
+              <div className={styles['pv-list-section-title']}>{D('GPT / 授权登录', 'GPT / sign-in')}</div>
               {oauthProviders.map(renderRegistered)}
             </>
           )}

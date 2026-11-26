@@ -1,15 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships next to this tab. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { useSettingsStore } from '../store';
 import styles from '../Settings.module.css';
 import { KimiDatasourceCard } from './KimiDatasourceCard';
 import { McpOAuthControls } from './McpOAuthControls';
 
 import {
-  BUILTIN_FALLBACKS,
+  getBuiltinFallbacks,
   mergeBuiltinStates,
-  BUILTIN_GROUP_META,
+  getBuiltinGroupMeta,
   humanizeBuiltinError,
   PRESETS,
   emptyDraft,
@@ -24,7 +28,7 @@ export function McpTab() {
   const platform = window.platform;
   const { showToast, ready, serverPort, serverToken } = useSettingsStore();
   const [servers, setServers] = useState<McpServerState[]>([]);
-  const [builtinServers, setBuiltinServers] = useState<McpBuiltinState[]>(BUILTIN_FALLBACKS);
+  const [builtinServers, setBuiltinServers] = useState<McpBuiltinState[]>(() => getBuiltinFallbacks());
   const [builtinDrafts, setBuiltinDrafts] = useState<Record<string, Record<string, string>>>({});
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState>(emptyDraft());
@@ -55,7 +59,7 @@ export function McpTab() {
       if (!grouped.has(group)) grouped.set(group, []);
       grouped.get(group)!.push(server);
     }
-    return BUILTIN_GROUP_META
+    return getBuiltinGroupMeta()
       .map((meta) => ({
         ...meta,
         servers: grouped.get(meta.id) || [],
@@ -341,9 +345,14 @@ export function McpTab() {
           <div className={styles['settings-field']}>
             <label className={styles['settings-field-label']}>{t('settings.mcp.builtinTitle') || '内置增强服务'}</label>
             <div className={styles['mcp-builtin-intro']}>
-              <div className={styles['mcp-builtin-intro-title']}>把高价值增强能力接进 Lynn</div>
+              <div className={styles['mcp-builtin-intro-title']}>
+                {D('把高价值增强能力接进 Lynn', 'Connect high-value boosts to Lynn')}
+              </div>
               <div className={styles['mcp-builtin-intro-copy']}>
-                腾讯文档适合直接提升日常协作；智谱和 MiniMax 这类增强更适合需要更强搜索、网页深读、截图理解或开源仓库检索时再开启。
+                {D(
+                  '腾讯文档适合直接提升日常协作；智谱和 MiniMax 这类增强更适合需要更强搜索、网页深读、截图理解或开源仓库检索时再开启。',
+                  'Tencent Docs directly improves everyday collaboration. Zhipu and MiniMax boosts are better enabled when you need stronger search, deep page reading, screenshot understanding or repository lookups.',
+                )}
               </div>
             </div>
             {builtinSections.map((section) => (

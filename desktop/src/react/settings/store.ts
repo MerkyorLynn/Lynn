@@ -4,6 +4,10 @@
  */
 import { create } from 'zustand';
 import type { ProviderSnapshot } from '../../../../shared/provider-state.js';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for provider status labels (not in the locale packs). */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 export interface Agent {
   id: string;
@@ -67,25 +71,32 @@ export function getProviderSummaryStatus(summary: ProviderSummaryStatusInput): P
   if (snapshot) {
     const state = snapshot.state;
     const healthStatus = snapshot.health?.status;
-    if (state === 'disabled') return { tone: 'muted', label: '已禁用' };
-    if (state === 'unconfigured') return { tone: 'muted', label: '未配置' };
+    if (state === 'disabled') return { tone: 'muted', label: D('已禁用', 'Disabled') };
+    if (state === 'unconfigured') return { tone: 'muted', label: D('未配置', 'Not configured') };
     if (state === 'needs_auth' || needsProviderAuth(summary)) {
-      return { tone: 'warning', label: summary.type === 'api-key' ? '缺 Key' : '需登录' };
+      return {
+        tone: 'warning',
+        label: summary.type === 'api-key' ? D('缺 Key', 'Missing key') : D('需登录', 'Sign-in required'),
+      };
     }
-    if (state === 'checking' || healthStatus === 'checking') return { tone: 'warning', label: '检查中' };
+    if (state === 'checking' || healthStatus === 'checking') return { tone: 'warning', label: D('检查中', 'Checking') };
     if (state === 'error' || healthStatus === 'error' || healthStatus === 'unhealthy') {
-      return { tone: 'error', label: '错误' };
+      return { tone: 'error', label: D('错误', 'Error') };
     }
-    if (state === 'fallback_active' || snapshot.fallback?.active === true) return { tone: 'warm', label: '兜底中' };
-    if (state === 'cooldown' || snapshot.cooldown?.active === true) return { tone: 'warm', label: '冷却' };
-    if (state === 'degraded' || healthStatus === 'degraded') return { tone: 'warm', label: '降级' };
-    return { tone: 'ready', label: '已就绪' };
+    if (state === 'fallback_active' || snapshot.fallback?.active === true) {
+      return { tone: 'warm', label: D('兜底中', 'Using fallback') };
+    }
+    if (state === 'cooldown' || snapshot.cooldown?.active === true) return { tone: 'warm', label: D('冷却', 'Cooling down') };
+    if (state === 'degraded' || healthStatus === 'degraded') return { tone: 'warm', label: D('降级', 'Degraded') };
+    return { tone: 'ready', label: D('已就绪', 'Ready') };
   }
 
-  if (summary.has_credentials) return { tone: 'ready', label: '已就绪' };
-  if (summary.type === 'api-key') return { tone: 'warning', label: '缺 Key' };
-  if (summary.supports_oauth || summary.type === 'oauth') return { tone: 'warning', label: '需登录' };
-  return { tone: 'muted', label: '未配置' };
+  if (summary.has_credentials) return { tone: 'ready', label: D('已就绪', 'Ready') };
+  if (summary.type === 'api-key') return { tone: 'warning', label: D('缺 Key', 'Missing key') };
+  if (summary.supports_oauth || summary.type === 'oauth') {
+    return { tone: 'warning', label: D('需登录', 'Sign-in required') };
+  }
+  return { tone: 'muted', label: D('未配置', 'Not configured') };
 }
 
 export interface ProviderConfig extends Record<string, unknown> {

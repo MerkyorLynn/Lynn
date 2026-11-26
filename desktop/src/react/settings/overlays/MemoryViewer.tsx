@@ -30,21 +30,7 @@ type Exclusions = {
   phrases?: string[];
 };
 
-const CATEGORY_OPTIONS = [
-  { value: 'person', zh: '人物' },
-  { value: 'project', zh: '项目' },
-  { value: 'preference', zh: '偏好' },
-  { value: 'tech', zh: '技术' },
-  { value: 'event', zh: '事件' },
-  { value: 'other', zh: '其他' },
-] as const;
-
-const SOURCE_LABELS: Record<string, string> = {
-  conversation: '对话',
-  file: '文件',
-  imported: '导入',
-  inferred: '推断',
-};
+const CATEGORY_OPTIONS = ['person', 'project', 'preference', 'tech', 'event', 'other'] as const;
 
 function label(key: string, fallback: string, vars?: Record<string, string | number>) {
   const translated = t(key, vars);
@@ -52,12 +38,13 @@ function label(key: string, fallback: string, vars?: Record<string, string | num
 }
 
 function getCategoryLabel(category?: string | null) {
-  return CATEGORY_OPTIONS.find((item) => item.value === category)?.zh || '其他';
+  const value = category || 'other';
+  return label(`settings.memory.categories.${value}`, value);
 }
 
 function getSourceLabel(source?: string | null) {
-  if (!source) return '对话';
-  return SOURCE_LABELS[source] || source;
+  if (!source) return label('settings.memory.sources.conversation', 'conversation');
+  return label(`settings.memory.sources.${source}`, source);
 }
 
 function confidenceText(value?: number | null) {
@@ -168,7 +155,7 @@ export function MemoryViewer() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setExclusions(data.exclusions || { phrases: [] });
-      showToast('已加入忽略列表', 'success');
+      showToast(label('settings.memory.savedExclusion', 'Added to the ignore list'), 'success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast(label('settings.saveFailed', '保存失败') + ': ' + msg, 'error');
@@ -188,7 +175,7 @@ export function MemoryViewer() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setExclusions(data.exclusions || { phrases: [] });
-      showToast('已移除忽略规则', 'success');
+      showToast(label('settings.memory.removedExclusion', 'Ignore rule removed'), 'success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast(label('settings.saveFailed', '保存失败') + ': ' + msg, 'error');
@@ -208,12 +195,14 @@ export function MemoryViewer() {
       <div className={`${styles['memory-viewer']} ${styles['memory-timeline-viewer']}`}>
         <div className={styles['memory-viewer-header']}>
           <div>
-            <h3 className={styles['memory-viewer-title']}>{label('settings.memory.actions.viewTitle', '所有记忆')}</h3>
-            <div className={styles['memory-timeline-subtitle']}>客观事实与推断画像分开展示，可直接纠错整理。</div>
+            <h3 className={styles['memory-viewer-title']}>{label('settings.memory.actions.viewTitle', 'All memories')}</h3>
+            <div className={styles['memory-timeline-subtitle']}>
+              {label('settings.memory.timelineSubtitle', 'Facts and inferred profile are shown separately, so you can correct them directly.')}
+            </div>
           </div>
           <div className={styles['memory-viewer-header-actions']}>
             <button className={styles['memory-timeline-refresh']} onClick={() => void loadMemories()}>
-              {loading ? '...' : '刷新'}
+              {loading ? '...' : label('settings.memory.refresh', 'Refresh')}
             </button>
             <button className={styles['memory-viewer-close']} onClick={close}>✕</button>
           </div>
@@ -221,15 +210,15 @@ export function MemoryViewer() {
 
         <div className={`${styles['memory-viewer-body']} ${styles['memory-timeline-body']}`}>
           {loading ? (
-            <div className="memory-viewer-empty">{label('settings.memory.actions.importing', '正在导入...')}</div>
+            <div className="memory-viewer-empty">{label('settings.memory.actions.importing', 'Importing...')}</div>
           ) : (
             <>
               {(traits.length > 0 || goals.length > 0) && (
                 <section className={styles['memory-inferred-section']}>
-                  <div className={styles['memory-inferred-title']}>推断画像</div>
+                  <div className={styles['memory-inferred-title']}>{label('settings.memory.inferredTitle', 'Inferred profile')}</div>
                   {traits.length > 0 && (
                     <div className={styles['memory-inferred-block']}>
-                      <div className={styles['memory-inferred-label']}>特征</div>
+                      <div className={styles['memory-inferred-label']}>{label('settings.memory.traits', 'Traits')}</div>
                       <div className={styles['memory-inferred-list']}>
                         {traits.map((item, index) => (
                           <div key={`${item.dimension || 'trait'}-${index}`} className={styles['memory-inferred-item']}>
@@ -242,7 +231,7 @@ export function MemoryViewer() {
                   )}
                   {goals.length > 0 && (
                     <div className={styles['memory-inferred-block']}>
-                      <div className={styles['memory-inferred-label']}>目标</div>
+                      <div className={styles['memory-inferred-label']}>{label('settings.memory.goals', 'Goals')}</div>
                       <div className={styles['memory-inferred-list']}>
                         {goals.map((item, index) => (
                           <div key={`${item.goal || 'goal'}-${index}`} className={styles['memory-inferred-item']}>
@@ -258,7 +247,7 @@ export function MemoryViewer() {
 
               {Array.isArray(exclusions.phrases) && exclusions.phrases.length > 0 && (
                 <section className={styles['memory-inferred-section']}>
-                  <div className={styles['memory-inferred-title']}>忽略规则</div>
+                  <div className={styles['memory-inferred-title']}>{label('settings.memory.exclusionsTitle', 'Ignore rules')}</div>
                   <div className={styles['memory-inferred-list']}>
                     {exclusions.phrases.slice(0, 12).map((phrase) => (
                       <div key={phrase} className={styles['memory-inferred-item']}>
@@ -267,7 +256,7 @@ export function MemoryViewer() {
                           className={styles['memory-timeline-secondary']}
                           onClick={() => void handleRemoveExclusion(phrase)}
                         >
-                          移除
+                          {label('settings.memory.remove', 'Remove')}
                         </button>
                       </div>
                     ))}
@@ -276,11 +265,11 @@ export function MemoryViewer() {
               )}
 
               {timeline.length === 0 ? (
-                <div className="memory-viewer-empty">{label('settings.memory.actions.empty', '还没有记忆')}</div>
+                <div className="memory-viewer-empty">{label('settings.memory.actions.empty', 'No memories yet')}</div>
               ) : (
                 timeline.map((group) => (
                   <section key={group.date} className={styles['memory-timeline-group']}>
-                    <div className={styles['memory-timeline-date']}>{group.date || label('settings.memory.unknownDate', '未知日期')}</div>
+                    <div className={styles['memory-timeline-date']}>{group.date || label('settings.memory.unknownDate', 'Unknown date')}</div>
                     <div className={styles['memory-timeline-list']}>
                       {group.items.map((item) => (
                         <article key={item.id} className={styles['memory-timeline-item']}>
@@ -295,7 +284,9 @@ export function MemoryViewer() {
                           <div className={styles['memory-timeline-fact']}>{item.fact}</div>
 
                           {item.evidence && (
-                            <div className={styles['memory-timeline-evidence']}>依据：{item.evidence}</div>
+                            <div className={styles['memory-timeline-evidence']}>
+                              {label('settings.memory.evidence', 'Evidence: ')}{item.evidence}
+                            </div>
                           )}
 
                           {Array.isArray(item.tags) && item.tags.length > 0 && (
@@ -314,7 +305,7 @@ export function MemoryViewer() {
                               onChange={(e) => void handleCategoryChange(item.id, e.target.value)}
                             >
                               {CATEGORY_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.zh}</option>
+                                <option key={option} value={option}>{getCategoryLabel(option)}</option>
                               ))}
                             </select>
                             <button
@@ -322,14 +313,14 @@ export function MemoryViewer() {
                               disabled={busyId === item.id}
                               onClick={() => void handleExclude(item.fact)}
                             >
-                              不再记这个
+                              {label('settings.memory.dontRememberThis', "Don't remember this")}
                             </button>
                             <button
                               className={styles['memory-timeline-delete']}
                               disabled={busyId === item.id}
                               onClick={() => void handleDelete(item.id)}
                             >
-                              删除
+                              {label('settings.memory.delete', 'Delete')}
                             </button>
                           </div>
                         </article>
