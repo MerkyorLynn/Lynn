@@ -33,6 +33,8 @@ type RawProviderConfig = {
 type ProviderSummary = {
   type: string;
   display_name: string;
+  /** English label; renderers use it when the UI locale is not Chinese. */
+  display_name_en?: string;
   base_url: string;
   api: string;
   api_key: string;
@@ -327,6 +329,7 @@ export function createProvidersRoute(engine: ProvidersRouteEngine): Hono {
       const summary: ProviderSummary = {
         type: isOAuth ? "oauth" : ((p.auth_type || registryEntry?.authType) === "none" ? "none" : "api-key"),
         display_name: oauthInfo?.name || p.display_name || registryEntry?.displayName || name,
+        display_name_en: oauthInfo ? undefined : registryEntry?.displayNameEn,
         base_url: p.base_url || "",
         api: p.api || "",
         api_key: hasSavedApiKey ? "__saved__" : "",
@@ -369,6 +372,7 @@ export function createProvidersRoute(engine: ProvidersRouteEngine): Hono {
       const summary: ProviderSummary = {
         type: "oauth",
         display_name: loginInfo?.name || entry?.displayName || oauthId,
+        display_name_en: loginInfo ? undefined : entry?.displayNameEn,
         base_url: entry?.baseUrl || "",
         api: entry?.api || "",
         api_key: "",
@@ -400,6 +404,7 @@ export function createProvidersRoute(engine: ProvidersRouteEngine): Hono {
         const summary: ProviderSummary = {
           type: entry.authType === "none" ? "none" : "api-key",
           display_name: entry.displayName || id,
+          display_name_en: entry.displayNameEn,
           base_url: entry.baseUrl || "",
           api: entry.api || "",
           api_key: "",

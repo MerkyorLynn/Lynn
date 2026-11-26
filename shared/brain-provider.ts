@@ -103,9 +103,14 @@ export const BRAIN_SUMMARIZER_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
 export const BRAIN_COMPILER_MODEL_ID = _d(_BRAIN_MODEL_ROUTER_ENCODED);
 export const BRAIN_DEFAULT_MODEL_ID = BRAIN_CHAT_MODEL_ID;
 export const BRAIN_DEFAULT_DISPLAY_NAME = "默认模型";
+/** English twin of BRAIN_DEFAULT_DISPLAY_NAME; renderers pick by UI locale. */
+export const BRAIN_DEFAULT_DISPLAY_NAME_EN = "Default model";
 export const BRAIN_DEFAULT_META_LABEL = "第三方已备案 AI 模型";
+export const BRAIN_DEFAULT_META_LABEL_EN = "Third-party registered AI models";
 export const BRAIN_COMPLIANCE_NOTE = "默认模型服务接入第三方已备案 AI 模型，由 Lynn 统一调度对话、推理与工具执行链路。";
+export const BRAIN_COMPLIANCE_NOTE_EN = "The default model service routes requests to third-party registered AI models, with Lynn coordinating the chat, reasoning, and tool-execution pipeline.";
 export const BRAIN_USER_NOTICE = "继续使用默认模型，即表示你知悉 Lynn 会为对话、推理、摘要与工具协作向第三方已备案 AI 模型服务发起必要请求。你也可以在供应商设置中改用自己的模型服务。";
+export const BRAIN_USER_NOTICE_EN = "Continuing with the default model means Lynn will send the requests needed for chat, reasoning, summaries, and tool coordination to third-party registered AI model services. You can also switch to your own model provider in provider settings.";
 export const BRAIN_LEGACY_MODEL_IDS: readonly string[] = [
   _d(_BRAIN_MODEL_ROUTER_ENCODED),
   _d(_BRAIN_MODEL_LEGACY_ENCODED),
@@ -139,20 +144,32 @@ export function isBrainModelRef(modelId: string | null | undefined, provider: st
   return isBrainProvider(provider) && isBrainModelId(modelId);
 }
 
-export function getBrainDisplayName(): typeof BRAIN_DEFAULT_DISPLAY_NAME {
-  return BRAIN_DEFAULT_DISPLAY_NAME;
+/**
+ * Locale-aware display getters.
+ *
+ * These default to Chinese so existing server/CLI callers keep their behaviour.
+ * Renderers pass the active locale so English mode never shows Chinese copy.
+ */
+function prefersEnglish(locale?: string | null): boolean {
+  const value = String(locale ?? "").trim().toLowerCase();
+  if (!value) return false;
+  return !value.startsWith("zh");
 }
 
-export function getBrainDisplayMetaLabel(): typeof BRAIN_DEFAULT_META_LABEL {
-  return BRAIN_DEFAULT_META_LABEL;
+export function getBrainDisplayName(locale?: string | null): string {
+  return prefersEnglish(locale) ? BRAIN_DEFAULT_DISPLAY_NAME_EN : BRAIN_DEFAULT_DISPLAY_NAME;
 }
 
-export function getBrainComplianceNote(): typeof BRAIN_COMPLIANCE_NOTE {
-  return BRAIN_COMPLIANCE_NOTE;
+export function getBrainDisplayMetaLabel(locale?: string | null): string {
+  return prefersEnglish(locale) ? BRAIN_DEFAULT_META_LABEL_EN : BRAIN_DEFAULT_META_LABEL;
 }
 
-export function getBrainUserNotice(): typeof BRAIN_USER_NOTICE {
-  return BRAIN_USER_NOTICE;
+export function getBrainComplianceNote(locale?: string | null): string {
+  return prefersEnglish(locale) ? BRAIN_COMPLIANCE_NOTE_EN : BRAIN_COMPLIANCE_NOTE;
+}
+
+export function getBrainUserNotice(locale?: string | null): string {
+  return prefersEnglish(locale) ? BRAIN_USER_NOTICE_EN : BRAIN_USER_NOTICE;
 }
 
 export function sanitizeBrainIdentityDisclosureText(raw: unknown): string {

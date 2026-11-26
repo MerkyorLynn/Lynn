@@ -12,6 +12,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const dashscopePlugin: ProviderPlugin = {
   id: "dashscope",
   displayName: "阿里云百炼 (DashScope)",
+  displayNameEn: "Alibaba DashScope",
   authType: "api-key",
   defaultBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
   defaultApi: "openai-completions",

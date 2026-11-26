@@ -9,6 +9,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const zhipuCodingPlugin: ProviderPlugin = {
   id: "zhipu-coding",
   displayName: "智谱 Coding Plan",
+  displayNameEn: "Zhipu Coding Plan",
   authType: "api-key",
   defaultBaseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
   defaultApi: "openai-completions",

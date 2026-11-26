@@ -12,6 +12,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const volcegineCodingPlugin: ProviderPlugin = {
   id: "volcengine-coding",
   displayName: "火山引擎 Coding Plan",
+  displayNameEn: "Volcengine Coding Plan",
   authType: "api-key",
   defaultBaseUrl: "https://ark.cn-beijing.volces.com/api/coding/v3",
   defaultApi: "openai-completions",

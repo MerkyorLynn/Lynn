@@ -12,6 +12,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const dashscopeCodingPlugin: ProviderPlugin = {
   id: "dashscope-coding",
   displayName: "百炼 Coding Plan",
+  displayNameEn: "DashScope Coding Plan",
   authType: "api-key",
   defaultBaseUrl: "https://coding.dashscope.aliyuncs.com/v1",
   defaultApi: "openai-completions",
