@@ -4,7 +4,7 @@ import { switchSession } from '../stores/session-actions';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { formatSessionDate, parseMoodFromContent } from '../utils/format';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
-import { isChineseLocale } from '../utils/locale';
+import { D, isChineseLocale } from '../utils/locale';
 import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
 import fp from './FloatingPanels.module.css';
 import chatStyles from './chat/Chat.module.css';

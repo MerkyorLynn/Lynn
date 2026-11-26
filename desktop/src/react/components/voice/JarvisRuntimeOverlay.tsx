@@ -9,7 +9,7 @@ import type { PlaybackStats } from '../../services/audio-playback';
 import { voiceTextStreamBus, type VoiceStreamEvent } from '../../services/voice-text-stream-bus';
 import { IncrementalTtsSegmenter } from '../../services/incremental-tts-segmenter';
 import styles from './JarvisRuntimeOverlay.module.css';
-import { isChineseLocale } from '../../utils/locale';
+import { D, isChineseLocale } from '../../utils/locale';
 
 export const LYNN_RUNTIME_DISPLAY_NAME = 'Lynn';
 export const LYNN_RUNTIME_ARIA_LABEL = 'Lynn voice assistant';

@@ -300,7 +300,7 @@ function SessionListInner() {
                 </div>
               </div>
               <div className={styles.sessionItemMeta}>
-                {PLATFORM_ICONS[bs.platform]?.label || bs.platform}
+                {platformIconInfo(bs.platform).label}
                 {bs.isOwner ? ' · Owner' : ''}
                 {bs.lastActive ? ` · ${formatSessionDate(new Date(bs.lastActive).toISOString())}` : ''}
               </div>
