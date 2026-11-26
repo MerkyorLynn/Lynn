@@ -41,6 +41,7 @@
     "dist": "export APPLE_NOTARY_PROFILE=${APPLE_NOTARY_PROFILE:-lynn-notary} && npm run release:full-gate && electron-builder --mac dmg",
     "dist:local": "export SKIP_NOTARIZE=true && npm run build:cli && npm run build:server && npm run build:main && npm run build:renderer && electron-builder --mac dmg --publish never && npm run test:packaged-server && npm run test:packaged-cli",
     "dist:win": "npm run release:full-gate && npm run prepare:llamacpp:win && npm run build:server:win && electron-builder --win nsis --x64 && npm run test:windows-llamacpp-installer",
+    "dist:win:local": "npm run build:cli && node --import tsx scripts/download-git-portable.ts && npm run prepare:llamacpp:win && node scripts/build-server.mjs win32 x64 && npm run build:main && npm run build:renderer && electron-builder --win nsis --x64 --publish never",
     "test": "vitest run",
     "test:brain-v2": "npm --prefix brain-v2-mirror test",
     "test:brain-v2:critical": "npm --prefix brain-v2-mirror test -- __tests__/router.test.js __tests__/search-context.test.js __tests__/web_search.test.js __tests__/evidence-quality.test.js __tests__/tool-exec.test.js __tests__/stream-bridge.test.js __tests__/tool-storm.test.js",
