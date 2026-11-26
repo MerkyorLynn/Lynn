@@ -222,7 +222,9 @@ const LIB_DATA_GLOBS = [
   "default-models.json",
   "config.example.yaml",
   "identity.example.md",
+  "identity.example.en.md",
   "ishiki.example.md",
+  "ishiki.example.en.md",
   "pinned.example.md",
 ];
 const libOutDir = path.join(outDir, "lib");
