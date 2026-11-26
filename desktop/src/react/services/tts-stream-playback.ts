@@ -1,4 +1,8 @@
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for playback errors. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { PcmPlayer } from './audio-playback';
 
 export type TtsStreamPlaybackController = {
@@ -130,7 +134,7 @@ export async function playTtsSpeechStream({
   timeoutMs = 70_000,
 }: PlayTtsSpeechStreamOptions): Promise<TtsStreamPlaybackController> {
   const trimmed = String(text || '').trim();
-  if (!trimmed) throw new Error('没有可朗读的文本');
+  if (!trimmed) throw new Error(D('没有可朗读的文本', 'There is no text to read aloud'));
 
   const { serverPort } = useStore.getState();
   const abort = new AbortController();

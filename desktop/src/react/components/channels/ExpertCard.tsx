@@ -9,6 +9,10 @@ import { useMemo, useState } from 'react';
 import { useI18n } from '../../hooks/use-i18n';
 import { hanaUrl } from '../../hooks/use-hana-fetch';
 import { yuanFallbackAvatar } from '../../utils/agent-helpers';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { formatUserFacingModelRef } from '../../utils/brain-models';
 import type { ExpertPreset } from '../../types';
 import styles from './Channels.module.css';
@@ -16,9 +20,9 @@ import styles from './Channels.module.css';
 function expertYuanProfile(category: string | undefined): { key: string; label: string; emoji: string } {
   const LYNN = new Set(['finance', 'legal', 'business', 'tech', 'engineering', 'data']);
   const BUTTER = new Set(['wellness', 'psychology', 'education', 'creative']);
-  if (LYNN.has(category || '')) return { key: 'lynn', label: '逻辑拆解', emoji: '🧊' };
-  if (BUTTER.has(category || '')) return { key: 'butter', label: '共情洞察', emoji: '🌸' };
-  return { key: 'hanako', label: '平衡通用', emoji: '✿' };
+  if (LYNN.has(category || '')) return { key: 'lynn', label: D('逻辑拆解', 'Logical analysis'), emoji: '🧊' };
+  if (BUTTER.has(category || '')) return { key: 'butter', label: D('共情洞察', 'Empathic insight'), emoji: '🌸' };
+  return { key: 'hanako', label: D('平衡通用', 'Balanced generalist'), emoji: '✿' };
 }
 
 function displayText(value: string | Record<string, string> | undefined, fallback = ''): string {

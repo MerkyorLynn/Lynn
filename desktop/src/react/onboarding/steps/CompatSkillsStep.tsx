@@ -9,6 +9,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { OnboardingFetch } from '../onboarding-actions';
 import { StepContainer } from '../onboarding-ui';
 import { useOnboardingI18n } from '../use-onboarding-i18n';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 type OnboardingTrack = 'quick' | 'quick-local' | 'advanced';
 
@@ -94,7 +98,7 @@ export function CompatSkillsStep({
   const grouped = useMemo(() => {
     const map = new Map<string, ExternalSkill[]>();
     for (const skill of externalSkills) {
-      const label = skill.externalLabel || '外部 skill';
+      const label = skill.externalLabel || D('外部 skill', 'external skill');
       const list = map.get(label) || [];
       list.push(skill);
       map.set(label, list);
@@ -114,7 +118,9 @@ export function CompatSkillsStep({
   const toggleGroup = useCallback((groupLabel: string, enable: boolean) => {
     setSelected(prev => {
       const next = new Set(prev);
-      const groupSkills = externalSkills.filter(s => (s.externalLabel || '外部 skill') === groupLabel);
+      const groupSkills = externalSkills.filter(
+        s => (s.externalLabel || D('外部 skill', 'external skill')) === groupLabel,
+      );
       for (const s of groupSkills) {
         if (enable) next.add(s.name);
         else next.delete(s.name);

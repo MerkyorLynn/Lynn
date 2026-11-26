@@ -9,6 +9,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import { useI18n } from '../hooks/use-i18n';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { loadModels } from '../utils/ui-helpers';
@@ -219,16 +224,24 @@ export function ProviderStatusBadge() {
             job: {
               status: 'running',
               progress: {
-                phase: managerStart.alreadyRunning ? '本地模型已在准备中' : '正在准备本地模型',
+                phase: managerStart.alreadyRunning
+                  ? D('本地模型已在准备中', 'The local model is already being prepared')
+                  : D('正在准备本地模型', 'Preparing the local model'),
                 percent: null,
                 message: managerStart.fileCount && managerStart.fileCount > 1
-                  ? `正在准备主模型与 DFlash2（${managerStart.fileCount} 个文件）`
-                  : '正在准备 GGUF 文件',
+                  ? D(
+                    `正在准备主模型与 DFlash2（${managerStart.fileCount} 个文件）`,
+                    `Preparing the main model and DFlash2 (${managerStart.fileCount} files)`,
+                  )
+                  : D('正在准备 GGUF 文件', 'Preparing GGUF files'),
               },
             },
           }));
         } else {
-          throw new Error('此方案需要 Lynn 桌面端下载器，请在设置中使用部署助手。');
+          throw new Error(D(
+            '此方案需要 Lynn 桌面端下载器，请在设置中使用部署助手。',
+            'This option needs the Lynn desktop downloader. Use the deployment assistant in Settings.',
+          ));
         }
       }
       window.setTimeout(() => void refreshLocal(), 1000);

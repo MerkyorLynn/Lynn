@@ -13,6 +13,7 @@ import { StepContainer, Multiline } from '../onboarding-ui';
 import { useOnboardingI18n } from '../use-onboarding-i18n';
 import { QUICK_LOCAL_PROVIDER } from '../constants';
 import { useLlamacppState } from '../../hooks/use-llamacpp-state';
+import { isChineseLocale } from '../../utils/locale';
 import { LocalModelSetupChoice, getLocalModelTier, localModelCatalog, requestLocalModelHelp } from '../../components/input/LocalModelSetupChoice';
 import {
   BRAIN_PROVIDER_ID,
@@ -108,26 +109,64 @@ function formatBytes(value: number): string {
   return `${amount.toFixed(unit >= 3 ? 1 : 0)} ${units[unit]}`;
 }
 
+/** Inline zh/en picker for copy that ships next to this step. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 function formatDuration(seconds: number | null | undefined): string | null {
   if (!Number.isFinite(seconds) || !seconds || seconds <= 0) return null;
   const minutes = Math.ceil(seconds / 60);
-  if (minutes < 60) return `约 ${minutes} 分钟`;
+  if (minutes < 60) return D(`约 ${minutes} 分钟`, `~${minutes} min`);
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest > 0 ? `约 ${hours} 小时 ${rest} 分钟` : `约 ${hours} 小时`;
+  return rest > 0
+    ? D(`约 ${hours} 小时 ${rest} 分钟`, `~${hours} h ${rest} min`)
+    : D(`约 ${hours} 小时`, `~${hours} h`);
 }
 
 function localModelErrorText(reason: string | null | undefined): string {
   const code = String(reason || '').trim();
-  if (!code) return '本地模型准备失败，请重试。';
-  if (code.includes('desktop-installer-required')) return '此方案需要 Lynn 桌面端的下载器，请打开桌面版或让 Lynn 协助部署。';
-  if (code.includes('insufficient-disk-space')) return '磁盘空间不足，请按所选方案的空间提示释放磁盘后重试。';
-  if (code.includes('binary-not-found') || code.includes('needs-binary')) return '没有找到本地推理运行时，请在设置里重新安装。';
-  if (code.includes('port-in-use')) return '本地模型端口正被其他程序占用，请关闭对应程序后重试。';
-  if (code.includes('checksum')) return '模型文件校验失败，Lynn 会在重试时重新下载损坏部分。';
-  if (code.includes('all-sources-failed') || code.includes('request-timeout')) return '下载源暂时不可用，请检查网络后继续。';
-  if (code.includes('cancel')) return '下载已取消。';
-  return '本地模型准备失败，请重试或暂时使用云端模型。';
+  if (!code) return D('本地模型准备失败，请重试。', 'Preparing the local model failed. Please retry.');
+  if (code.includes('desktop-installer-required')) {
+    return D(
+      '此方案需要 Lynn 桌面端的下载器，请打开桌面版或让 Lynn 协助部署。',
+      'This option needs the Lynn desktop downloader. Open the desktop app, or ask Lynn to help with setup.',
+    );
+  }
+  if (code.includes('insufficient-disk-space')) {
+    return D(
+      '磁盘空间不足，请按所选方案的空间提示释放磁盘后重试。',
+      'There is not enough disk space. Free up space as suggested for the chosen option, then retry.',
+    );
+  }
+  if (code.includes('binary-not-found') || code.includes('needs-binary')) {
+    return D(
+      '没有找到本地推理运行时，请在设置里重新安装。',
+      'The local inference runtime was not found. Reinstall it in Settings.',
+    );
+  }
+  if (code.includes('port-in-use')) {
+    return D(
+      '本地模型端口正被其他程序占用，请关闭对应程序后重试。',
+      'Another program is using the local model port. Close it and retry.',
+    );
+  }
+  if (code.includes('checksum')) {
+    return D(
+      '模型文件校验失败，Lynn 会在重试时重新下载损坏部分。',
+      'Model file verification failed. Lynn re-downloads the damaged parts on retry.',
+    );
+  }
+  if (code.includes('all-sources-failed') || code.includes('request-timeout')) {
+    return D(
+      '下载源暂时不可用，请检查网络后继续。',
+      'The download source is temporarily unavailable. Check your network and continue.',
+    );
+  }
+  if (code.includes('cancel')) return D('下载已取消。', 'Download cancelled.');
+  return D(
+    '本地模型准备失败，请重试或暂时使用云端模型。',
+    'Preparing the local model failed. Retry, or use a cloud model for now.',
+  );
 }
 
 export function LocalModelDownloadStep({
@@ -260,11 +299,16 @@ export function LocalModelDownloadStep({
           job: {
             status: 'running',
             progress: {
-              phase: managerStart.alreadyRunning ? '本地模型已在准备中' : '正在下载并启动本地模型',
+              phase: managerStart.alreadyRunning
+                ? D('本地模型已在准备中', 'The local model is already being prepared')
+                : D('正在下载并启动本地模型', 'Downloading and starting the local model'),
               percent: null,
               message: managerStart.fileCount && managerStart.fileCount > 1
-                ? `正在准备主模型与 DFlash2（${managerStart.fileCount} 个文件）`
-                : '正在准备 GGUF 文件',
+                ? D(
+                  `正在准备主模型与 DFlash2（${managerStart.fileCount} 个文件）`,
+                  `Preparing the main model and DFlash2 (${managerStart.fileCount} files)`,
+                )
+                : D('正在准备 GGUF 文件', 'Preparing GGUF files'),
             },
           },
         }));
@@ -309,13 +353,18 @@ export function LocalModelDownloadStep({
     if (jobFailed || llamaState.download.state === 'error') {
       return localModelErrorText(status?.job?.progress?.message || llamaState.download.lastError);
     }
-    if (downloadPaused) return '下载已暂停，可以稍后从这里继续。';
-    if (llamaState.download.state === 'verifying') return '下载完成，正在校验模型文件。';
+    if (downloadPaused) return D('下载已暂停，可以稍后从这里继续。', 'Download paused. Resume from here later.');
+    if (llamaState.download.state === 'verifying') {
+      return D('下载完成，正在校验模型文件。', 'Download complete. Verifying model files.');
+    }
     if (downloadActive) {
       const fileProgress = llamaState.download.fileCount && llamaState.download.fileCount > 1
-        ? `第 ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount} 个文件`
-        : '模型文件';
-      return `正在下载${fileProgress}`;
+        ? D(
+          `第 ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount} 个文件`,
+          `file ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount}`,
+        )
+        : D('模型文件', 'model file');
+      return D(`正在下载${fileProgress}`, `Downloading ${fileProgress}`);
     }
     if (busy) return progress?.message || progress?.phase || t('onboarding.localModel.spawning');
     if (modelPrepared) return t('onboarding.localModel.modelPreparedHint');
@@ -344,7 +393,7 @@ export function LocalModelDownloadStep({
           <span>{ready
             ? '100%'
             : downloadPaused
-              ? `已暂停 · ${Math.round(progressPercent)}%`
+              ? D(`已暂停 · ${Math.round(progressPercent)}%`, `Paused · ${Math.round(progressPercent)}%`)
               : busy
                 ? `${Math.round(progressPercent)}%`
                 : modelPrepared
@@ -357,15 +406,21 @@ export function LocalModelDownloadStep({
             <span>
               {formatBytes(llamaState.download.bytesTransferred)} / {formatBytes(llamaState.download.totalBytes)}
               {llamaState.download.fileCount && llamaState.download.fileCount > 1
-                ? ` · 文件 ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount}`
+                ? D(
+                  ` · 文件 ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount}`,
+                  ` · file ${llamaState.download.fileIndex || 1}/${llamaState.download.fileCount}`,
+                )
                 : ''}
             </span>
             <span>
               {llamaState.download.bytesPerSecond
                 ? `${formatBytes(llamaState.download.bytesPerSecond)}/s`
-                : '正在连接下载源'}
+                : D('正在连接下载源', 'Connecting to download source')}
               {formatDuration(llamaState.download.etaSeconds)
-                ? ` · 剩余 ${formatDuration(llamaState.download.etaSeconds)}`
+                ? D(
+                  ` · 剩余 ${formatDuration(llamaState.download.etaSeconds)}`,
+                  ` · ${formatDuration(llamaState.download.etaSeconds)} left`,
+                )
                 : ''}
             </span>
           </div>
@@ -427,7 +482,7 @@ export function LocalModelDownloadStep({
             className="ob-btn ob-btn-secondary"
             onClick={() => void llamaState.pauseDownload()}
           >
-            暂停下载
+            {D('暂停下载', 'Pause download')}
           </button>
         )}
         {downloadPaused && !ready && (
@@ -435,7 +490,7 @@ export function LocalModelDownloadStep({
             className="ob-btn ob-btn-primary"
             onClick={() => void startSetup()}
           >
-            继续下载
+            {D('继续下载', 'Resume download')}
           </button>
         )}
         {(downloadActive || downloadPaused) && !ready && (

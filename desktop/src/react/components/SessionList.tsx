@@ -16,6 +16,10 @@ import { openBridgeSession } from '../stores/bridge-actions';
 import type { Session, Agent } from '../types';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
 import { lookupKnownModel } from '../utils/known-models';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships next to this list. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { isDisplayDefaultModel } from '../utils/brain-models';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import styles from './SessionList.module.css';
@@ -29,15 +33,24 @@ import {
 
 // ── Platform icons ──
 
-const PLATFORM_ICONS: Record<string, { label: string; color: string }> = {
-  feishu: { label: '飞书', color: '#3370ff' },
-  telegram: { label: 'Telegram', color: '#26a5e4' },
-  qq: { label: 'QQ', color: '#12b7f5' },
-  wechat: { label: '微信', color: '#07c160' },
+const PLATFORM_ICON_COLORS: Record<string, { color: string; zh?: string }> = {
+  feishu: { color: '#3370ff', zh: '飞书' },
+  telegram: { color: '#26a5e4' },
+  qq: { color: '#12b7f5' },
+  wechat: { color: '#07c160', zh: '微信' },
 };
 
+function platformIconInfo(platform: string): { label: string; color: string } {
+  const entry = PLATFORM_ICON_COLORS[platform];
+  if (!entry) return { label: platform, color: '#999' };
+  const label = entry.zh
+    ? D(entry.zh, platform === 'feishu' ? 'Feishu' : 'WeChat')
+    : platform;
+  return { label, color: entry.color };
+}
+
 function PlatformIcon({ platform }: { platform: string }) {
-  const info = PLATFORM_ICONS[platform] || { label: platform, color: '#999' };
+  const info = platformIconInfo(platform);
   return (
     <span
       className={styles.bridgePlatformIcon}
@@ -211,7 +224,13 @@ function SessionListInner() {
     if (s.topology?.taskStatus) return false;
     if ((s.insights || []).length > 0) return false;
     const title = (s.title || '').trim();
-    const untitled = !title || title === '新对话' || title === '未命名' || title === '未命名会话';
+    const untitled = !title
+      || title === '新对话'
+      || title === '未命名'
+      || title === '未命名会话'
+      || title === 'New Chat'
+      || title === 'Untitled'
+      || title === 'Untitled session';
     return untitled && (s.messageCount ?? 0) <= 1;
   };
   const noiseSessions = searchQuery.trim() ? [] : filtered.filter(isNoiseSession);
@@ -225,7 +244,7 @@ function SessionListInner() {
             ref={searchRef}
             className={styles.sessionSearchInput}
             type="text"
-            placeholder={t('sidebar.search') || '搜索会话、标签和内容'}
+            placeholder={t('sidebar.search') || D('搜索会话、标签和内容', 'Search sessions, labels and content')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -345,7 +364,7 @@ function SessionListInner() {
             type="button"
             className={styles.sessionGroupHeader}
             onClick={() => setNoiseCollapsed((prev) => !prev)}
-            title="从没用过的空会话"
+            title={t('session.emptyGroupHint') || 'Sessions started but never used'}
           >
             <span className={`${styles.sessionGroupArrow}${noiseCollapsed ? ` ${styles.collapsed}` : ''}`} aria-hidden="true">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -358,7 +377,7 @@ function SessionListInner() {
               </svg>
             </span>
             <span className={styles.sessionGroupMeta}>
-              <span className={styles.sessionGroupTitle}>空会话</span>
+              <span className={styles.sessionGroupTitle}>{t('session.emptyGroup') || 'Empty sessions'}</span>
             </span>
             <span className={styles.sessionGroupCount}>{noiseSessions.length}</span>
           </button>
@@ -566,7 +585,9 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
   const digestObjective = s.digest?.objective || '';
   const compactObjective = digestObjective.length > 22 ? `${digestObjective.slice(0, 21).trimEnd()}...` : digestObjective;
   const rawInsightLabel = t('session.insight');
-  const insightLabel = rawInsightLabel && rawInsightLabel !== 'session.insight' ? rawInsightLabel : '洞察';
+  const insightLabel = rawInsightLabel && rawInsightLabel !== 'session.insight'
+    ? rawInsightLabel
+    : D('洞察', 'Insights');
   const sessionLabels = Array.isArray(s.labels) ? s.labels : [];
 
   return (
@@ -654,7 +675,7 @@ function SessionItem({ session: s, isActive, isStreaming, agents, browserUrl, di
               setLabelEditing(false);
             }
           }}
-          placeholder={t('session.labelsPlaceholder') || '标签，用逗号分隔'}
+          placeholder={t('session.labelsPlaceholder') || D('标签，用逗号分隔', 'Labels, separated by commas')}
         />
       ) : sessionLabels.length > 0 || topologyLabel || topologyStatus || healthLabel || unreadInsights > 0 || digestObjective ? (
         <div className={styles.sessionLabels}>

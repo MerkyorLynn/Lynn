@@ -5,6 +5,7 @@ import { requestRuntimeSnapshotRefresh } from '../utils/runtime-snapshot';
 import { formatCompactModelLabel } from '../utils/brain-models';
 import { loadDeskAutomationStatus, loadDeskPatrolStatus } from '../stores/desk-actions';
 import { collectSessionDiffs } from '../utils/change-review';
+import { isChineseLocale } from '../utils/locale';
 
 function joinSummary(parts: string[]) {
   return parts.filter(Boolean).join('、');
@@ -20,10 +21,13 @@ type CapabilityChip = {
 };
 
 export function SidebarCapabilityBar() {
-  const tt = useCallback((key: string, fallback: string) => {
+  // 订阅 locale：语言切换后要立刻重渲染，否则 tt() 仍拿到上一次的文案。
+  const locale = useStore((s) => s.locale);
+  const tt = useCallback((key: string, zhFallback: string, enFallback?: string) => {
     const value = window.t ? window.t(key) : key;
-    return !value || value === key ? fallback : value;
-  }, []);
+    if (value && value !== key) return value;
+    return isChineseLocale(locale) ? zhFallback : (enFallback ?? zhFallback);
+  }, [locale]);
   const currentAgentId = useStore((s) => s.currentAgentId);
   const agentName = useStore((s) => s.agentName) || 'Lynn';
   const agentYuan = useStore((s) => s.agentYuan) || 'lynn';

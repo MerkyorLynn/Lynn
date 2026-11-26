@@ -6,6 +6,11 @@
  */
 import { useState } from 'react';
 import { useStore } from '../../stores';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import type { FleetWorkerView } from './fleet-reducer';
 import { deriveGate } from './fleet-reducer';
 import type { FleetChangedFile } from '../../../../../shared/fleet-events.js';
@@ -146,8 +151,8 @@ export function WorkerCard({
             no real CLI process runs. Label them loudly so the demo agent name (claude-code)
             is never mistaken for a real launch. */}
         {worker.workerId.startsWith('mock-') && (
-          <span className={s.mockBadge} title={(window.t?.('fleet.panel.mockBadgeTitle')) || '演示回放,未启动任何真实进程'}>
-            {(window.t?.('fleet.panel.mockBadge')) || '模拟'}
+          <span className={s.mockBadge} title={(window.t?.('fleet.panel.mockBadgeTitle')) || D('演示回放,未启动任何真实进程', 'Demo playback — no real process was launched')}>
+            {(window.t?.('fleet.panel.mockBadge')) || D('模拟', 'mock')}
           </span>
         )}
         <span className={s.workerBranch}>{worker.branch ?? worker.workerId}</span>
@@ -357,23 +362,23 @@ export function WorkerCard({
             <div className={s.acceptancePanel} data-ok={worker.managerValidation.ok ? '1' : '0'}>
               <span className={s.acceptanceVerdict}>
                 {worker.managerValidation.ok
-                  ? ((window.t?.('fleet.acceptance.passed')) || '✓ 验收通过')
-                  : ((window.t?.('fleet.acceptance.failed')) || '✗ 验收未过')}
+                  ? ((window.t?.('fleet.acceptance.passed')) || D('✓ 验收通过', '✓ Acceptance passed'))
+                  : ((window.t?.('fleet.acceptance.failed')) || D('✗ 验收未过', '✗ Acceptance failed'))}
               </span>
               {worker.managerValidation.falseVerifyRisk && (
                 <span className={s.acceptanceChip} data-risk={worker.managerValidation.falseVerifyRisk}>
-                  {((window.t?.('fleet.acceptance.falseVerify')) || '假验证风险')}: {worker.managerValidation.falseVerifyRisk}
+                  {((window.t?.('fleet.acceptance.falseVerify')) || D('假验证风险', 'false-verify risk'))}: {worker.managerValidation.falseVerifyRisk}
                 </span>
               )}
               {typeof worker.managerValidation.evidenceCount === 'number' && (
                 <span className={s.acceptanceChip}>
-                  {((window.t?.('fleet.acceptance.evidence')) || '客观证据')}: {worker.managerValidation.evidenceCount}
+                  {((window.t?.('fleet.acceptance.evidence')) || D('客观证据', 'evidence'))}: {worker.managerValidation.evidenceCount}
                 </span>
               )}
               <span className={s.acceptanceSummary}>{worker.managerValidation.summary}</span>
               {worker.escalationReason && (
                 <span className={s.acceptanceEscalation}>
-                  {((window.t?.('fleet.acceptance.escalated')) || '已升级')}: {worker.escalationReason}
+                  {((window.t?.('fleet.acceptance.escalated')) || D('已升级', 'escalated'))}: {worker.escalationReason}
                 </span>
               )}
             </div>
