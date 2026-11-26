@@ -86,7 +86,14 @@
     "toggle": "사이드바",
     "bridgeShort": "연결",
     "capability": {
-      "fleetTip": "CLI 워커: 긴 작업은 터미널에서 헤드리스로 실행"
+      "fleetTip": "CLI 워커: 긴 작업은 터미널에서 헤드리스로 실행",
+      "patrol": "순찰",
+      "modelTag": {
+        "reasoning": "추론",
+        "vision": "비전",
+        "longCtx": "긴 컨텍스트",
+        "fast": "범용"
+      }
     },
     "searchingBody": "Searching conversation text…",
     "bodySearchFailed": "Body search failed. Title matches are still shown.",
@@ -114,7 +121,9 @@
     "archiveLoading": "보관함 불러오는 중…",
     "archiveEmpty": "보관된 대화 없음",
     "archiveConfirm": "「{name}」을(를) 보관하시겠습니까? 목록에서 숨겨지지만 기록은 유지됩니다.",
-    "menuTrigger": "더보기"
+    "menuTrigger": "더보기",
+    "emptyGroup": "빈 세션",
+    "emptyGroupHint": "한 번도 사용하지 않은 세션"
   },
   "common": {
     "on": "켜기",
@@ -140,7 +149,10 @@
     "edit": "편집",
     "delete": "삭제",
     "editResend": "편집 후 재전송",
-    "editResendTitle": "편집 후 재전송 (메시지를 입력란에 붙여넣고 수정 후 Enter)"
+    "editResendTitle": "편집 후 재전송 (메시지를 입력란에 붙여넣고 수정 후 Enter)",
+    "pasteToInput": "붙여넣기",
+    "pasteToInputTitle": "입력창에 붙여넣기",
+    "pastedToInput": "붙여넣었어요"
   },
   "chat": {
     "send": "보내기",
@@ -154,7 +166,15 @@
     "waitingTooLong": "이 응답은 아직 처리 중입니다. Lynn이 기본 모델의 보조 경로로 계속 넘겨 가며 이번 턴을 끝내려고 하고 있어요.",
     "emptyAnswerHint": "모델이 생각만 하고 아무 말도 하지 않았어요. 재시도를 눌러 다시 시도할 수 있어요.",
     "emptyAnswerRetry": "재시도",
-    "speak": "소리 내어 읽기 · Shift+클릭으로 브라우저 음성"
+    "speak": "소리 내어 읽기 · Shift+클릭으로 브라우저 음성",
+    "scrollToLatest": "최신 메시지로 이동",
+    "translateReply": "답변 번역",
+    "translateTo": "{language}(으)로 번역",
+    "moreMessageActions": "메시지 작업 더 보기",
+    "translating": "번역 중",
+    "translateFailedLabel": "번역 실패",
+    "translationCard": "번역",
+    "translationCopied": "번역을 복사했어요"
   },
   "time": {
     "justNow": "방금",
@@ -178,7 +198,24 @@
     "usage": {
       "cache": "캐시",
       "tip": "이 세션의 누적 클라우드 token 사용량(프리픽스 캐시 적중 및 비용 추정 포함)"
-    }
+    },
+    "llmSlowResponse": "모델이 아직 처리 중입니다. 잠시만 기다려 주세요.",
+    "llmStillWorking": "모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중입니다.",
+    "recoveringToolExecution": "모델이 본문에서 도구 호출을 흉내 냈기 때문에 Lynn이 실제 실행 경로로 되돌리는 중입니다.",
+    "routeReasoningPlanned": "분석형 작업이 감지되어 Lynn이 이번 턴에서 기본 추론 경로를 우선 사용합니다.",
+    "routeExecutionPlanned": "실행형 작업이 감지되어 Lynn이 이번 턴에서 기본 실행 경로를 우선 사용합니다.",
+    "routeCodingPlanned": "코딩 작업이 감지되어 Lynn이 이번 턴에서 기본 코딩 경로를 우선 사용합니다.",
+    "routeVisionPlanned": "이미지 또는 첨부 분석 작업이 감지되어 Lynn이 이번 턴에서 기본 추론 경로를 우선 사용합니다.",
+    "defaultModelSlowResponse": "기본 작업 모델의 주 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 경로로 넘겨 처리하고 있어요.",
+    "defaultModelRecoveringToolExecution": "기본 작업 모델이 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 실행 경로로 넘기고 있어요.",
+    "defaultModelStillWorking": "기본 작업 모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 경로로 넘겨 처리하고 있어요.",
+    "defaultReasoningSlowResponse": "기본 추론 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 추론 경로로 넘겨 처리하고 있어요.",
+    "defaultReasoningStillWorking": "기본 추론 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 추론 경로로 넘겨 처리하고 있어요.",
+    "defaultExecutionSlowResponse": "기본 실행 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 실행 경로로 넘겨 처리하고 있어요.",
+    "defaultExecutionStillWorking": "기본 실행 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 실행 경로로 넘겨 처리하고 있어요.",
+    "defaultCodingSlowResponse": "기본 코딩 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 코딩 경로로 넘겨 처리하고 있어요.",
+    "defaultCodingStillWorking": "기본 코딩 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 코딩 경로로 넘겨 처리하고 있어요.",
+    "defaultCodingRecoveringToolExecution": "기본 코딩 경로가 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 코딩 경로로 넘기고 있어요."
   },
   "input": {
     "placeholder": "무슨 이야기든 해보세요...",
@@ -225,7 +262,20 @@
     "modeSend": "보내기",
     "modeSteer": "방향 전환",
     "contextGit": "Git 컨텍스트",
-    "attachmentUploadFailed": "첨부 파일 업로드에 실패했습니다. 파일을 다시 추가하세요."
+    "attachmentUploadFailed": "첨부 파일 업로드에 실패했습니다. 파일을 다시 추가하세요.",
+    "composerAria": "메시지 입력",
+    "longTextLoaded": "긴 텍스트를 불러왔어요",
+    "longTextKeptHint": "입력한 내용은 그대로 유지되며 전송 시 전체가 제출됩니다",
+    "attachFileTitle": "파일 첨부",
+    "voiceChatTitle": "실시간 음성 대화 · 시끄러운 곳에서는 완료를 눌러 이번 턴을 마치세요",
+    "voiceChatAria": "Lynn 실시간 음성 대화 열기",
+    "moreInputOptions": "입력 옵션 더 보기",
+    "deepResearch": "심층 리서치",
+    "deepResearchDesc": "장시간 리서치, 경쟁사 정리, 보고서 초안에 적합합니다. 결과는 채팅 안에서 미리 볼 수 있는 HTML 보고서로 만들어집니다.",
+    "deepResearchFillTemplate": "템플릿 채우기",
+    "deepResearchBusy": "리서치 중…",
+    "deepResearchStart": "리서치 시작",
+    "deepResearchCloseHint": "심층 리서치 안내 닫기"
   },
   "slash": {
     "diary": "오늘의 일기 쓰기",
@@ -898,7 +948,33 @@
         "hint": "얼마나 많은 기억을 유지할지 정할 수 있어요. 약간의 노이즈는 괜찮아요. LLM은 필터링을 잘 해요.",
         "stats": "{remembered} / {total}개 기억 유지 중"
       },
-      "activeOnly": "이 에이전트를 먼저 활성으로 설정해 주세요"
+      "activeOnly": "이 에이전트를 먼저 활성으로 설정해 주세요",
+      "categories": {
+        "person": "인물",
+        "project": "프로젝트",
+        "preference": "선호",
+        "tech": "기술",
+        "event": "사건",
+        "other": "기타"
+      },
+      "sources": {
+        "conversation": "대화",
+        "file": "파일",
+        "imported": "가져옴",
+        "inferred": "추론"
+      },
+      "timelineSubtitle": "객관적 사실과 추론 프로필을 나눠 보여줍니다. 바로 고칠 수 있어요.",
+      "refresh": "새로고침",
+      "inferredTitle": "추론 프로필",
+      "traits": "특징",
+      "goals": "목표",
+      "exclusionsTitle": "제외 규칙",
+      "remove": "제거",
+      "evidence": "근거: ",
+      "dontRememberThis": "이건 기억하지 않기",
+      "delete": "삭제",
+      "savedExclusion": "제외 목록에 추가했어요",
+      "removedExclusion": "제외 규칙을 삭제했어요"
     },
     "pins": {
       "title": "고정 기억",
@@ -1642,7 +1718,27 @@
     "memorySearchError": "기억 검색 오류: {msg}",
     "fallbackUserName": "사용자",
     "installSkillApprovalRequired": "스킬 설치에는 사용자 승인이 필요합니다. 스킬 파일을 변경하지 않았습니다.",
-    "bridgeRequestFailed": "요청을 완료하지 못했습니다. 다시 시도하거나 Lynn 진단을 확인하세요."
+    "bridgeRequestFailed": "요청을 완료하지 못했습니다. 다시 시도하거나 Lynn 진단을 확인하세요.",
+    "llmTimeout": "Model request timed out",
+    "llmRateLimited": "Model rate limited, please wait",
+    "llmAuthFailed": "Model authentication failed",
+    "llmSlowResponse": "Model is responding slowly, please wait",
+    "brainUnreachable": "기본 모델 서비스에 일시적으로 연결할 수 없습니다. 네트워크를 확인하거나 설정에서 직접 API 키로 전환하세요.",
+    "fsPermission": "File permission denied",
+    "fsNotFound": "File not found",
+    "fsCopyFailed": "File copy failed",
+    "wsDisconnected": "Connection lost",
+    "fetchServerError": "Server error",
+    "ipcFailed": "Internal communication error",
+    "renderCrash": "Display error",
+    "configParse": "Configuration file corrupted",
+    "bridgeSendFailed": "Failed to send message to platform",
+    "skillSyncFailed": "Skill sync failed",
+    "memoryCompileFailed": "Memory compilation failed",
+    "dbError": "Database error",
+    "serverAuthFailed": "Authentication failed",
+    "unknown": "An unexpected error occurred",
+    "regionUnavailable": "This area is temporarily unavailable"
   },
   "main": {
     "tray": {
@@ -2024,53 +2120,6 @@
       "trustedRoot": "신뢰 경로"
     }
   },
-  "error.llmTimeout": "Model request timed out",
-  "error.llmRateLimited": "Model rate limited, please wait",
-  "error.llmEmptyResponse": "모델이 빈 응답 또는 표시할 수 없는 내용을 반환했어요",
-  "error.llmAuthFailed": "Model authentication failed",
-  "error.llmSlowResponse": "Model is responding slowly, please wait",
-  "error.brainUnreachable": "기본 모델 서비스에 일시적으로 연결할 수 없습니다. 네트워크를 확인하거나 설정에서 직접 API 키로 전환하세요.",
-  "error.fsPermission": "File permission denied",
-  "error.fsNotFound": "File not found",
-  "error.fsCopyFailed": "File copy failed",
-  "error.wsDisconnected": "Connection lost",
-  "error.fetchTimeout": "Request timed out",
-  "error.fetchServerError": "Server error",
-  "error.ipcFailed": "Internal communication error",
-  "error.renderCrash": "Display error",
-  "error.configParse": "Configuration file corrupted",
-  "error.bridgeSendFailed": "Failed to send message to platform",
-  "error.skillSyncFailed": "Skill sync failed",
-  "error.memoryCompileFailed": "Memory compilation failed",
-  "error.dbError": "Database error",
-  "error.serverAuthFailed": "Authentication failed",
-  "error.unknown": "An unexpected error occurred",
-  "error.regionUnavailable": "This area is temporarily unavailable",
-  "status.reconnecting": "Reconnecting...",
-  "status.disconnected": "Connection lost",
-  "status.reconnect": "Reconnect",
-  "status.llmSlowResponse": "모델이 아직 처리 중입니다. 잠시만 기다려 주세요.",
-  "status.llmStillWorking": "모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중입니다.",
-  "status.recoveringToolExecution": "모델이 본문에서 도구 호출을 흉내 냈기 때문에 Lynn이 실제 실행 경로로 되돌리는 중입니다.",
-  "status.routeReasoningPlanned": "분석형 작업이 감지되어 Lynn이 이번 턴에서 기본 추론 경로를 우선 사용합니다.",
-  "status.routeExecutionPlanned": "실행형 작업이 감지되어 Lynn이 이번 턴에서 기본 실행 경로를 우선 사용합니다.",
-  "status.routeCodingPlanned": "코딩 작업이 감지되어 Lynn이 이번 턴에서 기본 코딩 경로를 우선 사용합니다.",
-  "status.routeVisionPlanned": "이미지 또는 첨부 분석 작업이 감지되어 Lynn이 이번 턴에서 기본 추론 경로를 우선 사용합니다.",
-  "status.defaultModelSlowResponse": "기본 작업 모델의 주 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 경로로 넘겨 처리하고 있어요.",
-  "status.defaultModelRecoveringToolExecution": "기본 작업 모델이 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 실행 경로로 넘기고 있어요.",
-  "status.defaultModelStillWorking": "기본 작업 모델이 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 경로로 넘겨 처리하고 있어요.",
-  "status.defaultReasoningSlowResponse": "기본 추론 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 추론 경로로 넘겨 처리하고 있어요.",
-  "status.defaultReasoningStillWorking": "기본 추론 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 추론 경로로 넘겨 처리하고 있어요.",
-  "status.defaultExecutionSlowResponse": "기본 실행 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 실행 경로로 넘겨 처리하고 있어요.",
-  "status.defaultExecutionStillWorking": "기본 실행 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 실행 경로로 넘겨 처리하고 있어요.",
-  "status.defaultCodingSlowResponse": "기본 코딩 경로가 조금 느립니다. Lynn이 백그라운드에서 보조 코딩 경로로 넘겨 처리하고 있어요.",
-  "status.defaultCodingStillWorking": "기본 코딩 경로가 아직 처리 중입니다. 약 {minutes}분째 기다리는 중이며 Lynn이 계속 보조 코딩 경로로 넘겨 처리하고 있어요.",
-  "status.defaultCodingRecoveringToolExecution": "기본 코딩 경로가 실제 도구 실행을 끝내지 못해 Lynn이 이번 턴을 보조 코딩 경로로 넘기고 있어요.",
-  "action.retry": "다시 시도",
-  "agentDiscovery.title": "스킬 발견",
-  "agentDiscovery.body": "다음 도구의 스킬을 재사용할 수 있습니다:",
-  "agentDiscovery.enable": "활성화",
-  "agentDiscovery.later": "건너뛰기",
   "review": {
     "configure": "리뷰어 설정",
     "loading": "불러오는 중",
@@ -2147,5 +2196,14 @@
       "evidence": "객관적 증거",
       "escalated": "에스컬레이션"
     }
+  },
+  "action": {
+    "retry": "다시 시도"
+  },
+  "agentDiscovery": {
+    "title": "스킬 발견",
+    "body": "다음 도구의 스킬을 재사용할 수 있습니다:",
+    "enable": "활성화",
+    "later": "건너뛰기"
   }
 }

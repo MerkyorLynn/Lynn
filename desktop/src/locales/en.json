@@ -152,11 +152,20 @@
       "resumeTask": "Resume task",
       "resumePrompt": "Continue the last task and tell me the current progress plus the next step first.",
       "workspacePrompt": "Quickly read the current workspace and tell me where you would start.",
-      "fleetTip": "CLI workers: run long tasks headlessly from the terminal"
+      "fleetTip": "CLI workers: run long tasks headlessly from the terminal",
+      "patrol": "Patrol",
+      "modelTag": {
+        "reasoning": "reasoning",
+        "vision": "vision",
+        "longCtx": "long context",
+        "fast": "general"
+      }
     },
     "searchingBody": "Searching conversation text…",
     "bodySearchFailed": "Body search failed. Title matches are still shown.",
-    "bodySearchPartial": "Some sessions were too large or unreadable, or the result limit was reached. Refine your search."
+    "bodySearchPartial": "Some sessions were too large or unreadable, or the result limit was reached. Refine your search.",
+    "search": "Search chats...",
+    "noResults": "No matching chats found"
   },
   "titlebar": {
     "task": {
@@ -195,7 +204,13 @@
     "archiveLoading": "Loading archives…",
     "archiveEmpty": "No archived conversations",
     "archiveConfirm": "Archive “{name}”? It will be hidden from the list but history is kept.",
-    "menuTrigger": "More actions"
+    "menuTrigger": "More actions",
+    "branchContinue": "Branch from here",
+    "insight": "Insight",
+    "emptyGroup": "Empty sessions",
+    "emptyGroupHint": "Sessions started but never used",
+    "creating": "Creating the new session, please wait a moment",
+    "branchCreated": "Created a branched session"
   },
   "common": {
     "on": "On",
@@ -222,7 +237,15 @@
     "close": "Close",
     "delete": "Delete",
     "editResend": "Edit & resend",
-    "editResendTitle": "Edit & resend (copies this message to the input; press Enter to resend after fixing)"
+    "editResendTitle": "Edit & resend (copies this message to the input; press Enter to resend after fixing)",
+    "cancelled": "Cancelled",
+    "open": "Open",
+    "run": "Run",
+    "save": "Save",
+    "saved": "Saved",
+    "pasteToInput": "Paste",
+    "pasteToInputTitle": "Paste into the composer",
+    "pastedToInput": "Pasted"
   },
   "chat": {
     "send": "Send",
@@ -235,7 +258,21 @@
     "retry": "Retry",
     "emptyAnswerHint": "The model thought but didn't say anything. Tap retry to try again.",
     "emptyAnswerRetry": "Retry",
-    "speak": "Read aloud · Shift+click for browser speech"
+    "speak": "Read aloud · Shift+click for browser speech",
+    "thinking": "Thinking...",
+    "modelHint": "This model replies very briefly. Switching to a stronger model may help.",
+    "modelHintAction": "Open settings",
+    "serverStarting": "Lynn is still starting up",
+    "waiting": "Waiting for reply",
+    "waitingTooLong": "Slow reply — possibly switching to a fallback model...",
+    "scrollToLatest": "Scroll to latest message",
+    "translateReply": "Translate reply",
+    "translateTo": "Translate to {language}",
+    "moreMessageActions": "More message actions",
+    "translating": "Translating",
+    "translateFailedLabel": "Translation failed",
+    "translationCard": "Translation",
+    "translationCopied": "Translation copied"
   },
   "markdown": {
     "runConfirm": {
@@ -298,7 +335,10 @@
     "usage": {
       "cache": "cache",
       "tip": "Cumulative cloud token spend for this session (incl. prefix-cache hits and cost estimate)"
-    }
+    },
+    "tasksRecovered": "Recovered {count} background task(s)",
+    "tasksRecoveredRunning": "{count} background task(s) are still running",
+    "tasksRecoveredWaiting": "{count} background task(s) are still running, with {waiting} waiting for approval"
   },
   "input": {
     "placeholder": "Say something...",
@@ -364,7 +404,24 @@
     "modeSend": "Send",
     "modeSteer": "Steer",
     "contextGit": "Git context",
-    "attachmentUploadFailed": "Attachment upload failed. Add the file again."
+    "attachmentUploadFailed": "Attachment upload failed. Add the file again.",
+    "contextWarning": "Context is almost full",
+    "contextCritical": "Auto-compacting...",
+    "currentFile": "Current file",
+    "recentFolders": "Recent folders",
+    "composerAria": "Message input",
+    "longTextLoaded": "Long text loaded",
+    "longTextKeptHint": "The full input is kept and will be sent in full",
+    "attachFileTitle": "Attach file",
+    "voiceChatTitle": "Live voice chat · in noisy places tap Done to end the turn",
+    "voiceChatAria": "Open Lynn live voice chat",
+    "moreInputOptions": "More input options",
+    "deepResearch": "Deep research",
+    "deepResearchDesc": "Great for long research, competitor reviews and report drafts. The result becomes an HTML report you can preview inside the chat.",
+    "deepResearchFillTemplate": "Fill in the template",
+    "deepResearchBusy": "Researching…",
+    "deepResearchStart": "Start research",
+    "deepResearchCloseHint": "Close the deep research guide"
   },
   "slash": {
     "diary": "Write today's diary",
@@ -416,7 +473,8 @@
   "drop": {
     "hint": "Drop to send files to {name}",
     "mainHint": "Drop to analyze",
-    "subHint": "{name} supports Excel, PDF, CSV, images and more"
+    "subHint": "{name} supports Excel, PDF, CSV, images and more",
+    "attachLimit": "Files already attached. Send them or remove some first."
   },
   "attach": {
     "folder": "Folder",
@@ -435,7 +493,8 @@
       "approve": "Confirm",
       "reject": "Cancel",
       "created": "✓ Created",
-      "rejected": "Cancelled"
+      "rejected": "Cancelled",
+      "title": "Confirm scheduled task"
     },
     "everyHours": "Every {n} hours",
     "everyMinutes": "Every {n} minutes",
@@ -935,7 +994,11 @@
       "remove": "Remove",
       "deleteConfirm": "Delete provider {name}? Associated models will be removed.",
       "apiResponses": "OpenAI Responses",
-      "apiCodex": "ChatGPT Codex (Plus/Pro)"
+      "apiCodex": "ChatGPT Codex (Plus/Pro)",
+      "ready": "Ready",
+      "authLabel": "Auth",
+      "baseUrlLabel": "Endpoint",
+      "defaultModelReadyHint": "The default model route is already built in, so you can just use it day to day. Extra setup is only needed when you switch to a different model provider."
     },
     "mcp": {
       "title": "MCP Servers",
@@ -1066,7 +1129,8 @@
       "addedModels": "Added models",
       "displayName": "Display name",
       "vision": "Vision",
-      "reasoning": "Reasoning"
+      "reasoning": "Reasoning",
+      "searchBaseUrlHint": "Base URL of your search service"
     },
     "memory": {
       "sectionTitle": "Memory",
@@ -1118,7 +1182,33 @@
         "hint": "You decide how many memories are remembered. A little noise is fine — LLMs are good at filtering.",
         "stats": "{remembered} / {total} memories remembered"
       },
-      "activeOnly": "Set this agent as active first"
+      "activeOnly": "Set this agent as active first",
+      "categories": {
+        "person": "People",
+        "project": "Projects",
+        "preference": "Preferences",
+        "tech": "Tech",
+        "event": "Events",
+        "other": "Other"
+      },
+      "sources": {
+        "conversation": "Chat",
+        "file": "File",
+        "imported": "Imported",
+        "inferred": "Inferred"
+      },
+      "timelineSubtitle": "Facts and inferred profile are shown separately, so you can correct them directly.",
+      "refresh": "Refresh",
+      "inferredTitle": "Inferred profile",
+      "traits": "Traits",
+      "goals": "Goals",
+      "exclusionsTitle": "Ignore rules",
+      "remove": "Remove",
+      "evidence": "Evidence: ",
+      "dontRememberThis": "Don't remember this",
+      "delete": "Delete",
+      "savedExclusion": "Added to the ignore list",
+      "removedExclusion": "Ignore rule removed"
     },
     "pins": {
       "title": "Pinned Memories",
@@ -1142,7 +1232,8 @@
       "noProvider": "Please select a search engine first",
       "noKey": "Please enter an API Key first",
       "placeholder": "Search settings…",
-      "empty": "No matching tabs"
+      "empty": "No matching tabs",
+      "noBaseUrl": "Enter the Base URL first"
     },
     "work": {
       "title": "Patrol",
@@ -1245,7 +1336,9 @@
         "risk3": "Social engineering and privilege escalation attempts",
         "body2": "After disabling, all skills will be installed without review.",
         "confirm": "I understand the risks, disable review"
-      }
+      },
+      "fetchGithub": "Fetch from GitHub",
+      "fetchGithubDesc": "Install a skill straight from a GitHub repository"
     },
     "plugins": {
       "title": "Add-ons",
@@ -1320,7 +1413,9 @@
         "Important: Go to \"Version Management\", create and publish a version first (long connection config requires a published app)",
         "Paste the App ID and App Secret into the input fields above and turn on the switch"
       ],
-      "whatsappHint": "Coming soon"
+      "whatsappHint": "Coming soon",
+      "testOkInline": "Reachable",
+      "testFailInline": "Unreachable"
     },
     "shortcuts": {
       "title": "Keyboard shortcuts",
@@ -1330,7 +1425,8 @@
     "connectionFailed": "Could not connect to the settings service.",
     "connectionPending": "Connecting to the settings service…",
     "connectionRetry": "Retry connection",
-    "connectionRetrying": "Reconnecting…"
+    "connectionRetrying": "Reconnecting…",
+    "deleted": "Deleted"
   },
   "onboarding": {
     "welcome": {
@@ -1510,7 +1606,19 @@
       "finish": "Let's Go",
       "quickFinish": "Enter Lynn now"
     },
-    "skipSetup": "Skip setup"
+    "skipSetup": "Skip setup",
+    "error": "Something went wrong. Please try again.",
+    "compatSkills": {
+      "title": "Reusable skills found",
+      "subtitle": "Lynn found {count} skill(s) from other AI tools on your computer. Tick the ones you want and they work right away.",
+      "scanning": "Scanning installed AI tools…",
+      "selectAll": "Select all",
+      "deselectAll": "Clear all",
+      "skip": "Not now",
+      "continue": "Continue",
+      "enabling": "Enabling…",
+      "enableCount": "Enable {count} skill(s) and continue"
+    }
   },
   "activity": {
     "title": "Activity",
@@ -1528,7 +1636,9 @@
     "cronDone": "Scheduled task completed",
     "error": "Execution error",
     "viewSession": "View session →",
-    "duration": "Took {text}"
+    "duration": "Took {text}",
+    "auditLog": "Audit log",
+    "auditLogEmpty": "No records yet"
   },
   "automation": {
     "title": "Scheduled Tasks",
@@ -1642,7 +1752,9 @@
       "delete": "Delete",
       "deleteN": "Delete {n} items",
       "newMdFile": "New Markdown Document",
-      "newFolder": "New Folder"
+      "newFolder": "New Folder",
+      "confirmDelete": "Delete \"{name}\"? This cannot be undone.",
+      "confirmDeleteN": "Delete these {n} files? This cannot be undone."
     },
     "sort": {
       "label": "Sort",
@@ -1656,7 +1768,8 @@
       "nameDescShort": "Name↓",
       "sizeShort": "Size",
       "typeShort": "Type"
-    }
+    },
+    "workspace": "Workspace"
   },
   "window": {
     "minimize": "Minimize",
@@ -1938,7 +2051,27 @@
     "memorySearchError": "Memory search error: {msg}",
     "fallbackUserName": "User",
     "installSkillApprovalRequired": "Skill installation requires user approval. No skill files were written.",
-    "bridgeRequestFailed": "This request could not be completed. Please retry or check Lynn diagnostics."
+    "bridgeRequestFailed": "This request could not be completed. Please retry or check Lynn diagnostics.",
+    "brainUnreachable": "The default model service is temporarily unreachable",
+    "llmTimeout": "Model request timed out",
+    "llmRateLimited": "Model rate limited, please wait",
+    "llmAuthFailed": "Model authentication failed — start a new conversation; if it persists, check your model/provider settings or system clock",
+    "llmSlowResponse": "Model is responding slowly, please wait",
+    "fsPermission": "File permission denied",
+    "fsNotFound": "File not found",
+    "fsCopyFailed": "File copy failed",
+    "wsDisconnected": "Connection lost",
+    "fetchServerError": "Server error",
+    "ipcFailed": "Internal communication error",
+    "renderCrash": "Display error",
+    "configParse": "Configuration file corrupted",
+    "bridgeSendFailed": "Failed to send message to platform",
+    "skillSyncFailed": "Skill sync failed",
+    "memoryCompileFailed": "Memory compilation failed",
+    "dbError": "Database error",
+    "serverAuthFailed": "Authentication failed",
+    "unknown": "An unexpected error occurred",
+    "regionUnavailable": "This area is temporarily unavailable"
   },
   "main": {
     "tray": {
@@ -2314,42 +2447,14 @@
       "currentProject": "current project",
       "allowOnceHint": "Only allow this single action.",
       "allowSessionHint": "Allow similar actions for the rest of this task or session.",
-      "allowAlwaysHereHint": "Always allow similar actions inside {project}."
+      "allowAlwaysHereHint": "Always allow similar actions inside {project}.",
+      "installCommandLabel": "Command to be installed",
+      "installScript": "Remote install script",
+      "installScriptLabel": "Remote install script to be executed",
+      "moreOptions": "More options",
+      "softwareInstall": "Software install"
     }
   },
-  "error.llmTimeout": "Model request timed out",
-  "error.llmRateLimited": "Model rate limited, please wait",
-  "error.llmEmptyResponse": "Model returned empty response",
-  "error.llmAuthFailed": "Model authentication failed — start a new conversation; if it persists, check your model/provider settings or system clock",
-  "error.llmSlowResponse": "Model is responding slowly, please wait",
-  "error.fsPermission": "File permission denied",
-  "error.fsNotFound": "File not found",
-  "error.fsCopyFailed": "File copy failed",
-  "error.wsDisconnected": "Connection lost",
-  "error.fetchTimeout": "Request timed out",
-  "error.fetchServerError": "Server error",
-  "error.ipcFailed": "Internal communication error",
-  "error.renderCrash": "Display error",
-  "error.configParse": "Configuration file corrupted",
-  "error.bridgeSendFailed": "Failed to send message to platform",
-  "error.skillSyncFailed": "Skill sync failed",
-  "error.memoryCompileFailed": "Memory compilation failed",
-  "error.dbError": "Database error",
-  "error.serverAuthFailed": "Authentication failed",
-  "error.unknown": "An unexpected error occurred",
-  "error.regionUnavailable": "This area is temporarily unavailable",
-  "status.reconnecting": "Reconnecting...",
-  "status.disconnected": "Connection lost",
-  "status.reconnect": "Reconnect",
-  "status.tasksRecovered": "Recovered {count} background task(s)",
-  "status.tasksRecoveredRunning": "{count} background task(s) are still running",
-  "status.tasksRecoveredWaiting": "{count} background task(s) are still running, with {waiting} waiting for approval",
-  "action.retry": "Retry",
-  "agentDiscovery.title": "AI Tools Detected",
-  "agentDiscovery.body": "Found installed AI tools on your device:",
-  "agentDiscovery.benefit": "Once enabled, Lynn can reuse their skill libraries to boost capabilities — no extra setup needed.",
-  "agentDiscovery.enable": "Enable",
-  "agentDiscovery.later": "Later",
   "fleet": {
     "empty": {
       "title": "No parallel workers yet",
@@ -2448,5 +2553,20 @@
       "upload": "Up",
       "download": "Down"
     }
+  },
+  "hint": {
+    "tableSort": "💡 Click a column header to sort",
+    "checkboxTip": "Tick items to mark them done",
+    "deskDrop": "Drag files onto the desk · ⌘J"
+  },
+  "action": {
+    "retry": "Retry"
+  },
+  "agentDiscovery": {
+    "title": "AI Tools Detected",
+    "body": "Found installed AI tools on your device:",
+    "benefit": "Once enabled, Lynn can reuse their skill libraries to boost capabilities — no extra setup needed.",
+    "enable": "Enable",
+    "later": "Later"
   }
 }
