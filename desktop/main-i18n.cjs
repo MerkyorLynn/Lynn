@@ -31,12 +31,18 @@ function createMainI18n({ lynnHome, localesDir }) {
   function getMainI18n() {
     if (data) return data;
     try {
-      // 从 preferences.json 读取全局 locale（和 server/renderer 一致）
+      // 全局 locale 存在 <lynnHome>/user/preferences.json（和 server/renderer 一致）。
+      // 旧版本这里漏了 user/ 子目录，导致主进程对话框永远是中文。
       let locale = null;
-      try {
-        const prefs = JSON.parse(fs.readFileSync(path.join(lynnHome, "preferences.json"), "utf-8"));
-        locale = prefs.locale || null;
-      } catch { /* preferences.json 不存在时 fallback */ }
+      for (const candidate of [
+        path.join(lynnHome, "user", "preferences.json"),
+        path.join(lynnHome, "preferences.json"),
+      ]) {
+        try {
+          const prefs = JSON.parse(fs.readFileSync(candidate, "utf-8"));
+          if (prefs.locale) { locale = prefs.locale; break; }
+        } catch { /* 该路径不存在或不可解析，试下一个 */ }
+      }
       const key = resolveLocaleKey(locale);
       const all = JSON.parse(fs.readFileSync(path.join(localesDir, `${key}.json`), "utf-8"));
       data = all.main || {};
