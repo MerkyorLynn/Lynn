@@ -19,6 +19,45 @@ interface Props {
 const TRANSLATE_CHUNK_CHARS = 2_500; // #29: chunked translate ceiling per request
 const MAX_TRANSLATE_CHUNKS = 8;       // #29: cap total chunks (≈ 20K char absolute ceiling)
 
+/**
+ * Translation target for the "translate thinking" action.
+ *
+ * It used to be hardcoded to `'中文'`, so an English-speaking user got their
+ * English reasoning translated into Chinese. Target the UI language instead,
+ * and only offer the action when the text is not already in that language.
+ */
+const CJK_CHARS = /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/;
+const LATIN_CHARS = /[A-Za-z]{4,}/;
+
+function resolveTranslateTarget(): { label: string; isAlreadyTarget: (text: string) => boolean } {
+  const locale = (() => {
+    try {
+      return String(
+        (window as unknown as { i18n?: { locale?: string } }).i18n?.locale
+        || document.documentElement?.lang
+        || navigator.language
+        || 'zh',
+      ).toLowerCase();
+    } catch {
+      return 'zh';
+    }
+  })();
+
+  if (locale.startsWith('zh-tw') || locale.startsWith('zh-hk') || locale.startsWith('zh-hant')) {
+    return { label: '繁体中文', isAlreadyTarget: (text) => /[\u3400-\u9fff]/.test(text) };
+  }
+  if (locale.startsWith('zh')) {
+    return { label: '中文', isAlreadyTarget: (text) => /[\u3400-\u9fff]/.test(text) };
+  }
+  if (locale.startsWith('ja')) {
+    return { label: '日文', isAlreadyTarget: (text) => /[\u3040-\u30ff]/.test(text) };
+  }
+  if (locale.startsWith('ko')) {
+    return { label: '韩文', isAlreadyTarget: (text) => /[\uac00-\ud7af]/.test(text) };
+  }
+  return { label: '英文', isAlreadyTarget: (text) => !CJK_CHARS.test(text) && LATIN_CHARS.test(text) };
+}
+
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -45,7 +84,11 @@ export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed, mode
   // can be long or English. Keep it collapsed unless the user explicitly opens it.
   const open = explicitOpen ?? false;
   const toggle = useCallback(() => setExplicitOpen(v => !(v ?? false)), []);
-  const shouldOfferTranslate = sealed && /[A-Za-z]{4,}/.test(content || "");
+  const translateTarget = useMemo(resolveTranslateTarget, []);
+  const shouldOfferTranslate = sealed
+    && !!content
+    && (LATIN_CHARS.test(content) || CJK_CHARS.test(content))
+    && !translateTarget.isAlreadyTarget(content);
 
   useEffect(() => {
     if (sealed) return;
@@ -136,7 +179,7 @@ export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed, mode
         const res = await hanaFetch('/api/translate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: chunks[i], targetLanguage: '中文' }),
+          body: JSON.stringify({ text: chunks[i], targetLanguage: translateTarget.label }),
           timeout: 70_000,
         });
         const data = await res.json().catch(() => null) as { text?: string; error?: string; message?: string } | null;
@@ -155,7 +198,7 @@ export const ThinkingBlock = memo(function ThinkingBlock({ content, sealed, mode
     } finally {
       setTranslateBusy(false);
     }
-  }, [content, sealed, translateBusy]);
+  }, [content, sealed, translateBusy, translateTarget]);
 
   return (
     <details

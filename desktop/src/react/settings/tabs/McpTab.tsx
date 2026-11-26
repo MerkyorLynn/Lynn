@@ -218,7 +218,7 @@ export function McpTab() {
         body: JSON.stringify({ name: draft.name || 'test', config: buildPayload(draft) }),
       });
       const data = await res.json();
-      const summary = `${t('settings.mcp.testSuccess') || '连接成功'} · ${data.toolCount || 0} tools / ${data.resourceCount || 0} resources`;
+      const summary = `${t('settings.mcp.testSuccess') || 'Connection successful'} · ${data.toolCount || 0} tools / ${data.resourceCount || 0} resources`;
       setTestResult(summary);
       showToast(summary, 'success');
     } catch (err) {
@@ -305,7 +305,7 @@ export function McpTab() {
         }),
       });
       const data = await res.json();
-      const summary = `${t('settings.mcp.testSuccess') || '连接成功'} · ${data.toolCount || 0} tools / ${data.resourceCount || 0} resources`;
+      const summary = `${t('settings.mcp.testSuccess') || 'Connection successful'} · ${data.toolCount || 0} tools / ${data.resourceCount || 0} resources`;
       setBuiltinTestResults((prev) => ({ ...prev, [name]: summary }));
       showToast(summary, 'success');
     } catch (err) {

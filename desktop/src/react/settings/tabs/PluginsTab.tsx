@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
+import { D } from '../../utils/locale';
 import styles from '../Settings.module.css';
 
 interface PluginInfo {
@@ -63,7 +64,7 @@ function ConfigTable({ schema }: { schema?: ConfigSchema['schema'] | null }) {
           <tr key={key}>
             <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-muted)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{prop.title || key}</td>
             <td style={{ padding: '4px 0', color: 'var(--text-secondary)' }}>
-              {prop.type === 'boolean' ? (prop.default ? '✅ 开启' : '❌ 关闭') :
+              {prop.type === 'boolean' ? (prop.default ? D('✅ 开启', '✅ On') : D('❌ 关闭', '❌ Off')) :
                prop.type === 'array' ? `[${Array.isArray(prop.default) ? prop.default.join(', ') : ''}]` :
                String(prop.default ?? '')}
             </td>
