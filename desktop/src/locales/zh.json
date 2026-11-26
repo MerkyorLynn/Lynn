@@ -154,7 +154,14 @@
       "resumeTask": "继续当前任务",
       "resumePrompt": "继续刚才的任务，先告诉我当前进度和下一步。",
       "workspacePrompt": "先快速读一下当前工作区，告诉我你会从哪里开始。",
-      "fleetTip": "CLI 并行协作:在终端用 worker 协议处理长任务"
+      "fleetTip": "CLI 并行协作:在终端用 worker 协议处理长任务",
+      "patrol": "巡检",
+      "modelTag": {
+        "reasoning": "推理",
+        "vision": "视觉",
+        "longCtx": "长上下文",
+        "fast": "通用"
+      }
     },
     "searchingBody": "正在搜索历史正文…",
     "bodySearchFailed": "正文搜索失败，请重试；仍显示标题匹配。",
@@ -197,7 +204,13 @@
     "archiveLoading": "正在读取归档…",
     "archiveEmpty": "暂无归档对话",
     "archiveConfirm": "归档「{name}」？归档后将不在列表中显示，历史记录会保留。",
-    "menuTrigger": "更多操作"
+    "menuTrigger": "更多操作",
+    "branchContinue": "从这里分叉",
+    "insight": "洞察",
+    "emptyGroup": "空会话",
+    "emptyGroupHint": "从没用过的空会话",
+    "creating": "正在创建新会话，请稍候",
+    "branchCreated": "已创建分支会话"
   },
   "common": {
     "on": "开",
@@ -224,7 +237,15 @@
     "close": "关闭",
     "delete": "删除",
     "editResend": "编辑重发",
-    "editResendTitle": "编辑后重发(把这条消息复制到输入框,改完按 Enter 重新发送)"
+    "editResendTitle": "编辑后重发(把这条消息复制到输入框,改完按 Enter 重新发送)",
+    "cancelled": "已取消",
+    "open": "打开",
+    "run": "运行",
+    "save": "保存",
+    "saved": "已保存",
+    "pasteToInput": "粘贴",
+    "pasteToInputTitle": "粘贴到输入框",
+    "pastedToInput": "已粘贴"
   },
   "chat": {
     "thinking": "正在思考...",
@@ -238,7 +259,20 @@
     "retry": "Retry",
     "emptyAnswerHint": "模型只想了想，没说出话来。可以点重试再试一次。",
     "emptyAnswerRetry": "重试",
-    "speak": "朗读 · Shift+点击使用浏览器朗读"
+    "speak": "朗读 · Shift+点击使用浏览器朗读",
+    "modelHint": "当前模型回复较简短，切换到更强的模型可能效果更好",
+    "modelHintAction": "去设置",
+    "serverStarting": "Lynn 还在启动中",
+    "waiting": "等待回复",
+    "waitingTooLong": "响应较慢，可能正在切换备用模型...",
+    "scrollToLatest": "滚动到最新消息",
+    "translateReply": "翻译回复",
+    "translateTo": "翻译成{language}",
+    "moreMessageActions": "更多消息操作",
+    "translating": "翻译中",
+    "translateFailedLabel": "翻译失败",
+    "translationCard": "译文",
+    "translationCopied": "译文已复制"
   },
   "markdown": {
     "runConfirm": {
@@ -377,7 +411,22 @@
     "modeSend": "发送",
     "modeSteer": "插话",
     "contextGit": "Git 上下文",
-    "attachmentUploadFailed": "附件上传失败，请重新添加。"
+    "attachmentUploadFailed": "附件上传失败，请重新添加。",
+    "currentFile": "当前文件",
+    "recentFolders": "最近文件夹",
+    "composerAria": "输入消息",
+    "longTextLoaded": "已载入长文本",
+    "longTextKeptHint": "已保留完整输入内容，发送时会完整提交",
+    "attachFileTitle": "添加附件",
+    "voiceChatTitle": "实时语音对话 · 嘈杂环境说完点完成本轮",
+    "voiceChatAria": "打开 Lynn 实时语音对话",
+    "moreInputOptions": "更多输入选项",
+    "deepResearch": "深度调研",
+    "deepResearchDesc": "适合长调研、竞品梳理和报告初稿。结果会生成聊天内可点击预览的 HTML 报告。",
+    "deepResearchFillTemplate": "填入模板",
+    "deepResearchBusy": "深研中…",
+    "deepResearchStart": "开始深研",
+    "deepResearchCloseHint": "关闭深度调研引导"
   },
   "slash": {
     "diary": "写今日日记",
@@ -497,7 +546,8 @@
   "drop": {
     "hint": "松手发送文件路径给 {name}",
     "mainHint": "放开即可分析",
-    "subHint": "{name} 支持 Excel、PDF、CSV、图片等文件"
+    "subHint": "{name} 支持 Excel、PDF、CSV、图片等文件",
+    "attachLimit": "已附加文件，请先发送或移除部分附件"
   },
   "attach": {
     "folder": "文件夹",
@@ -516,7 +566,8 @@
       "approve": "确认创建",
       "reject": "取消",
       "created": "✓ 已创建",
-      "rejected": "已取消"
+      "rejected": "已取消",
+      "title": "确认定时任务"
     },
     "everyHours": "每 {n} 小时",
     "everyMinutes": "每 {n} 分钟",
@@ -1083,7 +1134,8 @@
       "addedModels": "已添加的模型",
       "displayName": "显示名称",
       "vision": "视觉",
-      "reasoning": "推理"
+      "reasoning": "推理",
+      "searchBaseUrlHint": "搜索服务的 Base URL"
     },
     "memory": {
       "sectionTitle": "记忆",
@@ -1135,7 +1187,33 @@
         "hint": "有多少记忆能被记住由你决定。有一些杂音是可以的，大语言模型可以很好的识别",
         "stats": "记住 {remembered} 条 / 共 {total} 条记忆"
       },
-      "activeOnly": "请先将此助手设为主助手"
+      "activeOnly": "请先将此助手设为主助手",
+      "categories": {
+        "person": "人物",
+        "project": "项目",
+        "preference": "偏好",
+        "tech": "技术",
+        "event": "事件",
+        "other": "其他"
+      },
+      "sources": {
+        "conversation": "对话",
+        "file": "文件",
+        "imported": "导入",
+        "inferred": "推断"
+      },
+      "timelineSubtitle": "客观事实与推断画像分开展示，可直接纠错整理。",
+      "refresh": "刷新",
+      "inferredTitle": "推断画像",
+      "traits": "特征",
+      "goals": "目标",
+      "exclusionsTitle": "忽略规则",
+      "remove": "移除",
+      "evidence": "依据：",
+      "dontRememberThis": "不再记这个",
+      "delete": "删除",
+      "savedExclusion": "已加入忽略列表",
+      "removedExclusion": "已移除忽略规则"
     },
     "pins": {
       "title": "置顶记忆",
@@ -1159,7 +1237,8 @@
       "noProvider": "请先选择搜索引擎",
       "noKey": "请先输入 API Key",
       "placeholder": "搜索设置…",
-      "empty": "没有匹配的标签"
+      "empty": "没有匹配的标签",
+      "noBaseUrl": "请先填写 Base URL"
     },
     "work": {
       "title": "巡检",
@@ -1262,7 +1341,9 @@
         "risk3": "社会工程和权限提升尝试",
         "body2": "关闭后，所有技能将不经审查直接安装。",
         "confirm": "我了解风险，关闭审查"
-      }
+      },
+      "fetchGithub": "从 GitHub 获取",
+      "fetchGithubDesc": "直接从 GitHub 仓库安装 skill"
     },
     "plugins": {
       "title": "附加功能",
@@ -1349,7 +1430,8 @@
     "connectionFailed": "设置服务连接失败。",
     "connectionPending": "正在连接设置服务…",
     "connectionRetry": "重试连接",
-    "connectionRetrying": "正在重连…"
+    "connectionRetrying": "正在重连…",
+    "deleted": "已删除"
   },
   "onboarding": {
     "welcome": {
@@ -1529,7 +1611,19 @@
       "finish": "开始使用",
       "quickFinish": "直接进入 Lynn"
     },
-    "skipSetup": "跳过引导"
+    "skipSetup": "跳过引导",
+    "error": "出错了，请再试一次。",
+    "compatSkills": {
+      "title": "发现可复用的 skill",
+      "subtitle": "Lynn 在你的电脑上发现了 {count} 个来自其他 AI 工具的 skill，勾选后即可直接使用。",
+      "scanning": "正在扫描已装的 AI 工具…",
+      "selectAll": "全部选择",
+      "deselectAll": "全部取消",
+      "skip": "暂不启用",
+      "continue": "继续",
+      "enabling": "启用中…",
+      "enableCount": "启用 {count} 个 skill 并继续"
+    }
   },
   "activity": {
     "title": "助手活动",
@@ -1547,7 +1641,9 @@
     "cronDone": "定时任务执行完毕",
     "error": "执行异常",
     "viewSession": "查看对话 →",
-    "duration": "耗时 {text}"
+    "duration": "耗时 {text}",
+    "auditLog": "审计日志",
+    "auditLogEmpty": "暂无记录"
   },
   "automation": {
     "title": "自动任务",
@@ -1661,7 +1757,9 @@
       "delete": "删除",
       "deleteN": "删除 {n} 项",
       "newMdFile": "新建 Markdown 文档",
-      "newFolder": "新建文件夹"
+      "newFolder": "新建文件夹",
+      "confirmDelete": "确定要删除 \"{name}\" 吗？此操作不可恢复。",
+      "confirmDeleteN": "确定要删除这 {n} 个文件吗？此操作不可恢复。"
     },
     "sort": {
       "label": "排序",
@@ -1675,7 +1773,8 @@
       "nameDescShort": "名称↓",
       "sizeShort": "大小",
       "typeShort": "类型"
-    }
+    },
+    "workspace": "工作区"
   },
   "window": {
     "minimize": "最小化",
@@ -1957,7 +2056,27 @@
     "memorySearchError": "记忆搜索出错: {msg}",
     "fallbackUserName": "用户",
     "installSkillApprovalRequired": "安装技能需要用户批准；本次未获批准，未写入技能文件。",
-    "bridgeRequestFailed": "本次请求未完成，请稍后重试或查看 Lynn 客户端诊断。"
+    "bridgeRequestFailed": "本次请求未完成，请稍后重试或查看 Lynn 客户端诊断。",
+    "brainUnreachable": "默认模型服务暂时不可达",
+    "llmTimeout": "模型请求超时",
+    "llmRateLimited": "模型限流，请稍候",
+    "llmAuthFailed": "模型认证失败，请重新开始对话；若仍失败，请检查模型/供应商设置或系统时间",
+    "llmSlowResponse": "模型响应较慢，请耐心等待",
+    "fsPermission": "文件权限不足",
+    "fsNotFound": "文件未找到",
+    "fsCopyFailed": "文件复制失败",
+    "wsDisconnected": "连接已断开",
+    "fetchServerError": "服务器错误",
+    "ipcFailed": "内部通信错误",
+    "renderCrash": "显示异常",
+    "configParse": "配置文件损坏",
+    "bridgeSendFailed": "消息发送失败",
+    "skillSyncFailed": "技能同步失败",
+    "memoryCompileFailed": "记忆编译失败",
+    "dbError": "数据库错误",
+    "serverAuthFailed": "认证失败",
+    "unknown": "发生了未知错误",
+    "regionUnavailable": "此区域暂时无法显示"
   },
   "main": {
     "tray": {
@@ -2333,36 +2452,14 @@
       "currentProject": "当前项目",
       "allowOnceHint": "只放行当前这一步，后面类似操作还会再问你。",
       "allowSessionHint": "本次任务剩下的类似操作都直接放行，任务结束后恢复确认。",
-      "allowAlwaysHereHint": "以后在 {project} 里的类似操作都直接放行。"
+      "allowAlwaysHereHint": "以后在 {project} 里的类似操作都直接放行。",
+      "installCommandLabel": "将要安装的命令",
+      "installScript": "远程安装脚本",
+      "installScriptLabel": "将要执行的远程安装脚本",
+      "moreOptions": "更多选项",
+      "softwareInstall": "软件安装"
     }
   },
-  "error.llmTimeout": "模型请求超时",
-  "error.llmRateLimited": "模型限流，请稍候",
-  "error.llmEmptyResponse": "模型返回了空响应",
-  "error.llmAuthFailed": "模型认证失败，请重新开始对话；若仍失败，请检查模型/供应商设置或系统时间",
-  "error.llmSlowResponse": "模型响应较慢，请耐心等待",
-  "error.fsPermission": "文件权限不足",
-  "error.fsNotFound": "文件未找到",
-  "error.fsCopyFailed": "文件复制失败",
-  "error.wsDisconnected": "连接已断开",
-  "error.fetchTimeout": "请求超时",
-  "error.fetchServerError": "服务器错误",
-  "error.ipcFailed": "内部通信错误",
-  "error.renderCrash": "显示异常",
-  "error.configParse": "配置文件损坏",
-  "error.bridgeSendFailed": "消息发送失败",
-  "error.skillSyncFailed": "技能同步失败",
-  "error.memoryCompileFailed": "记忆编译失败",
-  "error.dbError": "数据库错误",
-  "error.serverAuthFailed": "认证失败",
-  "error.unknown": "发生了未知错误",
-  "error.regionUnavailable": "此区域暂时无法显示",
-  "action.retry": "重试",
-  "agentDiscovery.title": "发现已安装的 AI 工具",
-  "agentDiscovery.body": "检测到你电脑上已安装以下 AI 工具：",
-  "agentDiscovery.benefit": "启用后，Lynn 可以直接复用这些工具的技能库，无需额外配置即可提升能力。",
-  "agentDiscovery.enable": "一键启用",
-  "agentDiscovery.later": "以后再说",
   "fleet": {
     "empty": {
       "title": "还没有并行 worker",
@@ -2461,5 +2558,15 @@
       "upload": "上行",
       "download": "下行"
     }
+  },
+  "action": {
+    "retry": "重试"
+  },
+  "agentDiscovery": {
+    "title": "发现已安装的 AI 工具",
+    "body": "检测到你电脑上已安装以下 AI 工具：",
+    "benefit": "启用后，Lynn 可以直接复用这些工具的技能库，无需额外配置即可提升能力。",
+    "enable": "一键启用",
+    "later": "以后再说"
   }
 }

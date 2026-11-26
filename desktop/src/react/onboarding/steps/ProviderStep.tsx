@@ -12,7 +12,7 @@ import {
 } from '../onboarding-actions';
 import type { OnboardingFetch } from '../onboarding-actions';
 import { StepContainer, Multiline } from '../onboarding-ui';
-import { getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
+import { brainComplianceNote as getBrainComplianceNote, brainUserNotice as getBrainUserNotice } from '../../utils/brain-models';
 import { useOnboardingI18n } from '../use-onboarding-i18n';
 
 // ── SVG Icons (local to this step) ──

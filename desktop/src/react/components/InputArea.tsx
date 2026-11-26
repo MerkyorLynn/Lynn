@@ -19,6 +19,14 @@ import { InputDiscoveryHints } from './input/InputDiscoveryHints';
 import { InputContextOverlays } from './input/InputContextOverlays';
 import { JARVIS_RUNTIME_START_EVENT } from '../services/jarvis-runtime-events';
 import { loadModels } from '../utils/ui-helpers';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships next to this component. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
+/** Notice shown while a reply is being stopped; compared by value above. */
+const STOPPING_NOTICE = () => D('正在停止当前回答…', 'Stopping the current reply…');
+
 import {
   XING_PROMPT, executeDiary, executeCompact, executeClear, executePlan, executeSave, buildSlashCommands,
   buildPromptTemplateSlashCommands,
@@ -60,7 +68,7 @@ export function InputArea() {
 }
 
 function InputAreaInner() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const isStreaming = useStore(s => s.isStreaming);
   const connected = useStore(s => s.connected);
@@ -95,7 +103,7 @@ function InputAreaInner() {
   const setLastSubmittedDraft = useStore(s => s.setLastSubmittedDraft);
   const setInlineNotice = useStore(s => s.setInlineNotice);
   useEffect(() => {
-    if (!isStreaming && inlineNotice === '正在停止当前回答…') setInlineNotice(null);
+    if (!isStreaming && inlineNotice === STOPPING_NOTICE()) setInlineNotice(null);
   }, [isStreaming, inlineNotice, setInlineNotice]);
   const setInlineError = useStore(s => s.setInlineError);
   const workingSetRecentFiles = useStore(s => s.workingSetRecentFiles);
@@ -119,7 +127,7 @@ function InputAreaInner() {
       {
         id: currentModelRef.id,
         provider: currentModelRef.provider,
-        name: isDefaultBrain ? '默认模型' : currentModelRef.id,
+        name: isDefaultBrain ? D('默认模型', 'Default model') : currentModelRef.id,
         isCurrent: true,
         reasoning: true,
         contextWindow: isDefaultBrain ? 128000 : undefined,
@@ -169,9 +177,17 @@ function InputAreaInner() {
       const next = current ? `${current}\n\n${result.prompt}` : result.prompt;
       setComposerText(next);
       setInputValue(next);
-      setInlineNotice('部署诊断已填入输入框，尚未发送。请检查内容；本地模型未就绪时可选云端模型求助。');
+      setInlineNotice(D(
+        '部署诊断已填入输入框，尚未发送。请检查内容；本地模型未就绪时可选云端模型求助。',
+        'Deployment diagnostics were inserted into the composer but not sent. Review them; if the local model is not ready you can ask a cloud model instead.',
+      ));
     };
-    const consume = () => { void receive().catch(() => setInlineNotice('部署助手暂时未连接，可返回模型页重试。')); };
+    const consume = () => {
+      void receive().catch(() => setInlineNotice(D(
+        '部署助手暂时未连接，可返回模型页重试。',
+        'The setup assistant is not connected right now. Go back to the model page and try again.',
+      )));
+    };
     const unsubscribe = helpPlatform?.onLocalModelHelp?.(consume);
     consume();
     return unsubscribe;
@@ -199,8 +215,10 @@ function InputAreaInner() {
   const inputLargeSummary = useMemo(() => {
     const charCount = inputValue.trim().length;
     if (charCount < 1200 && inputLineCount < 9) return null;
-    const displayChars = charCount >= 10000 ? `${(charCount / 10000).toFixed(1)} 万字` : `${charCount} 字`;
-    return `${inputLineCount} 行 · ${displayChars}`;
+    const displayChars = charCount >= 10000
+      ? D(`${(charCount / 10000).toFixed(1)} 万字`, `${(charCount / 10000).toFixed(1)}0k chars`)
+      : D(`${charCount} 字`, `${charCount} chars`);
+    return D(`${inputLineCount} 行 · ${displayChars}`, `${inputLineCount} lines · ${displayChars}`);
   }, [inputLineCount, inputValue]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -282,6 +300,7 @@ function InputAreaInner() {
     inputValue,
     isStreaming,
     localQwenEndpoint,
+    locale,
     pendingNewSession,
     requestInputFocus,
     serverReady,
@@ -334,7 +353,10 @@ function InputAreaInner() {
     () => async () => {
       fillSlashInput('/goal ');
       setSlashMenuOpen(false);
-      showSlashResult('Goal 模式：写下目标和验收标准，Lynn 会持续推进直到完成或遇到真实阻塞。', 'success');
+      showSlashResult(D(
+        'Goal 模式：写下目标和验收标准，Lynn 会持续推进直到完成或遇到真实阻塞。',
+        'Goal mode: write down the objective and acceptance criteria. Lynn keeps pushing until it is met or hits a real blocker.',
+      ), 'success');
       requestInputFocus();
     },
     [fillSlashInput, requestInputFocus, showSlashResult],
@@ -452,13 +474,13 @@ function InputAreaInner() {
 
   const recoveryMessage = useMemo(() => {
     if (wsState === 'reconnecting') {
-      return `${t('status.reconnecting')} (${wsReconnectAttempt}) · 你可以继续编辑，连接恢复后再发送`;
+      return `${t('status.reconnecting')} (${wsReconnectAttempt}) · ${D('你可以继续编辑，连接恢复后再发送', 'you can keep editing and send once the connection returns')}`;
     }
     if (wsState === 'disconnected') {
-      return `${t('status.disconnected')} · 草稿和上下文会保留，恢复连接后可继续发送`;
+      return `${t('status.disconnected')} · ${D('草稿和上下文会保留，恢复连接后可继续发送', 'your draft and context are kept; send once the connection is back')}`;
     }
     if (inlineError && recoverableDraft) {
-      return `${inlineError} · 可恢复到输入框继续修改`;
+      return `${inlineError} · ${D('可恢复到输入框继续修改', 'restore it to the composer to keep editing')}`;
     }
     return null;
   }, [inlineError, recoverableDraft, t, wsReconnectAttempt, wsState]);
@@ -737,7 +759,7 @@ function InputAreaInner() {
   const handleStop = useCallback(() => {
     const ws = getWebSocket();
     if (!isStreaming || !ws) return;
-    setInlineNotice('正在停止当前回答…');
+    setInlineNotice(STOPPING_NOTICE());
     ws.send(JSON.stringify({ type: 'abort', sessionPath: useStore.getState().currentSessionPath }));
   }, [isStreaming, setInlineNotice]);
 

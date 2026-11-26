@@ -1,3 +1,8 @@
+import { isChineseLocale } from './locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import type { ChatMessage, UserAttachment } from '../stores/chat-types';
 import type { AttachedFile, DocContextFile, QuotedSelection, WorkingSetFile, ComposerDraft } from '../stores/input-slice';
 
@@ -39,10 +44,12 @@ export function buildQuotedSelectionSummary(selection: QuotedSelection): string 
 export function formatQuotedSelectionPrompt(selection: QuotedSelection): string {
   const path = selection.sourceFilePath || selection.sourceTitle;
   const range = selection.lineStart != null && selection.lineEnd != null
-    ? `行 ${selection.lineStart}-${selection.lineEnd}`
+    ? D(`行 ${selection.lineStart}-${selection.lineEnd}`, `lines ${selection.lineStart}-${selection.lineEnd}`)
     : null;
-  const meta = [path, range, `${selection.charCount} 字符`].filter(Boolean).join(' · ');
-  return `[引用片段] ${meta}\n${selection.text}`;
+  const meta = [path, range, D(`${selection.charCount} 字符`, `${selection.charCount} chars`)]
+    .filter(Boolean)
+    .join(' · ');
+  return D(`[引用片段] ${meta}\n${selection.text}`, `[Quoted excerpt] ${meta}\n${selection.text}`);
 }
 
 export function cloneQuotedSelection(selection: QuotedSelection | null | undefined): QuotedSelection | null {

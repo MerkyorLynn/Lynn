@@ -1,5 +1,10 @@
 import { useEffect, type RefObject } from 'react';
 import { useStore } from '../../stores';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import { submitPromptTask } from '../../stores/prompt-actions';
 import type { ComposerInsertMode } from './composer-text';
 import {
@@ -57,16 +62,24 @@ export function useInputEventBridge({
       const editResend = !!detail.editResend;
       setEditResendTarget(editResend && detail.messageId ? String(detail.messageId) : null);
       if (editResend && current.trim() && current.trim() !== String(detail.text || '').trim()) {
-        useStore.getState().addToast?.('已用上一条消息替换当前输入。', 'info', 3600, {
-          dedupeKey: 'edit-resend-replaced-draft',
-        });
+        useStore.getState().addToast?.(
+          D('已用上一条消息替换当前输入。', 'The current draft was replaced with the previous message.'),
+          'info',
+          3600,
+          {
+            dedupeKey: 'edit-resend-replaced-draft',
+          },
+        );
       }
       setComposerTextFromEvent(detail.text || '', {
         mode: editResend ? 'replace' : 'insert',
         appendSpacer: !editResend,
       });
       if (editResend) {
-        setInlineNotice('已载入上一条消息。修改后按 Enter 重新发送。');
+        setInlineNotice(D(
+          '已载入上一条消息。修改后按 Enter 重新发送。',
+          'The previous message was loaded. Edit it and press Enter to send again.',
+        ));
       }
     };
     window.addEventListener('hana-paste-to-input', handlePasteToInput);
@@ -85,21 +98,22 @@ export function useInputEventBridge({
       const risk = deriveRunRisk(command);
       const riskText = runRiskLabel(risk, t);
       const modeText = securityMode === 'safe'
-        ? (t('security.mode.safe') || '只读')
+        ? (t('security.mode.safe') || D('只读', 'Read-only'))
         : securityMode === 'plan'
-          ? (t('security.mode.plan') || '规划')
-          : (t('security.mode.authorized') || '执行');
+          ? (t('security.mode.plan') || D('规划', 'Plan'))
+          : (t('security.mode.authorized') || D('执行', 'Execute'));
 
       setPendingConfirm({
-        title: t('markdown.runConfirm.title') || '执行代码块命令',
-        message: (t('markdown.runConfirm.message') || '将把这段命令发给 Lynn 执行。').replace('{mode}', modeText),
+        title: t('markdown.runConfirm.title') || D('执行代码块命令', 'Run the code-block command'),
+        message: (t('markdown.runConfirm.message') || D('将把这段命令发给 Lynn 执行。', 'This command will be sent to Lynn to run.'))
+          .replace('{mode}', modeText),
         detail: [
-          `${t('markdown.runConfirm.cwd') || '工作目录'}: ${cwd || (t('markdown.runConfirm.cwdUnknown') || '未指定')}`,
-          `${t('markdown.runConfirm.risk') || '风险级别'}: ${riskText}`,
+          `${t('markdown.runConfirm.cwd') || D('工作目录', 'Working directory')}: ${cwd || (t('markdown.runConfirm.cwdUnknown') || D('未指定', 'not set'))}`,
+          `${t('markdown.runConfirm.risk') || D('风险级别', 'Risk level')}: ${riskText}`,
           command,
         ].join('\n'),
-        confirmLabel: t('markdown.runConfirm.confirm') || '继续执行',
-        cancelLabel: t('common.cancel') || '取消',
+        confirmLabel: t('markdown.runConfirm.confirm') || D('继续执行', 'Continue'),
+        cancelLabel: t('common.cancel') || D('取消', 'Cancel'),
         tone: risk === 'high' ? 'danger' : 'default',
         onConfirm: async () => {
           const ok = await submitPromptTask({

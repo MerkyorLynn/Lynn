@@ -109,7 +109,14 @@
       "resumeTask": "繼續目前任務",
       "resumePrompt": "繼續剛才的任務，先告訴我目前進度和下一步。",
       "workspacePrompt": "先快速讀一下目前工作區，告訴我你會從哪裡開始。",
-      "fleetTip": "CLI 並行協作:在終端用 worker 協議處理長任務"
+      "fleetTip": "CLI 並行協作:在終端用 worker 協議處理長任務",
+      "patrol": "巡檢",
+      "modelTag": {
+        "reasoning": "推理",
+        "vision": "視覺",
+        "longCtx": "長上下文",
+        "fast": "通用"
+      }
     },
     "searchingBody": "Searching conversation text…",
     "bodySearchFailed": "Body search failed. Title matches are still shown.",
@@ -152,7 +159,9 @@
     "archiveLoading": "正在讀取歸檔…",
     "archiveEmpty": "尚無歸檔對話",
     "archiveConfirm": "歸檔「{name}」？歸檔後將不在列表中顯示，歷史記錄會保留。",
-    "menuTrigger": "更多操作"
+    "menuTrigger": "更多操作",
+    "emptyGroup": "空會話",
+    "emptyGroupHint": "從未使用過的空會話"
   },
   "common": {
     "on": "開",
@@ -178,7 +187,10 @@
     "edit": "編輯",
     "delete": "刪除",
     "editResend": "編輯重發",
-    "editResendTitle": "編輯後重發(把這條訊息複製到輸入框,改完按 Enter 重新發送)"
+    "editResendTitle": "編輯後重發(把這條訊息複製到輸入框,改完按 Enter 重新發送)",
+    "pasteToInput": "貼上",
+    "pasteToInputTitle": "貼上到輸入框",
+    "pastedToInput": "已貼上"
   },
   "chat": {
     "send": "傳送",
@@ -192,7 +204,15 @@
     "waitingTooLong": "這條回覆仍在處理中。Lynn 會持續接力預設模型的備援鏈路，盡量把這一輪任務完成。",
     "emptyAnswerHint": "模型只想了想，沒說出話來。可以點重試再試一次。",
     "emptyAnswerRetry": "重試",
-    "speak": "朗讀 · Shift+點擊使用瀏覽器朗讀"
+    "speak": "朗讀 · Shift+點擊使用瀏覽器朗讀",
+    "scrollToLatest": "捲動到最新訊息",
+    "translateReply": "翻譯回覆",
+    "translateTo": "翻譯成{language}",
+    "moreMessageActions": "更多訊息操作",
+    "translating": "翻譯中",
+    "translateFailedLabel": "翻譯失敗",
+    "translationCard": "譯文",
+    "translationCopied": "譯文已複製"
   },
   "markdown": {
     "runConfirm": {
@@ -231,7 +251,27 @@
     "usage": {
       "cache": "快取",
       "tip": "本會話累計雲端 token 消耗(含前綴快取命中與費用估算)"
-    }
+    },
+    "llmSlowResponse": "模型仍在處理中，請稍候片刻",
+    "llmStillWorking": "模型仍在處理中，已等待約 {minutes} 分鐘",
+    "recoveringToolExecution": "模型剛才在正文裡模擬了工具呼叫，Lynn 正在把它拉回真正的執行鏈路。",
+    "routeReasoningPlanned": "偵測到分析型任務，Lynn 會優先按預設推理鏈路處理。",
+    "routeExecutionPlanned": "偵測到執行型任務，Lynn 會優先按預設執行鏈路處理。",
+    "routeCodingPlanned": "偵測到編碼型任務，Lynn 會優先按預設編碼鏈路處理。",
+    "routeVisionPlanned": "偵測到圖像或附件分析任務，Lynn 會優先按預設推理鏈路處理。",
+    "defaultModelSlowResponse": "預設工作模型主鏈路稍慢，Lynn 正在背景接力備援鏈路。",
+    "defaultModelRecoveringToolExecution": "預設工作模型剛才沒有真正完成工具執行，Lynn 正在切到備援執行鏈路繼續處理。",
+    "defaultModelStillWorking": "預設工作模型仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援鏈路。",
+    "defaultReasoningSlowResponse": "預設推理鏈路稍慢，Lynn 正在背景接力備援推理鏈路。",
+    "defaultReasoningStillWorking": "預設推理鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援推理鏈路。",
+    "defaultExecutionSlowResponse": "預設執行鏈路稍慢，Lynn 正在背景接力備援執行鏈路。",
+    "defaultExecutionStillWorking": "預設執行鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援執行鏈路。",
+    "defaultCodingSlowResponse": "預設編碼鏈路稍慢，Lynn 正在背景接力備援編碼鏈路。",
+    "defaultCodingStillWorking": "預設編碼鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援編碼鏈路。",
+    "defaultCodingRecoveringToolExecution": "預設編碼鏈路剛才沒有真正完成工具執行，Lynn 正在切到備援編碼鏈路繼續處理。",
+    "tasksRecovered": "已恢復 {count} 個背景任務",
+    "tasksRecoveredRunning": "背景還有 {count} 個任務正在繼續",
+    "tasksRecoveredWaiting": "背景還有 {count} 個任務正在繼續，其中 {waiting} 個在等你確認"
   },
   "input": {
     "placeholder": "說點什麼...",
@@ -286,7 +326,20 @@
     "modeSend": "傳送",
     "modeSteer": "插話",
     "contextGit": "Git 上下文",
-    "attachmentUploadFailed": "附件上傳失敗，請重新加入。"
+    "attachmentUploadFailed": "附件上傳失敗，請重新加入。",
+    "composerAria": "輸入訊息",
+    "longTextLoaded": "已載入長文字",
+    "longTextKeptHint": "已保留完整輸入內容，傳送時會完整提交",
+    "attachFileTitle": "新增附件",
+    "voiceChatTitle": "即時語音對話 · 吵雜環境說完點完成本輪",
+    "voiceChatAria": "開啟 Lynn 即時語音對話",
+    "moreInputOptions": "更多輸入選項",
+    "deepResearch": "深度調研",
+    "deepResearchDesc": "適合長調研、競品梳理和報告初稿。結果會生成聊天內可點擊預覽的 HTML 報告。",
+    "deepResearchFillTemplate": "填入模板",
+    "deepResearchBusy": "深研中…",
+    "deepResearchStart": "開始深研",
+    "deepResearchCloseHint": "關閉深度調研引導"
   },
   "slash": {
     "diary": "寫今日日記",
@@ -967,7 +1020,33 @@
         "hint": "有多少記憶能被記住由你決定。有一些雜音是可以的，大語言模型可以很好的識別",
         "stats": "記住 {remembered} 條 / 共 {total} 條記憶"
       },
-      "activeOnly": "請先將此助手設為主助手"
+      "activeOnly": "請先將此助手設為主助手",
+      "categories": {
+        "person": "人物",
+        "project": "專案",
+        "preference": "偏好",
+        "tech": "技術",
+        "event": "事件",
+        "other": "其他"
+      },
+      "sources": {
+        "conversation": "對話",
+        "file": "檔案",
+        "imported": "匯入",
+        "inferred": "推斷"
+      },
+      "timelineSubtitle": "客觀事實與推斷畫像分開展示，可直接糾錯整理。",
+      "refresh": "重新整理",
+      "inferredTitle": "推斷畫像",
+      "traits": "特徵",
+      "goals": "目標",
+      "exclusionsTitle": "忽略規則",
+      "remove": "移除",
+      "evidence": "依據：",
+      "dontRememberThis": "不再記這個",
+      "delete": "刪除",
+      "savedExclusion": "已加入忽略清單",
+      "removedExclusion": "已移除忽略規則"
     },
     "pins": {
       "title": "置頂記憶",
@@ -1730,7 +1809,27 @@
     "memorySearchError": "記憶搜尋出錯: {msg}",
     "fallbackUserName": "使用者",
     "installSkillApprovalRequired": "安裝技能需要使用者核准；本次未獲核准，未寫入技能檔案。",
-    "bridgeRequestFailed": "本次請求未完成，請稍後重試或查看 Lynn 客戶端診斷。"
+    "bridgeRequestFailed": "本次請求未完成，請稍後重試或查看 Lynn 客戶端診斷。",
+    "llmTimeout": "模型请求超时",
+    "llmRateLimited": "模型限流，请稍候",
+    "llmAuthFailed": "模型认证失败",
+    "llmSlowResponse": "模型响应较慢，请耐心等待",
+    "brainUnreachable": "預設模型服務暫時無法連線，請檢查網路連線或在設定中切換至自己的 API Key",
+    "fsPermission": "文件权限不足",
+    "fsNotFound": "文件未找到",
+    "fsCopyFailed": "文件复制失败",
+    "wsDisconnected": "连接已断开",
+    "fetchServerError": "服务器错误",
+    "ipcFailed": "内部通信错误",
+    "renderCrash": "显示异常",
+    "configParse": "配置文件损坏",
+    "bridgeSendFailed": "消息发送失败",
+    "skillSyncFailed": "技能同步失败",
+    "memoryCompileFailed": "记忆编译失败",
+    "dbError": "数据库错误",
+    "serverAuthFailed": "认证失败",
+    "unknown": "发生了未知错误",
+    "regionUnavailable": "此區域暫時無法顯示"
   },
   "main": {
     "tray": {
@@ -2123,56 +2222,6 @@
       "allowAlwaysHereHint": "以後在 {project} 裡的類似操作都直接放行。"
     }
   },
-  "error.llmTimeout": "模型请求超时",
-  "error.llmRateLimited": "模型限流，请稍候",
-  "error.llmEmptyResponse": "模型返回了空回應或不可顯示內容",
-  "error.llmAuthFailed": "模型认证失败",
-  "error.llmSlowResponse": "模型响应较慢，请耐心等待",
-  "error.brainUnreachable": "預設模型服務暫時無法連線，請檢查網路連線或在設定中切換至自己的 API Key",
-  "error.fsPermission": "文件权限不足",
-  "error.fsNotFound": "文件未找到",
-  "error.fsCopyFailed": "文件复制失败",
-  "error.wsDisconnected": "连接已断开",
-  "error.fetchTimeout": "请求超时",
-  "error.fetchServerError": "服务器错误",
-  "error.ipcFailed": "内部通信错误",
-  "error.renderCrash": "显示异常",
-  "error.configParse": "配置文件损坏",
-  "error.bridgeSendFailed": "消息发送失败",
-  "error.skillSyncFailed": "技能同步失败",
-  "error.memoryCompileFailed": "记忆编译失败",
-  "error.dbError": "数据库错误",
-  "error.serverAuthFailed": "认证失败",
-  "error.unknown": "发生了未知错误",
-  "error.regionUnavailable": "此區域暫時無法顯示",
-  "status.reconnecting": "正在重連...",
-  "status.disconnected": "連線已中斷",
-  "status.reconnect": "重新連線",
-  "status.llmSlowResponse": "模型仍在處理中，請稍候片刻",
-  "status.llmStillWorking": "模型仍在處理中，已等待約 {minutes} 分鐘",
-  "status.recoveringToolExecution": "模型剛才在正文裡模擬了工具呼叫，Lynn 正在把它拉回真正的執行鏈路。",
-  "status.routeReasoningPlanned": "偵測到分析型任務，Lynn 會優先按預設推理鏈路處理。",
-  "status.routeExecutionPlanned": "偵測到執行型任務，Lynn 會優先按預設執行鏈路處理。",
-  "status.routeCodingPlanned": "偵測到編碼型任務，Lynn 會優先按預設編碼鏈路處理。",
-  "status.routeVisionPlanned": "偵測到圖像或附件分析任務，Lynn 會優先按預設推理鏈路處理。",
-  "status.defaultModelSlowResponse": "預設工作模型主鏈路稍慢，Lynn 正在背景接力備援鏈路。",
-  "status.defaultModelRecoveringToolExecution": "預設工作模型剛才沒有真正完成工具執行，Lynn 正在切到備援執行鏈路繼續處理。",
-  "status.defaultModelStillWorking": "預設工作模型仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援鏈路。",
-  "status.defaultReasoningSlowResponse": "預設推理鏈路稍慢，Lynn 正在背景接力備援推理鏈路。",
-  "status.defaultReasoningStillWorking": "預設推理鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援推理鏈路。",
-  "status.defaultExecutionSlowResponse": "預設執行鏈路稍慢，Lynn 正在背景接力備援執行鏈路。",
-  "status.defaultExecutionStillWorking": "預設執行鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援執行鏈路。",
-  "status.defaultCodingSlowResponse": "預設編碼鏈路稍慢，Lynn 正在背景接力備援編碼鏈路。",
-  "status.defaultCodingStillWorking": "預設編碼鏈路仍在處理中，已等待約 {minutes} 分鐘。Lynn 會持續接力備援編碼鏈路。",
-  "status.defaultCodingRecoveringToolExecution": "預設編碼鏈路剛才沒有真正完成工具執行，Lynn 正在切到備援編碼鏈路繼續處理。",
-  "status.tasksRecovered": "已恢復 {count} 個背景任務",
-  "status.tasksRecoveredRunning": "背景還有 {count} 個任務正在繼續",
-  "status.tasksRecoveredWaiting": "背景還有 {count} 個任務正在繼續，其中 {waiting} 個在等你確認",
-  "action.retry": "重試",
-  "agentDiscovery.title": "發現已有技能",
-  "agentDiscovery.body": "偵測到以下工具的技能庫，啟用後可直接複用：",
-  "agentDiscovery.enable": "啟用",
-  "agentDiscovery.later": "跳過",
   "review": {
     "configure": "設定複查人",
     "loading": "載入中",
@@ -2249,5 +2298,14 @@
       "evidence": "客觀證據",
       "escalated": "已升級"
     }
+  },
+  "action": {
+    "retry": "重試"
+  },
+  "agentDiscovery": {
+    "title": "發現已有技能",
+    "body": "偵測到以下工具的技能庫，啟用後可直接複用：",
+    "enable": "啟用",
+    "later": "跳過"
   }
 }

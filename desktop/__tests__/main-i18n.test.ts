@@ -28,13 +28,18 @@ describe("interpolate", () => {
 });
 
 describe("createMainI18n (injected lynnHome + localesDir)", () => {
-  function setup(locale: string | null, pack: Record<string, unknown>): { lynnHome: string; localesDir: string } {
+  function setup(locale: string | null, pack: Record<string, unknown>, subdir = "user"): { lynnHome: string; localesDir: string } {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "lynn-i18n-"));
     const lynnHome = path.join(root, "home");
     const localesDir = path.join(root, "locales");
     fs.mkdirSync(lynnHome, { recursive: true });
     fs.mkdirSync(localesDir, { recursive: true });
-    if (locale !== null) fs.writeFileSync(path.join(lynnHome, "preferences.json"), JSON.stringify({ locale }));
+    if (locale !== null) {
+      // The renderer/server store global preferences under <lynnHome>/user/.
+      const prefsDir = subdir ? path.join(lynnHome, subdir) : lynnHome;
+      fs.mkdirSync(prefsDir, { recursive: true });
+      fs.writeFileSync(path.join(prefsDir, "preferences.json"), JSON.stringify({ locale }));
+    }
     const key = resolveLocaleKey(locale);
     fs.writeFileSync(path.join(localesDir, `${key}.json`), JSON.stringify({ main: pack }));
     return { lynnHome, localesDir };
@@ -44,6 +49,19 @@ describe("createMainI18n (injected lynnHome + localesDir)", () => {
     const { mt } = createMainI18n(setup("en-US", { tray: { show: "Show" } }));
     expect(mt("tray.show")).toBe("Show");
   });
+
+  it("reads the locale from <lynnHome>/user/preferences.json", () => {
+    // Regression: this path was missing the user/ segment, so every main-process
+    // dialog (including the launch-failure box) stayed in Chinese.
+    const { mt } = createMainI18n(setup("en", { dialog: { launchFailedTitle: "Lynn Launch Failed" } }));
+    expect(mt("dialog.launchFailedTitle", null, "Lynn 启动失败")).toBe("Lynn Launch Failed");
+  });
+
+  it("still honours a legacy preferences.json at the lynnHome root", () => {
+    const { mt } = createMainI18n(setup("en", { tray: { show: "Show" } }, ""));
+    expect(mt("tray.show")).toBe("Show");
+  });
+
   it("falls back to fallback or dotPath when missing", () => {
     const { mt } = createMainI18n(setup("en", { tray: {} }));
     expect(mt("tray.missing", undefined, "Fallback")).toBe("Fallback");

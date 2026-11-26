@@ -11,6 +11,10 @@ import {
   deskRemoveFile,
 } from '../../stores/desk-actions';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { toSlash } from '../../utils/format';
 import { openFilePreview } from '../../utils/file-preview';
 import type { DeskFile } from '../../types';
@@ -192,6 +196,10 @@ export function DeskFileItem({
     e.preventDefault();
     e.stopPropagation();
     const tFn = window.t ?? ((p: string) => p);
+    const labelOr = (key: string, vars: Record<string, string | number>, fallback: string) => {
+      const value = tFn(key, vars);
+      return value && value !== key ? value : fallback;
+    };
     const s = useStore.getState();
     const bulkNames = allSelectedFiles.length > 1 && allSelectedFiles.includes(file.name)
       ? allSelectedFiles : null;
@@ -219,8 +227,22 @@ export function DeskFileItem({
     items.push({ label: deleteLabel, danger: true, action: async () => {
       const names = bulkNames || [file.name];
       const confirmMsg = names.length > 1
-        ? (tFn('desk.ctx.confirmDeleteN', { n: names.length }) || `确定要删除这 ${names.length} 个文件吗？此操作不可恢复。`)
-        : (tFn('desk.ctx.confirmDelete', { name: names[0] }) || `确定要删除 "${names[0]}" 吗？此操作不可恢复。`);
+        ? labelOr(
+          'desk.ctx.confirmDeleteN',
+          { n: names.length },
+          D(
+            `确定要删除这 ${names.length} 个文件吗？此操作不可恢复。`,
+            `Delete these ${names.length} files? This cannot be undone.`,
+          ),
+        )
+        : labelOr(
+          'desk.ctx.confirmDelete',
+          { name: names[0] },
+          D(
+            `确定要删除 "${names[0]}" 吗？此操作不可恢复。`,
+            `Delete "${names[0]}"? This cannot be undone.`,
+          ),
+        );
 
       setPendingConfirm({
         title: tFn('common.delete') || 'Delete',

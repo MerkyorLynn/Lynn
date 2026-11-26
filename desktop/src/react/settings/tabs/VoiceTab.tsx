@@ -4,26 +4,38 @@ import { useStore } from '../../stores';
 import { autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
 import { KeyInput } from '../widgets/KeyInput';
+import { isChineseLocale } from '../../utils/locale';
 import styles from '../Settings.module.css';
 
-const ASR_PROVIDERS = [
-  { value: 'stepfun-realtime', label: 'StepFun Realtime ASR (Lynn 云端 · 默认)' },
-  { value: 'openai', label: 'OpenAI Whisper API (BYOK)' },
-  { value: 'azure', label: 'Azure Speech-to-Text (BYOK)' },
-];
+function asrProviderOptions(zh: boolean) {
+  return [
+    { value: 'stepfun-realtime', label: zh ? 'StepFun Realtime ASR（Lynn 云端 · 默认）' : 'StepFun Realtime ASR (Lynn Cloud · default)' },
+    { value: 'openai', label: 'OpenAI Whisper API (BYOK)' },
+    { value: 'azure', label: 'Azure Speech-to-Text (BYOK)' },
+  ];
+}
 
-const TTS_PROVIDERS = [
-  { value: 'stepfun-realtime', label: 'StepFun Realtime TTS (Lynn 云端 · 无需 Key)' },
-  { value: 'openai', label: 'OpenAI TTS API (BYOK)' },
-];
+function ttsProviderOptions(zh: boolean) {
+  return [
+    { value: 'stepfun-realtime', label: zh ? 'StepFun Realtime TTS（Lynn 云端 · 无需 Key）' : 'StepFun Realtime TTS (Lynn Cloud · no key needed)' },
+    { value: 'openai', label: 'OpenAI TTS API (BYOK)' },
+  ];
+}
 
+// Language names are intentionally written in their own language.
 const LANGUAGES = [
-  { value: 'auto', label: '自动检测' },
+  { value: 'auto', label: '' },
   { value: 'zh', label: '中文' },
   { value: 'en', label: 'English' },
   { value: 'ja', label: '日本語' },
   { value: 'ko', label: '한국어' },
 ];
+
+function languageOptions(zh: boolean) {
+  return LANGUAGES.map((item) => (item.value === 'auto'
+    ? { ...item, label: zh ? '自动检测' : 'Auto-detect' }
+    : item));
+}
 
 function defaultTtsVoice(provider: string): string {
   if (provider === 'stepfun-realtime') return 'jingdiannvsheng';
@@ -69,22 +81,37 @@ type ShortcutStatus = {
   errors?: Record<string, string>;
 };
 
-function formatShortcutStatus(status: ShortcutStatus | null): string {
-  if (!status) return '正在读取快捷键状态...';
+function formatShortcutStatus(status: ShortcutStatus | null, zh: boolean): string {
+  if (!status) return zh ? '正在读取快捷键状态...' : 'Reading shortcut status...';
   const attempted = status.attempted?.join(' / ') || 'Cmd+Shift+L / Ctrl+Shift+L';
-  if (!status.ok) return `快捷键被占用或不可用。已尝试: ${attempted}`;
+  if (!status.ok) {
+    return zh
+      ? `快捷键被占用或不可用。已尝试: ${attempted}`
+      : `The shortcut is taken or unavailable. Tried: ${attempted}`;
+  }
   if (status.configured && status.accelerator === status.configured) {
-    return `${status.accelerator} 已注册为自定义快捷键。`;
+    return zh
+      ? `${status.accelerator} 已注册为自定义快捷键。`
+      : `${status.accelerator} is registered as your custom shortcut.`;
   }
   if (status.configured && status.accelerator !== status.configured) {
-    return `自定义快捷键 ${status.configured} 不可用,已自动改用 ${status.accelerator}。`;
+    return zh
+      ? `自定义快捷键 ${status.configured} 不可用,已自动改用 ${status.accelerator}。`
+      : `Your custom shortcut ${status.configured} is unavailable, so ${status.accelerator} is used instead.`;
   }
-  if (status.fallbackUsed) return `默认快捷键被占用,已自动改用 ${status.accelerator}。`;
-  return `${status.accelerator} 已注册。`;
+  if (status.fallbackUsed) {
+    return zh
+      ? `默认快捷键被占用,已自动改用 ${status.accelerator}。`
+      : `The default shortcut is taken, so ${status.accelerator} is used instead.`;
+  }
+  return zh ? `${status.accelerator} 已注册。` : `${status.accelerator} is registered.`;
 }
 
 export function VoiceTab() {
   const { settingsConfig } = useSettingsStore();
+  // The settings window reads from the global window.i18n, which is reloaded on
+  // language change; isChineseLocale() keeps inline copy in sync with it.
+  const zh = isChineseLocale();
   const voice = settingsConfig?.voice || {};
 
   const [asrProvider, setAsrProvider] = useState(normalizeAsrProvider(voice.asr?.provider));
@@ -221,26 +248,32 @@ export function VoiceTab() {
   return (
     <div className={`${styles['settings-tab-content']} ${styles['active']}`} data-tab="voice">
       <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>语音输入 (ASR)</h2>
+        <h2 className={styles['settings-section-title']}>{zh ? '语音输入 (ASR)' : 'Voice input (ASR)'}</h2>
 
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>识别引擎</label>
+          <label className={styles['settings-field-label']}>{zh ? '识别引擎' : 'Recognition engine'}</label>
           <SelectWidget
-            options={ASR_PROVIDERS}
+            options={asrProviderOptions(zh)}
             value={asrProvider}
             onChange={(v) => setAsrProvider(v)}
           />
           <span className={styles['settings-field-hint']}>
             {asrProvider === 'stepfun-realtime'
-              ? 'GUI/CLI 语音输入通过 Lynn Brain 托管 StepFun Realtime 转写,无需本地 Spark/SenseVoice。'
-              : '使用第三方 API,需填写对应的密钥。'}
+              ? (zh
+                ? 'GUI/CLI 语音输入通过 Lynn Brain 托管 StepFun Realtime 转写,无需本地 Spark/SenseVoice。'
+                : 'GUI/CLI voice input is transcribed through Lynn Brain-hosted StepFun Realtime, so no local Spark/SenseVoice is needed.')
+              : (zh
+                ? '使用第三方 API,需填写对应的密钥。'
+                : 'Uses a third-party API and requires the matching key.')}
           </span>
         </div>
 
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>备用顺序</label>
+          <label className={styles['settings-field-label']}>{zh ? '备用顺序' : 'Fallback order'}</label>
           <span className={styles['settings-field-hint']}>
-            默认链路:Lynn Brain → StepFun Realtime。OpenAI/Azure 仅在显式选择时使用。
+            {zh
+              ? '默认链路:Lynn Brain → StepFun Realtime。OpenAI/Azure 仅在显式选择时使用。'
+              : 'Default route: Lynn Brain → StepFun Realtime. OpenAI/Azure are only used when selected explicitly.'}
           </span>
         </div>
 
@@ -255,7 +288,7 @@ export function VoiceTab() {
               />
             </div>
             <div className={styles['settings-field']}>
-              <label className={styles['settings-field-label']}>Base URL（可选）</label>
+              <label className={styles['settings-field-label']}>{zh ? 'Base URL（可选）' : 'Base URL (optional)'}</label>
               <input
                 className={styles['settings-input']}
                 type="text"
@@ -269,12 +302,12 @@ export function VoiceTab() {
       </section>
 
       <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>语音合成 (TTS)</h2>
+        <h2 className={styles['settings-section-title']}>{zh ? '语音合成 (TTS)' : 'Speech synthesis (TTS)'}</h2>
 
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>合成引擎</label>
+          <label className={styles['settings-field-label']}>{zh ? '合成引擎' : 'Synthesis engine'}</label>
           <SelectWidget
-            options={TTS_PROVIDERS}
+            options={ttsProviderOptions(zh)}
             value={ttsProvider}
             onChange={(v) => {
               setTtsProvider(v);
@@ -285,7 +318,7 @@ export function VoiceTab() {
         </div>
 
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>默认音色</label>
+          <label className={styles['settings-field-label']}>{zh ? '默认音色' : 'Default voice'}</label>
           <input
             className={styles['settings-input']}
             type="text"
@@ -295,17 +328,25 @@ export function VoiceTab() {
           />
           <span className={styles['settings-field-hint']}>
             {ttsProvider === 'stepfun-realtime'
-              ? '主链:GUI/CLI 语音输出经 Lynn Brain 托管 StepFun Realtime,无需填写 Key。'
+              ? (zh
+                ? '主链:GUI/CLI 语音输出经 Lynn Brain 托管 StepFun Realtime,无需填写 Key。'
+                : 'Primary route: GUI/CLI speech goes through Lynn Brain-hosted StepFun Realtime and needs no key.')
               : ttsProvider === 'openai'
-              ? 'OpenAI TTS 使用内置音色 alloy / echo / onyx / nova'
-              : '第三方 TTS 需要你自己的配置。'}
+              ? (zh
+                ? 'OpenAI TTS 使用内置音色 alloy / echo / onyx / nova'
+                : 'OpenAI TTS uses the built-in voices alloy / echo / onyx / nova')
+              : (zh
+                ? '第三方 TTS 需要你自己的配置。'
+                : 'Third-party TTS needs your own configuration.')}
           </span>
         </div>
 
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>备用顺序</label>
+          <label className={styles['settings-field-label']}>{zh ? '备用顺序' : 'Fallback order'}</label>
           <span className={styles['settings-field-hint']}>
-            不再自动调用 Spark/CosyVoice。服务端 TTS 不可用时,可由浏览器本地朗读 fallback 接管;OpenAI 仅在显式选择时使用。
+            {zh
+              ? '不再自动调用 Spark/CosyVoice。服务端 TTS 不可用时,可由浏览器本地朗读 fallback 接管;OpenAI 仅在显式选择时使用。'
+              : 'Spark/CosyVoice are no longer called automatically. When server TTS is unavailable the browser speech fallback takes over; OpenAI is only used when selected explicitly.'}
           </span>
         </div>
 
@@ -317,11 +358,12 @@ export function VoiceTab() {
               checked={ttsAutoPrefetch}
               onChange={(e) => setTtsAutoPrefetch(e.target.checked)}
             />
-            <span>消息流结束后自动预合成语音(点喇叭即时播放)</span>
+            <span>{zh ? '消息流结束后自动预合成语音(点喇叭即时播放)' : 'Pre-synthesise speech after each reply (instant playback on the speaker button)'}</span>
           </label>
           <span className={styles['settings-field-hint']}>
-            开启后:每条 ≥50 字回复在 streaming 结束时后台 TTS 一次,缓存到磁盘。点喇叭命中缓存 0 等待。
-            默认走 StepFun Realtime 主链;服务端 TTS 不可用时可退回浏览器朗读。Shift+点击仍可强制即时浏览器朗读。
+            {zh
+              ? '开启后:每条 ≥50 字回复在 streaming 结束时后台 TTS 一次,缓存到磁盘。点喇叭命中缓存 0 等待。默认走 StepFun Realtime 主链;服务端 TTS 不可用时可退回浏览器朗读。Shift+点击仍可强制即时浏览器朗读。'
+              : 'When on, every reply of 50+ characters is synthesised once in the background when streaming ends and cached to disk. Hitting the speaker button plays the cache with zero wait. StepFun Realtime is the primary route; if server TTS is unavailable it falls back to browser speech. Shift+click still forces instant browser speech.'}
           </span>
         </div>
 
@@ -332,10 +374,12 @@ export function VoiceTab() {
               checked={ttsStreamingEnabled}
               onChange={(e) => setTtsStreamingEnabled(e.target.checked)}
             />
-            <span>优先使用流式播放(可用时更快开声)</span>
+            <span>{zh ? '优先使用流式播放(可用时更快开声)' : 'Prefer streaming playback (starts speaking sooner when available)'}</span>
           </label>
           <span className={styles['settings-field-hint']}>
-            StepFun Realtime 可用时优先边合成边播放;失败会自动回退到普通文件合成或浏览器朗读。
+            {zh
+              ? 'StepFun Realtime 可用时优先边合成边播放;失败会自动回退到普通文件合成或浏览器朗读。'
+              : 'When StepFun Realtime is available it synthesises and plays at the same time; on failure it falls back to regular file synthesis or browser speech.'}
           </span>
         </div>
 
@@ -346,10 +390,12 @@ export function VoiceTab() {
               checked={ttsBrowserFallbackEnabled}
               onChange={(e) => setTtsBrowserFallbackEnabled(e.target.checked)}
             />
-            <span>允许浏览器即时朗读 fallback</span>
+            <span>{zh ? '允许浏览器即时朗读 fallback' : 'Allow the instant browser-speech fallback'}</span>
           </label>
           <span className={styles['settings-field-hint']}>
-            完全本地、无 quota。开启后服务端 TTS 不可用会自动接管;Shift+点击可强制使用浏览器朗读。
+            {zh
+              ? '完全本地、无 quota。开启后服务端 TTS 不可用会自动接管;Shift+点击可强制使用浏览器朗读。'
+              : 'Fully local with no quota. When on, it takes over automatically if server TTS is unavailable; Shift+click forces browser speech.'}
           </span>
         </div>
 
@@ -364,7 +410,7 @@ export function VoiceTab() {
               />
             </div>
             <div className={styles['settings-field']}>
-              <label className={styles['settings-field-label']}>Base URL（可选）</label>
+              <label className={styles['settings-field-label']}>{zh ? 'Base URL（可选）' : 'Base URL (optional)'}</label>
               <input
                 className={styles['settings-input']}
                 type="text"
@@ -378,17 +424,17 @@ export function VoiceTab() {
       </section>
 
       <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>通用</h2>
+        <h2 className={styles['settings-section-title']}>{zh ? '通用' : 'General'}</h2>
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>默认语言</label>
+          <label className={styles['settings-field-label']}>{zh ? '默认语言' : 'Default language'}</label>
           <SelectWidget
-            options={LANGUAGES}
+            options={languageOptions(zh)}
             value={language}
             onChange={(v) => setLanguage(v)}
           />
         </div>
         <div className={styles['settings-field']}>
-          <label className={styles['settings-field-label']}>Lynn 语音快捷键</label>
+          <label className={styles['settings-field-label']}>{zh ? 'Lynn 语音快捷键' : 'Lynn voice shortcut'}</label>
           <div className={styles['settings-input-group']}>
             <input
               className={styles['settings-input']}
@@ -406,7 +452,7 @@ export function VoiceTab() {
               onClick={applyShortcut}
               disabled={shortcutSaving}
             >
-              应用
+              {zh ? '应用' : 'Apply'}
             </button>
             <button
               type="button"
@@ -414,11 +460,11 @@ export function VoiceTab() {
               onClick={resetShortcut}
               disabled={shortcutSaving}
             >
-              默认
+              {zh ? '默认' : 'Default'}
             </button>
           </div>
           <span className={styles['settings-field-hint']}>
-            {formatShortcutStatus(shortcutStatus)}
+            {formatShortcutStatus(shortcutStatus, zh)}
           </span>
         </div>
       </section>
@@ -429,7 +475,7 @@ export function VoiceTab() {
           className={styles['settings-btn-primary']}
           onClick={handleSave}
         >
-          保存语音设置
+          {zh ? '保存语音设置' : 'Save voice settings'}
         </button>
       </div>
     </div>

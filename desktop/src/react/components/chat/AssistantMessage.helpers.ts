@@ -7,6 +7,7 @@
 
 import type { ChatMessage, ContentBlock } from '../../stores/chat-types';
 import { resolveUiI18nText } from '../../utils/ui-i18n';
+import { isChineseLocale } from '../../utils/locale';
 
 export interface ReviewConfigAgent {
   id: string;
@@ -23,6 +24,29 @@ export interface ReviewConfigResponse {
 }
 
 export const TOOL_LABELS: Record<string, string> = {
+  web_search: 'Searching the web',
+  web_fetch: 'Reading a page',
+  weather: 'Checking the weather',
+  stock_market: 'Checking markets',
+  stock_research: 'Researching stocks',
+  create_pptx: 'Building slides',
+  create_report: 'Writing a report',
+  create_artifact: 'Creating a preview',
+  browser: 'Driving the browser',
+  read: 'Reading a file',
+  write: 'Writing a file',
+  edit: 'Editing a file',
+  bash: 'Running a command',
+  grep: 'Searching contents',
+  find: 'Finding files',
+  ls: 'Listing a directory',
+  notify: 'Sending a notification',
+  cron: 'Scheduling a task',
+  todo: 'Managing todos',
+};
+
+/** Chinese labels for the same tools; used when the UI locale is Chinese. */
+export const TOOL_LABELS_ZH: Record<string, string> = {
   web_search: '搜索中',
   web_fetch: '读取网页',
   weather: '查询天气',
@@ -43,6 +67,12 @@ export const TOOL_LABELS: Record<string, string> = {
   cron: '定时任务',
   todo: '待办管理',
 };
+
+/** Resolve a tool's running label for the current UI locale. */
+export function toolLabel(name: string, locale?: string | null): string {
+  const table = isChineseLocale(locale) ? TOOL_LABELS_ZH : TOOL_LABELS;
+  return table[name] || name;
+}
 
 export function parseMessageModelRef(raw?: string | null): { id: string; provider?: string } | null {
   const value = String(raw || '').trim();
@@ -131,7 +161,7 @@ export function providerRouteTitle(route?: ChatMessage['providerRoute'] | null):
   });
 }
 
-export function summarizeToolState(blocks: ContentBlock[]): { running: number; total: number; activeLabel: string } {
+export function summarizeToolState(blocks: ContentBlock[], locale?: string | null): { running: number; total: number; activeLabel: string } {
   let running = 0;
   let total = 0;
   let activeLabel = '';
@@ -141,7 +171,7 @@ export function summarizeToolState(blocks: ContentBlock[]): { running: number; t
     for (const tool of block.tools) {
       if (!tool.done) {
         running++;
-        if (!activeLabel) activeLabel = TOOL_LABELS[tool.name] || tool.name;
+        if (!activeLabel) activeLabel = toolLabel(tool.name, locale);
       }
     }
   }
@@ -173,6 +203,27 @@ export function reviewerNameFromKind(kind: 'hanako' | 'butter'): string {
 
 export const TRANSLATION_TARGETS = ['英文', '中文', '日文', '韩文', '繁体中文'];
 export const MAX_TRANSLATE_CHARS = 3_000;
+
+/**
+ * Display label for a translation target.
+ *
+ * The server route keys translation targets off the Chinese label
+ * (server/chat/translation-intent.ts), so TRANSLATION_TARGETS must keep the
+ * Chinese values for the API call. Only the visible menu text is localized.
+ */
+const TRANSLATION_TARGET_DISPLAY: Record<string, { zh: string; en: string }> = {
+  英文: { zh: '英文', en: 'English' },
+  中文: { zh: '中文', en: 'Chinese' },
+  日文: { zh: '日文', en: 'Japanese' },
+  韩文: { zh: '韩文', en: 'Korean' },
+  繁体中文: { zh: '繁体中文', en: 'Traditional Chinese' },
+};
+
+export function translationTargetLabel(target: string, locale?: string | null): string {
+  const entry = TRANSLATION_TARGET_DISPLAY[target];
+  if (!entry) return target;
+  return isChineseLocale(locale) ? entry.zh : entry.en;
+}
 
 export function findLatestReviewBlock(blocks: ContentBlock[]): Extract<ContentBlock, { type: 'review' }> | null {
   for (let i = blocks.length - 1; i >= 0; i--) {

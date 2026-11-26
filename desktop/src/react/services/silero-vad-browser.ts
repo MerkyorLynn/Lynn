@@ -1,3 +1,8 @@
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 /**
  * Silero VAD 浏览器侧主 VAD · Lynn V0.79 Phase 2 · DS 反馈 #5 延伸
  *
@@ -94,5 +99,8 @@ export async function startSileroVad(_options: SileroVadOptions): Promise<Silero
     async stop() { vad.pause(); vad.destroy(); },
   };
   */
-  throw new Error("Silero VAD 未激活,请按文件顶部激活清单操作");
+  throw new Error(D(
+      "Silero VAD 未激活,请按文件顶部激活清单操作",
+      "Silero VAD is not activated. Follow the activation checklist at the top of the file.",
+    ));
 }

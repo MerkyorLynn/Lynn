@@ -346,6 +346,7 @@ export class ProviderRegistry {
     return {
       id: plugin.id,
       displayName: userConfig.display_name || plugin.displayName,
+      displayNameEn: plugin.displayNameEn,
       authType: userConfig.auth_type || plugin.authType,
       baseUrl: userConfig.base_url || plugin.defaultBaseUrl,
       api: userConfig.api || plugin.defaultApi,

@@ -1,4 +1,8 @@
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { createRequestDeadline } from '../../../../shared/request-deadline';
 
 const DEFAULT_TIMEOUT = 30_000;
@@ -95,7 +99,10 @@ export async function lynnFetch(
   } catch (err) {
     if (deadline.timedOut && !opts.signal?.aborted) {
       const seconds = Math.max(1, Math.round(timeout / 1000));
-      throw new Error(`lynnFetch ${path}: 请求超时（${seconds} 秒）`);
+      throw new Error(D(
+        `lynnFetch ${path}: 请求超时（${seconds} 秒）`,
+        `lynnFetch ${path}: request timed out after ${seconds}s`,
+      ));
     }
     throw err;
   } finally {
@@ -129,7 +136,10 @@ export async function lynnFetchAllowError(
   } catch (err) {
     if (deadline.timedOut && !opts.signal?.aborted) {
       const seconds = Math.max(1, Math.round(timeout / 1000));
-      throw new Error(`lynnFetch ${path}: 请求超时（${seconds} 秒）`);
+      throw new Error(D(
+        `lynnFetch ${path}: 请求超时（${seconds} 秒）`,
+        `lynnFetch ${path}: request timed out after ${seconds}s`,
+      ));
     }
     throw err;
   } finally {

@@ -9,6 +9,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const baiduCloudPlugin: ProviderPlugin = {
   id: "baidu-cloud",
   displayName: "百度智能云 (文心)",
+  displayNameEn: "Baidu Cloud (ERNIE)",
   authType: "api-key",
   defaultBaseUrl: "https://qianfan.baidubce.com/v2",
   defaultApi: "openai-completions",

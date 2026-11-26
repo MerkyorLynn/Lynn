@@ -5,7 +5,7 @@ import {
   buildPayload,
   draftFromServer,
   emptyDraft,
-  BUILTIN_FALLBACKS,
+  getBuiltinFallbacks,
   PRESETS,
 } from "../src/react/settings/tabs/McpTab.helpers";
 
@@ -57,11 +57,20 @@ describe("draftFromServer", () => {
 });
 
 describe("constants", () => {
-  it("BUILTIN_FALLBACKS + PRESETS are non-empty", () => {
-    expect(Array.isArray(BUILTIN_FALLBACKS)).toBe(true);
-    expect(BUILTIN_FALLBACKS.length).toBeGreaterThan(0);
+  it("getBuiltinFallbacks + PRESETS are non-empty", () => {
+    const fallbacks = getBuiltinFallbacks();
+    expect(Array.isArray(fallbacks)).toBe(true);
+    expect(fallbacks.length).toBeGreaterThan(0);
     expect(PRESETS.length).toBeGreaterThan(0);
     // each preset builds a draft
     for (const p of PRESETS) expect(typeof p.build()).toBe("object");
+  });
+
+  it("resolves the fallback labels on every call, not once at import", () => {
+    // The list used to be a module-level const, so its labels froze to whatever
+    // locale was active at import time.
+    expect(getBuiltinFallbacks()).not.toBe(getBuiltinFallbacks());
+    expect(getBuiltinFallbacks().map((b) => b.name))
+      .toEqual(getBuiltinFallbacks().map((b) => b.name));
   });
 });

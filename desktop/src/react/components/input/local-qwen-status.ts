@@ -1,9 +1,19 @@
-export const LOCAL_QWEN35_PROVIDER_ID = 'local-qwen35-9b-q4km-imatrix';
+
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);export const LOCAL_QWEN35_PROVIDER_ID = 'local-qwen35-9b-q4km-imatrix';
 export const LOCAL_QWEN35_MODEL_ID = 'qwen38-27b-coder390-q3-lynnstyle';
 export function isRecommendedLocalModelId(id?: string | null) {
   return id === LOCAL_QWEN35_MODEL_ID || id === 'qwen38-27b-coder390-q2-lynnstyle';
 }
-export const LOCAL_QWEN_DISPLAY_NAME = '本地 Qwen3.8-27B';
+/** Display name for the bundled local model, localized on each read. */
+export function localQwenDisplayName(): string {
+  return D('本地 Qwen3.8-27B', 'Local Qwen3.8-27B');
+}
+
+/** Snapshot for legacy imports; prefer localQwenDisplayName() for live locale. */
+export const LOCAL_QWEN_DISPLAY_NAME = localQwenDisplayName();
 export const LOCAL_QWEN_SHORT_NAME = 'Qwen3.8-27B';
 export const LOCAL_QWEN35_ENDPOINT = 'http://127.0.0.1:18099/v1';
 export const LOCAL_QWEN_PROMPT_DISMISS_KEY = 'lynn-local-model-prompt-dismissed-date';
@@ -138,7 +148,7 @@ export function deriveLocalQwenRuntimeState(
     || LOCAL_QWEN35_ENDPOINT;
   const runtimeLabel = status?.plan?.hardware?.recommended_runtime?.label
     || status?.plan?.plan?.hardware?.recommended_runtime?.label
-    || '本机 32K';
+    || D('本机 32K', '32K local');
   const canEnable = (status?.plan?.hardware?.can_enable
     ?? status?.plan?.plan?.hardware?.can_enable) === true;
   const hasModel = !!(status?.plan?.observed?.gguf || status?.plan?.plan?.observed?.gguf);
@@ -155,18 +165,29 @@ export function deriveLocalQwenRuntimeState(
     ? predictedTpsValue
     : null;
   const tpsSummary = predictedTps !== null
-    ? `当前 ${predictedTps.toFixed(predictedTps >= 10 ? 0 : 1)} tok/s`
+    ? D(
+      `当前 ${predictedTps.toFixed(predictedTps >= 10 ? 0 : 1)} tok/s`,
+      `${predictedTps.toFixed(predictedTps >= 10 ? 0 : 1)} tok/s now`,
+    )
     : null;
   const slots = status?.runtime?.slots;
   const slotSummary = slots?.total
     ? ((slots.busy || 0) > 0
-      ? `生成中 ${slots.busy || 0}/${slots.total}`
-      : `可用 ${Math.max(0, slots.total - (slots.busy || 0))}/${slots.total}`)
+      ? D(`生成中 ${slots.busy || 0}/${slots.total}`, `Generating ${slots.busy || 0}/${slots.total}`)
+      : D(
+        `可用 ${Math.max(0, slots.total - (slots.busy || 0))}/${slots.total}`,
+        `${Math.max(0, slots.total - (slots.busy || 0))}/${slots.total} free`,
+      ))
     : null;
   const busySlots = Number(slots?.busy || 0);
   const metricSummary = metricsReady
-    ? (metricTokens > 0 ? `服务累计处理 ${metricTokens.toLocaleString()} tokens` : '服务暂无 token 统计')
-    : '运行统计同步中';
+    ? (metricTokens > 0
+      ? D(
+        `服务累计处理 ${metricTokens.toLocaleString()} tokens`,
+        `${metricTokens.toLocaleString()} tokens served so far`,
+      )
+      : D('服务暂无 token 统计', 'No token stats from the service yet'))
+    : D('运行统计同步中', 'Syncing runtime stats');
   const coldStartLikely = running && current && busySlots > 0 && metricTokens < 800;
   const warmupStage: LocalQwenWarmupStage = running
     ? 'ready'

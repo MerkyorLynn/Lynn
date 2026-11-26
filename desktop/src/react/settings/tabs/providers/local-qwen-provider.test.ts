@@ -332,6 +332,6 @@ describe('Local Qwen provider UX guards', () => {
     const localQwenStack = read('desktop/src/react/components/input/LocalQwenStatusStack.tsx');
     expect(localQwenStack).not.toContain('安装并启动');
     expect(localQwenStack).not.toContain('7 天后提醒');
-    expect(localQwenStack).toContain('onClick={props.onStart}>启动</button>');
+    expect(localQwenStack).toContain('onClick={props.onStart}>{L(\'启动\', \'Start\')}</button>');
   });
 });

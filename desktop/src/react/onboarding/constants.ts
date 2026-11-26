@@ -5,6 +5,7 @@
 import {
   BRAIN_PROVIDER_ID,
   BRAIN_DEFAULT_DISPLAY_NAME,
+  BRAIN_DEFAULT_DISPLAY_NAME_EN,
   BRAIN_PROVIDER_BASE_URL,
   BRAIN_PROVIDER_API,
   BRAIN_DEFAULT_MODEL_ID,
@@ -65,7 +66,7 @@ export const QUICK_LOCAL_PROVIDER = {
 
 export const PROVIDER_PRESETS: ProviderPreset[] = [
   // Primary (top 8 most-used) — shown by default in onboarding.
-  { value: BRAIN_PROVIDER_ID, label: BRAIN_DEFAULT_DISPLAY_NAME, labelZh: BRAIN_DEFAULT_DISPLAY_NAME, url: QUICK_START_PROVIDER.providerUrl, api: QUICK_START_PROVIDER.providerApi, defaultModelId: QUICK_START_PROVIDER.defaultModelId, noKey: true, group: 'standard', tier: 'primary' },
+  { value: BRAIN_PROVIDER_ID, label: BRAIN_DEFAULT_DISPLAY_NAME_EN, labelZh: BRAIN_DEFAULT_DISPLAY_NAME, url: QUICK_START_PROVIDER.providerUrl, api: QUICK_START_PROVIDER.providerApi, defaultModelId: QUICK_START_PROVIDER.defaultModelId, noKey: true, group: 'standard', tier: 'primary' },
   { value: QUICK_LOCAL_PROVIDER.providerName, label: 'Lynn Local (Qwen3.8-27B)', labelZh: 'Lynn 本地 (Qwen3.8-27B)', url: QUICK_LOCAL_PROVIDER.providerUrl, api: QUICK_LOCAL_PROVIDER.providerApi, local: true, noKey: true, defaultModelId: QUICK_LOCAL_PROVIDER.defaultModelId, group: 'standard', tier: 'primary' },
   { value: 'openai',      label: 'OpenAI',               url: 'https://api.openai.com/v1', api: 'openai-completions', group: 'standard', tier: 'primary' },
   { value: 'deepseek',    label: 'DeepSeek',             url: 'https://api.deepseek.com/v1', api: 'openai-completions', group: 'standard', tier: 'primary' },

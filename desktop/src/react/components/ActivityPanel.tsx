@@ -4,6 +4,7 @@ import { switchSession } from '../stores/session-actions';
 import { hanaFetch, hanaUrl } from '../hooks/use-hana-fetch';
 import { formatSessionDate, parseMoodFromContent } from '../utils/format';
 import { yuanFallbackAvatar } from '../utils/agent-helpers';
+import { D, isChineseLocale } from '../utils/locale';
 import { stripPseudoToolCallMarkup } from '../../../../shared/pseudo-tool-call.js';
 import fp from './FloatingPanels.module.css';
 import chatStyles from './chat/Chat.module.css';
@@ -57,7 +58,7 @@ export function ActivityPanel() {
   const translate = useCallback((key: string) => {
     const translated = window.t?.(key);
     if (translated && translated !== key) return translated;
-    const fallback: Record<string, string> = {
+    const fallbackZh: Record<string, string> = {
       'activity.heartbeat': '巡检',
       'activity.delegate': '委派',
       'activity.plan': '计划',
@@ -67,6 +68,17 @@ export function ActivityPanel() {
       'activity.openSession': '打开会话',
       'common.close': '关闭',
     };
+    const fallbackEn: Record<string, string> = {
+      'activity.heartbeat': 'Patrol',
+      'activity.delegate': 'Delegated',
+      'activity.plan': 'Planning',
+      'activity.reviewFollowUp': 'Review follow-up',
+      'activity.cron': 'Scheduled',
+      'activity.fleet': 'Parallel tasks',
+      'activity.openSession': 'Open session',
+      'common.close': 'Close',
+    };
+    const fallback = isChineseLocale() ? fallbackZh : fallbackEn;
     return fallback[key] || key;
   }, []);
 
@@ -339,7 +351,7 @@ function ActivityCard({
           <span className={fp.actCardBadge} style={{ opacity: 0.9 }}>
             {t('desk.workspace') && t('desk.workspace') !== 'desk.workspace'
               ? `${t('desk.workspace')} · ${workspaceName}`
-              : `工作区 · ${workspaceName}`}
+              : D(`工作区 · ${workspaceName}`, `Workspace · ${workspaceName}`)}
           </span>
         ) : null}
         {durationText && <span className={fp.actCardDuration}>{durationText}</span>}

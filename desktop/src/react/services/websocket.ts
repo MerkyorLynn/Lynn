@@ -9,6 +9,10 @@
 import { handleServerMessage, applyStreamingStatus } from './ws-message-handler';
 import { requestStreamResume, injectHandlers } from './stream-resume';
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for startup diagnostics copy. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { setStatus } from '../utils/ui-helpers';
 import { AppError } from '../../../../shared/errors.js';
 import { errorBus } from '../../../../shared/error-bus.js';
@@ -49,7 +53,7 @@ function markWebSocketStartup(
   detail?: string | null,
 ): void {
   try {
-    useStore.getState().markStartupStep('websocket', '连接 WebSocket', status, detail ?? null);
+    useStore.getState().markStartupStep('websocket', D('连接 WebSocket', 'Connecting WebSocket'), status, detail ?? null);
   } catch {
     // ignore diagnostics timing issues during bootstrap
   }
@@ -113,17 +117,23 @@ export function connectWebSocket(port?: string, token?: string): void {
 
     if (_wsRetryCount <= WS_MAX_RETRIES) {
       useStore.setState({ wsState: 'reconnecting', wsReconnectAttempt: _wsRetryCount });
-      markWebSocketStartup('warning', `连接中断，正在重连（第 ${_wsRetryCount} 次）`);
+      markWebSocketStartup(
+        'warning',
+        D(
+          `连接中断，正在重连（第 ${_wsRetryCount} 次）`,
+          `Connection dropped; reconnecting (attempt ${_wsRetryCount})`,
+        ),
+      );
       _wsRetryTimer = setTimeout(() => connectWebSocket(serverPort, serverToken ?? undefined), _wsRetryDelay);
       _wsRetryDelay = Math.min(_wsRetryDelay * 2, WS_RETRY_MAX);
     } else {
       useStore.setState({ wsState: 'disconnected' });
-      markWebSocketStartup('error', 'WebSocket 多次重连失败');
+      markWebSocketStartup('error', D('WebSocket 多次重连失败', 'WebSocket failed to reconnect repeatedly'));
     }
   };
 
   ws.onerror = () => {
-    markWebSocketStartup('error', 'WebSocket 连接出错');
+    markWebSocketStartup('error', D('WebSocket 连接出错', 'WebSocket connection error'));
     errorBus.report(new AppError('WS_DISCONNECTED'));
   };
 }

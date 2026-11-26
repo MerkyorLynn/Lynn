@@ -11,6 +11,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const localQwen35Plugin: ProviderPlugin = {
   id: "local-qwen35-9b-q4km-imatrix",
   displayName: "本地 Qwen3.6-27B",
+  displayNameEn: "Local Qwen3.6-27B",
   authType: "none",
   defaultBaseUrl: process.env.LYNN_LOCAL_QWEN35_BASE || "http://127.0.0.1:18099/v1",
   defaultApi: "openai-completions",

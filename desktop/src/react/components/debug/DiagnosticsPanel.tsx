@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useStore } from '../../stores';
+import { isChineseLocale } from '../../utils/locale';
 import styles from './DiagnosticsPanel.module.css';
 
 type DiagnosticRecord = {
@@ -25,6 +26,11 @@ type RuntimeDiagnostics = {
   lastProviderIssue?: DiagnosticRecord | null;
   mcp?: McpState[];
 };
+
+/** Inline zh/en picker for developer-facing copy; follows the active locale. */
+function L(zhText: string, enText: string): string {
+  return isChineseLocale() ? zhText : enText;
+}
 
 function formatTime(value: unknown): string {
   if (!value || typeof value !== 'string') return '—';
@@ -66,7 +72,7 @@ function RecordCard({ title, data, fields }: { title: string; data?: DiagnosticR
           ) : null}
         </>
       ) : (
-        <div className={styles.muted}>暂无记录</div>
+        <div className={styles.muted}>{L('暂无记录', 'No records yet')}</div>
       )}
     </div>
   );
@@ -115,27 +121,27 @@ export function DiagnosticsPanel({ open, onClose }: { open: boolean; onClose: ()
     <aside className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <div className={styles.title}>开发诊断面板</div>
+          <div className={styles.title}>{L('开发诊断面板', 'Developer diagnostics')}</div>
           <div className={styles.hint}>Cmd/Ctrl + Shift + D</div>
         </div>
         <button className={styles.close} onClick={onClose} aria-label="Close diagnostics">×</button>
       </div>
 
       <RecordCard
-        title="当前链路"
+        title={L('当前链路', 'Current route')}
         data={snapshot?.current}
         fields={[
-          ['时间', 'at'],
+          [L('时间', 'Time'), 'at'],
           ['Provider', 'provider'],
-          ['模型 ID', 'modelId'],
-          ['模型名', 'modelName'],
-          ['任务类型', 'routeIntent'],
+          [L('模型 ID', 'Model ID'), 'modelId'],
+          [L('模型名', 'Model name'), 'modelName'],
+          [L('任务类型', 'Task type'), 'routeIntent'],
           ['Session', 'sessionPath'],
         ]}
       />
 
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>启动诊断</div>
+        <div className={styles.sectionTitle}>{L('启动诊断', 'Startup diagnostics')}</div>
         <div className={styles.startupSummary}>
           <span
             className={`${styles.pill} ${
@@ -150,9 +156,9 @@ export function DiagnosticsPanel({ open, onClose }: { open: boolean; onClose: ()
           >
             {startupPhase}
           </span>
-          <span className={styles.meta}>开始：{formatTime(startupStartedAt)}</span>
-          <span className={styles.meta}>结束：{formatTime(startupFinishedAt)}</span>
-          <span className={styles.meta}>耗时：{startupDurationMs !== null ? `${Math.round(startupDurationMs / 100) / 10}s` : '—'}</span>
+          <span className={styles.meta}>{L('开始：', 'Started: ')}{formatTime(startupStartedAt)}</span>
+          <span className={styles.meta}>{L('结束：', 'Finished: ')}{formatTime(startupFinishedAt)}</span>
+          <span className={styles.meta}>{L('耗时：', 'Took: ')}{startupDurationMs !== null ? `${Math.round(startupDurationMs / 100) / 10}s` : '—'}</span>
         </div>
         {startupSteps.length > 0 ? (
           <div className={styles.timeline}>
@@ -195,50 +201,50 @@ export function DiagnosticsPanel({ open, onClose }: { open: boolean; onClose: ()
             ))}
           </div>
         ) : (
-          <div className={styles.muted}>暂无启动记录</div>
+          <div className={styles.muted}>{L('暂无启动记录', 'No startup records yet')}</div>
         )}
       </div>
 
       <RecordCard
-        title="最近一次工具调用"
+        title={L('最近一次工具调用', 'Last tool call')}
         data={snapshot?.lastToolCall}
         fields={[
-          ['时间', 'at'],
-          ['工具', 'name'],
-          ['阶段', 'phase'],
-          ['成功', 'success'],
+          [L('时间', 'Time'), 'at'],
+          [L('工具', 'Tool'), 'name'],
+          [L('阶段', 'Phase'), 'phase'],
+          [L('成功', 'Success'), 'success'],
           ['Session', 'sessionPath'],
         ]}
       />
 
       <RecordCard
-        title="最近一次 fallback"
+        title={L('最近一次 fallback', 'Last fallback')}
         data={snapshot?.lastFallback}
         fields={[
-          ['时间', 'at'],
-          ['原因', 'reason'],
-          ['任务类型', 'routeIntent'],
+          [L('时间', 'Time'), 'at'],
+          [L('原因', 'Reason'), 'reason'],
+          [L('任务类型', 'Task type'), 'routeIntent'],
           ['Provider', 'provider'],
-          ['模型 ID', 'modelId'],
+          [L('模型 ID', 'Model ID'), 'modelId'],
           ['Session', 'sessionPath'],
         ]}
       />
 
       <RecordCard
-        title="最近一次 timeout / 429 / 400"
+        title={L('最近一次 timeout / 429 / 400', 'Last timeout / 429 / 400')}
         data={snapshot?.lastProviderIssue}
         fields={[
-          ['时间', 'at'],
-          ['类型', 'kind'],
+          [L('时间', 'Time'), 'at'],
+          [L('类型', 'Kind'), 'kind'],
           ['Provider', 'provider'],
-          ['模型 ID', 'modelId'],
-          ['任务类型', 'routeIntent'],
+          [L('模型 ID', 'Model ID'), 'modelId'],
+          [L('任务类型', 'Task type'), 'routeIntent'],
           ['Session', 'sessionPath'],
         ]}
       />
 
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>MCP 状态</div>
+        <div className={styles.sectionTitle}>{L('MCP 状态', 'MCP status')}</div>
         {mcpStates.length > 0 ? (
           <div className={styles.list}>
             {mcpStates.map((server) => (
@@ -256,7 +262,7 @@ export function DiagnosticsPanel({ open, onClose }: { open: boolean; onClose: ()
             ))}
           </div>
         ) : (
-          <div className={styles.muted}>暂无 MCP 服务</div>
+          <div className={styles.muted}>{L('暂无 MCP 服务', 'No MCP servers')}</div>
         )}
       </div>
     </aside>

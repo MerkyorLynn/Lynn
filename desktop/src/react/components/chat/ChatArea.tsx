@@ -160,7 +160,7 @@ const SCROLL_THRESHOLD = 300;
 const _emptyItems: ChatListItem[] = [];
 
 const Panel = memo(function Panel({ path, active }: { path: string; active: boolean }) {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const items = useStore(s => s.chatSessions[path]?.items ?? _emptyItems);
   const hasMore = useStore(s => s.chatSessions[path]?.hasMore ?? false);
   const loadingMore = useStore(s => s.chatSessions[path]?.loadingMore ?? false);
@@ -319,8 +319,8 @@ const Panel = memo(function Panel({ path, active }: { path: string; active: bool
           type="button"
           className={styles.scrollToBottomFab}
           onClick={scrollToBottom}
-          aria-label="滚动到最新消息"
-          title="滚动到最新消息"
+          aria-label={t('chat.scrollToLatest') || 'Scroll to latest message'}
+          title={t('chat.scrollToLatest') || 'Scroll to latest message'}
         >
           ↓
         </button>

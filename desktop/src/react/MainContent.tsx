@@ -9,6 +9,10 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useStore } from './stores';
+import { isChineseLocale } from './utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { hanaFetch } from './hooks/use-hana-fetch';
 import { toSlash, baseName } from './utils/format';
 import { sendPrompt } from './stores/prompt-actions';
@@ -45,7 +49,8 @@ async function handleDrop(e: React.DragEvent): Promise<void> {
   const store = useStore.getState();
   if (store.attachedFiles.length >= 9) {
     store.addToast?.(
-      window.t?.('drop.attachLimit') || '已附加 9 个文件，请先发送或移除部分附件',
+      window.t?.('drop.attachLimit')
+        || D('已附加 9 个文件，请先发送或移除部分附件', 'Files are already attached. Send them or remove some first.'),
       'warning',
       3000,
     );

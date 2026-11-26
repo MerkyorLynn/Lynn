@@ -3,6 +3,10 @@
  * 从 settings store 读 port/token，独立于主窗口
  */
 import { useSettingsStore } from './store';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 const DEFAULT_TIMEOUT = 30_000;
 
@@ -64,7 +68,10 @@ export async function lynnFetch(
   } catch (err) {
     if (timedOut && controller.signal.aborted) {
       const seconds = Math.max(1, Math.round(timeout / 1000));
-      throw new Error(`lynnFetch ${path}: 请求超时（${seconds} 秒）`);
+      throw new Error(D(
+      `lynnFetch ${path}: 请求超时（${seconds} 秒）`,
+      `lynnFetch ${path}: request timed out after ${seconds}s`,
+    ));
     }
     throw err;
   } finally {

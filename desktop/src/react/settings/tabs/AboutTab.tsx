@@ -1,12 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSettingsStore } from '../store';
 import { autoSaveConfig, t } from '../helpers';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { Toggle } from '../widgets/Toggle';
 import { loadSettingsConfig } from '../actions';
 import iconUrl from '../../../assets/Lynn.png';
 import styles from '../Settings.module.css';
 import type { AutoUpdateState } from '../../types';
-import { getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
+import { brainComplianceNote, brainUserNotice } from '../../utils/brain-models';
 
 const hana = window.hana;
 const REPO_URL = 'https://gitee.com/merkyor/Lynn';
@@ -183,12 +187,14 @@ export function AboutTab() {
       </section>
 
       <section className={styles['settings-section']}>
-        <h2 className={styles['settings-section-title']}>模型服务声明</h2>
+        <h2 className={styles['settings-section-title']}>
+          {D('模型服务声明', 'Model service notice')}
+        </h2>
         <p className={styles['settings-desc']}>
-          {getBrainComplianceNote()}
+          {brainComplianceNote()}
         </p>
         <p className={styles['settings-desc']}>
-          {getBrainUserNotice()}
+          {brainUserNotice()}
         </p>
       </section>
 

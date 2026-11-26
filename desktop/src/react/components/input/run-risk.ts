@@ -1,3 +1,5 @@
+import { D } from '../../utils/locale';
+
 export type RunRisk = 'low' | 'medium' | 'high';
 
 export function deriveRunRisk(command: string): RunRisk {
@@ -21,6 +23,9 @@ export function runRiskLabel(
 }
 
 export function buildRunCommandPrompt(command: string, cwd: string | null): string {
-  const cwdLine = cwd ? `当前工作目录：${cwd}\n` : '';
-  return `请直接在终端执行下面的命令，并基于真实结果回复。不要只解释命令本身。\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``;
+  const cwdLine = cwd ? D(`当前工作目录：${cwd}\n`, `Working directory: ${cwd}\n`) : '';
+  return D(
+    `请直接在终端执行下面的命令，并基于真实结果回复。不要只解释命令本身。\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``,
+    `Run the command below in a terminal and reply based on the real result. Do not just explain the command.\n${cwdLine}\n\`\`\`sh\n${command.trim()}\n\`\`\``,
+  );
 }

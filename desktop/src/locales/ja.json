@@ -86,7 +86,14 @@
     "toggle": "サイドバー",
     "bridgeShort": "連携",
     "capability": {
-      "fleetTip": "CLI ワーカー:長いタスクはターミナルからヘッドレスに実行"
+      "fleetTip": "CLI ワーカー:長いタスクはターミナルからヘッドレスに実行",
+      "patrol": "巡回",
+      "modelTag": {
+        "reasoning": "推論",
+        "vision": "視覚",
+        "longCtx": "長いコンテキスト",
+        "fast": "汎用"
+      }
     },
     "searchingBody": "Searching conversation text…",
     "bodySearchFailed": "Body search failed. Title matches are still shown.",
@@ -114,7 +121,9 @@
     "archiveLoading": "アーカイブを読み込み中…",
     "archiveEmpty": "アーカイブはありません",
     "archiveConfirm": "「{name}」をアーカイブしますか？リストには表示されなくなりますが、履歴は保持されます。",
-    "menuTrigger": "その他の操作"
+    "menuTrigger": "その他の操作",
+    "emptyGroup": "空のセッション",
+    "emptyGroupHint": "一度も使われていないセッション"
   },
   "common": {
     "on": "オン",
@@ -140,7 +149,10 @@
     "edit": "編集",
     "delete": "削除",
     "editResend": "編集して再送",
-    "editResendTitle": "編集して再送(このメッセージを入力欄に貼り、修正後 Enter で再送)"
+    "editResendTitle": "編集して再送(このメッセージを入力欄に貼り、修正後 Enter で再送)",
+    "pasteToInput": "貼り付け",
+    "pasteToInputTitle": "入力欄に貼り付け",
+    "pastedToInput": "貼り付けました"
   },
   "chat": {
     "send": "送信",
@@ -154,7 +166,15 @@
     "waitingTooLong": "この返信はまだ処理中です。Lynn は既定モデルの予備経路へ順次引き継ぎながら、このターンの完了を試みます。",
     "emptyAnswerHint": "モデルは考えただけで、何も話してくれませんでした。再試行をタップしてもう一度試せます。",
     "emptyAnswerRetry": "再試行",
-    "speak": "読み上げ · Shift+クリックでブラウザー音声"
+    "speak": "読み上げ · Shift+クリックでブラウザー音声",
+    "scrollToLatest": "最新のメッセージへスクロール",
+    "translateReply": "返信を翻訳",
+    "translateTo": "{language}に翻訳",
+    "moreMessageActions": "その他のメッセージ操作",
+    "translating": "翻訳中",
+    "translateFailedLabel": "翻訳に失敗しました",
+    "translationCard": "翻訳",
+    "translationCopied": "翻訳をコピーしました"
   },
   "time": {
     "justNow": "たった今",
@@ -178,7 +198,24 @@
     "usage": {
       "cache": "キャッシュ",
       "tip": "このセッションの累計クラウド token 消費(プレフィックスキャッシュ命中とコスト推定を含む)"
-    }
+    },
+    "llmSlowResponse": "モデルはまだ処理中です。少しお待ちください。",
+    "llmStillWorking": "モデルはまだ処理中です。約 {minutes} 分待っています。",
+    "recoveringToolExecution": "モデルが本文中でツール呼び出しを模擬したため、Lynn が実際の実行ルートへ戻そうとしています。",
+    "routeReasoningPlanned": "分析系のタスクを検出しました。Lynn はこのターンで既定の推論ルートを優先します。",
+    "routeExecutionPlanned": "実行系のタスクを検出しました。Lynn はこのターンで既定の実行ルートを優先します。",
+    "routeCodingPlanned": "コーディング系のタスクを検出しました。Lynn はこのターンで既定のコーディングルートを優先します。",
+    "routeVisionPlanned": "画像または添付ファイルの解析タスクを検出しました。Lynn はこのターンで既定の推論ルートを優先します。",
+    "defaultModelSlowResponse": "既定の作業モデルの主経路が少し遅いため、Lynn がバックグラウンドで予備経路へ引き継いでいます。",
+    "defaultModelRecoveringToolExecution": "既定の作業モデルは実際のツール実行を完了できなかったため、Lynn がこのターンを予備の実行ルートへ切り替えています。",
+    "defaultModelStillWorking": "既定の作業モデルはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備経路へ引き継ぎながら処理します。",
+    "defaultReasoningSlowResponse": "既定の推論ルートが少し遅いため、Lynn がバックグラウンドで予備の推論ルートへ引き継いでいます。",
+    "defaultReasoningStillWorking": "既定の推論ルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備の推論ルートへ引き継ぎながら処理します。",
+    "defaultExecutionSlowResponse": "既定の実行ルートが少し遅いため、Lynn がバックグラウンドで予備の実行ルートへ引き継いでいます。",
+    "defaultExecutionStillWorking": "既定の実行ルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備の実行ルートへ引き継ぎながら処理します。",
+    "defaultCodingSlowResponse": "既定のコーディングルートが少し遅いため、Lynn がバックグラウンドで予備のコーディングルートへ引き継いでいます。",
+    "defaultCodingStillWorking": "既定のコーディングルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備のコーディングルートへ引き継ぎながら処理します。",
+    "defaultCodingRecoveringToolExecution": "既定のコーディングルートは実際のツール実行を完了できなかったため、Lynn がこのターンを予備のコーディングルートへ切り替えています。"
   },
   "input": {
     "placeholder": "なにか話しかけてみてください...",
@@ -225,7 +262,20 @@
     "modeSend": "送信",
     "modeSteer": "操舵",
     "contextGit": "Git コンテキスト",
-    "attachmentUploadFailed": "添付ファイルをアップロードできませんでした。もう一度追加してください。"
+    "attachmentUploadFailed": "添付ファイルをアップロードできませんでした。もう一度追加してください。",
+    "composerAria": "メッセージ入力",
+    "longTextLoaded": "長いテキストを読み込みました",
+    "longTextKeptHint": "入力内容はすべて保持され、そのまま送信されます",
+    "attachFileTitle": "ファイルを添付",
+    "voiceChatTitle": "リアルタイム音声会話 · 騒がしい場所では「完了」でこのターンを終了",
+    "voiceChatAria": "Lynn のリアルタイム音声会話を開く",
+    "moreInputOptions": "その他の入力オプション",
+    "deepResearch": "ディープリサーチ",
+    "deepResearchDesc": "長期リサーチ、競合調査、レポートの下書きに向いています。結果はチャット内でプレビューできる HTML レポートになります。",
+    "deepResearchFillTemplate": "テンプレートを入れる",
+    "deepResearchBusy": "リサーチ中…",
+    "deepResearchStart": "リサーチを開始",
+    "deepResearchCloseHint": "ディープリサーチの案内を閉じる"
   },
   "slash": {
     "diary": "今日の日記を書く",
@@ -897,7 +947,33 @@
         "hint": "どれだけの記憶を保持するか決められます。多少のノイズがあっても大丈夫です。LLM はフィルタリングが得意です。",
         "stats": "{remembered} / {total} 件の記憶を保持中"
       },
-      "activeOnly": "このエージェントをアクティブに設定してください"
+      "activeOnly": "このエージェントをアクティブに設定してください",
+      "categories": {
+        "person": "人物",
+        "project": "プロジェクト",
+        "preference": "好み",
+        "tech": "技術",
+        "event": "出来事",
+        "other": "その他"
+      },
+      "sources": {
+        "conversation": "会話",
+        "file": "ファイル",
+        "imported": "インポート",
+        "inferred": "推測"
+      },
+      "timelineSubtitle": "客観的な事実と推測プロフィールを分けて表示します。その場で修正できます。",
+      "refresh": "更新",
+      "inferredTitle": "推測プロフィール",
+      "traits": "特徴",
+      "goals": "目標",
+      "exclusionsTitle": "除外ルール",
+      "remove": "削除",
+      "evidence": "根拠：",
+      "dontRememberThis": "これは覚えない",
+      "delete": "削除",
+      "savedExclusion": "除外リストに追加しました",
+      "removedExclusion": "除外ルールを削除しました"
     },
     "pins": {
       "title": "固定された記憶",
@@ -1632,7 +1708,27 @@
     "memorySearchError": "記憶検索エラー: {msg}",
     "fallbackUserName": "ユーザー",
     "installSkillApprovalRequired": "スキルのインストールにはユーザーの承認が必要です。ファイルは変更していません。",
-    "bridgeRequestFailed": "リクエストを完了できませんでした。再試行するか、Lynn の診断を確認してください。"
+    "bridgeRequestFailed": "リクエストを完了できませんでした。再試行するか、Lynn の診断を確認してください。",
+    "llmTimeout": "Model request timed out",
+    "llmRateLimited": "Model rate limited, please wait",
+    "llmAuthFailed": "Model authentication failed",
+    "llmSlowResponse": "Model is responding slowly, please wait",
+    "brainUnreachable": "デフォルトモデルサービスに一時的に接続できません。ネットワークを確認するか、設定で自分のAPIキーに切り替えてください。",
+    "fsPermission": "File permission denied",
+    "fsNotFound": "File not found",
+    "fsCopyFailed": "File copy failed",
+    "wsDisconnected": "Connection lost",
+    "fetchServerError": "Server error",
+    "ipcFailed": "Internal communication error",
+    "renderCrash": "Display error",
+    "configParse": "Configuration file corrupted",
+    "bridgeSendFailed": "Failed to send message to platform",
+    "skillSyncFailed": "Skill sync failed",
+    "memoryCompileFailed": "Memory compilation failed",
+    "dbError": "Database error",
+    "serverAuthFailed": "Authentication failed",
+    "unknown": "An unexpected error occurred",
+    "regionUnavailable": "This area is temporarily unavailable"
   },
   "main": {
     "tray": {
@@ -2014,53 +2110,6 @@
       "trustedRoot": "信頼済みルート"
     }
   },
-  "error.llmTimeout": "Model request timed out",
-  "error.llmRateLimited": "Model rate limited, please wait",
-  "error.llmEmptyResponse": "モデルが空応答または表示不能な内容を返しました",
-  "error.llmAuthFailed": "Model authentication failed",
-  "error.llmSlowResponse": "Model is responding slowly, please wait",
-  "error.brainUnreachable": "デフォルトモデルサービスに一時的に接続できません。ネットワークを確認するか、設定で自分のAPIキーに切り替えてください。",
-  "error.fsPermission": "File permission denied",
-  "error.fsNotFound": "File not found",
-  "error.fsCopyFailed": "File copy failed",
-  "error.wsDisconnected": "Connection lost",
-  "error.fetchTimeout": "Request timed out",
-  "error.fetchServerError": "Server error",
-  "error.ipcFailed": "Internal communication error",
-  "error.renderCrash": "Display error",
-  "error.configParse": "Configuration file corrupted",
-  "error.bridgeSendFailed": "Failed to send message to platform",
-  "error.skillSyncFailed": "Skill sync failed",
-  "error.memoryCompileFailed": "Memory compilation failed",
-  "error.dbError": "Database error",
-  "error.serverAuthFailed": "Authentication failed",
-  "error.unknown": "An unexpected error occurred",
-  "error.regionUnavailable": "This area is temporarily unavailable",
-  "status.reconnecting": "Reconnecting...",
-  "status.disconnected": "Connection lost",
-  "status.reconnect": "Reconnect",
-  "status.llmSlowResponse": "モデルはまだ処理中です。少しお待ちください。",
-  "status.llmStillWorking": "モデルはまだ処理中です。約 {minutes} 分待っています。",
-  "status.recoveringToolExecution": "モデルが本文中でツール呼び出しを模擬したため、Lynn が実際の実行ルートへ戻そうとしています。",
-  "status.routeReasoningPlanned": "分析系のタスクを検出しました。Lynn はこのターンで既定の推論ルートを優先します。",
-  "status.routeExecutionPlanned": "実行系のタスクを検出しました。Lynn はこのターンで既定の実行ルートを優先します。",
-  "status.routeCodingPlanned": "コーディング系のタスクを検出しました。Lynn はこのターンで既定のコーディングルートを優先します。",
-  "status.routeVisionPlanned": "画像または添付ファイルの解析タスクを検出しました。Lynn はこのターンで既定の推論ルートを優先します。",
-  "status.defaultModelSlowResponse": "既定の作業モデルの主経路が少し遅いため、Lynn がバックグラウンドで予備経路へ引き継いでいます。",
-  "status.defaultModelRecoveringToolExecution": "既定の作業モデルは実際のツール実行を完了できなかったため、Lynn がこのターンを予備の実行ルートへ切り替えています。",
-  "status.defaultModelStillWorking": "既定の作業モデルはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備経路へ引き継ぎながら処理します。",
-  "status.defaultReasoningSlowResponse": "既定の推論ルートが少し遅いため、Lynn がバックグラウンドで予備の推論ルートへ引き継いでいます。",
-  "status.defaultReasoningStillWorking": "既定の推論ルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備の推論ルートへ引き継ぎながら処理します。",
-  "status.defaultExecutionSlowResponse": "既定の実行ルートが少し遅いため、Lynn がバックグラウンドで予備の実行ルートへ引き継いでいます。",
-  "status.defaultExecutionStillWorking": "既定の実行ルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備の実行ルートへ引き継ぎながら処理します。",
-  "status.defaultCodingSlowResponse": "既定のコーディングルートが少し遅いため、Lynn がバックグラウンドで予備のコーディングルートへ引き継いでいます。",
-  "status.defaultCodingStillWorking": "既定のコーディングルートはまだ処理中です。約 {minutes} 分待っています。Lynn は引き続き予備のコーディングルートへ引き継ぎながら処理します。",
-  "status.defaultCodingRecoveringToolExecution": "既定のコーディングルートは実際のツール実行を完了できなかったため、Lynn がこのターンを予備のコーディングルートへ切り替えています。",
-  "action.retry": "再試行",
-  "agentDiscovery.title": "スキルが見つかりました",
-  "agentDiscovery.body": "以下のツールからスキルを再利用できます：",
-  "agentDiscovery.enable": "有効にする",
-  "agentDiscovery.later": "スキップ",
   "review": {
     "configure": "レビュアーを設定",
     "loading": "読み込み中",
@@ -2137,5 +2186,14 @@
       "evidence": "客観的証拠",
       "escalated": "エスカレーション"
     }
+  },
+  "action": {
+    "retry": "再試行"
+  },
+  "agentDiscovery": {
+    "title": "スキルが見つかりました",
+    "body": "以下のツールからスキルを再利用できます：",
+    "enable": "有効にする",
+    "later": "スキップ"
   }
 }

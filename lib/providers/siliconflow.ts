@@ -10,6 +10,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const siliconflowPlugin: ProviderPlugin = {
   id: "siliconflow",
   displayName: "SiliconFlow (硅基流动)",
+  displayNameEn: "SiliconFlow",
   authType: "api-key",
   defaultBaseUrl: "https://api.siliconflow.cn/v1",
   defaultApi: "openai-completions",

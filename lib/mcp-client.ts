@@ -20,6 +20,7 @@ import YAML from "js-yaml";
 import { createModuleLogger } from "./debug-log.js";
 import { Type } from "@sinclair/typebox";
 import { createMcpConnection, type McpConnectionBase } from "./mcp-client-connections.js";
+import { isEnglishLocale } from "../shared/i18n-runtime.js";
 import {
   BUILTIN_SERVERS,
   DISCOVERY_PATHS,
@@ -202,7 +203,14 @@ export class McpManager {
     });
   }
 
-  listBuiltinStates(): McpBuiltinState[] {
+  /**
+   * Built-in server states.
+   *
+   * @param locale  render locale; anything non-Chinese returns the English copy.
+   *                Defaults to Chinese for CLI/headless callers.
+   */
+  listBuiltinStates(locale?: string | null): McpBuiltinState[] {
+    const english = isEnglishLocale(locale);
     const states = this.listServerStates();
     return Object.values(BUILTIN_SERVERS).map((builtin) => {
       const serverState = states.find((item) => item.name === builtin.name) || null;
@@ -216,11 +224,14 @@ export class McpManager {
       const enabled = rawEntry?.enabled !== false;
       return {
         name: builtin.name,
-        label: builtin.label,
+        label: (english && builtin.labelEn) || builtin.label,
         group: builtin.group || "other",
-        description: builtin.description,
+        description: (english && builtin.descriptionEn) || builtin.description,
         docsUrl: builtin.docsUrl,
-        hint: builtin.hint || "",
+        hint: (english && builtin.hintEn) || builtin.hint || "",
+        labelEn: builtin.labelEn,
+        descriptionEn: builtin.descriptionEn,
+        hintEn: builtin.hintEn,
         transport: builtin.transport,
         configured,
         enabled,

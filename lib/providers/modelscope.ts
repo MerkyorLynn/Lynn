@@ -10,6 +10,7 @@ import type { ProviderPlugin } from "../../core/types.js";
 export const modelscopePlugin: ProviderPlugin = {
   id: "modelscope",
   displayName: "魔搭 (ModelScope)",
+  displayNameEn: "ModelScope",
   authType: "api-key",
   defaultBaseUrl: "https://api-inference.modelscope.cn/v1",
   defaultApi: "openai-completions",

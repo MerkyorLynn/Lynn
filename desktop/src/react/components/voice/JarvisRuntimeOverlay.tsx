@@ -9,6 +9,7 @@ import type { PlaybackStats } from '../../services/audio-playback';
 import { voiceTextStreamBus, type VoiceStreamEvent } from '../../services/voice-text-stream-bus';
 import { IncrementalTtsSegmenter } from '../../services/incremental-tts-segmenter';
 import styles from './JarvisRuntimeOverlay.module.css';
+import { D, isChineseLocale } from '../../utils/locale';
 
 export const LYNN_RUNTIME_DISPLAY_NAME = 'Lynn';
 export const LYNN_RUNTIME_ARIA_LABEL = 'Lynn voice assistant';
@@ -117,13 +118,13 @@ function formatHealth(health: VoiceHealthStatus | null): string | null {
   if (!health.providers) return null;
   if (health.ok && !health.degraded) return null;
   const labels: Record<string, string> = {
-    asr: '语音识别',
-    ser: '情绪识别',
-    tts: '语音合成',
+    asr: D('语音识别', 'Speech recognition'),
+    ser: D('情绪识别', 'Emotion detection'),
+    tts: D('语音合成', 'Speech synthesis'),
   };
   const degraded = Object.entries(health.providers)
     .filter(([, value]) => value && (!value.ok || value.degraded))
-    .map(([key]) => `${labels[key] || key}主链不可用`);
+    .map(([key]) => D(`${labels[key] || key}主链不可用`, `${labels[key] || key} primary route unavailable`));
   return degraded.length ? degraded.join(' · ') : null;
 }
 
@@ -268,7 +269,7 @@ export function JarvisRuntimeOverlay() {
       onError: (err) => {
         const message = err.message || String(err);
         setStatus((s) => ({ ...s, error: message }));
-        addToast(`${LYNN_RUNTIME_DISPLAY_NAME} 语音连接失败：${message}`, 'error', 4000, { dedupeKey: 'jarvis-runtime-error' });
+        addToast(`${LYNN_RUNTIME_DISPLAY_NAME}${D(' 语音连接失败：', ' voice connection failed: ')}${message}`, 'error', 4000, { dedupeKey: 'jarvis-runtime-error' });
       },
       onState: (state) => {
         // A healthy turn (assistant speaking, or a reconnected session reaching LISTENING) means
@@ -372,7 +373,7 @@ export function JarvisRuntimeOverlay() {
           if (!ok) {
             tearDownIncremental('error');
             pendingVoiceTurnRef.current = null;
-            setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE, error: '语音转写已完成，但发送到聊天框失败。' }));
+            setStatus((s) => ({ ...s, state: VOICE_STATE.IDLE, error: D('语音转写已完成，但发送到聊天框失败。', 'Transcription finished, but sending it to the composer failed.') }));
           } else if (pendingVoiceTurnRef.current?.transcript === transcript) {
             pendingVoiceTurnRef.current.sessionPath = useStore.getState().currentSessionPath;
           }
@@ -380,7 +381,7 @@ export function JarvisRuntimeOverlay() {
           tearDownIncremental('error');
           pendingVoiceTurnRef.current = null;
           const message = err instanceof Error ? err.message : String(err);
-          setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `语音转聊天失败：${message}` }));
+          setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `${D('语音转聊天失败：', 'Sending the transcript to chat failed: ')}${message}` }));
         });
 	      },
 	      onAssistantReply: (text) => setStatus((s) => ({ ...s, assistantReply: text })),
@@ -419,7 +420,7 @@ export function JarvisRuntimeOverlay() {
     setStatus((s) => ({ ...s, assistantReply: speechText, state: VOICE_STATE.SPEAKING, error: null }));
     void ensureClient().then((client) => client.speakText(speechText)).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
-      setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `语音播放失败：${message}` }));
+      setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `${D('语音播放失败：', 'Voice playback failed: ')}${message}` }));
     });
   }, [currentChatItems, currentSessionPath, ensureClient, isStreaming]);
 
@@ -447,9 +448,9 @@ export function JarvisRuntimeOverlay() {
         ...s,
         state: VOICE_STATE.DEGRADED,
         inputMode: null,
-        error: `语音服务不可用：${message}`,
+        error: `${D('语音服务不可用：', 'Voice service unavailable: ')}${message}`,
       }));
-      addToast(`${LYNN_RUNTIME_DISPLAY_NAME} 语音服务不可用：${message}`, 'error', 5000, { dedupeKey: 'jarvis-runtime-start' });
+      addToast(`${LYNN_RUNTIME_DISPLAY_NAME}${D(' 语音服务不可用：', ' voice service unavailable: ')}${message}`, 'error', 5000, { dedupeKey: 'jarvis-runtime-start' });
     } finally {
       setBusy(false);
     }
@@ -471,9 +472,9 @@ export function JarvisRuntimeOverlay() {
         ...s,
         state: VOICE_STATE.DEGRADED,
         inputMode: null,
-        error: `语音服务不可用：${message}`,
+        error: `${D('语音服务不可用：', 'Voice service unavailable: ')}${message}`,
       }));
-      addToast(`${LYNN_RUNTIME_DISPLAY_NAME} 插话启动失败：${message}`, 'error', 5000, { dedupeKey: 'jarvis-runtime-interrupt-start' });
+      addToast(`${LYNN_RUNTIME_DISPLAY_NAME}${D(' 插话启动失败：', ' failed to start talking over: ')}${message}`, 'error', 5000, { dedupeKey: 'jarvis-runtime-interrupt-start' });
     }
   }, [addToast, ensureClient, tearDownIncremental]);
 
@@ -483,7 +484,7 @@ export function JarvisRuntimeOverlay() {
       const sent = await clientRef.current?.endTurn();
       setStatus((s) => (
         sent === false
-          ? { ...s, state: VOICE_STATE.IDLE, error: '语音连接已断开，请重新开始。' }
+          ? { ...s, state: VOICE_STATE.IDLE, error: D('语音连接已断开，请重新开始。', 'The voice connection dropped. Please start again.') }
           : { ...s, state: VOICE_STATE.THINKING }
       ));
     } catch (err) {
@@ -521,7 +522,7 @@ export function JarvisRuntimeOverlay() {
       // 不阻塞 busy:用户可在 mic 起来期间继续点别的(再点中断 / 点关闭)
       void startListeningAfterInterrupt().catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
-        setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `插话启动失败:${message}` }));
+        setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, error: `${D('插话启动失败:', 'Failed to start talking over: ')}${message}` }));
       });
     }
   }, [startListeningAfterInterrupt, tearDownIncremental]);
@@ -558,7 +559,7 @@ export function JarvisRuntimeOverlay() {
       clientRef.current = null;
       if (realtimeRetryRef.current >= REALTIME_MAX_RETRIES) {
         voiceModeRef.current = 'chat';
-        addToast(`${LYNN_RUNTIME_DISPLAY_NAME} 实时语音多次中断，已切换备用引擎`, 'warning', 4000, { dedupeKey: 'jarvis-runtime-fallback' });
+        addToast(`${LYNN_RUNTIME_DISPLAY_NAME}${D(' 实时语音多次中断，已切换备用引擎', ' realtime voice kept dropping, so a fallback engine took over')}`, 'warning', 4000, { dedupeKey: 'jarvis-runtime-fallback' });
       } else {
         // Silent reconnect — a healthy LISTENING/SPEAKING frame resets the count, so transient
         // idle-closes recover transparently without toast spam.
@@ -579,7 +580,7 @@ export function JarvisRuntimeOverlay() {
       if (!open || !autoContinueRef.current || latestStateRef.current !== VOICE_STATE.IDLE) return;
       void startListening().catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
-        setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, inputMode: null, error: `自动续听失败：${message}` }));
+        setStatus((s) => ({ ...s, state: VOICE_STATE.DEGRADED, inputMode: null, error: `${D('自动续听失败：', 'Automatic re-listen failed: ')}${message}` }));
       });
     }, AUTO_RESUME_AFTER_SPEECH_MS);
     return () => {

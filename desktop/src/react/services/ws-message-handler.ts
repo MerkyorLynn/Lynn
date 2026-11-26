@@ -9,6 +9,10 @@
 import { streamBufferManager } from '../hooks/use-stream-buffer';
 import { voiceTextStreamBus } from './voice-text-stream-bus';
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { loadSessions as loadSessionsAction, switchSession as switchSessionAction } from '../stores/session-actions';
 import { handleArtifact } from '../stores/artifact-actions';
 import { loadDeskFiles } from '../stores/desk-actions';
@@ -43,13 +47,19 @@ function warnProtocolIssue(type: string, errors: string[]): void {
 export function humanizeTurnFailureError(rawInput: unknown): string {
   const raw = String(rawInput || 'Unknown error');
   if (/request timed out|timeout|aborted/iu.test(raw)) {
-    return `模型请求超时，请重试：${raw}`;
+    return D(`模型请求超时，请重试：${raw}`, `The model request timed out. Please retry: ${raw}`);
   }
   if (/all providers? (have )?failed|route failed|no providers? available/iu.test(raw)) {
-    return '所有模型暂时不可用，请稍后重试或重新开始对话';
+    return D(
+      '所有模型暂时不可用，请稍后重试或重新开始对话',
+      'No model is available right now. Retry shortly or start a new conversation.',
+    );
   }
   if (/empty (response|reply)|no content/iu.test(raw)) {
-    return '模型没有返回内容，请点「编辑重发」重试';
+    return D(
+      '模型没有返回内容，请点「编辑重发」重试',
+      'The model returned no content. Use "Edit and resend" to retry.',
+    );
   }
   return raw;
 }
@@ -369,8 +379,8 @@ export function handleServerMessage(msg: ServerEvent | any): void {
           await switchSessionAction(newSessionPath);
           const nextState = useStore.getState();
           const relayText = summary
-            ? `**对话已自动接力。**\n\n${summary}`
-            : '**对话已自动接力。**';
+            ? D(`**对话已自动接力。**\n\n${summary}`, `**Conversation relayed automatically.**\n\n${summary}`)
+            : D('**对话已自动接力。**', '**Conversation relayed automatically.**');
           const renderMarkdown = await loadRenderMarkdown();
           const relayItem = {
             type: 'message' as const,
@@ -386,9 +396,14 @@ export function handleServerMessage(msg: ServerEvent | any): void {
           } else {
             nextState.appendItem(newSessionPath, relayItem);
           }
-          nextState.addToast?.('上下文已自动接力到新会话', 'info', 4000, {
-            dedupeKey: `relay-${newSessionPath}`,
-          });
+          nextState.addToast?.(
+            D('上下文已自动接力到新会话', 'Context was relayed to a new session automatically'),
+            'info',
+            4000,
+            {
+              dedupeKey: `relay-${newSessionPath}`,
+            },
+          );
         })().catch((err) => {
           console.warn('[ws] session relay switch failed:', err);
         });

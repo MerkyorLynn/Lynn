@@ -1,4 +1,8 @@
 import type { Model } from '../../types';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif']);
 
@@ -23,8 +27,9 @@ export function modelSupportsVision(model: Pick<Model, 'vision'> | null | undefi
 }
 
 export function modelDisplayName(model: Pick<Model, 'id' | 'name' | 'provider'> | null | undefined): string {
-  if (!model) return '当前模型';
-  return String(model.name || model.id || model.provider || '当前模型').trim() || '当前模型';
+  const fallback = D('当前模型', 'current model');
+  if (!model) return fallback;
+  return String(model.name || model.id || model.provider || fallback).trim() || fallback;
 }
 
 export function formatVisionUnsupportedMessage(modelLabel: string, locale?: string): string {

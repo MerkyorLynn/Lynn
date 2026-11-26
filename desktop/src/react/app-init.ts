@@ -8,6 +8,12 @@
  */
 
 import { useStore } from './stores';
+import { isChineseLocale } from './utils/locale';
+
+/** Inline zh/en picker for startup copy; follows the active UI locale. */
+function L(zhText: string, enText: string): string {
+  return isChineseLocale() ? zhText : enText;
+}
 import { setLeavesOverlayEnabled } from './hooks/use-leaves-overlay';
 import { hanaFetch } from './hooks/use-hana-fetch';
 import { applyAgentIdentity, loadAgents, loadAvatars } from './stores/agent-actions';
@@ -47,7 +53,7 @@ function syncServerStartup(startup: ServerStartupHealth | null | undefined): voi
     error: state.error || null,
   });
 
-  const label = '服务初始化';
+  const label = L('服务初始化', 'Starting the service');
   if (state.ready) {
     useStore.getState().markStartupStep('server-ready', label, 'success', 'ready', { ...state });
   } else if (state.error) {
@@ -70,7 +76,7 @@ function startServerReadinessPolling(): void {
     } catch (err) {
       useStore.getState().markStartupStep(
         'server-ready',
-        '服务初始化',
+        L('服务初始化', 'Starting the service'),
         'warning',
         err instanceof Error ? err.message : String(err),
       );
@@ -82,7 +88,7 @@ function startServerReadinessPolling(): void {
 
 function handleServerRestarted(data: { port: number; token: string }): void {
   useStore.setState({ serverPort: String(data.port), serverToken: data.token });
-  useStore.getState().markStartupStep('server-restart', '检测到本地服务重启', 'warning', `127.0.0.1:${data.port}`);
+  useStore.getState().markStartupStep('server-restart', L('检测到本地服务重启', 'Local service restarted'), 'warning', `127.0.0.1:${data.port}`);
   connectWebSocket(String(data.port), data.token);
   void syncRuntimeSnapshot({ announceRecovery: true });
   hanaFetch('/api/health')
@@ -130,7 +136,7 @@ export async function initApp(): Promise<void> {
   platform.onServerRestarted?.(handleServerRestarted);
   const startup = useStore.getState();
   startup.resetStartupDiagnostics();
-  startup.markStartupStep('server-port', '读取本地服务端口', 'running');
+  startup.markStartupStep('server-port', L('读取本地服务端口', 'Reading the local service port'), 'running');
 
   // Language resources must not depend on the local service being healthy.
   try {
@@ -154,18 +160,18 @@ export async function initApp(): Promise<void> {
   useStore.setState({ serverPort, serverToken });
   useStore.getState().markStartupStep(
     'server-port',
-    '读取本地服务端口',
+    L('读取本地服务端口', 'Reading the local service port'),
     serverPort ? 'success' : 'error',
-    serverPort ? `127.0.0.1:${serverPort}` : '未拿到本地服务端口',
+    serverPort ? `127.0.0.1:${serverPort}` : L('未拿到本地服务端口', 'Could not read the local service port'),
   );
 
   // 先让主窗口壳子显示出来，避免 onboarding 结束后卡在米色空白页等待网络与配置。
   useStore.setState({ pendingNewSession: true });
-  useStore.getState().markStartupStep('bootstrap', '主窗口启动', 'success', '已提前显示主窗口壳层');
+  useStore.getState().markStartupStep('bootstrap', L('主窗口启动', 'Main window boot'), 'success', L('已提前显示主窗口壳层', 'Main window shell shown early'));
   platform.appReady();
 
   // 2. 并行获取 health + config
-  useStore.getState().markStartupStep('health-config', '加载 health / config / app-state', 'running');
+  useStore.getState().markStartupStep('health-config', L('加载 health / config / app-state', 'Loading health / config / app-state'), 'running');
   try {
     const [healthRes, configRes, appStateRes] = await Promise.all([
       hanaFetch('/api/health'),
@@ -179,10 +185,10 @@ export async function initApp(): Promise<void> {
     if (!healthData?.startup?.ready) startServerReadinessPolling();
 
     // 3. 加载 i18n
-    useStore.getState().markStartupStep('locale', '加载语言资源', 'running');
+    useStore.getState().markStartupStep('locale', L('加载语言资源', 'Loading language resources'), 'running');
     if (i18n.locale !== (configData.locale || 'zh-CN')) await i18n.load(configData.locale || 'zh-CN');
     useStore.setState({ locale: i18n.locale });
-    useStore.getState().markStartupStep('locale', '加载语言资源', 'success', i18n.locale);
+    useStore.getState().markStartupStep('locale', L('加载语言资源', 'Loading language resources'), 'success', i18n.locale);
     if (await platform.consumeRendererRecovery?.()) {
       useStore.getState().addToast(
         t('status.rendererRecovered'),
@@ -193,7 +199,7 @@ export async function initApp(): Promise<void> {
     }
 
     // 4. 应用 agent 身份
-    useStore.getState().markStartupStep('agent-identity', '同步当前助手身份', 'running');
+    useStore.getState().markStartupStep('agent-identity', L('同步当前助手身份', 'Syncing the assistant identity'), 'running');
     await applyAgentIdentity({
       agentName: appStateData?.agent?.name || healthData.agent || 'Lynn',
       agentId: appStateData?.agent?.currentAgentId || undefined,
@@ -203,7 +209,7 @@ export async function initApp(): Promise<void> {
     });
     useStore.getState().markStartupStep(
       'agent-identity',
-      '同步当前助手身份',
+      L('同步当前助手身份', 'Syncing the assistant identity'),
       'success',
       appStateData?.agent?.name || healthData.agent || 'Lynn',
     );
@@ -231,38 +237,38 @@ export async function initApp(): Promise<void> {
 
     // 6. 加载头像
     loadAvatars(healthData.avatars);
-    useStore.getState().markStartupStep('health-config', '加载 health / config / app-state', 'success');
+    useStore.getState().markStartupStep('health-config', L('加载 health / config / app-state', 'Loading health / config / app-state'), 'success');
   } catch (err) {
     console.error('[init] i18n/health/config failed:', err);
     useStore.getState().markStartupStep(
       'health-config',
-      '加载 health / config / app-state',
+      L('加载 health / config / app-state', 'Loading health / config / app-state'),
       'error',
       err instanceof Error ? err.message : String(err),
     );
   }
 
   // 8. 连接 WebSocket
-  useStore.getState().markStartupStep('websocket', '连接 WebSocket', 'running');
+  useStore.getState().markStartupStep('websocket', L('连接 WebSocket', 'Connecting WebSocket'), 'running');
   connectWebSocket();
   initErrorBusBridge();
 
   // 9. 初始化书桌
-  useStore.getState().markStartupStep('desk-init', '初始化书桌运行时', 'running');
+  useStore.getState().markStartupStep('desk-init', L('初始化书桌运行时', 'Initialising the desk runtime'), 'running');
   initJian();
-  useStore.getState().markStartupStep('desk-init', '初始化书桌运行时', 'success');
+  useStore.getState().markStartupStep('desk-init', L('初始化书桌运行时', 'Initialising the desk runtime'), 'success');
 
   // 10. 初始化编辑器事件
-  useStore.getState().markStartupStep('editor-events', '初始化编辑器事件', 'running');
+  useStore.getState().markStartupStep('editor-events', L('初始化编辑器事件', 'Initialising editor events'), 'running');
   initEditorEvents();
-  useStore.getState().markStartupStep('editor-events', '初始化编辑器事件', 'success');
+  useStore.getState().markStartupStep('editor-events', L('初始化编辑器事件', 'Initialising editor events'), 'success');
 
   // 11. 初始 layout 计算
   updateLayout();
-  useStore.getState().markStartupStep('layout', '计算初始布局', 'success');
+  useStore.getState().markStartupStep('layout', L('计算初始布局', 'Calculating the initial layout'), 'success');
 
   // 12-17. 主数据与次要状态统一转后台补齐，避免阻塞首屏。
-  useStore.getState().markStartupStep('background-loads', '后台补齐主数据', 'running', 'agents / sessions / models / cron / bridge');
+  useStore.getState().markStartupStep('background-loads', L('后台补齐主数据', 'Loading remaining main data'), 'running', 'agents / sessions / models / cron / bridge');
   void Promise.allSettled([
     loadAgents(),
     loadSessions(),
@@ -297,30 +303,35 @@ export async function initApp(): Promise<void> {
     const hasRejected = results.some((result) => result.status === 'rejected');
     useStore.getState().markStartupStep(
       'background-loads',
-      '后台补齐主数据',
+      L('后台补齐主数据', 'Loading remaining main data'),
       hasRejected ? 'warning' : 'success',
-      hasRejected ? '部分后台数据加载失败，已降级继续' : '主数据已加载完成',
+      hasRejected
+        ? L('部分后台数据加载失败，已降级继续', 'Some background data failed to load; continuing in a degraded state')
+        : L('主数据已加载完成', 'Main data loaded'),
     );
   });
 
   if (shouldDiagnoseBrain) {
-    useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'running');
+    useStore.getState().markStartupStep('brain-diagnose', L('诊断默认模型服务', 'Diagnosing the default model service'), 'running');
     setTimeout(() => {
       void (async () => {
         try {
           const diagRes = await hanaFetch('/api/brain/diagnose');
           const diag = await diagRes.json();
           if (diag.registering || diag.reachable) {
-            useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'success', diag.registering ? '服务注册中' : '连通正常');
+            useStore.getState().markStartupStep('brain-diagnose', L('诊断默认模型服务', 'Diagnosing the default model service'), 'success', diag.registering ? L('服务注册中', 'Registering the service') : L('连通正常', 'Reachable'));
             return;
           }
           const currentModel = useStore.getState().currentModel;
           if (currentModel?.provider !== 'brain') return;
           console.warn('[init] Brain 连通性诊断失败:', diag.error);
-          useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'warning', diag.error || '默认模型服务暂时不可达');
+          useStore.getState().markStartupStep('brain-diagnose', L('诊断默认模型服务', 'Diagnosing the default model service'), 'warning', diag.error || L('默认模型服务暂时不可达', 'The default model service is temporarily unreachable'));
           useStore.getState().addToast(
             t('error.brainUnreachable') ||
-            `默认模型服务暂时不可达${diag.error ? ` (${diag.error})` : ''}，请检查网络连接或在设置中切换到自己的 API Key。`,
+            L(
+              `默认模型服务暂时不可达${diag.error ? ` (${diag.error})` : ''}，请检查网络连接或在设置中切换到自己的 API Key。`,
+              `The default model service is temporarily unreachable${diag.error ? ` (${diag.error})` : ''}. Check your network connection, or switch to your own API key in Settings.`,
+            ),
             'warning',
             8000,
             { dedupeKey: 'brain-unreachable' },
@@ -328,7 +339,7 @@ export async function initApp(): Promise<void> {
         } catch (err) {
           useStore.getState().markStartupStep(
             'brain-diagnose',
-            '诊断默认模型服务',
+            L('诊断默认模型服务', 'Diagnosing the default model service'),
             'warning',
             err instanceof Error ? err.message : String(err),
           );
@@ -336,7 +347,7 @@ export async function initApp(): Promise<void> {
       })();
     }, 0);
   } else {
-    useStore.getState().markStartupStep('brain-diagnose', '诊断默认模型服务', 'success', '当前未使用默认模型服务');
+    useStore.getState().markStartupStep('brain-diagnose', L('诊断默认模型服务', 'Diagnosing the default model service'), 'success', L('当前未使用默认模型服务', 'Not using the default model service'));
   }
 
   // 18. 设置快捷键

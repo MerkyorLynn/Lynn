@@ -4,6 +4,10 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
 import { loadModels } from '../../utils/ui-helpers';
 import { lookupKnownModel } from '../../utils/known-models';
+import { currentLocale, isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for model-pill copy. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import {
   collapseBrainModelChoices,
   isDisplayDefaultModel,
@@ -54,9 +58,10 @@ function modelMetaLine(model?: SelectorModel, role?: string | null): string {
     provider: model.provider,
     role,
     purpose: 'chat',
+    locale: currentLocale(),
   });
-  if (alias && !isDisplayDefaultModel(model.id, model.provider)) return '按角色自动分配 · 已就绪';
-  if (isDisplayDefaultModel(model.id, model.provider)) return '开箱即用 · 已备案';
+  if (alias && !isDisplayDefaultModel(model.id, model.provider)) return D('按角色自动分配 · 已就绪', 'Assigned by role · ready');
+  if (isDisplayDefaultModel(model.id, model.provider)) return D('开箱即用 · 已备案', 'Works out of the box · approved');
   const meta = lookupKnownModel(model.provider || '', model.id);
   const parts: string[] = [];
   const providerLabel = formatProviderLabel(model.provider);
@@ -167,15 +172,15 @@ export function ModelSelector({
       ? styles['model-pill-status-dot-loading']
       : styles['model-pill-status-dot-offline'];
   const localQwenTitle = localQwenRunning
-    ? '本地 Qwen3.8-27B 正在运行 · Q4 imatrix MTP'
+    ? D('本地 Qwen3.8-27B 正在运行 · Q4 imatrix MTP', 'Local Qwen3.8-27B is running · Q4 imatrix MTP')
     : localQwenLoading
-      ? '本地 Qwen3.8-27B 正在启动 · Q4 imatrix MTP'
-      : '本地 Qwen3.8-27B 已选择，尚未启动';
+      ? D('本地 Qwen3.8-27B 正在启动 · Q4 imatrix MTP', 'Local Qwen3.8-27B is starting · Q4 imatrix MTP')
+      : D('本地 Qwen3.8-27B 已选择，尚未启动', 'Local Qwen3.8-27B is selected but not started');
   const localQwenInlineState = localQwenRunning
     ? null
     : localQwenLoading
-      ? '启动中'
-      : '未启动';
+      ? D('启动中', 'Starting')
+      : D('未启动', 'Not started');
 
   return (
     <div className={`${styles['model-selector']}${open ? ` ${styles.open}` : ''}`} ref={ref}>
@@ -203,7 +208,9 @@ export function ModelSelector({
               <div key={provider || '__none'}>
                 {hasMultipleProviders && (
                   <div className={styles['model-group-header']}>
-                    {provider === LOCAL_QWEN35_PROVIDER_ID ? '本地模型' : normalizeDisplayProviderLabel(provider) || '—'}
+                    {provider === LOCAL_QWEN35_PROVIDER_ID
+                      ? D('本地模型', 'Local models')
+                      : normalizeDisplayProviderLabel(provider) || '—'}
                   </div>
                 )}
                 {items.map(m => {

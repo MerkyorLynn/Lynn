@@ -9,7 +9,7 @@ import { ProviderDetail } from './providers/ProviderDetail';
 import { ModelTimeoutSettings } from './ModelTimeoutSettings';
 vi.mock('../api', () => ({ hanaFetch: vi.fn() }));
 vi.mock('../actions', () => ({ loadSettingsConfig: vi.fn() }));
-vi.mock('../helpers', () => ({ t: (key: string) => key, PROVIDER_PRESETS: [] }));
+vi.mock('../helpers', () => ({ t: (key: string) => key, getProviderPresets: () => [] }));
 vi.mock('./providers/ProviderDetail', () => ({ ProviderDetail: vi.fn(() => <div>provider-detail-mounted</div>) }));
 vi.mock('./ModelTimeoutSettings', () => ({ ModelTimeoutSettings: vi.fn(() => <div>timeouts-mounted</div>) }));
 vi.mock('./providers/ProviderList', () => ({ AddCustomButton: () => null }));

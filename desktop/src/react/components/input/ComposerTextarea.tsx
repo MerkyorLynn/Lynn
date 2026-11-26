@@ -33,7 +33,7 @@ export function ComposerTextarea({
         id="inputBox"
         className={styles['input-box']}
         placeholder={placeholder}
-        aria-label={window.t?.('input.placeholder') || '输入消息'}
+        aria-label={window.t?.('input.composerAria') || 'Message input'}
         rows={1}
         spellCheck={false}
         value={value}
@@ -60,9 +60,12 @@ export function ComposerTextarea({
         }}
       />
       {inputLargeSummary && (
-        <div className={styles['input-large-summary']} title="已保留完整输入内容，发送时会完整提交">
+        <div
+          className={styles['input-large-summary']}
+          title={window.t?.('input.longTextKeptHint') || 'The full input is kept and will be sent in full'}
+        >
           <span className={styles['input-large-summary-dot']} />
-          <span>已载入长文本</span>
+          <span>{window.t?.('input.longTextLoaded') || 'Long text loaded'}</span>
           <strong>{inputLargeSummary}</strong>
         </div>
       )}

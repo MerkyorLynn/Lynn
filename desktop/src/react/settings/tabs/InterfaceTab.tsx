@@ -1,5 +1,9 @@
 import React from 'react';
 import { useSettingsStore } from '../store';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { t, VALID_THEMES, autoSaveConfig } from '../helpers';
 import { SelectWidget } from '../widgets/SelectWidget';
 import { Toggle } from '../widgets/Toggle';
@@ -147,8 +151,8 @@ export function InterfaceTab() {
             <label className={styles['settings-field-label']}>{t('settings.locale.language')}</label>
             <SelectWidget
               options={[
-                { value: 'zh-CN', label: '简体中文' },
-                { value: 'zh-TW', label: '繁體中文' },
+                { value: 'zh-CN', label: D('简体中文', 'Chinese (Simplified)') },
+                { value: 'zh-TW', label: D('繁體中文', 'Chinese (Traditional)') },
                 { value: 'ja', label: '日本語' },
                 { value: 'ko', label: '한국어' },
                 { value: 'en', label: 'English' },

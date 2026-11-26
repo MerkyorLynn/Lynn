@@ -19,6 +19,7 @@ import { useI18n } from '../../hooks/use-i18n';
 import { isBundledLynnAvatarSrc, yuanFallbackAvatar } from '../../utils/agent-helpers';
 import { formatCompactModelLabel } from '../../utils/brain-models';
 import { resolveUiI18nText } from '../../utils/ui-i18n';
+import { isChineseLocale } from '../../utils/locale';
 import { retryAssistantResponse } from '../../stores/prompt-actions';
 import styles from './Chat.module.css';
 
@@ -44,9 +45,11 @@ import {
   reviewerKindFromConfig,
   reviewerNameFromKind,
   MAX_TRANSLATE_CHARS,
+  TRANSLATION_TARGETS,
   findLatestReviewBlock,
   shouldShowFollowUpAction,
   fallbackI18n,
+  translationTargetLabel,
   type ReviewConfigResponse,
 } from "./AssistantMessage.helpers";
 
@@ -56,6 +59,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   const agentAvatarUrl = useStore(s => s.agentAvatarUrl);
   const sessionAgent = useStore(s => s.sessionAgent);
   const addToast = useStore(s => s.addToast);
+  const { t, locale } = useI18n();
   const [avatarFailed, setAvatarFailed] = useState(false);
 
   const displayName = sessionAgent?.name || agentName;
@@ -83,7 +87,7 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
   );
   const plainText = useMemo(() => extractPlainTextFromBlocks(blocks), [blocks]);
   const latestReviewBlock = useMemo(() => findLatestReviewBlock(blocks), [blocks]);
-  const { running: runningTools, total: totalTools, activeLabel: activeToolLabel } = useMemo(() => summarizeToolState(blocks), [blocks]);
+  const { running: runningTools, total: totalTools, activeLabel: activeToolLabel } = useMemo(() => summarizeToolState(blocks, locale), [blocks, locale]);
   const isStreamMsg = !!message.id?.startsWith('stream-');
   const appIsStreaming = useStore(s => s.isStreaming);
   const currentModel = useStore(s => s.currentModel);
@@ -147,14 +151,13 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
     window.platform?.openSettings?.({ tab: 'providers' });
   }, [dismissModelHint]);
 
-  const { t } = useI18n();
   const openLabel = fallbackI18n(t('common.open'), 'Open');
   const [copied, setCopied] = useState(false);
   const [reviewRequestPending, setReviewRequestPending] = useState(false);
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [reviewConfig, setReviewConfig] = useState<ReviewConfigResponse | null>(null);
   const [reviewConfigLoaded, setReviewConfigLoaded] = useState(false);
-  const [translateTarget, setTranslateTarget] = useState('英文');
+  const [translateTarget, setTranslateTarget] = useState(TRANSLATION_TARGETS[0]);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [translateBusy, setTranslateBusy] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
@@ -289,12 +292,15 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
 
   const handleTranslate = useCallback(async (targetLanguage: string) => {
     if (!plainText || translateBusy) return;
+    const zhUi = isChineseLocale(locale);
     if (showStreamingMeta) {
-      addToast('回复完成后再翻译', 'info');
+      addToast(zhUi ? '回复完成后再翻译' : 'Wait until the reply finishes, then translate', 'info');
       return;
     }
     if (plainText.length > MAX_TRANSLATE_CHARS) {
-      const msg = `文本超过 ${MAX_TRANSLATE_CHARS} 字，请先拆成更短片段再翻译。`;
+      const msg = zhUi
+        ? `文本超过 ${MAX_TRANSLATE_CHARS} 字，请先拆成更短片段再翻译。`
+        : `The text exceeds ${MAX_TRANSLATE_CHARS} characters. Split it into shorter pieces and try again.`;
       setTranslateError(msg);
       addToast(msg, 'error');
       return;
@@ -318,15 +324,16 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
         throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
       }
       setTranslatedText(data.text);
-      addToast(`已翻译成${targetLanguage}`, 'success');
+      const display = translationTargetLabel(targetLanguage, locale);
+      addToast(zhUi ? `已翻译成${display}` : `Translated to ${display}`, 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setTranslateError(msg);
-      addToast(`翻译失败：${msg}`, 'error');
+      addToast(zhUi ? `翻译失败：${msg}` : `Translation failed: ${msg}`, 'error');
     } finally {
       setTranslateBusy(false);
     }
-  }, [addToast, plainText, showStreamingMeta, translateBusy]);
+  }, [addToast, locale, plainText, showStreamingMeta, translateBusy]);
 
   useEffect(() => {
     setTranslatedText(null);
@@ -514,13 +521,19 @@ export const AssistantMessage = memo(function AssistantMessage({ message, showAv
         {(translatedText || translateError) && (
           <div className={styles.translationCard}>
             <div className={styles.translationCardHead}>
-              <span>{translateError ? '翻译失败' : `译文 · ${translateTarget}`}</span>
+              <span>
+                {translateError
+                  ? (t('chat.translateFailedLabel') || 'Translation failed')
+                  : `${t('chat.translationCard') || 'Translation'} · ${translationTargetLabel(translateTarget, locale)}`}
+              </span>
               {translatedText && (
                 <button
                   className={styles.translationCardCopy}
-                  onClick={() => navigator.clipboard.writeText(translatedText).then(() => addToast('译文已复制', 'success')).catch(() => {})}
+                  onClick={() => navigator.clipboard.writeText(translatedText)
+                    .then(() => addToast(t('chat.translationCopied') || 'Translation copied', 'success'))
+                    .catch(() => {})}
                 >
-                  复制
+                  {t('common.copy') || 'Copy'}
                 </button>
               )}
             </div>

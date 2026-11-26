@@ -75,6 +75,8 @@ export type ProviderConfigMap = Record<string, ProviderConfig>;
 export interface ProviderPlugin {
   id: ProviderId;
   displayName: string;
+  /** English label. Renderers pick this when the UI locale is not Chinese. */
+  displayNameEn?: string;
   authType: ProviderAuthType;
   defaultBaseUrl: string;
   defaultApi: LLMApi;
@@ -84,6 +86,7 @@ export interface ProviderPlugin {
 export interface ProviderEntry {
   id: ProviderId;
   displayName: string;
+  displayNameEn?: string;
   authType: ProviderAuthType;
   baseUrl: string;
   api: LLMApi;

@@ -2,6 +2,11 @@
  * 纯工具函数，从 modules/utils.js 平移为 TS module
  */
 
+import { isChineseLocale } from './locale';
+
+/** Inline zh/en picker for copy that ships near these formatters. */
+const D = <T,>(zh: T, en: T): T => (isChineseLocale() ? zh : en);
+
 export function toSlash(s: string): string { return s.replace(/\\/g, '/'); }
 export function baseName(s: string): string { return s.replace(/\\/g, '/').split('/').pop() || s; }
 
@@ -92,7 +97,8 @@ export function cronToHuman(schedule: number | string): string {
   if (dow === '*' && hour !== '*' && min !== '*') {
     return t('cron.dailyAt', { hour, min: min.padStart(2, '0') });
   }
-  const dayNames: string[] = (window.t as (...args: unknown[]) => unknown)('cron.dayNames') as string[] || ['日', '一', '二', '三', '四', '五', '六'];
+  const dayNames: string[] = (window.t as (...args: unknown[]) => unknown)('cron.dayNames') as string[]
+    || D(['日', '一', '二', '三', '四', '五', '六'], ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   const weekPrefix = t('cron.weekPrefix');
   if (dow !== '*' && hour !== '*') {
     const dayStr = dow.split(',').map(d => `${weekPrefix}${(Array.isArray(dayNames) ? dayNames : [])[+d] || d}`).join('/');
@@ -163,9 +169,11 @@ function checkboxStateKey(stateKey: string | undefined, index: number): string |
  */
 export function injectCopyButtons(container: HTMLElement): void {
   const t = window.t ?? ((p: string) => p);
-  const tt = (key: string, fallback: string) => {
+  const zh = isChineseLocale();
+  const tt = (key: string, zhFallback: string, enFallback?: string) => {
     const value = t(key);
-    return value && value !== key ? value : fallback;
+    if (value && value !== key) return value;
+    return zh ? zhFallback : (enFallback ?? zhFallback);
   };
   const pres = container.querySelectorAll('pre');
   for (const pre of pres) {
@@ -226,14 +234,14 @@ export function injectCopyButtons(container: HTMLElement): void {
     // eslint-disable-next-line no-restricted-syntax -- paste button injected into rendered Markdown HTML, outside React tree
     const pasteBtn = document.createElement('button');
     pasteBtn.className = 'copy-btn paste-btn';
-    pasteBtn.textContent = tt('common.pasteToInput', '粘贴');
-    pasteBtn.title = tt('common.pasteToInputTitle', '粘贴到输入框');
+    pasteBtn.textContent = tt('common.pasteToInput', '粘贴', 'Paste');
+    pasteBtn.title = tt('common.pasteToInputTitle', '粘贴到输入框', 'Paste into the composer');
     pasteBtn.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('hana-paste-to-input', {
         detail: { text: text || '', source: 'code-block', language },
       }));
-      pasteBtn.textContent = tt('common.pastedToInput', '已粘贴');
-      setTimeout(() => { pasteBtn.textContent = tt('common.pasteToInput', '粘贴'); }, 1200);
+      pasteBtn.textContent = tt('common.pastedToInput', '已粘贴', 'Pasted');
+      setTimeout(() => { pasteBtn.textContent = tt('common.pasteToInput', '粘贴', 'Paste'); }, 1200);
     });
     btnGroup.appendChild(pasteBtn);
 
@@ -319,7 +327,7 @@ export function injectTableSort(container: HTMLElement): void {
       localStorage.setItem('hana-table-sort-seen', '1');
       // eslint-disable-next-line no-restricted-syntax -- one-time hint tooltip
       const hint = document.createElement('div');
-      hint.textContent = (window.t?.('hint.tableSort') as string) || '💡 点击表头可排序';
+      hint.textContent = (window.t?.('hint.tableSort') as string) || D('💡 点击表头可排序', '💡 Click a column header to sort');
       hint.style.cssText = 'position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:11px;padding:3px 10px;border-radius:4px;white-space:nowrap;z-index:10;opacity:0.9;pointer-events:none;';
       table.style.position = 'relative';
       table.appendChild(hint);

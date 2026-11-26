@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../stores';
+import { isChineseLocale } from '../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import { useI18n } from '../hooks/use-i18n';
 import { sendChannelMessage } from '../stores/channel-actions';
 import { AsyncMarkdownContent } from './chat/AsyncMarkdownContent';
@@ -279,8 +284,8 @@ export function ChannelReadonly() {
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </svg>
       {archived
-        ? (window.t?.('channel.archivedReadOnly') || '已归档频道仅可查看历史记录')
-        : (window.t?.('channel.readOnly') || '这是 Agent 之间的私信，仅可查看')}
+        ? (window.t?.('channel.archivedReadOnly') || D('已归档频道仅可查看历史记录', 'Archived channels are read-only'))
+        : (window.t?.('channel.readOnly') || D('这是 Agent 之间的私信，仅可查看', 'This is a private message between agents, view only'))}
     </span>
   );
 }

@@ -7,6 +7,10 @@
 
 import { useEffect, lazy, Suspense, useState, useCallback, useMemo, useRef } from 'react';
 import { useStore } from './stores';
+import { isChineseLocale } from './utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import type { ActivePanel, Session } from './types';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RegionalErrorBoundary } from './components/RegionalErrorBoundary';
@@ -191,7 +195,9 @@ function App() {
       const fb = t('tool._fallback.running', { name: ag });
       const label = (friendly && friendly !== `tool.${currentActivity}.running`)
         ? friendly
-        : (fb && fb !== 'tool._fallback.running' ? fb : `正在调用 ${currentActivity}`);
+        : (fb && fb !== 'tool._fallback.running'
+          ? fb
+          : D(`正在调用 ${currentActivity}`, `Calling ${currentActivity}`));
       return label;
     }
     if (welcomeVisible) return '';
