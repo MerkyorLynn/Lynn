@@ -106,8 +106,12 @@ function defaultBinaryPath(homeDir, platform) {
 }
 
 function bundledBinaryPath(resourcesPath, platform) {
-  if (!resourcesPath || platform !== "win32") return "";
-  return path.join(resourcesPath, "llamacpp", "bin", "llama-server.exe");
+  if (!resourcesPath) return "";
+  // Windows and Linux both ship a bundled runtime under resources/llamacpp/bin.
+  // macOS historically resolves from the Homebrew/system candidates instead.
+  if (platform !== "win32" && platform !== "linux") return "";
+  const binName = platform === "win32" ? "llama-server.exe" : "llama-server";
+  return path.join(resourcesPath, "llamacpp", "bin", binName);
 }
 
 function systemBinaryCandidates(platform, spawnSyncFn = spawnSync) {
