@@ -79,6 +79,10 @@ export interface BuiltinMcpServer {
   config: RawMcpServerConfig;
   credentialFields: BuiltinCredentialSpec[];
   hint?: string;
+  /** English twins; the manager picks by render locale. */
+  labelEn?: string;
+  descriptionEn?: string;
+  hintEn?: string;
 }
 
 export interface BuiltinCredentialEntry extends RawObject {
@@ -155,6 +159,10 @@ export interface McpBuiltinState {
   description: string;
   docsUrl: string;
   hint: string;
+  /** English twins; renderers pick by UI locale. */
+  labelEn?: string;
+  descriptionEn?: string;
+  hintEn?: string;
   transport: McpTransport;
   configured: boolean;
   enabled: boolean;

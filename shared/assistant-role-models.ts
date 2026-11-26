@@ -33,6 +33,13 @@ function _d(encoded: string): string {
   }
 }
 
+/** Anything that is not a Chinese locale gets English copy. */
+function prefersEnglish(locale?: string | null): boolean {
+  const value = String(locale ?? "").trim().toLowerCase();
+  if (!value) return false;
+  return !value.startsWith("zh");
+}
+
 function _ref(providerEncoded: string, idEncoded: string): Readonly<ModelRef> {
   return Object.freeze({
     provider: providerEncoded === BRAIN_PROVIDER_ID ? BRAIN_PROVIDER_ID : _d(providerEncoded),
@@ -49,6 +56,26 @@ export const USER_FACING_MODEL_LABELS: Readonly<Record<string, string>> = Object
   utility_large: "默认执行模型",
   brain: getBrainDisplayName(),
 });
+
+/**
+ * English twins of {@link USER_FACING_MODEL_LABELS}.
+ *
+ * Model ids stay the same in every language; only the role wording changes.
+ */
+export const USER_FACING_MODEL_LABELS_EN: Readonly<Record<string, string>> = Object.freeze({
+  lynn: "Default work model",
+  hanako: "Hanako · GLM-5.3-Flash",
+  butter: "Hanako · GLM-5.3-Flash",
+  review: "Hanako · GLM-5.3-Flash",
+  utility: "Default tool model",
+  utility_large: "Default execution model",
+  brain: getBrainDisplayName("en"),
+});
+
+/** Resolve a role/purpose label for the given locale (Chinese by default). */
+export function getUserFacingRoleModelLabels(locale?: string | null): Readonly<Record<string, string>> {
+  return prefersEnglish(locale) ? USER_FACING_MODEL_LABELS_EN : USER_FACING_MODEL_LABELS;
+}
 
 export const ASSISTANT_ROLE_MODEL_FALLBACKS: Readonly<Record<string, readonly ModelRef[]>> = Object.freeze({
   lynn: Object.freeze([
@@ -144,17 +171,19 @@ export function resolveRoleDefaultModel(
 export function getUserFacingRoleModelLabel(
   roleOrPurpose?: string | null,
   purpose?: ModelPurpose | null,
+  locale?: string | null,
 ): string | null {
   const normalizedRole = normalizeAssistantRole(roleOrPurpose);
   const normalizedPurpose = normalizePurpose(purpose)
     || (normalizedRole ? normalizedRole : normalizePurpose(roleOrPurpose));
+  const labels = getUserFacingRoleModelLabels(locale);
 
-  if (normalizedPurpose === "review") return USER_FACING_MODEL_LABELS.review;
-  if (normalizedPurpose && USER_FACING_MODEL_LABELS[normalizedPurpose]) {
-    return USER_FACING_MODEL_LABELS[normalizedPurpose];
+  if (normalizedPurpose === "review") return labels.review;
+  if (normalizedPurpose && labels[normalizedPurpose]) {
+    return labels[normalizedPurpose];
   }
-  if (normalizedRole && USER_FACING_MODEL_LABELS[normalizedRole]) {
-    return USER_FACING_MODEL_LABELS[normalizedRole];
+  if (normalizedRole && labels[normalizedRole]) {
+    return labels[normalizedRole];
   }
   return null;
 }
@@ -168,11 +197,13 @@ export function getUserFacingModelAlias({
   provider,
   role,
   purpose,
+  locale,
 }: {
   modelId?: string | null;
   provider?: string | null;
   role?: string | null;
   purpose?: ModelPurpose | null;
+  locale?: string | null;
 } = {}): string | null {
   const id = String(modelId || "").trim();
   const normalizedProvider = String(provider || "").trim();
@@ -181,17 +212,22 @@ export function getUserFacingModelAlias({
   const normalizedRole = normalizeAssistantRole(role);
   const normalizedPurpose = normalizePurpose(purpose);
   const refs = getRoleDefaultModelRefs(normalizedRole || normalizedPurpose, normalizedPurpose || undefined);
-  const label = getUserFacingRoleModelLabel(normalizedRole || normalizedPurpose, normalizedPurpose || undefined);
+  const labels = getUserFacingRoleModelLabels(locale);
+  const label = getUserFacingRoleModelLabel(
+    normalizedRole || normalizedPurpose,
+    normalizedPurpose || undefined,
+    locale,
+  );
 
   if (normalizedPurpose && label && modelMatchesAnyRef(id, normalizedProvider, refs)) return label;
   if (normalizedRole && label && modelMatchesAnyRef(id, normalizedProvider, refs)) return label;
 
   if (isBrainModelRef(id, normalizedProvider)) {
-    if (normalizedPurpose === "review") return USER_FACING_MODEL_LABELS.review;
-    if (normalizedPurpose === "utility") return USER_FACING_MODEL_LABELS.utility;
-    if (normalizedPurpose === "utility_large") return USER_FACING_MODEL_LABELS.utility_large;
-    if (normalizedRole && USER_FACING_MODEL_LABELS[normalizedRole]) return USER_FACING_MODEL_LABELS[normalizedRole];
-    return USER_FACING_MODEL_LABELS.brain;
+    if (normalizedPurpose === "review") return labels.review;
+    if (normalizedPurpose === "utility") return labels.utility;
+    if (normalizedPurpose === "utility_large") return labels.utility_large;
+    if (normalizedRole && labels[normalizedRole]) return labels[normalizedRole];
+    return labels.brain;
   }
 
   return null;

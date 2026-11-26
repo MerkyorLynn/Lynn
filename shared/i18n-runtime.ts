@@ -77,3 +77,19 @@ export function t(path: string, vars?: Record<string, unknown>): string {
 export function getLocale(): string {
   return currentLocale;
 }
+
+/**
+ * True when the locale should get English copy.
+ *
+ * The bundled dictionaries only cover zh / zh-TW / ja / ko / en, and only the
+ * zh variants have Chinese source strings. Anything else (en, ja, ko, fr, …)
+ * gets the English branch so an untranslated string is readable rather than
+ * Chinese.
+ *
+ * An empty/unknown locale keeps the historical Chinese default.
+ */
+export function isEnglishLocale(locale?: string | null): boolean {
+  const value = String(locale ?? "").trim().toLowerCase();
+  if (!value) return false;
+  return !value.startsWith("zh");
+}

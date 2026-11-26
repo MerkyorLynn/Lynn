@@ -7,6 +7,7 @@ import { brainComplianceNote } from '../utils/brain-models';
 import { getUserFacingModelAlias } from '../../../../shared/assistant-role-models.js';
 import styles from './StatusBar.module.css';
 import { useI18n } from '../hooks/use-i18n';
+import { currentLocale } from '../utils/locale';
 
 declare function t(key: string, vars?: Record<string, string | number>): string;
 
@@ -84,6 +85,7 @@ function formatModelTag(
     provider: model.provider,
     role,
     purpose,
+    locale: currentLocale(),
   });
   if (alias) {
     return translate('status.model.ready', { kind, model: alias });

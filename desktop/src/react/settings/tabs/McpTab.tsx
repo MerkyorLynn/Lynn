@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hanaFetch } from '../api';
 import { t } from '../helpers';
-import { isChineseLocale } from '../../utils/locale';
+import { currentLocale, isChineseLocale } from '../../utils/locale';
 
 /** Inline zh/en picker for copy that ships next to this tab. */
 const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
@@ -122,7 +122,9 @@ export function McpTab() {
   const loadBuiltinServers = useCallback(async () => {
     if (!ready || !serverPort || !serverToken) return;
     try {
-      const res = await hanaFetch('/api/mcp/builtin');
+      // Send the active locale so the server's copy matches the UI; the local
+      // fallback wins for display either way.
+      const res = await hanaFetch(`/api/mcp/builtin?locale=${encodeURIComponent(currentLocale())}`);
       const data = await res.json();
       const nextBuiltin = mergeBuiltinStates(data.builtin || []);
       if (data?.ok === false && /MCP manager unavailable/i.test(String(data?.error || ''))) {

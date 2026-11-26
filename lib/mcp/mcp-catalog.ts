@@ -43,6 +43,10 @@ export interface McpBuiltinServerCatalogEntry {
   config: McpBuiltinCatalogConfig;
   credentialFields: McpBuiltinCredentialField[];
   hint: string;
+  /** English twins. Renderers pick by UI locale; the server returns both. */
+  labelEn?: string;
+  descriptionEn?: string;
+  hintEn?: string;
 }
 
 export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> = {
@@ -69,6 +73,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "在腾讯文档开放平台生成 MCP Token 后填入即可。",
+    labelEn: "Tencent Docs",
+    descriptionEn: "Add a token once and Tencent Docs tools plug straight into Lynn.",
+    hintEn: "Generate an MCP token in the Tencent Docs open platform and paste it here.",
   },
   "minimax-enhanced": {
     name: "minimax-enhanced",
@@ -96,6 +103,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "需先安装 uv / uvx。启用后会同时提供 web_search 和 understand_image 两个增强工具。",
+    labelEn: "MiniMax search boost",
+    descriptionEn: "Add a token once to enable MiniMax web search and image understanding.",
+    hintEn: "Requires uv / uvx. Enabling it also provides the web_search and understand_image tools.",
   },
   "zhipu-search": {
     name: "zhipu-search",
@@ -120,6 +130,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "GLM Coding Plan 用户专享。适合需要更强实时检索、技术资料搜索时启用。",
+    labelEn: "Zhipu web search boost",
+    descriptionEn: "Add Z_AI_API_KEY once to enable Zhipu's dedicated web-search MCP.",
+    hintEn: "GLM Coding Plan only. Useful when you need stronger live retrieval and technical lookups.",
   },
   "zhipu-reader": {
     name: "zhipu-reader",
@@ -144,6 +157,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "GLM Coding Plan 用户专享。适合长网页深读、正文提取、调研资料清洗。",
+    labelEn: "Zhipu page reader boost",
+    descriptionEn: "Add Z_AI_API_KEY once to enable page-body reading and structured extraction.",
+    hintEn: "GLM Coding Plan only. Suited to long-page deep reading, body extraction, and cleaning research material.",
   },
   "zhipu-zread": {
     name: "zhipu-zread",
@@ -168,6 +184,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "GLM Coding Plan 用户专享。适合代码库问答、开源项目结构理解和资料检索。",
+    labelEn: "Zhipu repository boost",
+    descriptionEn: "Add Z_AI_API_KEY once to enable open-source repository search and content reading.",
+    hintEn: "GLM Coding Plan only. Suited to codebase Q&A, understanding project structure, and reference lookups.",
   },
   "zhipu-vision": {
     name: "zhipu-vision",
@@ -194,6 +213,9 @@ export const MCP_BUILTIN_SERVERS: Record<string, McpBuiltinServerCatalogEntry> =
       },
     ],
     hint: "GLM Coding Plan 用户专享。需本机安装 Node.js 18+ 与 npx，适合截图报错、UI 对比、OCR 和图表分析。",
+    labelEn: "Zhipu vision boost",
+    descriptionEn: "Add Z_AI_API_KEY once to enable screenshot diagnosis, OCR, chart and UI understanding.",
+    hintEn: "GLM Coding Plan only. Requires Node.js 18+ and npx locally. Suited to error screenshots, UI comparisons, OCR and chart analysis.",
   },
 };
 

@@ -52,6 +52,8 @@ type ProviderSummary = {
 type ProviderRegistryEntry = {
   id?: string;
   displayName?: string;
+  /** English label; renderers use it when the UI locale is not Chinese. */
+  displayNameEn?: string;
   authType?: string;
   baseUrl?: string;
   api?: string;

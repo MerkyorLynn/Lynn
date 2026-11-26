@@ -26,6 +26,8 @@ type AgentSpec = {
 
 type FirstRunDirs = {
   agentsDir: string;
+  /** UI locale; seeded agent templates and copy follow it. */
+  locale?: string;
   productDir: string;
   prefsPath: string;
 };
@@ -78,6 +80,44 @@ const BUILT_IN_AGENT_SPECS = [
   { id: "butter", name: "Butter", yuan: "butter" },
 ] satisfies AgentSpec[];
 
+/** Anything that is not a Chinese locale seeds English templates. */
+function prefersEnglish(locale?: string | null): boolean {
+  const value = String(locale ?? "").trim().toLowerCase();
+  if (!value) return false;
+  return !value.startsWith("zh");
+}
+
+/** "" for Chinese, "en/" for everything else — matches core/agent.ts. */
+function templateLangDir(locale?: string | null): string {
+  return prefersEnglish(locale) ? "en/" : "";
+}
+
+/**
+ * Read the saved UI locale.
+ *
+ * Seeding runs before the engine (and therefore config.yaml) is available, so
+ * the preference file is the only source at this point. Writing the template in
+ * the user's language matters because seeding is write-once: a Chinese
+ * identity.md would otherwise stay Chinese forever, and the settings window
+ * shows these files verbatim.
+ */
+function readSavedLocale(lynnHome: string): string | undefined {
+  const candidates = [
+    path.join(lynnHome, "user", "preferences.json"),
+    path.join(lynnHome, "preferences.json"),
+  ];
+  for (const file of candidates) {
+    try {
+      const prefs = JSON.parse(fs.readFileSync(file, "utf-8"));
+      const locale = prefs?.locale;
+      if (typeof locale === "string" && locale.trim()) return locale.trim();
+    } catch {
+      // missing or malformed — try the next candidate
+    }
+  }
+  return undefined;
+}
+
 function firstExistingPath(...paths: Array<string | null | undefined>): string | null {
   for (const p of paths) {
     if (p && fs.existsSync(p)) return p;
@@ -90,7 +130,8 @@ function firstExistingPath(...paths: Array<string | null | undefined>): string |
  * @param {string} lynnHome - ~/.lynn 绝对路径
  * @param {string} productDir - 产品模板目录（lib/）
  */
-export function ensureFirstRun(lynnHome: string, productDir: string): void {
+export function ensureFirstRun(lynnHome: string, productDir: string, locale?: string | null): void {
+  const effectiveLocale = (locale && String(locale).trim()) || readSavedLocale(lynnHome) || undefined;
   // 0. 不再默认读取 OpenHanako 的 ~/.hanako。
   // 旧版自动复制会让 Lynn 继承 Hanako 的 onboarding/session/model 状态，表现为跳过引导、
   // 配置像被重置。只保留显式导入逃生口，避免两个应用命名空间互相污染。
@@ -118,7 +159,7 @@ export function ensureFirstRun(lynnHome: string, productDir: string): void {
     console.log("[first-run] 首次启动，正在创建内置助手...");
   }
 
-  ensureBuiltInAgents({ agentsDir, productDir, prefsPath });
+  ensureBuiltInAgents({ agentsDir, productDir, prefsPath, locale: effectiveLocale });
 
   // 3. 同步 skills：从 skills2set/ 复制到 ~/.lynn/skills/
   const skillsSrc = path.join(productDir, "..", "skills2set");
@@ -293,10 +334,10 @@ function ensureDefaultWorkspacePrefs(prefsPath: string, productDir: string): voi
 /**
  * 从模板播种内置助手（与 engine.createAgent 相同逻辑，但纯同步、无依赖）
  */
-function ensureBuiltInAgents({ agentsDir, productDir, prefsPath }: FirstRunDirs): void {
+function ensureBuiltInAgents({ agentsDir, productDir, prefsPath, locale }: FirstRunDirs): void {
   const createdIds: string[] = [];
   for (const spec of BUILT_IN_AGENT_SPECS) {
-    const created = ensureBuiltInAgent({ agentsDir, productDir, spec });
+    const created = ensureBuiltInAgent({ agentsDir, productDir, spec, locale });
     if (created) createdIds.push(spec.id);
   }
 
@@ -307,7 +348,13 @@ function ensureBuiltInAgents({ agentsDir, productDir, prefsPath }: FirstRunDirs)
   }
 }
 
-function ensureBuiltInAgent({ agentsDir, productDir, spec }: { agentsDir: string; productDir: string; spec: AgentSpec }): boolean {
+function ensureBuiltInAgent({ agentsDir, productDir, spec, locale }: {
+  agentsDir: string;
+  productDir: string;
+  spec: AgentSpec;
+  locale?: string;
+}): boolean {
+  const langDir = templateLangDir(locale);
   const agentDir = path.join(agentsDir, spec.id);
   const configPath = path.join(agentDir, "config.yaml");
   const seedContext = getBuiltInSeedContext(agentsDir, productDir);
@@ -354,6 +401,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec }: { agentsDir: string
   writeTemplateIfMissing({
     targetPath: path.join(agentDir, "identity.md"),
     templatePath: firstExistingPath(
+      path.join(productDir, "identity-templates", `${langDir}${spec.yuan}.md`),
       path.join(productDir, "identity-templates", `${spec.yuan}.md`),
       path.join(productDir, "identity.example.md"),
     ),
@@ -363,6 +411,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec }: { agentsDir: string
   writeTemplateIfMissing({
     targetPath: path.join(agentDir, "ishiki.md"),
     templatePath: firstExistingPath(
+      path.join(productDir, "ishiki-templates", `${langDir}${spec.yuan}.md`),
       path.join(productDir, "ishiki-templates", `${spec.yuan}.md`),
       path.join(productDir, "ishiki.example.md"),
     ),
@@ -372,6 +421,7 @@ function ensureBuiltInAgent({ agentsDir, productDir, spec }: { agentsDir: string
   writeTemplateIfMissing({
     targetPath: path.join(agentDir, "public-ishiki.md"),
     templatePath: firstExistingPath(
+      path.join(productDir, "public-ishiki-templates", `${langDir}${spec.yuan}.md`),
       path.join(productDir, "public-ishiki-templates", `${spec.yuan}.md`),
       path.join(productDir, "public-ishiki-templates", "hanako.md"),
     ),

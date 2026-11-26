@@ -72,6 +72,7 @@ export function normalizeDisplayModelName(model: BrainModelLike | null | undefin
     provider: model.provider,
     role: context?.role,
     purpose: context?.purpose,
+    locale: currentLocale(),
   });
   if (alias) return alias;
   if (isDisplayDefaultModel(model.id, model.provider)) return brainDisplayName();
@@ -118,6 +119,7 @@ export function formatCompactModelLabel(
     provider: model.provider || undefined,
     role: context?.role,
     purpose: context?.purpose,
+    locale: currentLocale(),
   });
   if (alias) return alias;
   if (isDisplayDefaultModel(model.id, model.provider)) return brainDisplayName();

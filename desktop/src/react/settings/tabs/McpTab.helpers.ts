@@ -44,6 +44,10 @@ export type McpBuiltinState = {
   description?: string;
   docsUrl?: string;
   hint?: string;
+  /** English twins from the server; the local fallback already localizes. */
+  labelEn?: string;
+  descriptionEn?: string;
+  hintEn?: string;
   transport: 'stdio' | 'sse' | 'http';
   configured?: boolean;
   enabled?: boolean;
@@ -251,17 +255,30 @@ export function getBuiltinFallbacks(): McpBuiltinState[] {
   return builtinFallbackData(isChineseLocale());
 }
 
+/**
+ * Merge the server's built-in server states with the local fallbacks.
+ *
+ * The display copy (label / description / hint) is taken from the LOCAL
+ * fallback, which resolves the active locale on every call. The server ships
+ * the same strings but keyed off its own config, so letting them win is what
+ * put Chinese card titles in an English UI. Only runtime state — configured,
+ * connected, tool counts, credentials — comes from the server.
+ */
 export function mergeBuiltinStates(nextBuiltin: McpBuiltinState[]): McpBuiltinState[] {
   const byName = new Map<string, McpBuiltinState>();
-  // Resolved per call: the labels depend on the active locale.
   for (const builtin of getBuiltinFallbacks()) byName.set(builtin.name, builtin);
   for (const builtin of nextBuiltin || []) {
+    const fallback = byName.get(builtin.name);
     byName.set(builtin.name, {
-      ...(byName.get(builtin.name) || {}),
+      ...(fallback || {}),
       ...builtin,
+      // Locale-owned copy: never let the server override these.
+      label: fallback?.label || builtin.label,
+      description: fallback?.description || builtin.description,
+      hint: fallback?.hint || builtin.hint,
       credentialFields: builtin.credentialFields?.length
         ? builtin.credentialFields
-        : byName.get(builtin.name)?.credentialFields || [],
+        : fallback?.credentialFields || [],
     });
   }
   return [...byName.values()];

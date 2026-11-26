@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { safeJson } from "../hono-helpers.js";
 import { createDefaultMcpServerTemplate } from "../../lib/mcp-client.js";
 import { createKimiDatasourceRoute } from "./kimi-datasource.js";
+import { getLocale } from "../../shared/i18n-runtime.js";
 
 type McpRouteBody = {
   name?: string;
@@ -16,7 +17,7 @@ type McpManagerLike = {
   startOAuth?(name: string): Promise<unknown>;
   disconnectOAuth?(name: string): Promise<void>;
   listServerStates(): unknown;
-  listBuiltinStates(): unknown;
+  listBuiltinStates(locale?: string | null): unknown;
   saveServer(name: string, config: unknown): unknown | Promise<unknown>;
   deleteServer(name: string): unknown | Promise<unknown>;
   testServerConfig(name: string, config: unknown): unknown | Promise<unknown>;
@@ -27,6 +28,8 @@ type McpManagerLike = {
 
 type McpRouteEngine = {
   lynnHome?: string;
+  /** Active UI locale, so built-in card copy can follow the user's language. */
+  getLocale?: () => string | undefined;
   mcpManager?: McpManagerLike | null;
   currentSessionPath?: string | null;
   getSessionActiveMcp?: (sessionPath: string) => unknown;
@@ -40,6 +43,19 @@ function errorMessage(err: unknown): string {
 
 function getManager(engine: McpRouteEngine): McpManagerLike | null {
   return engine.mcpManager || null;
+}
+
+/**
+ * Locale for user-facing copy on this response.
+ *
+ * Prefers an explicit `?locale=` (the renderer knows its own language even
+ * before the config is persisted), then the engine's current locale.
+ */
+function resolveRequestLocale(c: { req: { query: (k: string) => string | undefined } }, engine: McpRouteEngine): string | undefined {
+  const fromQuery = c.req.query("locale");
+  if (fromQuery) return fromQuery;
+  if (typeof engine.getLocale === "function") return engine.getLocale();
+  return getLocale();
 }
 
 export function createMcpRoute(engine: McpRouteEngine): Hono {
@@ -73,7 +89,7 @@ export function createMcpRoute(engine: McpRouteEngine): Hono {
     if (!manager) {
       return c.json({ builtin: [], ok: false, error: "MCP manager unavailable" }, 503);
     }
-    return c.json({ ok: true, builtin: manager.listBuiltinStates() });
+    return c.json({ ok: true, builtin: manager.listBuiltinStates(resolveRequestLocale(c, engine)) });
   });
 
   route.post("/mcp/servers", async (c) => {

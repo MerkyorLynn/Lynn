@@ -4,7 +4,7 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useI18n } from '../../hooks/use-i18n';
 import { loadModels } from '../../utils/ui-helpers';
 import { lookupKnownModel } from '../../utils/known-models';
-import { isChineseLocale } from '../../utils/locale';
+import { currentLocale, isChineseLocale } from '../../utils/locale';
 
 /** Inline zh/en picker for model-pill copy. */
 const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
@@ -58,6 +58,7 @@ function modelMetaLine(model?: SelectorModel, role?: string | null): string {
     provider: model.provider,
     role,
     purpose: 'chat',
+    locale: currentLocale(),
   });
   if (alias && !isDisplayDefaultModel(model.id, model.provider)) return D('按角色自动分配 · 已就绪', 'Assigned by role · ready');
   if (isDisplayDefaultModel(model.id, model.provider)) return D('开箱即用 · 已备案', 'Works out of the box · approved');
