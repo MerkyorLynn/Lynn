@@ -251,12 +251,10 @@ export function getBuiltinFallbacks(): McpBuiltinState[] {
   return builtinFallbackData(isChineseLocale());
 }
 
-/** Snapshot for module-scope consumers; refreshed via getBuiltinFallbacks(). */
-export const BUILTIN_FALLBACKS: McpBuiltinState[] = builtinFallbackData(isChineseLocale());
-
 export function mergeBuiltinStates(nextBuiltin: McpBuiltinState[]): McpBuiltinState[] {
   const byName = new Map<string, McpBuiltinState>();
-  for (const builtin of BUILTIN_FALLBACKS) byName.set(builtin.name, builtin);
+  // Resolved per call: the labels depend on the active locale.
+  for (const builtin of getBuiltinFallbacks()) byName.set(builtin.name, builtin);
   for (const builtin of nextBuiltin || []) {
     byName.set(builtin.name, {
       ...(byName.get(builtin.name) || {}),

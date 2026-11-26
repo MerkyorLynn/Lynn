@@ -135,21 +135,29 @@ function normalizeProvidersSummary(input: Record<string, ProviderSummary>): Reco
   return output;
 }
 
-const LOCAL_PROVIDER_FALLBACKS: Record<string, ProviderSummary> = {
-  [LOCAL_QWEN_PROVIDER_ID]: {
-    type: 'none',
-    display_name: localQwenProviderLabel(),
-    base_url: 'http://127.0.0.1:18099/v1',
-    api: 'openai-completions',
-    api_key: '',
-    models: ['qwen38-27b-coder390-q3-lynnstyle'],
-    custom_models: [],
-    removed_models: [],
-    has_credentials: true,
-    supports_oauth: false,
-    can_delete: false,
-  },
-};
+/**
+ * Fallback summaries for providers the server may not have reported yet.
+ *
+ * Built on demand: the display name is locale-dependent, so a module-level
+ * object would freeze whichever language was active at import time.
+ */
+function getLocalProviderFallbacks(): Record<string, ProviderSummary> {
+  return {
+    [LOCAL_QWEN_PROVIDER_ID]: {
+      type: 'none',
+      display_name: localQwenProviderLabel(),
+      base_url: 'http://127.0.0.1:18099/v1',
+      api: 'openai-completions',
+      api_key: '',
+      models: ['qwen38-27b-coder390-q3-lynnstyle'],
+      custom_models: [],
+      removed_models: [],
+      has_credentials: true,
+      supports_oauth: false,
+      can_delete: false,
+    },
+  };
+}
 
 const API_PROVIDER_ORDER = [
   BRAIN_PROVIDER_ID,
@@ -210,8 +218,9 @@ function resolvePreferredProviderId(settingsConfig: SettingsConfig | null): stri
 }
 
 function buildPresetSummary(id: string): ProviderSummary | null {
-  if (LOCAL_PROVIDER_FALLBACKS[id]) return LOCAL_PROVIDER_FALLBACKS[id];
-  if (isLocalQwenProviderId(id)) return LOCAL_PROVIDER_FALLBACKS[LOCAL_QWEN_PROVIDER_ID];
+  const localFallbacks = getLocalProviderFallbacks();
+  if (localFallbacks[id]) return localFallbacks[id];
+  if (isLocalQwenProviderId(id)) return localFallbacks[LOCAL_QWEN_PROVIDER_ID];
 
   if (id === BRAIN_PROVIDER_ID) {
     const cfg = buildBrainProviderConfig();
@@ -299,7 +308,7 @@ function ReadyProvidersTab() {
     CODING_PROVIDER_ORDER,
   ), [providerIds, providersSummary]);
   const visibleLocalProviderIds = useMemo(() => sortByPriority(
-    LOCAL_PROVIDER_ORDER.filter((id) => providersSummary[id] || LOCAL_PROVIDER_FALLBACKS[id]),
+    LOCAL_PROVIDER_ORDER.filter((id) => providersSummary[id] || getLocalProviderFallbacks()[id]),
     LOCAL_PROVIDER_ORDER,
   ), [providersSummary]);
   const visibleRegisteredApiIds = useMemo(
