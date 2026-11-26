@@ -1,5 +1,9 @@
 import { AttachmentChip } from '../shared/AttachmentChip';
 import styles from './InputArea.module.css';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this bar. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 export function AttachedFilesBar({ files, onRemove }: {
   files: Array<{ path: string; name: string; isDirectory?: boolean }>;
@@ -7,7 +11,7 @@ export function AttachedFilesBar({ files, onRemove }: {
 }) {
   return (
     <div className={styles['attached-files-wrap']}>
-      <div className={styles['attached-files-label']}>{window.t?.('input.contextFiles') || '附件'}</div>
+      <div className={styles['attached-files-label']}>{window.t?.('input.contextFiles') || D('附件', 'Attachments')}</div>
       <div className={styles['attached-files']}>
         {files.map((f, i) => (
           <AttachmentChip

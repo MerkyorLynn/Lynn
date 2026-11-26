@@ -4,6 +4,7 @@ import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { useStore } from '../../stores';
 import type { ContentBlock } from '../../stores/chat-types';
 import { ensureSession, showSidebarToast } from '../../stores/session-actions';
+import { isChineseLocale } from '../../utils/locale';
 import {
   DEEP_RESEARCH_FETCH_TIMEOUT_MS,
   DEEP_RESEARCH_TIMEOUT_MS,
@@ -26,6 +27,7 @@ interface UseDeepResearchRunnerArgs {
   inputValue: string;
   isStreaming: boolean;
   localQwenEndpoint?: string;
+  locale?: string;
   pendingNewSession: boolean;
   requestInputFocus: () => void;
   serverReady: boolean;
@@ -49,9 +51,10 @@ async function patchLocalAssistantMessage(
   messageId: string,
   plainText: string,
   artifact?: DeepResearchArtifact | null,
+  locale?: string | null,
 ) {
   const blocks = await renderAssistantText(plainText);
-  const normalizedArtifact = normalizeDeepResearchArtifact(artifact);
+  const normalizedArtifact = normalizeDeepResearchArtifact(artifact, locale);
   const nextBlocks: ContentBlock[] = normalizedArtifact
     ? [
       ...blocks,
@@ -97,6 +100,7 @@ export function useDeepResearchRunner({
   inputValue,
   isStreaming,
   localQwenEndpoint,
+  locale,
   pendingNewSession,
   requestInputFocus,
   serverReady,
@@ -116,26 +120,33 @@ export function useDeepResearchRunner({
     const prompt = latestPromptValue.trim();
     setDeepResearchOpen(true);
     if (!prompt) {
-      useStore.getState().addToast?.('先输入一个调研问题，再点“开始深研”', 'info', 3200, {
-        dedupeKey: 'deep-research-empty',
-      });
+      const zh = isChineseLocale(locale);
+      useStore.getState().addToast?.(
+        zh ? '先输入一个调研问题，再点“开始深研”' : 'Type a research question first, then tap "Start research"',
+        'info',
+        3200,
+        { dedupeKey: 'deep-research-empty' },
+      );
       requestInputFocus();
       return;
     }
     if (deepResearchBusy || isStreaming) return;
     if (!serverReady) {
-      showSidebarToast(t('chat.serverStarting') || 'Lynn 还在启动中', 4000);
+      showSidebarToast(t('chat.serverStarting') || 'Lynn is still starting up', 4000);
       return;
     }
 
+    const zh = isChineseLocale(locale);
     const selectedProvider = String(activeModelInfo?.provider || '').trim();
     const selectedModel = String(activeModelInfo?.id || '').trim();
-    const selectedModelLabel = String(activeModelInfo?.name || selectedModel || '当前模型').trim();
+    const selectedModelLabel = String(activeModelInfo?.name || selectedModel || (zh ? '当前模型' : 'current model')).trim();
     const useLocalDeepResearch = /^local-qwen35-/u.test(selectedProvider);
     const useDefaultBrainDeepResearch = selectedProvider === 'brain';
     flushSync(() => {
       setDeepResearchBusy(true);
-      setInlineNotice(`深研已启动：正在使用 ${selectedModelLabel} 生成答案…`);
+      setInlineNotice(zh
+        ? `深研已启动：正在使用 ${selectedModelLabel} 生成答案…`
+        : `Deep research started: generating with ${selectedModelLabel}…`);
       setInlineError(null);
     });
     try {
@@ -144,16 +155,18 @@ export function useDeepResearchRunner({
       }
       if (useStore.getState().pendingNewSession) {
         const ok = await ensureSession();
-        if (!ok) throw new Error('无法创建新会话');
+        if (!ok) throw new Error(zh ? '无法创建新会话' : 'Could not create a new session');
       }
       const sessionPath = useStore.getState().currentSessionPath;
-      if (!sessionPath) throw new Error('当前没有可用会话');
+      if (!sessionPath) throw new Error(zh ? '当前没有可用会话' : 'No usable session right now');
 
       const renderMarkdown = (await import('../../utils/markdown')).renderMarkdown;
       const now = Date.now();
       const userId = `deep-user-${now}`;
       const assistantId = `deep-assistant-${now}`;
-      const thinkingText = `深度调研正在使用 ${selectedModelLabel}。`;
+      const thinkingText = zh
+        ? `深度调研正在使用 ${selectedModelLabel}。`
+        : `Deep research is using ${selectedModelLabel}.`;
       const thinkingBlocks = await renderAssistantText(thinkingText);
       const session = useStore.getState().chatSessions[sessionPath];
       if (!session) {
@@ -178,7 +191,7 @@ export function useDeepResearchRunner({
             role: 'assistant',
             text: thinkingText,
             blocks: thinkingBlocks,
-            model: '深度调研',
+            model: zh ? '深度调研' : 'Deep research',
             timestamp: now,
           },
         });
@@ -200,34 +213,49 @@ export function useDeepResearchRunner({
             : undefined,
           provider: selectedProvider || undefined,
           model: selectedModel || undefined,
-          sourceLabel: useDefaultBrainDeepResearch ? '默认工作模型' : selectedModelLabel,
+          sourceLabel: useDefaultBrainDeepResearch
+            ? (zh ? '默认工作模型' : 'default work model')
+            : selectedModelLabel,
           localBaseUrl: useLocalDeepResearch ? localQwenEndpoint : undefined,
           timeoutMs: DEEP_RESEARCH_TIMEOUT_MS,
         }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data?.error || `深度调研请求失败 (${response.status})`);
+        throw new Error(data?.error || (zh
+          ? `深度调研请求失败 (${response.status})`
+          : `Deep research request failed (${response.status})`));
       }
 
       await patchLocalAssistantMessage(
         sessionPath,
         assistantId,
-        formatDeepResearchAssistantText(data),
+        formatDeepResearchAssistantText(data, locale),
         data?.artifact,
+        locale,
       );
       setInlineNotice(null);
     } catch (err) {
-      const message = normalizeDeepResearchErrorMessage(err);
+      const message = normalizeDeepResearchErrorMessage(err, locale);
       const sessionPath = useStore.getState().currentSessionPath;
       const session = sessionPath ? useStore.getState().chatSessions[sessionPath] : null;
       const lastAssistant = session?.items.slice().reverse().find(
         (item) => item.type === 'message' && item.data.role === 'assistant' && item.data.id.startsWith('deep-assistant-'),
       );
       if (sessionPath && lastAssistant?.type === 'message') {
-        await patchLocalAssistantMessage(sessionPath, lastAssistant.data.id, `深度调研启动失败：${message}`);
+        await patchLocalAssistantMessage(
+          sessionPath,
+          lastAssistant.data.id,
+          (zh ? '深度调研启动失败：' : 'Deep research failed to start: ') + message,
+          undefined,
+          locale,
+        );
       } else {
-        useStore.getState().addToast?.(`深度调研启动失败：${message}`, 'error', 5000);
+        useStore.getState().addToast?.(
+          (zh ? '深度调研启动失败：' : 'Deep research failed to start: ') + message,
+          'error',
+          5000,
+        );
       }
       setInlineNotice(null);
     } finally {
@@ -242,6 +270,7 @@ export function useDeepResearchRunner({
     inputValue,
     isStreaming,
     localQwenEndpoint,
+    locale,
     pendingNewSession,
     requestInputFocus,
     serverReady,

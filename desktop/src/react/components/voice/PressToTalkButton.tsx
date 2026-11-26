@@ -19,6 +19,10 @@
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { CSSProperties } from "react";
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships next to this button. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 // ============ Types ============
 export interface PressToTalkButtonProps {
@@ -123,14 +127,31 @@ export function PressToTalkButton({
       const isLikelyPermission = blob.size < 1024 && actualDuration >= 0.4;
       let reason: string;
       if (isLikelyPermission) {
-        const heardHint = audioPeakRef.current > 0 ? `检测到音量峰值 ${audioPeakRef.current},但编码器没有产出音频帧` : "没有检测到可用音量";
-        reason = `(录了 ${actualDuration.toFixed(2)}s 但 blob 仅 ${blob.size}B；${heardHint}；设备状态: ${trackStatusRef.current}。请到 系统设置 → 隐私与安全性 → 麦克风 重新授权 Lynn,或退出后重开 App)`;
+        const heardHint = audioPeakRef.current > 0
+          ? D(
+            `检测到音量峰值 ${audioPeakRef.current},但编码器没有产出音频帧`,
+            `peak input level ${audioPeakRef.current} was detected, but the encoder produced no audio frames`,
+          )
+          : D('没有检测到可用音量', 'no usable input level was detected');
+        reason = D(
+          `(录了 ${actualDuration.toFixed(2)}s 但 blob 仅 ${blob.size}B；${heardHint}；设备状态: ${trackStatusRef.current}。请到 系统设置 → 隐私与安全性 → 麦克风 重新授权 Lynn,或退出后重开 App)`,
+          `(recorded ${actualDuration.toFixed(2)}s but the blob is only ${blob.size}B; ${heardHint}; device state: ${trackStatusRef.current}. Re-authorise Lynn in System Settings → Privacy & Security → Microphone, or quit and reopen the app)`,
+        );
       } else if (blob.size < 1024) {
-        reason = `(blob ${blob.size}B 太小,可能麦克风没拿到音频；设备状态: ${trackStatusRef.current})`;
+        reason = D(
+          `(blob ${blob.size}B 太小,可能麦克风没拿到音频；设备状态: ${trackStatusRef.current})`,
+          `(the blob is only ${blob.size}B, so the microphone may not have captured audio; device state: ${trackStatusRef.current})`,
+        );
       } else {
-        reason = `(只录了 ${actualDuration.toFixed(2)}s,太短)`;
+        reason = D(
+          `(只录了 ${actualDuration.toFixed(2)}s,太短)`,
+          `(only ${actualDuration.toFixed(2)}s was recorded, which is too short)`,
+        );
       }
-        setError(`录音太短,请录完一句话后再点一次结束 ${reason}`);
+      setError(D(
+        `录音太短,请录完一句话后再点一次结束 ${reason}`,
+        `The recording is too short. Say a full sentence, then press again to finish. ${reason}`,
+      ));
       setState("idle");
       setPartialText("");
       return;
@@ -154,7 +175,7 @@ export function PressToTalkButton({
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(`转写失败: ${msg}`);
+      setError(`${D('转写失败: ', 'Transcription failed: ')}${msg}`);
       setState("idle");
       setPartialText("");
     }
@@ -186,15 +207,15 @@ export function PressToTalkButton({
       streamRef.current = stream;
       const track = stream.getAudioTracks()[0];
       if (track) {
-        trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}${track.muted ? " · muted" : ""}`;
+        trackStatusRef.current = `${track.label || D('默认麦克风', 'default microphone')} · ${track.readyState}${track.muted ? " · muted" : ""}`;
         track.onmute = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState} · muted`;
+          trackStatusRef.current = `${track.label || D('默认麦克风', 'default microphone')} · ${track.readyState} · muted`;
         };
         track.onunmute = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ${track.readyState}`;
+          trackStatusRef.current = `${track.label || D('默认麦克风', 'default microphone')} · ${track.readyState}`;
         };
         track.onended = () => {
-          trackStatusRef.current = `${track.label || "默认麦克风"} · ended`;
+          trackStatusRef.current = `${track.label || D('默认麦克风', 'default microphone')} · ended`;
         };
       }
 
@@ -213,7 +234,7 @@ export function PressToTalkButton({
       };
       recorder.onerror = (event) => {
         const error = (event as unknown as { error?: Error }).error;
-        setError(`录音器异常: ${error?.message || "MediaRecorder error"}`);
+        setError(`${D('录音器异常: ', 'Recorder error: ')}${error?.message || 'MediaRecorder error'}`);
       };
       recorder.onstop = () => {
         if (cancelledRef.current) {
@@ -250,7 +271,7 @@ export function PressToTalkButton({
       setState("recording");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(`麦克风启动失败: ${msg}`);
+      setError(`${D('麦克风启动失败: ', 'Could not start the microphone: ')}${msg}`);
       setState("idle");
       cleanup();
     }
@@ -363,7 +384,7 @@ export function PressToTalkButton({
             <>
               <div className="ptt-status">
                 <span className="ptt-live-dot" aria-hidden />
-                <span>录音中</span>
+                <span>{D('录音中', 'Recording')}</span>
               </div>
               <canvas
                 ref={canvasRef}
@@ -373,14 +394,14 @@ export function PressToTalkButton({
                 aria-hidden
               />
               <div className="ptt-duration">{duration.toFixed(1)}s</div>
-              <div className="ptt-hint">再点结束</div>
+              <div className="ptt-hint">{D('再点结束', 'Press again to finish')}</div>
             </>
           )}
           {isBusy && (
             <>
               <div className="ptt-spinner" aria-hidden />
               <div className="ptt-partial">
-                {partialText || "正在转写..."}
+                {partialText || D('正在转写...', 'Transcribing...')}
               </div>
             </>
           )}
@@ -429,7 +450,9 @@ export function PressToTalkButton({
         } as CSSProperties & { WebkitAppRegion?: string }}
         onClick={handleToggleRecording}
         disabled={isBusy}
-        aria-label={isRecording ? "录音中,再次点击结束" : "点击开始录音"}
+        aria-label={isRecording
+          ? D('录音中,再次点击结束', 'Recording; press again to finish')
+          : D('点击开始录音', 'Click to start recording')}
       >
         {state === "idle" && "🎤"}
         {state === "starting" && "..."}

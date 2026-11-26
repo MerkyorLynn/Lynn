@@ -4,7 +4,11 @@ import { useI18n } from '../../hooks/use-i18n';
 import { playTtsSpeechStream } from '../../services/tts-stream-playback';
 import { createVoiceWsClientFromPlatform, VOICE_STATE } from '../../services/voice-ws-client';
 import { useStore } from '../../stores';
+import { isChineseLocale } from '../../utils/locale';
 import styles from './Chat.module.css';
+
+/** Inline zh/en picker for copy that ships next to the component. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -28,9 +32,9 @@ interface TtsControlButtonProps {
  *  3) WebAudio 直接解码 ArrayBuffer,绕开 <audio> 对 blob/data source 的兼容性差异
  */
 async function playAudioHttpUrl(audioPath: string): Promise<TtsPlaybackController> {
-  if (!audioPath) throw new Error('音频路径无效');
+  if (!audioPath) throw new Error(D('音频路径无效', 'Invalid audio path'));
   const base64 = await window.hana?.readFileBase64?.(audioPath);
-  if (!base64) throw new Error('读取音频文件失败（检查路径白名单）');
+  if (!base64) throw new Error(D('读取音频文件失败（检查路径白名单）', 'Could not read the audio file (check the path allowlist)'));
 
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -127,7 +131,7 @@ function messageAudioFilename(messageId?: string | null): string {
 
 async function playRealtimeSpeech(text: string, onLateError?: (message: string) => void): Promise<TtsPlaybackController> {
   const value = text.trim().slice(0, 3000);
-  if (!value) throw new Error('没有可朗读的文本');
+  if (!value) throw new Error(D('没有可朗读的文本', 'There is no text to read aloud'));
 
   let finished = false;
   let heardAudio = false;
@@ -155,7 +159,7 @@ async function playRealtimeSpeech(text: string, onLateError?: (message: string) 
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : String(err);
-      if (!heardAudio) onLateError?.(`StepFun Realtime 朗读失败：${message}`);
+      if (!heardAudio) onLateError?.(`${D('StepFun Realtime 朗读失败：', 'StepFun Realtime playback failed: ')}${message}`);
       finish(client);
     },
   });
@@ -166,7 +170,7 @@ async function playRealtimeSpeech(text: string, onLateError?: (message: string) 
 
   firstAudioTimer = setTimeout(() => {
     if (!heardAudio) {
-      onLateError?.('StepFun Realtime 暂未返回语音，已停止本次朗读。');
+      onLateError?.(D('StepFun Realtime 暂未返回语音，已停止本次朗读。', 'StepFun Realtime returned no speech, so this reading stopped.'));
       finish(client);
     }
   }, 12_000);
@@ -225,7 +229,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
   const handleClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
     const startBrowserPlayback = async (toastText: string) => {
       const controller = speakViaBrowser(plainText.slice(0, 3000));
-      if (!controller) throw new Error('浏览器 TTS 不可用');
+      if (!controller) throw new Error(D('浏览器 TTS 不可用', 'Browser TTS is unavailable'));
       ttsControllerRef.current = controller;
       setTtsPlaying(true);
       addToast(toastText, 'info');
@@ -240,11 +244,11 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
     if (e.shiftKey && ttsBrowserFallbackEnabled) {
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
-        addToast('已停止浏览器朗读', 'info');
+        addToast(D('已停止浏览器朗读', 'Browser reading stopped'), 'info');
         return;
       }
       try {
-        await startBrowserPlayback('浏览器朗读中 · 再按一次停止');
+        await startBrowserPlayback(D('浏览器朗读中 · 再按一次停止', 'Reading in the browser · press again to stop'));
       } catch (err) {
         addToast(err instanceof Error ? err.message : String(err), 'error');
       }
@@ -253,7 +257,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
 
     if (ttsPlaying) {
       stopTtsPlayback();
-      addToast('已停止朗读', 'info');
+      addToast(D('已停止朗读', 'Reading stopped'), 'info');
       return;
     }
 
@@ -277,7 +281,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
       });
       ttsControllerRef.current = controller;
       setTtsPlaying(true);
-      addToast('正在流式朗读 · 再按一次停止', 'success');
+      addToast(D('正在流式朗读 · 再按一次停止', 'Streaming playback · press again to stop'), 'success');
       controller.finished.finally(() => {
         if (ttsControllerRef.current === controller) {
           ttsControllerRef.current = null;
@@ -290,7 +294,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
       const controller = await playRealtimeSpeech(plainText, (message) => addToast(message, 'error'));
       ttsControllerRef.current = controller;
       setTtsPlaying(true);
-      addToast('正在用 StepFun Realtime 朗读 · 再按一次停止', 'success');
+      addToast(D('正在用 StepFun Realtime 朗读 · 再按一次停止', 'Reading with StepFun Realtime · press again to stop'), 'success');
       controller.finished.finally(() => {
         if (ttsControllerRef.current === controller) {
           ttsControllerRef.current = null;
@@ -308,7 +312,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
       }
       if (ttsAudioPath) {
         try {
-          await startPlayback(ttsAudioPath, '正在朗读 · 再按一次停止');
+          await startPlayback(ttsAudioPath, D('正在朗读 · 再按一次停止', 'Reading aloud · press again to stop'));
           return;
         } catch {
           setTtsAudioPath(null);
@@ -322,7 +326,7 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
           console.warn('[tts] stream playback unavailable, falling back to file TTS:', streamErr);
         }
       }
-      addToast('准备朗读...', 'info');
+      addToast(D('准备朗读...', 'Preparing to read aloud...'), 'info');
       const res = await hanaFetch('/api/tools/tts-bridge.tts_speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -336,30 +340,32 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
       const audioPath = data?.details?.path || data?.result?.details?.path;
       if (!audioPath) {
         if (ttsBrowserFallbackEnabled) {
-          await startBrowserPlayback('服务端 TTS 无可播放音频,已自动改用浏览器朗读');
+          await startBrowserPlayback(D('服务端 TTS 无可播放音频,已自动改用浏览器朗读', 'Server TTS returned no playable audio, so browser reading took over automatically'));
         } else {
-          addToast('TTS 返回缺失 path', 'error');
+          addToast(D('TTS 返回缺失 path', 'TTS response is missing a path'), 'error');
         }
         return;
       }
       setTtsAudioPath(audioPath);
       try {
         const cached = data?.details?.cached || data?.result?.details?.cached;
-        await startPlayback(audioPath, cached ? '正在朗读（已缓存）· 再按一次停止' : '正在朗读 · 再按一次停止 · 右键换音色');
+        await startPlayback(audioPath, cached
+          ? D('正在朗读（已缓存）· 再按一次停止', 'Reading aloud (cached) · press again to stop')
+          : D('正在朗读 · 再按一次停止 · 右键换音色', 'Reading aloud · press again to stop · right-click to change voice'));
       } catch (err: any) {
         if (ttsBrowserFallbackEnabled) {
-          await startBrowserPlayback(`播放失败,已自动改用浏览器朗读: ${err?.message || err}`);
+          await startBrowserPlayback(`${D('播放失败,已自动改用浏览器朗读: ', 'Playback failed, so browser reading took over automatically: ')}${err?.message || err}`);
         } else {
-          addToast(`播放失败：${err?.message || err}。音频已保存，可在 Voice 设置里检查服务状态。`, 'error');
+          addToast(`${D('播放失败：', 'Playback failed: ')}${err?.message || err}${D('。音频已保存，可在 Voice 设置里检查服务状态。', '. The audio was saved; check the service status in Voice settings.')}`, 'error');
         }
       }
     } catch (err) {
       if (ttsBrowserFallbackEnabled) {
         try {
-          await startBrowserPlayback(`服务端 TTS 不可用,已自动改用浏览器朗读: ${err instanceof Error ? err.message : String(err)}`);
+          await startBrowserPlayback(`${D('服务端 TTS 不可用,已自动改用浏览器朗读: ', 'Server TTS is unavailable, so browser reading took over automatically: ')}${err instanceof Error ? err.message : String(err)}`);
           return;
         } catch (fallbackErr) {
-          addToast(`TTS 不可用: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`, 'error');
+          addToast(`${D('TTS 不可用: ', 'TTS unavailable: ')}${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`, 'error');
           return;
         }
       }
@@ -380,8 +386,8 @@ export function TtsControlButton({ plainText, messageId, isStreamingMessage }: T
     <button
       className={styles.msgCopyBtn}
       onClick={handleClick}
-      title={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读 · Shift+点击=即时浏览器朗读 · 右键音色设置')}
-      aria-label={ttsPlaying ? '停止朗读' : (t('chat.speak') || '朗读')}
+      title={ttsPlaying ? D('停止朗读', 'Stop reading') : (t('chat.speak') || 'Read aloud · Shift+click for instant browser speech · right-click for voice settings')}
+      aria-label={ttsPlaying ? D('停止朗读', 'Stop reading') : (t('chat.speak') || 'Read aloud')}
       aria-pressed={ttsPlaying}
       onContextMenu={(e) => {
         e.preventDefault();

@@ -1,4 +1,8 @@
 import { useStore } from '../../stores';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { DeepResearchPanel } from './DeepResearchPanel';
 
 export function DeepResearchLauncher({
@@ -36,19 +40,32 @@ export function DeepResearchLauncher({
       isStreaming={isStreaming}
       onClose={onClose}
       onFillTemplate={() => {
-        const next = '为我做一份深度调研：';
+        const next = D('为我做一份深度调研：', 'Please do a deep research report on: ');
         if (readLatestInputValue().trim()) {
-          useStore.getState().addToast?.('输入框已有内容，未覆盖模板；可以直接开始深研。', 'info', 3000, {
-            dedupeKey: 'deep-research-template-kept',
-          });
+          useStore.getState().addToast?.(
+            D(
+              '输入框已有内容，未覆盖模板；可以直接开始深研。',
+              'The composer already has text, so the template was not applied. You can start research directly.',
+            ),
+            'info',
+            3000,
+            {
+                dedupeKey: 'deep-research-template-kept',
+            },
+          );
           requestInputFocus();
           return;
         }
         setInputValue(next);
         setComposerText(next);
-        useStore.getState().addToast?.('已填入深度调研模板。', 'success', 2200, {
-          dedupeKey: 'deep-research-template-filled',
-        });
+        useStore.getState().addToast?.(
+          D('已填入深度调研模板。', 'Deep research template inserted.'),
+          'success',
+          2200,
+          {
+            dedupeKey: 'deep-research-template-filled',
+          },
+        );
         requestInputFocus();
       }}
       onStart={onStart}

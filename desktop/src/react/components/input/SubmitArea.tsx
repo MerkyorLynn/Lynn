@@ -81,7 +81,7 @@ export function SubmitArea({
   return (
     <div className={styles['input-bottom-bar']}>
       <div className={styles['input-actions']}>
-        <button type="button" className={styles['attach-btn']} onClick={onAttachClick} title={t('input.attachFile') || '添加附件'}>
+        <button type="button" className={styles['attach-btn']} onClick={onAttachClick} title={t('input.attachFileTitle') || 'Attach file'}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
         </button>
         <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={onFileInputChange} />
@@ -89,8 +89,8 @@ export function SubmitArea({
           type="button"
           className={styles['attach-btn']}
           onClick={onVoiceClick}
-          title="实时语音对话 · 嘈杂环境说完点完成本轮"
-          aria-label="打开 Lynn 实时语音对话"
+          title={t('input.voiceChatTitle') || 'Live voice chat'}
+          aria-label={t('input.voiceChatAria') || 'Open Lynn live voice chat'}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" />
@@ -104,14 +104,14 @@ export function SubmitArea({
             type="button"
             className={styles['attach-btn']}
             onClick={() => setMoreOpen((open) => !open)}
-            aria-label="更多输入选项"
+            aria-label={t('input.moreInputOptions') || 'More input options'}
             aria-expanded={moreOpen}
-            title="更多输入选项"
+            title={t('input.moreInputOptions') || 'More input options'}
           >
             ⋯
           </button>
           {moreOpen && (
-            <div className={styles['composer-more-menu']} role="menu" aria-label="更多输入选项">
+            <div className={styles['composer-more-menu']} role="menu" aria-label={t('input.moreInputOptions') || 'More input options'}>
               <button
                 type="button"
                 className={`${styles['deep-research-pill']} ${deepResearchOpen ? styles['deep-research-pill-active'] : ''}`}
@@ -120,7 +120,7 @@ export function SubmitArea({
                 aria-pressed={deepResearchOpen}
               >
                 <span className={styles['deep-research-pill-mark']}>⌁</span>
-                <span>深度调研</span>
+                <span>{t('input.deepResearch') || 'Deep research'}</span>
               </button>
               <SecurityModeSelector />
               <WritingModeToggle />

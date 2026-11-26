@@ -7,9 +7,13 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { hanaFetch } from '../../hooks/use-hana-fetch';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near this module. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
 import { useStore } from '../../stores';
 import styles from './AuthorizationCard.module.css';
-
 
 type AuthorizationStatus = 'pending' | 'confirmed' | 'rejected';
 type AuthorizationAction = 'confirmed_once' | 'confirmed_session' | 'confirmed_persistent' | 'rejected';
@@ -71,11 +75,15 @@ function buildSummary(scopeLabel: string, trustedRootLabel: string): string {
 function deriveCommandLabel(category: string): string {
   if (category === 'package_install') {
     const v = window.t('security.auth.installCommandLabel');
-    return (v && v !== 'security.auth.installCommandLabel') ? v : '将要安装的命令';
+    return (v && v !== 'security.auth.installCommandLabel')
+      ? v
+      : D('将要安装的命令', 'Command to be installed');
   }
   if (category === 'script_install') {
     const v = window.t('security.auth.installScriptLabel');
-    return (v && v !== 'security.auth.installScriptLabel') ? v : '将要执行的远程安装脚本';
+    return (v && v !== 'security.auth.installScriptLabel')
+      ? v
+      : D('将要执行的远程安装脚本', 'Remote install script to be executed');
   }
   return window.t('security.auth.commandLabel') || 'About to execute:';
 }

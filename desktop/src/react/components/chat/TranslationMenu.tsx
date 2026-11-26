@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TRANSLATION_TARGETS } from './AssistantMessage.helpers';
+import { TRANSLATION_TARGETS, translationTargetLabel } from './AssistantMessage.helpers';
+import { useI18n } from '../../hooks/use-i18n';
 import styles from './Chat.module.css';
 
 export function TranslationMenu({ busy, disabled, onTranslate }: {
@@ -8,6 +9,7 @@ export function TranslationMenu({ busy, disabled, onTranslate }: {
   disabled: boolean;
   onTranslate: (language: string) => Promise<void>;
 }) {
+  const { t, locale } = useI18n();
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -34,9 +36,13 @@ export function TranslationMenu({ busy, disabled, onTranslate }: {
     };
   }, [position]);
 
+  const busyLabel = t('chat.translating') || 'Translating';
+  const moreLabel = t('chat.moreMessageActions') || 'More message actions';
+  const menuLabel = t('chat.translateReply') || 'Translate reply';
+
   return <>
     <button ref={trigger} type="button" className={styles.msgCopyBtn} disabled={busy || disabled}
-      title={busy ? '翻译中' : '更多消息操作'} aria-label={busy ? '翻译中' : '更多消息操作'}
+      title={busy ? busyLabel : moreLabel} aria-label={busy ? busyLabel : moreLabel}
       aria-haspopup="menu" aria-expanded={!!position} aria-controls={position ? id : undefined}
       onClick={() => {
         const rect = trigger.current!.getBoundingClientRect();
@@ -47,7 +53,7 @@ export function TranslationMenu({ busy, disabled, onTranslate }: {
       </svg>
     </button>
     {position && createPortal(
-      <div id={id} ref={menu} role="menu" aria-label="翻译回复" className={styles.translationMenu} style={position}
+      <div id={id} ref={menu} role="menu" aria-label={menuLabel} className={styles.translationMenu} style={position}
         onKeyDown={event => {
           const buttons = Array.from(menu.current?.querySelectorAll('button') || []);
           const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -60,9 +66,11 @@ export function TranslationMenu({ busy, disabled, onTranslate }: {
             buttons[next]?.focus();
           }
         }}>
-        <span className={styles.translationMenuLabel}>翻译回复</span>
+        <span className={styles.translationMenuLabel}>{menuLabel}</span>
         {TRANSLATION_TARGETS.map(language => <button type="button" role="menuitem" key={language}
-          onClick={() => { setPosition(null); trigger.current?.focus(); void onTranslate(language); }}>翻译成{language}</button>)}
+          onClick={() => { setPosition(null); trigger.current?.focus(); void onTranslate(translationTargetLabel(language, locale)); }}>
+          {(t('chat.translateTo', { language: translationTargetLabel(language, locale) }) || `Translate to ${translationTargetLabel(language, locale)}`)}
+        </button>)}
       </div>, document.body,
     )}
   </>;

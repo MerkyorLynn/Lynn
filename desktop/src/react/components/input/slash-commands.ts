@@ -6,6 +6,10 @@
 
 import { hanaFetch } from '../../hooks/use-hana-fetch';
 import { getWebSocket } from '../../services/websocket';
+import { isChineseLocale } from '../../utils/locale';
+
+/** Inline zh/en picker for copy that ships near these commands. */
+const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
 import { PROMPT_TEMPLATES } from '../../config/prompt-templates';
 
 // ── Xing Prompt ──
@@ -227,7 +231,7 @@ export function buildSlashCommands(
     {
       name: 'goal',
       label: '/goal',
-      description: '目标模式：不达成不主动停',
+      description: D('目标模式：不达成不主动停', 'Goal mode: keeps going until the goal is met'),
       busyLabel: '',
       icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>',
       execute: executeGoalFn,
