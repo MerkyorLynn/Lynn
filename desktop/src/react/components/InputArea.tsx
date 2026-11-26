@@ -127,7 +127,7 @@ function InputAreaInner() {
       {
         id: currentModelRef.id,
         provider: currentModelRef.provider,
-        name: isDefaultBrain ? '默认模型' : currentModelRef.id,
+        name: isDefaultBrain ? D('默认模型', 'Default model') : currentModelRef.id,
         isCurrent: true,
         reasoning: true,
         contextWindow: isDefaultBrain ? 128000 : undefined,

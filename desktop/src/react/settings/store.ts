@@ -34,6 +34,8 @@ export interface SkillInfo {
 export interface ProviderSummary {
   type: 'api-key' | 'oauth' | 'none';
   display_name: string;
+  /** English label supplied by the server; used when the UI locale is not Chinese. */
+  display_name_en?: string;
   base_url: string;
   api: string;
   api_key: string;

@@ -5,10 +5,12 @@ import { t, formatContext, lookupModelMeta } from '../../helpers';
 import { ModelEditPanel } from './ModelEditPanel';
 import {
   BRAIN_PROVIDER_ID,
-  getBrainComplianceNote,
-  getBrainDisplayMetaLabel,
-  getBrainDisplayName,
 } from '../../../../../../shared/brain-provider.js';
+import {
+  brainComplianceNote,
+  brainDisplayMetaLabel,
+  brainDisplayName,
+} from '../../../utils/brain-models';
 import styles from '../../Settings.module.css';
 import { notifyModelsChanged } from './model-change-events';
 
@@ -323,13 +325,13 @@ export function ProviderModelList({ providerId, summary, onRefresh }: {
     return (
       <div className={styles['pv-models']}>
         <div className={styles['pv-default-model-card']}>
-          <div className={styles['pv-default-model-title']}>{getBrainDisplayName()}</div>
-          <div className={styles['pv-default-model-desc']}>{getBrainDisplayMetaLabel()}</div>
+          <div className={styles['pv-default-model-title']}>{brainDisplayName()}</div>
+          <div className={styles['pv-default-model-desc']}>{brainDisplayMetaLabel()}</div>
           <div className={styles['pv-default-model-hint']}>
             {t('settings.providers.defaultModelHint') || 'Lynn 会在后台统一调度默认模型，无需手动添加、删除或挑选具体型号。'}
           </div>
           <div className={styles['pv-default-model-hint']}>
-            {getBrainComplianceNote()}
+            {brainComplianceNote()}
           </div>
         </div>
       </div>

@@ -7,12 +7,13 @@ import {
   type SettingsConfig,
 } from '../store';
 import { hanaFetch } from '../api';
-import { t, PROVIDER_PRESETS } from '../helpers';
+import { t, getProviderPresets, type ProviderPresetDefinition } from '../helpers';
 import { loadSettingsConfig } from '../actions';
 import { ProviderDetail } from './providers/ProviderDetail';
 import { ModelTimeoutSettings } from './ModelTimeoutSettings';
 import { AddCustomButton } from './providers/ProviderList';
-import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL, buildBrainProviderConfig } from '../../../../../shared/brain-provider.js';
+import { BRAIN_PROVIDER_ID, buildBrainProviderConfig } from '../../../../../shared/brain-provider.js';
+import { brainDisplayName } from '../../utils/brain-models';
 import styles from '../Settings.module.css';
 import { isChineseLocale } from '../../utils/locale';
 
@@ -53,7 +54,8 @@ const LOCAL_PROVIDER_ORDER = [
   'local-qwen35-9b-q4km-imatrix',
 ];
 const LOCAL_QWEN_PROVIDER_ID = 'local-qwen35-9b-q4km-imatrix';
-const LOCAL_QWEN_PROVIDER_LABEL = D('本地 Qwen3.8-27B', 'Local Qwen3.8-27B');
+/** Live label: resolved per call so it follows the active locale. */
+const localQwenProviderLabel = () => D('本地 Qwen3.8-27B', 'Local Qwen3.8-27B');
 const LOCAL_QWEN_COMPAT_PROVIDER_IDS = new Set([
   LOCAL_QWEN_PROVIDER_ID,
   'local-qwen35-4b-q4km',
@@ -68,7 +70,7 @@ function normalizeProviderId(id?: string | null) {
   const raw = typeof id === 'string' ? id.trim() : '';
   if (!raw) return null;
   if (isLocalQwenProviderId(raw)) return LOCAL_QWEN_PROVIDER_ID;
-  const preset = PROVIDER_PRESETS.find(p =>
+  const preset = getProviderPresets().find(p =>
     p.value.toLowerCase() === raw.toLowerCase() ||
     p.label.toLowerCase() === raw.toLowerCase()
   );
@@ -136,7 +138,7 @@ function normalizeProvidersSummary(input: Record<string, ProviderSummary>): Reco
 const LOCAL_PROVIDER_FALLBACKS: Record<string, ProviderSummary> = {
   [LOCAL_QWEN_PROVIDER_ID]: {
     type: 'none',
-    display_name: LOCAL_QWEN_PROVIDER_LABEL,
+    display_name: localQwenProviderLabel(),
     base_url: 'http://127.0.0.1:18099/v1',
     api: 'openai-completions',
     api_key: '',
@@ -215,7 +217,7 @@ function buildPresetSummary(id: string): ProviderSummary | null {
     const cfg = buildBrainProviderConfig();
     return {
       type: 'none',
-      display_name: cfg.display_name,
+      display_name: brainDisplayName(),
       base_url: cfg.base_url,
       api: cfg.api,
       api_key: '',
@@ -228,7 +230,7 @@ function buildPresetSummary(id: string): ProviderSummary | null {
     };
   }
 
-  const preset = PROVIDER_PRESETS.find(p => p.value === id);
+  const preset = getProviderPresets().find(p => p.value === id);
   if (!preset) return null;
   return {
     type: (preset.noKey || preset.local) ? 'none' as const : 'api-key' as const,
@@ -326,11 +328,11 @@ function ReadyProvidersTab() {
     const normalizedPreferred = normalizeProviderId(resolvedPreferredProviderId);
     const preferred = normalizedPreferred && (
       visibleProviderIds.includes(normalizedPreferred) ||
-      PROVIDER_PRESETS.some((preset) => preset.value === normalizedPreferred)
+      getProviderPresets().some((preset) => preset.value === normalizedPreferred)
     )
       ? normalizedPreferred
       : null;
-    const fallback = preferred || visibleProviderIds[0] || PROVIDER_PRESETS[0]?.value || null;
+    const fallback = preferred || visibleProviderIds[0] || getProviderPresets()[0]?.value || null;
     if (fallback && fallback !== selectedProviderId) {
       useSettingsStore.setState({ selectedProviderId: fallback });
     }
@@ -344,10 +346,10 @@ function ReadyProvidersTab() {
   const registeredApiKey = visibleRegisteredApiIds;
   const registeredSet = new Set(providerIds.map(id => normalizeProviderId(id) || id));
 
-  const unregisteredPresets = PROVIDER_PRESETS.filter(p =>
+  const unregisteredPresets = getProviderPresets().filter(p =>
     summaryLoaded && !registeredSet.has(p.value) && !oauthProviders.includes(p.value)
   );
-  const presetValues = new Set(PROVIDER_PRESETS.map(p => p.value));
+  const presetValues = new Set(getProviderPresets().map(p => p.value));
   const customProviders = sortByPriority(
     registeredApiKey.filter(id => !presetValues.has(id)),
     API_PROVIDER_ORDER,
@@ -361,12 +363,15 @@ function ReadyProvidersTab() {
   };
 
   const getProviderLabel = (id: string, p?: ProviderSummary) => {
-    if (isLocalQwenProviderId(id)) return LOCAL_QWEN_PROVIDER_LABEL;
-    if (id === BRAIN_PROVIDER_ID) return BRAIN_PROVIDER_LABEL;
+    if (isLocalQwenProviderId(id)) return localQwenProviderLabel();
+    if (id === BRAIN_PROVIDER_ID) return brainDisplayName();
     const oauthLabels = oauthProviderLabels();
     if (oauthLabels[id]) return oauthLabels[id];
-    const preset = PROVIDER_PRESETS.find(pr => pr.value === id);
-    return preset?.label || p?.display_name || id;
+    const preset = getProviderPresets().find(pr => pr.value === id);
+    // Outside Chinese, prefer the English label the server sends per provider
+    // (its `display_name` is the Chinese plugin name).
+    const serverLabel = !isChineseLocale() && p?.display_name_en ? p.display_name_en : null;
+    return preset?.label || serverLabel || p?.display_name || id;
   };
 
   const renderRegistered = (id: string) => {
@@ -390,7 +395,7 @@ function ReadyProvidersTab() {
     );
   };
 
-  const renderUnregistered = (preset: typeof PROVIDER_PRESETS[0]) => (
+  const renderUnregistered = (preset: ProviderPresetDefinition) => (
     <button
       key={preset.value}
       className={`${styles['pv-list-item']} ${styles['dim']}${selected === preset.value ? ' ' + styles['selected'] : ''}`}
@@ -446,17 +451,17 @@ function ReadyProvidersTab() {
           <ModelTimeoutSettings />
           {selected ? (() => {
             const existing = providersSummary[selected];
-            const preset = PROVIDER_PRESETS.find(p => p.value === selected);
+            const preset = getProviderPresets().find(p => p.value === selected);
             const rawSummary = existing || buildPresetSummary(selected);
             const summary = selected === LOCAL_QWEN_PROVIDER_ID && rawSummary
-              ? { ...rawSummary, display_name: LOCAL_QWEN_PROVIDER_LABEL }
+              ? { ...rawSummary, display_name: localQwenProviderLabel() }
               : rawSummary;
             if (!summary) {
               return (
                 <div className={styles['pv-empty']}>
                   {summaryLoadError
                     ? `${t('settings.providers.loadFailed')}: ${summaryLoadError}`
-                    : (summaryLoaded ? t('settings.providers.selectHint') : '正在读取模型配置...')}
+                    : (summaryLoaded ? t('settings.providers.selectHint') : D('正在读取模型配置...', 'Loading model configuration...'))}
                 </div>
               );
             }

@@ -45,3 +45,9 @@ export function isChineseLocale(locale?: string | null): boolean {
 export function localeText(zh: string, en: string, locale?: string | null): string {
   return isChineseLocale(locale) ? zh : en;
 }
+
+/**
+ * Short alias for {@link localeText}, matching the `D(zh, en)` idiom used across
+ * the renderer for copy that ships inline rather than in the locale packs.
+ */
+export const D = localeText;

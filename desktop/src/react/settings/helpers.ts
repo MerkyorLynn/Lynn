@@ -15,6 +15,11 @@ import { isChineseLocale } from '../utils/locale';
 
 /** Inline zh/en picker for provider preset labels. */
 const D = (zh: string, en: string) => (isChineseLocale() ? zh : en);
+
+/** Localized label for the built-in default provider ("默认模型"). */
+export function brainProviderLabel(): string {
+  return D('默认模型', 'Default model');
+}
 import knownModels from '../../../../lib/known-models.json';
 
 const platform = window.platform;
@@ -202,28 +207,43 @@ export function savePins() {
   }, 300);
 }
 
-export const PROVIDER_PRESETS = [
-  { value: BRAIN_PROVIDER_ID, label: BRAIN_PROVIDER_LABEL, url: BRAIN_PROVIDER_BASE_URL, api: BRAIN_PROVIDER_API, noKey: true, defaultModelId: BRAIN_DEFAULT_MODEL_ID },
-  { value: 'minimax', label: 'MiniMax', url: 'https://api.minimaxi.com/v1', api: 'openai-completions' },
-  { value: 'zhipu', label: 'Zhipu (GLM)', url: 'https://open.bigmodel.cn/api/paas/v4', api: 'openai-completions' },
-  { value: 'stepfun', label: D('阶跃星辰 (StepFun)', 'StepFun'), url: 'https://api.stepfun.com/v1', api: 'openai-completions' },
-  { value: 'hunyuan', label: D('腾讯混元', 'Tencent Hunyuan'), url: 'https://api.hunyuan.cloud.tencent.com/v1', api: 'openai-completions' },
-  { value: 'ollama', label: 'Ollama (Local)', url: 'http://localhost:11434/v1', api: 'openai-completions', local: true },
-  { value: 'dashscope', label: 'DashScope (Qwen)', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api: 'openai-completions' },
-  { value: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1', api: 'openai-completions' },
-  { value: 'deepseek', label: 'DeepSeek', url: 'https://api.deepseek.com/v1', api: 'openai-completions' },
-  { value: 'volcengine', label: D('Volcengine (豆包)', 'Volcengine (Doubao)'), url: 'https://ark.cn-beijing.volces.com/api/v3', api: 'openai-completions' },
-  { value: 'moonshot', label: 'Moonshot (Kimi)', url: 'https://api.moonshot.cn/v1', api: 'openai-completions' },
-  { value: 'minimax-coding', label: 'MiniMax Coding Plan', url: 'https://api.minimaxi.com/v1', api: 'openai-completions' },
-  { value: 'kimi-coding', label: 'Kimi Coding Plan', url: 'https://api.kimi.com/coding/', api: 'anthropic-messages' },
-  { value: 'zhipu-coding', label: D('智谱 Coding Plan', 'Zhipu Coding Plan'), url: 'https://open.bigmodel.cn/api/coding/paas/v4', api: 'openai-completions' },
-  { value: 'stepfun-coding', label: D('阶跃星辰 Coding Plan', 'StepFun Coding Plan'), url: 'https://api.stepfun.com/step_plan/v1', api: 'openai-completions' },
-  { value: 'tencent-coding', label: D('腾讯云 Coding Plan', 'Tencent Cloud Coding Plan'), url: 'https://api.lkeap.cloud.tencent.com/coding/v3', api: 'openai-completions' },
-  { value: 'siliconflow', label: 'SiliconFlow', url: 'https://api.siliconflow.cn/v1', api: 'openai-completions' },
-  { value: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1', api: 'openai-completions' },
-  { value: 'mistral', label: 'Mistral', url: 'https://api.mistral.ai/v1', api: 'openai-completions' },
-  { value: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', api: 'openai-completions' },
-];
+/**
+ * Provider presets for the settings list.
+ *
+ * Deliberately a function, not a module-level const: the labels carry inline
+ * zh/en pairs resolved through `D()`. A const would freeze whichever language
+ * was active at import time, which is why `百炼 Coding Plan` kept showing up in
+ * English mode.
+ */
+export function getProviderPresets() {
+  return [
+    { value: BRAIN_PROVIDER_ID, label: brainProviderLabel(), url: BRAIN_PROVIDER_BASE_URL, api: BRAIN_PROVIDER_API, noKey: true, defaultModelId: BRAIN_DEFAULT_MODEL_ID },
+    { value: 'minimax', label: 'MiniMax', url: 'https://api.minimaxi.com/v1', api: 'openai-completions' },
+    { value: 'zhipu', label: D('智谱 (GLM)', 'Zhipu (GLM)'), url: 'https://open.bigmodel.cn/api/paas/v4', api: 'openai-completions' },
+    { value: 'stepfun', label: D('阶跃星辰 (StepFun)', 'StepFun'), url: 'https://api.stepfun.com/v1', api: 'openai-completions' },
+    { value: 'hunyuan', label: D('腾讯混元', 'Tencent Hunyuan'), url: 'https://api.hunyuan.cloud.tencent.com/v1', api: 'openai-completions' },
+    { value: 'ollama', label: D('Ollama (本地)', 'Ollama (Local)'), url: 'http://localhost:11434/v1', api: 'openai-completions', local: true },
+    { value: 'dashscope', label: D('阿里云百炼 (DashScope)', 'Alibaba DashScope'), url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api: 'openai-completions' },
+    { value: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1', api: 'openai-completions' },
+    { value: 'deepseek', label: 'DeepSeek', url: 'https://api.deepseek.com/v1', api: 'openai-completions' },
+    { value: 'volcengine', label: D('火山引擎 (豆包)', 'Volcengine (Doubao)'), url: 'https://ark.cn-beijing.volces.com/api/v3', api: 'openai-completions' },
+    { value: 'moonshot', label: 'Moonshot (Kimi)', url: 'https://api.moonshot.cn/v1', api: 'openai-completions' },
+    { value: 'minimax-coding', label: 'MiniMax Coding Plan', url: 'https://api.minimaxi.com/v1', api: 'openai-completions' },
+    { value: 'kimi-coding', label: 'Kimi Coding Plan', url: 'https://api.kimi.com/coding/', api: 'anthropic-messages' },
+    { value: 'zhipu-coding', label: D('智谱 Coding Plan', 'Zhipu Coding Plan'), url: 'https://open.bigmodel.cn/api/coding/paas/v4', api: 'openai-completions' },
+    { value: 'stepfun-coding', label: D('阶跃星辰 Coding Plan', 'StepFun Coding Plan'), url: 'https://api.stepfun.com/step_plan/v1', api: 'openai-completions' },
+    { value: 'tencent-coding', label: D('腾讯云 Coding Plan', 'Tencent Cloud Coding Plan'), url: 'https://api.lkeap.cloud.tencent.com/coding/v3', api: 'openai-completions' },
+    { value: 'dashscope-coding', label: D('百炼 Coding Plan', 'DashScope Coding Plan'), url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', api: 'openai-completions' },
+    { value: 'volcengine-coding', label: D('火山引擎 Coding Plan', 'Volcengine Coding Plan'), url: 'https://ark.cn-beijing.volces.com/api/coding/v1', api: 'openai-completions' },
+    { value: 'siliconflow', label: D('硅基流动', 'SiliconFlow'), url: 'https://api.siliconflow.cn/v1', api: 'openai-completions' },
+    { value: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1', api: 'openai-completions' },
+    { value: 'mistral', label: 'Mistral', url: 'https://api.mistral.ai/v1', api: 'openai-completions' },
+    { value: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1', api: 'openai-completions' },
+  ];
+}
+
+/** One entry of {@link getProviderPresets}. */
+export type ProviderPresetDefinition = ReturnType<typeof getProviderPresets>[number];
 
 export const API_FORMAT_OPTIONS = [
   { value: 'openai-completions', label: labelFor('onboarding.provider.apiOpenai', 'OpenAI Compatible') },

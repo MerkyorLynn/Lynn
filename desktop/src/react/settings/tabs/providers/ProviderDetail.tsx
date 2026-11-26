@@ -8,7 +8,8 @@ import { ApiKeyCredentials } from './ApiKeyCredentials';
 import { ProviderModelList } from './ProviderModelList';
 import { useLlamacppState } from '../../../hooks/use-llamacpp-state';
 import { LocalModelSetupChoice, getLocalModelTier, localModelCatalog, localModelInstallBytes, requestLocalModelHelp } from '../../../components/input/LocalModelSetupChoice';
-import { BRAIN_PROVIDER_ID, BRAIN_PROVIDER_LABEL } from '../../../../../../shared/brain-provider.js';
+import { BRAIN_PROVIDER_ID } from '../../../../../../shared/brain-provider.js';
+import { brainDisplayName } from '../../../utils/brain-models';
 import styles from '../../Settings.module.css';
 import { notifyModelsChanged } from './model-change-events';
 import {
@@ -46,10 +47,10 @@ export function ProviderDetail({ providerId, summary, providerConfig, isPresetSe
 }) {
   const isLocalQwenProvider = isLocalQwenProviderId(providerId);
   const title = providerId === BRAIN_PROVIDER_ID
-    ? BRAIN_PROVIDER_LABEL
+    ? brainDisplayName()
     : isLocalQwenProvider
       ? localQwenProviderLabel()
-    : (summary.display_name || providerId);
+    : ((!isChineseLocale() && summary.display_name_en) || summary.display_name || providerId);
   return (
     <div className={styles['pv-detail-inner']}>
       <div className={styles['pv-detail-header']}>

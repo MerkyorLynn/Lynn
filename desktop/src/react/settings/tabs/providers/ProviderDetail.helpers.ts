@@ -18,8 +18,6 @@ export function localQwenProviderLabel(): string {
   return D('本地 Qwen3.8-27B Coder390', 'Local Qwen3.8-27B Coder390');
 }
 
-/** Snapshot for module-scope consumers; use localQwenProviderLabel() for live locale. */
-export const LOCAL_QWEN_PROVIDER_LABEL = localQwenProviderLabel();
 export const LOCAL_QWEN_DEFAULT_MODEL_ID = 'qwen38-27b-coder390-q3-lynnstyle';
 export const LOCAL_QWEN_DEFAULT_MODEL_FILE = 'Qwen3.8-27B-Coder390-EfficientThink-Q3LynnStyle-MTP.gguf';
 export const LOCAL_QWEN_DEFAULT_EXPECTED_SIZE = 17_303_770_432;

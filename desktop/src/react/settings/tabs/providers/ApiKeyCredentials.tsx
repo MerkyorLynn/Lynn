@@ -4,14 +4,14 @@ import { hanaFetch } from '../../api';
 import { t, API_FORMAT_OPTIONS } from '../../helpers';
 import { SelectWidget } from '../../widgets/SelectWidget';
 import { KeyInput } from '../../widgets/KeyInput';
+import { BRAIN_PROVIDER_ID } from '../../../../../../shared/brain-provider.js';
+import { D } from '../../../utils/locale';
 import {
-  BRAIN_PROVIDER_ID,
-  BRAIN_PROVIDER_LABEL,
-  getBrainComplianceNote,
-  getBrainDisplayName,
-  getBrainDisplayMetaLabel,
-  getBrainUserNotice,
-} from '../../../../../../shared/brain-provider.js';
+  brainComplianceNote,
+  brainDisplayName,
+  brainDisplayMetaLabel,
+  brainUserNotice,
+} from '../../../utils/brain-models';
 import styles from '../../Settings.module.css';
 import { notifyModelsChanged } from './model-change-events';
 
@@ -152,16 +152,16 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
     <div className={styles['pv-credentials']}>
       {isDefaultModelProvider && (
         <div className={styles['pv-default-model-card']} style={{ marginBottom: 10 }}>
-          <div className={styles['pv-default-model-title']}>{getBrainDisplayName()}</div>
-          <div className={styles['pv-default-model-desc']}>{getBrainDisplayMetaLabel()}</div>
+          <div className={styles['pv-default-model-title']}>{brainDisplayName()}</div>
+          <div className={styles['pv-default-model-desc']}>{brainDisplayMetaLabel()}</div>
           <div className={styles['pv-default-model-hint']}>
             {t('settings.providers.defaultModelReadyHint') || '这条链路已经内置好，日常直接使用即可。只有在你主动更换其他模型服务时，才需要再做额外配置。'}
           </div>
           <div className={styles['pv-default-model-hint']}>
-            {getBrainComplianceNote()}
+            {brainComplianceNote()}
           </div>
           <div className={styles['pv-default-model-hint']} style={{ opacity: 0.78 }}>
-            {getBrainUserNotice()}
+            {brainUserNotice()}
           </div>
         </div>
       )}
@@ -208,7 +208,9 @@ export function ApiKeyCredentials({ providerId, summary, providerConfig: _provid
             <input
               className={styles['settings-input']}
               type="text"
-              value={isDefaultModelProvider ? `${BRAIN_PROVIDER_LABEL} 内置设备签名` : 'Lynn signed device token'}
+              value={isDefaultModelProvider
+                ? D(`${brainDisplayName()} 内置设备签名`, `${brainDisplayName()} built-in device signature`)
+                : 'Lynn signed device token'}
               readOnly
             />
             {isDefaultModelProvider ? (

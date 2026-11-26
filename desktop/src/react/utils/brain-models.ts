@@ -1,12 +1,26 @@
 import {
-  BRAIN_DEFAULT_META_LABEL,
   BRAIN_DEFAULT_MODEL_ID,
   BRAIN_PROVIDER_ID,
+  getBrainComplianceNote,
+  getBrainDisplayMetaLabel,
   getBrainDisplayName,
+  getBrainUserNotice,
   isBrainModelRef,
 } from '../../../../shared/brain-provider.js';
 import { getUserFacingModelAlias } from '../../../../shared/assistant-role-models.js';
+import { currentLocale } from './locale';
 import { parseSharedModelRef } from './model-ref';
+
+/* ── Locale-aware default-model copy ────────────────────────────────────────
+ * The shared module returns Chinese unless given the active locale. These
+ * wrappers bind it to whatever the renderer currently has loaded, so every
+ * call site is English in English mode without threading a locale argument
+ * through each component.
+ */
+export const brainDisplayName = () => getBrainDisplayName(currentLocale());
+export const brainDisplayMetaLabel = () => getBrainDisplayMetaLabel(currentLocale());
+export const brainComplianceNote = () => getBrainComplianceNote(currentLocale());
+export const brainUserNotice = () => getBrainUserNotice(currentLocale());
 
 type BrainModelLike = {
   id: string;
@@ -36,8 +50,8 @@ function cloneCollapsedBrainModel<T extends BrainModelLike>(model: T, isCurrent:
     ...model,
     id: BRAIN_DEFAULT_MODEL_ID,
     provider: BRAIN_PROVIDER_ID,
-    name: getBrainDisplayName(),
-    metaLabel: BRAIN_DEFAULT_META_LABEL,
+    name: brainDisplayName(),
+    metaLabel: brainDisplayMetaLabel(),
     isCurrent,
   };
 }
@@ -60,12 +74,12 @@ export function normalizeDisplayModelName(model: BrainModelLike | null | undefin
     purpose: context?.purpose,
   });
   if (alias) return alias;
-  if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
+  if (isDisplayDefaultModel(model.id, model.provider)) return brainDisplayName();
   return model.name || model.id;
 }
 
 export function normalizeDisplayProviderLabel(provider?: string | null): string {
-  if (String(provider || '').trim() === BRAIN_PROVIDER_ID) return getBrainDisplayName();
+  if (String(provider || '').trim() === BRAIN_PROVIDER_ID) return brainDisplayName();
   return String(provider || '');
 }
 
@@ -106,7 +120,7 @@ export function formatCompactModelLabel(
     purpose: context?.purpose,
   });
   if (alias) return alias;
-  if (isDisplayDefaultModel(model.id, model.provider)) return getBrainDisplayName();
+  if (isDisplayDefaultModel(model.id, model.provider)) return brainDisplayName();
   return model.provider ? `${model.provider} / ${model.id}` : model.id;
 }
 

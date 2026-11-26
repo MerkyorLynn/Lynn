@@ -3,7 +3,7 @@ import { useStore } from '../stores';
 import { connectWebSocket } from '../services/websocket';
 import { hanaFetch } from '../hooks/use-hana-fetch';
 import { isDisplayDefaultModel } from '../utils/brain-models';
-import { getBrainComplianceNote } from '../../../../shared/brain-provider.js';
+import { brainComplianceNote } from '../utils/brain-models';
 import { getUserFacingModelAlias } from '../../../../shared/assistant-role-models.js';
 import styles from './StatusBar.module.css';
 import { useI18n } from '../hooks/use-i18n';
@@ -167,7 +167,7 @@ export function StatusBar() {
             <span
               key={item}
               className={styles.metaChip}
-              title={item.includes(translate('status.model.defaultName')) ? getBrainComplianceNote() : item}
+              title={item.includes(translate('status.model.defaultName')) ? brainComplianceNote() : item}
             >
               {item}
             </span>

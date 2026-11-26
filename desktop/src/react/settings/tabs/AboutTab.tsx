@@ -10,7 +10,7 @@ import { loadSettingsConfig } from '../actions';
 import iconUrl from '../../../assets/Lynn.png';
 import styles from '../Settings.module.css';
 import type { AutoUpdateState } from '../../types';
-import { getBrainComplianceNote, getBrainUserNotice } from '../../../../../shared/brain-provider.js';
+import { brainComplianceNote, brainUserNotice } from '../../utils/brain-models';
 
 const hana = window.hana;
 const REPO_URL = 'https://gitee.com/merkyor/Lynn';
@@ -191,10 +191,10 @@ export function AboutTab() {
           {D('模型服务声明', 'Model service notice')}
         </h2>
         <p className={styles['settings-desc']}>
-          {getBrainComplianceNote()}
+          {brainComplianceNote()}
         </p>
         <p className={styles['settings-desc']}>
-          {getBrainUserNotice()}
+          {brainUserNotice()}
         </p>
       </section>
 
